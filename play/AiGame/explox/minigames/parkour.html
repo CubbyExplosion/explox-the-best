@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Explox — Parkour</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#000; overflow:hidden; font-family:Arial,sans-serif; }
+    canvas { display:block; }
+
+    #clickMsg {
+      position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+      color:#fff; font-size:19px; background:rgba(0,0,0,0.85);
+      padding:18px 34px; border-radius:14px; text-align:center; z-index:20;
+      border:2px solid #00ffcc; line-height:1.9;
+    }
+    #hud { position:fixed; inset:0; pointer-events:none; display:none; }
+    #timerBox {
+      position:fixed; top:14px; left:50%; transform:translateX(-50%);
+      color:#fff; font-size:22px; font-weight:bold;
+      background:rgba(0,0,0,0.7); padding:8px 22px;
+      border-radius:12px; border:2px solid #00ffcc; letter-spacing:2px;
+    }
+    #coinsBox {
+      position:fixed; top:14px; left:14px;
+      font-size:18px; background:rgba(0,0,0,0.6);
+      padding:7px 14px; border-radius:10px; color:#FFD700;
+      border:1px solid #FFD700;
+    }
+    #levelBox {
+      position:fixed; top:56px; left:50%; transform:translateX(-50%);
+      font-size:13px; color:#00ffcc; background:rgba(0,0,0,0.5);
+      padding:4px 14px; border-radius:8px; letter-spacing:2px;
+    }
+    #bestBox {
+      position:fixed; top:14px; right:14px;
+      color:#00ffcc; font-size:13px;
+      background:rgba(0,0,0,0.6); padding:7px 14px; border-radius:10px;
+      border:1px solid #00ffcc44;
+    }
+    #wallBox {
+      position:fixed; bottom:60px; left:50%; transform:translateX(-50%);
+      color:#00ffcc; font-size:16px; font-weight:bold;
+      background:rgba(0,255,204,0.15); padding:5px 16px; border-radius:8px;
+      opacity:0; transition:opacity 0.3s;
+    }
+    #notif {
+      position:fixed; top:38%; left:50%; transform:translate(-50%,-50%);
+      color:#FFD700; font-size:28px; font-weight:bold;
+      text-shadow:2px 2px 8px #000; opacity:0; transition:opacity 0.3s;
+      pointer-events:none; white-space:nowrap;
+    }
+    #sprintBar {
+      position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
+      width:180px; height:12px; background:rgba(255,255,255,0.12);
+      border-radius:6px; border:1px solid #00ffcc44; overflow:hidden;
+    }
+    #sprintFill {
+      height:100%; width:100%; background:linear-gradient(90deg,#00ffcc,#00aaff);
+      border-radius:6px; transition:width 0.05s;
+    }
+    #sprintLabel {
+      position:fixed; bottom:30px; left:50%; transform:translateX(-50%);
+      color:#00ffcc; font-size:11px; letter-spacing:1px;
+    }
+    #controls {
+      position:fixed; bottom:14px; right:14px;
+      color:#aaa; font-size:11px; background:rgba(0,0,0,0.5);
+      padding:8px 12px; border-radius:8px; line-height:1.9;
+    }
+
+    /* ── SCREENS ── */
+    .screen {
+      position:fixed; inset:0; display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      background:linear-gradient(135deg,#0a0a1a,#001a1a);
+      color:#fff; z-index:50;
+    }
+    .screen h1 { font-size:44px; letter-spacing:4px; margin-bottom:8px; text-shadow:0 0 20px currentColor; }
+    .screen h2 { font-size:16px; color:#aaa; margin-bottom:18px; }
+    .bigTime { font-size:60px; font-weight:bold; color:#FFD700; text-shadow:0 0 24px #FFD700; margin:10px 0; }
+    .statLine { font-size:15px; color:#00ffcc; margin:3px 0; }
+    .bestLine { font-size:13px; color:#555; margin-top:4px; margin-bottom:18px; }
+
+    .screen button {
+      padding:13px 44px; font-size:16px; font-weight:bold;
+      background:linear-gradient(135deg,#00ffcc,#00aaff); border:none;
+      border-radius:12px; color:#000; cursor:pointer; letter-spacing:2px;
+      box-shadow:0 0 20px #00ffcc66; transition:transform 0.1s; margin:5px;
+    }
+    .screen button:hover { transform:scale(1.06); }
+    .backBtn {
+      padding:8px 24px; font-size:13px; background:transparent;
+      border:1px solid #555; border-radius:8px; color:#888; cursor:pointer;
+      box-shadow:none;
+    }
+    .backBtn:hover { border-color:#00ffcc; color:#fff; }
+
+    /* level select */
+    #levelSelect { background:linear-gradient(135deg,#0a0a1a,#001a1a); }
+    #levelSelect h1 { color:#00ffcc; }
+    .lvlCards { display:flex; gap:18px; margin:20px 0; }
+    .lvlCard {
+      width:160px; padding:20px 14px; background:rgba(255,255,255,0.06);
+      border:2px solid #333; border-radius:14px; text-align:center;
+      cursor:pointer; transition:border-color 0.2s, background 0.2s;
+    }
+    .lvlCard:hover { border-color:#00ffcc; background:rgba(0,255,204,0.1); }
+    .lvlCard .lvlNum { font-size:32px; font-weight:bold; }
+    .lvlCard .lvlName { font-size:13px; color:#aaa; margin:6px 0 4px; }
+    .lvlCard .lvlDiff { font-size:12px; }
+    .lvlCard .lvlBest { font-size:11px; color:#555; margin-top:6px; }
+    .lvlCard.locked { opacity:0.35; cursor:not-allowed; }
+  </style>
+</head>
+<body>
+
+<div id="clickMsg" style="display:none">
+  🏙️ <b>ROOFTOP PARKOUR</b><br>
+  WASD — Move &nbsp;|&nbsp; Mouse — Look &nbsp;|&nbsp; SPACE — Jump<br>
+  <span style="color:#00ffcc">SHIFT</span> — Sprint &nbsp;|&nbsp;
+  <span style="color:#00ffcc">SPACE off wall</span> — Wall Jump<br>
+  Collect 🪙 coins!<br><br>
+  <span style="font-size:13px;color:#aaa">Click to start</span>
+</div>
+
+<div id="hud">
+  <div id="timerBox">⏱️ 0.00s</div>
+  <div id="coinsBox">🪙 0</div>
+  <div id="levelBox">LEVEL 1</div>
+  <div id="bestBox">🏆 Best: --</div>
+  <div id="wallBox">🧱 WALL JUMP!</div>
+  <div id="notif"></div>
+  <div id="sprintLabel">SPRINT</div>
+  <div id="sprintBar"><div id="sprintFill"></div></div>
+  <div id="controls">WASD — Move<br>SHIFT — Sprint<br>SPACE — Jump / Wall Jump<br>Mouse — Look</div>
+</div>
+
+<!-- LEVEL SELECT -->
+<div id="levelSelect" class="screen">
+  <h1>🏙️ ROOFTOP PARKOUR</h1>
+  <h2>Choose a level</h2>
+  <div class="lvlCards">
+    <div class="lvlCard" id="card0" onclick="startLevel(0)">
+      <div class="lvlNum" style="color:#00ffcc">1</div>
+      <div class="lvlName">Easy Streets</div>
+      <div class="lvlDiff" style="color:#44ff88">★☆☆ Easy</div>
+      <div class="lvlBest" id="best0">Best: --</div>
+    </div>
+    <div class="lvlCard" id="card1" onclick="startLevel(1)">
+      <div class="lvlNum" style="color:#FFD700">2</div>
+      <div class="lvlName">Midtown Rush</div>
+      <div class="lvlDiff" style="color:#FFD700">★★☆ Medium</div>
+      <div class="lvlBest" id="best1">Best: --</div>
+    </div>
+    <div class="lvlCard" id="card2" onclick="startLevel(2)">
+      <div class="lvlNum" style="color:#ff4466">3</div>
+      <div class="lvlName">Sky Scrapers</div>
+      <div class="lvlDiff" style="color:#ff4466">★★★ Hard</div>
+      <div class="lvlBest" id="best2">Best: --</div>
+    </div>
+  </div>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<!-- LEVEL COMPLETE -->
+<div id="lvlCompleteScreen" class="screen" style="display:none">
+  <h1 id="lcTitle" style="color:#00ffcc">LEVEL COMPLETE!</h1>
+  <h2 id="lcSub">You cleared Level 1</h2>
+  <div class="bigTime" id="lcTime">0.00s</div>
+  <div class="statLine" id="lcCoins">🪙 Coins: 0</div>
+  <div class="bestLine" id="lcBest"></div>
+  <button id="lcNextBtn" onclick="goNextLevel()">▶ Next Level</button>
+  <button onclick="goLevelSelect()">↩ Level Select</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<!-- ALL DONE -->
+<div id="allDoneScreen" class="screen" style="display:none">
+  <h1 style="color:#FFD700">🏆 ALL DONE!</h1>
+  <h2>You beat every level!</h2>
+  <div class="bigTime" id="adTime">0.00s</div>
+  <div class="statLine" id="adCoins">🪙 Total Coins: 0</div>
+  <button onclick="goLevelSelect()">↩ Level Select</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ─── CONSTANTS ──────────────────────────────────────────────────────────────
+const GRAVITY    = -28;
+const JUMP_VEL   = 13;
+const WALL_VEL   = 11;
+const MOVE_SPD   = 7.5;
+const SPRINT_SPD = 13;
+const PLAT_THICK = 0.5;
+const P_HALF     = 0.8;
+const P_RADIUS   = 0.4;
+
+// ─── LEVEL DATA ─────────────────────────────────────────────────────────────
+const LEVELS = [
+
+  // ══ LEVEL 1 — Easy Streets ══════════════════════════════════════════════
+  {
+    name: 'Easy Streets',
+    bgColor: 0x050510,
+    fogDensity: 0.014,
+    neons: [
+      {x:24,y:5,z:0,c:0x0088ff,i:2},{x:54,y:5,z:0,c:0x00ffcc,i:2},{x:90,y:5,z:0,c:0xff00aa,i:2}
+    ],
+    defs: [
+      { x:0,   y:0, z:0,  w:10, d:10, c:0x334455, isStart:true },
+      { x:14,  y:0, z:0,  w:5,  d:5,  c:0x334455 },
+      { x:23,  y:0, z:0,  w:5,  d:5,  c:0x445566 },
+      { x:32,  y:0, z:1,  w:6,  d:5,  c:0x334455 },
+      { x:42,  y:0, z:0,  w:6,  d:6,  c:0x003366, isCp:true, cpIdx:1 },
+      { x:52,  y:0, z:0,  w:5,  d:5,  c:0x334455 },
+      { x:61,  y:1, z:0,  w:5,  d:5,  c:0x445566 },
+      { x:70,  y:2, z:0,  w:5,  d:5,  c:0x334455 },
+      { x:80,  y:2, z:0,  w:6,  d:6,  c:0x003366, isCp:true, cpIdx:2 },
+      { x:90,  y:2, z:0,  w:4,  d:4,  c:0x445566 },
+      { x:99,  y:3, z:0,  w:4,  d:4,  c:0x334455 },
+      { x:108, y:3, z:0,  w:4,  d:4,  c:0x445566 },
+      { x:117, y:3, z:0,  w:9,  d:9,  c:0x003300, isFinish:true },
+    ],
+    coinDefs: [
+      [14,2,0],[23,2,0],[32,2,0],
+      [52,2,0],[61,3,0],[70,4,0],
+      [90,4,0],[99,5,0],[108,5,0],[117,5,0],
+    ],
+  },
+
+  // ══ LEVEL 2 — Midtown Rush ══════════════════════════════════════════════
+  {
+    name: 'Midtown Rush',
+    bgColor: 0x08050f,
+    fogDensity: 0.016,
+    neons: [
+      {x:37,y:8,z:0,c:0x8800ff,i:2.5},{x:60,y:22,z:0,c:0x00ffcc,i:2.5},
+      {x:100,y:26,z:0,c:0xff00aa,i:2.5},{x:116,y:42,z:0,c:0xFFD700,i:2.5}
+    ],
+    defs: [
+      { x:0,   y:0,  z:0, w:10, d:10, c:0x334455, isStart:true },
+      { x:13,  y:0,  z:0, w:4,  d:4,  c:0x334455 },
+      { x:20,  y:2,  z:0, w:4,  d:4,  c:0x445566 },
+      { x:27,  y:4,  z:0, w:5,  d:5,  c:0x334455 },
+      { x:37,  y:4,  z:0, w:6,  d:6,  c:0x003366, isCp:true, cpIdx:1 },
+      { x:46,  y:4,  z:0, w:2,  d:3,  c:0x334455 },
+      { x:52,  y:4,  z:0, w:1,  d:8,  c:0x222233, isWall:true },
+      { x:50,  y:10, z:0, w:3,  d:3,  c:0x334455 },
+      { x:55,  y:14, z:0, w:3,  d:3,  c:0x445566 },
+      { x:60,  y:18, z:0, w:6,  d:6,  c:0x003366, isCp:true, cpIdx:2 },
+      { x:70,  y:18, z:0, w:3,  d:3,  c:0x334455 },
+      { x:78,  y:18, z:0, w:2,  d:3,  c:0x334455 },
+      { x:85,  y:20, z:0, w:3,  d:3,  c:0x445566 },
+      { x:92,  y:22, z:0, w:3,  d:4,  c:0x334455 },
+      { x:100, y:22, z:0, w:6,  d:6,  c:0x003366, isCp:true, cpIdx:3 },
+      { x:108, y:22, z:-4, w:3, d:3,  c:0x334455 },
+      { x:108, y:26, z:4,  w:3, d:3,  c:0x445566 },
+      { x:108, y:30, z:-4, w:3, d:3,  c:0x334455 },
+      { x:108, y:34, z:4,  w:3, d:3,  c:0x445566 },
+      { x:116, y:38, z:0,  w:9, d:9,  c:0x003300, isFinish:true },
+    ],
+    coinDefs: [
+      [13,2,0],[20,4,0],[27,6,0],
+      [46,6,0],[50,12,0],[55,16,0],
+      [70,20,0],[78,20,0],[85,22,0],
+      [108,24,-4],[108,28,4],[108,32,-4],[108,36,4],[116,40,0],
+    ],
+  },
+
+  // ══ LEVEL 3 — Sky Scrapers ══════════════════════════════════════════════
+  {
+    name: 'Sky Scrapers',
+    bgColor: 0x0a0005,
+    fogDensity: 0.012,
+    neons: [
+      {x:20,y:12,z:0,c:0xff0044,i:3},{x:50,y:28,z:0,c:0xff6600,i:3},
+      {x:80,y:48,z:0,c:0xff00aa,i:3},{x:110,y:66,z:0,c:0xFFD700,i:3}
+    ],
+    defs: [
+      // Start pad
+      { x:0,   y:0,  z:0,  w:8,  d:8,  c:0x331111, isStart:true },
+      // Sprint gap
+      { x:12,  y:0,  z:0,  w:2.5,d:2.5,c:0x442222 },
+      { x:18,  y:2,  z:0,  w:2,  d:2,  c:0x442222 },
+      // Checkpoint 1
+      { x:25,  y:4,  z:0,  w:5,  d:5,  c:0x330011, isCp:true, cpIdx:1 },
+      // Wall jump section 1 — two walls, must bounce between
+      { x:33,  y:4,  z:0,  w:2,  d:2,  c:0x442222 },
+      { x:39,  y:4,  z:-5, w:1,  d:10, c:0x221111, isWall:true },
+      { x:39,  y:4,  z:5,  w:1,  d:10, c:0x221111, isWall:true },
+      { x:36,  y:14, z:0,  w:2.5,d:2.5,c:0x442222 },
+      { x:43,  y:18, z:0,  w:2.5,d:2.5,c:0x553333 },
+      // Checkpoint 2
+      { x:50,  y:22, z:0,  w:5,  d:5,  c:0x330011, isCp:true, cpIdx:2 },
+      // Moving + tiny platforms
+      { x:59,  y:22, z:0,  w:2,  d:2,  c:0x442222, type:'moving', axis:'z', range:3, spd:1.6, phase:0 },
+      { x:67,  y:24, z:0,  w:2,  d:2,  c:0x553333, type:'moving', axis:'z', range:3, spd:2,   phase:1 },
+      { x:75,  y:26, z:0,  w:2,  d:2,  c:0x442222, type:'moving', axis:'x', range:2, spd:2.2, phase:0.5 },
+      // Checkpoint 3
+      { x:83,  y:30, z:0,  w:5,  d:5,  c:0x330011, isCp:true, cpIdx:3 },
+      // Wall jump + small ledges to the top
+      { x:91,  y:30, z:0,  w:2,  d:2,  c:0x442222 },
+      { x:97,  y:30, z:0,  w:1,  d:8,  c:0x221111, isWall:true },
+      { x:95,  y:40, z:0,  w:2.5,d:2.5,c:0x442222 },
+      { x:101, y:44, z:0,  w:2,  d:2,  c:0x553333 },
+      { x:107, y:48, z:0,  w:2,  d:2,  c:0x442222, type:'moving', axis:'z', range:2.5, spd:2.5, phase:0 },
+      { x:113, y:52, z:0,  w:2,  d:2,  c:0x553333 },
+      // FINISH
+      { x:120, y:56, z:0,  w:8,  d:8,  c:0x003300, isFinish:true },
+    ],
+    coinDefs: [
+      [12,2,0],[18,4,0],
+      [33,6,0],[36,16,0],[43,20,0],
+      [59,24,0],[67,26,0],[75,28,0],
+      [91,32,0],[95,42,0],[101,46,0],[107,50,0],[113,54,0],[120,58,0],
+    ],
+  },
+];
+
+// ─── THREE.JS SETUP (persistent) ────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 600);
+
+const ambLight = new THREE.AmbientLight(0x223355, 1.2);
+const moonLight = new THREE.DirectionalLight(0x8899cc, 0.6);
+moonLight.castShadow = true;
+moonLight.shadow.camera.left=-30; moonLight.shadow.camera.right=200;
+moonLight.shadow.camera.top=100; moonLight.shadow.camera.bottom=-10;
+moonLight.shadow.camera.far=500;
+scene.add(ambLight, moonLight);
+
+const voidFloor = new THREE.Mesh(
+  new THREE.PlaneGeometry(800,800),
+  new THREE.MeshBasicMaterial({ color:0x020208 })
+);
+voidFloor.rotation.x = -Math.PI/2;
+voidFloor.position.y = -40;
+scene.add(voidFloor);
+
+// ─── PLAYER (persistent) ─────────────────────────────────────────────────────
+const pg = new THREE.Group();
+const pm = (w,h,d,c,x,y,z) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color:c}));
+  m.position.set(x,y,z); m.castShadow=true; pg.add(m); return m;
+};
+pm(0.8,0.8,0.8, 0xf5c89a, 0,1.4,0);
+pm(0.8,0.9,0.4, 0x00aaff, 0,0.75,0);
+pm(0.3,0.75,0.3, 0x00aaff,-0.55,0.75,0);
+pm(0.3,0.75,0.3, 0x00aaff, 0.55,0.75,0);
+const lLeg = pm(0.35,0.8,0.35, 0x222,-0.2,0.1,0);
+const rLeg = pm(0.35,0.8,0.35, 0x222, 0.2,0.1,0);
+scene.add(pg);
+
+// ─── LEVEL STATE ────────────────────────────────────────────────────────────
+let currentLevel = 0;
+let levelMeshes  = [];   // all meshes added for the current level
+let plats        = [];
+let coins        = [];
+let movingPlats  = [];   // subset of plats that move
+
+let timer, running, won, cpIdx;
+let velY, onGround, canJump, onWall, wallNormal;
+let sprintEnergy = 1.0;
+let wallJumpCooldown = 0;
+let coinsCollected   = 0;
+let yaw = -Math.PI/2, pitch = -0.15, isLocked = false;
+let notifT = 0, wallMsgT = 0;
+let t = 0;
+let onPlatIdx = -1;
+
+// ─── LEVEL LOAD / CLEAR ─────────────────────────────────────────────────────
+function clearLevel() {
+  levelMeshes.forEach(m => {
+    scene.remove(m);
+    if(m.geometry) m.geometry.dispose();
+    if(m.material) m.material.dispose();
+  });
+  levelMeshes = [];
+  plats = [];
+  coins = [];
+  movingPlats = [];
+}
+
+function buildLevel(lvlIdx) {
+  clearLevel();
+  currentLevel = lvlIdx;
+  const L = LEVELS[lvlIdx];
+
+  scene.background = new THREE.Color(L.bgColor);
+  scene.fog = new THREE.FogExp2(L.bgColor, L.fogDensity);
+
+  // Neon point lights
+  L.neons.forEach(n => {
+    const light = new THREE.PointLight(n.c, n.i, 25);
+    light.position.set(n.x, n.y, n.z);
+    scene.add(light);
+    levelMeshes.push(light);
+  });
+
+  // Backdrop buildings
+  const seed = lvlIdx * 137;
+  for(let i=0; i<25; i++) {
+    const s = Math.sin((seed+i)*9.7)*0.5+0.5;
+    const h = 8 + s*28;
+    const bm = new THREE.Mesh(
+      new THREE.BoxGeometry(4+s*5, h, 4+s*5),
+      new THREE.MeshLambertMaterial({ color:0x111122 })
+    );
+    const ang = (i/25)*Math.PI*2;
+    bm.position.set(
+      Math.cos(ang)*80 + Math.sin(i*1.3)*30,
+      h/2 - 40,
+      -40 - Math.abs(Math.sin(i*2.1))*50
+    );
+    scene.add(bm);
+    levelMeshes.push(bm);
+  }
+
+  // Platforms
+  L.defs.forEach(def => {
+    // Wall block gets special tall mesh
+    if(def.isWall) {
+      const wallH = 14;
+      const wm = new THREE.Mesh(
+        new THREE.BoxGeometry(def.w, wallH, def.d),
+        new THREE.MeshLambertMaterial({ color: def.c })
+      );
+      wm.position.set(def.x, def.y + wallH/2, def.z);
+      wm.castShadow = wm.receiveShadow = true;
+      scene.add(wm); levelMeshes.push(wm);
+
+      // neon trim on top
+      const trim = new THREE.Mesh(
+        new THREE.BoxGeometry(def.w+0.05, 0.1, def.d+0.05),
+        new THREE.MeshBasicMaterial({ color:0x00ffcc })
+      );
+      trim.position.set(def.x, def.y + wallH, def.z);
+      scene.add(trim); levelMeshes.push(trim);
+
+      plats.push({ mesh:wm, def, w:def.w, d:def.d, height:wallH, isWall:true });
+      return;
+    }
+
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(def.w, PLAT_THICK, def.d),
+      new THREE.MeshLambertMaterial({ color: def.c })
+    );
+    mesh.position.set(def.x, def.y, def.z);
+    mesh.castShadow = mesh.receiveShadow = true;
+    scene.add(mesh); levelMeshes.push(mesh);
+
+    // Checkpoint / finish decorations
+    if(def.isCp || def.isFinish) {
+      const sc = def.isFinish ? 0xFFD700 : 0x00ffcc;
+      const strip = new THREE.Mesh(
+        new THREE.BoxGeometry(def.w, 0.08, def.d),
+        new THREE.MeshBasicMaterial({ color:sc })
+      );
+      strip.position.set(def.x, def.y + PLAT_THICK/2 + 0.04, def.z);
+      scene.add(strip); levelMeshes.push(strip);
+
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(2.2, 0.14, 8, 32),
+        new THREE.MeshBasicMaterial({ color:sc })
+      );
+      ring.position.set(def.x, def.y + 2, def.z);
+      ring.rotation.x = Math.PI/2;
+      scene.add(ring); levelMeshes.push(ring);
+    }
+
+    const platObj = {
+      mesh, def,
+      w:def.w, d:def.d,
+      bx:def.x, by:def.y, bz:def.z,
+      isWall:false,
+      type: def.type || 'static',
+      axis: def.axis || 'z',
+      range: def.range || 0,
+      spd: def.spd || 1,
+      phase: def.phase || 0,
+    };
+    plats.push(platObj);
+    if(def.type === 'moving') movingPlats.push(platObj);
+  });
+
+  // Coins
+  L.coinDefs.forEach(([cx,cy,cz]) => {
+    const m = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.35,0.35,0.1,12),
+      new THREE.MeshBasicMaterial({ color:0xFFD700 })
+    );
+    m.position.set(cx, cy+0.5, cz);
+    scene.add(m); levelMeshes.push(m);
+    coins.push({ mesh:m, collected:false });
+  });
+}
+
+// ─── SPAWNS ─────────────────────────────────────────────────────────────────
+function getSpawns() {
+  return LEVELS[currentLevel].defs
+    .filter(d => d.isStart || d.isCp)
+    .map(d => ({ x:d.x, y:d.y+PLAT_THICK/2+P_HALF+0.05, z:d.z, ci:d.cpIdx||0 }));
+}
+
+function respawn() {
+  const spawns = getSpawns();
+  const sp = spawns.find(s=>s.ci===cpIdx) || spawns[0];
+  pg.position.set(sp.x, sp.y, sp.z);
+  velY=0; wallJumpCooldown=0; yaw=-Math.PI/2;
+}
+
+// ─── CONTROLS ───────────────────────────────────────────────────────────────
+const keys = {};
+document.addEventListener('keydown', e=>{ keys[e.code]=true; });
+document.addEventListener('keyup',   e=>{ keys[e.code]=false; });
+
+renderer.domElement.addEventListener('click', ()=>{
+  if(!running) return;
+  renderer.domElement.requestPointerLock();
+});
+document.addEventListener('pointerlockchange', ()=>{
+  isLocked = document.pointerLockElement===renderer.domElement;
+  document.getElementById('clickMsg').style.display = isLocked ? 'none' : (running ? 'block' : 'none');
+});
+document.addEventListener('mousemove', e=>{
+  if(!isLocked) return;
+  yaw   -= e.movementX*0.002;
+  pitch -= e.movementY*0.002;
+  pitch = Math.max(-0.55, Math.min(0.4, pitch));
+});
+window.addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ─── COLLISION ──────────────────────────────────────────────────────────────
+function checkPlatformCollision() {
+  onGround=false; onWall=false; wallNormal=null; onPlatIdx=-1;
+  const feet = pg.position.y - P_HALF;
+  const px = pg.position.x, pz = pg.position.z;
+
+  for(let i=0; i<plats.length; i++) {
+    const p = plats[i];
+    const mp = p.mesh.position;
+
+    if(p.isWall) {
+      const wh = p.height;
+      const hw = p.w/2+P_RADIUS, hd = p.d/2+P_RADIUS;
+      if(px<mp.x-hw||px>mp.x+hw) continue;
+      if(pz<mp.z-hd||pz>mp.z+hd) continue;
+      const wb = mp.y - wh/2, wt = mp.y + wh/2;
+      if(pg.position.y<wb||pg.position.y>wt+P_HALF) continue;
+      if(!onGround && wallJumpCooldown<=0) {
+        onWall=true;
+        const dxL=Math.abs((mp.x-p.w/2)-px), dxR=Math.abs(px-(mp.x+p.w/2));
+        const dzF=Math.abs((mp.z-p.d/2)-pz), dzB=Math.abs(pz-(mp.z+p.d/2));
+        const mn=Math.min(dxL,dxR,dzF,dzB);
+        if(mn===dxL) wallNormal=new THREE.Vector3(-1,0,0);
+        else if(mn===dxR) wallNormal=new THREE.Vector3(1,0,0);
+        else if(mn===dzF) wallNormal=new THREE.Vector3(0,0,-1);
+        else wallNormal=new THREE.Vector3(0,0,1);
+        velY = Math.max(velY, -3);
+      }
+      continue;
+    }
+
+    const top = mp.y + PLAT_THICK/2;
+    const hw=p.w/2, hd=p.d/2;
+    if(px<mp.x-hw||px>mp.x+hw) continue;
+    if(pz<mp.z-hd||pz>mp.z+hd) continue;
+    if(feet<=top+0.2&&feet>=top-1.0&&velY<=0) {
+      pg.position.y=top+P_HALF; velY=0; onGround=true; canJump=true; onPlatIdx=i;
+      if(p.def.isCp && p.def.cpIdx>cpIdx) { cpIdx=p.def.cpIdx; showNotif('✅ Checkpoint!'); }
+      if(p.def.isFinish && !won) winLevel();
+      break;
+    }
+  }
+}
+
+function checkCoins() {
+  coins.forEach(c=>{
+    if(c.collected) return;
+    const dx=pg.position.x-c.mesh.position.x;
+    const dy=pg.position.y-c.mesh.position.y;
+    const dz=pg.position.z-c.mesh.position.z;
+    if(dx*dx+dy*dy+dz*dz<1.2){ c.collected=true; c.mesh.visible=false; coinsCollected++; showNotif('🪙 +1 Coin!'); }
+  });
+}
+
+// ─── NOTIF ──────────────────────────────────────────────────────────────────
+function showNotif(txt) {
+  const el=document.getElementById('notif');
+  el.textContent=txt; el.style.opacity=1; notifT=1.8;
+}
+
+// ─── HUD ────────────────────────────────────────────────────────────────────
+function updateHUD() {
+  document.getElementById('timerBox').textContent = `⏱️ ${timer.toFixed(2)}s`;
+  document.getElementById('coinsBox').textContent = `🪙 ${coinsCollected}`;
+  document.getElementById('levelBox').textContent = `LEVEL ${currentLevel+1} — ${LEVELS[currentLevel].name.toUpperCase()}`;
+  const best = loadProgress().best[currentLevel]||0;
+  document.getElementById('bestBox').textContent = best>0?`🏆 ${best.toFixed(2)}s`:'🏆 Best: --';
+  document.getElementById('sprintFill').style.width=(sprintEnergy*100)+'%';
+  document.getElementById('wallBox').style.opacity=wallMsgT>0?1:0;
+}
+
+// ─── WIN / SCREEN FLOW ──────────────────────────────────────────────────────
+function loadProgress(){
+  const user=localStorage.getItem('explox_current_user');
+  const blank={completed:[],best:{}};
+  if(user){ const d=JSON.parse(localStorage.getItem('explox_user_'+user)||'{}'); return d.parkour_progress||blank; }
+  return JSON.parse(localStorage.getItem('parkour_progress')||'null')||blank;
+}
+function saveProgress(prog){
+  const user=localStorage.getItem('explox_current_user');
+  if(user){ const d=JSON.parse(localStorage.getItem('explox_user_'+user)||'{}'); d.parkour_progress=prog; localStorage.setItem('explox_user_'+user,JSON.stringify(d)); }
+  else localStorage.setItem('parkour_progress',JSON.stringify(prog));
+}
+
+function winLevel() {
+  won=true; running=false;
+  if(document.pointerLockElement) document.exitPointerLock();
+  document.getElementById('hud').style.display='none';
+
+  const prog=loadProgress();
+  if(!prog.completed.includes(currentLevel)) prog.completed.push(currentLevel);
+  const prev=prog.best[currentLevel]||0;
+  const isNew=!prev||timer<prev;
+  if(isNew) prog.best[currentLevel]=timer;
+  saveProgress(prog);
+
+  if(currentLevel >= LEVELS.length-1) {
+    // All levels done
+    document.getElementById('adTime').textContent = timer.toFixed(2)+'s';
+    document.getElementById('adCoins').textContent = `🪙 Total Coins: ${coinsCollected} / ${coins.length}`;
+    document.getElementById('allDoneScreen').style.display='flex';
+  } else {
+    document.getElementById('lcTitle').textContent = `LEVEL ${currentLevel+1} CLEAR!`;
+    document.getElementById('lcSub').textContent = `You cleared ${LEVELS[currentLevel].name}`;
+    document.getElementById('lcTime').textContent = timer.toFixed(2)+'s';
+    document.getElementById('lcCoins').textContent = `🪙 Coins: ${coinsCollected} / ${coins.length}`;
+    document.getElementById('lcBest').textContent = isNew?'🌟 New best time!':'Previous best: '+(prev>0?prev.toFixed(2)+'s':'--');
+    document.getElementById('lvlCompleteScreen').style.display='flex';
+  }
+  refreshLevelSelect();
+}
+
+function goNextLevel() {
+  document.getElementById('lvlCompleteScreen').style.display='none';
+  startLevel(currentLevel+1);
+}
+
+function goLevelSelect() {
+  document.getElementById('lvlCompleteScreen').style.display='none';
+  document.getElementById('allDoneScreen').style.display='none';
+  document.getElementById('hud').style.display='none';
+  document.getElementById('clickMsg').style.display='none';
+  running=false;
+  refreshLevelSelect();
+  document.getElementById('levelSelect').style.display='flex';
+}
+
+function refreshLevelSelect() {
+  const prog=loadProgress();
+  LEVELS.forEach((_,i)=>{
+    const card=document.getElementById('card'+i);
+    const unlocked=i===0||prog.completed.includes(i-1);
+    const best=prog.best[i];
+    card.classList.toggle('locked',!unlocked);
+    card.style.pointerEvents=unlocked?'auto':'none';
+    document.getElementById('best'+i).textContent=
+      !unlocked ? '🔒 Finish level '+(i)+' first'
+      : best ? 'Best: '+best.toFixed(2)+'s' : 'Best: --';
+  });
+}
+
+function startLevel(lvlIdx) {
+  document.getElementById('levelSelect').style.display='none';
+  buildLevel(lvlIdx);
+  timer=0; running=true; won=false; cpIdx=0; velY=0; canJump=false;
+  sprintEnergy=1.0; coinsCollected=0; wallJumpCooldown=0;
+  respawn();
+  document.getElementById('hud').style.display='block';
+  document.getElementById('clickMsg').style.display='block';
+}
+
+// Init: show level select
+refreshLevelSelect();
+
+// ─── ANIMATE ────────────────────────────────────────────────────────────────
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  t += dt;
+
+  if(running) {
+    timer += dt;
+
+    // Moving platforms
+    for(let i=0; i<movingPlats.length; i++) {
+      const p = movingPlats[i];
+      const ox=p.mesh.position.x, oz=p.mesh.position.z;
+      const off=Math.sin(t*p.spd+p.phase)*p.range;
+      if(p.axis==='x') p.mesh.position.x=p.bx+off;
+      if(p.axis==='z') p.mesh.position.z=p.bz+off;
+      if(onPlatIdx===i){
+        pg.position.x+=p.mesh.position.x-ox;
+        pg.position.z+=p.mesh.position.z-oz;
+      }
+    }
+
+    // Movement
+    const sprinting = keys['ShiftLeft']||keys['ShiftRight'];
+    const fwd  = new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw));
+    const right = new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+    const move  = new THREE.Vector3();
+    if(keys['KeyW']||keys['ArrowUp'])    move.add(fwd);
+    if(keys['KeyS']||keys['ArrowDown'])  move.sub(fwd);
+    if(keys['KeyA']||keys['ArrowLeft'])  move.sub(right);
+    if(keys['KeyD']||keys['ArrowRight']) move.add(right);
+    const moving = move.lengthSq()>0;
+
+    const activeSprint = sprinting && sprintEnergy>0 && moving;
+    if(activeSprint) sprintEnergy=Math.max(0,sprintEnergy-dt*0.35);
+    else if(!sprinting) sprintEnergy=Math.min(1,sprintEnergy+dt*0.25);
+
+    const spd = activeSprint ? SPRINT_SPD : MOVE_SPD;
+    if(moving){ move.normalize().multiplyScalar(spd*dt); pg.position.add(move); }
+    pg.rotation.y=yaw;
+
+    // Jump / wall jump
+    if(keys['Space']){
+      if(canJump && onGround){ velY=JUMP_VEL; onGround=false; canJump=false; }
+      else if(onWall && wallNormal && !onGround && wallJumpCooldown<=0){
+        velY=WALL_VEL;
+        pg.position.x+=wallNormal.x*1.5;
+        pg.position.z+=wallNormal.z*1.5;
+        wallJumpCooldown=0.5; onWall=false;
+        showNotif('🧱 Wall Jump!'); wallMsgT=1.0;
+      }
+    }
+
+    if(wallJumpCooldown>0) wallJumpCooldown-=dt;
+    if(wallMsgT>0) wallMsgT-=dt;
+
+    // Gravity
+    velY+=GRAVITY*dt;
+    pg.position.y+=velY*dt;
+
+    checkPlatformCollision();
+    checkCoins();
+
+    if(pg.position.y<-8){ showNotif(`💀 Fell!`); respawn(); }
+
+    // Walk animation
+    const sw=moving?Math.sin(t*12)*0.5:0;
+    lLeg.rotation.x=-sw; rLeg.rotation.x=sw;
+
+    // Spin coins
+    coins.forEach(c=>{ if(!c.collected) c.mesh.rotation.y=t*2; });
+
+    // Notif fade
+    notifT-=dt;
+    if(notifT<=0) document.getElementById('notif').style.opacity=0;
+
+    updateHUD();
+  }
+
+  // Checkpoint rings spin
+  scene.children.forEach(c=>{
+    if(c.isMesh && c.geometry && c.geometry.type==='TorusGeometry') c.rotation.z=t*1.8;
+  });
+
+  // Camera
+  camera.position.set(
+    pg.position.x-Math.sin(yaw)*10,
+    pg.position.y+4+pitch*5,
+    pg.position.z-Math.cos(yaw)*10
+  );
+  camera.lookAt(pg.position.x, pg.position.y+0.8, pg.position.z);
+
+  renderer.render(scene,camera);
+}
+animate();
+</script>
+</body>
+</html>

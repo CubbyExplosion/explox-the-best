@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Explox — Obby</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#000; overflow:hidden; font-family:Arial,sans-serif; }
+    canvas { display:block; }
+
+    #clickMsg {
+      position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+      color:#fff; font-size:19px; background:rgba(0,0,0,0.82);
+      padding:18px 34px; border-radius:14px; text-align:center; z-index:20;
+      border:2px solid #FFD700; line-height:1.9;
+    }
+    #hud { position:fixed; inset:0; pointer-events:none; display:none; }
+    #timerBox {
+      position:fixed; top:14px; left:50%; transform:translateX(-50%);
+      color:#fff; font-size:22px; font-weight:bold;
+      background:rgba(0,0,0,0.65); padding:8px 22px;
+      border-radius:12px; border:2px solid #FFD700; letter-spacing:2px;
+    }
+    #livesBox {
+      position:fixed; top:14px; left:14px;
+      font-size:22px; background:rgba(0,0,0,0.6);
+      padding:7px 14px; border-radius:10px;
+    }
+    #levelBox {
+      position:fixed; top:56px; left:50%; transform:translateX(-50%);
+      font-size:13px; color:#FFD700; background:rgba(0,0,0,0.5);
+      padding:4px 14px; border-radius:8px; letter-spacing:2px;
+    }
+    #cpBox {
+      position:fixed; top:14px; right:14px;
+      color:#88ff88; font-size:14px; font-weight:bold;
+      background:rgba(0,0,0,0.6); padding:7px 14px; border-radius:10px;
+    }
+    #bestBox {
+      position:fixed; top:56px; right:14px;
+      color:#FFD700; font-size:13px;
+      background:rgba(0,0,0,0.5); padding:6px 12px; border-radius:8px;
+    }
+    #notif {
+      position:fixed; top:40%; left:50%; transform:translate(-50%,-50%);
+      color:#FFD700; font-size:28px; font-weight:bold;
+      text-shadow:2px 2px 6px #000; opacity:0; transition:opacity 0.3s;
+      pointer-events:none; white-space:nowrap;
+    }
+    #controls {
+      position:fixed; bottom:14px; right:14px;
+      color:#aaa; font-size:11px; background:rgba(0,0,0,0.5);
+      padding:8px 12px; border-radius:8px; line-height:1.9;
+    }
+
+    /* ── SCREENS ── */
+    .screen {
+      position:fixed; inset:0; display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      background:linear-gradient(135deg,#1a1a2e,#0f3460);
+      color:#fff; z-index:50;
+    }
+    .screen h1 { font-size:46px; color:#e94560; letter-spacing:4px; margin-bottom:8px; text-shadow:0 0 20px #e94560; }
+    .screen h2 { font-size:16px; color:#aaa; margin-bottom:20px; }
+    .bigTime { font-size:60px; font-weight:bold; color:#FFD700; text-shadow:0 0 24px #FFD700; margin:10px 0; }
+    .statLine { font-size:15px; color:#aaa; margin:3px 0; }
+    .bestLine { font-size:13px; color:#555; margin-top:4px; margin-bottom:18px; }
+    .screen button {
+      padding:13px 44px; font-size:16px; font-weight:bold;
+      background:#e94560; border:none; border-radius:12px; color:#fff;
+      cursor:pointer; letter-spacing:2px; box-shadow:0 0 16px #e9456066;
+      transition:transform 0.1s; margin:5px;
+    }
+    .screen button:hover { transform:scale(1.06); }
+    .backBtn {
+      padding:8px 24px; font-size:13px; background:transparent;
+      border:1px solid #555; border-radius:8px; color:#888; cursor:pointer;
+      box-shadow:none;
+    }
+    .backBtn:hover { border-color:#e94560; color:#fff; }
+
+    /* level select */
+    .lvlCards { display:flex; gap:16px; margin:20px 0; flex-wrap:wrap; justify-content:center; }
+    .lvlCard {
+      width:155px; padding:18px 12px; background:rgba(255,255,255,0.06);
+      border:2px solid #333; border-radius:14px; text-align:center;
+      cursor:pointer; transition:border-color 0.2s, background 0.2s;
+    }
+    .lvlCard:hover { border-color:#e94560; background:rgba(233,69,96,0.12); }
+    .lvlCard .lvlNum  { font-size:30px; font-weight:bold; }
+    .lvlCard .lvlName { font-size:12px; color:#aaa; margin:5px 0 3px; }
+    .lvlCard .lvlDiff { font-size:12px; }
+    .lvlCard .lvlBest { font-size:11px; color:#555; margin-top:5px; }
+    .lvlCard.locked { opacity:0.4; cursor:not-allowed; pointer-events:none; border-color:#444; }
+    .lvlCard.locked .lvlNum::before { content:'🔒'; font-size:18px; display:block; }
+  </style>
+</head>
+<body>
+
+<div id="clickMsg" style="display:none">
+  🏃 <b>OBBY</b><br>
+  WASD — Move &nbsp;|&nbsp; Mouse — Look &nbsp;|&nbsp; SPACE — Jump<br>
+  Don't fall — you have 3 lives!<br><br>
+  <span style="font-size:13px;color:#aaa">Click to start</span>
+</div>
+
+<div id="hud">
+  <div id="timerBox">⏱️ 0.00s</div>
+  <div id="livesBox">❤️❤️❤️</div>
+  <div id="levelBox">LEVEL 1</div>
+  <div id="cpBox">📍 START</div>
+  <div id="bestBox">🏆 Best: --</div>
+  <div id="notif"></div>
+  <div id="controls">WASD — Move &nbsp;|&nbsp; Mouse — Look &nbsp;|&nbsp; SPACE — Jump</div>
+</div>
+
+<!-- LEVEL SELECT -->
+<div id="levelSelect" class="screen">
+  <h1>🏃 OBBY</h1>
+  <h2>Choose a level</h2>
+  <div class="lvlCards">
+    <div class="lvlCard" id="card0" onclick="startLevel(0)">
+      <div class="lvlNum" style="color:#44ff88">1</div>
+      <div class="lvlName">Starter Jumps</div>
+      <div class="lvlDiff" style="color:#44ff88">★☆☆ Easy</div>
+      <div class="lvlBest" id="best0">Best: --</div>
+    </div>
+    <div class="lvlCard" id="card1" onclick="startLevel(1)">
+      <div class="lvlNum" style="color:#FFD700">2</div>
+      <div class="lvlName">Moving Madness</div>
+      <div class="lvlDiff" style="color:#FFD700">★★☆ Medium</div>
+      <div class="lvlBest" id="best1">Best: --</div>
+    </div>
+    <div class="lvlCard" id="card2" onclick="startLevel(2)">
+      <div class="lvlNum" style="color:#e94560">3</div>
+      <div class="lvlName">No Mercy</div>
+      <div class="lvlDiff" style="color:#e94560">★★★ Hard</div>
+      <div class="lvlBest" id="best2">Best: --</div>
+    </div>
+  </div>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<!-- LEVEL COMPLETE -->
+<div id="lvlCompleteScreen" class="screen" style="display:none">
+  <h1 id="lcTitle">LEVEL CLEAR!</h1>
+  <h2 id="lcSub">You beat Level 1</h2>
+  <div class="bigTime" id="lcTime">0.00s</div>
+  <div class="bestLine" id="lcBest"></div>
+  <button id="lcNextBtn" onclick="goNextLevel()">▶ Next Level</button>
+  <button onclick="goLevelSelect()">↩ Level Select</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<!-- ALL DONE -->
+<div id="allDoneScreen" class="screen" style="display:none">
+  <h1>🏆 ALL DONE!</h1>
+  <h2>You beat every level!</h2>
+  <div class="bigTime" id="adTime">0.00s</div>
+  <div class="statLine" id="adLives"></div>
+  <button onclick="goLevelSelect()">↩ Level Select</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<!-- GAME OVER -->
+<div id="gameOverScreen" class="screen" style="display:none">
+  <h1>💀 GAME OVER</h1>
+  <h2>You ran out of lives...</h2>
+  <button onclick="restartCurrent()">▶ Try Again</button>
+  <button onclick="goLevelSelect()">↩ Level Select</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
+const GRAVITY    = -26;
+const JUMP_VEL   = 12;
+const MOVE_SPD   = 7;
+const P_HALF     = 0.8;
+const PLAT_THICK = 0.4;
+
+// ─── LEVEL DATA ──────────────────────────────────────────────────────────────
+const LEVELS = [
+
+  // ══ LEVEL 1 — Starter Jumps (blue, easy) ════════════════════════════════
+  {
+    name:'Starter Jumps',
+    skyColor:0x87CEEB, fogColor:0x87CEEB, fogNear:70, fogFar:200,
+    defs:[
+      { x:0,    y:0, z:0,  w:8,   d:8,  c:0x44cc44, isStart:true },
+      { x:7,    y:0, z:0,  w:3.5, d:3.5,c:0x3399ff },
+      { x:12.5, y:0, z:0,  w:3,   d:3,  c:0x3399ff },
+      { x:17.5, y:0, z:0,  w:3,   d:3,  c:0x3399ff },
+      { x:23,   y:0, z:0,  w:3.5, d:3.5,c:0x3399ff },
+      { x:28.5, y:0, z:0,  w:5,   d:5,  c:0xFFD700, isCp:true, cpIdx:1 },
+      { x:35,   y:0, z:0,  w:3,   d:3,  c:0x3399ff },
+      { x:40.5, y:0, z:1,  w:3,   d:3,  c:0x3399ff },
+      { x:46,   y:0, z:-1, w:3,   d:3,  c:0x3399ff },
+      { x:51.5, y:0, z:0,  w:3.5, d:3.5,c:0x3399ff },
+      { x:57,   y:0, z:0,  w:5,   d:5,  c:0xFFD700, isCp:true, cpIdx:2 },
+      { x:63.5, y:0, z:0,  w:2.5, d:2.5,c:0x3399ff },
+      { x:68.5, y:0, z:0,  w:2.5, d:2.5,c:0x3399ff },
+      { x:73.5, y:0, z:0,  w:2.5, d:3,  c:0x3399ff },
+      { x:79,   y:0, z:0,  w:2.5, d:2.5,c:0x3399ff },
+      { x:84,   y:0, z:0,  w:2.5, d:2.5,c:0x3399ff },
+      { x:90,   y:0, z:0,  w:8,   d:8,  c:0xFFD700, isFinish:true },
+    ],
+    cpNames:['START','Section 1 ✓','Section 2 ✓','FINAL!'],
+  },
+
+  // ══ LEVEL 2 — Moving Madness (orange, medium) ════════════════════════════
+  {
+    name:'Moving Madness',
+    skyColor:0x6a4e2a, fogColor:0x6a4e2a, fogNear:60, fogFar:180,
+    defs:[
+      { x:0,    y:0, z:0,  w:8,   d:8,  c:0x44cc44, isStart:true },
+      // Section 1: basic + moving mix
+      { x:8,    y:0, z:0,  w:3,   d:3,  c:0x3399ff },
+      { x:14,   y:0, z:0,  w:3,   d:3,  c:0xff6633, type:'moving', axis:'z', range:2.5, spd:1.4, phase:0 },
+      { x:20,   y:0, z:0,  w:3,   d:3,  c:0xff6633, type:'moving', axis:'z', range:3,   spd:1.8, phase:1 },
+      { x:26,   y:0, z:0,  w:3,   d:3,  c:0x3399ff },
+      { x:32,   y:0, z:0,  w:6,   d:6,  c:0xFFD700, isCp:true, cpIdx:1 },
+      // Section 2: zigzag movers
+      { x:40,   y:0, z:0,  w:2.5, d:2.5,c:0xff6633, type:'moving', axis:'x', range:2,   spd:2,   phase:0   },
+      { x:46,   y:0, z:0,  w:2.5, d:2.5,c:0xff6633, type:'moving', axis:'z', range:3,   spd:2.2, phase:0.5 },
+      { x:52,   y:0, z:0,  w:2,   d:2,  c:0xff6633, type:'moving', axis:'x', range:2.5, spd:2.5, phase:1   },
+      { x:58,   y:0, z:0,  w:2,   d:2,  c:0xff6633, type:'moving', axis:'z', range:2.5, spd:2.8, phase:1.5 },
+      { x:64,   y:0, z:0,  w:6,   d:6,  c:0xFFD700, isCp:true, cpIdx:2 },
+      // Section 3: fast movers
+      { x:72,   y:0, z:0,  w:2,   d:2,  c:0xff6633, type:'moving', axis:'z', range:3.5, spd:3,   phase:0   },
+      { x:79,   y:0, z:0,  w:2,   d:2,  c:0xff6633, type:'moving', axis:'x', range:3,   spd:3.2, phase:0.7 },
+      { x:86,   y:0, z:0,  w:2,   d:2,  c:0xff6633, type:'moving', axis:'z', range:3,   spd:3.5, phase:1.4 },
+      { x:93,   y:0, z:0,  w:8,   d:8,  c:0xFFD700, isFinish:true },
+    ],
+    cpNames:['START','Section 1 ✓','Section 2 ✓','FINAL!'],
+  },
+
+  // ══ LEVEL 3 — No Mercy (red+purple, hard) ════════════════════════════════
+  {
+    name:'No Mercy',
+    skyColor:0x1a0a1a, fogColor:0x1a0a1a, fogNear:50, fogFar:160,
+    defs:[
+      { x:0,    y:0, z:0,  w:8,   d:8,  c:0x44cc44, isStart:true },
+      // Falling platforms right away
+      { x:9,    y:0, z:0,  w:2.5, d:2.5,c:0xdd2222, type:'falling' },
+      { x:14.5, y:0, z:0,  w:2,   d:2.5,c:0xdd2222, type:'falling' },
+      { x:19.5, y:0, z:0,  w:2.5, d:2,  c:0xdd2222, type:'falling' },
+      { x:25,   y:0, z:0,  w:2.5, d:2.5,c:0xdd2222, type:'falling' },
+      { x:30.5, y:0, z:0,  w:6,   d:6,  c:0xFFD700, isCp:true, cpIdx:1 },
+      // Moving + falling mix
+      { x:38,   y:0, z:0,  w:2.5, d:2.5,c:0xaa33ff, type:'moving', axis:'z', range:2.5, spd:2.5, phase:0   },
+      { x:44,   y:0, z:0,  w:2,   d:2,  c:0xdd2222, type:'falling' },
+      { x:49.5, y:0, z:0,  w:2.5, d:2.5,c:0xaa33ff, type:'moving', axis:'z', range:2,   spd:3,   phase:1   },
+      { x:55.5, y:0, z:0,  w:2,   d:2,  c:0xdd2222, type:'falling' },
+      { x:61,   y:0, z:0,  w:2.5, d:2.5,c:0xaa33ff, type:'moving', axis:'x', range:2.5, spd:2.8, phase:0.5 },
+      { x:67,   y:0, z:0,  w:6,   d:6,  c:0xFFD700, isCp:true, cpIdx:2 },
+      // Gauntlet: tiny platforms, fast movers, fallers
+      { x:75,   y:0, z:0,  w:2,   d:2,  c:0xaa33ff, type:'moving', axis:'z', range:3,   spd:3.5, phase:0   },
+      { x:81.5, y:0, z:0,  w:1.8, d:1.8,c:0xdd2222, type:'falling' },
+      { x:86.5, y:0, z:0,  w:1.8, d:1.8,c:0xaa33ff, type:'moving', axis:'x', range:2.5, spd:3.8, phase:1   },
+      { x:92,   y:0, z:0,  w:1.8, d:1.8,c:0xdd2222, type:'falling' },
+      { x:97.5, y:0, z:0,  w:2,   d:2,  c:0xaa33ff, type:'moving', axis:'z', range:2.5, spd:4,   phase:0.5 },
+      { x:103,  y:0, z:0,  w:8,   d:8,  c:0xFFD700, isFinish:true },
+    ],
+    cpNames:['START','Survived! ✓','Halfway! ✓','FINAL!'],
+  },
+];
+
+// ─── THREE.JS SETUP ─────────────────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 400);
+
+const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+sun.position.set(40, 80, 20); sun.castShadow=true;
+sun.shadow.camera.left=-20; sun.shadow.camera.right=200;
+sun.shadow.camera.top=60;   sun.shadow.camera.bottom=-30;
+sun.shadow.camera.far=350;
+scene.add(sun, new THREE.AmbientLight(0x9ab8d8, 0.8));
+
+const voidFloor = new THREE.Mesh(
+  new THREE.PlaneGeometry(400,400),
+  new THREE.MeshBasicMaterial({ color:0x000033 })
+);
+voidFloor.rotation.x=-Math.PI/2; voidFloor.position.y=-20;
+scene.add(voidFloor);
+
+// ─── PLAYER ─────────────────────────────────────────────────────────────────
+const pg = new THREE.Group();
+const pm = (w,h,d,c,x,y,z) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color:c}));
+  m.position.set(x,y,z); m.castShadow=true; pg.add(m); return m;
+};
+pm(0.8,0.8,0.8, 0xf5c89a, 0,1.4,0);
+pm(0.8,0.9,0.4, 0x2196F3, 0,0.75,0);
+pm(0.3,0.75,0.3, 0x2196F3,-0.55,0.75,0);
+pm(0.3,0.75,0.3, 0x2196F3, 0.55,0.75,0);
+const lLeg = pm(0.35,0.8,0.35, 0x333,-0.2,0.1,0);
+const rLeg = pm(0.35,0.8,0.35, 0x333, 0.2,0.1,0);
+scene.add(pg);
+
+// ─── LEVEL STATE ─────────────────────────────────────────────────────────────
+let currentLevel = 0;
+let levelMeshes  = [];
+let plats        = [];
+let movingPlats  = [];
+
+let lives, timer, running, won, cpIdx;
+let velY, onGround, canJump, onPlatIdx=-1;
+let yaw=-Math.PI/2, pitch=-0.2, isLocked=false;
+let notifT=0, t=0;
+
+// ─── BUILD / CLEAR LEVEL ─────────────────────────────────────────────────────
+function clearLevel() {
+  levelMeshes.forEach(m=>{ scene.remove(m); if(m.geometry)m.geometry.dispose(); if(m.material)m.material.dispose(); });
+  levelMeshes=[]; plats=[]; movingPlats=[];
+}
+
+function buildLevel(lvlIdx) {
+  clearLevel();
+  currentLevel = lvlIdx;
+  const L = LEVELS[lvlIdx];
+
+  scene.background = new THREE.Color(L.skyColor);
+  scene.fog = new THREE.Fog(L.fogColor, L.fogNear, L.fogFar);
+
+  L.defs.forEach(def => {
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(def.w, PLAT_THICK, def.d),
+      new THREE.MeshLambertMaterial({ color:def.c })
+    );
+    mesh.position.set(def.x, def.y, def.z);
+    mesh.receiveShadow=mesh.castShadow=true;
+    scene.add(mesh); levelMeshes.push(mesh);
+
+    if(def.isCp||def.isFinish){
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(2.2,0.18,8,32),
+        new THREE.MeshBasicMaterial({ color:def.isFinish?0xFFD700:0x66ff66 })
+      );
+      ring.position.set(def.x,def.y+2,def.z);
+      ring.rotation.x=Math.PI/2;
+      scene.add(ring); levelMeshes.push(ring);
+    }
+
+    const p = {
+      mesh, def,
+      bx:def.x, by:def.y, bz:def.z,
+      w:def.w, d:def.d,
+      type:def.type||'static',
+      axis:def.axis||'z',
+      range:def.range||0,
+      spd:def.spd||1,
+      phase:def.phase||0,
+      state:'idle', ft:0,
+    };
+    plats.push(p);
+    if(def.type==='moving') movingPlats.push(p);
+  });
+}
+
+// ─── SPAWNS ──────────────────────────────────────────────────────────────────
+function respawn() {
+  const defs = LEVELS[currentLevel].defs;
+  const sp = defs.filter(d=>d.isStart||d.isCp).find(d=>(d.cpIdx||0)===cpIdx) || defs.find(d=>d.isStart);
+  pg.position.set(sp.x, sp.y+PLAT_THICK/2+P_HALF+0.05, sp.z);
+  velY=0; yaw=-Math.PI/2;
+}
+
+// ─── CONTROLS ────────────────────────────────────────────────────────────────
+const keys={};
+document.addEventListener('keydown',e=>{keys[e.code]=true;});
+document.addEventListener('keyup',  e=>{keys[e.code]=false;});
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'&&canJump&&running){ velY=JUMP_VEL; onGround=false; canJump=false; }
+});
+
+renderer.domElement.addEventListener('click',()=>{ if(running) renderer.domElement.requestPointerLock(); });
+document.addEventListener('pointerlockchange',()=>{
+  isLocked=document.pointerLockElement===renderer.domElement;
+  document.getElementById('clickMsg').style.display=isLocked?'none':(running?'block':'none');
+});
+document.addEventListener('mousemove',e=>{
+  if(!isLocked) return;
+  yaw-=e.movementX*0.002; pitch-=e.movementY*0.002;
+  pitch=Math.max(-0.55,Math.min(0.35,pitch));
+});
+window.addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+// ─── COLLISION ───────────────────────────────────────────────────────────────
+function checkCollision() {
+  onPlatIdx=-1; onGround=false;
+  const feet=pg.position.y-P_HALF;
+  for(let i=0;i<plats.length;i++){
+    const p=plats[i];
+    if(p.state==='falling') continue;
+    const top=p.mesh.position.y+PLAT_THICK/2;
+    const hw=p.w/2, hd=p.d/2;
+    const px=pg.position.x, pz=pg.position.z;
+    if(px<p.mesh.position.x-hw||px>p.mesh.position.x+hw) continue;
+    if(pz<p.mesh.position.z-hd||pz>p.mesh.position.z+hd) continue;
+    if(feet<=top+0.18&&feet>=top-0.9&&velY<=0){
+      pg.position.y=top+P_HALF; velY=0; onGround=true; onPlatIdx=i; canJump=true;
+      if(p.type==='falling'&&p.state==='idle'){ p.state='triggered'; p.ft=0; }
+      if(p.def.isCp&&p.def.cpIdx>cpIdx){ cpIdx=p.def.cpIdx; showNotif('✅ Checkpoint!'); }
+      if(p.def.isFinish&&!won) winLevel();
+      break;
+    }
+  }
+}
+
+// ─── NOTIF ───────────────────────────────────────────────────────────────────
+function showNotif(txt){
+  const el=document.getElementById('notif');
+  el.textContent=txt; el.style.opacity=1; notifT=2.5;
+}
+
+// ─── HUD ─────────────────────────────────────────────────────────────────────
+function updateHUD(){
+  document.getElementById('timerBox').textContent=`⏱️ ${timer.toFixed(2)}s`;
+  document.getElementById('livesBox').textContent='❤️'.repeat(lives)+'🖤'.repeat(Math.max(0,3-lives));
+  const names=LEVELS[currentLevel].cpNames||[];
+  document.getElementById('cpBox').textContent='📍 '+(names[cpIdx]||'Go!');
+  document.getElementById('levelBox').textContent=`LEVEL ${currentLevel+1} — ${LEVELS[currentLevel].name.toUpperCase()}`;
+  const best=loadProgress().best[currentLevel]||0;
+  document.getElementById('bestBox').textContent=best>0?`🏆 Best: ${best.toFixed(2)}s`:'🏆 Best: --';
+}
+
+// ─── WIN / FLOW ──────────────────────────────────────────────────────────────
+function loadProgress(){
+  const user=localStorage.getItem('explox_current_user');
+  const blank={completed:[],best:{}};
+  if(user){ const d=JSON.parse(localStorage.getItem('explox_user_'+user)||'{}'); return d.obby_progress||blank; }
+  return JSON.parse(localStorage.getItem('obby_progress')||'null')||blank;
+}
+function saveProgress(prog){
+  const user=localStorage.getItem('explox_current_user');
+  if(user){ const d=JSON.parse(localStorage.getItem('explox_user_'+user)||'{}'); d.obby_progress=prog; localStorage.setItem('explox_user_'+user,JSON.stringify(d)); }
+  else localStorage.setItem('obby_progress',JSON.stringify(prog));
+}
+
+function winLevel(){
+  won=true; running=false;
+  if(document.pointerLockElement) document.exitPointerLock();
+  document.getElementById('hud').style.display='none';
+
+  const prog=loadProgress();
+  if(!prog.completed.includes(currentLevel)) prog.completed.push(currentLevel);
+  const prev=prog.best[currentLevel]||0;
+  const isNew=!prev||timer<prev;
+  if(isNew) prog.best[currentLevel]=timer;
+  saveProgress(prog);
+
+  if(currentLevel>=LEVELS.length-1){
+    document.getElementById('adTime').textContent=timer.toFixed(2)+'s';
+    document.getElementById('adLives').textContent='Lives remaining: '+'❤️'.repeat(lives);
+    document.getElementById('allDoneScreen').style.display='flex';
+  } else {
+    document.getElementById('lcTitle').textContent=`LEVEL ${currentLevel+1} CLEAR!`;
+    document.getElementById('lcSub').textContent=`You beat ${LEVELS[currentLevel].name}`;
+    document.getElementById('lcTime').textContent=timer.toFixed(2)+'s';
+    document.getElementById('lcBest').textContent=isNew?'🌟 New best time!':'Previous best: '+(prev>0?prev.toFixed(2)+'s':'--');
+    document.getElementById('lvlCompleteScreen').style.display='flex';
+  }
+  refreshSelect();
+}
+
+function goNextLevel(){
+  document.getElementById('lvlCompleteScreen').style.display='none';
+  startLevel(currentLevel+1);
+}
+function goLevelSelect(){
+  document.getElementById('lvlCompleteScreen').style.display='none';
+  document.getElementById('allDoneScreen').style.display='none';
+  document.getElementById('gameOverScreen').style.display='none';
+  document.getElementById('hud').style.display='none';
+  document.getElementById('clickMsg').style.display='none';
+  running=false;
+  refreshSelect();
+  document.getElementById('levelSelect').style.display='flex';
+}
+function restartCurrent(){
+  document.getElementById('gameOverScreen').style.display='none';
+  startLevel(currentLevel);
+}
+function refreshSelect(){
+  const prog=loadProgress();
+  LEVELS.forEach((_,i)=>{
+    const card=document.getElementById('card'+i);
+    const unlocked=i===0||prog.completed.includes(i-1);
+    const best=prog.best[i];
+    card.classList.toggle('locked',!unlocked);
+    card.style.pointerEvents=unlocked?'auto':'none';
+    document.getElementById('best'+i).textContent=
+      !unlocked ? '🔒 Finish level '+(i)+' first'
+      : best ? 'Best: '+best.toFixed(2)+'s' : 'Best: --';
+  });
+}
+
+function startLevel(lvlIdx){
+  document.getElementById('levelSelect').style.display='none';
+  buildLevel(lvlIdx);
+  lives=3; timer=0; running=true; won=false; cpIdx=0; velY=0; canJump=false;
+  plats.forEach(p=>{ p.state='idle'; p.ft=0; p.mesh.position.set(p.bx,p.by,p.bz); p.mesh.material.color.setHex(p.def.c); });
+  respawn();
+  document.getElementById('hud').style.display='block';
+  document.getElementById('clickMsg').style.display='block';
+}
+
+refreshSelect();
+
+// ─── ANIMATE ─────────────────────────────────────────────────────────────────
+const clock = new THREE.Clock();
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),0.05);
+  t+=dt;
+
+  if(running){
+    timer+=dt;
+
+    // Moving platforms
+    for(let i=0;i<movingPlats.length;i++){
+      const p=movingPlats[i];
+      const ox=p.mesh.position.x, oz=p.mesh.position.z;
+      const off=Math.sin(t*p.spd+p.phase)*p.range;
+      if(p.axis==='x') p.mesh.position.x=p.bx+off;
+      if(p.axis==='z') p.mesh.position.z=p.bz+off;
+      if(onPlatIdx===i){ pg.position.x+=p.mesh.position.x-ox; pg.position.z+=p.mesh.position.z-oz; }
+    }
+
+    // Falling platforms
+    for(let i=0;i<plats.length;i++){
+      const p=plats[i];
+      if(p.type!=='falling') continue;
+      if(p.state==='triggered'){
+        p.ft+=dt;
+        p.mesh.position.x=p.bx+Math.sin(p.ft*30)*0.07;
+        p.mesh.material.color.setHex(0xff7700);
+        if(p.ft>=0.75){ p.state='falling'; p.ft=0; }
+      } else if(p.state==='falling'){
+        p.ft+=dt;
+        p.mesh.position.y-=13*dt;
+        if(p.ft>=3.5){ p.state='idle'; p.ft=0; p.mesh.position.set(p.bx,p.by,p.bz); p.mesh.material.color.setHex(p.def.c); }
+      }
+    }
+
+    // Player movement
+    const fwd  =new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw));
+    const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+    const move =new THREE.Vector3();
+    if(keys['KeyW']||keys['ArrowUp'])    move.add(fwd);
+    if(keys['KeyS']||keys['ArrowDown'])  move.sub(fwd);
+    if(keys['KeyA']||keys['ArrowLeft'])  move.sub(right);
+    if(keys['KeyD']||keys['ArrowRight']) move.add(right);
+    if(keys['Space']&&canJump){ velY=JUMP_VEL; onGround=false; canJump=false; }
+    const moving=move.lengthSq()>0;
+    if(moving){ move.normalize().multiplyScalar(MOVE_SPD*dt); pg.position.add(move); }
+    pg.rotation.y=yaw;
+
+    velY+=GRAVITY*dt;
+    pg.position.y+=velY*dt;
+
+    checkCollision();
+
+    if(pg.position.y<-8){
+      lives--;
+      if(lives<=0){
+        running=false;
+        document.getElementById('gameOverScreen').style.display='flex';
+        document.getElementById('hud').style.display='none';
+        if(document.pointerLockElement) document.exitPointerLock();
+        return;
+      }
+      showNotif(`💀 Fell! Lives: ${'❤️'.repeat(lives)}`);
+      respawn();
+    }
+
+    // Walk animation
+    const sw=moving?Math.sin(t*10)*0.45:0;
+    lLeg.rotation.x=-sw; rLeg.rotation.x=sw;
+
+    notifT-=dt;
+    if(notifT<=0) document.getElementById('notif').style.opacity=0;
+
+    updateHUD();
+  }
+
+  // Rings spin
+  scene.children.forEach(c=>{ if(c.isMesh&&c.geometry&&c.geometry.type==='TorusGeometry') c.rotation.z=t*1.5; });
+
+  // Camera
+  camera.position.set(
+    pg.position.x-Math.sin(yaw)*10,
+    pg.position.y+4+pitch*5,
+    pg.position.z-Math.cos(yaw)*10
+  );
+  camera.lookAt(pg.position.x,pg.position.y+0.8,pg.position.z);
+
+  renderer.render(scene,camera);
+}
+animate();
+</script>
+</body>
+</html>

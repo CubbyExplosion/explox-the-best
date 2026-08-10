@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Explox</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#000; overflow:hidden; font-family:Arial,sans-serif; }
+    canvas { display:block; }
+
+    /* ── HUD ── */
+    #hud { position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:10; }
+    #gameName { position:fixed; top:14px; left:50%; transform:translateX(-50%); color:#fff; font-size:26px; font-weight:bold; text-shadow:2px 2px 6px #000; letter-spacing:4px; }
+    #controls  { position:fixed; bottom:14px; left:14px; color:#fff; font-size:12px; background:rgba(0,0,0,0.5); padding:8px 12px; border-radius:8px; line-height:1.9; }
+    /* Touch controls — hidden by default, shown only on touch-primary devices (phones/tablets) */
+    #mobileControls { display:none; }
+    @media (pointer: coarse) {
+      #controls { display:none; }
+      #mobileControls { display:block; }
+    }
+    #joyBase {
+      position:fixed; left:20px; bottom:96px; width:92px; height:92px; border-radius:50%;
+      background:rgba(255,255,255,0.12); border:2px solid rgba(255,255,255,0.35);
+      touch-action:none; z-index:15;
+    }
+    #joyStick {
+      position:absolute; left:50%; top:50%; width:40px; height:40px; margin-left:-20px; margin-top:-20px;
+      border-radius:50%; background:rgba(255,255,255,0.5); border:2px solid rgba(255,255,255,0.75);
+      pointer-events:none;
+    }
+    #mobileJumpBtn, #mobileInteractBtn, #mobileRunBtn {
+      position:fixed; border-radius:50%; background:rgba(0,0,0,0.45); border:2px solid rgba(255,255,255,0.5);
+      color:#fff; font-weight:bold; display:flex; align-items:center; justify-content:center;
+      z-index:15; touch-action:none; user-select:none;
+    }
+    #mobileJumpBtn      { right:20px; bottom:100px; width:58px; height:58px; font-size:20px; }
+    #mobileInteractBtn  { right:82px; bottom:154px; width:46px; height:46px; font-size:14px; }
+    #mobileRunBtn       { right:20px; bottom:40px; width:44px; height:44px; font-size:9px; }
+    #mobileRunBtn.active { background:rgba(233,69,96,0.65); border-color:#e94560; }
+
+    /* Side tabs (SAI/Music/Bag/Mini Games) are sized for mouse clicks on desktop.
+       On a touchscreen phone they're written with an inline style="", which always
+       beats a normal CSS rule — so !important is needed to shrink them here. */
+    @media (pointer: coarse) {
+      #saiTab button, #musicTabBtn button, #inventoryTab button, #miniGamesBtn {
+        padding:8px 5px !important; font-size:9px !important;
+      }
+      #saiTab button span, #musicTabBtn button span, #inventoryTab button span, #miniGamesBtn .icon {
+        font-size:12px !important; margin-bottom:3px !important;
+      }
+    }
+    #location  { position:fixed; top:14px; right:14px; color:#fff; font-size:14px; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; }
+    #sipHud    { position:fixed; top:50px; right:14px; color:#FFD700; font-size:15px; font-weight:bold; background:rgba(0,0,0,0.55); padding:7px 12px; border-radius:8px; }
+    #bagHud        { position:fixed; top:88px; right:14px; color:#aaffaa; font-size:13px; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; min-width:120px; }
+    #jobHud        { position:fixed; top:126px; right:14px; color:#fff; font-size:13px; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; min-width:160px; }
+    #alignmentHud  { position:fixed; top:164px; right:14px; color:#ff4444; font-size:13px; font-weight:bold; background:rgba(60,0,0,0.75); padding:7px 12px; border-radius:8px; border:1px solid #880000; display:none; }
+    #wantedHud     { position:fixed; top:202px; right:14px; color:#ffdd00; font-size:13px; font-weight:bold; background:rgba(80,40,0,0.85); padding:7px 12px; border-radius:8px; border:1px solid #aa6600; display:none; }
+    #woodHud       { position:fixed; top:240px; right:14px; color:#c89860; font-size:13px; font-weight:bold; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; }
+    #scrapHud      { position:fixed; top:278px; right:14px; color:#8899aa; font-size:13px; font-weight:bold; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; }
+    #healthHud     { position:fixed; top:60px; left:14px; z-index:15; background:rgba(0,0,0,0.5); padding:8px 12px; border-radius:8px; }
+    #healthBarBg   { width:150px; height:14px; background:#330000; border:1px solid #ff4444; border-radius:7px; overflow:hidden; }
+    #healthBarFill { width:100%; height:100%; background:linear-gradient(90deg,#ff4444,#ff8844); transition:width 0.2s; }
+    #healthText    { color:#fff; font-size:11px; margin-top:4px; }
+    #hitFlash      { position:fixed; inset:0; background:rgba(255,0,0,0.35); pointer-events:none; opacity:0; z-index:9990; transition:opacity 0.35s; }
+    #crosshair { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); color:#fff; font-size:20px; pointer-events:none; }
+    #ePrompt   { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); color:#fff; font-size:15px; background:rgba(0,0,0,0.65); padding:9px 22px; border-radius:22px; display:none; white-space:nowrap; border:1px solid rgba(255,255,255,0.3); }
+    #notification { position:fixed; top:42%; left:50%; transform:translate(-50%,-50%); color:#FFD700; font-size:22px; font-weight:bold; text-shadow:2px 2px 5px #000; pointer-events:none; opacity:0; transition:opacity 0.4s; white-space:nowrap; }
+
+    /* ── MINI GAMES TAB ── */
+    #miniGamesTab { position:fixed; top:50%; right:0; transform:translateY(-50%); z-index:20; pointer-events:auto; }
+    #miniGamesBtn {
+      display:block; background:linear-gradient(180deg,#1a1a2e,#0f3460);
+      border:2px solid #e94560; border-right:none;
+      border-radius:10px 0 0 10px; padding:14px 10px;
+      color:#fff; font-size:11px; font-weight:bold; letter-spacing:1px;
+      cursor:pointer; text-align:center; line-height:1.6;
+      writing-mode:vertical-rl; text-orientation:mixed;
+      transform:rotate(180deg);
+      transition:background 0.2s, padding 0.2s;
+      text-decoration:none;
+    }
+    #miniGamesBtn:hover { background:linear-gradient(180deg,#e94560,#c73652); padding:18px 10px; }
+    #miniGamesBtn .icon { font-size:18px; display:block; margin-bottom:6px; transform:rotate(180deg); writing-mode:horizontal-tb; }
+
+    /* ── MINI GAMES PANEL ── */
+    #miniGamesPanel {
+      position:fixed; top:50%; right:0; transform:translateY(-50%);
+      width:220px; background:linear-gradient(135deg,#1a1a2e,#0f3460);
+      border:2px solid #e94560; border-right:none;
+      border-radius:14px 0 0 14px; padding:16px 14px;
+      z-index:20; pointer-events:auto; display:none;
+    }
+    #miniGamesPanel h3 { color:#e94560; font-size:13px; letter-spacing:2px; margin-bottom:12px; text-align:center; }
+    .mgCard {
+      background:rgba(255,255,255,0.07); border:1px solid #555;
+      border-radius:8px; padding:10px; margin-bottom:10px;
+      cursor:pointer; transition:border-color 0.2s, background 0.2s;
+      text-decoration:none; display:block;
+    }
+    .mgCard:hover { border-color:#e94560; background:rgba(233,69,96,0.15); }
+    .mgCard .mgTitle { color:#fff; font-size:13px; font-weight:bold; }
+    .mgCard .mgDesc  { color:#aaa; font-size:10px; margin-top:3px; line-height:1.4; }
+    .mgCard .mgBadge { color:#FFD700; font-size:10px; margin-top:4px; }
+    #closeMgPanel { width:100%; margin-top:4px; padding:6px; background:none; border:1px solid #555; border-radius:6px; color:#888; font-size:11px; cursor:pointer; }
+    #closeMgPanel:hover { border-color:#e94560; color:#fff; }
+
+    /* ── CUSTOMIZATION SCREEN ── */
+    #customScreen { position:fixed; top:0; left:0; width:100%; height:100%; background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:100; color:#fff; }
+    #customScreen h1 { font-size:44px; margin-bottom:4px; letter-spacing:6px; color:#e94560; }
+    #customScreen h2 { font-size:17px; margin-bottom:18px; color:#aaa; }
+    #customPanel { display:flex; gap:30px; align-items:flex-start; }
+    #previewBox  { background:rgba(255,255,255,0.05); border:2px solid #e94560; border-radius:12px; padding:16px; text-align:center; min-width:160px; flex-shrink:0; }
+    #previewBox canvas { border-radius:6px; }
+    #previewBox p { margin-top:8px; color:#aaa; font-size:12px; }
+    #customOptions { display:flex; flex-direction:column; gap:12px; width:520px; max-height:72vh; overflow-y:auto; padding-right:6px; }
+    #customOptions::-webkit-scrollbar { width:5px; }
+    #customOptions::-webkit-scrollbar-thumb { background:#e94560; border-radius:4px; }
+    .sectionLabel { color:#e94560; font-size:11px; font-weight:bold; letter-spacing:2px; margin-top:4px; }
+    .colorRow { display:flex; align-items:center; gap:10px; }
+    .colorRow label { width:90px; font-size:13px; color:#ccc; }
+    .colorRow input[type=color] { width:36px; height:26px; border:none; border-radius:4px; cursor:pointer; }
+    #nameInput { padding:9px; border-radius:8px; border:2px solid #e94560; background:rgba(255,255,255,0.1); color:#fff; font-size:15px; width:100%; }
+    #nameInput::placeholder { color:#888; }
+    .btnRow { display:flex; gap:7px; flex-wrap:wrap; }
+    .optBtn { padding:5px 12px; border-radius:6px; border:2px solid #555; background:rgba(255,255,255,0.08); color:#fff; cursor:pointer; font-size:12px; transition:all 0.15s; display:flex; flex-direction:column; align-items:center; line-height:1.3; }
+    .optBtn:hover { border-color:#aaa; }
+    .optBtn.selected { border-color:#e94560; background:rgba(233,69,96,0.25); }
+    .optBtn.locked { border-color:#886600; opacity:0.75; }
+    .optBtn.locked:hover { border-color:#FFD700; }
+    .priceTag { font-size:9px; color:#FFD700; margin-top:1px; }
+    .ownedTag { font-size:9px; color:#44ff88; margin-top:1px; }
+    #playBtn { margin-top:18px; padding:13px 44px; background:#e94560; border:none; border-radius:10px; color:#fff; font-size:18px; font-weight:bold; cursor:pointer; letter-spacing:2px; }
+    #playBtn:hover { background:#c73652; }
+
+    /* Customization panel is a fixed-width row (160px preview + 520px options)
+       that doesn't fit narrow phone/tablet screens — stack it vertically instead.
+       900px covers phones AND tablets in portrait; wider than that (landscape
+       tablets, laptops) has enough room for the original side-by-side layout. */
+    @media (max-width: 900px) {
+      /* justify-content:center (from the base #customScreen rule) clips BOTH
+         ends of overflowing content and makes part of it unreachable even with
+         overflow-y:auto — flex-start is required once this can scroll.
+         height must stay BOUNDED (100vh) so overflow happens inside this box —
+         height:auto lets it just grow past the screen instead, and body's own
+         overflow:hidden then clips it with no scrollbar at all. */
+      #customScreen { overflow-y:auto; padding:20px 0; height:100vh; justify-content:flex-start; }
+      #customPanel { flex-direction:column; align-items:center; width:100%; gap:16px; }
+      #previewBox  { width:90vw; max-width:300px; min-width:0; }
+      #customOptions { width:90vw; max-width:520px; max-height:none; }
+    }
+    /* Short & wide (phone/tablet turned sideways) — full vertical stacking means
+       scrolling through ~6 screens of content to reach PLAY, which feels broken.
+       There's plenty of WIDTH in landscape, just not height, so use it: put
+       preview and options side-by-side (like desktop) to cut the total height
+       roughly in half, and let the whole screen scroll to reach PLAY — same
+       proven scroll behavior as the portrait fix above, just narrower content. */
+    @media (max-height: 500px) and (min-width: 480px) {
+      #customScreen  { overflow-y:auto; height:100vh; padding:10px 0; justify-content:flex-start; }
+      #customPanel   { flex-direction:row; align-items:flex-start; gap:16px; }
+      #previewBox    { width:auto; max-width:130px; min-width:0; }
+      #customOptions { width:auto; max-width:520px; flex:1; max-height:none; }
+    }
+
+    /* ── LOGIN SCREEN ── */
+    #loginScreen {
+      position:fixed; inset:0; z-index:200;
+      background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      color:#fff;
+    }
+    #loginScreen h1 { font-size:48px; color:#e94560; letter-spacing:6px; margin-bottom:6px; text-shadow:0 0 18px #e94560; }
+    #loginScreen h2 { color:#aaa; font-size:14px; letter-spacing:3px; margin-bottom:28px; }
+    #accountList { display:flex; flex-direction:column; gap:8px; width:320px; margin-bottom:18px; max-height:42vh; overflow-y:auto; }
+    .accountCard {
+      display:flex; align-items:center; gap:12px;
+      background:rgba(255,255,255,0.06); border:2px solid #333;
+      border-radius:12px; padding:12px 16px; cursor:pointer;
+      transition:border-color 0.15s, background 0.15s;
+    }
+    .accountCard:hover { border-color:#e94560; background:rgba(233,69,96,0.12); }
+    .acInfo { flex:1; }
+    .acName { font-size:15px; font-weight:bold; }
+    .acSip  { color:#FFD700; font-size:12px; margin-top:2px; }
+    .acDel  { background:none; border:1px solid #444; color:#666; font-size:14px; cursor:pointer; padding:4px 8px; border-radius:6px; }
+    .acDel:hover { color:#e94560; border-color:#e94560; }
+    #noAccounts { color:#666; font-size:13px; text-align:center; padding:20px; }
+    .newAccRow  { display:flex; gap:8px; width:320px; }
+    .accInput {
+      flex:1; padding:10px 14px; background:rgba(255,255,255,0.08);
+      border:2px solid #444; border-radius:10px; color:#fff; font-size:14px;
+    }
+    .accInput:focus { outline:none; border-color:#e94560; }
+    #createAccBtn {
+      padding:10px 18px; background:#e94560; border:none; border-radius:10px;
+      color:#fff; font-size:14px; font-weight:bold; cursor:pointer; white-space:nowrap;
+    }
+    #createAccBtn:hover { background:#c73652; }
+    #loginMsg { color:#ff8888; font-size:12px; margin-top:8px; height:16px; }
+    #backToLoginBtn {
+      position:absolute; top:16px; left:16px;
+      background:rgba(0,0,0,0.4); border:1px solid #444; border-radius:8px;
+      color:#aaa; font-size:13px; padding:6px 14px; cursor:pointer;
+    }
+    #backToLoginBtn:hover { border-color:#e94560; color:#fff; }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+  <h1>EXPLOX</h1>
+  <h2>SELECT YOUR ACCOUNT</h2>
+  <div id="accountList"></div>
+  <div style="width:320px;display:flex;flex-direction:column;gap:8px;margin-top:4px;">
+    <input id="newAccName" class="accInput" type="text" placeholder="New account name..." maxlength="16"
+      onkeydown="if(event.key==='Enter')document.getElementById('newAccPw').focus()">
+    <input id="newAccPw" class="accInput" type="password" placeholder="Set a password..." maxlength="32"
+      onkeydown="if(event.key==='Enter')createAccount()">
+    <button id="createAccBtn" onclick="createAccount()">+ CREATE ACCOUNT</button>
+  </div>
+  <div id="loginMsg"></div>
+</div>
+
+<!-- PASSWORD MODAL -->
+<div id="pwModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#1a1a2e,#0f3460);border:2px solid #e94560;border-radius:16px;padding:32px 28px;width:320px;text-align:center;">
+    <div style="font-size:36px;margin-bottom:8px;">🔐</div>
+    <h2 id="pwModalName" style="color:#fff;font-size:20px;letter-spacing:2px;margin-bottom:4px;"></h2>
+    <p style="color:#888;font-size:12px;margin-bottom:16px;">Enter your password to play</p>
+    <input id="pwModalInput" type="password" placeholder="Password..." maxlength="32"
+      style="width:100%;padding:10px 14px;background:rgba(255,255,255,0.08);border:2px solid #444;border-radius:10px;color:#fff;font-size:15px;margin-bottom:10px;box-sizing:border-box;"
+      onkeydown="if(event.key==='Enter')submitPassword()">
+    <div id="pwModalError" style="color:#ff6666;font-size:12px;margin-bottom:12px;height:16px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="cancelPassword()" style="flex:1;padding:10px;background:none;border:1px solid #555;border-radius:8px;color:#aaa;font-size:14px;cursor:pointer;">Cancel</button>
+      <button onclick="submitPassword()" style="flex:1;padding:10px;background:#e94560;border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:bold;cursor:pointer;">▶ PLAY</button>
+    </div>
+  </div>
+</div>
+
+<!-- BANK PASSCODE MODAL -->
+<div id="bankPasscodeModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.82);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#12180a,#1e2a0e);border:2px solid #FFD700;border-radius:16px;padding:32px 28px;width:320px;text-align:center;">
+    <div style="font-size:36px;margin-bottom:8px;">🏦</div>
+    <h2 style="color:#FFD700;font-size:18px;letter-spacing:3px;margin-bottom:6px;">CITY BANK</h2>
+    <p style="color:#aaa;font-size:13px;margin-bottom:16px;">Enter the bank passcode to access your vault</p>
+    <input id="bankPcInput" type="password" placeholder="Enter passcode..." maxlength="64"
+      style="width:100%;padding:10px 14px;background:rgba(255,255,255,0.08);border:2px solid #444;border-radius:10px;color:#fff;font-size:14px;margin-bottom:8px;outline:none;box-sizing:border-box;"
+      onkeydown="if(event.key==='Enter')submitBankPasscode()"
+      onfocus="this.style.borderColor='#FFD700'" onblur="this.style.borderColor='#444'">
+    <div id="bankPcError" style="color:#ff8888;font-size:12px;height:16px;margin-bottom:10px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="cancelBankPasscode()" style="flex:1;padding:10px;background:none;border:1px solid #555;border-radius:8px;color:#aaa;cursor:pointer;font-size:13px;">Cancel</button>
+      <button onclick="submitBankPasscode()" style="flex:1;padding:10px;background:#886600;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:13px;">Enter →</button>
+    </div>
+  </div>
+</div>
+
+<!-- BANK OVERLAY -->
+<div id="bankOverlay" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.78);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#12180a,#1e2a0e);border:2px solid #FFD700;border-radius:16px;padding:28px;width:340px;">
+    <h2 style="color:#FFD700;text-align:center;letter-spacing:3px;margin-bottom:4px;font-size:20px;">🏦 CITY BANK</h2>
+    <p style="color:#888;text-align:center;font-size:11px;letter-spacing:2px;margin-bottom:20px;">SAFE. SECURE. YOURS.</p>
+    <div style="background:rgba(255,215,0,0.07);border:1px solid #664400;border-radius:10px;padding:14px;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+        <span style="color:#aaa;font-size:13px;">💰 Wallet</span>
+        <span id="bankWalletDisplay" style="color:#FFD700;font-weight:bold;font-size:14px;"></span>
+      </div>
+      <div style="display:flex;justify-content:space-between;">
+        <span style="color:#aaa;font-size:13px;">🏦 Bank Balance</span>
+        <span id="bankBalDisplay" style="color:#44ff88;font-weight:bold;font-size:14px;"></span>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <div style="color:#aaa;font-size:11px;letter-spacing:1px;margin-bottom:6px;">AMOUNT</div>
+      <input id="bankAmtInput" type="number" min="1" placeholder="Enter S.I.P. amount..."
+        style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.08);border:2px solid #444;border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;outline:none;"
+        onfocus="this.style.borderColor='#FFD700'" onblur="this.style.borderColor='#444'">
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button onclick="bankDeposit()" style="flex:1;padding:10px;background:#1a4a1a;border:1px solid #44aa44;border-radius:8px;color:#44ff88;font-weight:bold;cursor:pointer;font-size:13px;">⬇ Deposit</button>
+      <button onclick="bankWithdraw()" style="flex:1;padding:10px;background:#4a1a1a;border:1px solid #aa4444;border-radius:8px;color:#ff8888;font-weight:bold;cursor:pointer;font-size:13px;">⬆ Withdraw</button>
+    </div>
+    <div id="bankMsg" style="font-size:12px;text-align:center;min-height:16px;margin-bottom:10px;"></div>
+    <button onclick="openSafeModal()" style="width:100%;padding:10px;background:linear-gradient(90deg,#2a1a00,#3a2800);border:1px solid #886600;border-radius:8px;color:#FFD700;font-weight:bold;cursor:pointer;font-size:13px;margin-bottom:10px;">🔐 Open Safe</button>
+    <button onclick="closeBank()" style="width:100%;padding:9px;background:none;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">✖ Leave Bank</button>
+  </div>
+</div>
+
+<!-- SAFE MODAL -->
+<div id="safeModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#1a1000,#2a1e00);border:3px solid #886600;border-radius:16px;padding:28px;width:320px;text-align:center;">
+    <div style="font-size:38px;margin-bottom:6px;">🔐</div>
+    <h2 style="color:#FFD700;font-size:17px;letter-spacing:3px;margin-bottom:16px;">BANK SAFE</h2>
+
+    <!-- SET COMBO VIEW (first time) -->
+    <div id="safeSetView">
+      <p style="color:#aaa;font-size:12px;margin-bottom:14px;">No combo set yet. Create one to lock your safe.</p>
+      <input id="safeNewCombo" type="password" placeholder="Create a combo..." maxlength="32"
+        style="width:100%;padding:10px;background:rgba(255,255,255,0.08);border:2px solid #444;border-radius:8px;color:#fff;font-size:14px;margin-bottom:8px;box-sizing:border-box;outline:none;"
+        onfocus="this.style.borderColor='#FFD700'" onblur="this.style.borderColor='#444'"
+        onkeydown="if(event.key==='Enter')setSafeCombo()">
+      <input id="safeConfirmCombo" type="password" placeholder="Confirm combo..." maxlength="32"
+        style="width:100%;padding:10px;background:rgba(255,255,255,0.08);border:2px solid #444;border-radius:8px;color:#fff;font-size:14px;margin-bottom:8px;box-sizing:border-box;outline:none;"
+        onfocus="this.style.borderColor='#FFD700'" onblur="this.style.borderColor='#444'"
+        onkeydown="if(event.key==='Enter')setSafeCombo()">
+      <div id="safeSetErr" style="color:#ff8888;font-size:12px;height:16px;margin-bottom:8px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="closeSafe()" style="flex:1;padding:10px;background:none;border:1px solid #555;border-radius:8px;color:#aaa;cursor:pointer;font-size:13px;">Cancel</button>
+        <button onclick="setSafeCombo()" style="flex:1;padding:10px;background:#886600;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:13px;">Set Combo →</button>
+      </div>
+    </div>
+
+    <!-- ENTER COMBO VIEW -->
+    <div id="safeEnterView" style="display:none;">
+      <p style="color:#aaa;font-size:12px;margin-bottom:14px;">Enter your safe combination</p>
+      <input id="safeComboInput" type="password" placeholder="Combo..." maxlength="32"
+        style="width:100%;padding:10px;background:rgba(255,255,255,0.08);border:2px solid #444;border-radius:8px;color:#fff;font-size:14px;margin-bottom:8px;box-sizing:border-box;outline:none;"
+        onfocus="this.style.borderColor='#FFD700'" onblur="this.style.borderColor='#444'"
+        onkeydown="if(event.key==='Enter')submitSafeCombo()">
+      <div id="safeEnterErr" style="color:#ff8888;font-size:12px;height:16px;margin-bottom:8px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="closeSafe()" style="flex:1;padding:10px;background:none;border:1px solid #555;border-radius:8px;color:#aaa;cursor:pointer;font-size:13px;">Cancel</button>
+        <button onclick="submitSafeCombo()" style="flex:1;padding:10px;background:#886600;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:13px;">Open →</button>
+      </div>
+    </div>
+
+    <!-- SAFE OPEN VIEW -->
+    <div id="safeOpenView" style="display:none;">
+      <div style="background:rgba(255,215,0,0.07);border:1px solid #664400;border-radius:10px;padding:14px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <span style="color:#aaa;font-size:13px;">💰 Wallet</span>
+          <span id="safeWalletDisplay" style="color:#FFD700;font-weight:bold;font-size:13px;"></span>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span style="color:#aaa;font-size:13px;">🔐 Safe Balance</span>
+          <span id="safeBalDisplay" style="color:#44ff88;font-weight:bold;font-size:13px;"></span>
+        </div>
+      </div>
+      <input id="safeAmtInput" type="number" min="1" placeholder="Amount..."
+        style="width:100%;padding:9px;background:rgba(255,255,255,0.08);border:2px solid #444;border-radius:8px;color:#fff;font-size:14px;margin-bottom:10px;box-sizing:border-box;outline:none;"
+        onfocus="this.style.borderColor='#FFD700'" onblur="this.style.borderColor='#444'">
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <button onclick="safeDeposit()" style="flex:1;padding:9px;background:#1a4a1a;border:1px solid #44aa44;border-radius:8px;color:#44ff88;font-weight:bold;cursor:pointer;font-size:12px;">⬇ Lock In</button>
+        <button onclick="safeWithdraw()" style="flex:1;padding:9px;background:#4a1a1a;border:1px solid #aa4444;border-radius:8px;color:#ff8888;font-weight:bold;cursor:pointer;font-size:12px;">⬆ Take Out</button>
+      </div>
+      <div id="safeItemsList" style="margin-bottom:6px;"></div>
+      <div id="safeMsg" style="font-size:12px;min-height:16px;margin-bottom:8px;"></div>
+      <button onclick="closeSafe()" style="width:100%;padding:9px;background:none;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">🔒 Lock Safe</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHARACTER CUSTOMIZATION -->
+<div id="customScreen" style="display:none">
+  <button id="backToLoginBtn" onclick="backToLogin()">← Accounts</button>
+  <h1>EXPLOX</h1>
+  <h2>Customize Your Character</h2>
+  <div id="customPanel">
+    <div id="previewBox">
+      <canvas id="previewCanvas" width="140" height="210"></canvas>
+      <p>Your character</p>
+      <div style="margin-top:12px; border-top:1px solid #e94560; padding-top:10px;">
+        <p style="color:#e94560;font-size:10px;letter-spacing:2px;font-weight:bold;margin-bottom:6px;">YOUR BADGE</p>
+        <canvas id="avatarPreview" width="96" height="128" style="border-radius:6px;"></canvas>
+      </div>
+      <p style="color:#FFD700;margin-top:8px;font-size:13px;font-weight:bold;">💰 <span id="customSip">0</span> S.I.P.</p>
+      <p id="customMsg" style="font-size:11px;min-height:14px;margin-top:3px;transition:opacity 0.3s;"></p>
+    </div>
+    <div id="customOptions">
+      <div class="sectionLabel">YOUR NAME</div>
+      <input id="nameInput" type="text" placeholder="Enter your name..." maxlength="16">
+      <div class="sectionLabel">HAIR COLOR</div>
+      <div class="colorRow"><label>Hair</label><input type="color" id="hairColor" value="#3a1f0a"></div>
+      <div class="sectionLabel">HAIR STYLE</div>
+      <div class="btnRow" id="hairBtns">
+        <button class="optBtn selected" data-val="none">None</button>
+        <button class="optBtn" data-val="short">Short</button>
+        <button class="optBtn" data-val="long">Long</button>
+        <button class="optBtn" data-val="spiky">Spiky</button>
+        <button class="optBtn" data-val="afro">Afro</button>
+        <button class="optBtn" data-val="ponytail">Ponytail</button>
+        <button class="optBtn" data-val="curly">Curly</button>
+      </div>
+      <div class="sectionLabel">HAT</div>
+      <div class="btnRow" id="hatBtns">
+        <button class="optBtn selected" data-val="none">None</button>
+        <button class="optBtn" data-val="cap">Cap</button>
+        <button class="optBtn" data-val="cowboy">Cowboy</button>
+        <button class="optBtn" data-val="crown">Crown</button>
+        <button class="optBtn" data-val="helmet">Helmet</button>
+        <button class="optBtn" data-val="tophat">Top Hat</button>
+        <button class="optBtn" data-val="beanie">Beanie</button>
+        <button class="optBtn" data-val="fedora">Fedora</button>
+        <button class="optBtn" data-val="wizard">Wizard</button>
+        <button class="optBtn" data-val="pirate">Pirate</button>
+        <button class="optBtn" data-val="santa">Santa</button>
+      </div>
+      <div class="sectionLabel">SKIN COLOR</div>
+      <div class="colorRow"><label>Skin</label><input type="color" id="skinColor" value="#f5c89a"></div>
+      <div class="sectionLabel">SHIRT COLOR</div>
+      <div class="colorRow"><label>Shirt</label><input type="color" id="shirtColor" value="#2196F3"></div>
+      <div class="sectionLabel">SHIRT STYLE</div>
+      <div class="btnRow" id="shirtBtns">
+        <button class="optBtn selected" data-val="plain">Plain</button>
+        <button class="optBtn" data-val="striped">Striped</button>
+        <button class="optBtn" data-val="hoodie">Hoodie</button>
+        <button class="optBtn" data-val="suit">Suit</button>
+        <button class="optBtn" data-val="tanktop">Tank Top</button>
+        <button class="optBtn" data-val="jersey">Jersey</button>
+      </div>
+      <div class="sectionLabel">PANTS COLOR</div>
+      <div class="colorRow"><label>Pants</label><input type="color" id="pantsColor" value="#333333"></div>
+      <div class="sectionLabel">PANTS STYLE</div>
+      <div class="btnRow" id="pantsBtns">
+        <button class="optBtn selected" data-val="long">Long</button>
+        <button class="optBtn" data-val="shorts">Shorts</button>
+        <button class="optBtn" data-val="ripped">Ripped</button>
+        <button class="optBtn" data-val="cargo">Cargo</button>
+        <button class="optBtn" data-val="joggers">Joggers</button>
+      </div>
+      <div class="sectionLabel">SHOE COLOR</div>
+      <div class="colorRow"><label>Shoes</label><input type="color" id="shoeColor" value="#4e3b2a"></div>
+      <div class="sectionLabel">SHOE STYLE</div>
+      <div class="btnRow" id="shoeBtns">
+        <button class="optBtn selected" data-val="sneakers">Sneakers</button>
+        <button class="optBtn" data-val="boots">Boots</button>
+        <button class="optBtn" data-val="sandals">Sandals</button>
+        <button class="optBtn" data-val="dress">Dress</button>
+        <button class="optBtn" data-val="hightop">High-Top</button>
+      </div>
+      <div class="sectionLabel">SKINS</div>
+      <div id="skinsSection"></div>
+      <div class="sectionLabel">BIRTHDAY</div>
+      <div style="display:flex;gap:8px;">
+        <select id="bdMonth" style="flex:1;padding:9px;border-radius:8px;border:2px solid #555;background:#1a1a2e;color:#fff;font-size:13px;cursor:pointer;" onfocus="this.style.borderColor='#e94560'" onblur="this.style.borderColor='#555'" onchange="fillBdDays(this.value,'')">
+          <option value="">Month</option>
+          <option value="01">January</option><option value="02">February</option>
+          <option value="03">March</option><option value="04">April</option>
+          <option value="05">May</option><option value="06">June</option>
+          <option value="07">July</option><option value="08">August</option>
+          <option value="09">September</option><option value="10">October</option>
+          <option value="11">November</option><option value="12">December</option>
+        </select>
+        <select id="bdDay" style="flex:1;padding:9px;border-radius:8px;border:2px solid #555;background:#1a1a2e;color:#fff;font-size:13px;cursor:pointer;" onfocus="this.style.borderColor='#e94560'" onblur="this.style.borderColor='#555'">
+          <option value="">Day</option>
+        </select>
+      </div>
+      <p style="color:#666;font-size:10px;margin-top:2px;">Set your birthday to get a 🎂 celebration in-game!</p>
+    </div>
+  </div>
+  <button id="playBtn">PLAY</button>
+</div>
+
+<!-- S.I.T.S. MODAL -->
+<div id="sitsModal" style="display:none;position:fixed;inset:0;background:#0a0f1a;z-index:2000;overflow-y:auto;font-family:Arial,sans-serif;">
+  <div style="max-width:680px;margin:0 auto;padding:24px;box-sizing:border-box;">
+    <!-- Header -->
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="font-size:52px;line-height:1;">🚇</div>
+      <h1 style="color:#ffcc00;margin:6px 0 2px;font-size:26px;letter-spacing:3px;">S.I.T.S.</h1>
+      <p style="color:#aaa;font-size:12px;margin:0 0 4px;">Super Important Transit System</p>
+      <p style="color:#888;font-size:11px;margin:0;">Wallet: <span id="sitsSip" style="color:#ffcc00;font-weight:bold;">0</span> S.I.P. &nbsp;|&nbsp; All fares go straight to the bank! 🏦</p>
+    </div>
+    <!-- Transit Map Canvas -->
+    <canvas id="sitsMap" width="620" height="200" style="width:100%;border-radius:12px;border:2px solid #223;margin-bottom:20px;display:block;"></canvas>
+    <!-- Routes -->
+    <div id="sitsRoutes"></div>
+    <!-- Close -->
+    <div style="text-align:center;margin-top:20px;">
+      <button onclick="closeSITS()" style="padding:10px 32px;background:#222;color:#aaa;border:2px solid #333;border-radius:10px;cursor:pointer;font-size:14px;font-weight:bold;">🚪 Leave Station</button>
+    </div>
+  </div>
+</div>
+
+<!-- HOTEL MODAL -->
+<div id="hotelModal" style="display:none;position:fixed;inset:0;background:#0a0a18;z-index:2000;font-family:Arial,sans-serif;flex-direction:column;align-items:center;justify-content:center;">
+  <div style="max-width:520px;width:90%;background:#12122a;border:2px solid #ffd70066;border-radius:16px;padding:28px 24px;box-sizing:border-box;">
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="font-size:40px;">🏨</div>
+      <div style="color:#ffd700;font-size:22px;font-weight:bold;letter-spacing:3px;margin:6px 0 2px;">CITY HOTEL</div>
+      <div style="color:#888;font-size:12px;">★★★ Premium Accommodation ★★★</div>
+      <div style="color:#aaa;font-size:12px;margin-top:6px;">Wallet: <span id="hotelSip" style="color:#ffd700;font-weight:bold;">0</span> S.I.P.</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div onclick="bookRoom('budget')" style="background:#0d1020;border:2px solid #4466aa55;border-radius:12px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:14px;transition:border-color 0.2s;" onmouseover="this.style.borderColor='#4466aa'" onmouseout="this.style.borderColor='#4466aa55'">
+        <span style="font-size:28px;">🛏️</span>
+        <div style="flex:1"><div style="color:#fff;font-weight:bold;font-size:14px;">Budget Room</div><div style="color:#888;font-size:11px;margin-top:2px;">Cozy single bed, city view, free breakfast</div></div>
+        <div style="color:#ffd700;font-weight:bold;font-size:16px;">40 S.I.P.</div>
+      </div>
+      <div onclick="bookRoom('standard')" style="background:#0d1020;border:2px solid #8866ff55;border-radius:12px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:14px;transition:border-color 0.2s;" onmouseover="this.style.borderColor='#8866ff'" onmouseout="this.style.borderColor='#8866ff55'">
+        <span style="font-size:28px;">✨</span>
+        <div style="flex:1"><div style="color:#fff;font-weight:bold;font-size:14px;">Standard Room</div><div style="color:#888;font-size:11px;margin-top:2px;">King bed, flat-screen TV, premium pillow menu</div></div>
+        <div style="color:#ffd700;font-weight:bold;font-size:16px;">80 S.I.P.</div>
+      </div>
+      <div onclick="bookRoom('luxury')" style="background:#0d1020;border:2px solid #ffd70055;border-radius:12px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:14px;transition:border-color 0.2s;" onmouseover="this.style.borderColor='#ffd700'" onmouseout="this.style.borderColor='#ffd70055'">
+        <span style="font-size:28px;">👑</span>
+        <div style="flex:1"><div style="color:#ffd700;font-weight:bold;font-size:14px;">Luxury Suite</div><div style="color:#888;font-size:11px;margin-top:2px;">Penthouse view, hot tub, 24hr room service</div></div>
+        <div style="color:#ffd700;font-weight:bold;font-size:16px;">200 S.I.P.</div>
+      </div>
+    </div>
+    <button onclick="closeHotel()" style="width:100%;margin-top:16px;padding:10px;background:transparent;border:1px solid #333;color:#666;border-radius:8px;cursor:pointer;font-size:13px;">← Cancel</button>
+  </div>
+</div>
+
+<!-- AIRPORT MODAL -->
+<div id="airportModal" style="display:none;position:fixed;inset:0;background:#040d1a;z-index:2000;font-family:Arial,sans-serif;flex-direction:column;align-items:center;justify-content:center;">
+  <div style="max-width:560px;width:92%;background:#0a1624;border:2px solid #2255aa55;border-radius:18px;padding:28px 24px;box-sizing:border-box;">
+    <div style="text-align:center;margin-bottom:18px;">
+      <div style="font-size:44px;">✈️</div>
+      <div style="color:#88ccff;font-size:22px;font-weight:bold;letter-spacing:3px;margin:6px 0 2px;">CITY AIRPORT</div>
+      <div style="color:#223344;font-size:10px;letter-spacing:4px;">SELECT YOUR DESTINATION</div>
+      <div style="color:#445566;font-size:12px;margin-top:6px;">Wallet: <span id="airportSip" style="color:#88ccff;font-weight:bold;">0</span> S.I.P.</div>
+    </div>
+    <div id="airportBringCarRow" style="display:none;color:#88ccff;font-size:12px;text-align:center;margin-bottom:12px;background:#040c18;border:1px solid #152840;border-radius:10px;padding:10px;">
+      <label style="cursor:pointer;"><input type="checkbox" id="airportBringCar"> 🚗 Bring your car (+<span id="airportBringCarFee"></span> S.I.P.)</label>
+    </div>
+    <div style="color:#88ccff;font-size:12px;text-align:center;margin-bottom:12px;background:#040c18;border:1px solid #152840;border-radius:10px;padding:10px;">
+      <label style="cursor:pointer;">🍽️ Preorder your in-flight meal:<br>
+        <select id="airportMealSelect" style="margin-top:6px;background:#0a1830;color:#88ccff;border:1px solid #2a4a7a;border-radius:6px;padding:5px 10px;font-size:12px;"></select>
+      </label>
+    </div>
+    <div style="background:#040c18;border:1px solid #152840;border-radius:10px;padding:12px;margin-bottom:14px;">
+      <div style="color:#223344;font-size:9px;letter-spacing:5px;margin-bottom:10px;text-align:center;">— DEPARTURES —</div>
+      <div style="display:flex;flex-direction:column;gap:8px;" id="airportFlightList"></div>
+    </div>
+    <button onclick="closeAirport()" style="width:100%;padding:10px;background:transparent;border:1px solid #152840;color:#334455;border-radius:8px;cursor:pointer;font-size:13px;">← Stay in City</button>
+  </div>
+</div>
+
+<!-- FLIGHT OVERLAY -->
+<div id="flightOverlay" style="display:none;position:fixed;inset:0;z-index:3000;font-family:Arial,sans-serif;background:#030810;overflow:hidden;">
+  <div style="position:absolute;top:0;left:0;right:0;height:48px;background:#060f1e;display:flex;align-items:center;justify-content:center;border-bottom:2px solid #1a2a4a;">
+    <span style="font-size:15px;color:#88ccff;font-weight:bold;letter-spacing:4px;">✈️ NOW FLYING</span>
+  </div>
+  <div style="position:absolute;top:52px;left:5%;width:90%;height:50%;">
+    <canvas id="flightWindowCanvas" style="width:100%;height:100%;border:4px solid #1a2a4a;border-radius:6px;"></canvas>
+    <button id="flightScreenBtn" onclick="toggleFlightScreen()" style="position:absolute;top:10px;right:10px;padding:6px 12px;background:#0a1830dd;border:1px solid #2a4a7a;color:#88ccff;border-radius:6px;font-size:11px;cursor:pointer;font-family:Arial,sans-serif;">📺 Watch Show</button>
+    <button id="flightSnackBtn" onclick="serveFlightMeal()" disabled style="position:absolute;bottom:10px;left:10px;padding:6px 12px;background:#0a1830aa;border:1px solid #334455;color:#556677;border-radius:6px;font-size:11px;cursor:not-allowed;font-family:Arial,sans-serif;">🍽️ Meal cart coming...</button>
+  </div>
+  <div style="position:absolute;top:61%;left:0;right:0;text-align:center;">
+    <div style="color:#223344;font-size:10px;letter-spacing:5px;margin-bottom:8px;">DESTINATION</div>
+    <div id="flightDestName" style="color:#88ccff;font-size:26px;font-weight:bold;letter-spacing:2px;">...</div>
+    <div id="flightDestDesc" style="color:#334455;font-size:12px;margin-top:4px;">...</div>
+  </div>
+  <div style="position:absolute;bottom:24px;left:10%;right:10%;">
+    <div style="color:#1a2a3a;font-size:10px;letter-spacing:3px;margin-bottom:6px;text-align:center;">FLIGHT PROGRESS</div>
+    <div style="background:#050d1a;border-radius:4px;height:8px;overflow:hidden;border:1px solid #1a2a4a;">
+      <div id="flightProgressBar" style="height:100%;background:linear-gradient(90deg,#1a44aa,#88ccff);width:0%;transition:width 0.1s;border-radius:4px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- BUS RIDE OVERLAY -->
+<div id="busRideOverlay" style="display:none;position:fixed;inset:0;z-index:3000;font-family:Arial,sans-serif;background:#0a0512;overflow:hidden;">
+  <div style="position:absolute;top:0;left:0;right:0;height:48px;background:#0d0820;display:flex;align-items:center;justify-content:center;border-bottom:2px solid #1a1030;">
+    <span id="busRouteBadge" style="font-size:18px;font-weight:bold;letter-spacing:3px;">🚌 RED LINE</span>
+  </div>
+  <canvas id="busWindowCanvas" style="position:absolute;top:52px;left:5%;width:90%;height:52%;border:4px solid #1a0d30;border-radius:6px;"></canvas>
+  <div style="position:absolute;top:67%;left:0;right:0;text-align:center;">
+    <div id="busNextStop" style="color:#888;font-size:12px;letter-spacing:4px;">NEXT STOP</div>
+    <div id="busStopName" style="color:#ffcc00;font-size:30px;font-weight:bold;letter-spacing:2px;margin-top:4px;">...</div>
+  </div>
+  <div style="position:absolute;bottom:0;left:0;right:0;background:#0d0820;border-top:2px solid #1a1030;padding:14px 24px;">
+    <div id="busStopsBar" style="display:flex;align-items:center;"></div>
+  </div>
+</div>
+
+<!-- CINEMA MODAL -->
+<div id="cinemaModal" style="display:none;position:fixed;inset:0;background:#000;z-index:2000;flex-direction:column;align-items:center;justify-content:center;font-family:Arial,sans-serif;">
+
+  <!-- LOBBY: pick a movie -->
+  <div id="cinemaLobby" style="text-align:center;max-width:740px;padding:24px;width:100%;box-sizing:border-box;">
+    <div style="font-size:44px;margin-bottom:4px;">🎬</div>
+    <h2 style="color:#ffcc00;margin:0 0 4px;font-size:26px;letter-spacing:2px;">EXPLOX CINEMAS</h2>
+    <p style="color:#888;font-size:12px;margin:0 0 18px;">Choose your movie &nbsp;|&nbsp; S.I.P.: <span id="cinemaSipLobby" style="color:#ffcc00;font-weight:bold;">0</span></p>
+    <div id="movieGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;"></div>
+    <button onclick="closeCinema()" style="padding:8px 26px;background:#333;color:#aaa;border:none;border-radius:8px;cursor:pointer;font-size:13px;">← Leave</button>
+  </div>
+
+  <!-- SNACK BAR -->
+  <div id="cinemaSnacks" style="display:none;text-align:center;max-width:440px;padding:24px;width:100%;box-sizing:border-box;">
+    <div style="font-size:36px;">🍿</div>
+    <h2 style="color:#ffcc00;margin:4px 0 2px;">SNACK BAR</h2>
+    <p style="color:#aaa;font-size:13px;margin:0 0 16px;">Grab something before the show! &nbsp; S.I.P.: <span id="cinemaSnackSip" style="color:#ffcc00;font-weight:bold;">0</span></p>
+    <div id="snackGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;"></div>
+    <div id="snackCart" style="color:#aaa;font-size:13px;min-height:20px;margin-bottom:14px;"></div>
+    <button onclick="startTrailer()" style="padding:12px 44px;background:#e94560;color:#fff;border:none;border-radius:10px;font-size:16px;cursor:pointer;font-weight:bold;">🎬 Enter Theater</button>
+    <br>
+    <button onclick="closeCinema()" style="margin-top:10px;padding:7px 22px;background:#333;color:#aaa;border:none;border-radius:8px;cursor:pointer;font-size:12px;">← Leave</button>
+  </div>
+
+  <!-- SCREEN: trailer → movie → credits -->
+  <div id="cinemaScreen" style="display:none;width:100%;height:100%;position:relative;">
+    <canvas id="cinemaCanvas" style="display:block;width:100%;height:100%;"></canvas>
+    <button id="cinemaSkip" onclick="skipCinemaPhase()" style="position:absolute;bottom:22px;right:22px;padding:8px 18px;background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:6px;cursor:pointer;font-size:13px;">Skip →</button>
+    <button id="cinemaClose" onclick="closeCinema()" style="display:none;position:absolute;bottom:22px;right:22px;padding:11px 30px;background:#e94560;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:bold;">🚪 Leave Theater</button>
+  </div>
+
+</div>
+
+<!-- ARCADE MODAL -->
+<div id="arcadeModal" style="display:none;position:fixed;inset:0;background:#0a0a1a;z-index:2000;flex-direction:column;align-items:center;justify-content:center;font-family:Arial,sans-serif;color:#fff;">
+
+  <!-- WHACK-A-MOLE -->
+  <div id="whackScreen" style="display:none;text-align:center;">
+    <h2 style="color:#00e5ff;margin-bottom:6px;">🐹 Whack-a-Mole</h2>
+    <div style="display:flex;gap:20px;justify-content:center;margin:10px 0;font-size:14px;">
+      <div>Score: <b id="whackScore">0</b></div>
+      <div>Time: <b id="whackTimeLeft">30</b>s</div>
+    </div>
+    <div id="whackGrid" style="display:grid;grid-template-columns:repeat(3,90px);grid-template-rows:repeat(3,90px);gap:10px;margin:16px auto;width:fit-content;"></div>
+    <div id="whackResult" style="min-height:20px;color:#ffd54a;font-size:13px;margin-bottom:14px;max-width:360px;"></div>
+    <button onclick="startWhack()" style="background:#00e5ff;border:none;color:#001;padding:10px 22px;border-radius:20px;cursor:pointer;font-weight:bold;font-size:13px;margin-right:8px;">🔁 Play Again</button>
+    <button onclick="closeArcade()" style="background:none;border:1px solid #666;color:#aaa;padding:10px 22px;border-radius:20px;cursor:pointer;font-size:13px;">← Leave</button>
+  </div>
+
+  <!-- MAZE CHASE -->
+  <div id="mazeScreen" style="display:none;text-align:center;">
+    <h2 style="color:#ff2e9c;margin-bottom:6px;">👻 Maze Chase</h2>
+    <div style="font-size:13px;margin-bottom:8px;color:#9ab;">Pellets left: <b id="mazePelletsLeft" style="color:#ffd54a;">0</b> — Move with WASD or Arrow Keys</div>
+    <canvas id="mazeCanvas" style="border:2px solid #444;background:#0a0a1a;"></canvas>
+    <div id="mazeResult" style="min-height:20px;color:#ffd54a;font-size:13px;margin:10px 0;"></div>
+    <button onclick="startMaze()" style="background:#ff2e9c;border:none;color:#fff;padding:10px 22px;border-radius:20px;cursor:pointer;font-weight:bold;font-size:13px;margin-right:8px;">🔁 Retry</button>
+    <button onclick="closeArcade()" style="background:none;border:1px solid #666;color:#aaa;padding:10px 22px;border-radius:20px;cursor:pointer;font-size:13px;">← Leave</button>
+  </div>
+
+  <!-- MEMORY MATCH -->
+  <div id="memoryScreen" style="display:none;text-align:center;">
+    <h2 style="color:#8a2be2;margin-bottom:6px;">🧠 Memory Match</h2>
+    <div style="font-size:13px;margin-bottom:8px;color:#9ab;">Moves: <b id="memMoves" style="color:#ffd54a;">0</b></div>
+    <div id="memoryGrid" style="display:grid;grid-template-columns:repeat(4,70px);grid-template-rows:repeat(4,70px);gap:8px;margin:12px auto;width:fit-content;"></div>
+    <div id="memResult" style="min-height:20px;color:#ffd54a;font-size:13px;margin:10px 0;"></div>
+    <button onclick="startMemory()" style="background:#8a2be2;border:none;color:#fff;padding:10px 22px;border-radius:20px;cursor:pointer;font-weight:bold;font-size:13px;margin-right:8px;">🔁 Play Again</button>
+    <button onclick="closeArcade()" style="background:none;border:1px solid #666;color:#aaa;padding:10px 22px;border-radius:20px;cursor:pointer;font-size:13px;">← Leave</button>
+  </div>
+
+  <!-- SIMON SAYS -->
+  <div id="simonScreen" style="display:none;text-align:center;">
+    <h2 style="color:#4dff88;margin-bottom:6px;">🎵 Simon Says</h2>
+    <div style="font-size:13px;margin-bottom:8px;color:#9ab;">Round: <b id="simRound" style="color:#ffd54a;">0</b></div>
+    <div id="simonPad" style="display:grid;grid-template-columns:90px 90px;grid-template-rows:90px 90px;gap:8px;margin:12px auto;width:fit-content;">
+      <div onclick="simonClick(0)" style="background:#ff4d6d;border-radius:12px 0 0 0;cursor:pointer;opacity:0.55;transition:opacity 0.1s, box-shadow 0.1s;"></div>
+      <div onclick="simonClick(1)" style="background:#4dd2ff;border-radius:0 12px 0 0;cursor:pointer;opacity:0.55;transition:opacity 0.1s, box-shadow 0.1s;"></div>
+      <div onclick="simonClick(2)" style="background:#4dff88;border-radius:0 0 0 12px;cursor:pointer;opacity:0.55;transition:opacity 0.1s, box-shadow 0.1s;"></div>
+      <div onclick="simonClick(3)" style="background:#ffe14d;border-radius:0 0 12px 0;cursor:pointer;opacity:0.55;transition:opacity 0.1s, box-shadow 0.1s;"></div>
+    </div>
+    <div id="simResult" style="min-height:20px;color:#ffd54a;font-size:13px;margin:10px 0;"></div>
+    <button onclick="startSimon()" style="background:#4dff88;border:none;color:#001;padding:10px 22px;border-radius:20px;cursor:pointer;font-weight:bold;font-size:13px;margin-right:8px;">🔁 Play Again</button>
+    <button onclick="closeArcade()" style="background:none;border:1px solid #666;color:#aaa;padding:10px 22px;border-radius:20px;cursor:pointer;font-size:13px;">← Leave</button>
+  </div>
+
+  <!-- SNAKE -->
+  <div id="snakeScreen" style="display:none;text-align:center;">
+    <h2 style="color:#4dff88;margin-bottom:6px;">🐍 Snake</h2>
+    <div style="font-size:13px;margin-bottom:8px;color:#9ab;">Eaten: <b id="snakeScore" style="color:#ffd54a;">0</b> — Move with WASD or Arrow Keys</div>
+    <canvas id="snakeCanvas" style="border:2px solid #444;background:#0a0a1a;"></canvas>
+    <div id="snakeResult" style="min-height:20px;color:#ffd54a;font-size:13px;margin:10px 0;"></div>
+    <button onclick="startSnake()" style="background:#4dff88;border:none;color:#001;padding:10px 22px;border-radius:20px;cursor:pointer;font-weight:bold;font-size:13px;margin-right:8px;">🔁 Retry</button>
+    <button onclick="closeArcade()" style="background:none;border:1px solid #666;color:#aaa;padding:10px 22px;border-radius:20px;cursor:pointer;font-size:13px;">← Leave</button>
+  </div>
+
+  <!-- BRICK BREAKER -->
+  <div id="breakoutScreen" style="display:none;text-align:center;">
+    <h2 style="color:#ffa64d;margin-bottom:6px;">🧱 Brick Breaker</h2>
+    <div style="font-size:13px;margin-bottom:8px;color:#9ab;">Broken: <b id="breakoutBroken" style="color:#ffd54a;">0</b> — Move with A/D or Arrow Keys</div>
+    <canvas id="breakoutCanvas" style="border:2px solid #444;background:#0a0a1a;"></canvas>
+    <div id="breakoutResult" style="min-height:20px;color:#ffd54a;font-size:13px;margin:10px 0;"></div>
+    <button onclick="startBreakout()" style="background:#ffa64d;border:none;color:#001;padding:10px 22px;border-radius:20px;cursor:pointer;font-weight:bold;font-size:13px;margin-right:8px;">🔁 Retry</button>
+    <button onclick="closeArcade()" style="background:none;border:1px solid #666;color:#aaa;padding:10px 22px;border-radius:20px;cursor:pointer;font-size:13px;">← Leave</button>
+  </div>
+
+  <!-- QUICK DRAW -->
+  <div id="reactionScreen" style="display:none;text-align:center;">
+    <h2 style="color:#ffe14d;margin-bottom:6px;">⚡ Quick Draw</h2>
+    <div style="font-size:12px;margin-bottom:10px;color:#9ab;max-width:320px;margin-left:auto;margin-right:auto;">Wait for the box to turn green, then click it as fast as you can!</div>
+    <div id="reactionBox" onclick="reactionClick()" style="width:280px;height:160px;margin:0 auto;border-radius:14px;background:#552222;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:16px;cursor:pointer;user-select:none;">Tap to start</div>
+    <div id="reactionResult" style="min-height:20px;color:#ffd54a;font-size:13px;margin:14px 0;"></div>
+    <button onclick="closeArcade()" style="background:none;border:1px solid #666;color:#aaa;padding:10px 22px;border-radius:20px;cursor:pointer;font-size:13px;">← Leave</button>
+  </div>
+
+  <!-- TETRIS -->
+  <div id="tetrisScreen" style="display:none;text-align:center;">
+    <h2 style="color:#c04dff;margin-bottom:6px;">🧩 Tetris</h2>
+    <div style="font-size:13px;margin-bottom:8px;color:#9ab;">Lines: <b id="tetrisLines" style="color:#ffd54a;">0</b> — ←/→ move, ↑ or X rotate, ↓ drop</div>
+    <canvas id="tetrisCanvas" style="border:2px solid #444;background:#0a0a1a;"></canvas>
+    <div id="tetrisResult" style="min-height:20px;color:#ffd54a;font-size:13px;margin:10px 0;"></div>
+    <button onclick="startTetris()" style="background:#c04dff;border:none;color:#fff;padding:10px 22px;border-radius:20px;cursor:pointer;font-weight:bold;font-size:13px;margin-right:8px;">🔁 Retry</button>
+    <button onclick="closeArcade()" style="background:none;border:1px solid #666;color:#aaa;padding:10px 22px;border-radius:20px;cursor:pointer;font-size:13px;">← Leave</button>
+  </div>
+
+  <!-- CLAW MACHINE -->
+  <div id="clawScreen" style="display:none;text-align:center;">
+    <h2 id="clawTitle" style="color:#ff69b4;margin-bottom:6px;">🧸 Claw Machine</h2>
+    <div style="font-size:12px;margin-bottom:8px;color:#9ab;max-width:340px;margin-left:auto;margin-right:auto;">←/→ move the claw, ↓ or Space to drop — 8 S.I.P. per try. Rarer prizes are harder to grab!</div>
+    <canvas id="clawCanvas" style="border:2px solid #444;background:#0a0a1a;"></canvas>
+    <div id="clawResult" style="min-height:20px;color:#ffd54a;font-size:13px;margin:10px 0;max-width:340px;margin-left:auto;margin-right:auto;"></div>
+    <button onclick="closeArcade()" style="background:none;border:1px solid #666;color:#aaa;padding:10px 22px;border-radius:20px;cursor:pointer;font-size:13px;">← Leave Machine</button>
+  </div>
+
+</div>
+
+<!-- GAME HUD -->
+<div id="_dbgFrames" style="position:fixed;top:130px;left:10px;color:lime;font-size:11px;z-index:9999;pointer-events:none;background:rgba(0,0,0,0.6);padding:3px 7px;border-radius:4px;">Frames: 0</div>
+<div id="hitFlash"></div>
+<div id="hud" style="display:none">
+  <div id="gameName">EXPLOX</div>
+  <div id="crosshair">+</div>
+  <div id="location">City Center</div>
+  <div id="sipHud">💰 <span id="sipAmount">500</span> S.I.P.</div>
+  <div id="bagHud">🎒 <span id="bagItems">empty</span></div>
+  <div id="jobHud">💼 No Job</div>
+  <div id="alignmentHud">😈 BAD GUY MODE</div>
+  <div id="wantedHud">⭐ WANTED</div>
+  <div id="woodHud">🪵 <span id="woodAmount">0</span> Wood</div>
+  <div id="scrapHud">🔩 <span id="scrapAmount">0</span> Scrap</div>
+  <div id="healthHud">
+    <div id="healthBarBg"><div id="healthBarFill"></div></div>
+    <div id="healthText">100/100 HP</div>
+  </div>
+  <div id="ePrompt"></div>
+  <div id="notification"></div>
+  <!-- NAV COMPASS HUD -->
+  <div id="navHud" style="display:none;position:fixed;bottom:100px;left:50%;transform:translateX(-50%);z-index:30;pointer-events:none;text-align:center;">
+    <div style="background:rgba(0,0,0,0.75);border:2px solid #00ffff;border-radius:14px;padding:8px 18px;display:inline-block;">
+      <div id="navArrow" style="font-size:28px;line-height:1;transition:transform 0.1s;">↑</div>
+      <div id="navHudLabel" style="color:#00ffff;font-size:11px;font-weight:bold;margin-top:2px;letter-spacing:1px;"></div>
+      <div id="navHudDist" style="color:#888;font-size:10px;"></div>
+    </div>
+  </div>
+  <div id="controls">WASD — Move &nbsp;|&nbsp; Shift — Run &nbsp;|&nbsp; Space — Jump &nbsp;|&nbsp; Mouse — Look &nbsp;|&nbsp; E — Interact &nbsp;|&nbsp; B — Bag &nbsp;|&nbsp; T — SAI &nbsp;|&nbsp; M — Music &nbsp;|&nbsp; Click screen to start</div>
+
+  <!-- MOBILE TOUCH CONTROLS — only visible on touch-primary devices -->
+  <div id="mobileControls">
+    <div id="joyBase"><div id="joyStick"></div></div>
+    <div id="mobileInteractBtn">E</div>
+    <div id="mobileRunBtn">RUN</div>
+    <div id="mobileJumpBtn">⬆</div>
+  </div>
+  <button onclick="backToLogin()" style="position:fixed;top:14px;left:14px;pointer-events:auto;background:rgba(0,0,0,0.5);border:1px solid #555;border-radius:8px;color:#aaa;font-size:13px;padding:6px 14px;cursor:pointer;z-index:20;" onmouseover="this.style.borderColor='#e94560';this.style.color='#fff'" onmouseout="this.style.borderColor='#555';this.style.color='#aaa'">← Accounts</button>
+  <button id="musicBtn" onclick="toggleBgMusic()" title="Toggle music" style="position:fixed;top:278px;right:14px;z-index:20;pointer-events:auto;background:rgba(0,0,0,0.5);border:1px solid #555;border-radius:8px;color:#fff;font-size:16px;padding:5px 10px;cursor:pointer;line-height:1;">🎵</button>
+  <div id="seasonHud" onclick="openCalendar()" style="position:fixed;top:240px;right:14px;color:#fff;font-size:12px;background:rgba(0,0,0,0.5);padding:7px 12px;border-radius:8px;cursor:pointer;pointer-events:auto;white-space:nowrap;"></div>
+
+  <!-- SAI TAB -->
+  <div id="saiTab" style="position:fixed;top:calc(50% + 110px);left:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
+    <button onclick="toggleSAI()" style="display:block;background:linear-gradient(180deg,#0a2a0a,#0a4a1a);border:2px solid #00ff88;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🤖</span>SAI
+    </button>
+  </div>
+
+  <!-- SAI PANEL -->
+  <div id="saiPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:20;background:linear-gradient(135deg,#050f08,#071a0f);border:2px solid #00ff88;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:260px;pointer-events:auto;max-height:85vh;overflow:hidden;">
+    <div style="color:#00ff88;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:2px;">🤖 SAI</div>
+    <p style="color:#555;font-size:9px;text-align:center;margin-bottom:10px;letter-spacing:1px;">SUPER ARTIFICIAL INTELLIGENCE</p>
+    <!-- Sub-tabs -->
+    <div style="display:flex;gap:4px;margin-bottom:10px;">
+      <button id="saiTabChat" onclick="saiSwitchTab('chat')" style="flex:1;padding:5px;background:#00ff8833;border:1px solid #00ff88;border-radius:6px;color:#00ff88;font-size:10px;cursor:pointer;font-weight:bold;">💬 Chat</button>
+      <button id="saiTabMap"  onclick="saiSwitchTab('map')"  style="flex:1;padding:5px;background:none;border:1px solid #444;border-radius:6px;color:#888;font-size:10px;cursor:pointer;">🗺️ Map</button>
+      <button id="saiTabTips" onclick="saiSwitchTab('tips')" style="flex:1;padding:5px;background:none;border:1px solid #444;border-radius:6px;color:#888;font-size:10px;cursor:pointer;">💡 Tips</button>
+    </div>
+    <!-- CHAT VIEW -->
+    <div id="saiChatView">
+      <div id="saiMessages" style="height:190px;overflow-y:auto;background:rgba(0,255,136,0.04);border:1px solid #00ff8833;border-radius:8px;padding:8px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px;">
+        <div style="background:rgba(0,255,136,0.1);border-radius:6px;padding:6px 8px;font-size:11px;color:#00ff88;">🤖 Hello! I am SAI. Ask me anything about the city!</div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <input id="saiInput" placeholder="Ask SAI..." onkeydown="if(event.key==='Enter')saiAsk()" style="flex:1;padding:7px;background:rgba(255,255,255,0.06);border:1px solid #00ff8866;border-radius:6px;color:#fff;font-size:11px;outline:none;" onfocus="this.style.borderColor='#00ff88'" onblur="this.style.borderColor='#00ff8866'">
+        <button onclick="saiAsk()" style="padding:7px 12px;background:#004422;border:1px solid #00ff88;border-radius:6px;color:#00ff88;font-size:13px;cursor:pointer;font-weight:bold;">→</button>
+      </div>
+    </div>
+    <!-- MAP VIEW -->
+    <div id="saiMapView" style="display:none;">
+      <canvas id="saiMapCanvas" width="234" height="220" style="border:1px solid #00ff8844;border-radius:8px;cursor:crosshair;display:block;" onclick="saiMapClick(event)"></canvas>
+      <p style="color:#00ff8877;font-size:9px;text-align:center;margin-top:4px;">Click a location to navigate</p>
+      <div id="saiNavLabel" style="color:#00ffff;font-size:10px;text-align:center;min-height:14px;font-weight:bold;"></div>
+    </div>
+    <!-- TIPS VIEW -->
+    <div id="saiTipsView" style="display:none;">
+      <div style="background:rgba(0,255,136,0.05);border:1px solid #00ff8844;border-radius:10px;padding:14px;min-height:170px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;">
+        <div id="saiTipIcon" style="font-size:32px;margin-bottom:10px;">💡</div>
+        <div id="saiTipText" style="color:#ccc;font-size:12px;line-height:1.7;"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button onclick="saiNextTip(-1)" style="flex:1;padding:7px;background:none;border:1px solid #444;border-radius:6px;color:#888;font-size:12px;cursor:pointer;">← Prev</button>
+        <button onclick="saiNextTip(1)"  style="flex:1;padding:7px;background:#004422;border:1px solid #00ff88;border-radius:6px;color:#00ff88;font-size:12px;cursor:pointer;">Next →</button>
+      </div>
+      <div style="color:#555;font-size:9px;text-align:center;margin-top:6px;" id="saiTipCounter"></div>
+    </div>
+    <button onclick="closeSAI()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:10px;">✕ Close</button>
+  </div>
+
+  <!-- MUSIC TAB -->
+  <div id="musicTabBtn" style="position:fixed;top:calc(50% + 145px);left:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
+    <button onclick="openMusicPanel()" style="display:block;background:linear-gradient(180deg,#2a0a2a,#4a0a4a);border:2px solid #cc44ff;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🎵</span>MUSIC
+    </button>
+  </div>
+
+  <!-- MUSIC PANEL -->
+  <div id="musicPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:20;background:linear-gradient(135deg,#0f0a1a,#1a0a2a);border:2px solid #cc44ff;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:245px;pointer-events:auto;max-height:85vh;overflow:hidden;">
+    <div style="color:#cc44ff;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:4px;">🎵 MUSIC</div>
+    <p style="color:#555;font-size:9px;text-align:center;margin-bottom:10px;letter-spacing:1px;">SELECT A TRACK — CLICK TO PLAY</p>
+    <div id="musicList" style="display:flex;flex-direction:column;max-height:calc(85vh - 100px);overflow-y:auto;padding-right:4px;"></div>
+    <button onclick="closeMusicPanel()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:10px;">✕ Close</button>
+  </div>
+
+  <!-- INVENTORY TAB -->
+  <div id="inventoryTab" style="position:fixed;top:calc(50% + 100px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
+    <button onclick="toggleInventory()" style="display:block;background:linear-gradient(180deg,#1a2e1a,#0f4020);border:2px solid #FFD700;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
+      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🎒</span>BAG
+    </button>
+  </div>
+
+  <!-- INVENTORY PANEL -->
+  <div id="inventoryPanel" style="display:none;position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:20;background:linear-gradient(135deg,#1a2e1a,#0f4020);border:2px solid #FFD700;border-right:none;border-radius:14px 0 0 14px;padding:16px 14px;width:230px;pointer-events:auto;max-height:70vh;overflow-y:auto;">
+    <h3 style="color:#FFD700;font-size:13px;letter-spacing:2px;margin-bottom:12px;text-align:center;">🎒 MY BAG</h3>
+    <div id="inventoryList" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <div id="inventoryEmpty" style="color:#555;font-size:12px;text-align:center;padding:20px;">Nothing in your bag yet!<br>Buy items around the city.</div>
+    <button onclick="closeInventory()" style="width:100%;margin-top:12px;padding:6px;background:none;border:1px solid #555;border-radius:6px;color:#888;font-size:11px;cursor:pointer;">✕ Close</button>
+  </div>
+
+  <!-- MINI GAMES TAB -->
+  <div id="miniGamesTab">
+    <a id="miniGamesBtn" onclick="openMgPanel()" href="#">
+      <span class="icon">🎮</span>MINI GAMES
+    </a>
+  </div>
+
+  <!-- MINI GAMES PANEL -->
+  <div id="miniGamesPanel">
+    <h3>🎮 MINI GAMES</h3>
+    <a class="mgCard" href="AiGame/explox/minigames/throne.html" target="_blank">
+      <div class="mgTitle">⚔️ Capture the Throne</div>
+      <div class="mgDesc">Fight through a medieval-futuristic castle. Hold the throne for 20 seconds to win!</div>
+      <div class="mgBadge">★ Available Now</div>
+    </a>
+    <a class="mgCard" href="AiGame/explox/minigames/obby.html" target="_blank">
+      <div class="mgTitle">🏃 Obby / Parkour</div>
+      <div class="mgDesc">Jump across platforms without falling. Beat your best time!</div>
+      <div class="mgBadge">★ Available Now</div>
+    </a>
+    <a class="mgCard" href="AiGame/explox/minigames/parkour.html" target="_blank">
+      <div class="mgTitle">🏙️ Rooftop Parkour</div>
+      <div class="mgDesc">Sprint, wall jump & collect coins across city rooftops at night!</div>
+      <div class="mgBadge">★ Available Now</div>
+    </a>
+    <a class="mgCard" href="AiGame/explox/minigames/geodash.html" target="_blank">
+      <div class="mgTitle">⬛ Geo Dash</div>
+      <div class="mgDesc">Jump over spikes and blocks! Beat all 3 levels to earn S.I.P.!</div>
+      <div class="mgBadge">★ Available Now</div>
+    </a>
+    <a class="mgCard" href="javascript:void(0)" onclick="closeMgPanel(); openStoreManager();">
+      <div class="mgTitle">🏪 Your Store</div>
+      <div class="mgDesc">Buy, upgrade, and name your own store. Customers visit it in the real city and it earns S.I.P. automatically!</div>
+      <div class="mgBadge">★ Available Now</div>
+    </a>
+    <button id="closeMgPanel" onclick="closeMgPanel()">✕ Close</button>
+  </div>
+</div>
+
+<!-- CALENDAR OVERLAY -->
+<div id="calendarOverlay" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.78);align-items:center;justify-content:center;pointer-events:auto;">
+  <div style="background:linear-gradient(135deg,#1a1a2e,#0f3460);border:2px solid #e94560;border-radius:16px;padding:22px;width:300px;max-height:82vh;overflow-y:auto;">
+    <div id="calendarContent"></div>
+    <button onclick="closeCalendar()" style="width:100%;margin-top:10px;padding:8px;background:none;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">✕ Close</button>
+  </div>
+</div>
+
+<!-- COMPUTER SHOP MODAL -->
+<div id="computerShopModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;flex-direction:column;">
+  <div style="background:linear-gradient(135deg,#0a1628,#112244);border:2px solid #4488ff;border-radius:16px;padding:24px;min-width:340px;max-height:82vh;overflow-y:auto;">
+    <h2 style="color:#4488ff;letter-spacing:2px;margin-bottom:4px;font-size:18px;text-align:center;">💻 Computer Shop</h2>
+    <p style="color:#888;font-size:11px;text-align:center;margin-bottom:16px;">Buy a computer → use it at home → open SIB!</p>
+    <div id="computerShopList" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <button onclick="closeComputerShop()" style="margin-top:16px;width:100%;padding:8px;background:none;border:1px solid #555;border-radius:8px;color:#888;font-size:12px;cursor:pointer;">✕ Close</button>
+  </div>
+</div>
+
+<!-- STORE MANAGER MODAL -->
+<div id="storeManagerModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;flex-direction:column;">
+  <div style="background:linear-gradient(135deg,#2a2210,#3a2e14);border:2px solid #D8A657;border-radius:16px;padding:24px;min-width:360px;max-height:82vh;overflow-y:auto;">
+    <h2 style="color:#D8A657;letter-spacing:2px;margin-bottom:4px;font-size:18px;text-align:center;">🏪 Your Store</h2>
+    <div id="storeOwnedBox" style="color:#ccc;font-size:12px;text-align:center;margin-bottom:16px;"></div>
+    <div id="storeCatalogList" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <button onclick="closeStoreManager()" style="margin-top:16px;width:100%;padding:8px;background:none;border:1px solid #555;border-radius:8px;color:#888;font-size:12px;cursor:pointer;">✕ Close</button>
+  </div>
+</div>
+
+<!-- NEIGHBOR / FRIENDS MODAL -->
+<div id="neighborModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;flex-direction:column;">
+  <div style="background:linear-gradient(135deg,#2a1020,#3a1830);border:2px solid #ff88aa;border-radius:16px;padding:24px;min-width:300px;max-height:82vh;overflow-y:auto;">
+    <h2 id="neighborModalTitle" style="color:#ff88aa;letter-spacing:2px;margin-bottom:12px;font-size:18px;text-align:center;">👋 Neighbor</h2>
+    <div id="neighborModalBody"></div>
+    <button onclick="closeNeighborModal()" style="margin-top:10px;width:100%;padding:8px;background:none;border:1px solid #555;border-radius:8px;color:#888;font-size:12px;cursor:pointer;">✕ Close</button>
+  </div>
+</div>
+
+<!-- CITY SHOP MODAL -->
+<div id="cityShopModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;flex-direction:column;">
+  <div style="background:linear-gradient(135deg,#1a2a2a,#203838);border:2px solid #7FB8B0;border-radius:16px;padding:24px;min-width:300px;max-height:82vh;overflow-y:auto;">
+    <h2 id="cityShopModalTitle" style="color:#7FB8B0;letter-spacing:1px;margin-bottom:8px;font-size:17px;text-align:center;">🏪 Shop</h2>
+    <div id="cityShopModalBody"></div>
+    <button onclick="closeCityShopModal()" style="margin-top:10px;width:100%;padding:8px;background:none;border:1px solid #555;border-radius:8px;color:#888;font-size:12px;cursor:pointer;">✕ Close</button>
+  </div>
+</div>
+
+<!-- MALL DIRECTORY MODAL -->
+<div id="mallDirectoryModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;flex-direction:column;">
+  <div style="background:linear-gradient(135deg,#1a2a2a,#203838);border:2px solid #7FB8B0;border-radius:16px;padding:24px;min-width:320px;max-width:420px;width:90vw;max-height:82vh;overflow-y:auto;">
+    <h2 style="color:#7FB8B0;letter-spacing:1px;margin-bottom:10px;font-size:17px;text-align:center;">🗺️ Mall Directory</h2>
+    <input id="mallDirectorySearch" type="text" placeholder="Search shops or categories..." oninput="filterMallDirectory()" style="width:100%;box-sizing:border-box;padding:8px;margin-bottom:12px;background:#0f1a1a;border:1px solid #555;border-radius:8px;color:#eee;font-size:12px;">
+    <div id="mallDirectoryList"></div>
+    <button onclick="closeMallDirectory()" style="margin-top:10px;width:100%;padding:8px;background:none;border:1px solid #555;border-radius:8px;color:#888;font-size:12px;cursor:pointer;">✕ Close</button>
+  </div>
+</div>
+
+<!-- TOWN EVENTS MODAL -->
+<div id="townEventsModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;flex-direction:column;">
+  <div style="background:linear-gradient(135deg,#241a30,#332042);border:2px solid #b088e0;border-radius:16px;padding:24px;min-width:300px;max-height:82vh;overflow-y:auto;">
+    <h2 style="color:#b088e0;letter-spacing:2px;margin-bottom:4px;font-size:18px;text-align:center;">🎉 Town Events</h2>
+    <p style="color:#888;font-size:11px;text-align:center;margin-bottom:16px;">Celebrate with your neighbors!</p>
+    <div id="townEventsBody"></div>
+    <button onclick="closeTownEvents()" style="margin-top:10px;width:100%;padding:8px;background:none;border:1px solid #555;border-radius:8px;color:#888;font-size:12px;cursor:pointer;">✕ Close</button>
+  </div>
+</div>
+
+<!-- INGREDIENTS COUNTER MODAL -->
+<div id="ingredientsCounterModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;flex-direction:column;">
+  <div style="background:linear-gradient(135deg,#2a1510,#3a1f14);border:2px solid #8B5A2B;border-radius:16px;padding:24px;min-width:340px;max-height:82vh;overflow-y:auto;">
+    <h2 style="color:#e0a860;letter-spacing:2px;margin-bottom:4px;font-size:18px;text-align:center;">🛒 Ingredients</h2>
+    <p style="color:#888;font-size:11px;text-align:center;margin-bottom:16px;">Stock up wholesale, then sell it in your store!</p>
+    <div id="ingredientsCounterList" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <button onclick="closeIngredientsCounter()" style="margin-top:16px;width:100%;padding:8px;background:none;border:1px solid #555;border-radius:8px;color:#888;font-size:12px;cursor:pointer;">✕ Close</button>
+  </div>
+</div>
+
+<!-- FURNITURE COUNTER MODAL -->
+<div id="furnitureCounterModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;flex-direction:column;">
+  <div style="background:linear-gradient(135deg,#101c2a,#14283a);border:2px solid #557799;border-radius:16px;padding:24px;min-width:340px;max-height:82vh;overflow-y:auto;">
+    <h2 style="color:#7fb0d8;letter-spacing:2px;margin-bottom:4px;font-size:18px;text-align:center;">🪑 Furniture</h2>
+    <p style="color:#888;font-size:11px;text-align:center;margin-bottom:16px;">Decorate your store — each piece appears in the room!</p>
+    <div id="furnitureCounterList" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <button onclick="closeFurnitureCounter()" style="margin-top:16px;width:100%;padding:8px;background:none;border:1px solid #555;border-radius:8px;color:#888;font-size:12px;cursor:pointer;">✕ Close</button>
+  </div>
+</div>
+
+<!-- THE DINER MODAL -->
+<div id="restaurantModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;flex-direction:column;">
+  <div style="background:linear-gradient(135deg,#2a1510,#3a1f14);border:2px solid #ffaa55;border-radius:16px;padding:24px;min-width:340px;max-height:82vh;overflow-y:auto;">
+    <h2 id="restaurantModalTitle" style="color:#ffaa55;letter-spacing:2px;margin-bottom:4px;font-size:18px;text-align:center;">🍽️ The Diner</h2>
+    <p style="color:#888;font-size:11px;text-align:center;margin-bottom:16px;">Order a dish, then press C to eat it!</p>
+    <div id="restaurantList" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <button onclick="closeRestaurant()" style="margin-top:16px;width:100%;padding:8px;background:none;border:1px solid #555;border-radius:8px;color:#888;font-size:12px;cursor:pointer;">✕ Close</button>
+  </div>
+</div>
+
+<!-- SIB BROWSER MODAL -->
+<div id="sibModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
+  <div style="background:#2a2a2a;border-radius:12px;width:520px;max-width:95vw;box-shadow:0 8px 40px #000a;overflow:hidden;">
+    <!-- Title bar -->
+    <div style="background:#1a1a1a;padding:8px 12px;display:flex;align-items:center;gap:8px;">
+      <div style="display:flex;gap:5px;"><div style="width:12px;height:12px;border-radius:50%;background:#ff5555;"></div><div style="width:12px;height:12px;border-radius:50%;background:#ffdd55;"></div><div style="width:12px;height:12px;border-radius:50%;background:#55cc44;"></div></div>
+      <span style="color:#00ccaa;font-size:13px;font-weight:bold;margin-left:8px;">🌐 SIB — Super Important Browser</span>
+      <button onclick="closeSIB()" style="margin-left:auto;background:none;border:none;color:#888;font-size:16px;cursor:pointer;">✕</button>
+    </div>
+    <!-- Address bar -->
+    <div style="background:#222;padding:6px 10px;display:flex;gap:6px;align-items:center;border-bottom:1px solid #333;">
+      <button onclick="sibNavigate('home')" style="background:#333;border:none;border-radius:4px;color:#ccc;padding:4px 8px;font-size:12px;cursor:pointer;">🏠</button>
+      <input id="sibUrl" value="sib://home" onkeydown="if(event.key==='Enter')sibGo()" style="flex:1;background:#333;border:1px solid #444;border-radius:4px;color:#fff;padding:4px 8px;font-size:12px;outline:none;" />
+      <button onclick="sibGo()" style="background:#00aacc;border:none;border-radius:4px;color:#fff;padding:4px 10px;font-size:12px;cursor:pointer;">Go</button>
+    </div>
+    <!-- Tab bar -->
+    <div style="background:#1e1e1e;padding:4px 10px;display:flex;gap:6px;border-bottom:1px solid #333;">
+      <span onclick="sibNavigate('home')" style="background:#2a2a2a;border:1px solid #444;border-bottom:none;border-radius:4px 4px 0 0;padding:4px 12px;font-size:11px;color:#ccc;cursor:pointer;">🌐 Home</span>
+    </div>
+    <!-- Content area -->
+    <div id="sibContent" style="height:380px;overflow-y:auto;font-family:Arial,sans-serif;"></div>
+  </div>
+</div>
+
+<!-- EXPLOXTUBE PLAYER -->
+<div id="tubePlayerOverlay" style="display:none;position:fixed;inset:0;z-index:55;background:rgba(0,0,0,0.9);align-items:center;justify-content:center;">
+  <div style="background:#0f0f0f;border-radius:12px;width:520px;max-width:95vw;box-shadow:0 8px 40px #000a;overflow:hidden;">
+    <canvas id="tubeCanvas" style="width:100%;height:270px;display:block;background:#000;"></canvas>
+    <div style="height:3px;background:#333;"><div id="tubeProgressBar" style="height:100%;width:0%;background:#ff3333;"></div></div>
+    <div style="padding:12px 16px;">
+      <div id="tubeTitle" style="color:#fff;font-size:15px;font-weight:bold;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+        <div>
+          <span id="tubeChannel" style="color:#aaa;font-size:12px;font-weight:bold;"></span>
+          <span id="tubeViews" style="color:#888;font-size:11px;margin-left:8px;"></span>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button id="tubeLikeBtn" onclick="toggleTubeLike()" style="background:#333;border:none;border-radius:16px;color:#fff;padding:6px 14px;font-size:12px;cursor:pointer;">🤍 Like</button>
+          <button onclick="closeTubePlayer()" style="background:#333;border:none;border-radius:16px;color:#fff;padding:6px 14px;font-size:12px;cursor:pointer;">✖ Close</button>
+        </div>
+      </div>
+      <div style="border-top:1px solid #2a2a2a;margin-top:10px;padding-top:8px;">
+        <div style="color:#888;font-size:11px;font-weight:bold;margin-bottom:6px;">💬 Comments</div>
+        <div id="tubeComments" style="max-height:110px;overflow-y:auto;font-size:11px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CAR SHOP MODAL -->
+<div id="carShopModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;flex-direction:column;">
+  <div style="background:linear-gradient(135deg,#0a1628,#0d2244);border:2px solid #4488ff;border-radius:16px;padding:24px;min-width:340px;max-height:82vh;overflow-y:auto;">
+    <h2 style="color:#4488ff;letter-spacing:2px;margin-bottom:4px;font-size:18px;text-align:center;">🚗 Car Dealership</h2>
+    <p style="color:#888;font-size:11px;text-align:center;margin-bottom:16px;">Buy a car — then press E near it to drive!</p>
+    <div id="carShopList" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <button onclick="closeCarShop()" style="margin-top:16px;width:100%;padding:8px;background:none;border:1px solid #555;border-radius:8px;color:#888;font-size:12px;cursor:pointer;">✕ Close</button>
+  </div>
+</div>
+
+<!-- SHOP OVERLAY -->
+<div id="shopOverlay" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#1a1a2e,#0f3460);border:2px solid #e94560;border-radius:16px;padding:24px;min-width:300px;max-height:80vh;overflow-y:auto;">
+    <h2 id="shopTitle" style="color:#e94560;letter-spacing:2px;margin-bottom:8px;font-size:18px;"></h2>
+    <div id="shopTabs" style="display:flex;gap:6px;margin-bottom:14px;">
+      <button class="shopTabBtn" onclick="openShop('outfits')" style="flex:1;padding:6px;background:#222;border:1px solid #555;border-radius:6px;color:#ccc;font-size:11px;cursor:pointer;">👗 Outfits</button>
+      <button class="shopTabBtn" onclick="openShop('weapons')" style="flex:1;padding:6px;background:#222;border:1px solid #555;border-radius:6px;color:#ccc;font-size:11px;cursor:pointer;">⚔️ Weapons</button>
+      <button class="shopTabBtn" onclick="openShop('armor')" style="flex:1;padding:6px;background:#222;border:1px solid #555;border-radius:6px;color:#ccc;font-size:11px;cursor:pointer;">🛡️ Armor</button>
+      <button class="shopTabBtn" onclick="openShop('paint')" style="flex:1;padding:6px;background:#222;border:1px solid #555;border-radius:6px;color:#ccc;font-size:11px;cursor:pointer;">🎨 Paint</button>
+    </div>
+    <div id="shopItems" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <button onclick="closeShop()" style="margin-top:16px;width:100%;padding:10px;background:none;border:1px solid #555;border-radius:8px;color:#aaa;cursor:pointer;font-size:13px;">✖ Close Shop</button>
+  </div>
+</div>
+
+<!-- CRAFTING TABLE -->
+<div id="craftOverlay" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#2a1e12,#1a0f08);border:2px solid #c89860;border-radius:16px;padding:24px;min-width:300px;max-height:80vh;overflow-y:auto;">
+    <h2 style="color:#c89860;letter-spacing:2px;margin-bottom:4px;font-size:18px;">🔨 Crafting Table</h2>
+    <p style="color:#ffd54a;font-size:12px;margin-bottom:16px;">🪵 Wood: <b id="craftWood">0</b> &nbsp; 🔩 Scrap: <b id="craftScrap">0</b></p>
+    <div id="craftItems" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <button onclick="closeCrafting()" style="margin-top:16px;width:100%;padding:10px;background:none;border:1px solid #555;border-radius:8px;color:#aaa;cursor:pointer;font-size:13px;">✖ Leave Table</button>
+  </div>
+</div>
+
+<!-- SELL KIOSK -->
+<div id="sellKioskModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#1a2e24,#0f2818);border:2px solid #ffd54a;border-radius:16px;padding:24px;min-width:340px;max-height:80vh;overflow-y:auto;">
+    <h2 style="color:#ffd54a;letter-spacing:2px;margin-bottom:4px;font-size:18px;">💰 Sell Kiosk</h2>
+    <p style="color:#9ab;font-size:12px;margin-bottom:4px;">We buy materials! Grind junk at the Grinder to get them.</p>
+    <p style="color:#ffd54a;font-size:12px;margin-bottom:14px;">Your S.I.P.: <b id="sellKioskSip">0</b></p>
+    <div id="sellKioskList" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <button onclick="closeSellKiosk()" style="margin-top:16px;width:100%;padding:10px;background:none;border:1px solid #555;border-radius:8px;color:#aaa;cursor:pointer;font-size:13px;">✖ Leave Kiosk</button>
+  </div>
+</div>
+
+<!-- BUILD MENU (owner) -->
+<div id="buildOverlay" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#1a2e1e,#0f2818);border:2px solid #3a9d3a;border-radius:16px;padding:24px;min-width:320px;max-width:380px;max-height:80vh;overflow-y:auto;">
+    <h2 style="color:#3a9d3a;letter-spacing:2px;margin-bottom:4px;font-size:18px;">🏗️ Build on <span id="buildPlotName"></span></h2>
+    <p style="color:#ffd54a;font-size:12px;margin-bottom:4px;">🪵 Wood: <b id="buildWood">0</b> &nbsp; 💰 <b id="buildSip">0</b> S.I.P.</p>
+    <p style="color:#9ab;font-size:12px;margin-bottom:14px;">Slots used: <b id="buildSlotsUsed">0</b>/<span id="buildSlotsTotal">9</span></p>
+    <div id="buildCatalog" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <h3 style="color:#fff;font-size:13px;margin:16px 0 8px;">🏘️ Placed here</h3>
+    <div id="buildPlaced" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <button id="buildSitBtn" style="display:none;margin-top:12px;width:100%;padding:10px;background:#3a6d9d;border:none;border-radius:8px;color:#fff;cursor:pointer;font-weight:bold;" onclick="ownerSit()">🪑 Sit on Bench</button>
+
+    <h3 style="color:#fff;font-size:13px;margin:16px 0 8px;">🎨 Paint Your Land</h3>
+    <div id="buildPaintSwatches"></div>
+
+    <h3 style="color:#fff;font-size:13px;margin:16px 0 8px;">🏷️ Sell This Land</h3>
+    <p id="buildSaleStatus" style="color:#9ab;font-size:12px;margin-bottom:6px;">Not for sale.</p>
+    <input id="buildSalePriceInput" type="number" placeholder="Asking price (S.I.P.)" style="width:100%;padding:8px;border-radius:6px;border:1px solid #555;background:#0a1a10;color:#fff;box-sizing:border-box;margin-bottom:6px;">
+    <div style="display:flex;gap:8px;">
+      <button class="shopBtn" style="flex:1;" onclick="setLandForSale(window._buildCtxIdx, parseInt(document.getElementById('buildSalePriceInput').value)||0)">List / Update</button>
+      <button class="shopBtn" style="flex:1;background:#555;" onclick="setLandForSale(window._buildCtxIdx, 0)">Delist</button>
+    </div>
+
+    <h3 style="color:#fff;font-size:13px;margin:16px 0 8px;">✉️ Invite Someone</h3>
+    <input id="buildInviteName" type="text" placeholder="Their account name" style="width:100%;padding:8px;border-radius:6px;border:1px solid #555;background:#0a1a10;color:#fff;box-sizing:border-box;margin-bottom:6px;">
+    <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:#cde;margin-bottom:8px;">
+      <label><input type="checkbox" id="buildInvSit"> Sit</label>
+      <label><input type="checkbox" id="buildInvSmash"> Smash</label>
+      <label><input type="checkbox" id="buildInvPaint"> Paint</label>
+      <label><input type="checkbox" id="buildInvBuy"> Buy</label>
+      <label><input type="checkbox" id="buildInvKill"> Attack</label>
+    </div>
+    <button class="shopBtn" style="width:100%;margin-bottom:10px;" onclick="setLandInvite(window._buildCtxIdx, document.getElementById('buildInviteName').value.trim(), {sit:document.getElementById('buildInvSit').checked, smash:document.getElementById('buildInvSmash').checked, paint:document.getElementById('buildInvPaint').checked, buy:document.getElementById('buildInvBuy').checked, kill:document.getElementById('buildInvKill').checked})">Save Invite</button>
+    <div id="buildInviteList" style="display:flex;flex-direction:column;gap:6px;"></div>
+
+    <h3 style="color:#fff;font-size:13px;margin:16px 0 8px;">🚚 Move My Land</h3>
+    <div id="buildMoveList" style="display:flex;flex-direction:column;gap:6px;max-height:160px;overflow-y:auto;"></div>
+
+    <button onclick="closeBuildMenu()" style="margin-top:16px;width:100%;padding:10px;background:none;border:1px solid #555;border-radius:8px;color:#aaa;cursor:pointer;font-size:13px;">✖ Leave</button>
+  </div>
+</div>
+
+<!-- VISIT LAND (someone else's plot, permission-gated) -->
+<div id="visitLandOverlay" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#2e1a2e,#28100f);border:2px solid #e94560;border-radius:16px;padding:24px;min-width:320px;max-width:380px;max-height:80vh;overflow-y:auto;">
+    <h2 id="visitPlotName" style="color:#e94560;letter-spacing:1px;margin-bottom:14px;font-size:16px;"></h2>
+    <div id="visitBuildingList" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <button id="visitSitBtn" style="display:none;margin-top:12px;width:100%;padding:10px;background:#3a6d9d;border:none;border-radius:8px;color:#fff;cursor:pointer;font-weight:bold;" onclick="visitSit()">🪑 Sit</button>
+    <button id="visitAttackBtn" style="display:none;margin-top:12px;width:100%;padding:10px;background:#a33;border:none;border-radius:8px;color:#fff;cursor:pointer;font-weight:bold;">⚔️ Attack</button>
+    <div id="visitPaintPanel" style="display:none;margin-top:12px;">
+      <h3 style="color:#fff;font-size:13px;margin-bottom:6px;">🎨 Paint Their Land</h3>
+      <div id="visitPaintSwatches"></div>
+    </div>
+    <button id="visitBuyBtn" style="display:none;margin-top:12px;width:100%;padding:10px;background:#ffd54a;border:none;border-radius:8px;color:#222;font-weight:bold;cursor:pointer;"></button>
+    <button onclick="closeVisitLand()" style="margin-top:16px;width:100%;padding:10px;background:none;border:1px solid #555;border-radius:8px;color:#aaa;cursor:pointer;font-size:13px;">✖ Leave</button>
+  </div>
+</div>
+
+<!-- NOTICES — "while you were away" reports (invited / attacked), shown right after a fresh login -->
+<div id="noticesOverlay" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#2a2a1e,#1a1a10);border:2px solid #ffd54a;border-radius:16px;padding:24px;min-width:300px;max-width:380px;max-height:80vh;overflow-y:auto;">
+    <h2 style="color:#ffd54a;letter-spacing:1px;margin-bottom:14px;font-size:16px;">📋 While You Were Away</h2>
+    <div id="noticesList" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <button onclick="closeNotices()" style="margin-top:16px;width:100%;padding:10px;background:#ffd54a;border:none;border-radius:8px;color:#222;font-weight:bold;cursor:pointer;font-size:13px;">Got it!</button>
+  </div>
+</div>
+
+<style>
+  .shopItem { background:rgba(255,255,255,0.06);border:1px solid #444;border-radius:10px;padding:12px 14px; }
+  .siName   { color:#fff;font-weight:bold;font-size:14px; }
+  .siCost   { color:#FFD700;font-size:12px;margin:4px 0; }
+  .shopBtn  { margin-top:6px;padding:5px 16px;background:#e94560;border:none;border-radius:6px;color:#fff;font-size:12px;cursor:pointer;font-weight:bold; }
+  .shopBtn:hover    { background:#c73652; }
+  .shopBtn:disabled { background:#444;cursor:default; }
+</style>
+
+<script>
+function openMgPanel(){
+  document.getElementById('miniGamesTab').style.display='none';
+  document.getElementById('miniGamesPanel').style.display='block';
+}
+function closeMgPanel(){
+  document.getElementById('miniGamesPanel').style.display='none';
+  document.getElementById('miniGamesTab').style.display='block';
+}
+</script>
+
+<script src="AiGame/explox/three.min.js"></script>
+<script src="AiGame/explox/game.js"></script>
+<script>
+window.addEventListener('load', function() {
+  var btn = document.getElementById('createAccBtn');
+  if (!btn) { alert('ERROR: createAccBtn not found!'); return; }
+  if (typeof createAccount !== 'function') { alert('ERROR: game.js did not load!'); return; }
+  btn.onclick = createAccount;
+});
+</script>
+</body>
+</html>

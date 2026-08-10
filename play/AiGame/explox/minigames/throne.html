@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Explox — Capture the Throne</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#000; overflow:hidden; font-family:Arial,sans-serif; }
+    canvas { display:block; }
+
+    /* HUD */
+    #hud { position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:10; }
+
+    #topBar { position:fixed; top:10px; left:50%; transform:translateX(-50%); display:flex; gap:18px; align-items:center; }
+    .pill { background:rgba(0,0,0,0.6); border-radius:20px; padding:6px 16px; color:#fff; font-size:13px; font-weight:bold; border:1px solid rgba(255,255,255,0.2); }
+    #allyPill  { border-color:#4488ff; color:#88bbff; }
+    #enemyPill { border-color:#ff4444; color:#ff8888; }
+    #scorePill { border-color:#FFD700; color:#FFD700; }
+    #levelPill { border-color:#aa44ff; color:#cc88ff; }
+
+    #healthBar { position:fixed; bottom:44px; left:50%; transform:translateX(-50%); width:280px; }
+    #healthLabel { color:#fff; font-size:12px; margin-bottom:3px; text-align:center; letter-spacing:1px; }
+    #healthTrack { background:rgba(0,0,0,0.5); border:1px solid #ff4444; border-radius:6px; height:14px; }
+    #healthFill  { background:linear-gradient(90deg,#ff2200,#ff6600); height:100%; border-radius:6px; width:100%; transition:width 0.1s; }
+
+    #captureBar { position:fixed; bottom:76px; left:50%; transform:translateX(-50%); width:320px; }
+    #captureLabel { color:#FFD700; font-size:12px; margin-bottom:3px; text-align:center; letter-spacing:2px; font-weight:bold; }
+    #captureTrack { background:rgba(0,0,0,0.5); border:2px solid #FFD700; border-radius:6px; height:18px; }
+    #captureFill  { background:linear-gradient(90deg,#aa6600,#FFD700); height:100%; border-radius:5px; width:0%; transition:width 0.08s; }
+
+    #crosshair { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); color:#fff; font-size:16px; text-shadow:1px 1px 3px #000; }
+    #waveAnn { position:fixed; top:42%; left:50%; transform:translate(-50%,-50%); color:#FFD700; font-size:32px; font-weight:bold; text-shadow:2px 2px 8px #000; opacity:0; transition:opacity 0.4s; letter-spacing:3px; }
+    #controls { position:fixed; bottom:12px; left:14px; color:#ddd; font-size:11px; background:rgba(0,0,0,0.45); padding:6px 12px; border-radius:8px; }
+
+    #hitFlash { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,0,0,0); pointer-events:none; transition:background 0.08s; }
+
+    /* Weapon bar */
+    #weaponBar { position:fixed; bottom:110px; left:50%; transform:translateX(-50%); display:flex; gap:10px; pointer-events:auto; }
+    .wSlot { width:72px; height:72px; background:rgba(0,0,0,0.65); border:2px solid #555; border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff; cursor:pointer; transition:border-color 0.15s, background 0.15s; user-select:none; }
+    .wSlot:hover { border-color:#aaa; }
+    .wSlot.active { border-color:#FFD700; background:rgba(255,215,0,0.18); box-shadow:0 0 12px rgba(255,215,0,0.4); }
+    .wIcon { font-size:24px; line-height:1; }
+    .wKey  { font-size:10px; color:#aaa; margin-top:2px; }
+    .wLbl  { font-size:9px; color:#ddd; margin-top:1px; letter-spacing:0.5px; }
+    .wCd   { font-size:9px; color:#ff8888; height:10px; }
+
+    /* Screens */
+    .overlay { position:fixed; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:50; }
+    #startScreen { background:rgba(0,0,0,0.85); }
+    #startScreen h1 { font-size:52px; color:#FFD700; letter-spacing:6px; text-shadow:0 0 20px #FFD700; }
+    #startScreen h2 { font-size:20px; color:#88bbff; margin:10px 0 30px; }
+    .ctrl-list { color:#ccc; font-size:14px; line-height:2.2; margin-bottom:28px; text-align:left; }
+    .ctrl-list b { color:#FFD700; }
+    #startBtn { padding:14px 56px; font-size:20px; font-weight:bold; border:none; border-radius:10px; background:#FFD700; color:#111; cursor:pointer; letter-spacing:2px; }
+    #startBtn:hover { background:#ffd000; }
+
+    #levelScreen { background:rgba(10,0,30,0.93); display:none; }
+    #levelScreen h1 { font-size:52px; color:#aa44ff; letter-spacing:4px; text-shadow:0 0 20px #aa44ff; }
+    #levelScreen h2 { font-size:24px; color:#cc88ff; margin:10px 0 6px; }
+    #levelScreen p  { color:#ccbbff; font-size:16px; margin:6px 0; }
+    #nextLvlBtn { margin-top:20px; padding:14px 50px; font-size:18px; font-weight:bold; border:none; border-radius:10px; background:#aa44ff; color:#fff; cursor:pointer; letter-spacing:2px; }
+    #nextLvlBtn:hover { background:#8822dd; }
+    #wonScreen  { background:rgba(0,20,0,0.92); display:none; }
+    #wonScreen h1  { font-size:56px; color:#FFD700; letter-spacing:4px; }
+    #wonScreen p   { color:#aaffaa; font-size:20px; margin:10px 0; }
+    #lostScreen { background:rgba(30,0,0,0.9); display:none; }
+    #lostScreen h1 { font-size:56px; color:#ff4444; letter-spacing:4px; }
+    #lostScreen p  { color:#ffaaaa; font-size:20px; margin:10px 0; }
+    .restartBtn { margin-top:14px; padding:12px 44px; font-size:16px; font-weight:bold; border:none; border-radius:10px; cursor:pointer; letter-spacing:2px; }
+
+    /* Armory (100-weapon shop) */
+    #weaponShop { background:rgba(5,5,20,0.97); padding:18px 22px; max-height:100vh; overflow-y:auto; }
+    #weaponShop h1 { font-size:30px; color:#FFD700; letter-spacing:4px; margin-bottom:6px; }
+    #armHeader { display:flex; justify-content:space-between; align-items:flex-start; gap:20px; margin-bottom:10px; flex-wrap:wrap; }
+    #shopSip { font-size:16px; color:#FFD700; font-weight:bold; }
+    #playerLvlDisplay { font-size:15px; color:#88aaff; font-weight:bold; }
+    #xpBarWrap { background:#222; border-radius:6px; height:8px; width:180px; margin:4px 0 2px; }
+    #xpBarFill { background:linear-gradient(90deg,#4466ff,#88aaff); border-radius:6px; height:8px; transition:width 0.4s; }
+    #xpInfo { font-size:10px; color:#556; }
+    #armDetail { display:flex; align-items:center; gap:14px; background:rgba(255,255,255,0.05); border:1px solid #444; border-radius:12px; padding:12px 16px; margin-bottom:10px; }
+    #armDetailIcon { font-size:32px; min-width:40px; text-align:center; }
+    #armDetailName { font-size:16px; font-weight:bold; color:#FFD700; }
+    #armDetailDesc { font-size:12px; color:#aaa; margin:2px 0; }
+    #armDetailStats { font-size:11px; color:#88aaff; }
+    #armDetailRight { flex:1; }
+    #armActionBtn { margin-top:6px; padding:6px 20px; border:none; border-radius:8px; background:#FFD700; color:#111; font-weight:bold; font-size:12px; cursor:pointer; }
+    .armGrid { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; max-height:310px; overflow-y:auto; padding-right:2px; }
+    .armCard { background:rgba(255,255,255,0.05); border:2px solid #333; border-radius:10px; padding:10px 6px; text-align:center; cursor:pointer; transition:border-color 0.15s; }
+    .armCard:hover:not(.arm-locked) { border-color:#FFD700; }
+    .armCard.arm-locked { opacity:0.35; cursor:not-allowed; }
+    .armCard.arm-owned { border-color:#44ff88; }
+    .armCard.arm-equipped { border-color:#FFD700; background:rgba(255,215,0,0.12); }
+    .armIcon { font-size:22px; }
+    .armName { font-size:9px; font-weight:bold; color:#fff; margin:3px 0 1px; line-height:1.2; }
+    .armLvl { font-size:9px; color:#888; }
+    .armCost { font-size:9px; color:#FFD700; margin-top:2px; }
+    .armCard.arm-owned .armCost { color:#44ff88; }
+    .armCard.arm-equipped .armLvl { color:#FFD700; }
+    #shopMsg { font-size:13px; min-height:18px; margin:6px 0; }
+    #goFightBtn { margin-top:10px; padding:11px 44px; font-size:16px; font-weight:bold; border:none; border-radius:10px; background:#FFD700; color:#111; cursor:pointer; letter-spacing:2px; }
+    #goFightBtn:hover { background:#ffd000; }
+  </style>
+</head>
+<body>
+
+<div id="hud" style="display:none">
+  <div id="topBar">
+    <div class="pill" id="allyPill">🔵 Allies: <span id="allyCount">0</span></div>
+    <div class="pill" id="levelPill">⚔️ Level <span id="levelNum">1</span> · Wave <span id="waveNum">1</span>/5</div>
+    <div class="pill" id="scorePill">⭐ <span id="score">0</span></div>
+    <div class="pill" id="enemyPill">Enemies: <span id="enemyCount">0</span> 🔴</div>
+  </div>
+  <div id="captureBar">
+    <div id="captureLabel">🏆 CAPTURE — 0%</div>
+    <div id="captureTrack"><div id="captureFill"></div></div>
+  </div>
+  <div id="healthBar">
+    <div id="healthLabel">❤️ HEALTH</div>
+    <div id="healthTrack"><div id="healthFill"></div></div>
+  </div>
+  <div id="crosshair">+</div>
+  <div id="waveAnn"></div>
+  <div id="hitFlash"></div>
+
+  <!-- WEAPON BAR (single equipped weapon) -->
+  <div id="weaponBar">
+    <div class="wSlot active" id="wSlot1">
+      <div class="wIcon" id="wEquippedIcon">⚡</div>
+      <div class="wKey">CLICK / F</div>
+      <div class="wLbl" id="wEquippedName">LASER SWORD</div>
+      <div class="wCd" id="wCd1">READY</div>
+    </div>
+  </div>
+
+  <div id="controls">WASD Move · Mouse Look · Click/F = Use Weapon · 1 2 3 = Switch · ESC exit</div>
+</div>
+
+<div class="overlay" id="startScreen">
+  <h1>⚔️ CAPTURE THE THRONE ⚔️</h1>
+  <h2>Two armies. One battlefield. You lead the charge.</h2>
+  <div class="ctrl-list">
+    <div><b>WASD</b> — Move</div>
+    <div><b>Mouse</b> — Look / aim</div>
+    <div><b>Left Click / F</b> — Use weapon</div>
+    <div><b>1 2 3</b> — Switch weapons</div>
+    <div><b>Goal</b> — Stand on the gold throne for 20 seconds!</div>
+  </div>
+  <button id="startBtn" onclick="openWeaponShop()">⚔️ CHARGE!</button>
+</div>
+
+<!-- WEAPON SHOP -->
+<div class="overlay" id="weaponShop" style="display:none;align-items:flex-start;padding-top:20px;">
+  <h1>⚔️ ARMORY</h1>
+  <div id="armHeader">
+    <div>
+      <div id="shopSip">💰 <span id="shopSipAmt">0</span> S.I.P.</div>
+    </div>
+    <div>
+      <div id="playerLvlDisplay">⚔️ Level <span id="armLvlNum">1</span></div>
+      <div id="xpBarWrap"><div id="xpBarFill" style="width:0%"></div></div>
+      <div id="xpInfo">0 / 100 XP to next level</div>
+    </div>
+  </div>
+  <div id="armDetail">
+    <div id="armDetailIcon">⚡</div>
+    <div id="armDetailRight">
+      <div id="armDetailName">Laser Sword</div>
+      <div id="armDetailDesc">Fast melee. Standard damage.</div>
+      <div id="armDetailStats">⚔️ Melee · 💥 1.0× damage</div>
+      <button id="armActionBtn" onclick="armAction()">✓ EQUIPPED</button>
+    </div>
+  </div>
+  <div class="armGrid" id="armGrid"></div>
+  <div id="shopMsg"></div>
+  <button id="goFightBtn" onclick="beginGame()">⚔️ GO FIGHT!</button>
+  <button style="margin-top:8px;padding:7px 22px;background:transparent;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:13px;" onclick="document.getElementById('weaponShop').style.display='none';document.getElementById('startScreen').style.display='flex';">← Back</button>
+</div>
+
+<div class="overlay" id="levelScreen">
+  <h1>⚔️ LEVEL COMPLETE! ⚔️</h1>
+  <h2>The throne is yours — for now.</h2>
+  <p>Next level: enemies are <strong style="color:#ff8888">stronger and faster</strong></p>
+  <p>Score so far: <span id="lvlScore">0</span></p>
+  <button id="nextLvlBtn" onclick="nextLevel()">➡️ NEXT LEVEL</button>
+</div>
+
+<div class="overlay" id="wonScreen">
+  <h1>👑 VICTORY!</h1>
+  <p>Your army captured the throne!</p>
+  <p>Score: <span id="finalScore">0</span></p>
+  <button class="restartBtn" style="background:#FFD700;color:#111" onclick="location.reload()">PLAY AGAIN</button>
+</div>
+
+<div class="overlay" id="lostScreen">
+  <h1>💀 DEFEATED</h1>
+  <p>The enemy army won...</p>
+  <p>Score: <span id="finalScoreLost">0</span></p>
+  <button class="restartBtn" style="background:#ff4444;color:#fff" onclick="location.reload()">TRY AGAIN</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────────────
+let scene, camera, renderer, clock;
+let playerGroup, playerSword;
+let yaw=0, pitch=0.15, isLocked=false;
+let moveState={w:false,a:false,s:false,d:false};
+let playerHP=100, score=0;
+let swordCD=0, blasterCD=0, scatterCD=0, swordSwing=0;
+let enemies=[], allies=[], projectiles=[], particles=[];
+let captureProgress=0, gameState='start', wave=1, level=1, waveTimer=0, nextWaveQueued=false;
+const MAX_LEVELS=20;
+const CAPTURE_TIME=20;
+const TIER_NAMES=['The Grasslands','The Forest Keep','The Dark Citadel','The Final Fortress'];
+function levelTier(l){ return Math.min(Math.floor((l-1)/5),3); }
+const THRONE_POS=new THREE.Vector3(0,0.5,0);
+const THRONE_R=6;
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function mat(c){ return new THREE.MeshLambertMaterial({color:c}); }
+function glow(c){ return new THREE.MeshBasicMaterial({color:c}); }
+function normAngle(a){ while(a>Math.PI)a-=Math.PI*2; while(a<-Math.PI)a+=Math.PI*2; return a; }
+
+// ── SCENE ─────────────────────────────────────────────────────────────────────
+function initScene(){
+  clock=new THREE.Clock();
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x87ceeb);
+  scene.fog=new THREE.Fog(0xaaddff,80,200);
+
+  camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,300);
+  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.shadowMap.enabled=true;
+  document.body.appendChild(renderer.domElement);
+
+  const sun=new THREE.DirectionalLight(0xfffde0,1.6);
+  sun.position.set(40,70,30); sun.castShadow=true; scene.add(sun);
+  scene.add(new THREE.AmbientLight(0xc8e0ff,0.9));
+
+  buildBattlefield();
+  buildPlayer();
+  spawnWave(1);
+  setupControls();
+  animate();
+}
+
+// ── BATTLEFIELD ───────────────────────────────────────────────────────────────
+function buildBattlefield(){
+  // Grass
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(300,300),mat(0x4a7c3f));
+  ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+
+  // Dirt center path
+  const path=new THREE.Mesh(new THREE.PlaneGeometry(14,300),mat(0x7a5c28));
+  path.rotation.x=-Math.PI/2; path.position.y=0.01; scene.add(path);
+
+  // Cover rocks scattered across field
+  const rockPos=[
+    [-18,0,-22],[18,0,-22],[-22,0,0],[22,0,0],
+    [-16,0,22],[16,0,22],[-10,0,-42],[10,0,-42],
+    [-10,0,42],[10,0,42],[-28,0,-12],[28,0,-12],
+    [-8,0,-8],[8,0,-8],[-8,0,8],[8,0,8],
+  ];
+  rockPos.forEach(([x,y,z])=>{
+    const s=2+Math.random()*2, h=1.2+Math.random()*0.8;
+    const rock=new THREE.Mesh(new THREE.BoxGeometry(s,h,s*0.8),mat(0x778899));
+    rock.position.set(x,h/2,z); rock.rotation.y=Math.random()*Math.PI;
+    rock.castShadow=true; scene.add(rock);
+  });
+
+  // Trees on sides
+  [[-46,0,-35],[-46,0,-5],[-46,0,25],[46,0,-35],[46,0,-5],[46,0,25],
+   [-46,0,-65],[46,0,-65],[-46,0,55],[46,0,55]].forEach(([x,y,z])=>{
+    const trunk=new THREE.Mesh(new THREE.BoxGeometry(1.4,5,1.4),mat(0x6b4226));
+    trunk.position.set(x,2.5,z); trunk.castShadow=true; scene.add(trunk);
+    const leaves=new THREE.Mesh(new THREE.BoxGeometry(6,5,6),mat(0x2d6a2d));
+    leaves.position.set(x,7,z); leaves.castShadow=true; scene.add(leaves);
+  });
+
+  // ── THRONE in center ──────────────────────────────────────────────────────
+  const plat=new THREE.Mesh(new THREE.BoxGeometry(13,0.5,13),mat(0x665500));
+  plat.position.set(0,0.25,0); scene.add(plat);
+  const plat2=new THREE.Mesh(new THREE.BoxGeometry(10,0.4,10),mat(0x886600));
+  plat2.position.set(0,0.65,0); scene.add(plat2);
+
+  // Throne chair
+  const seat=new THREE.Mesh(new THREE.BoxGeometry(3,0.4,2.5),mat(0x8B6914));
+  seat.position.set(0,1.1,0); scene.add(seat);
+  const back=new THREE.Mesh(new THREE.BoxGeometry(3,3,0.4),mat(0x8B6914));
+  back.position.set(0,2.7,-1.2); scene.add(back);
+  const lArm=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.8,2.5),mat(0x8B6914));
+  lArm.position.set(-1.3,1.6,0); scene.add(lArm);
+  const rArm=lArm.clone(); rArm.position.set(1.3,1.6,0); scene.add(rArm);
+
+  // Gold capture ring
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(THRONE_R,0.3,8,40),glow(0xFFD700));
+  ring.rotation.x=-Math.PI/2; ring.position.set(0,0.3,0); scene.add(ring);
+  const thrL=new THREE.PointLight(0xFFD700,2,16); thrL.position.set(0,3,0); scene.add(thrL);
+
+  // ── TEAM BANNERS ─────────────────────────────────────────────────────────
+  [[-10,0,60],[10,0,60]].forEach(([x,y,z])=>buildBanner(x,y,z,0x2244ff,0x4488ff));
+  [[-10,0,-60],[10,0,-60]].forEach(([x,y,z])=>buildBanner(x,y,z,0xcc2222,0xff4444));
+}
+
+function buildBanner(x,y,z,flagCol,lightCol){
+  const pole=new THREE.Mesh(new THREE.BoxGeometry(0.35,8,0.35),mat(0x6b4226));
+  pole.position.set(x,4,z); scene.add(pole);
+  const flag=new THREE.Mesh(new THREE.BoxGeometry(4,2.2,0.12),mat(flagCol));
+  flag.position.set(x+2,7.5,z); scene.add(flag);
+  const fl=new THREE.PointLight(lightCol,1.2,10); fl.position.set(x,7.5,z); scene.add(fl);
+}
+
+// ── PLAYER HAT ───────────────────────────────────────────────────────────────
+function addPlayerHat(){
+  const hat=localStorage.getItem('explox_hat')||'none';
+  const shirtHex=localStorage.getItem('explox_shirt')||'#2196F3';
+  const shirt=parseInt(shirtHex.replace('#',''),16);
+  function mk(w,h,d,c,x,y,z){
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(c));
+    m.position.set(x,y,z); m.castShadow=true; playerGroup.add(m);
+  }
+  if(hat==='none'){
+    mk(1.1,0.85,1.1, 0x334477, 0,3.5,0);
+    const visor=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.25,0.12),glow(0x44aaff));
+    visor.position.set(0,3.25,0.57); playerGroup.add(visor);
+  }
+  else if(hat==='cap')    { mk(1.2,0.15,1.2,0xee4444,0,3.35,0); mk(0.9,0.5,0.8,0xee4444,0,3.63,-0.05); mk(0.5,0.12,0.4,0xee4444,0,3.28,0.7); }
+  else if(hat==='cowboy') { mk(1.7,0.12,1.7,0x8B4513,0,3.32,0); mk(0.9,0.7,0.9,0x8B4513,0,3.72,0); }
+  else if(hat==='crown')  { mk(1.1,0.28,1.1,0xFFD700,0,3.35,0); [-0.35,0,0.35].forEach((cx,i)=>mk(0.22,0.4+i%2*0.15,0.22,0xFFD700,cx,3.7,0)); }
+  else if(hat==='helmet') { mk(1.15,0.85,1.15,0x555555,0,3.48,0); mk(0.7,0.3,0.15,0x88ccff,0,3.22,0.56); }
+  else if(hat==='tophat') { mk(1.35,0.1,1.35,0x111111,0,3.32,0); mk(0.9,0.9,0.9,0x111111,0,3.8,0); mk(0.92,0.08,0.92,0x333333,0,3.38,0); }
+  else if(hat==='beanie') { mk(1.05,0.7,1.05,shirt,0,3.5,0); mk(0.35,0.35,0.35,0xffffff,0,3.92,0); }
+  else if(hat==='fedora') { mk(1.5,0.1,1.5,0x7a5c3a,0,3.32,0); mk(0.9,0.65,0.9,0x7a5c3a,0,3.65,0); mk(0.91,0.08,0.91,0x333333,0,3.37,0); }
+  else if(hat==='wizard') { const c=new THREE.Mesh(new THREE.ConeGeometry(0.6,1.8,8),mat(0x4444aa)); c.position.set(0,3.9,0); playerGroup.add(c); mk(1.3,0.12,1.3,0x4444aa,0,3.32,0); }
+  else if(hat==='pirate') { mk(1.4,0.1,1.4,0x111111,0,3.32,0); mk(0.9,0.6,0.5,0x111111,0,3.66,0); mk(0.3,0.3,0.15,0xffffff,0,3.7,0.3); }
+  else if(hat==='santa')  { mk(1.1,0.2,1.1,0xffffff,0,3.32,0); const c=new THREE.Mesh(new THREE.ConeGeometry(0.5,1.0,8),mat(0xdd2222)); c.position.set(0.1,3.88,0); playerGroup.add(c); mk(0.25,0.25,0.25,0xffffff,0.45,4.32,0); }
+}
+
+// ── SOLDIERS ─────────────────────────────────────────────────────────────────
+function makeSoldier(team, pos, type){
+  const isBlue=team==='blue';
+  const bodyCol  = isBlue?0x2244cc:0xcc2222;
+  const helmCol  = isBlue?0x112299:0x991111;
+  const visorCol = isBlue?0x44aaff:0xff4444;
+  const scale    = type==='heavy'?1.3:type==='archer'?0.88:1.0;
+
+  const g=new THREE.Group();
+  function mk(w,h,d,c,x,y,z){
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w*scale,h*scale,d*scale),mat(c));
+    m.position.set(x,y,z); m.castShadow=true; g.add(m); return m;
+  }
+  mk(0.9,0.9,0.9, 0xf5c89a, 0,2.7*scale,0);
+  mk(0.85,1.0,0.5, bodyCol, 0,1.7*scale,0);
+  mk(0.3,0.85,0.3, bodyCol,-0.6*scale,1.7*scale,0);
+  mk(0.3,0.85,0.3, bodyCol, 0.6*scale,1.7*scale,0);
+  mk(0.35,0.85,0.35, bodyCol,-0.22*scale,0.75*scale,0);
+  mk(0.35,0.85,0.35, bodyCol, 0.22*scale,0.75*scale,0);
+  mk(1.0,0.75,1.0, helmCol, 0,3.35*scale,0);
+
+  const visor=new THREE.Mesh(new THREE.BoxGeometry(0.55*scale,0.2*scale,0.1),glow(visorCol));
+  visor.position.set(0,3.15*scale,0.52*scale); g.add(visor);
+
+  // Weapon visual
+  const swordCol=isBlue?0x44aaff:0xff4422;
+  const blade=new THREE.Mesh(new THREE.BoxGeometry(0.08*scale,0.08*scale,1.4*scale),glow(swordCol));
+  blade.position.set(0.65*scale,1.6*scale,-0.5*scale); g.add(blade);
+
+  // HP bar canvas
+  const hbCv=document.createElement('canvas'); hbCv.width=64; hbCv.height=10;
+  const hbCtx=hbCv.getContext('2d');
+  const hbM=new THREE.Mesh(new THREE.PlaneGeometry(1.5,0.22),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(hbCv),transparent:true,side:THREE.DoubleSide}));
+  hbM.position.y=4.5*scale; g.add(hbM);
+
+  g.position.set(...pos);
+  scene.add(g);
+
+  const diff=1+(level-1)*0.16;
+  const maxHP=Math.round((type==='heavy'?160:type==='archer'?45:75)*diff);
+  return {
+    group:g, team, type,
+    hp:maxHP, maxHp:maxHP,
+    dmg:   Math.round((type==='heavy'?22:type==='archer'?12:14)*diff),
+    speed: (type==='heavy'?2.5:type==='archer'?3.2:4.8)*(1+(level-1)*0.07),
+    range: type==='archer'?22:2.5,
+    atkRate:type==='heavy'?1.5:type==='archer'?2.2:0.9,
+    atkTimer:0.5+Math.random(), scale,
+    hbM, hbCv, hbCtx, hitFlash:0,
+    shootTimer:1+Math.random()*1.5
+  };
+}
+
+// ── PLAYER ─────────────────────────────────────────────────────────────────────
+function buildPlayer(){
+  playerGroup=new THREE.Group();
+  // Read customization saved by main game
+  function hexC(key,fb){ return parseInt((localStorage.getItem(key)||fb).replace('#',''),16); }
+  const skinC  = hexC('explox_skin',      '#f5c89a');
+  const shirtC = hexC('explox_shirt',     '#2196F3');
+  const pantsC = hexC('explox_pants',     '#333333');
+  const shoesC = hexC('explox_shoes',     '#4e3b2a');
+  const hairC  = hexC('explox_hairColor', '#3a1f0a');
+  const hair   = localStorage.getItem('explox_hair') || 'none';
+
+  function mk(w,h,d,c,x,y,z){
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(c));
+    m.position.set(x,y,z); m.castShadow=true; playerGroup.add(m);
+  }
+  mk(1,1,1,    skinC,  0,2.8,0);            // head
+  mk(0.9,1.1,0.5, shirtC, 0,1.75,0);        // body
+  mk(0.35,0.9,0.35, shirtC,-0.65,1.75,0);   // left arm
+  mk(0.35,0.9,0.35, shirtC, 0.65,1.75,0);   // right arm
+  mk(0.38,0.9,0.38, pantsC,-0.22,0.75,0);   // left leg
+  mk(0.38,0.9,0.38, pantsC, 0.22,0.75,0);   // right leg
+  mk(0.42,0.22,0.42, shoesC,-0.22,0.2,0);   // left shoe
+  mk(0.42,0.22,0.42, shoesC, 0.22,0.2,0);   // right shoe
+
+  // Hair
+  if(hair==='short')    { mk(1.02,0.26,1.02, hairC, 0,3.32,0); }
+  else if(hair==='long')    { mk(1.02,0.26,1.02, hairC, 0,3.32,0); mk(0.3,1.1,0.3, hairC,-0.52,2.5,0); mk(0.3,1.1,0.3, hairC, 0.52,2.5,0); }
+  else if(hair==='spiky')   { mk(1.02,0.22,0.95, hairC, 0,3.32,0); [-0.3,0,0.3].forEach(cx=>mk(0.2,0.5,0.2,hairC,cx,3.56,0)); }
+  else if(hair==='afro')    { mk(1.35,0.95,1.35, hairC, 0,3.52,0); }
+  else if(hair==='ponytail'){ mk(1.02,0.26,1.02, hairC, 0,3.32,0); mk(0.28,1.2,0.28, hairC, 0,2.8,-0.44); }
+  else if(hair==='curly')   { [-0.3,0,0.3].forEach(cx=>mk(0.5,0.52,0.5,hairC,cx,3.42,0)); }
+
+  addPlayerHat();
+
+  // Laser sword
+  const sg=new THREE.Group();
+  const handle=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.4),mat(0x444444));
+  handle.position.z=0.2; sg.add(handle);
+  const blade=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.07,1.8),glow(0x44aaff));
+  blade.position.z=-0.7; sg.add(blade);
+  const bl=new THREE.PointLight(0x44aaff,1.5,5); bl.position.z=-0.7; sg.add(bl);
+  sg.position.set(0.7,1.5,-0.3);
+  playerGroup.add(sg);
+  playerSword=sg;
+
+  // Plasma blaster
+  const bg=new THREE.Group();
+  const bBody=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.18,0.6),mat(0x333333));
+  bg.add(bBody);
+  const bBarrel=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,0.4,8),mat(0x222222));
+  bBarrel.rotation.x=Math.PI/2; bBarrel.position.z=-0.5; bg.add(bBarrel);
+  const bTip=new THREE.Mesh(new THREE.SphereGeometry(0.09,8,8),glow(0xff6600));
+  bTip.position.z=-0.72; bg.add(bTip);
+  bg.position.set(-0.7,1.5,-0.3);
+  playerGroup.add(bg);
+
+  playerGroup.position.set(0,0,48);
+  scene.add(playerGroup);
+}
+
+// ── WAVES ─────────────────────────────────────────────────────────────────────
+function spawnWave(w){
+  wave=w; nextWaveQueued=false; waveTimer=0;
+  captureProgress=0;
+  showAnn('⚔️ '+TIER_NAMES[levelTier(level)]+' · WAVE '+w+'!');
+  document.getElementById('levelNum').textContent=level+'/'+MAX_LEVELS;
+  document.getElementById('waveNum').textContent=w;
+
+  const tier=levelTier(level);
+  const wb=w-1; // wave bonus (0-4)
+  const tierCfgs=[
+    // Tier 0: Grasslands (levels 1-5) — normals only early, archers later
+    [[{type:'normal',n:4}],[{type:'normal',n:5},{type:'archer',n:1}],[{type:'normal',n:5},{type:'archer',n:2}],[{type:'normal',n:6},{type:'archer',n:2}],[{type:'normal',n:6},{type:'archer',n:3}]],
+    // Tier 1: Forest Keep (levels 6-10) — heavies introduced
+    [[{type:'normal',n:7},{type:'archer',n:2}],[{type:'normal',n:7},{type:'archer',n:3},{type:'heavy',n:1}],[{type:'normal',n:8},{type:'archer',n:3},{type:'heavy',n:2}],[{type:'normal',n:8},{type:'archer',n:4},{type:'heavy',n:3}],[{type:'normal',n:9},{type:'archer',n:4},{type:'heavy',n:3}]],
+    // Tier 2: Dark Citadel (levels 11-15) — big armies
+    [[{type:'normal',n:9},{type:'archer',n:4},{type:'heavy',n:2}],[{type:'normal',n:10},{type:'archer',n:4},{type:'heavy',n:3}],[{type:'normal',n:10},{type:'archer',n:5},{type:'heavy',n:4}],[{type:'normal',n:11},{type:'archer',n:5},{type:'heavy',n:4}],[{type:'normal',n:12},{type:'archer',n:6},{type:'heavy',n:5}]],
+    // Tier 3: Final Fortress (levels 16-20) — maximum chaos
+    [[{type:'normal',n:12},{type:'archer',n:6},{type:'heavy',n:4}],[{type:'normal',n:13},{type:'archer',n:6},{type:'heavy',n:5}],[{type:'normal',n:14},{type:'archer',n:7},{type:'heavy',n:5}],[{type:'normal',n:14},{type:'archer',n:7},{type:'heavy',n:6}],[{type:'normal',n:15},{type:'archer',n:8},{type:'heavy',n:7}]],
+  ];
+  const cfg=tierCfgs[tier][wb];
+  cfg.forEach(({type,n})=>{
+    for(let i=0;i<n;i++){
+      const x=(Math.random()-0.5)*52;
+      const z=-54+(Math.random()-0.5)*8;
+      enemies.push(makeSoldier('red',[x,0,z],type));
+    }
+  });
+
+  // Blue allies — more as levels go up
+  const allyN=Math.min(4+w*2+Math.floor((level-1)*0.6),22);
+  for(let i=0;i<allyN;i++){
+    const x=(Math.random()-0.5)*42;
+    const z=52+(Math.random()-0.5)*8;
+    const t=Math.random()<0.25?'archer':Math.random()<0.15?'heavy':'normal';
+    allies.push(makeSoldier('blue',[x,0,z],t));
+  }
+
+  updateHUD();
+}
+
+function nextLevel(){
+  document.getElementById('levelScreen').style.display='none';
+  level++;
+  // Clear any leftover enemies/allies/projectiles
+  [...enemies,...allies,...projectiles,...particles].forEach(o=>{
+    if(o.mesh) scene.remove(o.mesh);
+    if(o.group) scene.remove(o.group);
+  });
+  enemies=[]; allies=[]; projectiles=[]; particles=[];
+  // Heal player a bit between levels
+  playerHP=Math.min(100,playerHP+40);
+  gameState='playing';
+  spawnWave(1);
+}
+
+function showAnn(msg){
+  const el=document.getElementById('waveAnn');
+  el.textContent=msg; el.style.opacity=1;
+  setTimeout(()=>el.style.opacity=0, 2200);
+}
+
+// ── COMBAT ────────────────────────────────────────────────────────────────────
+let currentWeapon = null; // set in beginGame from WEAPONS array
+
+function swingSword(){
+  if(swordCD>0) return;
+  swordCD=0.42; swordSwing=0.42;
+  const mult = currentWeapon ? currentWeapon.dmg : 1.0;
+  enemies.forEach(e=>{
+    if(e.hp<=0) return;
+    const dx=e.group.position.x-playerGroup.position.x;
+    const dz=e.group.position.z-playerGroup.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<4.5){
+      const diff=normAngle(Math.atan2(dx,dz)-yaw);
+      if(Math.abs(diff)<1.0){ e.hp-=45*mult; e.hitFlash=0.12; boom(e.group.position,0x44aaff); score+=2; }
+    }
+  });
+}
+
+function shootBlaster(){
+  if(blasterCD>0) return;
+  blasterCD=0.28;
+  const mult = currentWeapon ? currentWeapon.dmg : 1.0;
+  const vel=new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw)).multiplyScalar(30);
+  spawnProj(playerGroup.position.clone().add(new THREE.Vector3(0,1.5,0)),vel,38*mult,'player',0xff6600);
+}
+
+function fireScatter(){
+  if(scatterCD>0) return;
+  scatterCD=0.9;
+  const mult = currentWeapon ? currentWeapon.dmg : 1.0;
+  const origin=playerGroup.position.clone().add(new THREE.Vector3(0,1.5,0));
+  for(let i=-2;i<=2;i++){
+    const spread=i*0.18;
+    const vel=new THREE.Vector3(Math.sin(yaw+spread),0,Math.cos(yaw+spread)).multiplyScalar(24);
+    spawnProj(origin.clone(),vel,20*mult,'player',0xaa00ff);
+  }
+}
+
+function useWeapon(){
+  if(!currentWeapon) { swingSword(); return; }
+  if(currentWeapon.type==='melee') swingSword();
+  else if(currentWeapon.type==='ranged') shootBlaster();
+  else if(currentWeapon.type==='spread') fireScatter();
+}
+
+function spawnProj(pos,vel,dmg,team,color){
+  const pm=new THREE.Mesh(new THREE.SphereGeometry(0.22,8,8),glow(color));
+  pm.position.copy(pos); scene.add(pm);
+  const pl=new THREE.PointLight(color,2,6); pm.add(pl);
+  projectiles.push({mesh:pm,vel,dmg,team,life:3.5});
+}
+
+function allyFire(s,target){
+  const dx=target.group.position.x-s.group.position.x;
+  const dz=target.group.position.z-s.group.position.z;
+  const d=Math.sqrt(dx*dx+dz*dz);
+  const col=s.team==='blue'?0x44aaff:0xff4422;
+  spawnProj(
+    s.group.position.clone().add(new THREE.Vector3(0,2.5*s.scale,0)),
+    new THREE.Vector3(dx/d,0,dz/d).multiplyScalar(14),
+    s.dmg, s.team, col
+  );
+}
+
+function boom(pos,color){
+  for(let i=0;i<7;i++){
+    const p=new THREE.Mesh(new THREE.BoxGeometry(0.15,0.15,0.15),glow(color));
+    p.position.copy(pos).add(new THREE.Vector3((Math.random()-0.5)*0.5,1,(Math.random()-0.5)*0.5));
+    scene.add(p);
+    particles.push({mesh:p,vel:new THREE.Vector3((Math.random()-0.5)*5,2+Math.random()*4,(Math.random()-0.5)*5),life:0.45});
+  }
+}
+
+// ── SOLDIER AI ────────────────────────────────────────────────────────────────
+function tickSoldier(s,dt,foes,t){
+  if(s.hp<=0) return;
+
+  // Hit flash
+  if(s.hitFlash>0){
+    s.hitFlash-=dt;
+    const c=s.hitFlash>0?0xffffff:(s.team==='blue'?0x2244cc:0xcc2222);
+    s.group.children.forEach(ch=>{ if(ch.material&&ch.material.color&&ch.material!==glow()) ch.material.color.setHex(c); });
+  }
+
+  // Find nearest foe
+  let nearFoe=null, nearDist=9999;
+  foes.forEach(f=>{ if(f.hp<=0) return; const dx=f.group.position.x-s.group.position.x,dz=f.group.position.z-s.group.position.z,d=Math.sqrt(dx*dx+dz*dz); if(d<nearDist){nearDist=d;nearFoe=f;} });
+  if(!nearFoe) return;
+
+  const dx=nearFoe.group.position.x-s.group.position.x;
+  const dz=nearFoe.group.position.z-s.group.position.z;
+  s.group.rotation.y=Math.atan2(dx,dz);
+
+  if(s.type==='archer'){
+    if(nearDist>8&&nearDist<s.range){
+      s.shootTimer-=dt;
+      if(s.shootTimer<=0){ s.shootTimer=s.atkRate+Math.random()*0.5; allyFire(s,nearFoe); }
+    }
+    if(nearDist>10){ s.group.position.x+=dx/nearDist*s.speed*dt; s.group.position.z+=dz/nearDist*s.speed*dt; }
+  } else {
+    if(nearDist>1.8){ s.group.position.x+=dx/nearDist*s.speed*dt; s.group.position.z+=dz/nearDist*s.speed*dt; }
+    else {
+      s.atkTimer-=dt;
+      if(s.atkTimer<=0){ s.atkTimer=s.atkRate; nearFoe.hp-=s.dmg; nearFoe.hitFlash=0.12; boom(nearFoe.group.position,s.team==='blue'?0x4488ff:0xff4422); }
+    }
+  }
+
+  // Walk bob
+  const bob=Math.sin(t*5+s.group.id)*0.28;
+  if(s.group.children[4]) s.group.children[4].rotation.x=-bob;
+  if(s.group.children[5]) s.group.children[5].rotation.x= bob;
+
+  // HP bar
+  s.hbCtx.clearRect(0,0,64,10);
+  s.hbCtx.fillStyle='#222'; s.hbCtx.fillRect(0,0,64,10);
+  const pct=s.hp/s.maxHp;
+  s.hbCtx.fillStyle=pct>0.5?'#44ff44':pct>0.25?'#ffaa00':'#ff2200';
+  s.hbCtx.fillRect(0,0,64*pct,10);
+  s.hbM.material.map.needsUpdate=true;
+  s.hbM.lookAt(camera.position);
+}
+
+// ── HUD ───────────────────────────────────────────────────────────────────────
+function updateHUD(){
+  document.getElementById('allyCount').textContent=allies.filter(a=>a.hp>0).length;
+  document.getElementById('enemyCount').textContent=enemies.filter(e=>e.hp>0).length;
+  document.getElementById('score').textContent=score;
+  document.getElementById('healthFill').style.width=Math.max(0,playerHP)+'%';
+  const pct=Math.floor(captureProgress/CAPTURE_TIME*100);
+  document.getElementById('captureFill').style.width=pct+'%';
+  document.getElementById('captureLabel').textContent='🏆 CAPTURE — '+pct+'%';
+}
+function flashHit(){ const f=document.getElementById('hitFlash'); f.style.background='rgba(255,0,0,0.4)'; setTimeout(()=>f.style.background='rgba(255,0,0,0)',100); }
+
+// ── CONTROLS ─────────────────────────────────────────────────────────────────
+function setupControls(){
+  document.addEventListener('keydown',e=>{
+    if(e.code==='KeyW') moveState.w=true;
+    if(e.code==='KeyS') moveState.s=true;
+    if(e.code==='KeyA') moveState.a=true;
+    if(e.code==='KeyD') moveState.d=true;
+    if(e.code==='KeyF') useWeapon();
+  });
+  document.addEventListener('keyup',  e=>{ if(e.code==='KeyW')moveState.w=false;if(e.code==='KeyS')moveState.s=false;if(e.code==='KeyA')moveState.a=false;if(e.code==='KeyD')moveState.d=false; });
+  document.addEventListener('mousemove',e=>{ if(!isLocked)return; yaw-=e.movementX*0.0022; pitch-=e.movementY*0.002; pitch=Math.max(-0.5,Math.min(0.8,pitch)); });
+  document.addEventListener('mousedown',e=>{
+    if(!isLocked){ renderer.domElement.requestPointerLock(); return; }
+    if(e.button===0||e.button===2) useWeapon();
+  });
+  document.addEventListener('contextmenu',e=>e.preventDefault());
+  document.addEventListener('pointerlockchange',()=>{ isLocked=document.pointerLockElement===renderer.domElement; });
+  window.addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+}
+
+// ── GAME LOOP ─────────────────────────────────────────────────────────────────
+const SPEED=8.5;
+function animate(){
+  requestAnimationFrame(animate);
+  if(gameState!=='playing'){ renderer.render(scene,camera); return; }
+  const dt=Math.min(clock.getDelta(),0.05);
+  const t=clock.getElapsedTime();
+
+  swordCD=Math.max(0,swordCD-dt);
+  blasterCD=Math.max(0,blasterCD-dt);
+  scatterCD=Math.max(0,scatterCD-dt);
+  swordSwing=Math.max(0,swordSwing-dt);
+  // Weapon bar cooldown display
+  const wCD = currentWeapon && currentWeapon.type==='melee' ? swordCD : currentWeapon && currentWeapon.type==='spread' ? scatterCD : blasterCD;
+  document.getElementById('wCd1').textContent = wCD>0 ? '⏳' : 'READY';
+  waveTimer+=dt;
+
+  if(playerSword) playerSword.rotation.x=swordSwing>0?-Math.sin((0.42-swordSwing)/0.42*Math.PI)*1.5:0;
+
+  // Player move
+  const fwd  =new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw));
+  const right =new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+  const dir=new THREE.Vector3();
+  if(moveState.w)dir.add(fwd); if(moveState.s)dir.sub(fwd);
+  if(moveState.d)dir.add(right); if(moveState.a)dir.sub(right);
+  if(dir.length()>0){ dir.normalize(); playerGroup.position.addScaledVector(dir,SPEED*dt); }
+  playerGroup.position.x=Math.max(-52,Math.min(52,playerGroup.position.x));
+  playerGroup.position.z=Math.max(-68,Math.min(68,playerGroup.position.z));
+
+  // Camera
+  camera.position.set(
+    playerGroup.position.x-Math.sin(yaw)*7,
+    playerGroup.position.y+3.5+pitch*5,
+    playerGroup.position.z-Math.cos(yaw)*7
+  );
+  camera.lookAt(playerGroup.position.x,playerGroup.position.y+1.8,playerGroup.position.z);
+
+  // ── ENEMIES tick ──────────────────────────────────────────────────────────
+  for(let i=enemies.length-1;i>=0;i--){
+    const e=enemies[i];
+    if(e.hp<=0){ boom(e.group.position,0xff4422); scene.remove(e.group); score+=10; gainXP(e.kind==='heavy'?12:e.kind==='archer'?8:5); enemies.splice(i,1); continue; }
+
+    // Also hit player directly if close
+    const dpx=playerGroup.position.x-e.group.position.x;
+    const dpz=playerGroup.position.z-e.group.position.z;
+    if(Math.sqrt(dpx*dpx+dpz*dpz)<2){
+      e.atkTimer-=dt;
+      if(e.atkTimer<=0){ e.atkTimer=e.atkRate; playerHP-=e.dmg; flashHit(); }
+    }
+    // Move/fight toward allies or player
+    const allFoes=allies.concat([{group:{position:playerGroup.position.clone()},hp:playerHP,maxHp:100}]);
+    tickSoldier(e,dt,allFoes,t);
+  }
+
+  // ── ALLIES tick ───────────────────────────────────────────────────────────
+  for(let i=allies.length-1;i>=0;i--){
+    const a=allies[i];
+    if(a.hp<=0){ scene.remove(a.group); allies.splice(i,1); continue; }
+    tickSoldier(a,dt,enemies,t);
+  }
+
+  // ── PROJECTILES ───────────────────────────────────────────────────────────
+  for(let i=projectiles.length-1;i>=0;i--){
+    const p=projectiles[i];
+    p.life-=dt; p.mesh.position.addScaledVector(p.vel,dt);
+    if(p.life<=0){ scene.remove(p.mesh); projectiles.splice(i,1); continue; }
+    let hit=false;
+    if(p.team==='player'||p.team==='blue'){
+      for(let j=enemies.length-1;j>=0;j--){
+        if(p.mesh.position.distanceTo(enemies[j].group.position.clone().add(new THREE.Vector3(0,1.5,0)))<1.3){
+          enemies[j].hp-=p.dmg; enemies[j].hitFlash=0.12;
+          if(p.team==='player') score+=3;
+          boom(p.mesh.position,0x44aaff); scene.remove(p.mesh); projectiles.splice(i,1); hit=true; break;
+        }
+      }
+    } else {
+      if(p.mesh.position.distanceTo(playerGroup.position.clone().add(new THREE.Vector3(0,1.5,0)))<1.2){
+        playerHP-=p.dmg; flashHit(); boom(p.mesh.position,0xff4422);
+        scene.remove(p.mesh); projectiles.splice(i,1); hit=true;
+      }
+      if(!hit){
+        for(let j=allies.length-1;j>=0;j--){
+          if(p.mesh.position.distanceTo(allies[j].group.position.clone().add(new THREE.Vector3(0,1.5*allies[j].scale,0)))<1.2){
+            allies[j].hp-=p.dmg; boom(p.mesh.position,0xff4422);
+            scene.remove(p.mesh); projectiles.splice(i,1); break;
+          }
+        }
+      }
+    }
+  }
+
+  // ── PARTICLES ─────────────────────────────────────────────────────────────
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i]; p.life-=dt;
+    p.mesh.position.addScaledVector(p.vel,dt); p.vel.y-=14*dt;
+    p.mesh.material.transparent=true; p.mesh.material.opacity=Math.max(0,p.life*2.2);
+    if(p.life<=0){ scene.remove(p.mesh); particles.splice(i,1); }
+  }
+
+  // ── CAPTURE ───────────────────────────────────────────────────────────────
+  const onThrone=playerGroup.position.distanceTo(THRONE_POS)<THRONE_R;
+  const enemyOnThrone=enemies.some(e=>e.hp>0&&e.group.position.distanceTo(THRONE_POS)<THRONE_R+2);
+  if(onThrone&&!enemyOnThrone) captureProgress=Math.min(CAPTURE_TIME,captureProgress+dt);
+  else if(enemyOnThrone)        captureProgress=Math.max(0,captureProgress-dt*1.5);
+
+  // ── WIN / LOSE ─────────────────────────────────────────────────────────────
+  if(captureProgress>=CAPTURE_TIME&&gameState==='playing'){
+    if(level>=MAX_LEVELS){
+      gameState='won';
+      document.getElementById('wonScreen').style.display='flex';
+      document.getElementById('finalScore').textContent=score;
+    } else {
+      gameState='levelcomplete';
+      document.getElementById('lvlScore').textContent=score;
+      document.getElementById('levelScreen').style.display='flex';
+      const nextTier=levelTier(level+1);
+      document.getElementById('levelScreen').querySelector('h2').textContent=
+        `Level ${level} of ${MAX_LEVELS} — Throne captured!`;
+      document.getElementById('levelScreen').querySelector('p').textContent=
+        `Next: Level ${level+1} · ${TIER_NAMES[nextTier]}`;
+    }
+  }
+  if(playerHP<=0&&gameState==='playing'){
+    gameState='lost';
+    document.getElementById('lostScreen').style.display='flex';
+    document.getElementById('finalScoreLost').textContent=score;
+  }
+
+  // ── NEXT WAVE / LEVEL ─────────────────────────────────────────────────────
+  if(enemies.length===0&&!nextWaveQueued&&waveTimer>2){
+    nextWaveQueued=true;
+    if(wave<5){
+      setTimeout(()=>{ if(gameState==='playing') spawnWave(wave+1); },2500);
+    } else {
+      // All 5 waves cleared — throne must still be captured to advance
+      showAnn('⚔️ All waves cleared! Capture the throne!');
+    }
+  }
+
+  updateHUD();
+  renderer.render(scene,camera);
+}
+
+// ── BEGIN ──────────────────────────────────────────────────────────────────────
+// ── 100-WEAPON ARMORY ─────────────────────────────────────────────────────────
+const WEAPONS = [
+// Tier 1 — Level 1
+{id:'laser_sword',name:'Laser Sword',icon:'⚡',desc:'Fast melee. Standard damage.',cost:0,lvl:1,dmg:1.0,type:'melee'},
+{id:'wood_club',name:'Wood Club',icon:'🏏',desc:'Slow heavy melee hit.',cost:10,lvl:1,dmg:1.2,type:'melee'},
+{id:'slingshot',name:'Slingshot',icon:'🪃',desc:'Small ranged pebble.',cost:10,lvl:1,dmg:0.8,type:'ranged'},
+{id:'rusty_blade',name:'Rusty Blade',icon:'🗡️',desc:'Old blade, reliable.',cost:15,lvl:1,dmg:1.1,type:'melee'},
+{id:'fire_dart',name:'Fire Dart',icon:'🎯',desc:'Burning ranged dart.',cost:15,lvl:1,dmg:0.9,type:'ranged'},
+// Tier 2 — Level 5
+{id:'plasma_blaster',name:'Plasma Blaster',icon:'🔴',desc:'Ranged, great vs archers.',cost:30,lvl:5,dmg:1.3,type:'ranged'},
+{id:'ice_spear',name:'Ice Spear',icon:'🧊',desc:'Chilling ranged attack.',cost:35,lvl:5,dmg:1.2,type:'ranged'},
+{id:'battle_axe',name:'Battle Axe',icon:'🪓',desc:'Wide melee swing.',cost:30,lvl:5,dmg:1.4,type:'melee'},
+{id:'thunder_staff',name:'Thunder Staff',icon:'🌩️',desc:'Electric melee burst.',cost:35,lvl:5,dmg:1.3,type:'melee'},
+{id:'poison_bow',name:'Poison Bow',icon:'🏹',desc:'Poison-tipped arrow.',cost:40,lvl:5,dmg:1.1,type:'ranged'},
+// Tier 3 — Level 10
+{id:'scatter_blast',name:'Scatter Blast',icon:'💥',desc:'5 shots at once.',cost:60,lvl:10,dmg:1.4,type:'spread'},
+{id:'chain_whip',name:'Chain Whip',icon:'⛓️',desc:'Long reach melee chain.',cost:55,lvl:10,dmg:1.6,type:'melee'},
+{id:'flare_gun',name:'Flare Gun',icon:'🌟',desc:'Burning ranged flare.',cost:60,lvl:10,dmg:1.5,type:'ranged'},
+{id:'war_hammer',name:'War Hammer',icon:'🔨',desc:'Massive melee crush.',cost:65,lvl:10,dmg:1.8,type:'melee'},
+{id:'void_arrow',name:'Void Arrow',icon:'🌑',desc:'Dark energy arrow.',cost:70,lvl:10,dmg:1.6,type:'ranged'},
+// Tier 4 — Level 15
+{id:'laser_cannon',name:'Laser Cannon',icon:'🔫',desc:'High-speed laser shot.',cost:80,lvl:15,dmg:1.7,type:'ranged'},
+{id:'ghost_blade',name:'Ghost Blade',icon:'👻',desc:'Phases through armor.',cost:85,lvl:15,dmg:1.9,type:'melee'},
+{id:'storm_bow',name:'Storm Bow',icon:'⛈️',desc:'Lightning-infused arrows.',cost:80,lvl:15,dmg:1.7,type:'ranged'},
+{id:'spike_mace',name:'Spike Mace',icon:'💎',desc:'Spiked impact melee.',cost:90,lvl:15,dmg:2.0,type:'melee'},
+{id:'burst_shot',name:'Burst Shot',icon:'🌠',desc:'3-spread burst.',cost:85,lvl:15,dmg:1.6,type:'spread'},
+// Tier 5 — Level 20
+{id:'flame_sword',name:'Flame Sword',icon:'🔥',desc:'Burning melee strike.',cost:100,lvl:20,dmg:2.1,type:'melee'},
+{id:'venom_spitter',name:'Venom Spitter',icon:'🐍',desc:'Poison ranged spit.',cost:100,lvl:20,dmg:1.9,type:'ranged'},
+{id:'cryo_cannon',name:'Cryo Cannon',icon:'❄️',desc:'Freezing ranged blast.',cost:110,lvl:20,dmg:2.0,type:'ranged'},
+{id:'titan_fist',name:'Titan Fist',icon:'👊',desc:'Massive melee punch.',cost:105,lvl:20,dmg:2.2,type:'melee'},
+{id:'seeker_missile',name:'Seeker Missile',icon:'🚀',desc:'Homing ranged missile.',cost:115,lvl:20,dmg:2.1,type:'ranged'},
+// Tier 6 — Level 25
+{id:'shadow_blade',name:'Shadow Blade',icon:'🖤',desc:'Melee from shadows.',cost:120,lvl:25,dmg:2.3,type:'melee'},
+{id:'lightning_pistol',name:'Lightning Pistol',icon:'⚡',desc:'Fast ranged lightning.',cost:125,lvl:25,dmg:2.2,type:'ranged'},
+{id:'acid_grenade',name:'Acid Grenade',icon:'🟢',desc:'Acid spread melt.',cost:120,lvl:25,dmg:2.1,type:'spread'},
+{id:'cyclone_sword',name:'Cyclone Sword',icon:'🌀',desc:'Spinning melee vortex.',cost:130,lvl:25,dmg:2.4,type:'melee'},
+{id:'gravity_blaster',name:'Gravity Blaster',icon:'🌌',desc:'Heavy gravity shot.',cost:135,lvl:25,dmg:2.3,type:'ranged'},
+// Tier 7 — Level 30
+{id:'inferno_blade',name:'Inferno Blade',icon:'🔥',desc:'Infernal melee heat.',cost:140,lvl:30,dmg:2.5,type:'melee'},
+{id:'star_cannon',name:'Star Cannon',icon:'⭐',desc:'Star-powered blast.',cost:145,lvl:30,dmg:2.4,type:'ranged'},
+{id:'dark_spear',name:'Dark Spear',icon:'🌑',desc:'Dark energy ranged.',cost:140,lvl:30,dmg:2.3,type:'ranged'},
+{id:'golem_fist',name:'Golem Fist',icon:'🤖',desc:'Iron golem punch.',cost:150,lvl:30,dmg:2.7,type:'melee'},
+{id:'crystal_arrow',name:'Crystal Arrow',icon:'💠',desc:'Crystal ranged shard.',cost:155,lvl:30,dmg:2.5,type:'ranged'},
+// Tier 8 — Level 35
+{id:'plasma_sword',name:'Plasma Sword',icon:'🟣',desc:'Plasma-coated blade.',cost:160,lvl:35,dmg:2.8,type:'melee'},
+{id:'thunder_bolt',name:'Thunder Bolt',icon:'⚡',desc:'Pure lightning bolt.',cost:165,lvl:35,dmg:2.7,type:'ranged'},
+{id:'spirit_scythe',name:'Spirit Scythe',icon:'👁️',desc:'Spirit energy scythe.',cost:165,lvl:35,dmg:2.9,type:'melee'},
+{id:'nova_blaster',name:'Nova Blaster',icon:'💫',desc:'Nova burst ranged.',cost:170,lvl:35,dmg:2.8,type:'ranged'},
+{id:'bone_crusher',name:'Bone Crusher',icon:'💀',desc:'Crushing melee impact.',cost:175,lvl:35,dmg:3.0,type:'melee'},
+// Tier 9 — Level 40
+{id:'lava_sword',name:'Lava Sword',icon:'🌋',desc:'Molten lava blade.',cost:180,lvl:40,dmg:3.1,type:'melee'},
+{id:'photon_cannon',name:'Photon Cannon',icon:'🌐',desc:'Photon ranged shot.',cost:185,lvl:40,dmg:3.0,type:'ranged'},
+{id:'wraith_blade',name:'Wraith Blade',icon:'😈',desc:'Wraith energy slice.',cost:185,lvl:40,dmg:3.2,type:'melee'},
+{id:'meteor_hammer',name:'Meteor Hammer',icon:'☄️',desc:'Meteor impact smash.',cost:190,lvl:40,dmg:3.3,type:'melee'},
+{id:'neutron_rifle',name:'Neutron Rifle',icon:'🎆',desc:'Neutron ranged shot.',cost:195,lvl:40,dmg:3.2,type:'ranged'},
+// Tier 10 — Level 45
+{id:'chaos_blade',name:'Chaos Blade',icon:'☯️',desc:'Chaotic melee energy.',cost:200,lvl:45,dmg:3.4,type:'melee'},
+{id:'omega_blaster',name:'Omega Blaster',icon:'🔱',desc:'Omega ranged shot.',cost:205,lvl:45,dmg:3.3,type:'ranged'},
+{id:'void_hammer',name:'Void Hammer',icon:'🌀',desc:'Void-powered crush.',cost:205,lvl:45,dmg:3.5,type:'melee'},
+{id:'solar_spear',name:'Solar Spear',icon:'☀️',desc:'Solar energy ranged.',cost:210,lvl:45,dmg:3.4,type:'ranged'},
+{id:'lunar_bow',name:'Lunar Bow',icon:'🌙',desc:'Moon-powered spread.',cost:215,lvl:45,dmg:3.3,type:'spread'},
+// Tier 11 — Level 50
+{id:'storm_blade',name:'Storm Blade',icon:'⛈️',desc:'Storm-charged blade.',cost:220,lvl:50,dmg:3.6,type:'melee'},
+{id:'quantum_gun',name:'Quantum Gun',icon:'🔬',desc:'Quantum ranged gun.',cost:225,lvl:50,dmg:3.5,type:'ranged'},
+{id:'blood_axe',name:'Blood Axe',icon:'❤️',desc:'Blood-fueled melee.',cost:225,lvl:50,dmg:3.7,type:'melee'},
+{id:'galaxy_bow',name:'Galaxy Bow',icon:'🌌',desc:'Galaxy ranged bow.',cost:230,lvl:50,dmg:3.6,type:'ranged'},
+{id:'titan_sword',name:'Titan Sword',icon:'🗡️',desc:'Giant titan sword.',cost:235,lvl:50,dmg:3.8,type:'melee'},
+// Tier 12 — Level 55
+{id:'death_blade',name:'Death Blade',icon:'☠️',desc:'Death-touched blade.',cost:240,lvl:55,dmg:3.9,type:'melee'},
+{id:'plasma_rain',name:'Plasma Rain',icon:'🌧️',desc:'Raining plasma spread.',cost:245,lvl:55,dmg:3.7,type:'spread'},
+{id:'quake_hammer',name:'Quake Hammer',icon:'🌍',desc:'Earth-shaking crush.',cost:245,lvl:55,dmg:4.0,type:'melee'},
+{id:'frost_cannon',name:'Frost Cannon',icon:'❄️',desc:'Deep freeze ranged.',cost:250,lvl:55,dmg:3.8,type:'ranged'},
+{id:'abyssal_blade',name:'Abyssal Blade',icon:'🕳️',desc:'Abyss-powered cut.',cost:255,lvl:55,dmg:4.1,type:'melee'},
+// Tier 13 — Level 60
+{id:'supernova_gun',name:'Supernova Gun',icon:'💥',desc:'Supernova ranged burst.',cost:260,lvl:60,dmg:4.0,type:'ranged'},
+{id:'demon_claw',name:'Demon Claw',icon:'😤',desc:'Demonic melee slash.',cost:265,lvl:60,dmg:4.2,type:'melee'},
+{id:'solar_flare',name:'Solar Flare',icon:'☀️',desc:'Solar flare spread.',cost:265,lvl:60,dmg:4.0,type:'spread'},
+{id:'eclipse_sword',name:'Eclipse Sword',icon:'🌒',desc:'Eclipse melee blade.',cost:270,lvl:60,dmg:4.3,type:'melee'},
+{id:'nether_bow',name:'Nether Bow',icon:'🏹',desc:'Nether ranged arrow.',cost:275,lvl:60,dmg:4.2,type:'ranged'},
+// Tier 14 — Level 65
+{id:'celestial_blade',name:'Celestial Blade',icon:'✨',desc:'Celestial melee energy.',cost:280,lvl:65,dmg:4.4,type:'melee'},
+{id:'pulse_cannon',name:'Pulse Cannon',icon:'📡',desc:'Pulse wave ranged.',cost:285,lvl:65,dmg:4.3,type:'ranged'},
+{id:'void_spear',name:'Void Spear',icon:'◾',desc:'Void energy ranged.',cost:285,lvl:65,dmg:4.2,type:'ranged'},
+{id:'blazing_axe',name:'Blazing Axe',icon:'🔥',desc:'Blazing hot axe.',cost:290,lvl:65,dmg:4.5,type:'melee'},
+{id:'psychic_blade',name:'Psychic Blade',icon:'🧠',desc:'Mind-powered cut.',cost:295,lvl:65,dmg:4.4,type:'melee'},
+// Tier 15 — Level 70
+{id:'dark_matter_gun',name:'Dark Matter Gun',icon:'🌑',desc:'Dark matter ranged.',cost:300,lvl:70,dmg:4.5,type:'ranged'},
+{id:'obsidian_sword',name:'Obsidian Sword',icon:'⬛',desc:'Razor-sharp obsidian.',cost:305,lvl:70,dmg:4.7,type:'melee'},
+{id:'arc_cannon',name:'Arc Cannon',icon:'⚡',desc:'Arc lightning blast.',cost:305,lvl:70,dmg:4.6,type:'ranged'},
+{id:'specter_blade',name:'Specter Blade',icon:'👻',desc:'Specter phase blade.',cost:310,lvl:70,dmg:4.8,type:'melee'},
+{id:'cosmic_bow',name:'Cosmic Bow',icon:'🌠',desc:'Cosmic ranged arrow.',cost:315,lvl:70,dmg:4.7,type:'ranged'},
+// Tier 16 — Level 75
+{id:'runic_sword',name:'Runic Sword',icon:'🔮',desc:'Ancient rune melee.',cost:320,lvl:75,dmg:4.9,type:'melee'},
+{id:'plasma_storm',name:'Plasma Storm',icon:'⛈️',desc:'Plasma storm spread.',cost:325,lvl:75,dmg:4.8,type:'spread'},
+{id:'hellfire_axe',name:'Hellfire Axe',icon:'🔥',desc:'Hellfire melee axe.',cost:325,lvl:75,dmg:5.0,type:'melee'},
+{id:'tachyon_rifle',name:'Tachyon Rifle',icon:'🚀',desc:'Faster-than-light shot.',cost:330,lvl:75,dmg:4.9,type:'ranged'},
+{id:'soul_reaper',name:'Soul Reaper',icon:'💀',desc:'Soul-reaping scythe.',cost:335,lvl:75,dmg:5.1,type:'melee'},
+// Tier 17 — Level 80
+{id:'eternity_blade',name:'Eternity Blade',icon:'⏳',desc:'Timeless melee energy.',cost:340,lvl:80,dmg:5.2,type:'melee'},
+{id:'singularity_gun',name:'Singularity Gun',icon:'🕳️',desc:'Singularity ranged.',cost:345,lvl:80,dmg:5.1,type:'ranged'},
+{id:'purgatory_blade',name:'Purgatory Blade',icon:'🌪️',desc:'Purgatory tornado.',cost:345,lvl:80,dmg:5.3,type:'melee'},
+{id:'atomic_cannon',name:'Atomic Cannon',icon:'⚛️',desc:'Atomic power blast.',cost:350,lvl:80,dmg:5.2,type:'ranged'},
+{id:'phantom_scythe',name:'Phantom Scythe',icon:'👁️',desc:'Phantom melee sweep.',cost:355,lvl:80,dmg:5.4,type:'melee'},
+// Tier 18 — Level 85
+{id:'voidwalker_blade',name:'Voidwalker Blade',icon:'🌀',desc:'Void-walk melee.',cost:360,lvl:85,dmg:5.5,type:'melee'},
+{id:'nebula_cannon',name:'Nebula Cannon',icon:'🌫️',desc:'Nebula gas blast.',cost:365,lvl:85,dmg:5.4,type:'ranged'},
+{id:'armageddon_axe',name:'Armageddon Axe',icon:'💣',desc:'World-ending axe.',cost:365,lvl:85,dmg:5.6,type:'melee'},
+{id:'warp_blaster',name:'Warp Blaster',icon:'🔄',desc:'Warped space shot.',cost:370,lvl:85,dmg:5.5,type:'ranged'},
+{id:'omega_scythe',name:'Omega Scythe',icon:'♒',desc:'Final omega scythe.',cost:375,lvl:85,dmg:5.7,type:'melee'},
+// Tier 19 — Level 90
+{id:'universe_sword',name:'Universe Sword',icon:'🌌',desc:'Universe energy blade.',cost:380,lvl:90,dmg:5.8,type:'melee'},
+{id:'apocalypse_gun',name:'Apocalypse Gun',icon:'☢️',desc:'Apocalyptic blast.',cost:385,lvl:90,dmg:5.7,type:'ranged'},
+{id:'entropy_blade',name:'Entropy Blade',icon:'📉',desc:'Entropy chaos cut.',cost:385,lvl:90,dmg:5.9,type:'melee'},
+{id:'big_bang_cannon',name:'Big Bang Cannon',icon:'💫',desc:'Big bang spread.',cost:390,lvl:90,dmg:5.8,type:'spread'},
+{id:'chaos_scythe',name:'Chaos Scythe',icon:'🌊',desc:'Chaos wave scythe.',cost:395,lvl:90,dmg:6.0,type:'melee'},
+// Tier 20 — Legendary (Level 95-100)
+{id:'godslayer',name:'Godslayer Blade',icon:'👑',desc:'Legendary. Slays gods.',cost:500,lvl:95,dmg:7.0,type:'melee'},
+{id:'infinity_cannon',name:'Infinity Cannon',icon:'♾️',desc:'Infinite ranged power.',cost:500,lvl:95,dmg:6.5,type:'ranged'},
+{id:'reality_shatter',name:'Reality Shatter',icon:'💠',desc:'Shatters reality.',cost:600,lvl:98,dmg:7.5,type:'spread'},
+{id:'death_star',name:'Death Star',icon:'☠️',desc:'Ultimate annihilation.',cost:700,lvl:99,dmg:8.0,type:'ranged'},
+{id:'throne_breaker',name:'Throne Breaker',icon:'🏆',desc:'Only the worthy wield it.',cost:999,lvl:100,dmg:10.0,type:'melee'},
+];
+
+// ── PLAYER LEVEL / XP ─────────────────────────────────────────────────────────
+let playerLevel = 1, playerXP = 0, shopSip = 0, ownedWeaponIds = ['laser_sword'];
+let equippedWeaponId = 'laser_sword', previewWeaponId = 'laser_sword';
+
+function xpToNextLevel(lv){ return lv * 100; }
+
+function gainXP(amount){
+  playerXP += amount;
+  while(playerXP >= xpToNextLevel(playerLevel) && playerLevel < 100){
+    playerXP -= xpToNextLevel(playerLevel);
+    playerLevel++;
+    showNotif('🎉 Level Up! You are now Level ' + playerLevel + '!');
+  }
+  savePlayerData();
+}
+
+function loadPlayerData(){
+  const user = localStorage.getItem('explox_current_user');
+  const blank = { level:1, xp:0, sip:0, ownedWeapons:['laser_sword'], equippedWeapon:'laser_sword' };
+  if(user){
+    const d = JSON.parse(localStorage.getItem('explox_user_'+user)||'{}');
+    return { level:d.throneLevel||1, xp:d.throneXP||0, sip:d.sip||0,
+             ownedWeapons:d.throneOwnedWeapons||['laser_sword'],
+             equippedWeapon:d.throneEquipped||'laser_sword' };
+  }
+  return blank;
+}
+
+function savePlayerData(){
+  const user = localStorage.getItem('explox_current_user');
+  if(!user) return;
+  const d = JSON.parse(localStorage.getItem('explox_user_'+user)||'{}');
+  d.throneLevel = playerLevel; d.throneXP = playerXP;
+  d.throneOwnedWeapons = ownedWeaponIds; d.throneEquipped = equippedWeaponId;
+  localStorage.setItem('explox_user_'+user, JSON.stringify(d));
+}
+
+// ── ARMORY UI ─────────────────────────────────────────────────────────────────
+function openWeaponShop(){
+  document.getElementById('startScreen').style.display = 'none';
+  const pd = loadPlayerData();
+  playerLevel = pd.level; playerXP = pd.xp; shopSip = pd.sip;
+  ownedWeaponIds = pd.ownedWeapons; equippedWeaponId = pd.equippedWeapon;
+  previewWeaponId = equippedWeaponId;
+  buildArmoryGrid();
+  updateArmoryHeader();
+  showArmoryDetail(WEAPONS.find(w=>w.id===previewWeaponId)||WEAPONS[0]);
+  document.getElementById('weaponShop').style.display = 'flex';
+}
+
+function updateArmoryHeader(){
+  document.getElementById('shopSipAmt').textContent = shopSip;
+  document.getElementById('armLvlNum').textContent = playerLevel;
+  const need = xpToNextLevel(playerLevel);
+  const pct = playerLevel >= 100 ? 100 : Math.floor(playerXP / need * 100);
+  document.getElementById('xpBarFill').style.width = pct + '%';
+  document.getElementById('xpInfo').textContent = playerLevel >= 100 ? 'MAX LEVEL' : playerXP + ' / ' + need + ' XP to next level';
+}
+
+function buildArmoryGrid(){
+  const grid = document.getElementById('armGrid');
+  grid.innerHTML = '';
+  WEAPONS.forEach(w => {
+    const owned = ownedWeaponIds.includes(w.id);
+    const locked = playerLevel < w.lvl;
+    const equipped = w.id === equippedWeaponId;
+    const preview = w.id === previewWeaponId;
+    const card = document.createElement('div');
+    card.className = 'armCard' + (locked?' arm-locked':'') + (owned&&!locked?' arm-owned':'') + (equipped?' arm-equipped':'');
+    card.innerHTML = `<div class="armIcon">${w.icon}</div>
+      <div class="armName">${w.name}</div>
+      <div class="armLvl">${locked ? '🔒 Lv.'+w.lvl : 'Lv.'+w.lvl}</div>
+      <div class="armCost">${owned ? '✓ Owned' : w.cost===0 ? 'FREE' : w.cost+' 💰'}</div>`;
+    if(!locked) card.onclick = () => { previewWeaponId = w.id; buildArmoryGrid(); showArmoryDetail(w); };
+    grid.appendChild(card);
+  });
+}
+
+function showArmoryDetail(w){
+  const owned = ownedWeaponIds.includes(w.id);
+  const equipped = w.id === equippedWeaponId;
+  document.getElementById('armDetailIcon').textContent = w.icon;
+  document.getElementById('armDetailName').textContent = w.name;
+  document.getElementById('armDetailDesc').textContent = w.desc;
+  document.getElementById('armDetailStats').textContent =
+    (w.type==='melee'?'⚔️ Melee':w.type==='spread'?'💥 Spread':'🔴 Ranged') + ' · 💥 ' + w.dmg.toFixed(1) + '× damage · Lv.' + w.lvl;
+  const btn = document.getElementById('armActionBtn');
+  if(equipped){ btn.textContent = '✓ EQUIPPED'; btn.style.background='#44ff88'; btn.style.color='#000'; }
+  else if(owned){ btn.textContent = '⚔️ EQUIP'; btn.style.background='#FFD700'; btn.style.color='#111'; }
+  else if(w.cost === 0){ btn.textContent = '⚔️ EQUIP FREE'; btn.style.background='#FFD700'; btn.style.color='#111'; }
+  else { btn.textContent = 'BUY ' + w.cost + ' 💰'; btn.style.background='#e94560'; btn.style.color='#fff'; }
+}
+
+function armAction(){
+  const w = WEAPONS.find(ww=>ww.id===previewWeaponId);
+  if(!w) return;
+  if(ownedWeaponIds.includes(w.id) || w.cost===0){
+    equippedWeaponId = w.id;
+    if(!ownedWeaponIds.includes(w.id)) ownedWeaponIds.push(w.id);
+    savePlayerData();
+    buildArmoryGrid();
+    showArmoryDetail(w);
+    showShopMsg('✅ Equipped ' + w.name + '!', '#44ff88');
+  } else {
+    if(shopSip < w.cost){ showShopMsg('❌ Need ' + w.cost + ' S.I.P.!'); return; }
+    shopSip -= w.cost;
+    ownedWeaponIds.push(w.id);
+    const user = localStorage.getItem('explox_current_user');
+    if(user){
+      const d = JSON.parse(localStorage.getItem('explox_user_'+user)||'{}');
+      d.sip = shopSip; d.throneOwnedWeapons = ownedWeaponIds;
+      localStorage.setItem('explox_user_'+user, JSON.stringify(d));
+    }
+    updateArmoryHeader();
+    buildArmoryGrid();
+    showArmoryDetail(w);
+    showShopMsg('✅ Bought ' + w.name + '! -' + w.cost + ' S.I.P.', '#44ff88');
+  }
+}
+
+function showShopMsg(txt, col='#ff4444'){
+  const el = document.getElementById('shopMsg');
+  el.style.color = col; el.textContent = txt;
+  setTimeout(()=>el.textContent='', 2200);
+}
+
+function beginGame(){
+  document.getElementById('startScreen').style.display='none';
+  document.getElementById('weaponShop').style.display='none';
+  currentWeapon = WEAPONS.find(w=>w.id===equippedWeaponId) || WEAPONS[0];
+  document.getElementById('wEquippedIcon').textContent = currentWeapon.icon;
+  document.getElementById('wEquippedName').textContent = currentWeapon.name.toUpperCase();
+  document.getElementById('hud').style.display='block';
+  gameState='playing';
+  initScene();
+}
+</script>
+</body>
+</html>

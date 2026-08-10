@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Explox — Geo Dash</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0a0a1a; overflow:hidden; font-family:Arial,sans-serif; }
+  canvas { display:block; }
+  #ui {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; z-index:10;
+  }
+  #startScreen, #winScreen, #loseScreen {
+    background:rgba(10,10,26,0.92); border:2px solid #e94560;
+    border-radius:18px; padding:32px 40px; text-align:center;
+    max-width:360px; width:90%;
+  }
+  #startScreen h1 { color:#e94560; font-size:2em; margin-bottom:6px; }
+  #startScreen p  { color:#aaa; margin-bottom:18px; font-size:0.95em; }
+  .levelBtns { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .lvlBtn {
+    padding:10px 22px; border:2px solid #e94560; border-radius:10px;
+    background:#16213e; color:#fff; font-size:1em; cursor:pointer;
+    transition:all 0.2s;
+  }
+  .lvlBtn:hover { background:#e94560; }
+  #winScreen { border-color:#00e676; display:none; }
+  #winScreen h1 { color:#00e676; font-size:2em; margin-bottom:8px; }
+  #winScreen p  { color:#aaa; margin-bottom:6px; }
+  #sipEarned { color:#FFD700; font-size:1.4em; font-weight:bold; }
+  #loseScreen { border-color:#ff4444; display:none; }
+  #loseScreen h1 { color:#ff4444; font-size:2em; margin-bottom:8px; }
+  #loseScreen p  { color:#aaa; margin-bottom:18px; }
+  .restartBtn {
+    padding:10px 28px; border:2px solid #e94560; border-radius:10px;
+    background:#16213e; color:#fff; font-size:1em; cursor:pointer;
+    transition:all 0.2s; margin:4px;
+  }
+  .restartBtn:hover { background:#e94560; }
+  .pickLabel { margin-top:18px; color:#aaa; font-size:0.85em; }
+  .colorPicker { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:8px; }
+  .colorSwatch {
+    width:28px; height:28px; border-radius:8px; cursor:pointer;
+    border:3px solid transparent; transition:transform 0.15s;
+  }
+  .colorSwatch:hover { transform:scale(1.15); }
+  .colorSwatch.selected { border-color:#fff; box-shadow:0 0 8px rgba(255,255,255,0.7); }
+  #hud {
+    position:fixed; top:12px; left:0; right:0;
+    display:none; justify-content:space-between;
+    align-items:center; padding:0 18px; z-index:5; pointer-events:none;
+  }
+  #hudLevel { color:#e94560; font-size:14px; font-weight:bold; }
+  #progressBar {
+    flex:1; height:10px; background:#333; border-radius:5px;
+    margin:0 14px; overflow:hidden;
+  }
+  #progressFill { height:100%; background:#e94560; border-radius:5px; width:0%; transition:width 0.1s; }
+  #hudSip { color:#FFD700; font-size:14px; font-weight:bold; }
+  #jumpHint {
+    position:fixed; bottom:18px; left:50%; transform:translateX(-50%);
+    color:#555; font-size:13px; pointer-events:none;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div id="hudLevel">LEVEL 1</div>
+  <div id="progressBar"><div id="progressFill"></div></div>
+  <div id="hudSip">0 S.I.P.</div>
+</div>
+<div id="jumpHint">SPACE / CLICK / TAP to jump — also activates orbs!</div>
+<div id="ui">
+  <div id="startScreen">
+    <h1>⬛ GEO DASH</h1>
+    <p>Dodge spikes, land on blocks, hit yellow pads &amp; orbs to jump, watch for speed zones, and survive gravity flips!<br>Each level earns you S.I.P.</p>
+    <div class="levelBtns">
+      <button class="lvlBtn" onclick="startGame(0)">🟢 Neon Sprint<br><small>Easy · 50 S.I.P.</small></button>
+      <button class="lvlBtn" onclick="startGame(1)">🟡 Turbo Drift<br><small>Medium · 100 S.I.P.</small></button>
+      <button class="lvlBtn" onclick="startGame(2)">🔴 Spike Storm<br><small>Hard · 200 S.I.P.</small></button>
+    </div>
+    <p class="pickLabel">Pick your cube color:</p>
+    <div id="colorPicker" class="colorPicker"></div>
+  </div>
+  <div id="winScreen">
+    <h1>🏆 YOU WIN!</h1>
+    <p>You earned:</p>
+    <div id="sipEarned">+0 S.I.P.</div>
+    <p style="color:#666;font-size:12px;margin:10px 0 18px;">Saved to your Explox account!</p>
+    <button class="restartBtn" onclick="showStart()">🎮 Play Again</button>
+  </div>
+  <div id="loseScreen">
+    <h1>💀 YOU DIED</h1>
+    <p id="loseMsg">Hit a spike! Try again.</p>
+    <button class="restartBtn" onclick="startGame(currentLevel)">🔄 Retry</button>
+    <button class="restartBtn" onclick="showStart()">← Menu</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+
+canvas.width  = window.innerWidth;
+canvas.height = window.innerHeight;
+window.addEventListener('resize', () => {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  GND = canvas.height - 80;
+});
+
+let GND = canvas.height - 80;
+const CEIL = 70; // the "floor" for the ceiling when gravity is flipped
+
+// ── LEVEL GENERATION ─────────────────────────────────────────────────────────
+// Builds hazards (spikes/blocks), pickups (orbs/pads), and portals (speed +
+// gravity) for one level. Every obstacle/pickup remembers which gravity
+// direction it belongs to (1 = sits on the floor, -1 = hangs from the
+// ceiling) so it always renders and collides against the right surface,
+// no matter which direction the player happens to be in when they reach it.
+function makeLevel(length, speed, density) {
+  const obstacles = [];
+  const pickups   = [];
+  const portals   = [];
+  let x = 900;
+  let curSpeed = speed;
+  let grav = 1;
+  let lastGravFlipX = x;
+  const MAX_FLIP_STRETCH = 1600; // don't let random chance leave a level flipped for too long
+  while(x < length - 500) {
+    const mustFlipBack = grav === -1 && (x - lastGravFlipX) > MAX_FLIP_STRETCH;
+    const roll = Math.random();
+    if(mustFlipBack || roll < 0.06) {
+      // gravity portal — flips which surface (floor or ceiling) is "down" from here on
+      grav *= -1;
+      lastGravFlipX = x;
+      portals.push({ x, kind:'gravity', toGrav: grav });
+      x += 220; // clear space after the flip before obstacles resume
+    } else if(roll < 0.14) {
+      // yellow orb — floats near the current surface, click/tap near it for a mid-air jump
+      pickups.push({ x, type:'orb', cy: 85 + Math.random()*45, grav });
+      x += 260 + Math.random()*160;
+    } else if(roll < 0.22) {
+      // yellow pad — auto-jumps you the instant you touch it
+      pickups.push({ x, type:'pad', grav });
+      x += 240 + Math.random()*160;
+    } else if(roll < 0.28) {
+      // speed portal — changes the scroll speed from here onward
+      curSpeed = (curSpeed === speed) ? speed * 1.5 : speed;
+      portals.push({ x, kind:'speed', toSpeed: curSpeed, faster: curSpeed > speed });
+      x += 260;
+    } else {
+      const type = Math.random() < 0.55 ? 'spike' : 'block';
+      const h    = type === 'spike' ? 46 : 40 + Math.floor(Math.random()*30);
+      const w    = type === 'spike' ? 36 : 36 + Math.floor(Math.random()*24);
+      obstacles.push({ x, type, w, h, grav });
+      const gap = 220 + Math.random() * (type === 'spike' ? 180 : 260) - density * 80;
+      x += gap;
+    }
+  }
+  return { obstacles, pickups, portals };
+}
+
+// ── LEVEL CONFIGS ─────────────────────────────────────────────────────────────
+const LEVELS = [
+  { title:'Neon Sprint', diff:'Easy',   speed:5,   color:'#00e676', sip:50,  length:6000,
+    ...makeLevel(6000, 5, 0.3) },
+  { title:'Turbo Drift', diff:'Medium', speed:7.5, color:'#FFD700', sip:100, length:8000,
+    ...makeLevel(8000, 7.5, 0.5) },
+  { title:'Spike Storm', diff:'Hard',   speed:10,  color:'#e94560', sip:200, length:11000,
+    ...makeLevel(11000, 10, 0.65) },
+];
+
+// ── CUBE CUSTOMIZATION ────────────────────────────────────────────────────────
+const CUBE_COLORS = ['#ffffff', '#00e5ff', '#ff3d81', '#ffd400', '#7c4dff', '#00e676', '#ff6d00', '#ff1744'];
+function loadCubeColor() {
+  try { return localStorage.getItem('explox_geodash_color') || CUBE_COLORS[0]; }
+  catch(e) { return CUBE_COLORS[0]; }
+}
+let cubeColor = loadCubeColor();
+
+function saveCubeColor(c) {
+  cubeColor = c;
+  try { localStorage.setItem('explox_geodash_color', c); } catch(e) {}
+  renderColorPicker();
+}
+
+function renderColorPicker() {
+  const wrap = document.getElementById('colorPicker');
+  wrap.innerHTML = '';
+  CUBE_COLORS.forEach(c => {
+    const sw = document.createElement('div');
+    sw.className = 'colorSwatch' + (c === cubeColor ? ' selected' : '');
+    sw.style.background = c;
+    sw.onclick = () => saveCubeColor(c);
+    wrap.appendChild(sw);
+  });
+}
+
+// ── GAME STATE ────────────────────────────────────────────────────────────────
+let currentLevel = 0;
+let running = false;
+let camX = 0;
+let levelLength = 0;
+let curSpeed = 0;
+let gravityDir = 1; // 1 = normal (floor at bottom), -1 = flipped (floor at ceiling/top)
+
+const CUBE_X  = 120;   // cube stays at fixed X, world scrolls
+const CUBE_W  = 44;
+const CUBE_H  = 44;
+
+let cubeY, cubeVY, onGround, jumpBuffer;
+const GRAVITY  = 0.55;
+const JUMP_VY  = -12.5;
+const JUMP_BUFFER_FRAMES = 8;
+const PLATFORM_TOLERANCE = 12; // how close (px) the cube's feet must be to a block's surface to land on it
+
+let obstacles = [];
+let pickups   = [];
+let portals   = [];
+let activeOrb = null;  // the orb the cube is currently close enough to activate, or null
+let particles = [];
+let trailPts  = [];
+let animId;
+
+// ── SIP HELPERS ───────────────────────────────────────────────────────────────
+function awardSip(amount) {
+  try {
+    const user = localStorage.getItem('explox_current_user');
+    if(!user) return;
+    const data = JSON.parse(localStorage.getItem('explox_user_' + user) || '{}');
+    data.sip = (data.sip || 0) + amount;
+    localStorage.setItem('explox_user_' + user, JSON.stringify(data));
+  } catch(e) {}
+}
+
+// ── START / STOP ──────────────────────────────────────────────────────────────
+function showStart() {
+  document.getElementById('startScreen').style.display = 'block';
+  document.getElementById('winScreen').style.display   = 'none';
+  document.getElementById('loseScreen').style.display  = 'none';
+  document.getElementById('hud').style.display         = 'none';
+  document.getElementById('jumpHint').style.display    = 'block';
+  running = false;
+  if(animId) cancelAnimationFrame(animId);
+}
+
+function startGame(lvlIdx) {
+  currentLevel = lvlIdx;
+  const lvl    = LEVELS[lvlIdx];
+
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('winScreen').style.display   = 'none';
+  document.getElementById('loseScreen').style.display  = 'none';
+  document.getElementById('hud').style.display         = 'flex';
+  document.getElementById('jumpHint').style.display    = 'block';
+  document.getElementById('hudLevel').textContent      = lvl.title + ' · ' + lvl.diff;
+  document.getElementById('hudSip').textContent        = lvl.sip + ' S.I.P.';
+  document.getElementById('progressFill').style.width  = '0%';
+  document.getElementById('progressFill').style.background = lvl.color;
+
+  cubeY     = GND - CUBE_H;
+  cubeVY    = 0;
+  onGround  = true;
+  jumpBuffer = 0;
+  camX      = 0;
+  curSpeed  = lvl.speed;
+  gravityDir = 1;
+  levelLength = lvl.length;
+  obstacles = lvl.obstacles.map(o => ({...o}));
+  pickups   = lvl.pickups.map(o => ({...o}));
+  portals   = lvl.portals.map(o => ({...o}));
+  activeOrb = null;
+  particles = [];
+  trailPts  = [];
+
+  running = true;
+  if(animId) cancelAnimationFrame(animId);
+  loop();
+}
+
+// ── INPUT ─────────────────────────────────────────────────────────────────────
+function tryJump() {
+  if(!running) return;
+  if(activeOrb) {
+    cubeVY     = JUMP_VY * gravityDir;
+    onGround   = false;
+    activeOrb.used = true;
+    jumpBuffer = 0;
+    spawnJumpParticles();
+    return;
+  }
+  if(onGround) {
+    cubeVY   = JUMP_VY * gravityDir;
+    onGround = false;
+    jumpBuffer = 0;
+    spawnJumpParticles();
+  } else {
+    jumpBuffer = JUMP_BUFFER_FRAMES;
+  }
+}
+
+document.addEventListener('keydown', e => { if(e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); tryJump(); } });
+canvas.addEventListener('pointerdown', tryJump);
+
+// ── PARTICLES ─────────────────────────────────────────────────────────────────
+function spawnJumpParticles() {
+  const originY = gravityDir === 1 ? (cubeY + CUBE_H) : cubeY;
+  for(let i=0; i<8; i++) {
+    particles.push({
+      x: CUBE_X + CUBE_W/2, y: originY,
+      vx: (Math.random()-0.5)*4, vy: (-Math.random()*3-1) * gravityDir,
+      life: 0.7, maxLife: 0.7,
+      color: cubeColor
+    });
+  }
+}
+
+function spawnDeathParticles(x, y) {
+  for(let i=0; i<20; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random()-0.5)*8, vy: -Math.random()*7-2,
+      life: 1, maxLife: 1,
+      color: cubeColor
+    });
+  }
+}
+
+// ── MAIN LOOP ─────────────────────────────────────────────────────────────────
+let lastT = 0;
+function loop(t=0) {
+  if(!running) return;
+  const dt = Math.min((t - lastT)/16, 3);
+  lastT = t;
+
+  const lvl = LEVELS[currentLevel];
+
+  // scroll world
+  camX += curSpeed * Math.max(dt, 0.5);
+
+  // find the surface the cube rests against. Normally that's the ground,
+  // but flipped gravity means it's the ceiling instead — and a block only
+  // counts as a platform if it belongs to the gravity direction you're
+  // currently in (blocks from the "other side" aren't there yet).
+  let restY = gravityDir === 1 ? GND : CEIL;
+  for(const ob of obstacles) {
+    if(ob.type !== 'block' || ob.grav !== gravityDir) continue;
+    const bsx = ob.x - camX;
+    if(bsx < CUBE_X + CUBE_W && bsx + ob.w > CUBE_X) {
+      if(gravityDir === 1) {
+        const bsy = GND - ob.h;
+        if(cubeY + CUBE_H <= bsy + PLATFORM_TOLERANCE) restY = Math.min(restY, bsy);
+      } else {
+        const bsyBottom = CEIL + ob.h;
+        if(cubeY >= bsyBottom - PLATFORM_TOLERANCE) restY = Math.max(restY, bsyBottom);
+      }
+    }
+  }
+
+  // physics — gravity normally pulls down toward GND; flipped, it pulls up toward CEIL
+  cubeVY   += GRAVITY * gravityDir;
+  cubeY    += cubeVY;
+  onGround  = false;
+  const landed = gravityDir === 1 ? (cubeY >= restY - CUBE_H) : (cubeY <= restY);
+  if(landed) {
+    cubeY    = gravityDir === 1 ? (restY - CUBE_H) : restY;
+    cubeVY   = 0;
+    onGround = true;
+    if(jumpBuffer > 0) {
+      cubeVY   = JUMP_VY * gravityDir;
+      onGround = false;
+      jumpBuffer = 0;
+      spawnJumpParticles();
+    }
+  }
+  if(jumpBuffer > 0) jumpBuffer--;
+
+  // pickups — orbs need a click while in range (handled in tryJump via activeOrb);
+  // pads trigger automatically the moment the cube touches them at the current surface
+  activeOrb = null;
+  for(const pu of pickups) {
+    if(pu.grav !== gravityDir) continue; // pickups from the other gravity zone aren't reachable yet
+    const psx = pu.x - camX;
+    if(psx > CUBE_X + CUBE_W + 40 || psx + 34 < CUBE_X - 40) continue;
+    if(pu.type === 'orb' && !pu.used) {
+      const py = gravityDir === 1 ? (GND - pu.cy) : (CEIL + pu.cy);
+      const dx = (psx+15) - (CUBE_X + CUBE_W/2);
+      const dy = py - (cubeY + CUBE_H/2);
+      if(Math.sqrt(dx*dx + dy*dy) < 34) activeOrb = pu;
+    } else if(pu.type === 'pad' && !pu.used) {
+      const touching = gravityDir === 1
+        ? (cubeY + CUBE_H >= GND - 8 && cubeY + CUBE_H <= GND + 8)
+        : (cubeY >= CEIL - 8 && cubeY <= CEIL + 8);
+      if(CUBE_X + CUBE_W > psx+4 && CUBE_X < psx+30 && touching) {
+        cubeVY   = JUMP_VY * gravityDir;
+        onGround = false;
+        jumpBuffer = 0;
+        pu.used = true;
+        spawnJumpParticles();
+      }
+    }
+  }
+
+  // portals — crossing a speed portal changes scroll speed; crossing a
+  // gravity portal flips which surface is "down" for the cube
+  for(const p of portals) {
+    if(p.triggered) continue;
+    if(p.x - camX <= CUBE_X) {
+      p.triggered = true;
+      if(p.kind === 'speed') curSpeed = p.toSpeed;
+      else if(p.kind === 'gravity') gravityDir = p.toGrav;
+    }
+  }
+
+  // trail
+  trailPts.push({ x: CUBE_X, y: cubeY, a: 1 });
+  if(trailPts.length > 10) trailPts.shift();
+
+  // particles
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy; p.vy += 0.15;
+    p.life -= 0.04;
+  });
+  particles = particles.filter(p => p.life > 0);
+
+  // progress
+  const pct = Math.min(camX / levelLength * 100, 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+
+  // collision — spikes always kill, blocks only kill if you crash into them
+  // instead of landing/sticking to the correct side (handled above)
+  for(const ob of obstacles) {
+    if(ob.grav !== gravityDir) continue;
+    const osx = ob.x - camX;
+    if(osx > CUBE_X + CUBE_W + 20 || osx + ob.w < CUBE_X - 20) continue;
+
+    if(gravityDir === 1) {
+      const osy = GND - ob.h;
+      if(ob.type === 'spike') {
+        if(CUBE_X + CUBE_W > osx + 4 && CUBE_X < osx + ob.w - 4 && cubeY + CUBE_H > osy + 8) { die('spike'); return; }
+      } else {
+        if(CUBE_X + CUBE_W > osx + 2 && CUBE_X < osx + ob.w - 2 && cubeY + CUBE_H > osy + PLATFORM_TOLERANCE) { die('block'); return; }
+      }
+    } else {
+      const osyBottom = CEIL + ob.h;
+      if(ob.type === 'spike') {
+        if(CUBE_X + CUBE_W > osx + 4 && CUBE_X < osx + ob.w - 4 && cubeY < osyBottom - 8) { die('spike'); return; }
+      } else {
+        if(CUBE_X + CUBE_W > osx + 2 && CUBE_X < osx + ob.w - 2 && cubeY < osyBottom - PLATFORM_TOLERANCE) { die('block'); return; }
+      }
+    }
+  }
+
+  // win check
+  if(camX >= levelLength) { win(); return; }
+
+  draw(lvl, curSpeed);
+  animId = requestAnimationFrame(loop);
+}
+
+// ── DRAW ──────────────────────────────────────────────────────────────────────
+// Real Geo Dash blocks look like solid metal panels — a checkered texture
+// with rivets in the corners — not a flat rectangle.
+function drawBlock(sx, sy, w, h, accent) {
+  ctx.fillStyle = '#3a3f52';
+  ctx.fillRect(sx, sy, w, h);
+
+  ctx.fillStyle = '#4a5068';
+  ctx.fillRect(sx+3, sy+3, w-6, h-6);
+
+  const cell = 8;
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  for(let gy=0; gy*cell < h-6; gy++) {
+    for(let gx=0; gx*cell < w-6; gx++) {
+      if((gx+gy)%2===0) {
+        const cw = Math.min(cell, w-6-gx*cell), ch = Math.min(cell, h-6-gy*cell);
+        ctx.fillRect(sx+3+gx*cell, sy+3+gy*cell, cw, ch);
+      }
+    }
+  }
+
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 3;
+  ctx.strokeRect(sx+1.5, sy+1.5, w-3, h-3);
+
+  ctx.fillStyle = accent;
+  const r = 2.5, pad = 7;
+  [[sx+pad,sy+pad],[sx+w-pad,sy+pad],[sx+pad,sy+h-pad],[sx+w-pad,sy+h-pad]].forEach(([rx,ry])=>{
+    ctx.beginPath(); ctx.arc(rx,ry,r,0,Math.PI*2); ctx.fill();
+  });
+}
+
+// Portals drawn as a glowing pill-shaped gate (rounded-rect ring with a soft
+// outer glow) spanning the play area, closer to how a real portal reads —
+// not just a flat colored rectangle.
+function drawPortal(sx, ringColor, fillColor, iconFn) {
+  const top = 10, bottom = GND - 10;
+  const pulse = 1 + Math.sin(performance.now()/220) * 0.08;
+  const halfW = 20 * pulse;
+  const cy = (top + bottom) / 2;
+
+  ctx.save();
+  ctx.shadowColor = ringColor;
+  ctx.shadowBlur = 22;
+  ctx.fillStyle = fillColor;
+  ctx.beginPath();
+  ctx.roundRect(sx - halfW, top, halfW*2, bottom - top, halfW);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.strokeStyle = ringColor;
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.roundRect(sx - halfW, top, halfW*2, bottom - top, halfW);
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(sx - halfW + 6, top + 6, Math.max((halfW-6)*2,0), (bottom-top)-12, Math.max(halfW-6,0));
+  ctx.stroke();
+
+  iconFn(sx, cy);
+}
+
+function drawGravityIcon(cx, cy) {
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy-30); ctx.lineTo(cx-9, cy-14); ctx.lineTo(cx+9, cy-14);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx, cy+30); ctx.lineTo(cx-9, cy+14); ctx.lineTo(cx+9, cy+14);
+  ctx.closePath(); ctx.fill();
+}
+
+function drawSpeedIcon(cx, cy, faster) {
+  ctx.fillStyle = '#fff';
+  const dir = faster ? 1 : -1;
+  [-16, 0, 16].forEach(off => {
+    ctx.beginPath();
+    ctx.moveTo(cx - dir*9, cy + off - 9);
+    ctx.lineTo(cx + dir*9, cy + off);
+    ctx.lineTo(cx - dir*9, cy + off + 9);
+    ctx.closePath();
+    ctx.fill();
+  });
+}
+
+function draw(lvl, speed) {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  // background gradient
+  const bg = ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0, '#0a0a1a');
+  bg.addColorStop(1, '#0f1a2e');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0,0,W,H);
+
+  // scrolling background lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+  ctx.lineWidth = 1;
+  for(let i=0; i<20; i++) {
+    const lx = ((i*80 - camX*0.2) % W + W) % W;
+    ctx.beginPath(); ctx.moveTo(lx,0); ctx.lineTo(lx,H); ctx.stroke();
+  }
+
+  // ground
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, GND, W, H - GND);
+  ctx.fillStyle = lvl.color;
+  ctx.fillRect(0, GND, W, 3);
+
+  // ceiling — becomes relevant whenever a gravity-flip section is nearby
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, W, CEIL);
+  ctx.fillStyle = lvl.color;
+  ctx.fillRect(0, CEIL-3, W, 3);
+
+  // level end marker
+  const endX = levelLength - camX;
+  if(endX > 0 && endX < W + 80) {
+    ctx.fillStyle = lvl.color;
+    ctx.globalAlpha = 0.6;
+    ctx.fillRect(endX - 4, 0, 8, GND);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('FINISH', endX, 60);
+  }
+
+  // portals — a glowing pill-shaped gate, like a real checkpoint ring you pass through
+  for(const p of portals) {
+    const sx = p.x - camX;
+    if(sx > W + 50 || sx < -50) continue;
+    if(p.kind === 'gravity') {
+      drawPortal(sx, '#b450ff', 'rgba(180,80,255,0.30)', (cx,cy) => drawGravityIcon(cx,cy));
+    } else {
+      const ring = p.faster ? '#ff8c00' : '#00c8ff';
+      const fill = p.faster ? 'rgba(255,140,0,0.30)' : 'rgba(0,200,255,0.30)';
+      drawPortal(sx, ring, fill, (cx,cy) => drawSpeedIcon(cx,cy,p.faster));
+    }
+  }
+
+  // obstacles — floor-side ones sit on GND same as always; ceiling-side ones
+  // are drawn hanging from CEIL (spikes point down instead of up)
+  for(const ob of obstacles) {
+    const sx = ob.x - camX;
+    if(sx > W + 20 || sx + ob.w < -20) continue;
+
+    if(ob.grav === 1) {
+      const sy = GND - ob.h;
+      if(ob.type === 'spike') {
+        ctx.fillStyle = '#ff4444';
+        ctx.beginPath();
+        ctx.moveTo(sx, GND);
+        ctx.lineTo(sx + ob.w/2, sy);
+        ctx.lineTo(sx + ob.w, GND);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#ff8888';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      } else {
+        drawBlock(sx, sy, ob.w, ob.h, lvl.color);
+      }
+    } else {
+      if(ob.type === 'spike') {
+        ctx.fillStyle = '#ff4444';
+        ctx.beginPath();
+        ctx.moveTo(sx, CEIL);
+        ctx.lineTo(sx + ob.w/2, CEIL + ob.h);
+        ctx.lineTo(sx + ob.w, CEIL);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#ff8888';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      } else {
+        drawBlock(sx, CEIL, ob.w, ob.h, lvl.color);
+      }
+    }
+  }
+
+  // pickups — orbs (float, need a click) and pads (auto-trigger on touch)
+  for(const pu of pickups) {
+    const sx = pu.x - camX;
+    if(sx > W + 40 || sx < -40) continue;
+    const onFloor = pu.grav === 1;
+    if(pu.type === 'orb') {
+      if(pu.used) continue;
+      const py = onFloor ? (GND - pu.cy) : (CEIL + pu.cy);
+      const pulse = 1 + Math.sin(performance.now()/150) * 0.08;
+      ctx.strokeStyle = '#FFD700';
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(sx+15, py, 15*pulse, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle = (pu === activeOrb) ? '#fff' : '#FFD700';
+      ctx.beginPath(); ctx.arc(sx+15, py, 5, 0, Math.PI*2); ctx.fill();
+    } else if(pu.type === 'pad') {
+      const baseY = onFloor ? GND : CEIL;
+      const dir = onFloor ? -1 : 1; // the pad's wedge points away from its surface
+      ctx.fillStyle = pu.used ? '#8a7300' : '#FFD700';
+      ctx.beginPath();
+      ctx.moveTo(sx, baseY);
+      ctx.lineTo(sx+4, baseY + dir*10);
+      ctx.lineTo(sx+30, baseY + dir*10);
+      ctx.lineTo(sx+34, baseY);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  // cube trail
+  for(let i=0; i<trailPts.length; i++) {
+    const p = trailPts[i];
+    const a = (i/trailPts.length) * 0.35;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = cubeColor;
+    ctx.fillRect(p.x, p.y, CUBE_W, CUBE_H);
+  }
+  ctx.globalAlpha = 1;
+
+  // cube — outline glows purple while gravity is flipped, as a clear signal
+  const cubeGrad = ctx.createLinearGradient(CUBE_X, cubeY, CUBE_X+CUBE_W, cubeY+CUBE_H);
+  cubeGrad.addColorStop(0, cubeColor);
+  cubeGrad.addColorStop(1, '#fff');
+  ctx.fillStyle = cubeGrad;
+  ctx.strokeStyle = gravityDir === -1 ? '#b450ff' : '#fff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(CUBE_X, cubeY, CUBE_W, CUBE_H, 6);
+  ctx.fill();
+  ctx.stroke();
+
+  // cube face
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.beginPath();
+  ctx.arc(CUBE_X+14, cubeY+16, 4, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath();
+  ctx.arc(CUBE_X+30, cubeY+16, 4, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(CUBE_X+22, cubeY+22, 6, 0.2, Math.PI-0.2); ctx.stroke();
+
+  // particles
+  for(const p of particles) {
+    ctx.globalAlpha = p.life / p.maxLife;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ── WIN / LOSE ────────────────────────────────────────────────────────────────
+function win() {
+  running = false;
+  const sip = LEVELS[currentLevel].sip;
+  awardSip(sip);
+  document.getElementById('sipEarned').textContent = '+' + sip + ' S.I.P.';
+  document.getElementById('winScreen').style.display = 'block';
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('jumpHint').style.display = 'none';
+}
+
+function die(cause) {
+  running = false;
+  spawnDeathParticles(CUBE_X + CUBE_W/2, cubeY + CUBE_H/2);
+  draw(LEVELS[currentLevel], curSpeed);
+  document.getElementById('loseMsg').textContent = cause === 'block' ? 'Crashed into a block! Try again.' : 'Hit a spike! Try again.';
+  document.getElementById('loseScreen').style.display = 'block';
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('jumpHint').style.display = 'none';
+}
+
+// draw initial background + build the color picker
+(function() {
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  renderColorPicker();
+})();
+</script>
+</body>
+</html>
