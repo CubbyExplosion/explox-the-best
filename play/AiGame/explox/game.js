@@ -10047,6 +10047,14 @@ function _startGameInner() {
     rd.style.width = '100%';
     rd.style.height = '100%';
     camera.aspect = w / h;
+    // Real bug fix: FOV used to be a fixed 70° vertical for every aspect ratio. On a portrait
+    // phone (aspect ~0.46), that same 70° vertical FOV squeezes the HORIZONTAL field of view down
+    // to roughly 36° (vs ~102° on a typical 16:9 desktop) — you only see a narrow forward sliver
+    // of road/ground with no buildings visible on either side, which reads as "swimming in an
+    // endless gray ocean" instead of a city (the actual reported symptom). Widen the vertical FOV
+    // as the screen gets taller/narrower than it is wide, recovering a usable horizontal view,
+    // capped so it never turns fisheye-extreme on very tall phones.
+    camera.fov = camera.aspect >= 1 ? 70 : Math.min(100, 70 + (1 - camera.aspect) * 45);
     camera.updateProjectionMatrix();
   }
   _resizeRenderer();
