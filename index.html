@@ -664,26 +664,35 @@ function toggleThemeSong(){
 
   // ── General facts (hand-written) ──
   var RULES = [
-    { k:['free','cost of the game','pay to play','money to start'], a:"Explox is 100% free to play — no download, no account fees, nothing to buy to get started. Just tap Play Now." },
+    { k:['free','cost of the game','pay to play','money to start','how much does it cost','how much does explox cost','is this free','price of explox'], a:"Explox is 100% free to play — no download, no account fees, nothing to buy to get started. Just tap Play Now." },
     { k:['download','install','app store'], a:"Nothing to install. It runs straight in your browser, on desktop or mobile." },
-    { k:['save my progress','saves my progress','lose my progress','save progress'], a:"Yes — make a free in-game account and everything (your job, store, house, friends, S.I.P.) saves automatically." },
+    { k:['save my progress','saves my progress','lose my progress','save progress','does it save','does explox save'], a:"Yes — make a free in-game account and everything (your job, store, house, friends, S.I.P.) saves automatically." },
     { k:['mobile','phone','tablet'], a:"Yep, it works on both desktop and mobile browsers." },
-    { k:['run a store','own a store','my own store','open a store'], a:"You can own and run a real store — pick one of 10 tiers, physically stock shelves, set your own prices, hire staff, and run ads." },
-    { k:['marry','wedding','get married'], a:"You can marry off two of your 40 named neighbors — they'll start a real family together, and married couples can have kids." },
-    { k:['neighbor','friend'], a:"You can befriend, invite over, hire, and even marry off your 40 named neighbors — they have real homes, cars, and jobs." },
+    { k:['run a store','own a store','my own store','open a store','start a business','sell stuff','shop owner','have a shop'], a:"You can own and run a real store — pick one of 10 tiers, physically stock shelves, set your own prices, hire staff, and run ads." },
+    { k:['marry','wedding','get married','get engaged','start a family','have a family','have kids'], a:"You can marry off two of your 40 named neighbors — they'll start a real family together, and married couples can have kids." },
+    { k:['neighbor','friend','make friends','befriend'], a:"You can befriend, invite over, hire, and even marry off your 40 named neighbors — they have real homes, cars, and jobs." },
     { k:['how many countries','which countries','countries can i fly','fly around the world'], a:"8 real countries: Japan, France, Brazil, Egypt, the UK, Australia, Canada, and Italy — each with its own themed shops. Ask me about any one by name!" },
     { k:['movie theater','movie theatre','cinema'], a:"There's a real working movie theater — 14 full movies, snacks you can eat, trailer-to-credits. Ask me about any movie by name!" },
     { k:['mini game','minigame','mini-game'], a:"5 mini-games any time: Capture the Throne, Obby, Rooftop Parkour, SF Special Forces, and a Geometry Dash-style game." },
-    { k:['clock in','get a job','job in explox','get fired'], a:"Clock in as a Shopkeeper or Officer and do real timed tasks to get paid — wander off the job too long and you're auto-fired." },
+    { k:['clock in','get a job','job in explox','get fired','jobs','a job','work in explox'], a:"Clock in as a Shopkeeper or Officer and do real timed tasks to get paid — wander off the job too long and you're auto-fired." },
     { k:['rating','review','star'], a:"Scroll down — there's a real worldwide rating you can tap into, one honest vote per visitor, no fake numbers." },
     { k:['how long','built','develop','since when'], a:"It's been in real, ongoing development for over a month — check the live 'Days in development' counter near the top of this page." },
-    { k:['who made','who built','kid','developer','creator'], a:"It's being built by Cubby Explosion 6001, one real feature at a time." },
-    { k:['what can i do','what is explox','about explox','what is this game'], a:"A whole 3D city-life game: get a job, run a store, make friends, marry, raise a family, fly to 8 countries, watch real movies, and play 5 mini-games." },
+    { k:['who made','who built','kid','developer','creator','made by'], a:"It's being built by Cubby Explosion 6001, one real feature at a time." },
+    { k:['what can i do','what is explox','about explox','what is this game','tell me about explox','explain explox','explain the game'], a:"A whole 3D city-life game: get a job, run a store, make friends, marry, raise a family, fly to 8 countries, watch real movies, and play 5 mini-games." },
     { k:['how many shops','number of shops','shopping district'], a:"300+ shops total — 100 outdoors across 25 categories, plus 200 more inside the Mall Shopping Wing. Ask me about a shop category by name, like 'toy store' or 'bike shop'!" },
     { k:['how many neighbors'], a:"40 named neighbors, each with their own home, job, and life. Ask me 'who is' any name, like 'who is Maya'!" },
     { k:['crime','police','jail','prison','wanted'], a:"Go bad and you can get chased by police and serve real time in a real prison cell — being good has consequences too, being bad has bigger ones." },
     { k:['birthday'], a:"You can throw a birthday for a neighbor, or even celebrate your own real-world birthday in-game." },
     { k:['elder','age','die','pass away'], a:"A few dedicated elder neighbors live out their years and pass peacefully over time — regular friends never do." },
+    { k:['what is sip','what does sip stand for','what is s.i.p.','sip currency','what is the currency'], a:"S.I.P. is Explox's in-game currency — you earn it from jobs, your store, and selling stuff, then spend it on shops, flights, outfits, and everything else." },
+    { k:['tips','tip','strategy','how do i start','where do i start','beginner','new player','help me get started','first thing to do','what should i do first'], a:"Good first moves: clock in for a quick job to earn starter S.I.P., then check out a store tier or two — running your own shop is the fastest way to real money. After that, explore, make friends, and fly somewhere once you've saved up!" },
+    { k:['make money','earn money','get rich','how to get money','fast money','more sip'], a:"Best ways to earn S.I.P.: work a job (Shopkeeper or Officer), run your own store and stock real shelves, or complete mini-game waves in Capture the Throne." },
+    { k:['buy a car','car dealership','get a car','driving'], a:"There's a real Car Dealership — buy a car and actually drive it around the city." },
+    { k:['book a flight','airport','how do i fly','catch a flight'], a:"Head to the City Airport, pick one of the 8 countries, and book a real flight with real prices." },
+    { k:['help','what can you answer','what do you know'], a:"Ask me about any movie, country, restaurant, shop category, neighbor by name, mini-game, outfit, or general stuff like jobs, saving progress, or how to get started." },
+    { k:['are you real','are you ai','are you a robot','are you human','are you a bot','are you an ai','real ai','an ai','a bot'], a:"I'm a small built-in FAQ bot — I just match your question against real facts about Explox, I'm not a full AI. Ask me something about the game!" },
+    { k:['how are you','whats up',"what's up"], a:"Doing great, thanks for asking! Ready to answer anything about Explox — or you could just go play it." },
+    { k:['i love this game','this game is cool','this is awesome','this is amazing','love explox','best game'], a:"That means a lot! Explox is built one real feature at a time — glad you're enjoying it." },
     { k:['hi','hello','hey'], a:"Hey! Ask me anything about Explox — a movie, a country, a shop, a neighbor's name, anything. Or just tap Play Now up top." },
     { k:['bye','thanks','thank you'], a:"Anytime! Have fun in Explox." }
   ];
@@ -840,7 +849,7 @@ function toggleThemeSong(){
         if (kw.length > bestLen && new RegExp(pattern).test(q)) { best = RULES[i].a; bestLen = kw.length; }
       }
     }
-    return best || "Not sure about that one — the fastest way to find out is to tap Play Now and explore for yourself!";
+    return best || "Not sure about that one! Try asking about a specific movie, country, restaurant, shop, or neighbor by name — or ask me for 'tips' to get started, or just tap Play Now and explore for yourself!";
   }
 
   function addBubble(text, who){
