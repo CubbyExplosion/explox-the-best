@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://cubbyexplosion.github.io/explox-the-best/sitemap.xml
