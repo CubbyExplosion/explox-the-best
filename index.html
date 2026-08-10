@@ -72,6 +72,13 @@
     padding:9px 22px; border-radius:6px; font-weight:bold; font-size:13px;
     letter-spacing:1px; box-shadow:0 4px 14px rgba(0,242,254,0.35);
   }
+  .navRight { display:flex; align-items:center; gap:12px; }
+  .navMusicBtn {
+    background:rgba(0,242,254,0.08); border:1px solid rgba(0,242,254,0.3); color:var(--cyan);
+    width:38px; height:38px; border-radius:6px; font-size:16px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; font-family:inherit;
+  }
+  .navMusicBtn:hover { background:rgba(0,242,254,0.16); }
 
   /* ── HERO ── */
   .hero {
@@ -282,8 +289,12 @@
 
 <nav>
   <div class="navLogo">EXPLOX</div>
-  <a class="navPlay" href="play/">▶ Play Free</a>
+  <div class="navRight">
+    <button class="navMusicBtn" id="themeBtn" type="button" onclick="toggleThemeSong()" title="Play the official Explox theme song">🎵</button>
+    <a class="navPlay" href="play/">▶ Play Free</a>
+  </div>
 </nav>
+<audio id="themeAudio" src="play/AiGame/explox/music/explox_theme.mp3" loop preload="none"></audio>
 
 <div class="hero">
   <div class="heroBadge">🎮 FREE TO PLAY — NO DOWNLOAD</div>
@@ -497,6 +508,19 @@
 </footer>
 
 <script>
+function toggleThemeSong(){
+  var audio = document.getElementById('themeAudio');
+  var btn = document.getElementById('themeBtn');
+  if (!audio) return;
+  if (audio.paused) {
+    audio.play().catch(function(){ btn.textContent = '🎵'; });
+    btn.textContent = '⏸️';
+  } else {
+    audio.pause();
+    btn.textContent = '🎵';
+  }
+}
+
 (function(){
   // Real Explox start date, per the user (confirmed 2026-08-03: 35+ days as of then).
   var DEV_START = new Date('2026-06-29T00:00:00');

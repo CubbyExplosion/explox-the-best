@@ -208,6 +208,7 @@ const bgMusic = (() => {
   // Real recorded songs (actual mp3 files, not code-made beeps) — appended after the 50 synth tracks.
   // Path is relative to EXPLOX.html (the page that loads game.js), not to this file.
   const REAL_TRACKS=[
+    {name:'🎉 Explox Theme Song', file:'AiGame/explox/music/explox_theme.mp3'},
     {name:'Rise and Shine', file:'AiGame/explox/music/rise_and_shine.mp3'},
     {name:'Up and Away', file:'AiGame/explox/music/up_and_away.mp3'},
     {name:'Shine Like the Morning Sun', file:'AiGame/explox/music/shine_like_the_morning_sun.mp3'},
