@@ -51,6 +51,8 @@ const sfx = (() => {
     swipe()   { tone(700,'sine',.12,.07,0,220); tone(320,'sine',.08,.06,.07,120); },
     chop()    { tone(180,'square',.18,.08); tone(90,'sine',.15,.12,.05); tone(60,'sine',.1,.1,.1); },
     clang()   { tone(1200,'square',.12,.06); tone(800,'square',.1,.08,.04); tone(400,'sine',.08,.15,.08); },
+    honk()    { tone(180,'sawtooth',.22,.5,0,140); tone(140,'sawtooth',.18,.45,.08,110); },
+    clap()    { for(let i=0;i<6;i++) tone(250+Math.random()*300,'square',.09,.05,i*0.08); },
   };
 })();
 
@@ -465,7 +467,9 @@ function saveCurrentUser() {
     marriages: marriages, children: children,
     elderLifespans: elderLifespans, elderPassed: elderPassed,
     lastBirthdayGiftDate: lastBirthdayGiftDate,
-    deadNPCs: deadNPCs
+    deadNPCs: deadNPCs,
+    buddyOwned: buddyOwned, buddySpecies: buddySpecies, buddyName: buddyName, buddyColors: buddyColors,
+    activeAddOns: activeAddOns
   };
   localStorage.setItem('explox_user_' + currentUser, JSON.stringify(data));
   localStorage.setItem('explox_current_user', currentUser);
@@ -641,6 +645,11 @@ function doLogin(name) {
   elderPassed = d.elderPassed && typeof d.elderPassed === 'object' ? d.elderPassed : {};
   lastBirthdayGiftDate = d.lastBirthdayGiftDate || '';
   deadNPCs = d.deadNPCs && typeof d.deadNPCs === 'object' ? d.deadNPCs : {};
+  buddyOwned   = !!d.buddyOwned;
+  buddySpecies = d.buddySpecies || null;
+  buddyName    = d.buddyName || 'Buddy';
+  buddyColors  = d.buddyColors && typeof d.buddyColors === 'object' ? d.buddyColors : { body:'#66ddff', accent:'#ffffff', eye:'#111111' };
+  activeAddOns = Array.isArray(d.activeAddOns) ? d.activeAddOns : [];
   shopOpen = false; // never resume a shop as open across a reload — you have to reopen it yourself
   document.getElementById('skinColor').value  = playerColors.skin;
   document.getElementById('shirtColor').value = playerColors.shirt;
@@ -947,6 +956,126 @@ let playerArmor   = 'none';
 let ownedArmor    = [];
 let ownedItems    = [];   // customization items bought in the shop
 let ownedSkins    = [];   // pre-made skins bought
+
+// ─── BUDDY — a permanent companion you design and paint yourself, never expires/lost ──
+const BUDDY_SPECIES = [
+  { id:'blob',   name:'Blobby', cost:500,  emoji:'🟢', desc:'A bouncy little blob — the cheapest way to never walk alone.' },
+  { id:'cat',    name:'Kitty',  cost:1500, emoji:'🐱', desc:'A loyal cat that trots along at your heels.' },
+  { id:'dragon', name:'Draco',  cost:3000, emoji:'🐉', desc:'A tiny dragon with real wings and a tail.' },
+  { id:'robot',  name:'Bolt',   cost:5000, emoji:'🤖', desc:'A high-tech robot buddy with a blinking antenna.' },
+];
+let buddyOwned   = false;
+let buddySpecies = null;                 // one of BUDDY_SPECIES[].id
+let buddyName    = 'Buddy';
+let buddyColors  = { body:'#66ddff', accent:'#ffffff', eye:'#111111' };
+let buddyGroup   = null;                 // THREE.Group, lives directly in scene (not a playerGroup child) so it can lag behind
+let buddyMeshes  = null;                 // { body:[], accent:[], eye:[] } — tagged parts a repaint recolors live
+
+// ─── ADD ONS — free fun toggles/buttons, growing collection (goal: 100+) ────
+// Every one below is real and live: toggles flip a genuine game-state flag that animate()
+// (or a one-time apply call) actually reads; action buttons trigger a genuine one-shot effect.
+// None are placeholders — a "coming soon" entry would violate the whole point of the feature.
+const ADD_ON_CATEGORIES = ['Movement','Camera','Character','Trails','Buddy','Fun Buttons','Food Bombs','Dress Up Parties','Fights','Friends','Vehicles','Minigames','Weather'];
+const ADD_ONS = [
+  // MOVEMENT — real physics/gravity/speed tweaks, applied inside animate()'s movement block
+  { id:'speedboost',  name:'Speed Boost',   emoji:'⚡', category:'Movement', type:'toggle', desc:'Move 60% faster.' },
+  { id:'slowmo',       name:'Slow-Mo Walk',  emoji:'🐌', category:'Movement', type:'toggle', desc:'Move at half speed — great for screenshots.' },
+  { id:'moonjump',     name:'Moon Jump',     emoji:'🌙', category:'Movement', type:'toggle', desc:'Lower gravity — huge floaty jumps.' },
+  { id:'doublejump',   name:'Double Jump',   emoji:'🔁', category:'Movement', type:'toggle', desc:'Jump again in mid-air!' },
+  { id:'bouncyshoes',  name:'Bouncy Shoes',  emoji:'🦘', category:'Movement', type:'toggle', desc:'Automatically bounce every time you land.' },
+  { id:'rollerfeet',   name:'Roller Feet',   emoji:'🛼', category:'Movement', type:'toggle', desc:'Keep gliding a moment after you stop.' },
+  // CAMERA — real CSS filters/transforms on the actual render canvas
+  { id:'bw',           name:'Black & White', emoji:'⚫', category:'Camera', type:'toggle', desc:'Classic movie mode.' },
+  { id:'sepia',        name:'Sepia Vibes',   emoji:'🟤', category:'Camera', type:'toggle', desc:'Old-timey photo look.' },
+  { id:'trippy',       name:'Trippy Vision', emoji:'🌈', category:'Camera', type:'toggle', desc:'Colors cycle nonstop.' },
+  { id:'mirror',       name:'Mirror World',  emoji:'🪞', category:'Camera', type:'toggle', desc:'Everything flipped left-right.' },
+  { id:'upsidedown',   name:'Upside Down',   emoji:'🙃', category:'Camera', type:'toggle', desc:'Flip the whole screen over.' },
+  { id:'blur',         name:'Dizzy Blur',    emoji:'💫', category:'Camera', type:'toggle', desc:'A soft dreamy blur.' },
+  { id:'nightvision',  name:'Night Vision',  emoji:'🟢', category:'Camera', type:'toggle', desc:'Green goggles and a brighter world.' },
+  // CHARACTER — real mesh scale/color/animation changes on the live player model
+  { id:'bighead',      name:'Big Head',      emoji:'🗿', category:'Character', type:'toggle', desc:'Bobblehead-sized noggin.' },
+  { id:'tinymode',     name:'Tiny Mode',     emoji:'🐜', category:'Character', type:'toggle', desc:'Shrink way down.' },
+  { id:'giantmode',    name:'Giant Mode',    emoji:'🗼', category:'Character', type:'toggle', desc:'Tower over the city.' },
+  { id:'rainbowskin',  name:'Rainbow Skin',  emoji:'🌈', category:'Character', type:'toggle', desc:'Skin cycles through every color.' },
+  { id:'bobblehead',   name:'Bobblehead',    emoji:'🎎', category:'Character', type:'toggle', desc:'Head bobbles as you walk.' },
+  { id:'noodlearms',   name:'Noodle Arms',   emoji:'🍜', category:'Character', type:'toggle', desc:'Big floppy arm swings.' },
+  // TRAILS — real particles spawned behind you as you move
+  { id:'sparkletrail', name:'Sparkle Trail', emoji:'✨', category:'Trails', type:'toggle', desc:'Leave sparkles behind you.' },
+  { id:'firetrail',    name:'Fire Trail',    emoji:'🔥', category:'Trails', type:'toggle', desc:'Leave a trail of flame.' },
+  { id:'icetrail',     name:'Frost Trail',   emoji:'❄️', category:'Trails', type:'toggle', desc:'Leave a trail of frost.' },
+  { id:'confettijump', name:'Confetti Jump', emoji:'🎊', category:'Trails', type:'toggle', desc:'Burst confetti every time you jump.' },
+  // BUDDY — only does anything once you've adopted a companion above
+  { id:'petrainbow',   name:'Rainbow Buddy', emoji:'🌈', category:'Buddy', type:'toggle', desc:'Your buddy cycles through colors.', needsBuddy:true },
+  { id:'petsparkle',   name:'Buddy Sparkles',emoji:'✨', category:'Buddy', type:'toggle', desc:'Your buddy leaves a sparkle trail too.', needsBuddy:true },
+  { id:'petxl',        name:'XL Buddy',      emoji:'🐘', category:'Buddy', type:'toggle', desc:'Supersize your buddy.', needsBuddy:true },
+  { id:'petmini',      name:'Mini Buddy',    emoji:'🐭', category:'Buddy', type:'toggle', desc:'Shrink your buddy down.', needsBuddy:true },
+  // FUN BUTTONS — one-tap real effects, nothing to turn off
+  { id:'diceroll',     name:'Roll a Dice',   emoji:'🎲', category:'Fun Buttons', type:'action', desc:'Roll a 6-sided die.' },
+  { id:'coinflip',     name:'Flip a Coin',   emoji:'🪙', category:'Fun Buttons', type:'action', desc:'Heads or tails?' },
+  { id:'eightball',    name:'Magic 8-Ball',  emoji:'🎱', category:'Fun Buttons', type:'action', desc:'Ask it anything.' },
+  { id:'compliment',   name:'Random Compliment', emoji:'💖', category:'Fun Buttons', type:'action', desc:'Get a nice surprise.' },
+  { id:'funfact',      name:'Random Fun Fact', emoji:'🧠', category:'Fun Buttons', type:'action', desc:'Learn something silly.' },
+  { id:'airhorn',      name:'Air Horn',      emoji:'📯', category:'Fun Buttons', type:'action', desc:'HOOOONK.' },
+  { id:'applause',     name:'Applause',      emoji:'👏', category:'Fun Buttons', type:'action', desc:'Give yourself a hand.' },
+  { id:'fireworks',    name:'Fireworks',     emoji:'🎆', category:'Fun Buttons', type:'action', desc:'Light up the sky above you.' },
+  // FOOD BOMBS — real cost, real taste: each one triggers the exact same eatFood() taste-reaction
+  // popup the Diner/Airport/Home cooking already use, plus a food-colored particle burst.
+  { id:'pizzabomb',    name:'Pizza Bomb',    emoji:'🍕', category:'Food Bombs', type:'action', desc:'Explode a whole pizza — and eat a slice.', cost:50,  taste:'savory' },
+  { id:'donutbomb',    name:'Donut Bomb',    emoji:'🍩', category:'Food Bombs', type:'action', desc:'A sprinkle explosion, then a real bite.', cost:40,  taste:'sweet' },
+  { id:'icecreambomb', name:'Ice Cream Bomb',emoji:'🍦', category:'Food Bombs', type:'action', desc:'A cold blast, then a real scoop.', cost:45,  taste:'sweet' },
+  { id:'cakebomb',     name:'Cake Bomb',     emoji:'🎂', category:'Food Bombs', type:'action', desc:'The biggest burst — and a real slice.', cost:80,  taste:'sweet' },
+  { id:'tacobomb',     name:'Taco Bomb',     emoji:'🌮', category:'Food Bombs', type:'action', desc:'Explodes hot — and a real spicy bite.', cost:55,  taste:'spicy' },
+  { id:'lemonbomb',    name:'Lemon Bomb',    emoji:'🍋', category:'Food Bombs', type:'action', desc:'Zesty burst, then a real pucker.', cost:35,  taste:'sour' },
+  // DRESS UP PARTIES — a real cost, a real instant costume change (rebuilds the live character
+  // mesh, same as buying an outfit) plus a real confetti burst and cheer sound.
+  { id:'birthdayparty',name:'Birthday Party',emoji:'🎉', category:'Dress Up Parties', type:'action', desc:'Bright party colors + confetti burst.', cost:150, shirt:'#ff4477', pants:'#ffcc00', shoes:'#44ddff' },
+  { id:'superheroparty',name:'Superhero Party',emoji:'🦸', category:'Dress Up Parties', type:'action', desc:'Bold hero colors + confetti burst.', cost:200, shirt:'#dd2222', pants:'#1144aa', shoes:'#ffcc00' },
+  { id:'spookyparty',  name:'Spooky Party',  emoji:'👻', category:'Dress Up Parties', type:'action', desc:'Dark spooky colors + confetti burst.', cost:150, shirt:'#4b0082', pants:'#111111', shoes:'#ff6600' },
+  { id:'rainbowparty', name:'Rainbow Party', emoji:'🌈', category:'Dress Up Parties', type:'action', desc:'Every color at once + confetti burst.', cost:175, shirt:'#ff0000', pants:'#00cc44', shoes:'#0066ff' },
+  { id:'westernparty', name:'Western Party', emoji:'🤠', category:'Dress Up Parties', type:'action', desc:'Dusty cowboy colors + confetti burst.', cost:150, shirt:'#8b5a2b', pants:'#5a3a1a', shoes:'#3a2a1a' },
+  { id:'mermaidparty', name:'Mermaid Party', emoji:'🧜', category:'Dress Up Parties', type:'action', desc:'Shimmery ocean colors + confetti burst.', cost:175, shirt:'#00b3b3', pants:'#0077aa', shoes:'#00e6c3' },
+  { id:'holidayparty', name:'Holiday Party', emoji:'🎄', category:'Dress Up Parties', type:'action', desc:'Festive red & green + confetti burst.', cost:150, shirt:'#cc2222', pants:'#1a7a3a', shoes:'#ffffff' },
+  { id:'royalparty',   name:'Royal Party',   emoji:'👑', category:'Dress Up Parties', type:'action', desc:'Purple & gold regal look + confetti burst.', cost:250, shirt:'#6a0dad', pants:'#ffd700', shoes:'#4b0082' },
+  // FIGHTS — real hooks into the one real damage/heal choke points (getWeaponDamage, damagePlayer,
+  // tickHealth) every attack in the game already goes through, not a parallel combat system.
+  { id:'berserker',    name:'Berserker Mode', emoji:'💪', category:'Fights', type:'toggle', desc:'Deal 50% more damage.' },
+  { id:'ironskin',     name:'Iron Skin',      emoji:'🛡️', category:'Fights', type:'toggle', desc:'Take 30% less damage.' },
+  { id:'fastheal',     name:'Fast Heal',      emoji:'❤️‍🩹', category:'Fights', type:'toggle', desc:'Regenerate HP 3x faster.' },
+  { id:'luckycrits',   name:'Lucky Crits',    emoji:'🎯', category:'Fights', type:'toggle', desc:'20% chance to double your damage.' },
+  { id:'warcry',       name:'War Cry',        emoji:'😤', category:'Fights', type:'action', desc:'Double damage for 8 seconds!', cost:20 },
+  { id:'fullheal',     name:'Full Heal',      emoji:'🏥', category:'Fights', type:'action', desc:'Instantly restore all your HP.', cost:40 },
+  // FRIENDS — reuse the real `friends`/`befriendNeighbor`/`houseGuest` system (item "FRIENDS" block)
+  // instead of a parallel fake friends list.
+  { id:'instantfriend',name:'Instant Friend', emoji:'🎲', category:'Friends', type:'action', desc:'A random neighbor becomes your friend.', cost:0 },
+  { id:'giftfriends',  name:'Gift All Friends', emoji:'🎁', category:'Friends', type:'action', desc:'Treat every friend you have.', cost:50 },
+  { id:'friendparty',  name:'Friend Party',   emoji:'🎉', category:'Friends', type:'action', desc:'Throw a party with a random friend.', cost:100 },
+  { id:'shoutout',     name:'Random Shoutout',emoji:'💌', category:'Friends', type:'action', desc:'Give a random friend a shoutout.', cost:0 },
+  { id:'surprisevisit',name:'Surprise Visit', emoji:'🏠', category:'Friends', type:'action', desc:'A random friend shows up at your house.', cost:30 },
+  // VEHICLES — real hooks into the actual driving speed calc, crash-fee charge, and car mesh.
+  { id:'turboboost',   name:'Turbo Boost',    emoji:'🚀', category:'Vehicles', type:'toggle', desc:'Drive 60% faster.' },
+  { id:'crashinsurance',name:'Crash Insurance',emoji:'🛡️', category:'Vehicles', type:'toggle', desc:'No more S.I.P. fee for fender-benders.' },
+  { id:'rainbowpaint', name:'Rainbow Paint',  emoji:'🌈', category:'Vehicles', type:'toggle', desc:'Your car cycles through every color.' },
+  { id:'bumperbounce', name:'Bumper Bounce',  emoji:'🎈', category:'Vehicles', type:'toggle', desc:'Bounce backward when you crash.' },
+  { id:'nitro',        name:'Nitro Boost',    emoji:'💨', category:'Vehicles', type:'action', desc:'A 3-second speed burst — must be driving!', cost:60 },
+  { id:'partyhorn',    name:'Party Horn',     emoji:'📯', category:'Vehicles', type:'action', desc:'Honk your horn — must be driving!', cost:10 },
+  // MINIGAMES — real shortcuts to the existing minigame files, plus a real toggle on the one
+  // shared arcade-fee choke point (arcadeCharge()) every arcade game already goes through.
+  { id:'launchthrone', name:'Play: Capture the Throne', emoji:'⚔️', category:'Minigames', type:'action', desc:'Jump straight into the castle fight.', cost:0 },
+  { id:'launchobby',   name:'Play: Obby/Parkour', emoji:'🏃', category:'Minigames', type:'action', desc:'Jump straight into the obstacle course.', cost:0 },
+  { id:'launchparkour',name:'Play: Rooftop Parkour', emoji:'🏙️', category:'Minigames', type:'action', desc:'Jump straight into rooftop running.', cost:0 },
+  { id:'launchsf',     name:'Play: Special Forces', emoji:'🪖', category:'Minigames', type:'action', desc:'Jump straight into the FPS mission.', cost:0 },
+  { id:'freearcade',   name:'Free Arcade',    emoji:'🎰', category:'Minigames', type:'toggle', desc:'Every arcade game (claw, snake, tetris & more) is free to play.' },
+  // WEATHER — real hooks into the actual real-calendar weather-particle system.
+  { id:'snowday',      name:'Snow Day',       emoji:'❄️', category:'Weather', type:'toggle', desc:'Force snow, no matter the season.' },
+  { id:'leafstorm',    name:'Leaf Storm',     emoji:'🍂', category:'Weather', type:'toggle', desc:'Force falling leaves, no matter the season.' },
+];
+let activeAddOns = [];  // array of toggle-type ADD_ONS ids currently ON — persisted per account
+let warCryEndTime = 0;  // clock.getElapsedTime() value War Cry's damage buff expires at (0 = not active)
+let nitroEndTime = 0;   // clock.getElapsedTime() value Nitro Boost's speed buff expires at (0 = not active)
+let trailParticles = []; // {mesh, life, maxLife, vx, vy, vz, gravity} — shared pool for trails/bursts/fireworks
+let jumpsUsed = 0;       // for Double Jump — how many jumps used since last time onGround was true
+let _trippyHue = 0;      // degrees, advances every frame while Trippy Vision is on
+
 let sipDollars      = 0;
 let woodCount       = 0;
 let scrapMetal      = 0;
@@ -1307,6 +1436,7 @@ document.getElementById('playBtn').addEventListener('click', () => {
 let scene, camera, renderer, player, playerGroup;
 let moveState = { w:false, a:false, s:false, d:false, run:false };
 let jumpVel = 0, onGround = true;
+let rollerVel = null; // THREE.Vector3, lazily created — carries momentum for the Roller Feet add-on
 let playerBag = []; // food items waiting to be eaten with C
 let yaw = 0, pitch = 0.3;
 let isPointerLocked = false;
@@ -5238,12 +5368,23 @@ function buildGrave(name, x, z) {
 // ─── COMBAT — real player health + hit-for-hit fighting, not an instant kill ──
 const WEAPON_DAMAGE = { none:5, bat:15, sword:25, axe:35, stiletto:20, club:12, metalsword:40, battleaxe:45, crystalsword:55,
   emphammer:18, plasmacutter:22, railspike:28 };
-function getWeaponDamage() { return WEAPON_DAMAGE[playerWeapon] !== undefined ? WEAPON_DAMAGE[playerWeapon] : WEAPON_DAMAGE.none; }
+function baseWeaponDamage() { return WEAPON_DAMAGE[playerWeapon] !== undefined ? WEAPON_DAMAGE[playerWeapon] : WEAPON_DAMAGE.none; }
+// Real Fights add-ons all funnel through here — the one place every outgoing-damage call
+// (getWeaponDamage AND getRobotDamage) already passes through, so Berserker/War Cry/Lucky Crits
+// apply everywhere real damage is dealt, not just to one target type.
+function applyDamageBuffs(base) {
+  let dmg = base;
+  if(activeAddOns.includes('berserker')) dmg *= 1.5;
+  if(warCryEndTime) { if(clock.getElapsedTime() < warCryEndTime) dmg *= 2; else warCryEndTime = 0; }
+  if(activeAddOns.includes('luckycrits') && Math.random() < 0.2) dmg *= 2;
+  return Math.round(dmg);
+}
+function getWeaponDamage() { return applyDamageBuffs(baseWeaponDamage()); }
 // Robo Arsenal weapons hit ROBOTS far harder than their WEAPON_DAMAGE entry above (which is what
 // they do to people) — real specialization, not a strictly-better weapon. Every other weapon deals
 // its normal damage to robots too, unchanged.
 const ROBOT_BONUS_DAMAGE = { emphammer:54, plasmacutter:77, railspike:112 };
-function getRobotDamage() { return ROBOT_BONUS_DAMAGE[playerWeapon] !== undefined ? ROBOT_BONUS_DAMAGE[playerWeapon] : getWeaponDamage(); }
+function getRobotDamage() { return applyDamageBuffs(ROBOT_BONUS_DAMAGE[playerWeapon] !== undefined ? ROBOT_BONUS_DAMAGE[playerWeapon] : baseWeaponDamage()); }
 function updateHealthBar() {
   const pct = Math.max(0, Math.min(100, (playerHealth/playerMaxHealth)*100));
   document.getElementById('healthBarFill').style.width = pct+'%';
@@ -5252,7 +5393,8 @@ function updateHealthBar() {
 function damagePlayer(amount, sourceLabel) {
   if(playerHealth <= 0) return;
   const armorDef = ARMOR.find(a => a.id === playerArmor);
-  const finalAmount = armorDef ? Math.round(amount * (1 - armorDef.reduction)) : amount;
+  let finalAmount = armorDef ? Math.round(amount * (1 - armorDef.reduction)) : amount;
+  if(activeAddOns.includes('ironskin')) finalAmount = Math.round(finalAmount * 0.7);
   playerHealth = Math.max(0, playerHealth - finalAmount);
   updateHealthBar();
   const flash = document.getElementById('hitFlash');
@@ -5273,7 +5415,8 @@ function knockoutPlayer() {
 // Slow passive regen while below max — same tick* pattern as tickJob/tickCook/tickWanted.
 function tickHealth(dt) {
   if(playerHealth > 0 && playerHealth < playerMaxHealth) {
-    playerHealth = Math.min(playerMaxHealth, playerHealth + dt*1.5);
+    const regenMult = activeAddOns.includes('fastheal') ? 3 : 1;
+    playerHealth = Math.min(playerMaxHealth, playerHealth + dt*1.5*regenMult);
     updateHealthBar();
   }
 }
@@ -5569,6 +5712,337 @@ function repaintSkin(hexColor) {
   const c = c3(hexColor);
   if(player.skinMeshes) player.skinMeshes.forEach(m => m.material.color.setHex(c));
   saveCurrentUser();
+}
+
+// ─── ADD ONS — a growing collection of fun toggles/buttons + the Buddy companion ──
+// Standalone HUD tab (like SAI/Music/Bag), not a shop-overlay tab — always one click away.
+function toggleAddOnsPanel() {
+  const panel = document.getElementById('addOnsPanel');
+  if(panel.style.display === 'none') {
+    if(document.pointerLockElement) document.exitPointerLock();
+    isPointerLocked = false;
+    renderAddOnsPanel();
+    panel.style.display = 'block';
+    document.getElementById('addOnsTab').style.display = 'none';
+  } else { closeAddOnsPanel(); }
+}
+function closeAddOnsPanel() {
+  document.getElementById('addOnsPanel').style.display = 'none';
+  document.getElementById('addOnsTab').style.display = 'block';
+  if(renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function renderAddOnsPanel() {
+  const items = document.getElementById('addOnsPanelItems');
+  items.innerHTML = '';
+  document.getElementById('addOnsSubtitle').textContent = `${ADD_ONS.length} OF 100+ FUN ADD-ONS — MORE COMING`;
+
+  // ── Buddy section — the original permanent companion, now add-on #1 ──
+  const buddyHeader = document.createElement('div');
+  buddyHeader.style.cssText = 'color:#ff9944;font-size:11px;font-weight:bold;letter-spacing:1px;margin-top:4px;';
+  buddyHeader.textContent = '🐾 BUDDY';
+  items.appendChild(buddyHeader);
+  if(!buddyOwned) {
+    const intro = document.createElement('div'); intro.className='shopItem';
+    intro.innerHTML = `<div class="siName">🐾 Adopt a Buddy</div>
+      <div style="color:#aaa;font-size:11px;margin:4px 0;">A companion that follows you everywhere and is yours forever — never sold, lost, or taken away. Design its colors any time after you adopt.</div>`;
+    items.appendChild(intro);
+    BUDDY_SPECIES.forEach((s,i) => {
+      const d = document.createElement('div'); d.className='shopItem';
+      d.innerHTML=`<div class="siName">${s.emoji} ${s.name}</div>
+        <div style="color:#999;font-size:11px;margin:2px 0 4px;">${s.desc}</div>
+        <div class="siCost">💰 ${s.cost} S.I.P.</div>
+        <button class="shopBtn" onclick="adoptBuddy(${i})" ${sipDollars<s.cost?'disabled':''}>Adopt</button>`;
+      items.appendChild(d);
+    });
+  } else {
+    const spec = BUDDY_SPECIES.find(s=>s.id===buddySpecies);
+    const info = document.createElement('div'); info.className='shopItem';
+    info.innerHTML = `<div class="siName">${spec?spec.emoji:'🐾'} ${buddyName}</div>
+      <div style="color:#aaa;font-size:11px;margin-bottom:8px;">Yours forever — repaint it any time.</div>
+      <input id="buddyNameInput" maxlength="16" value="${buddyName}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #555;background:#0a0a1a;color:#fff;font-size:12px;box-sizing:border-box;margin-bottom:8px;">
+      <button class="shopBtn" onclick="renameBuddy()" style="width:100%;margin-bottom:10px;">✏️ Rename</button>
+      <div style="display:flex;gap:10px;justify-content:center;margin-bottom:10px;">
+        <label style="text-align:center;font-size:10px;color:#ccc;">Body<br><input id="buddyBodyColor" type="color" value="${buddyColors.body}" style="width:38px;height:30px;border:none;background:none;cursor:pointer;"></label>
+        <label style="text-align:center;font-size:10px;color:#ccc;">Accent<br><input id="buddyAccentColor" type="color" value="${buddyColors.accent}" style="width:38px;height:30px;border:none;background:none;cursor:pointer;"></label>
+        <label style="text-align:center;font-size:10px;color:#ccc;">Eyes<br><input id="buddyEyeColor" type="color" value="${buddyColors.eye}" style="width:38px;height:30px;border:none;background:none;cursor:pointer;"></label>
+      </div>
+      <button class="shopBtn" onclick="repaintBuddy()" style="width:100%;">🎨 Repaint Buddy</button>`;
+    items.appendChild(info);
+  }
+
+  // ── The rest of the collection, grouped by category ──
+  ADD_ON_CATEGORIES.forEach(cat => {
+    const inCat = ADD_ONS.filter(a => a.category === cat);
+    if(!inCat.length) return;
+    const header = document.createElement('div');
+    header.style.cssText = 'color:#ff9944;font-size:11px;font-weight:bold;letter-spacing:1px;margin-top:6px;';
+    header.textContent = cat.toUpperCase();
+    items.appendChild(header);
+    inCat.forEach(a => {
+      const locked = a.needsBuddy && !buddyOwned;
+      const d = document.createElement('div'); d.className='shopItem';
+      if(a.type === 'toggle') {
+        const on = activeAddOns.includes(a.id);
+        d.innerHTML = `<div class="siName">${a.emoji} ${a.name}</div>
+          <div style="color:#999;font-size:11px;margin:2px 0 4px;">${locked ? 'Adopt a buddy first to use this one!' : a.desc}</div>
+          <button class="shopBtn" onclick="toggleAddOn('${a.id}')" ${locked?'disabled':''} style="width:100%;${on?'background:#2a8f4a;':''}">${locked?'🔒 Locked':(on?'✅ ON':'Turn On')}</button>`;
+      } else {
+        const cantAfford = a.cost && sipDollars < a.cost;
+        d.innerHTML = `<div class="siName">${a.emoji} ${a.name}</div>
+          <div style="color:#999;font-size:11px;margin:2px 0 4px;">${a.desc}</div>
+          ${a.cost ? `<div class="siCost">💰 ${a.cost} S.I.P.</div>` : ''}
+          <button class="shopBtn" onclick="triggerAddOn('${a.id}')" ${cantAfford?'disabled':''} style="width:100%;">${cantAfford?'❌ Need '+a.cost:'Do It!'}</button>`;
+      }
+      items.appendChild(d);
+    });
+  });
+}
+function adoptBuddy(i) {
+  const s = BUDDY_SPECIES[i];
+  if(buddyOwned) { showNotif('❌ You already have a buddy!'); return; }
+  if(sipDollars < s.cost) { showNotif(`❌ Need ${s.cost} S.I.P.`); return; }
+  sipDollars -= s.cost; updateSIP();
+  buddyOwned = true;
+  buddySpecies = s.id;
+  buddyName = s.name;
+  buddyColors = { body:'#66ddff', accent:'#ffffff', eye:'#111111' };
+  buildBuddy();
+  sfx.buy();
+  showNotif(`🐾 ${s.name} is your buddy — forever!`);
+  saveCurrentUser();
+  renderAddOnsPanel();
+}
+function repaintBuddy() {
+  if(!buddyOwned) return;
+  const body = document.getElementById('buddyBodyColor').value;
+  const accent = document.getElementById('buddyAccentColor').value;
+  const eye = document.getElementById('buddyEyeColor').value;
+  buddyColors = { body, accent, eye };
+  if(buddyMeshes) {
+    buddyMeshes.body.forEach(m => m.material.color.setHex(c3(body)));
+    buddyMeshes.accent.forEach(m => m.material.color.setHex(c3(accent)));
+    buddyMeshes.eye.forEach(m => m.material.color.setHex(c3(eye)));
+  }
+  sfx.buy();
+  showNotif(`🎨 ${buddyName} got a new look!`);
+  saveCurrentUser();
+}
+function renameBuddy() {
+  const input = document.getElementById('buddyNameInput');
+  const val = input.value.trim().slice(0,16);
+  if(!val) { input.value = buddyName; return; }
+  buddyName = val;
+  showNotif(`🐾 Your buddy is now named ${buddyName}!`);
+  saveCurrentUser();
+}
+// Builds (or rebuilds, e.g. after a repaint's species never changes but a fresh login does) the
+// real 3D companion mesh — same tagged-mesh-array trick as player.skinMeshes so repaints are live.
+function buildBuddy() {
+  if(buddyGroup) { scene.remove(buddyGroup); buddyGroup = null; }
+  if(!buddyOwned || !buddySpecies) return;
+  buddyGroup = new THREE.Group();
+  buddyMeshes = { body:[], accent:[], eye:[] };
+  const bodyC = c3(buddyColors.body), accentC = c3(buddyColors.accent), eyeC = c3(buddyColors.eye);
+  const mk = (geo, color, x, y, z, tag) => {
+    const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color }));
+    m.position.set(x,y,z); m.castShadow = true; buddyGroup.add(m);
+    if(tag) buddyMeshes[tag].push(m);
+    return m;
+  };
+  if(buddySpecies==='blob') {
+    mk(new THREE.SphereGeometry(0.45,12,10), bodyC, 0,0.45,0,'body');
+    mk(new THREE.SphereGeometry(0.12,8,8), accentC, -0.18,0.55,0.38,'accent');
+    mk(new THREE.SphereGeometry(0.12,8,8), accentC,  0.18,0.55,0.38,'accent');
+    mk(new THREE.SphereGeometry(0.06,6,6), eyeC, -0.18,0.55,0.46,'eye');
+    mk(new THREE.SphereGeometry(0.06,6,6), eyeC,  0.18,0.55,0.46,'eye');
+  } else if(buddySpecies==='cat') {
+    mk(new THREE.BoxGeometry(0.5,0.35,0.75), bodyC, 0,0.35,0,'body');
+    mk(new THREE.BoxGeometry(0.32,0.3,0.32), bodyC, 0,0.5,0.48,'body');
+    mk(new THREE.ConeGeometry(0.1,0.18,4), accentC, -0.1,0.72,0.48,'accent');
+    mk(new THREE.ConeGeometry(0.1,0.18,4), accentC,  0.1,0.72,0.48,'accent');
+    mk(new THREE.SphereGeometry(0.045,6,6), eyeC, -0.1,0.52,0.62,'eye');
+    mk(new THREE.SphereGeometry(0.045,6,6), eyeC,  0.1,0.52,0.62,'eye');
+    const tail = mk(new THREE.CylinderGeometry(0.05,0.05,0.55,6), bodyC, 0,0.5,-0.42,'body'); tail.rotation.x = 0.9;
+    [[-0.15,-0.28],[0.15,-0.28],[-0.15,0.28],[0.15,0.28]].forEach(([x,z]) => mk(new THREE.BoxGeometry(0.12,0.3,0.12), accentC, x,0.15,z,'accent'));
+  } else if(buddySpecies==='dragon') {
+    mk(new THREE.BoxGeometry(0.55,0.5,0.9), bodyC, 0,0.5,0,'body');
+    const snout = mk(new THREE.ConeGeometry(0.25,0.5,6), bodyC, 0,0.55,0.65,'body'); snout.rotation.x = Math.PI/2;
+    [[-0.12,0.75],[0.12,0.75]].forEach(([x,z]) => mk(new THREE.ConeGeometry(0.06,0.2,4), accentC, x,0.85,z,'accent'));
+    [[-0.1,0.7],[0.1,0.7]].forEach(([x,z]) => mk(new THREE.SphereGeometry(0.05,6,6), eyeC, x,0.6,z,'eye'));
+    [[-0.4,0],[0.4,0]].forEach(([x]) => { const wing = mk(new THREE.ConeGeometry(0.35,0.06,3), accentC, x,0.65,-0.1,'accent'); wing.rotation.z = x<0 ? 1.3 : -1.3; });
+    const tail = mk(new THREE.CylinderGeometry(0.08,0.02,0.7,6), bodyC, 0,0.4,-0.65,'body'); tail.rotation.x = 1.1;
+  } else if(buddySpecies==='robot') {
+    mk(new THREE.BoxGeometry(0.55,0.55,0.5), bodyC, 0,0.55,0,'body');
+    mk(new THREE.BoxGeometry(0.4,0.4,0.4), bodyC, 0,1.05,0,'body');
+    mk(new THREE.SphereGeometry(0.05,6,6), eyeC, -0.1,1.05,0.21,'eye');
+    mk(new THREE.SphereGeometry(0.05,6,6), eyeC,  0.1,1.05,0.21,'eye');
+    mk(new THREE.CylinderGeometry(0.03,0.03,0.18,6), accentC, 0,1.34,0,'accent');
+    mk(new THREE.SphereGeometry(0.05,6,6), accentC, 0,1.44,0,'accent');
+    [[-0.35,0.55],[0.35,0.55]].forEach(([x]) => mk(new THREE.BoxGeometry(0.12,0.3,0.12), accentC, x,0.4,0,'accent'));
+    [[-0.18,-0.18],[0.18,-0.18]].forEach(([x,z]) => mk(new THREE.BoxGeometry(0.15,0.15,0.15), accentC, x,0.15,z,'accent'));
+  }
+  const startX = playerGroup ? playerGroup.position.x - 1 : -1;
+  const startZ = playerGroup ? playerGroup.position.z - 1 : 15;
+  buddyGroup.position.set(startX, 0, startZ);
+  scene.add(buddyGroup);
+}
+
+// ─── ADD ONS ENGINE ────────────────────────────────────────────────────────
+// One real particle pool shared by every trail/burst add-on (spawnParticle + the update
+// loop in animate()) instead of a separate system per effect.
+function spawnParticle(pos, color, opts) {
+  opts = opts || {};
+  const size = opts.size || 0.12;
+  const m = new THREE.Mesh(new THREE.SphereGeometry(size,6,6), new THREE.MeshBasicMaterial({ color, transparent:true, opacity:1 }));
+  m.position.copy(pos);
+  scene.add(m);
+  trailParticles.push({
+    mesh:m, life: opts.life||0.6, maxLife: opts.life||0.6,
+    vx: opts.vx||0, vy: opts.vy!==undefined?opts.vy:0.5, vz: opts.vz||0,
+    gravity: !!opts.gravity
+  });
+}
+const CONFETTI_COLORS = [0xff4466,0xffcc00,0x44ddff,0x66ff66,0xff88ff,0xffffff];
+function burstConfetti(pos, count) {
+  for(let i=0;i<count;i++){
+    const ang = Math.random()*Math.PI*2, spd = 1+Math.random()*2.5;
+    spawnParticle(pos, CONFETTI_COLORS[i%CONFETTI_COLORS.length], {
+      vx:Math.cos(ang)*spd, vz:Math.sin(ang)*spd, vy:3+Math.random()*2.5, gravity:true, life:1.1+Math.random()*0.4, size:0.09
+    });
+  }
+}
+
+function toggleAddOn(id) {
+  const def = ADD_ONS.find(a=>a.id===id);
+  if(!def || def.type!=='toggle') return;
+  if(def.needsBuddy && !buddyOwned) { showNotif('❌ Adopt a buddy first!'); return; }
+  const idx = activeAddOns.indexOf(id);
+  if(idx===-1) {
+    const EXCLUSIVE_PAIRS = [['tinymode','giantmode'],['petxl','petmini'],['snowday','leafstorm']];
+    EXCLUSIVE_PAIRS.forEach(([a,b]) => {
+      if(id===a) activeAddOns = activeAddOns.filter(x=>x!==b);
+      if(id===b) activeAddOns = activeAddOns.filter(x=>x!==a);
+    });
+    activeAddOns.push(id);
+    showNotif(`${def.emoji} ${def.name} ON!`);
+  } else {
+    activeAddOns.splice(idx,1);
+    showNotif(`${def.emoji} ${def.name} off`);
+  }
+  sfx.click();
+  applyCameraFX();
+  // Weather add-ons force a real particle type on; turning the last one off (or switching to the
+  // other) hands control back to applySeasonEffects(), which recomputes the REAL current season.
+  if(id==='snowday' || id==='leafstorm') {
+    if(activeAddOns.includes('snowday')) startWeatherParticles('snow');
+    else if(activeAddOns.includes('leafstorm')) startWeatherParticles('leaves');
+    else applySeasonEffects();
+  }
+  saveCurrentUser();
+  renderAddOnsPanel();
+}
+
+function applyCameraFX() {
+  if(!renderer || !renderer.domElement) return;
+  const canvas = renderer.domElement;
+  const filters = [];
+  if(activeAddOns.includes('bw')) filters.push('grayscale(1)');
+  if(activeAddOns.includes('sepia')) filters.push('sepia(1)');
+  if(activeAddOns.includes('blur')) filters.push('blur(2px)');
+  if(activeAddOns.includes('nightvision')) filters.push('brightness(1.3) hue-rotate(70deg) saturate(2)');
+  if(activeAddOns.includes('trippy')) filters.push(`hue-rotate(${Math.round(_trippyHue)}deg) saturate(1.6)`);
+  canvas.style.filter = filters.length ? filters.join(' ') : '';
+  const transforms = [];
+  if(activeAddOns.includes('mirror')) transforms.push('scaleX(-1)');
+  if(activeAddOns.includes('upsidedown')) transforms.push('scaleY(-1)');
+  canvas.style.transform = transforms.length ? transforms.join(' ') : '';
+}
+
+const EIGHTBALL_ANSWERS = ['Yes, definitely!','Ask again later.','Nope, not gonna happen.','It is certain!','Very doubtful.','Absolutely!','Better not tell you now.','Without a doubt!','My sources say no.','Signs point to yes.'];
+const COMPLIMENTS = ['You build amazing stuff! 🌟','Best explorer in Explox! 🗺️','That outfit is fire! 🔥','You make this city better! 🏙️','Certified S.I.P. legend! 💰','Your buddy is lucky to have you! 🐾'];
+const FUN_FACTS = ['Octopuses have three hearts! 🐙','A day on Venus is longer than its year! 🪐','Honey never spoils — ever! 🍯','Bananas are berries, but strawberries aren\'t! 🍌','Sharks existed before trees! 🦈','A group of flamingos is called a "flamboyance"! 🦩'];
+function triggerAddOn(id) {
+  const def = ADD_ONS.find(a=>a.id===id);
+  if(!def || def.type!=='action') return;
+  if((id==='nitro'||id==='partyhorn') && !inCar) { showNotif('❌ You need to be driving for this one!'); return; }
+  if((id==='giftfriends'||id==='friendparty'||id==='shoutout'||id==='surprisevisit') && friends.length===0) { showNotif('❌ Make a friend first!'); return; }
+  const cost = def.cost||0;
+  if(cost>0) {
+    if(sipDollars < cost) { showNotif(`❌ Need ${cost} S.I.P.`); return; }
+    sipDollars -= cost; updateSIP();
+  }
+  const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+  if(id==='diceroll') showNotif(`🎲 You rolled a ${1+Math.floor(Math.random()*6)}!`);
+  else if(id==='coinflip') showNotif(`🪙 ${Math.random()<0.5?'Heads!':'Tails!'}`);
+  else if(id==='eightball') showNotif(`🎱 ${pick(EIGHTBALL_ANSWERS)}`);
+  else if(id==='compliment') showNotif(pick(COMPLIMENTS));
+  else if(id==='funfact') showNotif(`🧠 ${pick(FUN_FACTS)}`);
+  else if(id==='airhorn') { sfx.honk(); showNotif('📯 HOOOONK!'); }
+  else if(id==='applause') { sfx.clap(); showNotif('👏 Nice one!'); }
+  else if(id==='fireworks') {
+    sfx.boom();
+    const above = playerGroup.position.clone(); above.y += 5;
+    burstConfetti(above, 24);
+    showNotif('🎆 Fireworks!');
+  }
+  else if(def.category==='Food Bombs') {
+    burstConfetti(playerGroup.position.clone().setY(playerGroup.position.y+1), 14);
+    sfx.boom();
+    eatFood(def.emoji, def.name, def.taste); // real taste-reaction popup, same system the Diner uses
+  }
+  else if(def.category==='Dress Up Parties') {
+    playerColors.shirt = def.shirt; playerColors.pants = def.pants; playerColors.shoes = def.shoes;
+    buildPlayer(); // real rebuild — buildPlayer() now removes the old group first (see its own fix note)
+    burstConfetti(playerGroup.position.clone().setY(playerGroup.position.y+1.5), 20);
+    sfx.cheer();
+    showNotif(`${def.emoji} ${def.name} time!`);
+  }
+  else if(id==='warcry') {
+    warCryEndTime = clock.getElapsedTime() + 8;
+    sfx.honk();
+    burstConfetti(playerGroup.position.clone().setY(playerGroup.position.y+1), 10);
+    showNotif('😤 War Cry! Double damage for 8 seconds!');
+  }
+  else if(id==='fullheal') {
+    playerHealth = playerMaxHealth;
+    updateHealthBar();
+    sfx.earn();
+    showNotif('🏥 Fully healed!');
+  }
+  else if(id==='instantfriend') {
+    const candidates = SHOPPER_IDENTITIES.map(p=>p.name).filter(n=>!friends.includes(n));
+    if(!candidates.length) { showNotif('❌ You are already friends with everyone!'); }
+    else befriendNeighbor(pick(candidates));
+  }
+  else if(id==='giftfriends') {
+    sfx.buy();
+    showNotif(`🎁 Gave ${friends.length} friend${friends.length===1?'':'s'} a gift!`);
+  }
+  else if(id==='friendparty') {
+    const friendName = pick(friends);
+    burstConfetti(playerGroup.position.clone().setY(playerGroup.position.y+1.5), 20);
+    sfx.cheer();
+    showNotif(`🎉 You and ${friendName} threw a party!`);
+  }
+  else if(id==='shoutout') showNotif(`💌 Shoutout to ${pick(friends)} — best friend ever!`);
+  else if(id==='surprisevisit') {
+    const friendName = pick(friends);
+    houseGuest = friendName;
+    refreshHouseGuest();
+    sfx.buy();
+    showNotif(`🏠 ${friendName} is stopping by your house!`);
+  }
+  else if(id==='nitro') {
+    nitroEndTime = clock.getElapsedTime() + 3;
+    sfx.launch();
+    showNotif('💨 Nitro Boost engaged!');
+  }
+  else if(id==='partyhorn') { sfx.honk(); showNotif('📯 HOOOONK!'); }
+  else if(id==='launchthrone') window.open('AiGame/explox/minigames/throne.html', '_blank');
+  else if(id==='launchobby') window.open('AiGame/explox/minigames/obby.html', '_blank');
+  else if(id==='launchparkour') window.open('AiGame/explox/minigames/parkour.html', '_blank');
+  else if(id==='launchsf') window.open('AiGame/explox/minigames/sf.html', '_blank');
+  if(cost>0) { saveCurrentUser(); renderAddOnsPanel(); }
 }
 
 function buyOutfit(i) {
@@ -5926,9 +6400,12 @@ function buildCar(def, x, z, yawAngle) {
   function b(w,h,d,color,px,py,pz) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(color));
     m.position.set(px,py,pz); m.castShadow=true; g.add(m);
+    return m;
   }
-  b(4.2,1.3,8.5, def.color,     0,  0.65, 0);    // body
-  b(3.2,1.4,4.5, def.color,     0,  2.05,-0.5);  // cabin
+  // Tagged so the real Rainbow Paint add-on can recolor the live car — every existing caller
+  // (NPC cars included) just ignores these extra properties, nothing else changes for them.
+  g.bodyMesh  = b(4.2,1.3,8.5, def.color,     0,  0.65, 0);    // body
+  g.cabinMesh = b(3.2,1.4,4.5, def.color,     0,  2.05,-0.5);  // cabin
   b(3.1,1.2,0.2, 0x88ccff,      0,  1.75, 1.8);  // windshield
   b(3.1,1.1,0.2, 0x88ccff,      0,  1.75,-2.8);  // rear window
   b(4.4,0.4,0.5, 0x888888,      0,  0.2,  4.5);  // front bumper
@@ -6008,11 +6485,16 @@ function crashIntoBuilding(x, z) {
   const now = performance.now();
   if (now - lastCarCrashAt < 1500) return;
   lastCarCrashAt = now;
-  const fee = Math.min(sipDollars, BUILDING_CRASH_FEE);
+  const fee = activeAddOns.includes('crashinsurance') ? 0 : Math.min(sipDollars, BUILDING_CRASH_FEE);
   sipDollars -= fee; updateSIP(); saveCurrentUser();
   spawnCarImpactBurst(x, z, [0xff8800,0x888888,0xffcc00]); // sparks, not the "destroyed" debris palette
   sfx.hit();
-  showNotif(`🚗💢 Crashed into a building! -${fee} S.I.P. for damages.`);
+  // Bumper Bounce — a real backward knockback along the car's own heading, away from the wall.
+  if(activeAddOns.includes('bumperbounce') && activeCar) {
+    activeCar.group.position.x -= Math.sin(carYaw)*4;
+    activeCar.group.position.z -= Math.cos(carYaw)*4;
+  }
+  showNotif(fee>0 ? `🚗💢 Crashed into a building! -${fee} S.I.P. for damages.` : `🚗💢 Crashed into a building! Crash Insurance covered it.`);
 }
 // Checked every frame while actually driving at a real meaningful speed (a car idling next to
 // someone shouldn't "ram" them) — removing the hit target's own collider (robots/trees) BEFORE
@@ -7391,6 +7873,7 @@ const ARCADE_STOPPERS = () => { stopWhack(); stopMaze(); stopMemory(); stopSimon
 // Charges the entry fee for a game before it starts. Returns false (and shows a real
 // "not enough S.I.P." message instead of starting) if the player can't afford it.
 function arcadeCharge(fee, resultElId) {
+  if (activeAddOns.includes('freearcade')) return true;
   if (sipDollars < fee) {
     const el = document.getElementById(resultElId);
     if (el) el.textContent = `You need ${fee} S.I.P. to play this — you only have ${sipDollars}.`;
@@ -10106,6 +10589,8 @@ function _startGameInner() {
   _dbg('buildCountryZones', buildCountryZones);
   _dbg('spawnOwnedCars', spawnOwnedCars);
   _dbg('buildPlayer', buildPlayer);
+  _dbg('buildBuddy', buildBuddy);
+  _dbg('applyCameraFX', applyCameraFX);
   _dbg('buildNPCs', buildNPCs);
   _dbg('buildShopperPopulation', buildShopperPopulation);
   _dbg('refreshHouseGuest', refreshHouseGuest); // must run AFTER shoppers exist, in case a save loaded with a guest already set
@@ -11479,6 +11964,11 @@ function makeAvatarCanvas() {
 function c3(h) { return parseInt(h.replace('#',''),16); }
 
 function buildPlayer() {
+  // Real fix: buildPlayer() is called more than once (e.g. equipping a shirtId item, and now
+  // the new Dress Up Party add-ons) but never removed the previous group first — leaving a stale
+  // ghost copy of the character behind in the scene at the old position. Guard it here once so
+  // every caller, old and new, rebuilds cleanly instead of duplicating.
+  if(scene && playerGroup) scene.remove(playerGroup);
   playerGroup = new THREE.Group();
   player = {};
   const skin=c3(playerColors.skin), shirt=c3(playerColors.shirt);
@@ -11493,7 +11983,7 @@ function buildPlayer() {
   };
 
   // Head & eyes
-  mk(1,1,1, skin, 0,2.8,0);
+  player.headMesh = mk(1,1,1, skin, 0,2.8,0);
   const em=new THREE.MeshBasicMaterial({color:0x111111});
   [-0.22,0.22].forEach(ex=>{const e=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.05),em);e.position.set(ex,2.85,0.51);playerGroup.add(e);});
 
@@ -13462,7 +13952,14 @@ function buildCountryZones(){
 
 // ─── CONTROLS ────────────────────────────────────────────────────────────────
 function tryCityJump(){
-  if(onGround && !inCar){ jumpVel=13; onGround=false; }
+  if(inCar) return;
+  if(onGround){
+    jumpVel=13; onGround=false; jumpsUsed=1;
+    if(activeAddOns.includes('confettijump')) burstConfetti(playerGroup.position.clone().setY(playerGroup.position.y+1), 10);
+  } else if(activeAddOns.includes('doublejump') && jumpsUsed<2){
+    jumpVel=13; jumpsUsed=2;
+    if(activeAddOns.includes('confettijump')) burstConfetti(playerGroup.position.clone().setY(playerGroup.position.y+1), 10);
+  }
 }
 
 function setupControls(){
@@ -13480,6 +13977,7 @@ function setupControls(){
     // Pointer Lock the way mouse clicks are. No need to press Escape first.
     if(e.code==='KeyB'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) toggleInventory(); }
     if(e.code==='KeyT'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) toggleSAI(); }
+    if(e.code==='KeyG'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) toggleAddOnsPanel(); }
     if(e.code==='KeyM'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))){ const p=document.getElementById('musicPanel'); if(p.style.display==='block') closeMusicPanel(); else openMusicPanel(); } }
     // Shift = run faster; Space = jump (ignore Space while typing in a text field)
     if(e.code==='ShiftLeft'||e.code==='ShiftRight') moveState.run=true;
@@ -13608,13 +14106,16 @@ function animate(){
     if(moveState.d) dir.add(right);
     if(moveState.a) dir.sub(right);
     moving=dir.length()>0;
+    if(!rollerVel) rollerVel = new THREE.Vector3();
     if(moving){
       dir.normalize();
-      const step=SPEED*(moveState.run?1.85:1)*dt;
+      const addonSpeedMult = (activeAddOns.includes('speedboost')?1.6:1) * (activeAddOns.includes('slowmo')?0.5:1);
+      const step=SPEED*(moveState.run?1.85:1)*addonSpeedMult*dt;
       const nx=playerGroup.position.x+dir.x*step;
       const nz=playerGroup.position.z+dir.z*step;
       if(!isBlocked(nx, playerGroup.position.z)) playerGroup.position.x=nx;
       if(!isBlocked(playerGroup.position.x, nz)) playerGroup.position.z=nz;
+      if(activeAddOns.includes('rollerfeet') && dt>0) rollerVel.set(dir.x*step/dt, 0, dir.z*step/dt);
       // Every pocket interior (House/Mall/Hotel/Store/FriendHouse/Prison) now lives 10,000+ units
       // out from downtown, so none of them can be subject to the outdoor city's boundary — before
       // this only excluded inHouse/inMall, which silently worked only because Hotel/Store/FriendHouse/
@@ -13631,20 +14132,34 @@ function animate(){
         if(_px>73 && _px<87 && _pz<-2.5 && _pz>-7) enterMall();
       }
       playerGroup.rotation.y=yaw;
+    } else if(activeAddOns.includes('rollerfeet') && rollerVel.lengthSq()>0.01) {
+      const nx=playerGroup.position.x+rollerVel.x*dt;
+      const nz=playerGroup.position.z+rollerVel.z*dt;
+      if(!isBlocked(nx, playerGroup.position.z)) playerGroup.position.x=nx; else rollerVel.x=0;
+      if(!isBlocked(playerGroup.position.x, nz)) playerGroup.position.z=nz; else rollerVel.z=0;
+      rollerVel.multiplyScalar(0.9);
+    } else {
+      rollerVel.set(0,0,0);
     }
   }
   // Jump / gravity (vertical motion, works even while standing still)
   if(!inCar && !playerSeated && (!onGround || jumpVel!==0)){
-    jumpVel -= 34*dt;
+    jumpVel -= (activeAddOns.includes('moonjump')?14:34)*dt;
     playerGroup.position.y += jumpVel*dt;
-    if(playerGroup.position.y<=0){ playerGroup.position.y=0; jumpVel=0; onGround=true; }
+    if(playerGroup.position.y<=0){
+      playerGroup.position.y=0;
+      if(activeAddOns.includes('bouncyshoes')) { jumpVel=12; onGround=false; }
+      else { jumpVel=0; onGround=true; jumpsUsed=0; }
+    }
   }
   if(inCar&&activeCar){
     const CAR_TURN=2.2;
     if(moveState.d) carYaw+=CAR_TURN*dt;
     if(moveState.a) carYaw-=CAR_TURN*dt;
     if(moveState.w||moveState.s){
-      const spd=activeCar.def.speed*(moveState.s?-0.55:1);
+      const vehicleSpeedMult = (activeAddOns.includes('turboboost')?1.6:1) * ((nitroEndTime && t<nitroEndTime)?2.2:1);
+      if(nitroEndTime && t>=nitroEndTime) nitroEndTime = 0;
+      const spd=activeCar.def.speed*vehicleSpeedMult*(moveState.s?-0.55:1);
       const nx=activeCar.group.position.x+Math.sin(carYaw)*spd*dt;
       const nz=activeCar.group.position.z+Math.cos(carYaw)*spd*dt;
       // Real bug fix: car movement never called isBlocked() at all — driving straight through
@@ -13669,15 +14184,57 @@ function animate(){
     activeCar.carYaw=carYaw;
     playerGroup.position.x=activeCar.group.position.x;
     playerGroup.position.z=activeCar.group.position.z;
+    if(activeAddOns.includes('rainbowpaint') && activeCar.group.bodyMesh) {
+      const carHue = (t*80) % 360;
+      const cc = new THREE.Color(); cc.setHSL(carHue/360, 0.9, 0.55);
+      activeCar.group.bodyMesh.material.color.copy(cc);
+      activeCar.group.cabinMesh.material.color.copy(cc);
+    }
   }
 
   // Walk animation
   if(!inCar){
-    const swing=moving?Math.sin(t*8)*0.4:0;
+    const swingAmp = activeAddOns.includes('noodlearms') ? 1.3 : 0.4;
+    const swing=moving?Math.sin(t*8)*swingAmp:0;
     if(player.lArm) player.lArm.rotation.x= swing;
     if(player.rArm) player.rArm.rotation.x=-swing;
     if(player.lLeg) player.lLeg.rotation.x=-swing;
     if(player.rLeg) player.rLeg.rotation.x= swing;
+    if(player.headMesh) {
+      player.headMesh.rotation.z = (moving && activeAddOns.includes('bobblehead')) ? Math.sin(t*10)*0.25 : 0;
+      player.headMesh.scale.setScalar(activeAddOns.includes('bighead') ? 1.7 : 1);
+    }
+  }
+  // Character-scale add-ons — recomputed every frame so they self-correct after any rebuild
+  if(playerGroup) {
+    playerGroup.scale.setScalar(activeAddOns.includes('giantmode') ? 1.8 : activeAddOns.includes('tinymode') ? 0.5 : 1);
+  }
+  // Rainbow Skin — cycles the real skin-mesh hue live, same tagged-mesh array body paint uses
+  if(activeAddOns.includes('rainbowskin') && player.skinMeshes) {
+    const hue = (t*80) % 360;
+    const rc = new THREE.Color(); rc.setHSL(hue/360, 0.9, 0.6);
+    player.skinMeshes.forEach(m => m.material.color.copy(rc));
+  }
+  // Trippy Vision — the only camera filter that needs a per-frame update (continuous hue cycle)
+  if(activeAddOns.includes('trippy')) { _trippyHue = (_trippyHue + dt*90) % 360; applyCameraFX(); }
+  // Movement trails — real particles spawned behind the player while walking
+  if(moving && !inCar) {
+    if(activeAddOns.includes('sparkletrail') && Math.random()<0.45) spawnParticle(playerGroup.position, 0xffffaa, {size:0.09, life:0.5});
+    if(activeAddOns.includes('firetrail') && Math.random()<0.55) spawnParticle(playerGroup.position, [0xff6600,0xff2200,0xffaa00][Math.floor(Math.random()*3)], {size:0.13, life:0.45});
+    if(activeAddOns.includes('icetrail') && Math.random()<0.45) spawnParticle(playerGroup.position, 0x88ddff, {size:0.11, life:0.55});
+  }
+  // Advance every live trail/burst particle, real position+fade, remove when its life runs out
+  for(let pi=trailParticles.length-1; pi>=0; pi--) {
+    const p = trailParticles[pi];
+    p.life -= dt;
+    p.mesh.position.x += p.vx*dt;
+    p.mesh.position.y += p.vy*dt;
+    p.mesh.position.z += p.vz*dt;
+    if(p.gravity) p.vy -= 3*dt;
+    const lifeFrac = Math.max(0, p.life/p.maxLife);
+    p.mesh.material.opacity = lifeFrac;
+    p.mesh.scale.setScalar(0.4+lifeFrac*0.6);
+    if(p.life<=0) { scene.remove(p.mesh); trailParticles.splice(pi,1); }
   }
   // Weapon swing — a real arc driven by elapsed time, same t-based approach as the walk cycle above,
   // not a fire-and-forget setTimeout chain that could drift out of sync with the render loop.
@@ -13694,6 +14251,27 @@ function animate(){
     }
   }
   if(player.nametag) player.nametag.lookAt(camera.position);
+
+  // Buddy — lags a step behind the player toward a spot just behind-and-beside them, so it
+  // reads as "following", not glued to the player's back like a backpack.
+  if(buddyGroup) {
+    const targetX = playerGroup.position.x - Math.sin(yaw)*1.6 - Math.cos(yaw)*0.9;
+    const targetZ = playerGroup.position.z - Math.cos(yaw)*1.6 + Math.sin(yaw)*0.9;
+    const followLerp = Math.min(1, dt*3);
+    const buddyMoved = Math.hypot(targetX-buddyGroup.position.x, targetZ-buddyGroup.position.z) > 0.05;
+    buddyGroup.position.x += (targetX - buddyGroup.position.x) * followLerp;
+    buddyGroup.position.z += (targetZ - buddyGroup.position.z) * followLerp;
+    buddyGroup.position.y = playerGroup.position.y + Math.sin(t*4)*0.06;
+    buddyGroup.rotation.y += (yaw - buddyGroup.rotation.y) * followLerp;
+    buddyGroup.scale.setScalar(activeAddOns.includes('petxl') ? 1.6 : activeAddOns.includes('petmini') ? 0.6 : 1);
+    if(activeAddOns.includes('petrainbow') && buddyMeshes) {
+      const phue = (t*80) % 360;
+      const pc = new THREE.Color(); pc.setHSL(phue/360, 0.9, 0.6);
+      buddyMeshes.body.forEach(m => m.material.color.copy(pc));
+      buddyMeshes.accent.forEach(m => m.material.color.copy(pc));
+    }
+    if(activeAddOns.includes('petsparkle') && buddyMoved && Math.random()<0.4) spawnParticle(buddyGroup.position, 0xffddff, {size:0.08, life:0.5});
+  }
 
   // Camera
   if(inCar&&activeCar){
