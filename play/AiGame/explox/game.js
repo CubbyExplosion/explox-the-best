@@ -11315,6 +11315,11 @@ function handleInteract() {
     if(carriedBox) { if(tryPlaceBox()) return; }
     else { if(tryPickUpBox()) return; }
   }
+  // A duel you've already committed to (accepted a real challenge) always takes
+  // priority, even inside the arena - real bug found live: without this, walking
+  // into the arena mid-duel silently switched your E-press over to generic FFA
+  // targeting instead of your actual opponent, with no way to keep fighting them.
+  if(dueling && serverMode === 'online' && tryDuelInteract()) return;
   // Arena free-for-all takes priority over open-world 1v1 duels while standing in it
   if(inArena && serverMode === 'online' && tryFfaInteract()) return;
   // PvP duel: swing at your opponent if one's active, else challenge whoever's nearby
