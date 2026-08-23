@@ -11574,6 +11574,7 @@ function _startGameInner() {
   _dbg('refreshHouseGuest', refreshHouseGuest); // must run AFTER shoppers exist, in case a save loaded with a guest already set
   _dbg('buildCityShops', buildCityShops);
   _dbg('buildTownEventsBoard', buildTownEventsBoard);
+  _dbg('buildWorldEventsBoard', buildWorldEventsBoard);
   _dbg('buildElders', buildElders);
   _dbg('buildChildren', buildChildren); // must run AFTER shoppers exist — looks up parent NPCs by name for home position
   _dbg('buildPrisonInterior', buildPrisonInterior);
@@ -14143,6 +14144,287 @@ function buildTownEventsBoard() {
   CITY_ZONES.push({ x, z: z + 1.5, r: 3.5, label: '🎉 Town Events Board', action: openTownEvents });
 }
 
+// ─── WORLD EVENTS ──────────────────────────────────────────────────────────────
+// Different from the Town Events board above — these are SHARED with everyone
+// online (via the generic /api/event endpoint, one active event at a time,
+// server enforces the lock) and can involve real danger or combat, not just an
+// instant flavor reward. Every one of the 23 events reuses ONE of three real
+// mechanics instead of needing 23 separate systems:
+//  - gathering: stand near the spot, earn steady S.I.P. every few seconds while there
+//  - hazard: real periodic damage in a radius; a bonus for surviving to the end
+//  - hostileFaction: real fightable NPCs (reuses the exact Scrapyard robot combat
+//    pattern - press E in range, they hit back, defeat for a reward), spawned
+//    independently per client like Throne's co-op enemies (item 183's precedent -
+//    no shared enemy-health authority needed for this to feel real and shared)
+const WORLD_EVENTS = [
+  { id:'concert', name:'Concert', emoji:'🎤', template:'gathering',
+    description:'A stage lights up and a live show draws a crowd — stick around to cheer.',
+    params:{ rewardPerTick:4, radius:14, durationSec:180 } },
+  { id:'earthquake', name:'Earthquake', emoji:'🌍', template:'hazard',
+    description:'The ground shakes and cracks — stay safe until it settles down.',
+    params:{ damagePerTick:10, tickSeconds:3, radius:22, rewardOnSurvive:100, durationSec:60 } },
+  { id:'cartel-turf-war', name:'Cartel Turf War', emoji:'🕶️', template:'hostileFaction',
+    description:'A rival gang rolls in to claim turf — fight them off for the reward.',
+    params:{ count:6, npcHealth:60, npcDamage:14, rewardPerKill:28, durationSec:180 } },
+  { id:'ice-cream-parade', name:'Ice Cream Parade', emoji:'🍦', template:'gathering',
+    description:'A parade of ice cream trucks rolls through town handing out free scoops to anyone who joins the line.',
+    params:{ rewardPerTick:3, radius:12, durationSec:150 } },
+  { id:'firework-festival', name:'Firework Festival', emoji:'🎆', template:'gathering',
+    description:'The night sky fills with dazzling fireworks and players who watch from the park earn coins for cheering along.',
+    params:{ rewardPerTick:4, radius:15, durationSec:180 } },
+  { id:'street-magic-show', name:'Street Magic Show', emoji:'🎩', template:'gathering',
+    description:'A traveling magician pulls off jaw-dropping tricks downtown and tosses coins to the crowd that gathers to watch.',
+    params:{ rewardPerTick:2, radius:10, durationSec:120 } },
+  { id:'food-truck-rally', name:'Food Truck Rally', emoji:'🌮', template:'gathering',
+    description:'A lineup of food trucks parks in the plaza, serving free samples to hungry players who stick around.',
+    params:{ rewardPerTick:3, radius:14, durationSec:150 } },
+  { id:'beach-bonfire', name:'Beach Bonfire Bash', emoji:'🔥', template:'gathering',
+    description:'Friends gather around a crackling beach bonfire to roast marshmallows and swap stories under the stars.',
+    params:{ rewardPerTick:2, radius:10, durationSec:200 } },
+  { id:'snow-globe-wonderland', name:'Snow Globe Wonderland', emoji:'❄️', template:'gathering',
+    description:'A patch of the city magically turns into a sparkling winter wonderland with snowmen and hot cocoa stands.',
+    params:{ rewardPerTick:3, radius:16, durationSec:240 } },
+  { id:'double-rainbow', name:'Double Rainbow Bloom', emoji:'🌈', template:'gathering',
+    description:'A giant double rainbow arcs over the city and players who stand beneath it collect shimmering rainbow coins.',
+    params:{ rewardPerTick:5, radius:20, durationSec:90 } },
+  { id:'meteor-shower', name:'Meteor Shower', emoji:'☄️', template:'hazard',
+    description:'Glowing space rocks rain down on a city block, and anyone who dodges them long enough earns a big reward.',
+    params:{ damagePerTick:8, tickSeconds:3, radius:18, rewardOnSurvive:90, durationSec:60 } },
+  { id:'giant-wave', name:'Giant Wave', emoji:'🌊', template:'hazard',
+    description:'A towering wave rolls in from the harbor and soaks the streets, so players race to higher ground before it hits.',
+    params:{ damagePerTick:10, tickSeconds:3, radius:25, rewardOnSurvive:100, durationSec:45 } },
+  { id:'silly-sinkhole', name:'Silly Sinkhole', emoji:'🕳️', template:'hazard',
+    description:'A wobbly sinkhole opens up in the road and slowly swallows the sidewalk, so players scramble to stay clear of the edge.',
+    params:{ damagePerTick:6, tickSeconds:4, radius:12, rewardOnSurvive:60, durationSec:60 } },
+  { id:'blizzard-whiteout', name:'Blizzard Whiteout', emoji:'🌨️', template:'hazard',
+    description:'A sudden blizzard blankets the block in swirling snow, chilling anyone caught outside without shelter.',
+    params:{ damagePerTick:5, tickSeconds:4, radius:20, rewardOnSurvive:70, durationSec:90 } },
+  { id:'lightning-storm', name:'Lightning Storm', emoji:'⚡', template:'hazard',
+    description:'Crackling bolts of lightning zap the ground near the tower, daring players to weave through and survive the storm.',
+    params:{ damagePerTick:12, tickSeconds:3, radius:15, rewardOnSurvive:110, durationSec:45 } },
+  { id:'food-fight-frenzy', name:'Food Fight Frenzy', emoji:'🍕', template:'hazard',
+    description:'A cafeteria food fight spills into the street, splattering anyone nearby with flying pies and spaghetti.',
+    params:{ damagePerTick:4, tickSeconds:2, radius:14, rewardOnSurvive:50, durationSec:60 } },
+  { id:'runaway-snowball', name:'Runaway Giant Snowball', emoji:'⛄', template:'hazard',
+    description:'A massive snowball rolls loose down the hill, growing bigger and forcing players to scatter out of its path.',
+    params:{ damagePerTick:14, tickSeconds:3, radius:16, rewardOnSurvive:95, durationSec:40 } },
+  { id:'alien-scout-landing', name:'Alien Scout Landing', emoji:'👽', template:'hostileFaction',
+    description:'A small squad of goofy alien scouts lands their saucer in the park and starts zapping anyone who gets close.',
+    params:{ count:5, npcHealth:40, npcDamage:8, rewardPerKill:20, durationSec:150 } },
+  { id:'robot-malfunction', name:'Robot Malfunction', emoji:'🤖', template:'hostileFaction',
+    description:'A batch of helper robots short-circuits at the factory and starts chasing players around with clanky antics.',
+    params:{ count:6, npcHealth:50, npcDamage:10, rewardPerKill:18, durationSec:150 } },
+  { id:'pirate-raiders', name:'Pirate Raiders', emoji:'🏴‍☠️', template:'hostileFaction',
+    description:'A crew of cartoonish pirates storms the docks looking for treasure, and players band together to fend them off.',
+    params:{ count:7, npcHealth:45, npcDamage:9, rewardPerKill:22, durationSec:180 } },
+  { id:'giant-crab-invasion', name:'Giant Crab Invasion', emoji:'🦀', template:'hostileFaction',
+    description:'Oversized crabs scuttle out of the sea and pinch their way across the boardwalk until players chase them off.',
+    params:{ count:8, npcHealth:30, npcDamage:6, rewardPerKill:15, durationSec:120 } },
+  { id:'garden-gnome-uprising', name:'Garden Gnome Uprising', emoji:'🧙', template:'hostileFaction',
+    description:'A yard full of garden gnomes comes to life and starts a mischievous rampage through the neighborhood.',
+    params:{ count:6, npcHealth:25, npcDamage:5, rewardPerKill:12, durationSec:100 } },
+  { id:'wild-stampede', name:'Wild Animal Stampede', emoji:'🐗', template:'hostileFaction',
+    description:'A herd of runaway farm animals stampedes through downtown and players work together to herd them back.',
+    params:{ count:9, npcHealth:35, npcDamage:7, rewardPerKill:16, durationSec:130 } },
+];
+
+const WORLD_EVENT_SPOT = { x: TOWN_EVENT_SPOT.x + 8, z: TOWN_EVENT_SPOT.z }; // same proven-open ground as the Town Events board, just a few units over
+let activeWorldEvent = null;   // synced from the server: {type, startedBy, startedAt, endsAt, data:{name,emoji,template,params,x,z,locName}}
+let _lastWorldEventSync = -999;
+const WORLD_EVENT_SYNC_INTERVAL = 3;
+let worldEventDecor = [];
+let worldEventNpcs = [];       // {x,z,hp,maxHp,mesh,col,alive,zone}
+let worldEventGatherAccum = 0, worldEventHazardAccum = 0;
+
+function buildWorldEventsBoard() {
+  const { x, z } = WORLD_EVENT_SPOT;
+  box(0.15, 2.4, 0.15, 0x2a5a3a, x - 1.4, 1.2, z);
+  box(0.15, 2.4, 0.15, 0x2a5a3a, x + 1.4, 1.2, z);
+  box(3.2, 1.7, 0.15, 0xeaffea, x, 2.1, z);
+  buildSign('🌍 World Events', x, 3.2, z - 0.2);
+  CITY_ZONES.push({ x, z: z + 1.5, r: 3.5, label: '🌍 World Events Board', action: openWorldEventsBoard });
+}
+
+function pickWorldEventLocation() {
+  const skip = ['Whispering Woods', 'Sunset Plains', 'The Scrapyard', 'The Dump', 'Japan', 'France'];
+  const spots = LOC_ZONES.filter(z => !skip.includes(z.name));
+  return spots[Math.floor(Math.random() * spots.length)];
+}
+
+function openWorldEventsBoard() {
+  if (serverMode !== 'online') { showNotif('🌍 World Events need ONLINE mode!'); return; }
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('worldEventsBody').innerHTML = WORLD_EVENTS.map(e => `
+    <button onclick="triggerWorldEvent('${e.id}')" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;color:#fff;background:#26402e;text-align:left;">
+      ${e.emoji} ${e.name}<br><span style="font-weight:normal;font-size:11px;opacity:.8">${e.description}</span>
+    </button>`).join('');
+  document.getElementById('worldEventsModal').style.display = 'flex';
+}
+function closeWorldEvents() {
+  document.getElementById('worldEventsModal').style.display = 'none';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+async function triggerWorldEvent(id) {
+  const def = WORLD_EVENTS.find(e => e.id === id);
+  if (!def) return;
+  const loc = pickWorldEventLocation();
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/event', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: def.id, startedBy: currentUser, durationSec: def.params.durationSec,
+        data: { name: def.name, emoji: def.emoji, template: def.template, params: def.params, x: loc.x, z: loc.z, locName: loc.name }
+      })
+    }, 4000);
+    if (r.status === 409) { showNotif('⚠️ An event is already happening — wait for it to end!'); return; }
+    if (!r.ok) { showNotif('❌ Could not start the event — try again.'); return; }
+    showNotif(`${def.emoji} You kicked off ${def.name} at ${loc.name}!`);
+    closeWorldEvents();
+  } catch (e) { showNotif('❌ Could not reach the server.'); }
+}
+
+function clearWorldEventDecor() { worldEventDecor.forEach(m => scene.remove(m)); worldEventDecor = []; }
+function buildWorldEventDecor(ev) {
+  clearWorldEventDecor();
+  const { x, z, template, params } = ev.data;
+  const add = (m) => { worldEventDecor.push(m); return m; };
+  if (template === 'gathering') {
+    add(box(6, 0.4, 4, 0x333344, x, 0.2, z));
+    add(box(0.3, 3, 0.3, 0x222222, x - 3, 1.7, z - 2)); add(box(1, 1.5, 1, 0xffcc44, x - 3, 2.5, z - 2));
+    add(box(0.3, 3, 0.3, 0x222222, x + 3, 1.7, z - 2)); add(box(1, 1.5, 1, 0xffcc44, x + 3, 2.5, z - 2));
+  } else if (template === 'hazard') {
+    const r = params.radius;
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      add(box(0.4, 1.6, 0.4, 0xff4444, x + Math.cos(a) * r, 0.8, z + Math.sin(a) * r));
+    }
+  } else if (template === 'hostileFaction') {
+    add(box(2, 2.6, 0.2, 0x3a1a1a, x, 1.3, z));
+  }
+}
+
+// Robot meshes/colors are reused for event NPCs (same combat model as the
+// Scrapyard) but each event id gets its own consistent-but-automatic color/shape
+// via the same string-hash-to-appearance trick STV's channel art already uses —
+// no need to hand-author 23 unique enemy designs for this to feel distinct.
+function worldEventNpcLook(eventId) {
+  let h = 5381;
+  for (let i = 0; i < eventId.length; i++) h = (Math.imul(h, 33) ^ eventId.charCodeAt(i)) >>> 0;
+  const shapes = ['drone', 'tank', 'spider', 'elite', undefined];
+  return { color: h & 0xffffff, shape: shapes[h % shapes.length] };
+}
+function clearWorldEventNpcs() {
+  worldEventNpcs.forEach(n => {
+    if (!n.alive) return;
+    scene.remove(n.mesh);
+    const zi = CITY_ZONES.indexOf(n.zone); if (zi > -1) CITY_ZONES.splice(zi, 1);
+    if (n.col) { const ci = CITY_COLS.indexOf(n.col); if (ci > -1) CITY_COLS.splice(ci, 1); }
+  });
+  worldEventNpcs = [];
+}
+function spawnWorldEventNpcs(ev) {
+  clearWorldEventNpcs();
+  const { x, z, params } = ev.data;
+  const look = worldEventNpcLook(ev.type);
+  for (let i = 0; i < params.count; i++) {
+    const angle = (i / params.count) * Math.PI * 2, dist = 3 + Math.random() * 4;
+    const nx = x + Math.cos(angle) * dist, nz = z + Math.sin(angle) * dist;
+    const mesh = buildRobotMesh(nx, nz, look.color, look.shape);
+    const col = addCol(CITY_COLS, nx, nz, 0.6, 0.6);
+    const npc = { x: nx, z: nz, hp: params.npcHealth, maxHp: params.npcHealth, mesh, col, alive: true, zone: null };
+    const zone = { x: nx, z: nz, r: 2.8, label: `${ev.data.emoji} Fight ${ev.data.name}`, action: () => fightWorldEventNpc(npc, ev) };
+    npc.zone = zone;
+    CITY_ZONES.push(zone);
+    worldEventNpcs.push(npc);
+  }
+}
+function fightWorldEventNpc(npc, ev) {
+  if (!npc.alive || !activeWorldEvent || activeWorldEvent.startedAt !== ev.startedAt) { showNotif('That fight is over.'); return; }
+  const dmg = getRobotDamage();
+  npc.hp -= dmg;
+  triggerSwing(); sfx.clang();
+  if (npc.hp > 0) {
+    showNotif(`${ev.data.emoji} Hit for ${dmg}! (${npc.hp} HP left)`);
+    damagePlayer(ev.data.params.npcDamage, ev.data.name);
+    return;
+  }
+  npc.alive = false;
+  scene.remove(npc.mesh);
+  const zi = CITY_ZONES.indexOf(npc.zone); if (zi > -1) CITY_ZONES.splice(zi, 1);
+  if (npc.col) { const ci = CITY_COLS.indexOf(npc.col); if (ci > -1) CITY_COLS.splice(ci, 1); }
+  sipDollars += ev.data.params.rewardPerKill; updateSIP(); saveCurrentUser();
+  sfx.boom();
+  showNotif(`${ev.data.emoji} Defeated! +${ev.data.params.rewardPerKill} S.I.P.`);
+}
+
+function updateWorldEventBanner() {
+  const el = document.getElementById('worldEventBanner');
+  if (!el) return;
+  if (!activeWorldEvent) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  const secsLeft = Math.max(0, Math.ceil(activeWorldEvent.endsAt - Date.now() / 1000));
+  document.getElementById('worldEventBannerText').textContent =
+    `${activeWorldEvent.data.emoji} ${activeWorldEvent.data.name} at ${activeWorldEvent.data.locName || 'the city'} — ${secsLeft}s left`;
+}
+
+async function syncWorldEvent() {
+  if (serverMode !== 'online' || !currentUser) return;
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/event', {}, 4000);
+    if (!r.ok) return;
+    const ev = await r.json();
+    const prev = activeWorldEvent;
+    const changed = (ev && (!prev || prev.startedAt !== ev.startedAt)) || (!ev && prev);
+    activeWorldEvent = ev;
+    if (changed) {
+      const survivedHazard = prev && prev.data.template === 'hazard' && !ev && playerHealth > 0;
+      clearWorldEventDecor();
+      clearWorldEventNpcs();
+      worldEventGatherAccum = 0; worldEventHazardAccum = 0;
+      if (ev) {
+        showNotif(`${ev.data.emoji} ${ev.data.name} started at ${ev.data.locName || 'the city'}!${ev.startedBy === currentUser ? '' : ' Started by ' + ev.startedBy + '.'}`);
+        buildWorldEventDecor(ev);
+        if (ev.data.template === 'hostileFaction') spawnWorldEventNpcs(ev);
+      } else if (prev) {
+        showNotif(`The ${prev.data.name} event ended.`);
+        if (survivedHazard) {
+          sipDollars += prev.data.params.rewardOnSurvive; updateSIP(); saveCurrentUser();
+          showNotif(`🎉 You survived ${prev.data.name}! +${prev.data.params.rewardOnSurvive} S.I.P.`);
+        }
+      }
+    }
+    updateWorldEventBanner();
+  } catch (e) { /* next sync will catch up */ }
+}
+
+// Called every frame from animate() — applies the gathering/hazard mechanic for
+// whichever event is currently active; hostileFaction needs no per-frame tick,
+// its NPCs are fought the same press-E way as regular robots.
+function tickWorldEvent(dt) {
+  if (!activeWorldEvent) return;
+  const { template, x, z, params } = activeWorldEvent.data;
+  if (template !== 'gathering' && template !== 'hazard') return;
+  const d = Math.hypot(playerGroup.position.x - x, playerGroup.position.z - z);
+  const inRange = d <= params.radius;
+  if (template === 'gathering') {
+    if (!inRange) { worldEventGatherAccum = 0; return; }
+    worldEventGatherAccum += dt;
+    if (worldEventGatherAccum >= 5) {
+      worldEventGatherAccum -= 5;
+      sipDollars += params.rewardPerTick; updateSIP(); saveCurrentUser();
+      showNotif(`${activeWorldEvent.data.emoji} +${params.rewardPerTick} S.I.P. enjoying ${activeWorldEvent.data.name}!`);
+    }
+  } else if (template === 'hazard') {
+    if (!inRange) { worldEventHazardAccum = 0; return; }
+    worldEventHazardAccum += dt;
+    if (worldEventHazardAccum >= params.tickSeconds) {
+      worldEventHazardAccum -= params.tickSeconds;
+      damagePlayer(params.damagePerTick, activeWorldEvent.data.name);
+    }
+  }
+}
+
 // ─── BABIES — married couples (at least one of whom is your friend) can welcome a baby.
 // Kept deliberately simple: a baby is a real, permanent, visible addition to the family (a
 // crib + nameplate by one parent's house, tracked forever in `children`) rather than a full
@@ -15235,6 +15517,8 @@ function animate(){
     if(inArena && !ffaAlive && t >= ffaRespawnAt) { ffaAlive = true; showNotif('💪 Back in the fight!'); }
     if(inArena && t - _lastFfaSync > FFA_SYNC_INTERVAL) { _lastFfaSync = t; syncFfaLeaderboard(); }
   }
+  if(serverMode === 'online' && t - _lastWorldEventSync > WORLD_EVENT_SYNC_INTERVAL) { _lastWorldEventSync = t; syncWorldEvent(); }
+  tickWorldEvent(dt);
 
   // Movement with collision
   let moving=false;
