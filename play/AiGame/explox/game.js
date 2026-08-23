@@ -13123,6 +13123,40 @@ let remotePlayers = {};
 let _lastPresenceSync = -999;
 const PRESENCE_SYNC_INTERVAL = 1; // seconds
 
+// Every PointLight added anywhere in the city (there are 270+ once everything is
+// built — one per lamp post, shop sign, car, etc.) stays permanently active in
+// the scene, and three.js compiles ONE shared lit-material shader sized for
+// however many lights are currently active — regardless of how far away each
+// one is. On phones/tablets with a low fragment-uniform budget, that can
+// overflow and silently fail to draw every MeshLambertMaterial object
+// (buildings, ground, props) while unlit MeshBasicMaterial signs keep
+// rendering fine — looking like "the whole city vanished, just floating
+// signs left". Two layers of safety: hiding a light once the player is past
+// its own falloff `distance` is visually lossless (it was already
+// contributing zero light out there); on top of that, a hard cap on how many
+// can be active at once (closest-first) protects dense areas where many
+// lights' individual ranges overlap near the player at the same time.
+let _lastLightCullSync = -999;
+const LIGHT_CULL_INTERVAL = 0.3; // seconds
+const LIGHT_CULL_MAX_ACTIVE = 24;
+function cullDistantLights() {
+  if(!scene || !playerGroup) return;
+  const candidates = [];
+  scene.traverse(o => {
+    if(o.isPointLight) {
+      const cutoff = o.distance > 0 ? o.distance : 150;
+      const dist = playerGroup.position.distanceTo(o.position);
+      candidates.push({ light: o, inRange: dist < cutoff, dist });
+    }
+  });
+  candidates.sort((a, b) => a.dist - b.dist);
+  let activeCount = 0;
+  for(const c of candidates) {
+    c.light.visible = c.inRange && activeCount < LIGHT_CULL_MAX_ACTIVE;
+    if(c.light.visible) activeCount++;
+  }
+}
+
 // A remote player's car is purely cosmetic - no CITY_COLS collider is added for
 // it, so driving through/near one is always a harmless pass-through, never a
 // crashIntoBuilding()-style fee. Reuses buildCar() exactly like NPC cars do.
@@ -15746,6 +15780,7 @@ function animate(){
   if(t - _lastShopSync > SHOP_SYNC_INTERVAL) { _lastShopSync = t; syncShops(); }
   if(t - _lastStockSync > STOCK_SYNC_INTERVAL) { _lastStockSync = t; syncStocks(); }
   if(t - _lastMailboxSync > MAILBOX_SYNC_INTERVAL) { _lastMailboxSync = t; syncMailbox(); }
+  if(t - _lastLightCullSync > LIGHT_CULL_INTERVAL) { _lastLightCullSync = t; cullDistantLights(); }
   if(placingStore) updatePlacementMarker();
 
   // Arena free-for-all: enter/exit detection, knockout-cooldown timer, leaderboard sync
