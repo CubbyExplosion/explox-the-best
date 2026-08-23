@@ -5872,6 +5872,9 @@ function handleMailboxMessage(msg) {
     }
   } else if(msg.type === 'ffa_hit') {
     if(inArena && ffaAlive) { lastFfaAttacker = msg.from; damagePlayer(msg.data.damage, msg.from + ' (arena)'); }
+  } else if(msg.type === 'sip_gift') {
+    sipDollars += msg.data.amount; updateSIP(); saveCurrentUser();
+    showNotif(`💸 ${msg.from} gave you ${msg.data.amount} S.I.P.! Thanks!`);
   } else if(msg.type === 'ffa_kill') {
     ffaKills++;
     sipDollars += 20; updateSIP();
@@ -5913,6 +5916,20 @@ function nearestRemotePlayer(maxDist) {
     if(d < closestDist) { closestDist = d; closest = name; }
   });
   return closest;
+}
+// Give S.I.P. to whoever's nearest — bound to the Y key, relayed through the
+// same generic mailbox everything else player-to-player already uses.
+function tryGiveSip() {
+  if(serverMode !== 'online') { showNotif('💸 Giving S.I.P. needs ONLINE mode!'); return; }
+  const target = nearestRemotePlayer(10);
+  if(!target) { showNotif('💸 Get closer to someone to give them S.I.P.!'); return; }
+  const raw = prompt(`Give how much S.I.P. to ${target}?`, '100');
+  const amt = Math.floor(Number(raw));
+  if(!raw || !Number.isFinite(amt) || amt <= 0) return;
+  if(sipDollars < amt) { showNotif(`❌ You only have ${sipDollars} S.I.P.!`); return; }
+  sipDollars -= amt; updateSIP(); saveCurrentUser();
+  sendMail(target, 'sip_gift', { amount: amt });
+  showNotif(`💸 Sent ${amt} S.I.P. to ${target}!`);
 }
 // Called from handleInteract() (E key) - returns true if it handled the press,
 // so the normal contextual-E logic (cars, NPCs, zones...) knows to stop there.
@@ -15570,6 +15587,7 @@ function setupControls(){
     if(e.code==='KeyT'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) toggleSAI(); }
     if(e.code==='KeyG'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) toggleAddOnsPanel(); }
     if(e.code==='KeyM'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))){ const p=document.getElementById('musicPanel'); if(p.style.display==='block') closeMusicPanel(); else openMusicPanel(); } }
+    if(e.code==='KeyY'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) tryGiveSip(); }
     if(e.code==='KeyP' && placingStore) confirmStorePlacement();
     if(e.code==='Escape' && placingStore) cancelStorePlacement();
     // Shift = run faster; Space = jump (ignore Space while typing in a text field)
