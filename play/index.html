@@ -22,7 +22,7 @@
     #joyBase {
       position:fixed; left:20px; bottom:96px; width:92px; height:92px; border-radius:50%;
       background:rgba(255,255,255,0.12); border:2px solid rgba(255,255,255,0.35);
-      touch-action:none; z-index:15;
+      touch-action:none; z-index:15; pointer-events:auto;
     }
     #joyStick {
       position:absolute; left:50%; top:50%; width:40px; height:40px; margin-left:-20px; margin-top:-20px;
@@ -32,7 +32,7 @@
     #mobileJumpBtn, #mobileInteractBtn, #mobileRunBtn {
       position:fixed; border-radius:50%; background:rgba(0,0,0,0.45); border:2px solid rgba(255,255,255,0.5);
       color:#fff; font-weight:bold; display:flex; align-items:center; justify-content:center;
-      z-index:15; touch-action:none; user-select:none;
+      z-index:15; touch-action:none; user-select:none; pointer-events:auto;
     }
     #mobileJumpBtn      { right:20px; bottom:100px; width:58px; height:58px; font-size:20px; }
     #mobileInteractBtn  { right:82px; bottom:154px; width:46px; height:46px; font-size:14px; }
