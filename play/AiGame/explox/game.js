@@ -13110,13 +13110,27 @@ let remotePlayers = {};
 let _lastPresenceSync = -999;
 const PRESENCE_SYNC_INTERVAL = 1; // seconds
 
+// A remote player's car is purely cosmetic - no CITY_COLS collider is added for
+// it, so driving through/near one is always a harmless pass-through, never a
+// crashIntoBuilding()-style fee. Reuses buildCar() exactly like NPC cars do.
+function buildRemotePlayerCar(o) {
+  const def = CAR_CATALOG.find(c => c.id === o.carId) || CAR_CATALOG[0];
+  return buildCar(def, o.x, o.z, o.yaw || 0); // buildCar already adds it to the scene
+}
 async function syncPresence(t) {
   if(!currentUser || serverMode !== 'online' || !playerGroup) return;
   try {
+    // While driving, the real position is the CAR's, not playerGroup's (which
+    // just sits wherever you parked it until you get out) - report whichever is
+    // actually true right now so other players don't see you frozen in place.
+    const driving = !!(inCar && activeCar);
+    const posSrc = driving ? activeCar.group.position : playerGroup.position;
+    const yawSrc = driving ? carYaw : yaw;
     const body = {
       name: currentUser,
-      x: playerGroup.position.x, y: playerGroup.position.y, z: playerGroup.position.z,
-      yaw: yaw,
+      x: posSrc.x, y: posSrc.y, z: posSrc.z,
+      yaw: yawSrc,
+      inCar: driving, carId: driving ? activeCar.def.id : null,
       hat: playerHat, hair: playerHair, shirt: playerShirt, pants: playerPants, shoes: playerShoes,
       skin: playerColors.skin, shirtColor: playerColors.shirt, pantsColor: playerColors.pants,
       shoesColor: playerColors.shoes, hairColor: playerColors.hair
@@ -13131,13 +13145,20 @@ async function syncPresence(t) {
     const seen = new Set();
     others.forEach(o => {
       seen.add(o.name);
+      const wantCar = !!o.inCar;
       let rp = remotePlayers[o.name];
       if(!rp) {
-        const mesh = buildOtherPlayerAvatar(o);
-        mesh.position.set(o.x, o.y, o.z);
-        scene.add(mesh);
-        rp = remotePlayers[o.name] = { mesh, targetX:o.x, targetY:o.y, targetZ:o.z, targetYaw:o.yaw||0 };
+        const mesh = wantCar ? buildRemotePlayerCar(o) : buildOtherPlayerAvatar(o);
+        if(!wantCar) { mesh.position.set(o.x, o.y, o.z); scene.add(mesh); }
+        rp = remotePlayers[o.name] = { mesh, targetX:o.x, targetY:o.y, targetZ:o.z, targetYaw:o.yaw||0, inCar:wantCar, carId:o.carId||null };
       } else {
+        if(wantCar !== rp.inCar || (wantCar && o.carId !== rp.carId)) {
+          // they just got in/out of a car (or swapped cars) - rebuild as the right mesh type
+          scene.remove(rp.mesh);
+          const mesh = wantCar ? buildRemotePlayerCar(o) : buildOtherPlayerAvatar(o);
+          if(!wantCar) { mesh.position.set(o.x, o.y, o.z); scene.add(mesh); }
+          rp.mesh = mesh; rp.inCar = wantCar; rp.carId = o.carId||null;
+        }
         rp.targetX = o.x; rp.targetY = o.y; rp.targetZ = o.z; rp.targetYaw = o.yaw||0;
       }
     });
