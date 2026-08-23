@@ -11575,6 +11575,7 @@ function _startGameInner() {
   _dbg('buildCityShops', buildCityShops);
   _dbg('buildTownEventsBoard', buildTownEventsBoard);
   _dbg('buildWorldEventsBoard', buildWorldEventsBoard);
+  _dbg('buildWarRoom', buildWarRoom);
   _dbg('buildElders', buildElders);
   _dbg('buildChildren', buildChildren); // must run AFTER shoppers exist — looks up parent NPCs by name for home position
   _dbg('buildPrisonInterior', buildPrisonInterior);
@@ -14401,6 +14402,177 @@ async function syncWorldEvent() {
   } catch (e) { /* next sync will catch up */ }
 }
 
+// ─── WAR — permanently capture the 9 named countries for Explox ──────────────
+// User: "your country(explox) vs others", capture territory, "bigger and longer"
+// than a timed World Event. Real, permanent, persisted server-side (like land/
+// shops, not ephemeral like presence/events) so progress adds up across many
+// separate sessions and everyone online contributes to the same fight. Reuses
+// the exact same robot-combat pattern as World Events' hostileFaction (built
+// Scrapyard-mesh NPCs, press-E-in-range, counter-damage, defeat = reward) —
+// the only new piece is the server tracking a persistent kill count per
+// territory and flipping it to permanently captured once the count is reached.
+const WAR_TERRITORIES = [
+  { name:'Japan',         x:600,  z:-600, killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
+  { name:'France',        x:-600, z:-600, killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
+  { name:'Brazil',        x:600,  z:700,  killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
+  { name:'Egypt',         x:900,  z:300,  killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
+  { name:'UK',            x:-700, z:-700, killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
+  { name:'Australia',     x:800,  z:-200, killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
+  { name:'Canada',        x:-600, z:400,  killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
+  { name:'Italy',         x:0,    z:-900, killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
+  { name:'Space Station', x:0,    z:1200, killsNeeded:20, npcCount:5, npcHealth:70, npcDamage:15, rewardPerKill:25, captureBonus:400 },
+];
+const WAR_ROOM_SPOT = { x: ARENA_CENTER.x, z: ARENA_CENTER.z - 60 }; // just outside the arena's sand, same neighborhood thematically
+
+let territoryState = {};   // synced from server: {name: {captured, kills, capturedBy}}
+let _lastTerritorySync = -999;
+const TERRITORY_SYNC_INTERVAL = 5;
+let warGarrisons = {};     // territory name -> [{hp,maxHp,mesh,col,alive,zone}]
+let warFlags = {};         // territory name -> flag Group, once captured
+let currentWarZone = null; // the WAR_TERRITORIES entry I'm currently near, or null
+
+function buildWarRoom() {
+  const { x, z } = WAR_ROOM_SPOT;
+  box(4, 3, 0.3, 0x1a2a4a, x, 1.5, z);
+  buildSign('⚔️ War Room', x, 4, z - 0.3);
+  addCol(CITY_COLS, x, z, 2, 0.6);
+  CITY_ZONES.push({ x, z: z + 1.5, r: 3.5, label: '⚔️ War Room', action: openWarRoom });
+}
+function openWarRoom() {
+  if (serverMode !== 'online') { showNotif('⚔️ The War Room needs ONLINE mode!'); return; }
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  const rows = WAR_TERRITORIES.map(t => {
+    const st = territoryState[t.name] || { captured: false, kills: 0 };
+    const status = st.captured
+      ? `✅ Captured for Explox${st.capturedBy ? ' by ' + st.capturedBy : ''}`
+      : `⚔️ ${st.kills}/${t.killsNeeded} defenders defeated`;
+    return `<div style="padding:7px 0;border-bottom:1px solid #2a3a5a;"><b>${t.name}</b><br><span style="font-size:11px;opacity:.8">${status}</span></div>`;
+  }).join('');
+  const capturedCount = WAR_TERRITORIES.filter(t => territoryState[t.name] && territoryState[t.name].captured).length;
+  document.getElementById('warRoomBody').innerHTML =
+    `<p style="text-align:center;color:#88ccff;margin-bottom:10px;">🌍 ${capturedCount} / ${WAR_TERRITORIES.length} territories captured for Explox!</p>` + rows;
+  document.getElementById('warRoomModal').style.display = 'flex';
+}
+function closeWarRoom() {
+  document.getElementById('warRoomModal').style.display = 'none';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+
+function buildWarFlag(terr) {
+  if (warFlags[terr.name]) return;
+  const g = new THREE.Group(); g.position.set(terr.x, 0, terr.z); scene.add(g);
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 8, 6), new THREE.MeshBasicMaterial({ color: 0x999999 }));
+  pole.position.y = 4; g.add(pole);
+  const flag = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 0.1), new THREE.MeshBasicMaterial({ color: 0x2196F3 }));
+  flag.position.set(1.5, 7, 0); g.add(flag);
+  warFlags[terr.name] = g;
+}
+
+function clearWarGarrison(name) {
+  (warGarrisons[name] || []).forEach(n => {
+    if (!n.alive) return;
+    scene.remove(n.mesh);
+    const zi = CITY_ZONES.indexOf(n.zone); if (zi > -1) CITY_ZONES.splice(zi, 1);
+    if (n.col) { const ci = CITY_COLS.indexOf(n.col); if (ci > -1) CITY_COLS.splice(ci, 1); }
+  });
+  warGarrisons[name] = [];
+}
+function spawnOneWarNpc(terr) {
+  const angle = Math.random() * Math.PI * 2, dist = 5 + Math.random() * 15;
+  const nx = terr.x + Math.cos(angle) * dist, nz = terr.z + Math.sin(angle) * dist;
+  const look = worldEventNpcLook(terr.name); // same deterministic hash-to-appearance trick as World Events
+  const mesh = buildRobotMesh(nx, nz, look.color, look.shape);
+  const col = addCol(CITY_COLS, nx, nz, 0.6, 0.6);
+  const npc = { hp: terr.npcHealth, maxHp: terr.npcHealth, mesh, col, alive: true, zone: null };
+  const zone = { x: nx, z: nz, r: 8, label: `🪖 Fight for ${terr.name}`, action: () => fightWarNpc(npc, terr) };
+  npc.zone = zone;
+  CITY_ZONES.push(zone);
+  if (!warGarrisons[terr.name]) warGarrisons[terr.name] = [];
+  warGarrisons[terr.name].push(npc);
+}
+function spawnWarGarrison(terr) {
+  clearWarGarrison(terr.name);
+  for (let i = 0; i < terr.npcCount; i++) spawnOneWarNpc(terr);
+}
+function fightWarNpc(npc, terr) {
+  if (!npc.alive) { showNotif('That fight is over.'); return; }
+  const dmg = getRobotDamage();
+  npc.hp -= dmg;
+  triggerSwing(); sfx.clang();
+  if (npc.hp > 0) {
+    showNotif(`🪖 Hit for ${dmg}! (${npc.hp} HP left)`);
+    damagePlayer(terr.npcDamage, terr.name + ' defender');
+    return;
+  }
+  npc.alive = false;
+  scene.remove(npc.mesh);
+  const zi = CITY_ZONES.indexOf(npc.zone); if (zi > -1) CITY_ZONES.splice(zi, 1);
+  if (npc.col) { const ci = CITY_COLS.indexOf(npc.col); if (ci > -1) CITY_COLS.splice(ci, 1); }
+  sipDollars += terr.rewardPerKill; updateSIP(); saveCurrentUser();
+  sfx.boom();
+  showNotif(`🪖 Defender defeated! +${terr.rewardPerKill} S.I.P.`);
+  reportWarKill(terr);
+  // a replacement shows up after a cooldown, same idea as the Scrapyard's robot
+  // spawners - but only if the territory hasn't just been captured out from under it
+  setTimeout(() => {
+    const st = territoryState[terr.name];
+    if (!st || !st.captured) spawnOneWarNpc(terr);
+  }, 8000);
+}
+async function reportWarKill(terr) {
+  if (serverMode !== 'online') return;
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/territories/hit', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: terr.name, killerName: currentUser, threshold: terr.killsNeeded })
+    }, 4000);
+    if (!r.ok) return;
+    const res = await r.json();
+    territoryState[terr.name] = { captured: res.captured, kills: res.kills };
+    if (res.justCaptured) {
+      sipDollars += terr.captureBonus; updateSIP(); saveCurrentUser();
+      showNotif(`🏆🎉 ${terr.name} CAPTURED for Explox! +${terr.captureBonus} S.I.P. bonus!`);
+      clearWarGarrison(terr.name);
+      buildWarFlag(terr);
+    }
+  } catch (e) { /* next report/sync will catch up */ }
+}
+async function syncTerritories() {
+  if (serverMode !== 'online' || !currentUser) return;
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/territories', {}, 4000);
+    if (!r.ok) return;
+    const data = await r.json();
+    Object.keys(data).forEach(name => {
+      territoryState[name] = data[name];
+      if (data[name].captured) {
+        const terr = WAR_TERRITORIES.find(t => t.name === name);
+        if (terr) { buildWarFlag(terr); clearWarGarrison(name); }
+      }
+    });
+  } catch (e) { /* next sync will catch up */ }
+}
+// Called every frame — lazily spawns/despawns a territory's garrison as you
+// approach/leave (these 9 spots are scattered far across the map, so nothing is
+// kept alive when nobody's anywhere near it).
+function tickWar(t) {
+  if (serverMode !== 'online') return;
+  let nearest = null, nearestDist = 70;
+  WAR_TERRITORIES.forEach(terr => {
+    const d = Math.hypot(playerGroup.position.x - terr.x, playerGroup.position.z - terr.z);
+    if (d < nearestDist) { nearestDist = d; nearest = terr; }
+  });
+  if (nearest !== currentWarZone) {
+    if (currentWarZone) clearWarGarrison(currentWarZone.name);
+    currentWarZone = nearest;
+    if (nearest) {
+      const st = territoryState[nearest.name];
+      if (!st || !st.captured) spawnWarGarrison(nearest);
+    }
+  }
+}
+
 // Called every frame from animate() — applies the gathering/hazard mechanic for
 // whichever event is currently active; hostileFaction needs no per-frame tick,
 // its NPCs are fought the same press-E way as regular robots.
@@ -15522,6 +15694,8 @@ function animate(){
   }
   if(serverMode === 'online' && t - _lastWorldEventSync > WORLD_EVENT_SYNC_INTERVAL) { _lastWorldEventSync = t; syncWorldEvent(); }
   tickWorldEvent(dt);
+  if(serverMode === 'online' && t - _lastTerritorySync > TERRITORY_SYNC_INTERVAL) { _lastTerritorySync = t; syncTerritories(); }
+  tickWar(t);
 
   // Movement with collision
   let moving=false;
