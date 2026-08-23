@@ -5874,7 +5874,7 @@ function tryDuelInteract() {
     const rp = remotePlayers[dueling];
     if(!rp) { showNotif(`${dueling} is no longer nearby.`); return true; }
     const d = Math.hypot(playerGroup.position.x - rp.mesh.position.x, playerGroup.position.z - rp.mesh.position.z);
-    if(d > 6) return false; // not close enough to swing - let E fall through to other actions
+    if(d > 8) { showNotif(`Get closer to ${dueling} to swing!`); return true; } // real players found this too tight at 6 - loosened, and now says why instead of silently doing nothing
     const dmg = getWeaponDamage();
     triggerSwing();
     sfx.hit();
@@ -5883,13 +5883,15 @@ function tryDuelInteract() {
     return true;
   }
   if(!duelChallengeSentTo) {
-    const nearby = nearestRemotePlayer(6);
+    const nearby = nearestRemotePlayer(12);
     if(nearby) {
       duelChallengeSentTo = nearby;
       sendMail(nearby, 'duel_challenge');
       showNotif(`⚔️ Challenge sent to ${nearby}...`);
       return true;
     }
+    const far = nearestRemotePlayer(35);
+    if(far) { showNotif(`🚶 Walk closer to ${far} to challenge them to a duel!`); return true; }
   }
   return false;
 }
