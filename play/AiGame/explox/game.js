@@ -5762,6 +5762,16 @@ function knockoutPlayer() {
     updateHealthBar();
     return; // arena knockouts don't send you home either — you just sit out the cooldown
   }
+  if(currentWarZone) {
+    // War NPCs are PvE, not competitive like the arena, and a territory can be a
+    // real long trip out from downtown - getting teleported all the way home
+    // after finally reaching one would undo the whole point of "bigger and
+    // longer." Just a breather in place, straight back into the fight.
+    showNotif(`💀 Knocked back by ${currentWarZone.name}'s defenders! Shake it off and keep fighting.`);
+    playerHealth = playerMaxHealth;
+    updateHealthBar();
+    return;
+  }
   showNotif('😵 Knocked out! Waking up at home...');
   playerGroup.position.set(HOUSE_DOOR.x, 0, HOUSE_DOOR.z + 3);
   yaw = 0;
