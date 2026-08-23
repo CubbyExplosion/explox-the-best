@@ -14227,6 +14227,9 @@ const WORLD_EVENTS = [
   { id:'wild-stampede', name:'Wild Animal Stampede', emoji:'🐗', template:'hostileFaction',
     description:'A herd of runaway farm animals stampedes through downtown and players work together to herd them back.',
     params:{ count:9, npcHealth:35, npcDamage:7, rewardPerKill:16, durationSec:130 } },
+  { id:'invasion-attempt', name:'Invasion Attempt', emoji:'🚨', template:'hostileFaction',
+    description:'One of the countries Explox is fighting sends an army to try to invade — fight them off! (Explox can never actually be conquered, no matter how many times they try.)',
+    params:{ count:7, npcHealth:50, npcDamage:12, rewardPerKill:22, durationSec:150 } },
 ];
 
 const WORLD_EVENT_SPOT = { x: TOWN_EVENT_SPOT.x + 8, z: TOWN_EVENT_SPOT.z }; // same proven-open ground as the Town Events board, just a few units over
@@ -14450,8 +14453,9 @@ function openWarRoom() {
     return `<div style="padding:7px 0;border-bottom:1px solid #2a3a5a;"><b>${t.name}</b><br><span style="font-size:11px;opacity:.8">${status}</span></div>`;
   }).join('');
   const capturedCount = WAR_TERRITORIES.filter(t => territoryState[t.name] && territoryState[t.name].captured).length;
+  const exploxRow = `<div style="padding:7px 0;border-bottom:2px solid #4488ff;margin-bottom:4px;"><b>🛡️ Explox (Home)</b><br><span style="font-size:11px;color:#66ff88;">✅ UNCONQUERED — the other countries keep sending armies to try and take it (see 🚨 Invasion Attempt in World Events), but they can never actually succeed</span></div>`;
   document.getElementById('warRoomBody').innerHTML =
-    `<p style="text-align:center;color:#88ccff;margin-bottom:10px;">🌍 ${capturedCount} / ${WAR_TERRITORIES.length} territories captured for Explox!</p>` + rows;
+    `<p style="text-align:center;color:#88ccff;margin-bottom:10px;">🌍 ${capturedCount} / ${WAR_TERRITORIES.length} territories captured for Explox!</p>` + exploxRow + rows;
   document.getElementById('warRoomModal').style.display = 'flex';
 }
 function closeWarRoom() {
