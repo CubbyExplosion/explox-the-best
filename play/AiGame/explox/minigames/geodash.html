@@ -236,6 +236,34 @@ function awardSip(amount) {
   } catch(e) {}
 }
 
+// ── LIVE RACE (real, shared with other players who have this same level open) ──
+// This is a separate page from the main game (opened via a plain link), so there's
+// no shared JS state - identity/server address come from the SAME localStorage the
+// main game already writes, which is all that's needed since they're same-origin.
+const RACE_USER   = localStorage.getItem('explox_current_user') || '';
+const RACE_ONLINE = localStorage.getItem('explox_mode') === 'online';
+const RACE_SERVER = localStorage.getItem('explox_server_url') || '';
+let ghosts = {}; // name -> {level, progress, finished}
+let _lastRaceSync = 0;
+async function raceFetch(url, opts) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 3500);
+  try { return await fetch(url, Object.assign({}, opts, { signal: ctrl.signal })); }
+  finally { clearTimeout(t); }
+}
+function syncRace() {
+  if(!RACE_ONLINE || !RACE_USER || !RACE_SERVER) return;
+  const progress = levelLength ? Math.min(camX / levelLength, 1) : 0;
+  raceFetch(RACE_SERVER + '/api/minigame', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ name: RACE_USER, game:'geodash', data:{ level: currentLevel, progress, finished: !running } })
+  }).catch(()=>{});
+  raceFetch(RACE_SERVER + '/api/minigame?game=geodash&exclude=' + encodeURIComponent(RACE_USER))
+    .then(r => r.ok ? r.json() : null)
+    .then(list => { if(list) { const g = {}; list.forEach(e => g[e.name] = e.data); ghosts = g; } })
+    .catch(()=>{});
+}
+
 // ── START / STOP ──────────────────────────────────────────────────────────────
 function showStart() {
   document.getElementById('startScreen').style.display = 'block';
@@ -457,6 +485,7 @@ function loop(t=0) {
   // win check
   if(camX >= levelLength) { win(); return; }
 
+  if(Date.now() - _lastRaceSync > 800) { _lastRaceSync = Date.now(); syncRace(); }
   draw(lvl, curSpeed);
   animId = requestAnimationFrame(loop);
 }
@@ -674,6 +703,22 @@ function draw(lvl, speed) {
     }
   }
 
+  // ghost cubes — real other players racing this same level right now, shown at
+  // their real progress relative to mine (ahead/behind), not just decoration
+  Object.keys(ghosts).forEach(name => {
+    const g = ghosts[name];
+    if(!g || g.level !== currentLevel || g.finished) return;
+    const theirCamX = g.progress * levelLength;
+    const gx = CUBE_X + (theirCamX - camX);
+    if(gx < -CUBE_W || gx > W + CUBE_W) return;
+    ctx.globalAlpha = 0.45;
+    ctx.fillStyle = '#8888ff';
+    ctx.beginPath(); ctx.roundRect(gx, GND - CUBE_H, CUBE_W, CUBE_H, 6); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#cfcfff'; ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center';
+    ctx.fillText(name, gx + CUBE_W/2, GND - CUBE_H - 8);
+  });
+
   // cube trail
   for(let i=0; i<trailPts.length; i++) {
     const p = trailPts[i];
@@ -721,6 +766,7 @@ function draw(lvl, speed) {
 // ── WIN / LOSE ────────────────────────────────────────────────────────────────
 function win() {
   running = false;
+  syncRace();
   const sip = LEVELS[currentLevel].sip;
   awardSip(sip);
   document.getElementById('sipEarned').textContent = '+' + sip + ' S.I.P.';
@@ -731,6 +777,7 @@ function win() {
 
 function die(cause) {
   running = false;
+  syncRace();
   spawnDeathParticles(CUBE_X + CUBE_W/2, cubeY + CUBE_H/2);
   draw(LEVELS[currentLevel], curSpeed);
   document.getElementById('loseMsg').textContent = cause === 'block' ? 'Crashed into a block! Try again.' : 'Hit a spike! Try again.';

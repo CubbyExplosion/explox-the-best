@@ -212,6 +212,87 @@ let captureProgress=0, gameState='start', wave=1, level=1, waveTimer=0, nextWave
 const MAX_LEVELS=20;
 const CAPTURE_TIME=20;
 const TIER_NAMES=['The Grasslands','The Forest Keep','The Dark Citadel','The Final Fortress'];
+
+// ── CO-OP: a real friend fighting alongside you, if they also have this open ──
+// Same standalone-page pattern as geodash.html's live race — identity/server come
+// from the SAME localStorage the main game already writes (same-origin), and both
+// players just see each other's real position/HP/wave, each still fighting their
+// own independent enemies (no shared enemy state - that's real scope, not done here).
+const COOP_USER   = localStorage.getItem('explox_current_user') || '';
+const COOP_ONLINE = localStorage.getItem('explox_mode') === 'online';
+const COOP_SERVER = localStorage.getItem('explox_server_url') || '';
+let teammates = {}; // name -> {group, hbCv, hbCtx, hbM, targetX, targetY, targetZ}
+let _lastCombatSync = 0;
+async function coopFetch(url, opts) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 3500);
+  try { return await fetch(url, Object.assign({}, opts, { signal: ctrl.signal })); }
+  finally { clearTimeout(t); }
+}
+function buildTeammateGhost(name) {
+  const g = new THREE.Group();
+  const mat = (c) => new THREE.MeshLambertMaterial({ color:c });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.9,1.1,0.5), mat(0x4488ff)); body.position.y=1.2; g.add(body);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.6,0.6,0.6), mat(0xf5c89a)); head.position.y=2.05; g.add(head);
+  const legL = new THREE.Mesh(new THREE.BoxGeometry(0.35,0.9,0.35), mat(0x333344)); legL.position.set(-0.22,0.45,0); g.add(legL);
+  const legR = new THREE.Mesh(new THREE.BoxGeometry(0.35,0.9,0.35), mat(0x333344)); legR.position.set(0.22,0.45,0); g.add(legR);
+  g.traverse(o => { if(o.isMesh) o.material.transparent = true, o.material.opacity = 0.55; });
+
+  const hbCv = document.createElement('canvas'); hbCv.width=200; hbCv.height=56;
+  const hbCtx = hbCv.getContext('2d');
+  const hbTex = new THREE.CanvasTexture(hbCv);
+  const hbM = new THREE.Mesh(new THREE.PlaneGeometry(1.6,0.45), new THREE.MeshBasicMaterial({ map:hbTex, transparent:true, depthWrite:false }));
+  hbM.position.y = 2.9; g.add(hbM);
+
+  scene.add(g);
+  return { group:g, hbCv, hbCtx, hbTex, hbM, targetX:g.position.x, targetY:g.position.y, targetZ:g.position.z };
+}
+function updateTeammateHealthBar(tm, name, hp, waveNum) {
+  const c = tm.hbCtx;
+  c.clearRect(0,0,200,56);
+  c.fillStyle='rgba(0,0,0,0.55)'; c.fillRect(0,0,200,56);
+  c.fillStyle='#fff'; c.font='bold 16px Arial'; c.textAlign='center';
+  c.fillText(name + ' · Wave ' + waveNum, 100, 18);
+  c.fillStyle='#333'; c.fillRect(20,26,160,10);
+  c.fillStyle = hp>50?'#4CAF50':hp>20?'#ffb300':'#e53935';
+  c.fillRect(20,26,Math.max(0,160*(hp/100)),10);
+  tm.hbTex.needsUpdate = true;
+}
+function syncCombat() {
+  if(!COOP_ONLINE || !COOP_USER || !COOP_SERVER || !playerGroup) return;
+  coopFetch(COOP_SERVER + '/api/minigame', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ name: COOP_USER, game:'throne', data:{
+      x:playerGroup.position.x, y:playerGroup.position.y, z:playerGroup.position.z,
+      hp:playerHP, wave, level, active: gameState==='playing'
+    }})
+  }).catch(()=>{});
+  coopFetch(COOP_SERVER + '/api/minigame?game=throne&exclude=' + encodeURIComponent(COOP_USER))
+    .then(r => r.ok ? r.json() : null)
+    .then(list => {
+      if(!list) return;
+      const seen = new Set();
+      list.forEach(e => {
+        if(!e.data || !e.data.active) return;
+        seen.add(e.name);
+        let tm = teammates[e.name];
+        if(!tm) { tm = teammates[e.name] = buildTeammateGhost(e.name); }
+        tm.targetX = e.data.x; tm.targetY = e.data.y; tm.targetZ = e.data.z;
+        updateTeammateHealthBar(tm, e.name, e.data.hp, e.data.wave);
+      });
+      Object.keys(teammates).forEach(name => {
+        if(!seen.has(name)) { scene.remove(teammates[name].group); delete teammates[name]; }
+      });
+    }).catch(()=>{});
+}
+function updateTeammates(dt) {
+  Object.values(teammates).forEach(tm => {
+    tm.group.position.x += (tm.targetX - tm.group.position.x) * Math.min(1, dt*6);
+    tm.group.position.y += (tm.targetY - tm.group.position.y) * Math.min(1, dt*6);
+    tm.group.position.z += (tm.targetZ - tm.group.position.z) * Math.min(1, dt*6);
+    tm.hbM.lookAt(camera.position);
+  });
+}
 function levelTier(l){ return Math.min(Math.floor((l-1)/5),3); }
 const THRONE_POS=new THREE.Vector3(0,0.5,0);
 const THRONE_R=6;
@@ -674,6 +755,9 @@ function animate(){
   if(gameState!=='playing'){ renderer.render(scene,camera); return; }
   const dt=Math.min(clock.getDelta(),0.05);
   const t=clock.getElapsedTime();
+
+  if(Date.now() - _lastCombatSync > 1000) { _lastCombatSync = Date.now(); syncCombat(); }
+  updateTeammates(dt);
 
   swordCD=Math.max(0,swordCD-dt);
   blasterCD=Math.max(0,blasterCD-dt);

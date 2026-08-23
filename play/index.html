@@ -274,6 +274,7 @@
       <button onclick="cancelBankPasscode()" style="flex:1;padding:10px;background:none;border:1px solid #555;border-radius:8px;color:#aaa;cursor:pointer;font-size:13px;">Cancel</button>
       <button onclick="submitBankPasscode()" style="flex:1;padding:10px;background:#886600;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:13px;">Enter →</button>
     </div>
+    <button onclick="openMyOwnAccount()" style="width:100%;margin-top:8px;padding:9px;background:none;border:1px solid #FFD700;border-radius:8px;color:#FFD700;cursor:pointer;font-size:12px;">🔐 Use My Own Account</button>
   </div>
 </div>
 
@@ -304,7 +305,28 @@
     </div>
     <div id="bankMsg" style="font-size:12px;text-align:center;min-height:16px;margin-bottom:10px;"></div>
     <button onclick="openSafeModal()" style="width:100%;padding:10px;background:linear-gradient(90deg,#2a1a00,#3a2800);border:1px solid #886600;border-radius:8px;color:#FFD700;font-weight:bold;cursor:pointer;font-size:13px;margin-bottom:10px;">🔐 Open Safe</button>
+    <button onclick="closeBank();openStockMarket()" style="width:100%;padding:10px;background:linear-gradient(90deg,#0a1a2a,#0a2838);border:1px solid #2277aa;border-radius:8px;color:#4dd0ff;font-weight:bold;cursor:pointer;font-size:13px;margin-bottom:10px;">📈 Stock Market</button>
     <button onclick="closeBank()" style="width:100%;padding:9px;background:none;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">✖ Leave Bank</button>
+  </div>
+</div>
+
+<!-- SCHOOL MODAL -->
+<div id="schoolModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#1a1400,#241d00);border:2px solid #cc9900;border-radius:16px;padding:26px;width:320px;text-align:center;">
+    <div style="font-size:38px;margin-bottom:6px;">🏫</div>
+    <h2 style="color:#FFD700;font-size:18px;letter-spacing:3px;margin-bottom:16px;">SCHOOL</h2>
+    <div id="schoolBox" style="text-align:left;margin-bottom:16px;"></div>
+    <button onclick="closeSchool()" style="width:100%;padding:9px;background:none;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">✖ Leave School</button>
+  </div>
+</div>
+
+<!-- STOCK MARKET MODAL -->
+<div id="stockMarketModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#04121c,#08202e);border:2px solid #2277aa;border-radius:16px;padding:26px;width:340px;max-height:80vh;overflow-y:auto;">
+    <h2 style="color:#4dd0ff;text-align:center;letter-spacing:3px;margin-bottom:4px;font-size:19px;">📈 STOCK MARKET</h2>
+    <p style="color:#888;text-align:center;font-size:11px;letter-spacing:1px;margin-bottom:16px;">REAL-TIME · SAME FOR EVERYONE ONLINE</p>
+    <div id="stockMarketList" style="margin-bottom:12px;"></div>
+    <button onclick="closeStockMarket()" style="width:100%;padding:9px;background:none;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">✖ Leave Market</button>
   </div>
 </div>
 
@@ -743,6 +765,11 @@
   </div>
   <div id="ePrompt"></div>
   <div id="notification"></div>
+  <div id="duelChallengeBanner" style="display:none;position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:120;background:linear-gradient(135deg,#2a0a0a,#3a1010);border:2px solid #e94560;border-radius:12px;padding:12px 18px;align-items:center;gap:14px;box-shadow:0 4px 20px rgba(0,0,0,0.6);">
+    <span id="duelChallengeText" style="color:#fff;font-weight:bold;font-size:14px;"></span>
+    <button onclick="acceptDuelChallenge()" style="padding:7px 14px;background:#2a7a2a;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:12px;">✅ Accept</button>
+    <button onclick="declineDuelChallenge()" style="padding:7px 14px;background:#5a1a1a;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:12px;">❌ Decline</button>
+  </div>
   <!-- NAV COMPASS HUD -->
   <div id="navHud" style="display:none;position:fixed;bottom:100px;left:50%;transform:translateX(-50%);z-index:30;pointer-events:none;text-align:center;">
     <div style="background:rgba(0,0,0,0.75);border:2px solid #00ffff;border-radius:14px;padding:8px 18px;display:inline-block;">

@@ -472,7 +472,9 @@ function saveCurrentUser() {
     activeAddOns: activeAddOns,
     playTimeSeconds: playTimeSeconds, lastGrowthStageId: lastGrowthStageId, eliteCoins: eliteCoins,
     familyKidAdopted: familyKidAdopted, familyKidId: familyKidId, familyKidName: familyKidName, familyKidPlayTime: familyKidPlayTime,
-    unpaidBills: unpaidBills, lastBillCheck: lastBillCheck, hasSeenGuide: hasSeenGuide
+    familyKidInSchool: familyKidInSchool, familyKidSmarts: familyKidSmarts, familyKidLastStageId: familyKidLastStageId,
+    unpaidBills: unpaidBills, lastBillCheck: lastBillCheck, hasSeenGuide: hasSeenGuide,
+    myStocks: myStocks
   };
   localStorage.setItem('explox_user_' + currentUser, JSON.stringify(data));
   localStorage.setItem('explox_current_user', currentUser);
@@ -825,12 +827,16 @@ async function doLogin(name) {
   familyKidId   = d.familyKidId || null;
   familyKidName    = d.familyKidName || 'Kiddo';
   familyKidPlayTime = d.familyKidPlayTime !== undefined ? d.familyKidPlayTime : 0;
+  familyKidInSchool = !!d.familyKidInSchool;
+  familyKidSmarts   = d.familyKidSmarts !== undefined ? d.familyKidSmarts : 0;
+  familyKidLastStageId = d.familyKidLastStageId || growthStageFor(familyKidPlayTime).id;
   unpaidBills   = Array.isArray(d.unpaidBills) ? d.unpaidBills : [];
   lastBillCheck = d.lastBillCheck !== undefined ? d.lastBillCheck : playTimeSeconds;
   // Same brand-new-vs-existing-account distinction as playTimeSeconds above: a genuinely new
   // account has never seen the guide (show it); an existing account predating this feature
   // shouldn't suddenly get nagged with it on their next login.
   hasSeenGuide = d.hasSeenGuide !== undefined ? !!d.hasSeenGuide : !isBrandNewAccount;
+  myStocks = d.myStocks && typeof d.myStocks === 'object' ? d.myStocks : {};
   shopOpen = false; // never resume a shop as open across a reload — you have to reopen it yourself
   document.getElementById('skinColor').value  = playerColors.skin;
   document.getElementById('shirtColor').value = playerColors.shirt;
@@ -920,6 +926,13 @@ function submitBankPasscode() {
     document.getElementById('bankPcInput').value = '';
     document.getElementById('bankPcInput').focus();
   }
+}
+// Skips the shared City Bank passcode entirely and goes straight to the player's
+// OWN account — the existing Safe feature (its own balance, its own combo the
+// player sets themselves, nothing to do with the shared BANK_PASSCODE).
+function openMyOwnAccount() {
+  document.getElementById('bankPasscodeModal').style.display = 'none';
+  openSafeModal();
 }
 function cancelBankPasscode() {
   document.getElementById('bankPasscodeModal').style.display = 'none';
@@ -1078,6 +1091,80 @@ function closeBank() {
   if(renderer && renderer.domElement) renderer.domElement.requestPointerLock();
 }
 
+// ─── STOCK MARKET — real shared prices, same for every online player ────────
+const STOCK_DEFS = [
+  { symbol:'CUBY', name:'Cubby Corp',        emoji:'🏢' },
+  { symbol:'EXPL', name:'Explox Industries', emoji:'🏭' },
+  { symbol:'ROBO', name:'RoboWorks',         emoji:'🤖' },
+  { symbol:'SNAK', name:'Snack Co',          emoji:'🍿' },
+  { symbol:'CARZ', name:'CarZone',           emoji:'🚗' },
+  { symbol:'GAME', name:'GameSphere',        emoji:'🎮' },
+];
+let stockPrices = {}; // symbol -> price, synced from the server - same for everyone online
+let myStocks = {};    // symbol -> shares owned, personal, persisted like everything else
+let _lastStockSync = -999;
+const STOCK_SYNC_INTERVAL = 5;
+async function syncStocks() {
+  if(serverMode !== 'online') return;
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/stocks', {}, 4000);
+    if(r.ok) { stockPrices = await r.json(); refreshStockMarketUI(); }
+  } catch(e) { /* next sync will catch up */ }
+}
+
+function openStockMarket() {
+  document.getElementById('stockMarketModal').style.display = 'flex';
+  refreshStockMarketUI();
+}
+function closeStockMarket() {
+  document.getElementById('stockMarketModal').style.display = 'none';
+}
+function refreshStockMarketUI() {
+  const list = document.getElementById('stockMarketList');
+  if(!list || document.getElementById('stockMarketModal').style.display === 'none') return;
+  if(serverMode !== 'online') {
+    list.innerHTML = '<div style="color:#888;text-align:center;padding:20px;font-size:12px;">📡 The Stock Market needs you to be ONLINE.<br>Go back to the account screen and click ONLINE first.</div>';
+    return;
+  }
+  if(Object.keys(stockPrices).length === 0) {
+    list.innerHTML = '<div style="color:#888;text-align:center;padding:20px;font-size:12px;">Loading real-time prices...</div>';
+    return;
+  }
+  list.innerHTML = STOCK_DEFS.map(def => {
+    const price = stockPrices[def.symbol] || 0;
+    const owned = myStocks[def.symbol] || 0;
+    return `<div class="shopItem">
+      <div class="siName">${def.emoji} ${def.name} <span style="color:#888;">(${def.symbol})</span></div>
+      <div class="siCost">💰 ${price.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} S.I.P./share${owned ? ` — you own ${owned}` : ''}</div>
+      <div style="display:flex;gap:6px;">
+        <button class="shopBtn" onclick="buyStockShares('${def.symbol}')">Buy 1</button>
+        ${owned > 0 ? `<button class="shopBtn" onclick="sellStockShares('${def.symbol}')" style="background:#4a1a1a;">Sell 1</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+function buyStockShares(symbol) {
+  const price = stockPrices[symbol];
+  if(!price) { showNotif('❌ Price not available yet — try again in a moment.'); return; }
+  if(sipDollars < price) { sfx.nope(); showNotif('❌ Not enough S.I.P.!'); return; }
+  sipDollars -= price;
+  myStocks[symbol] = (myStocks[symbol] || 0) + 1;
+  updateSIP();
+  sfx.buy();
+  refreshStockMarketUI();
+}
+function sellStockShares(symbol) {
+  const owned = myStocks[symbol] || 0;
+  if(owned <= 0) return;
+  const price = stockPrices[symbol] || 0;
+  sipDollars += price;
+  myStocks[symbol] = owned - 1;
+  if(myStocks[symbol] <= 0) delete myStocks[symbol];
+  updateSIP();
+  sfx.coin();
+  refreshStockMarketUI();
+}
+
 // Bank interval started in startGame() so it doesn't fire during login/customization
 function bankDeposit() {
   const amt = parseInt(document.getElementById('bankAmtInput').value);
@@ -1169,6 +1256,9 @@ let familyKidName      = 'Kiddo';        // persisted
 let familyKidPlayTime  = 0;              // persisted — own growth clock, starts younger than the player's
 let familyKidGroup     = null;           // THREE.Group in scene, same lag-behind-follow pattern as buddyGroup
 let familyKidMeshes    = null;           // tagged parts, mirrors buddyMeshes
+let familyKidInSchool  = false;          // persisted — enrolled while 'kid'/'teen' stage, grows up a bit faster + earns Smarts
+let familyKidSmarts    = 0;              // persisted — accumulated while in school, pays out a S.I.P. bonus on reaching 'adult'
+let familyKidLastStageId = 'baby';       // persisted — so a fresh login doesn't re-fire the growth/graduation notif
 
 // ─── BILLS — real recurring expenses for what you own (house, land, cars), paid with a real
 // stack of cash-bill denominations instead of an abstract number disappearing. ──────────────
@@ -5651,11 +5741,157 @@ function damagePlayer(amount, sourceLabel) {
   if(playerHealth <= 0) knockoutPlayer();
 }
 function knockoutPlayer() {
+  if(dueling) {
+    const opponent = dueling;
+    dueling = null;
+    sendMail(opponent, 'duel_end', { result: 'you_won' });
+    showNotif(`😵 You lost the duel to ${opponent}!`);
+    playerHealth = playerMaxHealth;
+    updateHealthBar();
+    return; // a friendly duel loss doesn't send you home
+  }
   showNotif('😵 Knocked out! Waking up at home...');
   playerGroup.position.set(HOUSE_DOOR.x, 0, HOUSE_DOOR.z + 3);
   yaw = 0;
   playerHealth = playerMaxHealth;
   updateHealthBar();
+}
+
+// ─── FIGHT ARENA — a dedicated place to duel; the duel mechanic itself works
+// anywhere in the city (see tryDuelInteract() below), this is just a real, visible
+// landmark built for it so friends have a place to actually meet up and fight ────
+const ARENA_CENTER = { x:250, z:-200 };
+function buildFightArena() {
+  const { x:cx, z:cz } = ARENA_CENTER;
+  const r = 16;
+  box(r*2+2, 0.3, r*2+2, 0x4a3a2a, cx, 0.1, cz); // sand floor
+  const posts = 16;
+  for (let i = 0; i < posts; i++) {
+    const a = (i / posts) * Math.PI * 2;
+    box(0.5, 1.6, 0.5, 0x8a5a3a, cx + Math.cos(a)*r, 0.8, cz + Math.sin(a)*r);
+  }
+  buildLogoSign('FIGHT ARENA', '⚔️', '#5a1a1a', '#ffcc44', cx, 6, cz - r - 1);
+  addCol(CITY_COLS, cx, cz - r - 1.5, 4, 0.6); // sign base, so it isn't walk-through
+}
+
+// ─── PVP DUELS ────────────────────────────────────────────────────────────────
+// Reuses the exact same damagePlayer()/getWeaponDamage()/HP system that already
+// exists for robots/NPCs — a duel just redirects hits at a real other player
+// instead, relayed through the mailbox since the two clients aren't connected
+// directly to each other.
+let dueling = null;            // opponent name, while a duel is actively happening
+let duelChallengeFrom = null;  // someone challenged ME, awaiting my accept/decline
+let duelChallengeSentTo = null; // I challenged them, awaiting their response
+let _lastMailboxSync = -999;
+const MAILBOX_SYNC_INTERVAL = 1.5;
+
+function sendMail(to, type, data) {
+  if(serverMode !== 'online') return;
+  fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/mailbox', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ to, from: currentUser, type, data: data || {} })
+  }, 4000).catch(()=>{});
+}
+
+async function syncMailbox() {
+  if(!currentUser || serverMode !== 'online') return;
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/mailbox?for=' + encodeURIComponent(currentUser), {}, 4000);
+    if(!r.ok) return;
+    const msgs = await r.json();
+    msgs.forEach(handleMailboxMessage);
+  } catch(e) { /* next sync will catch up */ }
+}
+
+function handleMailboxMessage(msg) {
+  if(msg.type === 'duel_challenge') {
+    duelChallengeFrom = msg.from;
+    updateDuelChallengeBanner();
+  } else if(msg.type === 'duel_accept') {
+    if(duelChallengeSentTo === msg.from) {
+      dueling = msg.from;
+      duelChallengeSentTo = null;
+      showNotif(`⚔️ ${msg.from} accepted! Press E near them to fight!`);
+    }
+  } else if(msg.type === 'duel_decline') {
+    if(duelChallengeSentTo === msg.from) {
+      duelChallengeSentTo = null;
+      showNotif(`${msg.from} declined the duel.`);
+    }
+  } else if(msg.type === 'duel_hit') {
+    if(dueling === msg.from) damagePlayer(msg.data.damage, msg.from + ' (duel)');
+  } else if(msg.type === 'duel_end') {
+    if(dueling === msg.from) {
+      dueling = null;
+      if(msg.data && msg.data.result === 'you_won') {
+        sipDollars += 50; updateSIP();
+        showNotif(`🏆 You won the duel against ${msg.from}! +50 S.I.P.`);
+      } else {
+        showNotif(`Duel with ${msg.from} ended.`);
+      }
+    }
+  }
+}
+
+function updateDuelChallengeBanner() {
+  const el = document.getElementById('duelChallengeBanner');
+  if(!el) return;
+  if(duelChallengeFrom) {
+    document.getElementById('duelChallengeText').textContent = `⚔️ ${duelChallengeFrom} wants to duel!`;
+    el.style.display = 'flex';
+  } else {
+    el.style.display = 'none';
+  }
+}
+function acceptDuelChallenge() {
+  if(!duelChallengeFrom) return;
+  dueling = duelChallengeFrom;
+  sendMail(duelChallengeFrom, 'duel_accept');
+  showNotif(`⚔️ Duel with ${duelChallengeFrom} begins! Press E near them to fight!`);
+  duelChallengeFrom = null;
+  updateDuelChallengeBanner();
+}
+function declineDuelChallenge() {
+  if(!duelChallengeFrom) return;
+  sendMail(duelChallengeFrom, 'duel_decline');
+  duelChallengeFrom = null;
+  updateDuelChallengeBanner();
+}
+
+function nearestRemotePlayer(maxDist) {
+  let closest = null, closestDist = maxDist;
+  Object.keys(remotePlayers).forEach(name => {
+    const rp = remotePlayers[name];
+    const d = Math.hypot(playerGroup.position.x - rp.mesh.position.x, playerGroup.position.z - rp.mesh.position.z);
+    if(d < closestDist) { closestDist = d; closest = name; }
+  });
+  return closest;
+}
+// Called from handleInteract() (E key) - returns true if it handled the press,
+// so the normal contextual-E logic (cars, NPCs, zones...) knows to stop there.
+function tryDuelInteract() {
+  if(dueling) {
+    const rp = remotePlayers[dueling];
+    if(!rp) { showNotif(`${dueling} is no longer nearby.`); return true; }
+    const d = Math.hypot(playerGroup.position.x - rp.mesh.position.x, playerGroup.position.z - rp.mesh.position.z);
+    if(d > 6) return false; // not close enough to swing - let E fall through to other actions
+    const dmg = getWeaponDamage();
+    triggerSwing();
+    sfx.hit();
+    sendMail(dueling, 'duel_hit', { damage: dmg });
+    showNotif(`⚔️ Hit ${dueling} for ${dmg}!`);
+    return true;
+  }
+  if(!duelChallengeSentTo) {
+    const nearby = nearestRemotePlayer(6);
+    if(nearby) {
+      duelChallengeSentTo = nearby;
+      sendMail(nearby, 'duel_challenge');
+      showNotif(`⚔️ Challenge sent to ${nearby}...`);
+      return true;
+    }
+  }
+  return false;
 }
 // Slow passive regen while below max — same tick* pattern as tickJob/tickCook/tickWanted.
 function tickHealth(dt) {
@@ -6196,9 +6432,25 @@ function tickGrowth(dt) {
   if (hud) hud.textContent = `${stage.emoji} ${stage.label} Size`;
 
   if (familyKidAdopted && familyKidGroup) {
-    familyKidPlayTime += dt;
+    const schoolAge = ['kid','teen'].includes(growthStageFor(familyKidPlayTime).id);
+    const inSchoolNow = familyKidInSchool && schoolAge;
+    familyKidPlayTime += dt * (inSchoolNow ? 1.2 : 1); // school = grows up a bit faster
+    if (inSchoolNow) familyKidSmarts += dt;
     const cStage = growthStageFor(familyKidPlayTime);
     familyKidGroup.scale.setScalar(cStage.scale * 0.75); // a kid is always a bit smaller than the player at the same stage
+    if (cStage.id !== familyKidLastStageId) {
+      if (cStage.id === 'adult' && familyKidSmarts > 0) {
+        const payout = Math.round(familyKidSmarts * 5);
+        sipDollars += payout;
+        updateSIP();
+        showNotif(`🎓 ${familyKidName} graduated and got a great job — they gave you ${payout.toLocaleString()} S.I.P. to say thanks!`);
+        sfx.cheer && sfx.cheer();
+      } else {
+        showNotif(`${cStage.emoji} ${familyKidName} grew into a ${cStage.label}!`);
+      }
+      familyKidLastStageId = cStage.id;
+      saveCurrentUser();
+    }
   }
 }
 
@@ -6225,6 +6477,45 @@ function renameChild() {
   familyKidName = val;
   showNotif(`👨‍👩‍👧 Your child is now named ${familyKidName}!`);
   saveCurrentUser();
+}
+
+// ─── SCHOOL — enroll your adopted child, grows a little faster + earns a S.I.P. bonus when they graduate ─
+function openSchool() {
+  if(document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('schoolModal').style.display = 'flex';
+  refreshSchoolUI();
+}
+function closeSchool() {
+  document.getElementById('schoolModal').style.display = 'none';
+  if(renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function refreshSchoolUI() {
+  const box = document.getElementById('schoolBox');
+  if(!familyKidAdopted) {
+    box.innerHTML = `<div style="color:#aaa;font-size:13px;">You don't have a child yet — adopt one from the Add-Ons tab's FAMILY section first!</div>`;
+    return;
+  }
+  const stage = growthStageFor(familyKidPlayTime);
+  if(stage.id === 'baby') {
+    box.innerHTML = `<div style="color:#aaa;font-size:13px;">${stage.emoji} ${familyKidName} is still a baby — too young for school. Come back once they've grown into a Kid!</div>`;
+    return;
+  }
+  if(stage.id === 'adult') {
+    box.innerHTML = `<div style="color:#aaa;font-size:13px;">🎓 ${familyKidName} already graduated and is all grown up — nothing left to learn here!</div>`;
+    return;
+  }
+  box.innerHTML = `
+    <div style="color:#fff;font-size:14px;margin-bottom:6px;">${stage.emoji} ${familyKidName} — ${stage.label}</div>
+    <div style="color:#7fc8ff;font-size:12px;margin-bottom:12px;">📚 Smarts earned so far: ${Math.floor(familyKidSmarts).toLocaleString()}</div>
+    <div style="color:#888;font-size:11px;margin-bottom:12px;">Enrolled = grows up 20% faster and earns Smarts — cash out as a bonus when they become an Adult.</div>
+    <button class="shopBtn" onclick="toggleKidSchool()" style="width:100%;">${familyKidInSchool ? '🚪 Take Out of School' : '🏫 Enroll in School'}</button>`;
+}
+function toggleKidSchool() {
+  familyKidInSchool = !familyKidInSchool;
+  showNotif(familyKidInSchool ? `🏫 ${familyKidName} is enrolled in school!` : `${familyKidName} is out of school for now.`);
+  saveCurrentUser();
+  refreshSchoolUI();
 }
 // A small boxy person (NOT the pet/blob shapes Buddy uses) so it visibly reads as a family
 // member, built at whatever the current growth stage's scale is — buildChild() itself doesn't
@@ -7579,7 +7870,7 @@ function updateStoreSign(){
   if(storeSignMesh){ scene.remove(storeSignMesh); storeSignMesh=null; }
   const def = STORE_CATALOG.find(s => s.id === ownedStore.id);
   const sz = STORE_SIZES[def.size];
-  const {x,z} = STORE_PLOT;
+  const {x,z} = ownedStore.location || STORE_PLOT; // older saves from before free placement fall back to the old fixed spot
   const cv = document.createElement('canvas'); cv.width=200; cv.height=80;
   const c = cv.getContext('2d');
   c.fillStyle = shopOpen ? '#2ecc40' : '#ff4136';
@@ -7702,14 +7993,82 @@ function buyStore(idx) {
   // this must not be able to fail AFTER the player has already been charged.
   let customName = def.name;
   try { customName = prompt('Name your store:', def.name) || def.name; } catch(e) { /* prompt unsupported here — just use the default name */ }
+  closeStoreManager();
+  placingStore = { def, customName };
+  showNotif('🏗️ Walk to where you want your shop, then press P to place it (Esc to cancel)');
+}
+
+// ─── STORE PLACEMENT — pick any open ground in the city, not one fixed spot ─
+let placingStore = null;   // {def, customName} while the player is choosing a spot
+let placementMarker = null; // ground ring, green = valid spot, red = blocked
+let remoteShops = {};       // ownerName -> {storeId, customName, x, z} synced from the server (used for overlap checks now; rendering other players' shops is a later step)
+
+function isStoreSpotValid(x, z) {
+  if(isBlocked(x, z, 12)) return false; // overlaps an existing building/road collider
+  if(Math.hypot(x - LAND_CENTER.x, z - LAND_CENTER.z) < 220) return false; // too close to Sunset Plains
+  for(const name in remoteShops) {
+    if(name === currentUser) continue;
+    const s = remoteShops[name];
+    if(Math.hypot(x - s.x, z - s.z) < 24) return false; // overlaps another player's shop
+  }
+  return true;
+}
+
+function updatePlacementMarker() {
+  if(!placingStore || !playerGroup) return;
+  const x = playerGroup.position.x, z = playerGroup.position.z;
+  const valid = isStoreSpotValid(x, z);
+  if(!placementMarker) {
+    const mat = new THREE.MeshBasicMaterial({ color:0x00ff00, side:THREE.DoubleSide, transparent:true, opacity:0.8 });
+    placementMarker = new THREE.Mesh(new THREE.RingGeometry(3, 3.6, 24), mat);
+    placementMarker.rotation.x = -Math.PI/2;
+    scene.add(placementMarker);
+  }
+  placementMarker.position.set(x, 0.05, z);
+  placementMarker.material.color.setHex(valid ? 0x00ff00 : 0xff2222);
+}
+function clearPlacementMarker() {
+  if(placementMarker) { scene.remove(placementMarker); placementMarker = null; }
+}
+function cancelStorePlacement() {
+  if(!placingStore) return;
+  placingStore = null;
+  clearPlacementMarker();
+  showNotif('Placement cancelled.');
+}
+function confirmStorePlacement() {
+  if(!placingStore || !playerGroup) return;
+  const x = playerGroup.position.x, z = playerGroup.position.z;
+  if(!isStoreSpotValid(x, z)) { sfx.nope(); showNotif('❌ Too close to something else — try a different spot!'); return; }
+  const { def, customName } = placingStore;
   sipDollars -= def.price;
   updateSIP();
-  ownedStore = { id: def.id, customName };
+  ownedStore = { id: def.id, customName, location: { x, z } };
+  placingStore = null;
+  clearPlacementMarker();
   saveCurrentUser();
+  syncOwnStoreLocation();
   sfx.buy();
-  showNotif(`🏪 ${customName} is open for business! Head east of The Diner to see it.`);
+  showNotif(`🏪 ${customName} is open for business right here!`);
   buildOwnedStore();
   refreshStoreManagerUI();
+}
+
+function syncOwnStoreLocation() {
+  if(serverMode !== 'online' || !ownedStore || !ownedStore.location) return;
+  fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/shops', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ owner: currentUser, storeId: ownedStore.id, customName: ownedStore.customName, x: ownedStore.location.x, z: ownedStore.location.z })
+  }, 4000).catch(()=>{});
+}
+let _lastShopSync = -999;
+const SHOP_SYNC_INTERVAL = 3;
+async function syncShops() {
+  if(serverMode !== 'online') return;
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/shops', {}, 4000);
+    if(r.ok) remoteShops = await r.json();
+  } catch(e) { /* next sync will catch up */ }
 }
 
 // ─── COMPUTER SHOP & SIB BROWSER ─────────────────────────────────────────────
@@ -9403,6 +9762,35 @@ function setLandOwner(lotId, name) {
   const m = getLandOwners();
   if (name) m[lotId] = name; else delete m[lotId];
   localStorage.setItem('explox_land_owners', JSON.stringify(m));
+  if(serverMode === 'online') {
+    // Fire-and-forget, same pattern as saveCurrentUser() - the local write above
+    // already made this instant for the buyer; this just tells everyone else.
+    fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/land', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ lotId, owner: name || null })
+    }, 4000).catch(()=>{});
+  }
+}
+
+// Pulls the server's land registry into the SAME localStorage key getLandOwners()
+// already reads, so every existing reader (buildLandPlot, enterLandPlot, etc.)
+// sees fresh cross-player ownership with zero changes of their own.
+let _lastLandSync = -999;
+const LAND_SYNC_INTERVAL = 3; // seconds - land changes far less often than positions
+async function syncLandOwners() {
+  if(serverMode !== 'online') return;
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/land', {}, 4000);
+    if(!r.ok) return;
+    const serverOwners = await r.json();
+    localStorage.setItem('explox_land_owners', JSON.stringify(serverOwners));
+    // Always rebuild rather than only-when-changed - cheap for 10 small plots, and
+    // avoids a real bug where the very first sync can race ahead of buildSunsetPlains()
+    // finishing, skip the rebuild since meshes don't exist yet, then never retry
+    // because a "did it change" diff no longer sees a difference on later syncs.
+    if(typeof LAND_PLOTS !== 'undefined' && LAND_PLOT_MESHES.length) {
+      LAND_PLOTS.forEach((plot, idx) => buildLandPlot(idx));
+    }
+  } catch(e) { /* next sync will catch up */ }
 }
 function patchUserData(name, patchFn) {
   const data = getUserData(name);
@@ -10746,6 +11134,7 @@ const CITY_ZONES = [
   { x:34,  z:3,   r:5,  label:'🕴️ Talk to Shady Dealer',                       action: toggleAlignment,   isDealerZone:true },
   { x:-80, z:-71, r:5,  label:'⬛ ???',                                         action: openBlackMarket,   isBlackMarket:true },
   { x:-30, z:38,  r:7,  label:'🏦 Enter City Bank',                             action: openBankPasscode },
+  { x:70,  z:60,  r:12, label:'🏫 Enter School',                                action: openSchool },
   { x:50,  z:-72, r:8,  label:'🎬 Movie Theater – Pick a Movie!', action: openCinema },
   { x:0,   z:50,  r:13, label:'🚇 S.I.T.S. Transit Hub – Ride anywhere!', action: openSITS },
   { x:-15, z:4,   r:8,  label:'🏨 City Hotel – Check In!',               action: openHotel },
@@ -10811,6 +11200,8 @@ function handleInteract() {
     if(carriedBox) { if(tryPlaceBox()) return; }
     else { if(tryPickUpBox()) return; }
   }
+  // PvP duel: swing at your opponent if one's active, else challenge whoever's nearby
+  if(!inHouse && !inMall && !inArcade && !inStore && serverMode === 'online' && tryDuelInteract()) return;
   // Bad guy with weapon: NPC attack takes priority over zone actions
   if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade) {
     let closest = null, closestDist = 3.5;
@@ -10937,6 +11328,7 @@ const LOC_ZONES = [
   {name:'Whispering Woods',x:WOODS_CENTER.x, z:WOODS_CENTER.z, r:30},
   {name:'Sunset Plains',   x:LAND_CENTER.x,  z:LAND_CENTER.z,  r:380},
   {name:'The Scrapyard',   x:SCRAPYARD_CENTER.x, z:SCRAPYARD_CENTER.z, r:30},
+  {name:'Fight Arena',     x:ARENA_CENTER.x, z:ARENA_CENTER.z, r:18},
   {name:'The Dump',        x:DUMP_CENTER.x, z:DUMP_CENTER.z, r:25},
   {name:'City Hall',       x:0,   z:-35, r:22},
   {name:'Hospital',        x:-40, z:60,  r:22},
@@ -11075,6 +11467,7 @@ function _startGameInner() {
   _dbg('buildCountryHotelInterior', buildCountryHotelInterior);
   _dbg('buildAirportLoungeInterior', buildAirportLoungeInterior);
   _dbg('buildScrapyard', buildScrapyard);
+  _dbg('buildFightArena', buildFightArena);
   _dbg('buildGlobalSpawners', buildGlobalSpawners);
   _dbg('buildDump', buildDump);
   _dbg('buildMallShopWing', buildMallShopWing);
@@ -14233,7 +14626,7 @@ function buildOwnedStore(){
   if(!ownedStore) return;
   const def = STORE_CATALOG.find(s => s.id === ownedStore.id);
   const sz = STORE_SIZES[def.size];
-  const {x,z} = STORE_PLOT;
+  const {x,z} = ownedStore.location || STORE_PLOT; // older saves from before free placement fall back to the old fixed spot
   const totalH = sz.fh * def.floors;
 
   const g = new THREE.Group();
@@ -14616,6 +15009,8 @@ function setupControls(){
     if(e.code==='KeyT'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) toggleSAI(); }
     if(e.code==='KeyG'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) toggleAddOnsPanel(); }
     if(e.code==='KeyM'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))){ const p=document.getElementById('musicPanel'); if(p.style.display==='block') closeMusicPanel(); else openMusicPanel(); } }
+    if(e.code==='KeyP' && placingStore) confirmStorePlacement();
+    if(e.code==='Escape' && placingStore) cancelStorePlacement();
     // Shift = run faster; Space = jump (ignore Space while typing in a text field)
     if(e.code==='ShiftLeft'||e.code==='ShiftRight') moveState.run=true;
     if(e.code==='Space'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))){ e.preventDefault(); tryCityJump(); } }
@@ -14734,6 +15129,11 @@ function animate(){
 
   if(t - _lastPresenceSync > PRESENCE_SYNC_INTERVAL) { _lastPresenceSync = t; syncPresence(t); }
   updateRemotePlayers(dt);
+  if(t - _lastLandSync > LAND_SYNC_INTERVAL) { _lastLandSync = t; syncLandOwners(); }
+  if(t - _lastShopSync > SHOP_SYNC_INTERVAL) { _lastShopSync = t; syncShops(); }
+  if(t - _lastStockSync > STOCK_SYNC_INTERVAL) { _lastStockSync = t; syncStocks(); }
+  if(t - _lastMailboxSync > MAILBOX_SYNC_INTERVAL) { _lastMailboxSync = t; syncMailbox(); }
+  if(placingStore) updatePlacementMarker();
 
   // Movement with collision
   let moving=false;
