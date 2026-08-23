@@ -206,6 +206,7 @@ let camX = 0;
 let levelLength = 0;
 let curSpeed = 0;
 let gravityDir = 1; // 1 = normal (floor at bottom), -1 = flipped (floor at ceiling/top)
+let cubeAngle = 0, cubeAngleTarget = 0; // visual spin — eases toward cubeAngleTarget each frame
 
 const CUBE_X  = 120;   // cube stays at fixed X, world scrolls
 const CUBE_W  = 44;
@@ -296,6 +297,8 @@ function startGame(lvlIdx) {
   camX      = 0;
   curSpeed  = lvl.speed;
   gravityDir = 1;
+  cubeAngle = 0;
+  cubeAngleTarget = 0;
   levelLength = lvl.length;
   obstacles = lvl.obstacles.map(o => ({...o}));
   pickups   = lvl.pickups.map(o => ({...o}));
@@ -439,9 +442,13 @@ function loop(t=0) {
     if(p.x - camX <= CUBE_X) {
       p.triggered = true;
       if(p.kind === 'speed') curSpeed = p.toSpeed;
-      else if(p.kind === 'gravity') gravityDir = p.toGrav;
+      else if(p.kind === 'gravity') { gravityDir = p.toGrav; cubeAngleTarget += Math.PI; }
     }
   }
+
+  // ease the cube's visual spin toward its target — a real 180° rotation
+  // plays out over several frames instead of the flip just snapping instantly
+  cubeAngle += (cubeAngleTarget - cubeAngle) * 0.18;
 
   // trail
   trailPts.push({ x: CUBE_X, y: cubeY, a: 1 });
@@ -729,28 +736,34 @@ function draw(lvl, speed) {
   }
   ctx.globalAlpha = 1;
 
-  // cube — outline glows purple while gravity is flipped, as a clear signal
-  const cubeGrad = ctx.createLinearGradient(CUBE_X, cubeY, CUBE_X+CUBE_W, cubeY+CUBE_H);
+  // cube — actually spins 180° through a gravity flip (not just an outline
+  // glow), so the face reads upside-down once you're walking on the ceiling.
+  // Outline still glows purple while gravity is flipped, as a clear signal.
+  ctx.save();
+  ctx.translate(CUBE_X + CUBE_W/2, cubeY + CUBE_H/2);
+  ctx.rotate(cubeAngle);
+  const cubeGrad = ctx.createLinearGradient(-CUBE_W/2, -CUBE_H/2, CUBE_W/2, CUBE_H/2);
   cubeGrad.addColorStop(0, cubeColor);
   cubeGrad.addColorStop(1, '#fff');
   ctx.fillStyle = cubeGrad;
   ctx.strokeStyle = gravityDir === -1 ? '#b450ff' : '#fff';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.roundRect(CUBE_X, cubeY, CUBE_W, CUBE_H, 6);
+  ctx.roundRect(-CUBE_W/2, -CUBE_H/2, CUBE_W, CUBE_H, 6);
   ctx.fill();
   ctx.stroke();
 
   // cube face
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
   ctx.beginPath();
-  ctx.arc(CUBE_X+14, cubeY+16, 4, 0, Math.PI*2); ctx.fill();
+  ctx.arc(-8, -6, 4, 0, Math.PI*2); ctx.fill();
   ctx.beginPath();
-  ctx.arc(CUBE_X+30, cubeY+16, 4, 0, Math.PI*2); ctx.fill();
+  ctx.arc(8, -6, 4, 0, Math.PI*2); ctx.fill();
   ctx.strokeStyle = 'rgba(0,0,0,0.5)';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.arc(CUBE_X+22, cubeY+22, 6, 0.2, Math.PI-0.2); ctx.stroke();
+  ctx.arc(0, 0, 6, 0.2, Math.PI-0.2); ctx.stroke();
+  ctx.restore();
 
   // particles
   for(const p of particles) {
