@@ -14333,7 +14333,10 @@ function spawnWorldEventNpcs(ev) {
     const mesh = buildRobotMesh(nx, nz, look.color, look.shape);
     const col = addCol(CITY_COLS, nx, nz, 0.6, 0.6);
     const npc = { x: nx, z: nz, hp: params.npcHealth, maxHp: params.npcHealth, mesh, col, alive: true, zone: null };
-    const zone = { x: nx, z: nz, r: 2.8, label: `${ev.data.emoji} Fight ${ev.data.name}`, action: () => fightWorldEventNpc(npc, ev) };
+    // r:8 (not the classic robot zones' r:2.8) - a MOVING player target during a fast-paced
+    // event needs the same generous range item 184 already proved matters for PvP (looks
+    // close on screen but tighter than it feels once a character model's real width counts)
+    const zone = { x: nx, z: nz, r: 8, label: `${ev.data.emoji} Fight ${ev.data.name}`, action: () => fightWorldEventNpc(npc, ev) };
     npc.zone = zone;
     CITY_ZONES.push(zone);
     worldEventNpcs.push(npc);
