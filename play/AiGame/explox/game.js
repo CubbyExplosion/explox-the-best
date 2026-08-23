@@ -474,7 +474,7 @@ function saveCurrentUser() {
     familyKidAdopted: familyKidAdopted, familyKidId: familyKidId, familyKidName: familyKidName, familyKidPlayTime: familyKidPlayTime,
     familyKidInSchool: familyKidInSchool, familyKidSmarts: familyKidSmarts, familyKidLastStageId: familyKidLastStageId,
     unpaidBills: unpaidBills, lastBillCheck: lastBillCheck, hasSeenGuide: hasSeenGuide,
-    myStocks: myStocks
+    myStocks: myStocks, ffaKills: ffaKills
   };
   localStorage.setItem('explox_user_' + currentUser, JSON.stringify(data));
   localStorage.setItem('explox_current_user', currentUser);
@@ -837,6 +837,7 @@ async function doLogin(name) {
   // shouldn't suddenly get nagged with it on their next login.
   hasSeenGuide = d.hasSeenGuide !== undefined ? !!d.hasSeenGuide : !isBrandNewAccount;
   myStocks = d.myStocks && typeof d.myStocks === 'object' ? d.myStocks : {};
+  ffaKills = d.ffaKills !== undefined ? d.ffaKills : 0;
   shopOpen = false; // never resume a shop as open across a reload — you have to reopen it yourself
   document.getElementById('skinColor').value  = playerColors.skin;
   document.getElementById('shirtColor').value = playerColors.shirt;
@@ -5750,6 +5751,17 @@ function knockoutPlayer() {
     updateHealthBar();
     return; // a friendly duel loss doesn't send you home
   }
+  if(inArena) {
+    ffaAlive = false;
+    ffaRespawnAt = clock.getElapsedTime() + FFA_RESPAWN_SECONDS;
+    const attacker = lastFfaAttacker;
+    lastFfaAttacker = null;
+    if(attacker) sendMail(attacker, 'ffa_kill');
+    showNotif(`💀 Knocked out${attacker ? ' by '+attacker : ''}! Respawning in ${FFA_RESPAWN_SECONDS}s...`);
+    playerHealth = playerMaxHealth;
+    updateHealthBar();
+    return; // arena knockouts don't send you home either — you just sit out the cooldown
+  }
   showNotif('😵 Knocked out! Waking up at home...');
   playerGroup.position.set(HOUSE_DOOR.x, 0, HOUSE_DOOR.z + 3);
   yaw = 0;
@@ -5784,6 +5796,24 @@ let duelChallengeFrom = null;  // someone challenged ME, awaiting my accept/decl
 let duelChallengeSentTo = null; // I challenged them, awaiting their response
 let _lastMailboxSync = -999;
 const MAILBOX_SYNC_INTERVAL = 1.5;
+
+// ─── ARENA FREE-FOR-ALL ────────────────────────────────────────────────────
+// No challenge/accept — anyone physically standing in the Fight Arena can hit
+// anyone else standing in it, relayed through the same generic mailbox as
+// duels (ffa_hit/ffa_kill instead of duel_hit/duel_end). A live leaderboard
+// (most lifetime kills) is synced through the same generic /api/minigame
+// endpoint geodash/throne already use for their own live features — no new
+// server routes needed for any of this.
+let inArena = false;
+let ffaAlive = true;          // false while sitting out a knockout cooldown
+let ffaRespawnAt = 0;         // clock.getElapsedTime() value when I can fight again
+let ffaKills = 0;             // lifetime, persisted with the rest of the save
+let lastFfaAttacker = null;   // set right before damagePlayer() from an ffa_hit, read once by knockoutPlayer()
+let ffaLeaderboard = [];      // [{name, kills}], synced while inArena
+let _lastFfaSync = -999;
+const FFA_SYNC_INTERVAL = 2;
+const FFA_RESPAWN_SECONDS = 8;
+const ARENA_RADIUS = 16; // matches buildFightArena()'s sand floor
 
 function sendMail(to, type, data) {
   if(serverMode !== 'online') return;
@@ -5830,6 +5860,13 @@ function handleMailboxMessage(msg) {
         showNotif(`Duel with ${msg.from} ended.`);
       }
     }
+  } else if(msg.type === 'ffa_hit') {
+    if(inArena && ffaAlive) { lastFfaAttacker = msg.from; damagePlayer(msg.data.damage, msg.from + ' (arena)'); }
+  } else if(msg.type === 'ffa_kill') {
+    ffaKills++;
+    sipDollars += 20; updateSIP();
+    saveCurrentUser();
+    showNotif(`💀 Knocked out ${msg.from}! +20 S.I.P. (${ffaKills} arena kills)`);
   }
 }
 
@@ -5894,6 +5931,55 @@ function tryDuelInteract() {
     if(far) { showNotif(`🚶 Walk closer to ${far} to challenge them to a duel!`); return true; }
   }
   return false;
+}
+// Called from handleInteract() instead of tryDuelInteract() while inArena — no
+// challenge/accept, just swing at whoever's in range and also currently in the arena.
+function tryFfaInteract() {
+  if(!ffaAlive) {
+    showNotif(`⏳ Respawning in ${Math.max(0, Math.ceil(ffaRespawnAt - clock.getElapsedTime()))}s...`);
+    return true;
+  }
+  let target = null, targetDist = 8;
+  Object.keys(remotePlayers).forEach(name => {
+    const rp = remotePlayers[name];
+    const dToArena = Math.hypot(rp.mesh.position.x - ARENA_CENTER.x, rp.mesh.position.z - ARENA_CENTER.z);
+    if(dToArena > ARENA_RADIUS) return; // not actually in the arena right now
+    const d = Math.hypot(playerGroup.position.x - rp.mesh.position.x, playerGroup.position.z - rp.mesh.position.z);
+    if(d < targetDist) { targetDist = d; target = name; }
+  });
+  if(!target) { showNotif('⚔️ No one in range — get closer to another player in the arena!'); return true; }
+  const dmg = getWeaponDamage();
+  triggerSwing();
+  sfx.hit();
+  sendMail(target, 'ffa_hit', { damage: dmg });
+  showNotif(`⚔️ Hit ${target} for ${dmg}!`);
+  return true;
+}
+function updateFfaLeaderboardUI() {
+  const el = document.getElementById('ffaLeaderboard');
+  if(!el) return;
+  if(!inArena) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  const rows = ffaLeaderboard.length
+    ? ffaLeaderboard.map(e => `<div style="display:flex;justify-content:space-between;gap:14px;${e.name===currentUser?'color:#ffcc44;font-weight:bold;':''}"><span>${e.name}</span><span>${e.kills}</span></div>`).join('')
+    : '<div style="opacity:.6">No fighters yet — be the first!</div>';
+  document.getElementById('ffaLeaderboardRows').innerHTML = rows;
+}
+async function syncFfaLeaderboard() {
+  if(serverMode !== 'online' || !currentUser) return;
+  fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/minigame', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ name: currentUser, game:'ffa', data:{ kills: ffaKills } })
+  }, 4000).catch(()=>{});
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/minigame?game=ffa', {}, 4000);
+    if(r.ok) {
+      const list = await r.json();
+      ffaLeaderboard = list.map(e => ({ name: e.name, kills: (e.data && e.data.kills) || 0 }))
+        .sort((a,b) => b.kills - a.kills).slice(0, 8);
+      updateFfaLeaderboardUI();
+    }
+  } catch(e) { /* next sync will catch up */ }
 }
 // Slow passive regen while below max — same tick* pattern as tickJob/tickCook/tickWanted.
 function tickHealth(dt) {
@@ -11202,8 +11288,10 @@ function handleInteract() {
     if(carriedBox) { if(tryPlaceBox()) return; }
     else { if(tryPickUpBox()) return; }
   }
+  // Arena free-for-all takes priority over open-world 1v1 duels while standing in it
+  if(inArena && serverMode === 'online' && tryFfaInteract()) return;
   // PvP duel: swing at your opponent if one's active, else challenge whoever's nearby
-  if(!inHouse && !inMall && !inArcade && !inStore && serverMode === 'online' && tryDuelInteract()) return;
+  if(!inArena && !inHouse && !inMall && !inArcade && !inStore && serverMode === 'online' && tryDuelInteract()) return;
   // Bad guy with weapon: NPC attack takes priority over zone actions
   if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade) {
     let closest = null, closestDist = 3.5;
@@ -15136,6 +15224,17 @@ function animate(){
   if(t - _lastStockSync > STOCK_SYNC_INTERVAL) { _lastStockSync = t; syncStocks(); }
   if(t - _lastMailboxSync > MAILBOX_SYNC_INTERVAL) { _lastMailboxSync = t; syncMailbox(); }
   if(placingStore) updatePlacementMarker();
+
+  // Arena free-for-all: enter/exit detection, knockout-cooldown timer, leaderboard sync
+  {
+    const wasInArena = inArena;
+    const dArena = Math.hypot(playerGroup.position.x - ARENA_CENTER.x, playerGroup.position.z - ARENA_CENTER.z);
+    inArena = dArena < ARENA_RADIUS && !inHouse && !inMall && !inCar;
+    if(inArena && !wasInArena) { ffaAlive = true; showNotif('⚔️ Fight Arena — anyone here can hit anyone! Press E to swing.'); }
+    if(!inArena && wasInArena) { updateFfaLeaderboardUI(); }
+    if(inArena && !ffaAlive && t >= ffaRespawnAt) { ffaAlive = true; showNotif('💪 Back in the fight!'); }
+    if(inArena && t - _lastFfaSync > FFA_SYNC_INTERVAL) { _lastFfaSync = t; syncFfaLeaderboard(); }
+  }
 
   // Movement with collision
   let moving=false;
