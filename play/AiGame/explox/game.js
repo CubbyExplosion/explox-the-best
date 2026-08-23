@@ -469,10 +469,21 @@ function saveCurrentUser() {
     lastBirthdayGiftDate: lastBirthdayGiftDate,
     deadNPCs: deadNPCs,
     buddyOwned: buddyOwned, buddySpecies: buddySpecies, buddyName: buddyName, buddyColors: buddyColors,
-    activeAddOns: activeAddOns
+    activeAddOns: activeAddOns,
+    playTimeSeconds: playTimeSeconds, lastGrowthStageId: lastGrowthStageId, eliteCoins: eliteCoins,
+    familyKidAdopted: familyKidAdopted, familyKidId: familyKidId, familyKidName: familyKidName, familyKidPlayTime: familyKidPlayTime,
+    unpaidBills: unpaidBills, lastBillCheck: lastBillCheck, hasSeenGuide: hasSeenGuide
   };
   localStorage.setItem('explox_user_' + currentUser, JSON.stringify(data));
   localStorage.setItem('explox_current_user', currentUser);
+  if(serverMode === 'online') {
+    // Fire-and-forget: never let a slow/dead server hold up gameplay, which
+    // autosaves via this function constantly. localStorage above is always
+    // the safety net.
+    fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/user/' + encodeURIComponent(currentUser), {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data)
+    }, 4000).catch(()=>{});
+  }
 }
 
 function setBtn(groupId, val) {
@@ -496,15 +507,108 @@ function hashPassword(pw) {
   return 'h_' + h.toString(16).padStart(8,'0') + '_' + pw.split('').reduce((a,c)=>a+c.charCodeAt(0),0);
 }
 
-function loadLoginScreen() {
-  const users = getUsers();
-  const list  = document.getElementById('accountList');
-  if(users.length === 0) {
+// ─── ONLINE SERVER MODE ──────────────────────────────────────────────────────
+// "Online" points at a temporary server the player can run on their own PC (see
+// explox/server/). Free tunnel services hand out a NEW random address every
+// time the server starts (that's what "temporary" means), so we can't hardcode
+// one — instead a link like ?server=https://xxxx.example.com auto-fills it (the
+// host shares that link), and it's remembered from then on until it's changed.
+// When there's no server, or it's off, we fall back to the always-available
+// Offline mode, which is exactly the local-only behavior this file always had.
+let serverMode = localStorage.getItem('explox_mode') || 'offline';
+let EXPLOX_ONLINE_URL = localStorage.getItem('explox_server_url') || '';
+(function seedServerUrlFromLink() {
+  const fromLink = new URLSearchParams(location.search).get('server');
+  if (fromLink) {
+    EXPLOX_ONLINE_URL = fromLink.trim().replace(/\/+$/, '');
+    localStorage.setItem('explox_server_url', EXPLOX_ONLINE_URL);
+  }
+})();
+
+async function fetchWithTimeout(url, opts, timeoutMs) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs || 4000);
+  try {
+    return await fetch(url, Object.assign({}, opts, { signal: ctrl.signal }));
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+function showServerMsg(text) {
+  const el = document.getElementById('serverStatusMsg');
+  if(el) el.textContent = text || '';
+}
+
+function updateServerModeButtons() {
+  const onBtn  = document.getElementById('onlineModeBtn');
+  const offBtn = document.getElementById('offlineModeBtn');
+  const urlBox = document.getElementById('serverUrlInput');
+  if(onBtn)  onBtn.classList.toggle('modeActive', serverMode === 'online');
+  if(offBtn) offBtn.classList.toggle('modeActive', serverMode === 'offline');
+  if(urlBox) {
+    urlBox.style.display = (serverMode === 'online') ? 'block' : 'none';
+    if(document.activeElement !== urlBox) urlBox.value = EXPLOX_ONLINE_URL;
+  }
+}
+
+async function setServerMode(mode) {
+  if(mode === 'online') {
+    const urlBox = document.getElementById('serverUrlInput');
+    const typed  = urlBox ? urlBox.value.trim().replace(/\/+$/, '') : '';
+    if(!typed) {
+      urlBox.style.display = 'block'; // reveal the address box (serverMode hasn't flipped to 'online' yet, so updateServerModeButtons() alone wouldn't show it)
+      showServerMsg('👉 Paste the server address a friend shared with you, then click ONLINE again.');
+      return;
+    }
+    EXPLOX_ONLINE_URL = typed;
+    localStorage.setItem('explox_server_url', EXPLOX_ONLINE_URL);
+    showServerMsg('🔄 Checking server...');
+    let up = false;
+    try { up = (await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/health', {}, 4000)).ok; } catch(e) {}
+    if(!up) {
+      showServerMsg('😴 Sorry, the server is currently off. Please come again later or play Offline!');
+      return;
+    }
+  }
+  serverMode = mode;
+  localStorage.setItem('explox_mode', mode);
+  showServerMsg('');
+  updateServerModeButtons();
+  loadLoginScreen();
+}
+
+async function loadLoginScreen() {
+  updateServerModeButtons();
+  const list = document.getElementById('accountList');
+  document.getElementById('newAccName').value = '';
+  document.getElementById('newAccPw').value   = '';
+
+  let names, sipFor;
+  if(serverMode === 'online') {
+    list.innerHTML = '<div id="noAccounts">Loading accounts...</div>';
+    let serverUsers = null;
+    try {
+      const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/users', {}, 4000);
+      if(r.ok) serverUsers = await r.json();
+    } catch(e) {}
+    if(!serverUsers) {
+      showServerMsg('😴 Sorry, the server is currently off. Please come again later or play Offline!');
+      list.innerHTML = '<div id="noAccounts">Server unavailable — try Offline.</div>';
+      return;
+    }
+    names  = serverUsers.map(u => u.name);
+    sipFor = name => { const u = serverUsers.find(x => x.name === name); return u ? u.sip : 0; };
+  } else {
+    names  = getUsers();
+    sipFor = name => { const d = getUserData(name); return d.sip !== undefined ? d.sip : 0; };
+  }
+
+  if(names.length === 0) {
     list.innerHTML = '<div id="noAccounts">No accounts yet — create one below!</div>';
   } else {
-    list.innerHTML = users.map(name => {
-      const d   = getUserData(name);
-      const sip = d.sip !== undefined ? d.sip.toLocaleString() : '0';
+    list.innerHTML = names.map(name => {
+      const sip = sipFor(name).toLocaleString();
       return `<div class="accountCard" onclick="loginAs('${name}')">
         <div class="acInfo">
           <div class="acName">${name}</div>
@@ -514,21 +618,37 @@ function loadLoginScreen() {
       </div>`;
     }).join('');
   }
-  document.getElementById('newAccName').value = '';
-  document.getElementById('newAccPw').value   = '';
 }
 
-function createAccount() {
+async function createAccount() {
   try {
     const name = document.getElementById('newAccName').value.trim();
     const pw   = document.getElementById('newAccPw').value;
     if(!name) { showBigMsg('⚠️ Enter a name first!'); return; }
     if(!pw)   { showBigMsg('⚠️ Enter a password too!'); return; }
+    const pwHash = hashPassword(pw);
+
+    if(serverMode === 'online') {
+      let res;
+      try {
+        const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/signup', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ name, pw: pwHash })
+        }, 4000);
+        res = r.ok ? await r.json() : { ok:false, error: r.status === 409 ? 'taken' : 'error' };
+      } catch(e) { res = null; }
+      if(!res) { showServerMsg('😴 Sorry, the server is currently off. Please come again later or play Offline!'); return; }
+      if(!res.ok) { showBigMsg(res.error === 'taken' ? '⚠️ That name is taken!' : '❌ Server error, try again.'); return; }
+      setPw(name, pwHash); // local cache so the same device can still log in if Offline later
+      await doLogin(name);
+      return;
+    }
+
     const users = getUsers();
     if(users.includes(name)) { showBigMsg('⚠️ That name is taken!'); return; }
     users.push(name);
     saveUsers(users);
-    setPw(name, hashPassword(pw));
+    setPw(name, pwHash);
     doLogin(name);
   } catch(e) {
     showBigMsg('❌ Error: ' + e.message);
@@ -538,6 +658,12 @@ function createAccount() {
 
 function deleteAccount(name) {
   if(!confirm('Delete account "' + name + '"? This cannot be undone.')) return;
+  if(serverMode === 'online') {
+    fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/user/' + encodeURIComponent(name), { method:'DELETE' }, 4000)
+      .catch(()=>{})
+      .finally(() => loadLoginScreen());
+    return;
+  }
   const users = getUsers().filter(u => u !== name);
   saveUsers(users);
   localStorage.removeItem('explox_user_' + name);
@@ -554,20 +680,48 @@ function loginAs(name) {
   document.getElementById('pwModal').style.display    = 'flex';
   setTimeout(() => document.getElementById('pwModalInput').focus(), 50);
 }
-function submitPassword() {
+async function submitPassword() {
   const entered = document.getElementById('pwModalInput').value;
   if(!entered) {
     document.getElementById('pwModalError').textContent = '❌ Enter your password!';
     return;
   }
+  const enteredHash = hashPassword(entered);
+
+  if(serverMode === 'online') {
+    let res;
+    try {
+      const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/login', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ name: _pendingLogin, pw: enteredHash })
+      }, 4000);
+      res = r.ok ? await r.json() : { ok:false };
+    } catch(e) { res = null; }
+    if(!res) {
+      document.getElementById('pwModal').style.display = 'none';
+      showServerMsg('😴 Sorry, the server is currently off. Please come again later or play Offline!');
+      return;
+    }
+    if(res.ok) {
+      setPw(_pendingLogin, enteredHash);
+      document.getElementById('pwModal').style.display = 'none';
+      await doLogin(_pendingLogin);
+    } else {
+      document.getElementById('pwModalError').textContent = '❌ Wrong password — try again!';
+      document.getElementById('pwModalInput').value = '';
+      document.getElementById('pwModalInput').focus();
+    }
+    return;
+  }
+
   const stored = getPw(_pendingLogin);
   let match = false;
   if(!stored) {
-    setPw(_pendingLogin, hashPassword(entered));
+    setPw(_pendingLogin, enteredHash);
     match = true;
   } else {
-    match = hashPassword(entered) === stored;
-    if(!match && entered === stored) { match = true; setPw(_pendingLogin, hashPassword(entered)); }
+    match = enteredHash === stored;
+    if(!match && entered === stored) { match = true; setPw(_pendingLogin, enteredHash); }
   }
   if(match) {
     document.getElementById('pwModal').style.display = 'none';
@@ -583,9 +737,26 @@ function cancelPassword() {
   _pendingLogin = null;
 }
 
-function doLogin(name) {
+async function doLogin(name) {
+  if(serverMode === 'online') {
+    // Pull the server's copy into localStorage first, so the rest of this
+    // function (and every other place in the game that reads getUserData)
+    // works completely unchanged, whether we're online or offline.
+    try {
+      const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/user/' + encodeURIComponent(name), {}, 4000);
+      if(r.ok) localStorage.setItem('explox_user_' + name, JSON.stringify(await r.json()));
+    } catch(e) { /* no save on the server yet, or it dropped mid-fetch — fall back to local copy */ }
+  }
   currentUser = name;
   const d = getUserData(name);
+  // A genuinely brand-new account (never saved before) starts growth at 0 (Baby) — that's the
+  // whole point of the feature. An EXISTING account just updated to a version with growth added
+  // has no playTimeSeconds field either, but already has other real fields (sip, wood, ...) —
+  // defaulting THAT case to 1800 (Adult) avoids visually shrinking an established character.
+  const isBrandNewAccount = Object.keys(d).length === 0;
+  playTimeSeconds = d.playTimeSeconds !== undefined ? d.playTimeSeconds : (isBrandNewAccount ? 0 : 1800);
+  lastGrowthStageId = d.lastGrowthStageId || growthStageFor(playTimeSeconds).id;
+  eliteCoins = d.eliteCoins !== undefined ? d.eliteCoins : 0;
   playerHat   = d.hat   || 'none';    playerHair  = d.hair  || 'none';
   playerShirt = d.shirt || 'plain';   playerPants = d.pants || 'long';
   playerShoes = d.shoes || 'sneakers';
@@ -650,6 +821,16 @@ function doLogin(name) {
   buddyName    = d.buddyName || 'Buddy';
   buddyColors  = d.buddyColors && typeof d.buddyColors === 'object' ? d.buddyColors : { body:'#66ddff', accent:'#ffffff', eye:'#111111' };
   activeAddOns = Array.isArray(d.activeAddOns) ? d.activeAddOns : [];
+  familyKidAdopted = !!d.familyKidAdopted;
+  familyKidId   = d.familyKidId || null;
+  familyKidName    = d.familyKidName || 'Kiddo';
+  familyKidPlayTime = d.familyKidPlayTime !== undefined ? d.familyKidPlayTime : 0;
+  unpaidBills   = Array.isArray(d.unpaidBills) ? d.unpaidBills : [];
+  lastBillCheck = d.lastBillCheck !== undefined ? d.lastBillCheck : playTimeSeconds;
+  // Same brand-new-vs-existing-account distinction as playTimeSeconds above: a genuinely new
+  // account has never seen the guide (show it); an existing account predating this feature
+  // shouldn't suddenly get nagged with it on their next login.
+  hasSeenGuide = d.hasSeenGuide !== undefined ? !!d.hasSeenGuide : !isBrandNewAccount;
   shopOpen = false; // never resume a shop as open across a reload — you have to reopen it yourself
   document.getElementById('skinColor').value  = playerColors.skin;
   document.getElementById('shirtColor').value = playerColors.shirt;
@@ -934,6 +1115,7 @@ function backToLogin() {
   shopOpen = false;
   saveCurrentUser();
   currentUser = null;
+  clearRemotePlayers();
   document.getElementById('customScreen').style.display = 'none';
   document.getElementById('loginScreen').style.display  = 'flex';
   loadLoginScreen();
@@ -970,6 +1152,30 @@ let buddyName    = 'Buddy';
 let buddyColors  = { body:'#66ddff', accent:'#ffffff', eye:'#111111' };
 let buddyGroup   = null;                 // THREE.Group, lives directly in scene (not a playerGroup child) so it can lag behind
 let buddyMeshes  = null;                 // { body:[], accent:[], eye:[] } — tagged parts a repaint recolors live
+
+// ─── ADOPTED CHILD — a real family member who follows you like Buddy, but a small person
+// (reuses the box-figure style, not a pet shape) who visibly grows up via GROWTH_STAGES above. ──
+const ADOPTABLE_KIDS = [
+  { id:'k_riley', name:'Riley', cost:800,  emoji:'👦', skin:'#f5c89a', shirt:'#4fc3f7', hair:'#3a1f0a' },
+  { id:'k_sunny', name:'Sunny', cost:800,  emoji:'👧', skin:'#e8b87a', shirt:'#ffb74d', hair:'#1a0a00' },
+  { id:'k_max',   name:'Max',   cost:1200, emoji:'🧒', skin:'#c97a50', shirt:'#81c784', hair:'#000000' },
+];
+// Named familyKid*, NOT child* — the game already has an unrelated `children`/`childMeshes`
+// system (married NPCs' baby cribs, see buildChildren() far below) and reusing child* here
+// collided with it at parse time (SyntaxError: duplicate declaration).
+let familyKidAdopted   = false;          // persisted
+let familyKidId        = null;           // persisted — one of ADOPTABLE_KIDS[].id
+let familyKidName      = 'Kiddo';        // persisted
+let familyKidPlayTime  = 0;              // persisted — own growth clock, starts younger than the player's
+let familyKidGroup     = null;           // THREE.Group in scene, same lag-behind-follow pattern as buddyGroup
+let familyKidMeshes    = null;           // tagged parts, mirrors buddyMeshes
+
+// ─── BILLS — real recurring expenses for what you own (house, land, cars), paid with a real
+// stack of cash-bill denominations instead of an abstract number disappearing. ──────────────
+const BILL_CHECK_INTERVAL = 90; // real play-seconds between bill cycles — short enough to see happen
+let unpaidBills   = [];  // persisted — [{id, label, amount, dueAt}], dueAt in playTimeSeconds
+let lastBillCheck = 0;   // persisted — playTimeSeconds at last bill cycle
+let billTimer     = 0;   // NOT persisted — real-time accumulator driving BILL_CHECK_INTERVAL
 
 // ─── ADD ONS — free fun toggles/buttons, growing collection (goal: 100+) ────
 // Every one below is real and live: toggles flip a genuine game-state flag that animate()
@@ -1082,6 +1288,25 @@ let scrapMetal      = 0;
 let playerHealth    = 100;
 const playerMaxHealth = 100;
 let bankBalance     = 0;
+let eliteCoins      = 0;
+
+// ─── GROWTH — a real, shared "age up" system driven by accumulated real PLAY seconds (same
+// convention as elderLifespans below: only ticks while actually playing, not wall-clock time).
+// Used by the player's own body AND by adopted/baby children so "growing up" means the same
+// thing everywhere instead of three separate half-built systems. ───────────────────────────
+const GROWTH_STAGES = [
+  { id:'baby', label:'Baby',  emoji:'🍼', scale:0.55, at:0    },
+  { id:'kid',  label:'Kid',   emoji:'🧒', scale:0.75, at:180  }, // 3 real min played
+  { id:'teen', label:'Teen',  emoji:'🧑', scale:0.9,  at:600  }, // 10 real min played
+  { id:'adult',label:'Adult', emoji:'🧑‍🦱', scale:1.0,  at:1800 }, // 30 real min played
+];
+function growthStageFor(seconds) {
+  let s = GROWTH_STAGES[0];
+  for (const st of GROWTH_STAGES) { if (seconds >= st.at) s = st; }
+  return s;
+}
+let playTimeSeconds = 0; // persisted — real seconds actually played, drives the player's own growth stage
+let lastGrowthStageId = 'adult'; // persisted — so a fresh login doesn't re-fire the "you grew!" notif every time
 let ownedComputers = [];   // array of owned computer ids e.g. ['sic','sdic']
 let ownedCars   = [];
 let carLocation = 'Downtown Explox'; // where your FIRST-owned car currently sits — 'Downtown Explox' or a country name
@@ -1145,15 +1370,24 @@ const SKINS = [
   { id:'skin_snow_princess',name:'Snow Princess',icon:'❄️', gender:'girl', price:3000,
     colors:{skin:'#f5c89a',shirt:'#e3f2fd',pants:'#f0f4ff',shoes:'#e3f2fd',hair:'#b3e5fc'},
     hat:'beanie',hair:'ponytail',shirt:'hoodie',  pants:'long',   shoes:'sneakers' },
+  // ELITE SKINS — priced in 💎 Elite Coins (only earned from tough robot fights), not S.I.P.
+  { id:'skin_diamond_champion', name:'Diamond Champion', icon:'💎', gender:'boy', price:25, currency:'elite',
+    colors:{skin:'#f5c89a',shirt:'#4fd8ff',pants:'#0a2a3a',shoes:'#4fd8ff',hair:'#eaf7ff'},
+    hat:'crown', hair:'spiky', shirt:'suit', pants:'long', shoes:'boots' },
+  { id:'skin_crystal_star', name:'Crystal Star', icon:'💎', gender:'girl', price:25, currency:'elite',
+    colors:{skin:'#f5c89a',shirt:'#e0d8ff',pants:'#2a1a4a',shoes:'#e0d8ff',hair:'#c9a8ff'},
+    hat:'crown', hair:'long', shirt:'hoodie', pants:'long', shoes:'sneakers' },
 ];
 
 function applySkin(idx) {
   const s = SKINS[idx];
   if(!s) return;
   const owned = ownedSkins.includes(s.id);
+  const isElite = s.currency === 'elite';
   if(!owned) {
-    if(sipDollars < s.price) { showCustomMsg(`❌ Need ${s.price} S.I.P. to unlock!`); return; }
-    sipDollars -= s.price;
+    const wallet = isElite ? eliteCoins : sipDollars;
+    if(wallet < s.price) { showCustomMsg(isElite ? `❌ Need ${s.price} 💎 Elite Coins to unlock!` : `❌ Need ${s.price} S.I.P. to unlock!`); return; }
+    if (isElite) { eliteCoins -= s.price; updateElite(); } else { sipDollars -= s.price; }
     ownedSkins.push(s.id);
     // auto-unlock individual items that come with this skin
     ['hat_'+s.hat,'hair_'+s.hair,'shirt_'+s.shirt,'pants_'+s.pants,'shoe_'+s.shoes].forEach(key => {
@@ -1213,7 +1447,7 @@ function renderSkinsSection() {
       card.appendChild(nameEl);
       const btn = document.createElement('button');
       btn.style.cssText = `margin-top:5px;width:100%;padding:4px 0;border:none;border-radius:5px;font-size:10px;font-weight:bold;cursor:pointer;background:${owned?'#1b5e20':'#e94560'};color:#fff;`;
-      btn.textContent = owned ? '▶ Apply' : s.price + ' 💰 Buy';
+      btn.textContent = owned ? '▶ Apply' : s.price + (s.currency === 'elite' ? ' 💎 Buy' : ' 💰 Buy');
       btn.onclick = () => applySkin(i);
       card.appendChild(btn);
       grid.appendChild(card);
@@ -1429,6 +1663,7 @@ document.getElementById('playBtn').addEventListener('click', () => {
   document.getElementById('customScreen').style.display = 'none';
   document.getElementById('hud').style.display = 'block';
   document.getElementById('sipAmount').textContent = sipDollars;
+  document.getElementById('eliteAmount').textContent = eliteCoins;
   startGame();
 });
 
@@ -1471,6 +1706,7 @@ const AIRPORT_FLIGHTS = [
   { name:'Australia', emoji:'🦘', desc:'Outback, opera house & surf beaches',     price:95,  x:770,  z:-135 },
   { name:'Canada',    emoji:'🍁', desc:'Maple forests, mounties & hockey',        price:70,  x:-630, z:465  },
   { name:'Italy',     emoji:'🍕', desc:'Colosseum, pasta & Venice gondolas',      price:88,  x:-30,  z:-835 },
+  { name:'Space Station', emoji:'🚀', desc:'Zero gravity, a real rocket & a sky full of stars', price:150, x:0, z:1230 }, // matches SPACE_ZONE.x, SPACE_ZONE.z+30 — declared later in the file, so hardcoded here to avoid a TDZ crash at parse time
 ];
 const HOTEL_CITY_POS = { x:-15, z:-5 };
 const MALL_COLS  = [];
@@ -1487,6 +1723,15 @@ function showNotif(msg) {
   notifTimer = setTimeout(() => el.style.opacity = '0', 2400);
 }
 function updateSIP() { document.getElementById('sipAmount').textContent = sipDollars; saveCurrentUser(); }
+// Elite Coins — a real premium currency, deliberately NOT earnable by just walking around: only
+// the toughest robots drop any, and only 1-3 at a time, so an Elite Shop item priced at 15-30
+// actually takes real fights to afford, unlike S.I.P. which piles up from almost anything.
+const ELITE_COIN_REWARD = { elite:3, tank:2, guard:1, spider:1, scout:0, drone:0 };
+function updateElite() {
+  const el = document.getElementById('eliteAmount');
+  if (el) el.textContent = eliteCoins;
+  saveCurrentUser();
+}
 function updateWood() {
   document.getElementById('woodAmount').textContent = woodCount;
   const cw = document.getElementById('craftWood'); if(cw) cw.textContent = woodCount;
@@ -5770,6 +6015,53 @@ function renderAddOnsPanel() {
     items.appendChild(info);
   }
 
+  // ── Family section — an adopted child, same pattern as Buddy but a small person who visibly
+  // grows up over real play time instead of staying one fixed size forever ──
+  const familyHeader = document.createElement('div');
+  familyHeader.style.cssText = 'color:#7fc8ff;font-size:11px;font-weight:bold;letter-spacing:1px;margin-top:10px;';
+  familyHeader.textContent = '👨‍👩‍👧 FAMILY';
+  items.appendChild(familyHeader);
+  if(!familyKidAdopted) {
+    const intro = document.createElement('div'); intro.className='shopItem';
+    intro.innerHTML = `<div class="siName">👶 Adopt a Child</div>
+      <div style="color:#aaa;font-size:11px;margin:4px 0;">A real family member who follows you around and actually grows up the more you play — starts small, gets bigger over time.</div>`;
+    items.appendChild(intro);
+    ADOPTABLE_KIDS.forEach((k,i) => {
+      const d = document.createElement('div'); d.className='shopItem';
+      d.innerHTML=`<div class="siName">${k.emoji} ${k.name}</div>
+        <div class="siCost">💰 ${k.cost} S.I.P.</div>
+        <button class="shopBtn" onclick="adoptChild(${i})" ${sipDollars<k.cost?'disabled':''}>Adopt</button>`;
+      items.appendChild(d);
+    });
+  } else {
+    const stage = growthStageFor(familyKidPlayTime);
+    const info = document.createElement('div'); info.className='shopItem';
+    info.innerHTML = `<div class="siName">${stage.emoji} ${familyKidName}</div>
+      <div style="color:#aaa;font-size:11px;margin-bottom:8px;">Growth stage: ${stage.label} — grows up the more you play together.</div>
+      <input id="familyKidNameInput" maxlength="16" value="${familyKidName}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #555;background:#0a0a1a;color:#fff;font-size:12px;box-sizing:border-box;margin-bottom:8px;">
+      <button class="shopBtn" onclick="renameChild()" style="width:100%;">✏️ Rename</button>`;
+    items.appendChild(info);
+  }
+
+  // ── Bills section — real recurring upkeep for what you own, paid as real cash denominations ──
+  const billsHeader = document.createElement('div');
+  billsHeader.style.cssText = 'color:#ffcc66;font-size:11px;font-weight:bold;letter-spacing:1px;margin-top:10px;';
+  billsHeader.textContent = '💵 BILLS';
+  items.appendChild(billsHeader);
+  if(!unpaidBills.length) {
+    const none = document.createElement('div'); none.className='shopItem';
+    none.innerHTML = `<div style="color:#888;font-size:11px;text-align:center;">No bills right now — owning land or a car brings real recurring upkeep.</div>`;
+    items.appendChild(none);
+  } else {
+    unpaidBills.forEach(b => {
+      const d = document.createElement('div'); d.className='shopItem';
+      d.innerHTML = `<div class="siName">${b.label}${b.late ? ' <span style="color:#ff6644;">(LATE)</span>' : ''}</div>
+        <div class="siCost">💵 ${b.amount} S.I.P. — ${billsToCash(b.amount)}</div>
+        <button class="shopBtn" onclick="payBill('${b.id}')" ${sipDollars<b.amount?'disabled':''}>Pay</button>`;
+      items.appendChild(d);
+    });
+  }
+
   // ── The rest of the collection, grouped by category ──
   ADD_ON_CATEGORIES.forEach(cat => {
     const inCat = ADD_ONS.filter(a => a.category === cat);
@@ -5885,6 +6177,202 @@ function buildBuddy() {
   const startZ = playerGroup ? playerGroup.position.z - 1 : 15;
   buddyGroup.position.set(startX, 0, startZ);
   scene.add(buddyGroup);
+}
+
+// ─── GROWTH tick — applies the current real-play-time growth stage to the player (and the
+// adopted child, on its own slower clock) every frame; only fires the "you grew!" notif and a
+// re-save on an ACTUAL stage change, not every frame. ───────────────────────────────────────
+function tickGrowth(dt) {
+  playTimeSeconds += dt;
+  const stage = growthStageFor(playTimeSeconds);
+  if (playerGroup) playerGroup.scale.setScalar(stage.scale);
+  if (stage.id !== lastGrowthStageId) {
+    lastGrowthStageId = stage.id;
+    showNotif(`${stage.emoji} You grew up! You're a ${stage.label} now.`);
+    sfx.earn();
+    saveCurrentUser();
+  }
+  const hud = document.getElementById('growthHud');
+  if (hud) hud.textContent = `${stage.emoji} ${stage.label} Size`;
+
+  if (familyKidAdopted && familyKidGroup) {
+    familyKidPlayTime += dt;
+    const cStage = growthStageFor(familyKidPlayTime);
+    familyKidGroup.scale.setScalar(cStage.scale * 0.75); // a kid is always a bit smaller than the player at the same stage
+  }
+}
+
+function adoptChild(i) {
+  const k = ADOPTABLE_KIDS[i];
+  if (familyKidAdopted) { showNotif('❌ You already have a child!'); return; }
+  if (sipDollars < k.cost) { showNotif(`❌ Need ${k.cost} S.I.P.`); return; }
+  sipDollars -= k.cost; updateSIP();
+  familyKidAdopted = true;
+  familyKidId = k.id;
+  familyKidName = k.name;
+  familyKidPlayTime = 0; // starts as a real baby, grows up on its own clock
+  buildChild();
+  sfx.buy();
+  showNotif(`👨‍👩‍👧 ${k.name} is part of your family now!`);
+  saveCurrentUser();
+  if (typeof renderAddOnsPanel === 'function') renderAddOnsPanel();
+}
+function renameChild() {
+  const input = document.getElementById('familyKidNameInput');
+  if (!input) return;
+  const val = input.value.trim().slice(0, 16);
+  if (!val) { input.value = familyKidName; return; }
+  familyKidName = val;
+  showNotif(`👨‍👩‍👧 Your child is now named ${familyKidName}!`);
+  saveCurrentUser();
+}
+// A small boxy person (NOT the pet/blob shapes Buddy uses) so it visibly reads as a family
+// member, built at whatever the current growth stage's scale is — buildChild() itself doesn't
+// scale (tickGrowth does that live every frame), it just needs SOME starting geometry.
+function buildChild() {
+  if (familyKidGroup) { scene.remove(familyKidGroup); familyKidGroup = null; }
+  if (!familyKidAdopted || !familyKidId) return;
+  const k = ADOPTABLE_KIDS.find(x => x.id === familyKidId) || ADOPTABLE_KIDS[0];
+  familyKidGroup = new THREE.Group();
+  familyKidMeshes = { body: [], accent: [] };
+  const skinC = c3(k.skin), shirtC = c3(k.shirt), hairC = c3(k.hair);
+  const mk = (geo, color, x, y, z, tag) => {
+    const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color }));
+    m.position.set(x, y, z); m.castShadow = true; familyKidGroup.add(m);
+    if (tag) familyKidMeshes[tag].push(m);
+    return m;
+  };
+  mk(new THREE.BoxGeometry(0.5, 0.5, 0.5), skinC, 0, 1.15, 0, 'body');   // head
+  mk(new THREE.BoxGeometry(0.55, 0.18, 0.55), hairC, 0, 1.45, 0, 'accent'); // hair cap
+  mk(new THREE.BoxGeometry(0.55, 0.7, 0.35), shirtC, 0, 0.6, 0, 'body');  // torso
+  [[-0.35, 0.55], [0.35, 0.55]].forEach(([x]) => mk(new THREE.BoxGeometry(0.16, 0.6, 0.16), skinC, x, 0.6, 0, 'body')); // arms
+  [[-0.15, 0.55], [0.15, 0.55]].forEach(([x]) => mk(new THREE.BoxGeometry(0.18, 0.55, 0.18), c3('#333333'), x, 0.15, 0, 'accent')); // legs
+  const startX = playerGroup ? playerGroup.position.x + 1 : 1;
+  const startZ = playerGroup ? playerGroup.position.z - 1 : 15;
+  familyKidGroup.position.set(startX, 0, startZ);
+  scene.add(familyKidGroup);
+}
+
+// ─── BILLS — real recurring charges for what you own, cycling every BILL_CHECK_INTERVAL of
+// real play. Late bills add a small late fee next cycle instead of repossessing anything —
+// this is a kids' economy game, the point is "money has upkeep", not "lose your house". ────────
+function billTimerTick(dt) {
+  billTimer += dt;
+  if (billTimer < BILL_CHECK_INTERVAL) return;
+  billTimer = 0;
+  generateBills();
+}
+function generateBills() {
+  const items = [];
+  if (ownedLand.length) items.push({ id:'rent_' + Date.now(), label:`🏡 Land upkeep (${ownedLand.length} plot${ownedLand.length>1?'s':''})`, amount: 10 * ownedLand.length });
+  if (ownedCars.length) items.push({ id:'car_' + Date.now(), label:`🚗 Car payment (${ownedCars.length} car${ownedCars.length>1?'s':''})`, amount: 15 * ownedCars.length });
+  if (!items.length) return; // nothing owned yet — no bills, nothing to pay
+  items.forEach(it => { it.dueAt = playTimeSeconds + 120; unpaidBills.push(it); }); // real 2-minute grace period
+  lastBillCheck = playTimeSeconds;
+  saveCurrentUser();
+  showNotif(`📬 New bill${items.length>1?'s':''} arrived! Check the 🧩 Add-Ons tab.`);
+  sfx.notify();
+}
+function tickBillsOverdue() {
+  let lateFeeAdded = false;
+  unpaidBills.forEach(b => {
+    if (!b.late && playTimeSeconds > b.dueAt) { b.late = true; b.amount += Math.ceil(b.amount * 0.25); lateFeeAdded = true; }
+  });
+  if (lateFeeAdded) { saveCurrentUser(); showNotif('⚠️ A bill went overdue — a late fee was added!'); }
+}
+function payBill(id) {
+  const b = unpaidBills.find(x => x.id === id);
+  if (!b) return;
+  if (sipDollars < b.amount) { showNotif(`❌ Need ${b.amount} S.I.P. to pay this bill!`); return; }
+  sipDollars -= b.amount; updateSIP();
+  unpaidBills = unpaidBills.filter(x => x.id !== id);
+  saveCurrentUser();
+  sfx.buy();
+  showNotif(`💵 Paid ${b.label} — handed over ${billsToCash(b.amount)}!`);
+  if (document.getElementById('addOnsPanel') && document.getElementById('addOnsPanel').style.display !== 'none') renderAddOnsPanel();
+}
+// Turns an S.I.P. amount into a real stack of bill denominations for the payment notif/UI —
+// this is the "actual paper cash" half of the ask, not just a number disappearing.
+const CASH_DENOMS = [100, 50, 20, 10, 5, 1];
+function billsToCash(amount) {
+  let remaining = amount, out = [];
+  for (const d of CASH_DENOMS) {
+    const count = Math.floor(remaining / d);
+    if (count > 0) { out.push(`${count}×$${d}`); remaining -= count * d; }
+  }
+  return out.join(' + ');
+}
+
+// ─── GUIDE — a real "how to play" walkthrough. Auto-opens the FIRST time a genuinely new
+// account enters the world (not on every login), and can be reopened anytime from the ❓ HELP
+// tab. The point: a brand-new player who doesn't know what any of this does is the exact
+// reviewer who leaves a 1-star "confusing, no idea what to do" review — this exists to catch
+// them before that happens, not to decorate the loading screen. ─────────────────────────────
+const GUIDE_PAGES = [
+  { emoji:'👋', title:'Welcome to Explox!', tips:[
+    'WASD to move, Shift to run, Space to jump, Mouse to look around.',
+    'Press E to interact with people, doors, and shop counters.',
+    'Press T anytime to ask SAI, your in-game helper, a real question.',
+  ]},
+  { emoji:'💰', title:'Money', tips:[
+    'S.I.P. is the main currency — earn it from jobs, selling things, or just exploring.',
+    '💎 Elite Coins are rarer — only tough robots at the Scrapyard drop them.',
+    'Press B for your Bag, or visit the City Bank to save up S.I.P. safely.',
+  ]},
+  { emoji:'🏠', title:'Your Place', tips:[
+    'You start with a free house right in the city.',
+    'Buy your own land at Sunset Plains and build a house, fountain, or more on it.',
+    'Owning land or a car brings real recurring bills — pay them under the 🧩 Add-Ons tab before they go late.',
+  ]},
+  { emoji:'🚗', title:'Get Around', tips:[
+    'Buy a car at the Car Dealership and drive it around the city.',
+    'Ride the S.I.T.S. Transit lines to fast-travel anywhere instantly.',
+    'Fly from the Airport to 8 real countries — or even the Space Station!',
+  ]},
+  { emoji:'🎮', title:'Have Fun', tips:[
+    'Press G for Add-Ons — 100+ fun toggles, plus adopting a Buddy or a child.',
+    'Check Mini Games for Capture the Throne, Parkour, Geo Dash, and your own store.',
+    'Visit the Arcade for real Maze/Snake/Tetris, or the Movie Theater for real movies.',
+  ]},
+  { emoji:'🌱', title:'One Last Thing', tips:[
+    'Your character actually grows up the more you play — Baby, Kid, Teen, then Adult.',
+    'Get a job downtown for steady S.I.P., or fight robots for rare 💎 Elite Coins.',
+    "Stuck? Press T for SAI, or click ❓ HELP on the left edge to see this guide again.",
+  ]},
+];
+let guidePageIndex = 0;
+let hasSeenGuide = false; // persisted
+function openGuide() {
+  guidePageIndex = 0;
+  if(document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('guideModal').style.display = 'flex';
+  renderGuidePage();
+}
+function closeGuide() {
+  document.getElementById('guideModal').style.display = 'none';
+  if(!hasSeenGuide) { hasSeenGuide = true; saveCurrentUser(); }
+  if(renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function guideNext() {
+  if(guidePageIndex >= GUIDE_PAGES.length - 1) { closeGuide(); return; }
+  guidePageIndex++;
+  renderGuidePage();
+}
+function guidePrev() {
+  if(guidePageIndex <= 0) return;
+  guidePageIndex--;
+  renderGuidePage();
+}
+function renderGuidePage() {
+  const page = GUIDE_PAGES[guidePageIndex];
+  document.getElementById('guideEmoji').textContent = page.emoji;
+  document.getElementById('guideTitle').textContent = page.title;
+  document.getElementById('guideTips').innerHTML = page.tips.map(t => `<li style="margin-bottom:6px;">${t}</li>`).join('');
+  document.getElementById('guideBackBtn').style.visibility = guidePageIndex === 0 ? 'hidden' : 'visible';
+  document.getElementById('guideNextBtn').textContent = guidePageIndex === GUIDE_PAGES.length - 1 ? "Let's play!" : 'Next →';
+  const dots = document.getElementById('guideStepDots');
+  dots.innerHTML = GUIDE_PAGES.map((_, i) => `<div style="width:7px;height:7px;border-radius:50%;background:${i===guidePageIndex ? '#44ccff' : '#334455'};"></div>`).join('');
 }
 
 // ─── ADD ONS ENGINE ────────────────────────────────────────────────────────
@@ -9862,8 +10350,10 @@ function defeatRobot(robot) {
   const [lo,hi] = robot.type.reward;
   const reward = lo + Math.floor(Math.random()*(hi-lo+1));
   sipDollars += reward; updateSIP();
+  const eliteReward = ELITE_COIN_REWARD[robot.type.id] || 0;
+  if (eliteReward > 0) { eliteCoins += eliteReward; updateElite(); }
   sfx.boom();
-  showNotif(`🤖💥 ${robot.type.name} destroyed! +${reward} S.I.P.`);
+  showNotif(`🤖💥 ${robot.type.name} destroyed! +${reward} S.I.P.${eliteReward ? ` +${eliteReward} 💎` : ''}`);
   buildWreckage(robot.x, robot.z, robot.type); // leaves real scrap behind — take it to the Grinder for materials
   // The spawner sends out a replacement after a real cooldown, same idea as item 135's tree respawn.
   setTimeout(() => trySpawnRobot(robot.spawnerIdx), 7000);
@@ -9935,8 +10425,10 @@ function defeatRogueRobot(robot) {
   const [lo,hi] = robot.type.reward;
   const reward = lo + Math.floor(Math.random()*(hi-lo+1));
   sipDollars += reward; updateSIP();
+  const eliteReward = ELITE_COIN_REWARD[robot.type.id] || 0;
+  if (eliteReward > 0) { eliteCoins += eliteReward; updateElite(); }
   sfx.boom();
-  showNotif(`💥 Defeated the rogue ${robot.type.name}! +${reward} S.I.P.`);
+  showNotif(`💥 Defeated the rogue ${robot.type.name}! +${reward} S.I.P.${eliteReward ? ` +${eliteReward} 💎` : ''}`);
 }
 
 // ── The Grinder — turns real robot wreckage into Scrap Metal + the robot's real materials ──
@@ -10467,6 +10959,7 @@ const LOC_ZONES = [
   {name:'Australia',       x:800,  z:-200, r:85},
   {name:'Canada',          x:-600, z:400,  r:85},
   {name:'Italy',           x:0,    z:-900, r:85},
+  {name:'Space Station',   x:0,    z:1200, r:65},
 ];
 
 // ─── START GAME ──────────────────────────────────────────────────────────────
@@ -10587,9 +11080,11 @@ function _startGameInner() {
   _dbg('buildMallShopWing', buildMallShopWing);
   _dbg('buildOutfitShopWing', buildOutfitShopWing);
   _dbg('buildCountryZones', buildCountryZones);
+  _dbg('buildSpaceZone', buildSpaceZone);
   _dbg('spawnOwnedCars', spawnOwnedCars);
   _dbg('buildPlayer', buildPlayer);
   _dbg('buildBuddy', buildBuddy);
+  _dbg('buildChild', buildChild);
   _dbg('applyCameraFX', applyCameraFX);
   _dbg('buildNPCs', buildNPCs);
   _dbg('buildShopperPopulation', buildShopperPopulation);
@@ -10613,6 +11108,7 @@ function _startGameInner() {
   animate();
   bgMusic.start();
   setTimeout(() => { if(_frames < 1) _showErr('animate() never ran — THREE may not have loaded. Check that three.min.js is in the ZIP.'); }, 3000);
+  if(!hasSeenGuide) openGuide(); // first time in the world for this account — walk them through it before they get lost
 }
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -12046,6 +12542,114 @@ function buildPlayer() {
 
   playerGroup.position.set(0,0,15);
   scene.add(playerGroup);
+}
+
+// ─── MULTIPLAYER: OTHER PLAYERS ──────────────────────────────────────────────
+// A simplified, parameterized cousin of buildPlayer() — builds into its OWN
+// group instead of the global playerGroup, so it never touches the local
+// player's own avatar/weapon/armor state. Deliberately skips weapon/armor
+// meshes (not worth the wire cost for a same-second-ish sync) and uses a
+// plain text nametag instead of the heavier avatar-canvas one.
+function buildOtherPlayerAvatar(a) {
+  const g = new THREE.Group();
+  const skin=c3(a.skin||'#f5c89a'), shirtC=c3(a.shirtColor||'#2196F3');
+  const pantsC=c3(a.pantsColor||'#333333'), shoeC=c3(a.shoesColor||'#4e3b2a'), hairC=c3(a.hairColor||'#3a1f0a');
+  const mk=(w,h,d,color,x,y,z)=>{
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color}));
+    m.position.set(x,y,z); m.castShadow=true; g.add(m); return m;
+  };
+  mk(1,1,1, skin, 0,2.8,0); // head
+  const em=new THREE.MeshBasicMaterial({color:0x111111});
+  [-0.22,0.22].forEach(ex=>{const e=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.05),em);e.position.set(ex,2.85,0.51);g.add(e);});
+  const hair = a.hair||'none';
+  if(hair==='short')    { mk(1.08,0.3,0.95,hairC,0,3.35,0); mk(0.25,0.5,0.9,hairC,-0.6,3.1,0); mk(0.25,0.5,0.9,hairC,0.6,3.1,0); }
+  else if(hair==='long'){ mk(1.08,0.3,0.95,hairC,0,3.35,0); mk(0.28,1.4,0.9,hairC,-0.6,2.4,0); mk(0.28,1.4,0.9,hairC,0.6,2.4,0); mk(0.9,1.4,0.28,hairC,0,2.4,-0.5); }
+  else if(hair==='spiky'){ mk(1.1,0.2,1.0,hairC,0,3.35,0); [-0.35,-0.17,0,0.17,0.35].forEach((sx,i)=>mk(0.18,0.5+i%2*0.2,0.18,hairC,sx,3.7+i%2*0.1,0)); }
+  else if(hair==='afro') { mk(1.5,1.4,1.4,hairC,0,3.1,0); }
+  else if(hair==='ponytail'){ mk(1.08,0.3,0.95,hairC,0,3.35,0); mk(0.25,0.5,0.9,hairC,-0.6,3.1,0); mk(0.28,1.8,0.28,hairC,0,2.2,-0.5); }
+  else if(hair==='curly'){ [-0.3,0,0.3].forEach(cx2=>mk(0.5,0.55,0.5,hairC,cx2,3.4,0)); mk(0.28,1.2,0.28,hairC,-0.6,2.7,0); mk(0.28,1.2,0.28,hairC,0.6,2.7,0); }
+  const bCol = a.shirt==='suit' ? 0x222222 : shirtC;
+  const aCol = a.shirt==='tanktop' ? skin : bCol;
+  mk(0.9,1.1,0.5, bCol, 0,1.75,0);
+  g.lArm = mk(0.35,0.9,0.35, aCol,-0.65,1.75,0);
+  g.rArm = mk(0.35,0.9,0.35, aCol, 0.65,1.75,0);
+  mk(0.37,0.28,0.37, skin,-0.65,1.22,0); mk(0.37,0.28,0.37, skin,0.65,1.22,0);
+  const legH = a.pants==='shorts' ? 0.5 : 0.9;
+  const legY = a.pants==='shorts' ? 0.9 : 0.75;
+  g.lLeg = mk(0.38,legH,0.38, pantsC,-0.22,legY,0);
+  g.rLeg = mk(0.38,legH,0.38, pantsC, 0.22,legY,0);
+  const shH=a.shoes==='boots'?0.45:0.22, shY=a.shoes==='boots'?0.18:0.1;
+  mk(0.42,shH,a.shoes==='sandals'?0.6:0.52, shoeC,-0.22,shY,0.05);
+  mk(0.42,shH,a.shoes==='sandals'?0.6:0.52, shoeC, 0.22,shY,0.05);
+
+  const cv=document.createElement('canvas'); cv.width=256; cv.height=64;
+  const cx2=cv.getContext('2d');
+  cx2.fillStyle='rgba(0,0,0,0.55)'; cx2.fillRect(0,16,256,32);
+  cx2.fillStyle='#fff'; cx2.font='bold 26px Arial'; cx2.textAlign='center';
+  cx2.fillText((a.name||'Player').slice(0,16), 128, 40);
+  const tag=new THREE.Mesh(new THREE.PlaneGeometry(2.4,0.6),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+  tag.position.y=4.6; g.add(tag); g.nametag=tag;
+
+  return g;
+}
+
+// name -> {mesh, targetX, targetY, targetZ, targetYaw, walking}
+let remotePlayers = {};
+let _lastPresenceSync = -999;
+const PRESENCE_SYNC_INTERVAL = 1; // seconds
+
+async function syncPresence(t) {
+  if(!currentUser || serverMode !== 'online' || !playerGroup) return;
+  try {
+    const body = {
+      name: currentUser,
+      x: playerGroup.position.x, y: playerGroup.position.y, z: playerGroup.position.z,
+      yaw: yaw,
+      hat: playerHat, hair: playerHair, shirt: playerShirt, pants: playerPants, shoes: playerShoes,
+      skin: playerColors.skin, shirtColor: playerColors.shirt, pantsColor: playerColors.pants,
+      shoesColor: playerColors.shoes, hairColor: playerColors.hair
+    };
+    fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/presence', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+    }, 3000).catch(()=>{});
+
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/presence?exclude=' + encodeURIComponent(currentUser), {}, 3000);
+    if(!r.ok) return;
+    const others = await r.json();
+    const seen = new Set();
+    others.forEach(o => {
+      seen.add(o.name);
+      let rp = remotePlayers[o.name];
+      if(!rp) {
+        const mesh = buildOtherPlayerAvatar(o);
+        mesh.position.set(o.x, o.y, o.z);
+        scene.add(mesh);
+        rp = remotePlayers[o.name] = { mesh, targetX:o.x, targetY:o.y, targetZ:o.z, targetYaw:o.yaw||0 };
+      } else {
+        rp.targetX = o.x; rp.targetY = o.y; rp.targetZ = o.z; rp.targetYaw = o.yaw||0;
+      }
+    });
+    Object.keys(remotePlayers).forEach(name => {
+      if(!seen.has(name)) { scene.remove(remotePlayers[name].mesh); delete remotePlayers[name]; }
+    });
+  } catch(e) { /* a dropped sync just means they'll look stale for a beat - not worth surfacing */ }
+}
+
+function updateRemotePlayers(dt) {
+  Object.values(remotePlayers).forEach(rp => {
+    rp.mesh.position.x += (rp.targetX - rp.mesh.position.x) * Math.min(1, dt*6);
+    rp.mesh.position.y += (rp.targetY - rp.mesh.position.y) * Math.min(1, dt*6);
+    rp.mesh.position.z += (rp.targetZ - rp.mesh.position.z) * Math.min(1, dt*6);
+    let dYaw = rp.targetYaw - rp.mesh.rotation.y;
+    while(dYaw > Math.PI) dYaw -= Math.PI*2;
+    while(dYaw < -Math.PI) dYaw += Math.PI*2;
+    rp.mesh.rotation.y += dYaw * Math.min(1, dt*6);
+  });
+}
+
+function clearRemotePlayers() {
+  Object.values(remotePlayers).forEach(rp => scene.remove(rp.mesh));
+  remotePlayers = {};
 }
 
 // ─── NPCS ────────────────────────────────────────────────────────────────────
@@ -13950,6 +14554,39 @@ function buildCountryZones(){
   COUNTRY_THEMES.forEach(buildTownExtras);
 }
 
+// ─── SPACE STATION — a real 9th flight destination, reached through the exact same
+// openAirport()/buyFlight()/startFlightAnim() every country already uses (that whole pipeline
+// is generic over dest.x/dest.z/name/emoji/desc, so a new AIRPORT_FLIGHTS entry is all it takes
+// to make it bookable — see SPACE_ZONE below for the real low-gravity effect once you're there). ──
+const SPACE_ZONE = { x:0, z:1200, r:60 };
+function buildSpaceZone(){
+  const { x:sx, z:sz } = SPACE_ZONE;
+  // Gray cratered "moon" platform, raised slightly above the default ground so it visually reads
+  // as its own surface rather than just city grass with props scattered on it.
+  box(110, 0.6, 110, 0x8a8a8a, sx, 0.3, sz);
+  const craterSpots = [[-25,-20],[18,-12],[-8,22],[30,18],[0,0],[-30,10]];
+  craterSpots.forEach(([dx,dz]) => box(10+Math.random()*6, 0.3, 10+Math.random()*6, 0x6f6f6f, sx+dx, 0.55, sz+dz));
+  // Rocket ship — nose cone + body + fins, the real landmark for the zone
+  const rocket = new THREE.Group(); rocket.position.set(sx, 0, sz-18); scene.add(rocket);
+  rocket.add(new THREE.Mesh(new THREE.CylinderGeometry(3,3,16,10), mat(0xe0e0e0)).translateY(9));
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(3,7,10), mat(0xcc3333)); nose.position.y = 20.5; rocket.add(nose);
+  [0,1,2,3].forEach(i => { const ang=i*Math.PI/2; const fin=new THREE.Mesh(new THREE.BoxGeometry(0.4,4,2.5), mat(0xcc3333)); fin.position.set(Math.cos(ang)*3.2, 2, Math.sin(ang)*3.2); fin.rotation.y=ang; rocket.add(fin); });
+  const glow = new THREE.PointLight(0x66ccff, 2, 40); glow.position.set(sx, 10, sz-18); scene.add(glow);
+  // Planted flag — a small "someone was here" landmark, matches the Moon-landing fantasy
+  box(0.15, 6, 0.15, 0xcccccc, sx+14, 3, sz+6);
+  box(2.2, 1.4, 0.1, 0x4fd8ff, sx+15, 5.3, sz+6);
+  // A scatter of real stars overhead — small emissive spheres, cheap and reads fine against the sky
+  for(let i=0;i<40;i++){
+    const s = i*137.508;
+    const px = sx + ((s*0.618)%1 - 0.5)*140, pz = sz + ((s*0.382)%1 - 0.5)*140;
+    const star = new THREE.Mesh(new THREE.SphereGeometry(0.25,4,4), new THREE.MeshBasicMaterial({color:0xffffff}));
+    star.position.set(px, 26+((s*0.214)%1)*14, pz);
+    scene.add(star);
+  }
+  buildSign('🚀 SPACE STATION', sx, 26, sz+24);
+  addCol(CITY_COLS, sx, sz-18, 4, 4); // real collider so you can't just walk through the rocket
+}
+
 // ─── CONTROLS ────────────────────────────────────────────────────────────────
 function tryCityJump(){
   if(inCar) return;
@@ -14095,6 +14732,9 @@ function animate(){
   if(_fc) _fc.textContent = 'Frames: ' + _frames + ' | canvas: ' + (renderer&&renderer.domElement ? renderer.domElement.width+'x'+renderer.domElement.height : 'none');
   const dt=clock.getDelta(), t=clock.getElapsedTime();
 
+  if(t - _lastPresenceSync > PRESENCE_SYNC_INTERVAL) { _lastPresenceSync = t; syncPresence(t); }
+  updateRemotePlayers(dt);
+
   // Movement with collision
   let moving=false;
   if(!inCar && !playerSeated){
@@ -14144,7 +14784,8 @@ function animate(){
   }
   // Jump / gravity (vertical motion, works even while standing still)
   if(!inCar && !playerSeated && (!onGround || jumpVel!==0)){
-    jumpVel -= (activeAddOns.includes('moonjump')?14:34)*dt;
+    const inSpaceZone = Math.hypot(playerGroup.position.x-SPACE_ZONE.x, playerGroup.position.z-SPACE_ZONE.z) < SPACE_ZONE.r;
+    jumpVel -= (activeAddOns.includes('moonjump')||inSpaceZone ? 14 : 34)*dt;
     playerGroup.position.y += jumpVel*dt;
     if(playerGroup.position.y<=0){
       playerGroup.position.y=0;
@@ -14273,6 +14914,18 @@ function animate(){
     if(activeAddOns.includes('petsparkle') && buddyMoved && Math.random()<0.4) spawnParticle(buddyGroup.position, 0xffddff, {size:0.08, life:0.5});
   }
 
+  // Adopted child — same lag-behind-follow pattern as Buddy, opposite side so they don't overlap.
+  // Scale is NOT set here (tickGrowth owns it, based on the child's own growth clock) — just position/facing.
+  if(familyKidGroup) {
+    const targetX = playerGroup.position.x - Math.sin(yaw)*1.6 + Math.cos(yaw)*0.9;
+    const targetZ = playerGroup.position.z - Math.cos(yaw)*1.6 - Math.sin(yaw)*0.9;
+    const followLerp = Math.min(1, dt*3);
+    familyKidGroup.position.x += (targetX - familyKidGroup.position.x) * followLerp;
+    familyKidGroup.position.z += (targetZ - familyKidGroup.position.z) * followLerp;
+    familyKidGroup.position.y = playerGroup.position.y;
+    familyKidGroup.rotation.y += (yaw - familyKidGroup.rotation.y) * followLerp;
+  }
+
   // Camera
   if(inCar&&activeCar){
     const camX=activeCar.group.position.x-Math.sin(carYaw)*18;
@@ -14354,10 +15007,13 @@ function animate(){
   tickCook(dt);
   tickWanted(dt);
   tickElders(dt);
+  tickGrowth(dt);
   tickMachines(dt);
   tickTubeWorld(dt);
   tickTubeGrowth(dt);
   tickRogueRobots(dt);
+  billTimerTick(dt);
+  tickBillsOverdue();
   tickCarImpactDebris(dt);
   tickPrison(dt);
   tickHealth(dt);
