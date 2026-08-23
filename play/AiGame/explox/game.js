@@ -5775,9 +5775,9 @@ function knockoutPlayer() {
 const ARENA_CENTER = { x:250, z:-200 };
 function buildFightArena() {
   const { x:cx, z:cz } = ARENA_CENTER;
-  const r = 16;
+  const r = 49; // 100x100m: floor is r*2+2 = 100 on a side
   box(r*2+2, 0.3, r*2+2, 0x4a3a2a, cx, 0.1, cz); // sand floor
-  const posts = 16;
+  const posts = 48; // scaled up from the original 16 (at r=16) to keep roughly the same spacing around the much bigger ring
   for (let i = 0; i < posts; i++) {
     const a = (i / posts) * Math.PI * 2;
     box(0.5, 1.6, 0.5, 0x8a5a3a, cx + Math.cos(a)*r, 0.8, cz + Math.sin(a)*r);
@@ -5813,7 +5813,7 @@ let ffaLeaderboard = [];      // [{name, kills}], synced while inArena
 let _lastFfaSync = -999;
 const FFA_SYNC_INTERVAL = 2;
 const FFA_RESPAWN_SECONDS = 8;
-const ARENA_RADIUS = 16; // matches buildFightArena()'s sand floor
+const ARENA_RADIUS = 49; // matches buildFightArena()'s sand floor (100x100m)
 
 function sendMail(to, type, data) {
   if(serverMode !== 'online') return;
@@ -11418,7 +11418,7 @@ const LOC_ZONES = [
   {name:'Whispering Woods',x:WOODS_CENTER.x, z:WOODS_CENTER.z, r:30},
   {name:'Sunset Plains',   x:LAND_CENTER.x,  z:LAND_CENTER.z,  r:380},
   {name:'The Scrapyard',   x:SCRAPYARD_CENTER.x, z:SCRAPYARD_CENTER.z, r:30},
-  {name:'Fight Arena',     x:ARENA_CENTER.x, z:ARENA_CENTER.z, r:18},
+  {name:'Fight Arena',     x:ARENA_CENTER.x, z:ARENA_CENTER.z, r:52},
   {name:'The Dump',        x:DUMP_CENTER.x, z:DUMP_CENTER.z, r:25},
   {name:'City Hall',       x:0,   z:-35, r:22},
   {name:'Hospital',        x:-40, z:60,  r:22},
