@@ -5936,8 +5936,16 @@ function tryGiveSip() {
 function tryDuelInteract() {
   if(dueling) {
     const rp = remotePlayers[dueling];
-    if(!rp) { showNotif(`${dueling} is no longer nearby.`); return true; }
+    // Real bug found live: an active-but-stale duel (opponent wandered off, or the
+    // duel just never formally ended) used to swallow EVERY E-press anywhere in the
+    // game with "get closer to X" - including robot fights, zones, everything -
+    // since returning true here always blocked handleInteract()'s normal fallthrough.
+    // Now it only claims the interaction when the opponent is genuinely close enough
+    // that this really IS what you meant to do; otherwise it steps aside so whatever
+    // you're actually standing near (a robot, a zone) still works normally.
+    if(!rp) return false;
     const d = Math.hypot(playerGroup.position.x - rp.mesh.position.x, playerGroup.position.z - rp.mesh.position.z);
+    if(d > 25) return false; // opponent is far off - don't block unrelated interactions
     if(d > 8) { showNotif(`Get closer to ${dueling} to swing!`); return true; } // real players found this too tight at 6 - loosened, and now says why instead of silently doing nothing
     const dmg = getWeaponDamage();
     triggerSwing();
