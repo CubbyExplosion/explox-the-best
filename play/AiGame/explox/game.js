@@ -6006,16 +6006,29 @@ function tryDuelInteract() {
     showNotif(`⚔️ Hit ${dueling} for ${dmg}!`);
     return true;
   }
+  // Real bug found live, co-op testing at a War territory: a friend just being within 35
+  // units outdoors made EVERY E-press here turn into "walk closer to challenge them" —
+  // even while standing right on top of a war-garrison NPC's own fight zone, so combat
+  // was completely unreachable the whole time a friend was nearby. Same "step aside for
+  // whatever you're actually standing near" philosophy as the d>25 case above, just
+  // extended to this not-yet-dueling case too, which never had it.
   if(!duelChallengeSentTo) {
-    const nearby = nearestRemotePlayer(12);
-    if(nearby) {
-      duelChallengeSentTo = nearby;
-      sendMail(nearby, 'duel_challenge');
-      showNotif(`⚔️ Challenge sent to ${nearby}...`);
-      return true;
+    const zones = inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : CITY_ZONES;
+    const px3 = playerGroup.position.x, pz3 = playerGroup.position.z;
+    const nearZone = zones.some(z => Math.hypot(px3 - z.x, pz3 - z.z) < z.r)
+      || rogueRobots.some(r => r.alive && Math.hypot(px3 - r.x, pz3 - r.z) < 3)
+      || (alignment === 'bad' && playerWeapon !== 'none' && npcs.some(n => Math.hypot(px3 - n.group.position.x, pz3 - n.group.position.z) < 3.5));
+    if(!nearZone) {
+      const nearby = nearestRemotePlayer(12);
+      if(nearby) {
+        duelChallengeSentTo = nearby;
+        sendMail(nearby, 'duel_challenge');
+        showNotif(`⚔️ Challenge sent to ${nearby}...`);
+        return true;
+      }
+      const far = nearestRemotePlayer(35);
+      if(far) { showNotif(`🚶 Walk closer to ${far} to challenge them to a duel!`); return true; }
     }
-    const far = nearestRemotePlayer(35);
-    if(far) { showNotif(`🚶 Walk closer to ${far} to challenge them to a duel!`); return true; }
   }
   return false;
 }
