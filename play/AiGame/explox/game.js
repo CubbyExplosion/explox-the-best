@@ -6863,9 +6863,15 @@ function billTimerTick(dt) {
 }
 function generateBills() {
   const items = [];
-  if (ownedLand.length) items.push({ id:'rent_' + Date.now(), label:`🏡 Land upkeep (${ownedLand.length} plot${ownedLand.length>1?'s':''})`, amount: 10 * ownedLand.length });
-  if (ownedCars.length) items.push({ id:'car_' + Date.now(), label:`🚗 Car payment (${ownedCars.length} car${ownedCars.length>1?'s':''})`, amount: 15 * ownedCars.length });
-  if (!items.length) return; // nothing owned yet — no bills, nothing to pay
+  // Real bug found live: this never checked whether the last cycle's bill was still sitting
+  // unpaid before generating another — every 90-second cycle piled on a fresh duplicate on top,
+  // so a long play session (or just not opening Add-Ons for a while) could quietly stack up
+  // hundreds of bills for the exact same rent/car payment. Now it only sends a new bill once
+  // the previous one of that type has actually been paid off.
+  const hasUnpaid = prefix => unpaidBills.some(b => b.id.startsWith(prefix));
+  if (ownedLand.length && !hasUnpaid('rent_')) items.push({ id:'rent_' + Date.now(), label:`🏡 Land upkeep (${ownedLand.length} plot${ownedLand.length>1?'s':''})`, amount: 10 * ownedLand.length });
+  if (ownedCars.length && !hasUnpaid('car_')) items.push({ id:'car_' + Date.now(), label:`🚗 Car payment (${ownedCars.length} car${ownedCars.length>1?'s':''})`, amount: 15 * ownedCars.length });
+  if (!items.length) return; // nothing owned yet, or last cycle's bill(s) are still unpaid
   items.forEach(it => { it.dueAt = playTimeSeconds + 120; unpaidBills.push(it); }); // real 2-minute grace period
   lastBillCheck = playTimeSeconds;
   saveCurrentUser();
