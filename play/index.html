@@ -261,6 +261,30 @@
   </div>
 </div>
 
+<!-- ROBOT ARENA CONFIG MODAL -->
+<div id="arenaConfigModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.82);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#1a0a1a,#2a0a2a);border:2px solid #ff4444;border-radius:16px;padding:32px 28px;width:320px;text-align:center;">
+    <div style="font-size:36px;margin-bottom:8px;">🤖</div>
+    <h2 style="color:#ff4444;font-size:18px;letter-spacing:3px;margin-bottom:6px;">ROBOT ARENA</h2>
+    <p style="color:#aaa;font-size:13px;margin-bottom:16px;">How many robots do you want to fight? (1–200)</p>
+    <input id="arenaCountInput" type="number" min="1" max="200" value="20"
+      style="width:100%;padding:10px 14px;background:rgba(255,255,255,0.08);border:2px solid #444;border-radius:10px;color:#fff;font-size:16px;text-align:center;margin-bottom:14px;outline:none;box-sizing:border-box;"
+      onkeydown="if(event.key==='Enter')startArenaBattle()"
+      onfocus="this.style.borderColor='#ff4444'" onblur="this.style.borderColor='#444'">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:14px;">
+      <button onclick="document.getElementById('arenaCountInput').value=10" style="padding:5px 10px;background:#332222;border:1px solid #663333;border-radius:6px;color:#ddd;font-size:11px;cursor:pointer;">10</button>
+      <button onclick="document.getElementById('arenaCountInput').value=20" style="padding:5px 10px;background:#332222;border:1px solid #663333;border-radius:6px;color:#ddd;font-size:11px;cursor:pointer;">20</button>
+      <button onclick="document.getElementById('arenaCountInput').value=50" style="padding:5px 10px;background:#332222;border:1px solid #663333;border-radius:6px;color:#ddd;font-size:11px;cursor:pointer;">50</button>
+      <button onclick="document.getElementById('arenaCountInput').value=100" style="padding:5px 10px;background:#332222;border:1px solid #663333;border-radius:6px;color:#ddd;font-size:11px;cursor:pointer;">100</button>
+      <button onclick="document.getElementById('arenaCountInput').value=200" style="padding:5px 10px;background:#332222;border:1px solid #663333;border-radius:6px;color:#ddd;font-size:11px;cursor:pointer;">200 MAX</button>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="exitRobotArena()" style="flex:1;padding:10px;background:none;border:1px solid #555;border-radius:8px;color:#aaa;cursor:pointer;font-size:13px;">← Leave</button>
+      <button onclick="startArenaBattle()" style="flex:1;padding:10px;background:#7a1a1a;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:13px;">⚔️ Start!</button>
+    </div>
+  </div>
+</div>
+
 <!-- BANK PASSCODE MODAL -->
 <div id="bankPasscodeModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.82);align-items:center;justify-content:center;">
   <div style="background:linear-gradient(135deg,#12180a,#1e2a0e);border:2px solid #FFD700;border-radius:16px;padding:32px 28px;width:320px;text-align:center;">
@@ -780,6 +804,11 @@
   <div id="worldEventBanner" style="display:none;position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:110;background:linear-gradient(135deg,#1a2430,#204030);border:2px solid #44dd88;border-radius:12px;padding:8px 18px;box-shadow:0 4px 20px rgba(0,0,0,0.6);">
     <span id="worldEventBannerText" style="color:#fff;font-weight:bold;font-size:13px;"></span>
   </div>
+  <!-- ROBOT ARENA live battle HUD — purely informational, no buttons, so it's fine to inherit
+       #hud's pointer-events:none (nothing here needs to be clickable). -->
+  <div id="arenaHud" style="display:none;position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:110;background:linear-gradient(135deg,#2a0a0a,#1a0a2a);border:2px solid #ff4444;border-radius:12px;padding:8px 18px;box-shadow:0 4px 20px rgba(0,0,0,0.6);">
+    <span id="arenaHudText" style="color:#fff;font-weight:bold;font-size:13px;"></span>
+  </div>
   <!-- NAV COMPASS HUD -->
   <div id="navHud" style="display:none;position:fixed;bottom:100px;left:50%;transform:translateX(-50%);z-index:30;pointer-events:none;text-align:center;">
     <div style="background:rgba(0,0,0,0.75);border:2px solid #00ffff;border-radius:14px;padding:8px 18px;display:inline-block;">
@@ -809,7 +838,7 @@
   </div>
 
   <!-- SAI PANEL -->
-  <div id="saiPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:20;background:linear-gradient(135deg,#050f08,#071a0f);border:2px solid #00ff88;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:260px;pointer-events:auto;max-height:85vh;overflow:hidden;">
+  <div id="saiPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#050f08,#071a0f);border:2px solid #00ff88;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:260px;pointer-events:auto;max-height:85vh;overflow:hidden;">
     <div style="color:#00ff88;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:2px;">🤖 SAI</div>
     <p style="color:#555;font-size:9px;text-align:center;margin-bottom:10px;letter-spacing:1px;">SUPER ARTIFICIAL INTELLIGENCE</p>
     <!-- Sub-tabs -->
@@ -857,7 +886,7 @@
   </div>
 
   <!-- MUSIC PANEL -->
-  <div id="musicPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:20;background:linear-gradient(135deg,#0f0a1a,#1a0a2a);border:2px solid #cc44ff;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:245px;pointer-events:auto;max-height:85vh;overflow:hidden;">
+  <div id="musicPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#0f0a1a,#1a0a2a);border:2px solid #cc44ff;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:245px;pointer-events:auto;max-height:85vh;overflow:hidden;">
     <div style="color:#cc44ff;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:4px;">🎵 MUSIC</div>
     <p style="color:#555;font-size:9px;text-align:center;margin-bottom:10px;letter-spacing:1px;">SELECT A TRACK — CLICK TO PLAY</p>
     <div id="musicList" style="display:flex;flex-direction:column;max-height:calc(85vh - 100px);overflow-y:auto;padding-right:4px;"></div>
@@ -872,7 +901,7 @@
   </div>
 
   <!-- ADD ONS PANEL -->
-  <div id="addOnsPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:20;background:linear-gradient(135deg,#1a0f05,#2a1505);border:2px solid #ff9944;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:270px;pointer-events:auto;max-height:85vh;overflow:hidden;">
+  <div id="addOnsPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#1a0f05,#2a1505);border:2px solid #ff9944;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:270px;pointer-events:auto;max-height:85vh;overflow:hidden;">
     <div style="color:#ff9944;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:2px;">🧩 ADD ONS</div>
     <p style="color:#555;font-size:9px;text-align:center;margin-bottom:10px;letter-spacing:1px;" id="addOnsSubtitle">OVER 100 FUN ADD-ONS — MORE COMING</p>
     <div id="addOnsPanelItems" style="display:flex;flex-direction:column;gap:10px;max-height:calc(85vh - 110px);overflow-y:auto;padding-right:4px;"></div>
@@ -884,13 +913,13 @@
        this tab would have made worse by piling on) and clear of the right side's own
        Mini Games (+0) and Bag (+100) tabs too, measured for real on a real mobile viewport. -->
   <div id="questsTab" style="position:fixed;top:calc(50% + 166px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
-    <button onclick="toggleQuestsPanel()" style="display:block;background:linear-gradient(180deg,#1a0a2a,#2a0a4a);border:2px solid #cc66ff;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-weight:bold;letter-spacing:1px;font-size:11px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
+    <button onclick="toggleQuestsPanel()" style="display:block;background:linear-gradient(180deg,#1a0a2a,#2a0a4a);border:2px solid #cc66ff;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
       <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">📜</span>QUESTS
     </button>
   </div>
 
   <!-- QUESTS PANEL -->
-  <div id="questsPanel" style="display:none;position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:20;background:linear-gradient(135deg,#0f0518,#1a0828);border:2px solid #cc66ff;border-right:none;border-radius:14px 0 0 14px;padding:14px 12px;width:290px;pointer-events:auto;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;">
+  <div id="questsPanel" style="display:none;position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#0f0518,#1a0828);border:2px solid #cc66ff;border-right:none;border-radius:14px 0 0 14px;padding:14px 12px;width:290px;pointer-events:auto;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;">
     <div style="color:#cc66ff;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:8px;">📜 QUESTS</div>
     <div style="background:rgba(255,255,255,0.06);border:2px solid #cc66ff;border-radius:10px;padding:10px;margin-bottom:10px;text-align:center;">
       <div id="questsLevelLine" style="color:#fff;font-size:12px;margin-bottom:8px;"></div>
@@ -933,7 +962,7 @@
   </div>
 
   <!-- INVENTORY PANEL -->
-  <div id="inventoryPanel" style="display:none;position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:20;background:linear-gradient(135deg,#1a2e1a,#0f4020);border:2px solid #FFD700;border-right:none;border-radius:14px 0 0 14px;padding:16px 14px;width:230px;pointer-events:auto;max-height:70vh;overflow-y:auto;">
+  <div id="inventoryPanel" style="display:none;position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#1a2e1a,#0f4020);border:2px solid #FFD700;border-right:none;border-radius:14px 0 0 14px;padding:16px 14px;width:230px;pointer-events:auto;max-height:70vh;overflow-y:auto;">
     <h3 style="color:#FFD700;font-size:13px;letter-spacing:2px;margin-bottom:12px;text-align:center;">🎒 MY BAG</h3>
     <div id="inventoryList" style="display:flex;flex-direction:column;gap:8px;"></div>
     <div id="inventoryEmpty" style="color:#555;font-size:12px;text-align:center;padding:20px;">Nothing in your bag yet!<br>Buy items around the city.</div>

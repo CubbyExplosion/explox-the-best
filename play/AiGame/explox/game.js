@@ -2174,7 +2174,7 @@ function addCol(arr, cx, cz, hw, hd) { const c = { cx, cz, hw, hd }; arr.push(c)
 
 function isBlocked(nx, nz, rOverride) {
   const r = rOverride !== undefined ? rOverride : 0.65; // real optional radius — cars (item 159 fix) pass a bigger one
-  const cols = inPrison ? [] : inFriendHouse ? [] : inLandHouse ? LAND_HOUSE_COLS : inCountryHotel ? COUNTRY_HOTEL_COLS : inAirportLounge ? AIRPORT_LOUNGE_COLS : inArcade ? ARCADE_COLS : inHotel ? HOTEL_COLS : inHouse ? HOUSE_COLS : inMall ? MALL_COLS : inStore ? STORE_COLS : CITY_COLS;
+  const cols = inArenaBattle ? ROBOT_ARENA_COLS : inPrison ? [] : inFriendHouse ? [] : inLandHouse ? LAND_HOUSE_COLS : inCountryHotel ? COUNTRY_HOTEL_COLS : inAirportLounge ? AIRPORT_LOUNGE_COLS : inArcade ? ARCADE_COLS : inHotel ? HOTEL_COLS : inHouse ? HOUSE_COLS : inMall ? MALL_COLS : inStore ? STORE_COLS : CITY_COLS;
   for(const c of cols) {
     if(nx+r > c.cx-c.hw && nx-r < c.cx+c.hw &&
        nz+r > c.cz-c.hd && nz-r < c.cz+c.hd) return true;
@@ -6122,7 +6122,7 @@ function tryDuelInteract() {
   // whatever you're actually standing near" philosophy as the d>25 case above, just
   // extended to this not-yet-dueling case too, which never had it.
   if(!duelChallengeSentTo) {
-    const zones = inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : CITY_ZONES;
+    const zones = inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : CITY_ZONES;
     const px3 = playerGroup.position.x, pz3 = playerGroup.position.z;
     const nearZone = zones.some(z => Math.hypot(px3 - z.x, pz3 - z.z) < z.r)
       || rogueRobots.some(r => r.alive && Math.hypot(px3 - r.x, pz3 - r.z) < 3)
@@ -8918,14 +8918,34 @@ function closeInventory() {
 function refreshInventory() {
   const list  = document.getElementById('inventoryList');
   const empty = document.getElementById('inventoryEmpty');
+
+  // Owned weapons switch right here now instead of needing a trip back to whichever shop
+  // sold them — ownedWeapons was always a real persisted list, this panel just never
+  // showed it. Bare fists is always offered once you own at least one real weapon, so you
+  // can go unarmed again without losing track of what you own.
+  let weaponsHtml = '';
+  if (ownedWeapons.length > 0) {
+    const options = [{ id: 'none', name: '✊ Bare Fists' }, ...WEAPONS.filter(w => ownedWeapons.includes(w.id))];
+    weaponsHtml = `<div style="color:#ff8888;font-size:11px;font-weight:bold;letter-spacing:1px;margin-bottom:6px;">⚔️ WEAPONS</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
+        ${options.map(w => {
+          const equipped = playerWeapon === w.id;
+          return `<div style="background:rgba(255,255,255,0.06);border:1px solid ${equipped ? '#ff8888' : '#444'};border-radius:8px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <span style="color:#fff;font-size:12px;">${w.name}</span>
+            <button onclick="equipWeapon('${w.id}')" ${equipped ? 'disabled' : ''} style="padding:4px 10px;background:${equipped ? '#333' : '#7a2a2a'};border:none;border-radius:6px;color:#fff;font-size:10px;cursor:${equipped ? 'default' : 'pointer'};">${equipped ? '✓ Equipped' : 'Equip'}</button>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }
+
   const keys  = Object.keys(playerInventory);
-  if(keys.length === 0) {
+  if(keys.length === 0 && !weaponsHtml) {
     list.innerHTML = '';
     empty.style.display = 'block';
     return;
   }
   empty.style.display = 'none';
-  list.innerHTML = keys.map(id => {
+  const itemsHtml = keys.map(id => {
     const it = playerInventory[id];
     return `<div style="background:rgba(255,255,255,0.06);border:1px solid #444;border-radius:8px;padding:10px;display:flex;align-items:center;gap:10px;">
       <span style="font-size:22px;">${it.emoji}</span>
@@ -8935,6 +8955,7 @@ function refreshInventory() {
       </div>
     </div>`;
   }).join('');
+  list.innerHTML = weaponsHtml + itemsHtml;
 }
 
 // ─── HOUSE SYSTEM ────────────────────────────────────────────────────────────
@@ -11084,7 +11105,7 @@ function spawnRogueRobot() {
 }
 function tickRogueRobots(dt) {
   rogueTimer += dt;
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle;
   if (rogueTimer >= 20) {
     rogueTimer = 0;
     if (outdoors && rogueRobots.filter(r=>r.alive).length < 5) spawnRogueRobot();
@@ -11185,6 +11206,178 @@ function buildScrapyard() {
   buildLogoSign('ROBO ARSENAL', '🤖', '#223344', '#00ffcc', rax, 3.4, raz-1.3);
   addCol(CITY_COLS, rax, raz, 1.6, 1.1);
   CITY_ZONES.push({ x:rax, z:raz+2.5, r:2.3, label:'🤖 Robo Arsenal Shop', action: ()=>openShop('robotweapons'), isShop:true });
+
+  buildRobotArenaEntranceSign();
+}
+
+// ─── ROBOT ARENA — a real horde-mode pocket space: fight through a player-chosen number of
+// robots (1 to 200 as asked), with a small wave actually alive at once (so it's a playable
+// fight, not 200 frozen meshes all at once) that refills as you clear it. Reuses the exact
+// same Robot Level scaling (item 200's robotPowerMult()/robotSizeMult()) as the rest of the
+// city, so a maxed-out level makes this a genuinely harder gauntlet, not just a longer one. ──
+const ROBOT_ARENA_ENTRANCE = { x: SCRAPYARD_CENTER.x+35, z: SCRAPYARD_CENTER.z+10 };
+const ROBOT_ARENA_SPAWN = { x:90000, z:0 }; // own 10,000-unit lane, next free one after AirportLounge(120000)
+const ROBOT_ARENA_EXIT  = { x:90000, z:18 };
+const ROBOT_ARENA_COLS  = [];
+const ARENA_SIZE = 24; // half-width of the square floor
+const ARENA_MAX_ACTIVE = 6;   // robots alive at once — the rest wait their turn
+const ARENA_MAX_TOTAL  = 200; // hard cap on the configurable total, exactly as asked
+let inArenaBattle   = false;
+let arenaConfiguring = false; // count-picker open, fight not started yet
+let arenaRunning     = false;
+let arenaTotalRobots = 20;
+let arenaDefeatedCount = 0;
+let arenaActiveRobots = [];
+
+function buildRobotArenaEntranceSign() {
+  const ex = ROBOT_ARENA_ENTRANCE.x, ez = ROBOT_ARENA_ENTRANCE.z;
+  box(4,3.4,3, 0x2a1a3a, ex, 1.7, ez);
+  box(4.4,0.3,3.4, 0x1a0f28, ex, 3.5, ez);
+  box(1.6,2.4,0.2, 0x110818, ex, 1.4, ez+1.55);
+  buildLogoSign('ROBOT ARENA', '🤖', '#2a1a3a', '#ff4444', ex, 4.4, ez-1.7);
+  addCol(CITY_COLS, ex, ez, 2.2, 1.6);
+  CITY_ZONES.push({ x:ex, z:ez+2.6, r:2.6, label:'🤖 Enter Robot Arena', action: enterRobotArena });
+}
+function buildRobotArenaInterior() {
+  const ix = ROBOT_ARENA_SPAWN.x, iz = 0, S = ARENA_SIZE;
+  box(S*2, 0.3, S*2, 0x33333d, ix, 0.15, iz);   // floor
+  box(S*2, 6, 0.5, 0x1a1a22, ix, 3, iz-S);      // back wall
+  box(S*2, 6, 0.5, 0x1a1a22, ix, 3, iz+S);      // front wall
+  box(0.5, 6, S*2, 0x1a1a22, ix-S, 3, iz);      // left wall
+  box(0.5, 6, S*2, 0x1a1a22, ix+S, 3, iz);      // right wall
+  box(3, 4, 0.2, 0xff3333, ix, 2, iz+S-0.3);    // exit marker, front wall
+  buildLogoSign('ROBOT ARENA', ix, 6.5, iz-S+1.5);
+  buildSign('EXIT', ix, 3.7, iz+S-1.4);
+  addCol(ROBOT_ARENA_COLS, ix, iz-S, S, 0.6);
+  addCol(ROBOT_ARENA_COLS, ix, iz+S, S, 0.6);
+  addCol(ROBOT_ARENA_COLS, ix-S, iz, 0.6, S);
+  addCol(ROBOT_ARENA_COLS, ix+S, iz, 0.6, S);
+  const pl1 = new THREE.PointLight(0xff4444, 1.3, 45); pl1.position.set(ix-S+5, 6, iz-S+5); scene.add(pl1);
+  const pl2 = new THREE.PointLight(0x4488ff, 1.3, 45); pl2.position.set(ix+S-5, 6, iz+S-5); scene.add(pl2);
+}
+const ROBOT_ARENA_ZONES = [
+  { x:ROBOT_ARENA_EXIT.x, z:ROBOT_ARENA_EXIT.z, r:3, label:'🚪 Leave Arena', action: exitRobotArena },
+];
+function enterRobotArena() {
+  inArenaBattle = true;
+  arenaConfiguring = true;
+  arenaRunning = false;
+  playerGroup.position.set(ROBOT_ARENA_SPAWN.x, 0, ROBOT_ARENA_SPAWN.z-10);
+  yaw = 0;
+  showNotif('🤖 Welcome to the Robot Arena!');
+  openArenaConfig();
+}
+function exitRobotArena() {
+  clearArenaRobots();
+  inArenaBattle = false;
+  arenaConfiguring = false;
+  arenaRunning = false;
+  closeArenaConfig();
+  document.getElementById('arenaHud').style.display = 'none';
+  playerGroup.position.set(ROBOT_ARENA_ENTRANCE.x, 0, ROBOT_ARENA_ENTRANCE.z+3);
+  yaw = Math.PI;
+  showNotif('Leaving the Robot Arena...');
+}
+function openArenaConfig() {
+  document.getElementById('arenaConfigModal').style.display = 'flex';
+  document.getElementById('arenaCountInput').value = arenaTotalRobots;
+}
+function closeArenaConfig() {
+  document.getElementById('arenaConfigModal').style.display = 'none';
+}
+function startArenaBattle() {
+  const n = parseInt(document.getElementById('arenaCountInput').value);
+  arenaTotalRobots = Math.max(1, Math.min(ARENA_MAX_TOTAL, isNaN(n) ? 20 : n));
+  arenaDefeatedCount = 0;
+  arenaConfiguring = false;
+  arenaRunning = true;
+  closeArenaConfig();
+  updateArenaHud();
+  document.getElementById('arenaHud').style.display = 'block';
+  showNotif(`🤖⚔️ ${arenaTotalRobots} robots incoming — good luck!`);
+  spawnArenaWave();
+}
+function spawnArenaWave() {
+  if (!arenaRunning) return;
+  const remaining = arenaTotalRobots - arenaDefeatedCount - arenaActiveRobots.length;
+  const toSpawn = Math.max(0, Math.min(ARENA_MAX_ACTIVE - arenaActiveRobots.length, remaining));
+  for (let i=0; i<toSpawn; i++) spawnOneArenaRobot();
+}
+function spawnOneArenaRobot() {
+  const type = pickRobotType();
+  const angle = Math.random()*Math.PI*2, dist = 6+Math.random()*(ARENA_SIZE-8);
+  const x = ROBOT_ARENA_SPAWN.x + Math.cos(angle)*dist, z = ROBOT_ARENA_SPAWN.z + Math.sin(angle)*dist;
+  const mesh = buildRobotMesh(x, z, type.color, type.shape);
+  const mult = robotPowerMult();
+  mesh.scale.setScalar(robotSizeMult());
+  const hp = Math.round(type.hp * mult);
+  const col = addCol(ROBOT_ARENA_COLS, x, z, 0.6, 0.6);
+  // Per-kill reward is deliberately smaller than the same robot out in the city (0.6x) — the
+  // real payout here is the completion bonus in finishArenaBattle(), scaled by how many
+  // robots were chosen, so picking a bigger fight is worth meaningfully more, not just longer.
+  const robot = { id:'arena'+ROBOT_ID_SEQ++, x, z, hp, maxHp:hp, type, mesh, alive:true, zone:null, col,
+    powerMult:mult, rewardRange:[Math.round(type.reward[0]*mult*0.6), Math.round(type.reward[1]*mult*0.6)],
+    eliteReward: Math.round((ELITE_COIN_REWARD[type.id]||0)*mult*0.6) };
+  const zone = { x, z, r:2.8, label:`🤖 Fight ${type.name}`, action: () => fightArenaRobot(robot) };
+  robot.zone = zone;
+  ROBOT_ARENA_ZONES.push(zone);
+  arenaActiveRobots.push(robot);
+}
+function fightArenaRobot(robot) {
+  if (!robot.alive || !arenaRunning) return;
+  const dmg = getRobotDamage();
+  robot.hp -= dmg;
+  triggerSwing();
+  startKnockback(playerGroup.position.x, playerGroup.position.z, robot.x, robot.z,
+    (x, z) => { robot.x = x; robot.z = z; robot.mesh.position.set(x, 0, z); });
+  sfx.clang();
+  if (robot.hp > 0) {
+    const backDmg = Math.round((6 + Math.random()*8) * robot.powerMult);
+    showNotif(`🤖 Hit ${robot.type.name} for ${dmg}! (${robot.hp} HP left)`);
+    damagePlayer(backDmg, robot.type.name);
+    return;
+  }
+  defeatArenaRobot(robot);
+}
+function defeatArenaRobot(robot) {
+  robot.alive = false;
+  scene.remove(robot.mesh);
+  const zi = ROBOT_ARENA_ZONES.indexOf(robot.zone); if (zi>-1) ROBOT_ARENA_ZONES.splice(zi,1);
+  if (robot.col) { const ci = ROBOT_ARENA_COLS.indexOf(robot.col); if (ci>-1) ROBOT_ARENA_COLS.splice(ci,1); }
+  const ai = arenaActiveRobots.indexOf(robot); if (ai>-1) arenaActiveRobots.splice(ai,1);
+  const [lo,hi] = robot.rewardRange;
+  const reward = lo + Math.floor(Math.random()*(hi-lo+1));
+  sipDollars += reward; updateSIP();
+  if (robot.eliteReward > 0) { eliteCoins += robot.eliteReward; updateElite(); }
+  sfx.boom();
+  arenaDefeatedCount++;
+  lifetimeRobotKills++; // a real robot kill either way — counts toward the Quests panel too
+  updateArenaHud();
+  if (arenaDefeatedCount >= arenaTotalRobots) finishArenaBattle();
+  else spawnArenaWave();
+}
+function finishArenaBattle() {
+  arenaRunning = false;
+  const bonusSip = arenaTotalRobots * 5;
+  const bonusElite = Math.round(arenaTotalRobots * 0.5);
+  sipDollars += bonusSip; updateSIP();
+  eliteCoins += bonusElite; updateElite();
+  saveCurrentUser();
+  document.getElementById('arenaHud').style.display = 'none';
+  showNotif(`🏆 ARENA CLEARED! All ${arenaTotalRobots} robots defeated! +${bonusSip} S.I.P. +${bonusElite} 💎`);
+}
+function clearArenaRobots() {
+  arenaActiveRobots.forEach(r => {
+    if (!r.alive) return;
+    scene.remove(r.mesh);
+    const zi = ROBOT_ARENA_ZONES.indexOf(r.zone); if (zi>-1) ROBOT_ARENA_ZONES.splice(zi,1);
+    if (r.col) { const ci = ROBOT_ARENA_COLS.indexOf(r.col); if (ci>-1) ROBOT_ARENA_COLS.splice(ci,1); }
+  });
+  arenaActiveRobots = [];
+}
+function updateArenaHud() {
+  const el = document.getElementById('arenaHudText');
+  if (el) el.textContent = `🤖 Arena: ${arenaDefeatedCount} / ${arenaTotalRobots} defeated`;
 }
 
 // ── 100 spawners scattered across the whole city (The Scrapyard's own 3 above + 97 more here) ──
@@ -11565,9 +11758,9 @@ function handleInteract() {
   // Arena free-for-all takes priority over open-world 1v1 duels while standing in it
   if(inArena && serverMode === 'online' && tryFfaInteract()) return;
   // PvP duel: swing at your opponent if one's active, else challenge whoever's nearby
-  if(!inArena && !inHouse && !inMall && !inArcade && !inStore && serverMode === 'online' && tryDuelInteract()) return;
+  if(!inArena && !inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && serverMode === 'online' && tryDuelInteract()) return;
   // Bad guy with weapon: NPC attack takes priority over zone actions
-  if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade) {
+  if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade && !inArenaBattle) {
     let closest = null, closestDist = 3.5;
     for(const npc of npcs) {
       const d = Math.sqrt((px2-npc.group.position.x)**2+(pz-npc.group.position.z)**2);
@@ -11577,7 +11770,7 @@ function handleInteract() {
   }
   // Rogue robots (item 156) roam freely into the city and can be fought back any time, same
   // priority tier as attacking an NPC — they aren't tied to a fixed CITY_ZONES position since they move.
-  if (!inHouse && !inMall && !inArcade && !inStore) {
+  if (!inHouse && !inMall && !inArcade && !inStore && !inArenaBattle) {
     let closestRogue = null, closestRogueDist = 3;
     for (const r of rogueRobots) {
       if (!r.alive) continue;
@@ -11586,11 +11779,11 @@ function handleInteract() {
     }
     if (closestRogue) { fightRogueRobot(closestRogue); return; }
   }
-  const zones = inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : CITY_ZONES;
+  const zones = inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : CITY_ZONES;
   for(const z of zones) {
     if(Math.sqrt((px2-z.x)**2+(pz-z.z)**2) < z.r) { z.action(); return; }
   }
-  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade) {
+  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle) {
     const neighbor = findNearestNeighbor(px2, pz, 3);
     if(neighbor) { openNeighborModal(neighbor.name); return; }
   }
@@ -11605,7 +11798,7 @@ function updatePrompt() {
     const dx=px2-pc.group.position.x, dz=pz-pc.group.position.z;
     if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent=`[E] ${pc.def.emoji} Get in ${pc.def.name}`; el.style.display='block'; return; }
   }
-  const zones = inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : CITY_ZONES;
+  const zones = inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : CITY_ZONES;
   for(const z of zones) {
     if(Math.sqrt((px2-z.x)**2+(pz-z.z)**2) < z.r) {
       if(z.isComputer) {
@@ -11672,7 +11865,7 @@ function updatePrompt() {
     }
   }
   // Talk to a nearby neighbor — lowest priority, only out in the open city
-  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade) {
+  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle) {
     const neighbor = findNearestNeighbor(px2, pz, 3);
     if(neighbor) { el.textContent = `[E] 👋 Talk to ${neighbor.name}`; el.style.display='block'; return; }
   }
@@ -11831,6 +12024,7 @@ function _startGameInner() {
   _dbg('buildCountryHotelInterior', buildCountryHotelInterior);
   _dbg('buildAirportLoungeInterior', buildAirportLoungeInterior);
   _dbg('buildScrapyard', buildScrapyard);
+  _dbg('buildRobotArenaInterior', buildRobotArenaInterior);
   _dbg('buildFightArena', buildFightArena);
   _dbg('buildGlobalSpawners', buildGlobalSpawners);
   _dbg('buildDump', buildDump);
