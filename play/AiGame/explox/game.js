@@ -1152,11 +1152,17 @@ function refreshStockMarketUI() {
     </div>`;
   }).join('');
 }
+// Every real S.I.P. payment anywhere in the game (shops, add-ons, bills, land, cars, food,
+// clothes, everything) now also deposits that same amount straight into the real Bank balance
+// — spending doesn't just vanish, it moves into savings, same as the handful of purchases
+// (movie tickets etc.) that already did this by hand before. One shared choke point instead of
+// duplicating "sipDollars -= X; bankBalance += X;" at every single spend site in the file.
+function spendSip(amount) { sipDollars -= amount; bankBalance += amount; }
 function buyStockShares(symbol) {
   const price = stockPrices[symbol];
   if(!price) { showNotif('❌ Price not available yet — try again in a moment.'); return; }
   if(sipDollars < price) { sfx.nope(); showNotif('❌ Not enough S.I.P.!'); return; }
-  sipDollars -= price;
+  spendSip(price);
   myStocks[symbol] = (myStocks[symbol] || 0) + 1;
   updateSIP();
   sfx.buy();
@@ -1182,7 +1188,7 @@ function bankDeposit() {
   const msg = document.getElementById('bankMsg');
   if(!amt || amt <= 0) { msg.style.color='#ff8888'; msg.textContent='Enter a valid amount!'; return; }
   if(amt > sipDollars) { sfx.nope(); msg.style.color='#ff8888'; msg.textContent="You don't have that much!"; return; }
-  sipDollars -= amt;
+  spendSip(amt);
   bankBalance += amt;
   document.getElementById('sipAmount').textContent = sipDollars;
   document.getElementById('bankWalletDisplay').textContent = sipDollars.toLocaleString() + ' S.I.P.';
@@ -1487,6 +1493,19 @@ function generateQuest() {
   return { id: 'q' + Date.now() + Math.floor(Math.random() * 9999), type: t.type, icon: t.icon, desc: t.desc(target), target, rewardElite: t.reward(), startValue: t.lifetime() };
 }
 function ensureQuests() { while (activeQuests.length < MAX_ACTIVE_QUESTS) activeQuests.push(generateQuest()); }
+// User's own ask: a paid way to swap out all 3 current quests for a fresh random set, in case
+// none of them are ones you feel like doing right now.
+const QUEST_REFRESH_COST = 10;
+function refreshQuests() {
+  if (eliteCoins < QUEST_REFRESH_COST) { showNotif(`❌ Need ${QUEST_REFRESH_COST} 💎 to refresh your quests!`); return; }
+  eliteCoins -= QUEST_REFRESH_COST; updateElite();
+  activeQuests = [];
+  ensureQuests();
+  saveCurrentUser();
+  renderQuestsPanel();
+  showNotif(`🔄 Quests refreshed! -${QUEST_REFRESH_COST} 💎`);
+  sfx.buy();
+}
 function questProgress(q) {
   const tmpl = QUEST_TEMPLATES.find(t => t.type === q.type);
   return Math.max(0, Math.min(q.target, Math.floor(tmpl.lifetime() - q.startValue)));
@@ -1530,6 +1549,12 @@ function renderQuestsPanel() {
   btn.style.opacity = canLevel ? '1' : '0.5';
   btn.style.cursor = canLevel ? 'pointer' : 'not-allowed';
   btn.textContent = canLevel ? `⬆️ LEVEL UP! (-${nextCost.toLocaleString()} 💎)` : `⬆️ Need ${Math.ceil(nextCost - eliteCoins).toLocaleString()} more 💎`;
+  const refreshBtn = document.getElementById('questsRefreshBtn');
+  const canRefresh = eliteCoins >= QUEST_REFRESH_COST;
+  refreshBtn.disabled = !canRefresh;
+  refreshBtn.style.opacity = canRefresh ? '1' : '0.5';
+  refreshBtn.style.cursor = canRefresh ? 'pointer' : 'not-allowed';
+  refreshBtn.textContent = canRefresh ? `🔄 Refresh Quests (-${QUEST_REFRESH_COST} 💎)` : `🔄 Need ${QUEST_REFRESH_COST} 💎 to refresh`;
   const list = document.getElementById('questsList');
   list.innerHTML = activeQuests.map(q => {
     const prog = questProgress(q);
@@ -1652,7 +1677,7 @@ function applySkin(idx) {
   if(!owned) {
     const wallet = isElite ? eliteCoins : sipDollars;
     if(wallet < s.price) { showCustomMsg(isElite ? `❌ Need ${s.price} 💎 Elite Coins to unlock!` : `❌ Need ${s.price} S.I.P. to unlock!`); return; }
-    if (isElite) { eliteCoins -= s.price; updateElite(); } else { sipDollars -= s.price; }
+    if (isElite) { eliteCoins -= s.price; updateElite(); } else { spendSip(s.price); }
     ownedSkins.push(s.id);
     // auto-unlock individual items that come with this skin
     ['hat_'+s.hat,'hair_'+s.hair,'shirt_'+s.shirt,'pants_'+s.pants,'shoe_'+s.shoes].forEach(key => {
@@ -1768,7 +1793,7 @@ function setupBtnGroup(id, setter) {
           showCustomMsg(`❌ Need ${price} S.I.P. to unlock!`);
           return;
         }
-        sipDollars -= price;
+        spendSip(price);
         ownedItems.push(key);
         saveCurrentUser();
         document.getElementById('customSip').textContent = sipDollars;
@@ -2411,7 +2436,7 @@ function arrest() {
   // Sentence length is based on how wanted you were BEFORE it resets — worse crimes, more time served.
   const sentence = 20 + wantedLevel * 15;
   const fine = Math.min(sipDollars, 40 * wantedLevel);
-  sipDollars -= fine;
+  spendSip(fine);
   wantedLevel = 0;
   updateSIP();
   updateWantedHud();
@@ -5033,7 +5058,7 @@ function buyFlight(idx) {
   const meal = FLIGHT_MEALS.find(m => m.id === mealId) || FLIGHT_MEALS[0];
   const total = flight.price + (bringCar ? CAR_BRING_FEE : 0);
   if(sipDollars < total) { showNotif(`❌ Need ${total} S.I.P. for this flight${bringCar?' (with your car)':''}!`); sfx.nope&&sfx.nope(); return; }
-  sipDollars -= total; saveCurrentUser(); updateSIP();
+  spendSip(total); saveCurrentUser(); updateSIP();
   document.getElementById('airportModal').style.display = 'none';
   sfx.earn&&sfx.earn();
   startFlightAnim(flight, bringCar, meal);
@@ -5201,7 +5226,7 @@ function bookRoom(type) {
   const prices = { budget:40, standard:80, luxury:200 };
   const price = prices[type];
   if(sipDollars < price) { showNotif(`❌ Need ${price} S.I.P. to book this room!`); return; }
-  sipDollars -= price; saveCurrentUser(); updateSIP();
+  spendSip(price); saveCurrentUser(); updateSIP();
   document.getElementById('hotelModal').style.display = 'none';
   inHotel = true;
   currentHotelRoom = type;
@@ -5295,8 +5320,7 @@ function buySITSTicket(routeId, stop) {
   const route = SITS_ROUTES.find(r => r.id === routeId);
   if(!route) return;
   if(sipDollars < route.fare) { showNotif(`❌ Need ${route.fare} S.I.P. for a ticket!`); return; }
-  sipDollars -= route.fare;
-  bankBalance += route.fare;
+  spendSip(route.fare);
   saveCurrentUser();
   updateSIP();
   closeSITS();
@@ -5526,7 +5550,7 @@ function buildMovieGrid() {
 function selectCinemaMovie(idx) {
   const m = CINEMA_MOVIES[idx];
   if(sipDollars < m.price) { showNotif(`❌ Need ${m.price} S.I.P. for a ticket!`); return; }
-  sipDollars -= m.price; bankBalance += m.price; saveCurrentUser(); updateSIP();
+  spendSip(m.price); saveCurrentUser(); updateSIP();
   cinemaState.movie = m;
   cinemaState.movieIdx = idx;
   document.getElementById('cinemaLobby').style.display = 'none';
@@ -5552,7 +5576,7 @@ function buildSnackBar() {
 
 function buyCinemaSnack(s) {
   if(sipDollars < s.price) { showNotif(`❌ Need ${s.price} S.I.P.!`); return; }
-  sipDollars -= s.price; bankBalance += s.price; saveCurrentUser(); updateSIP();
+  spendSip(s.price); saveCurrentUser(); updateSIP();
   cinemaState.snacks.push(s);
   document.getElementById('cinemaSnackSip').textContent = sipDollars;
   updateSnackCart();
@@ -5596,7 +5620,7 @@ function refreshRestaurantUI() {
 function buyRestaurantFood(idx) {
   const def = RESTAURANT_MENU[idx];
   if(sipDollars < def.price) { sfx.nope(); showNotif(`❌ Need ${def.price} S.I.P.!`); return; }
-  sipDollars -= def.price; bankBalance += def.price; saveCurrentUser(); updateSIP();
+  spendSip(def.price); saveCurrentUser(); updateSIP();
   sfx.buy();
   addToBag(def);
 }
@@ -5675,7 +5699,7 @@ function buyThemedFood(restaurantId, idx) {
   if (!r) return;
   const def = r.menu[idx];
   if (sipDollars < def.price) { sfx.nope(); showNotif(`❌ Need ${def.price} S.I.P.!`); return; }
-  sipDollars -= def.price; bankBalance += def.price; saveCurrentUser(); updateSIP();
+  spendSip(def.price); saveCurrentUser(); updateSIP();
   sfx.buy();
   addToBag(def);
 }
@@ -6102,7 +6126,7 @@ function tryGiveSip() {
   const amt = Math.floor(Number(raw));
   if(!raw || !Number.isFinite(amt) || amt <= 0) return;
   if(sipDollars < amt) { showNotif(`❌ You only have ${sipDollars} S.I.P.!`); return; }
-  sipDollars -= amt; updateSIP(); saveCurrentUser();
+  spendSip(amt); updateSIP(); saveCurrentUser();
   sendMail(target, 'sip_gift', { amount: amt });
   showNotif(`💸 Sent ${amt} S.I.P. to ${target}!`);
 }
@@ -6335,7 +6359,7 @@ function openBlackMarket() {
 function buyBlackMarketItem(idx) {
   const item = BLACK_MARKET_ITEMS[idx];
   if(sipDollars < item.cost) { showNotif('❌ Not enough S.I.P.!'); return; }
-  sipDollars -= item.cost;
+  spendSip(item.cost);
   if(item.sipReward) { sipDollars += item.sipReward; showNotif(`💰 Laundered! +${item.sipReward} S.I.P.`); }
   if(item.weaponId) {
     if(!ownedWeapons.includes(item.weaponId)) ownedWeapons.push(item.weaponId);
@@ -6462,7 +6486,7 @@ function buyArmor(i) {
   const a = ARMOR[i];
   if(ownedArmor.includes(a.id)) { equipArmor(a.id); openShop('armor'); return; }
   if(sipDollars < a.cost) { showNotif(`❌ Need ${a.cost} S.I.P.`); return; }
-  sipDollars -= a.cost; updateSIP();
+  spendSip(a.cost); updateSIP();
   ownedArmor.push(a.id);
   equipArmor(a.id);
   showNotif(`✅ Got ${a.name}!`);
@@ -6502,7 +6526,7 @@ const BODY_PAINTS = [
 function buyBodyPaint(i) {
   const p = BODY_PAINTS[i];
   if(sipDollars < p.cost) { showNotif(`❌ Need ${p.cost} S.I.P.`); return; }
-  sipDollars -= p.cost; updateSIP();
+  spendSip(p.cost); updateSIP();
   repaintSkin(p.color);
   sfx.buy();
   showNotif(`🎨 Painted ${p.name}!`);
@@ -6655,7 +6679,7 @@ function adoptBuddy(i) {
   const s = BUDDY_SPECIES[i];
   if(buddyOwned) { showNotif('❌ You already have a buddy!'); return; }
   if(sipDollars < s.cost) { showNotif(`❌ Need ${s.cost} S.I.P.`); return; }
-  sipDollars -= s.cost; updateSIP();
+  spendSip(s.cost); updateSIP();
   buddyOwned = true;
   buddySpecies = s.id;
   buddyName = s.name;
@@ -6784,7 +6808,7 @@ function adoptChild(i) {
   const k = ADOPTABLE_KIDS[i];
   if (familyKidAdopted) { showNotif('❌ You already have a child!'); return; }
   if (sipDollars < k.cost) { showNotif(`❌ Need ${k.cost} S.I.P.`); return; }
-  sipDollars -= k.cost; updateSIP();
+  spendSip(k.cost); updateSIP();
   familyKidAdopted = true;
   familyKidId = k.id;
   familyKidName = k.name;
@@ -6907,7 +6931,7 @@ function payBill(id) {
   const b = unpaidBills.find(x => x.id === id);
   if (!b) return;
   if (sipDollars < b.amount) { showNotif(`❌ Need ${b.amount} S.I.P. to pay this bill!`); return; }
-  sipDollars -= b.amount; updateSIP();
+  spendSip(b.amount); updateSIP();
   unpaidBills = unpaidBills.filter(x => x.id !== id);
   saveCurrentUser();
   sfx.buy();
@@ -7083,7 +7107,7 @@ function triggerAddOn(id) {
   const eliteCost = def.eliteCost||0;
   if(cost>0 && sipDollars < cost) { showNotif(`❌ Need ${cost} S.I.P.`); return; }
   if(eliteCost>0 && eliteCoins < eliteCost) { showNotif(`❌ Need ${eliteCost} 💎`); return; }
-  if(cost>0) { sipDollars -= cost; updateSIP(); }
+  if(cost>0) { spendSip(cost); updateSIP(); }
   if(eliteCost>0) { eliteCoins -= eliteCost; updateElite(); }
   const pick = arr => arr[Math.floor(Math.random()*arr.length)];
   if(id==='diceroll') showNotif(`🎲 You rolled a ${1+Math.floor(Math.random()*6)}!`);
@@ -7162,7 +7186,7 @@ function triggerAddOn(id) {
 function buyOutfit(i) {
   const o = OUTFITS[i];
   if(sipDollars < o.cost) { showNotif(`❌ Need ${o.cost} S.I.P.`); return; }
-  sipDollars -= o.cost; updateSIP();
+  spendSip(o.cost); updateSIP();
   playerColors.shirt = o.shirt; playerColors.pants = o.pants; playerColors.shoes = o.shoes;
   document.getElementById('shirtColor').value = o.shirt;
   document.getElementById('pantsColor').value = o.pants;
@@ -7174,7 +7198,7 @@ function buyWeapon(i) {
   const w = WEAPONS[i];
   if(ownedWeapons.includes(w.id)) { equipWeapon(w.id); closeShop(); return; }
   if(sipDollars < w.cost) { showNotif(`❌ Need ${w.cost} S.I.P.`); return; }
-  sipDollars -= w.cost; updateSIP();
+  spendSip(w.cost); updateSIP();
   ownedWeapons.push(w.id);
   equipWeapon(w.id);
   showNotif(`✅ Got ${w.name}!`);
@@ -7386,7 +7410,7 @@ function buyBoutiqueOutfit(shopId, i) {
   if (!shop) return;
   const o = shop.outfits[i];
   if (sipDollars < o.cost) { showNotif(`❌ Need ${o.cost} S.I.P.`); return; }
-  sipDollars -= o.cost; updateSIP();
+  spendSip(o.cost); updateSIP();
   playerColors.shirt = o.shirt; playerColors.pants = o.pants; playerColors.shoes = o.shoes;
   document.getElementById('shirtColor').value = o.shirt;
   document.getElementById('pantsColor').value = o.pants;
@@ -7491,7 +7515,7 @@ function addToInventory(id, name, emoji) {
 
 function buyItem(name, cost) {
   if(sipDollars < cost) { sfx.nope(); showNotif(`❌ Need ${cost} S.I.P. — you have ${sipDollars}`); return; }
-  sipDollars -= cost;
+  spendSip(cost);
   updateSIP();
   const info = ITEM_INFO[name] || { emoji:'📦', id: name.toLowerCase().replace(/\s+/g,'_') };
   addToInventory(info.id, name, info.emoji);
@@ -7600,7 +7624,7 @@ function crashIntoBuilding(x, z) {
   if (now - lastCarCrashAt < 1500) return;
   lastCarCrashAt = now;
   const fee = activeAddOns.includes('crashinsurance') ? 0 : Math.min(sipDollars, BUILDING_CRASH_FEE);
-  sipDollars -= fee; updateSIP(); saveCurrentUser();
+  spendSip(fee); updateSIP(); saveCurrentUser();
   spawnCarImpactBurst(x, z, [0xff8800,0x888888,0xffcc00]); // sparks, not the "destroyed" debris palette
   sfx.hit();
   // Bumper Bounce — a real backward knockback along the car's own heading, away from the wall.
@@ -7714,7 +7738,7 @@ function buyCarItem(idx) {
   if(ownedCars.includes(def.id)) { showNotif('You already own this car!'); return; }
   const cost = def.price;
   if(sipDollars < cost) { sfx.nope(); showNotif(`❌ Need ${cost} S.I.P.!`); return; }
-  sipDollars -= cost;
+  spendSip(cost);
   updateSIP();
   ownedCars.push(def.id);
   saveCurrentUser();
@@ -8036,7 +8060,7 @@ function buyIngredient(idx) {
   const boxPrice = def.price * BOX_QTY;
   if(sipDollars < boxPrice) { sfx.nope(); showNotif(`❌ Need ${boxPrice} S.I.P.!`); return; }
   if(carriedBox) { showNotif('📦 Your hands are full — shelve that box first!'); return; }
-  sipDollars -= boxPrice;
+  spendSip(boxPrice);
   updateSIP();
   sfx.buy();
   closeIngredientsCounter();
@@ -8076,7 +8100,7 @@ function advertiseStore(){
   if(!ownedStore) return;
   const cost = adCost(storeAdLevel);
   if(sipDollars < cost){ sfx.nope(); showNotif(`❌ Need ${cost} S.I.P. to advertise!`); return; }
-  sipDollars -= cost;
+  spendSip(cost);
   storeAdLevel += 1;
   updateSIP();
   saveCurrentUser();
@@ -8094,7 +8118,7 @@ function hireStaff(specificName){
   if(specificName && ownedStaff.some(s => s.name === specificName)){ showNotif(`${specificName} already works here!`); return; }
   const cost = staffHireCost();
   if(sipDollars < cost){ sfx.nope(); showNotif(`❌ Need ${cost} S.I.P. to hire staff!`); return; }
-  sipDollars -= cost;
+  spendSip(cost);
   const name = specificName || STAFF_NAMES[ownedStaff.length % STAFF_NAMES.length];
   ownedStaff.push({name});
   updateSIP();
@@ -8244,7 +8268,7 @@ function buyFurniture(idx) {
   const def = FURNITURE_CATALOG[idx];
   if(ownedFurniture.includes(def.id)) { showNotif('You already have this!'); return; }
   if(sipDollars < def.price) { sfx.nope(); showNotif(`❌ Need ${def.price} S.I.P.!`); return; }
-  sipDollars -= def.price;
+  spendSip(def.price);
   updateSIP();
   ownedFurniture.push(def.id);
   saveCurrentUser();
@@ -8376,7 +8400,7 @@ function confirmStorePlacement() {
   const x = playerGroup.position.x, z = playerGroup.position.z;
   if(!isStoreSpotValid(x, z)) { sfx.nope(); showNotif('❌ Too close to something else — try a different spot!'); return; }
   const { def, customName } = placingStore;
-  sipDollars -= def.price;
+  spendSip(def.price);
   updateSIP();
   ownedStore = { id: def.id, customName, location: { x, z } };
   placingStore = null;
@@ -8453,7 +8477,7 @@ function buyComputer(idx) {
   if(ownedComputers.includes(def.id)) { showNotif('You already own this computer!'); return; }
   const cost = def.price;
   if(sipDollars < cost) { sfx.nope(); showNotif(`❌ Need ${cost} S.I.P.!`); return; }
-  sipDollars -= cost;
+  spendSip(cost);
   updateSIP();
   ownedComputers.push(def.id);
   saveCurrentUser();
@@ -8924,7 +8948,7 @@ function buySibItem(idx) {
   if(!it) return;
   const cost = it.cost;
   if(sipDollars < cost) { sfx.nope(); showNotif(`❌ Need ${cost} S.I.P.!`); return; }
-  sipDollars -= cost;
+  spendSip(cost);
   updateSIP();
   const info = { emoji: it.emoji, id: it.id };
   addToInventory(it.id, it.name, it.emoji);
@@ -9082,7 +9106,7 @@ function arcadeCharge(fee, resultElId) {
     if (el) el.textContent = `You need ${fee} S.I.P. to play this — you only have ${sipDollars}.`;
     return false;
   }
-  sipDollars -= fee; updateSIP();
+  spendSip(fee); updateSIP();
   return true;
 }
 
@@ -10025,7 +10049,7 @@ function craftItem(i) {
   if(!canAffordRecipe(r)) { showNotif(`❌ Need ${craftCostText(r)}`); return; }
   if(r.wood)  { woodCount -= r.wood; updateWood(); }
   if(r.scrap) { scrapMetal -= r.scrap; updateScrapMetal(); }
-  if(r.sip)   { sipDollars -= r.sip; updateSIP(); }
+  if(r.sip)   { spendSip(r.sip); updateSIP(); }
   spendMats(r.mats);
   if(r.type==='weapon') {
     ownedWeapons.push(r.id);
@@ -10355,7 +10379,7 @@ const COUNTRY_HOTEL_ZONES = [
 function checkinCountryHotel(originName, doorX, doorZ) {
   const price = 50;
   if (sipDollars < price) { sfx.nope(); showNotif(`❌ Need ${price} S.I.P. for a room at the ${originName} Hotel!`); return; }
-  sipDollars -= price; updateSIP(); saveCurrentUser();
+  spendSip(price); updateSIP(); saveCurrentUser();
   countryHotelReturn = { x:doorX, z:doorZ };
   inCountryHotel = true;
   playerGroup.position.set(COUNTRY_HOTEL_SPAWN.x, 0, COUNTRY_HOTEL_SPAWN.z);
@@ -10480,7 +10504,7 @@ function buyLoungeSouvenir() {
   const origin = airportLoungeOrigin ? airportLoungeOrigin.name : 'Downtown Explox';
   const sv = SOUVENIRS[origin] || SOUVENIRS['Downtown Explox'];
   if (sipDollars < sv.cost) { sfx.nope(); showNotif(`❌ Need ${sv.cost} S.I.P. for a ${sv.name}!`); return; }
-  sipDollars -= sv.cost; updateSIP();
+  spendSip(sv.cost); updateSIP();
   addToInventory('souvenir_'+slug(sv.name), sv.name, sv.emoji);
   saveCurrentUser();
   sfx.buy();
@@ -10490,7 +10514,7 @@ function buyLoungeElectronic(itemId) {
   const item = LOUNGE_ELECTRONICS.find(x => x.id === itemId);
   if (!item) return;
   if (sipDollars < item.cost) { sfx.nope(); showNotif(`❌ Need ${item.cost} S.I.P. for a ${item.name}!`); return; }
-  sipDollars -= item.cost; updateSIP();
+  spendSip(item.cost); updateSIP();
   addToInventory(item.id, item.name, item.emoji);
   saveCurrentUser();
   sfx.buy();
@@ -10507,7 +10531,7 @@ function buyLand(idx) {
   const ownerName = getLandOwners()[plot.id] || null;
   if (ownerName) { showNotif(`🏡 ${plot.name} is already owned by ${ownerName===currentUser?'you':ownerName}!`); return; }
   if(sipDollars < plot.price) { sfx.nope(); showNotif(`❌ Need ${plot.price.toLocaleString()} S.I.P. for ${plot.name}!`); return; }
-  sipDollars -= plot.price; updateSIP();
+  spendSip(plot.price); updateSIP();
   if(!ownedLand.includes(plot.id)) ownedLand.push(plot.id);
   setLandOwner(plot.id, currentUser);
   saveCurrentUser();
@@ -10550,7 +10574,7 @@ function buyLandFromOwner(idx, ownerName) {
   const price = ownerData.landForSale && ownerData.landForSale[plot.id];
   if (!price) { showNotif('❌ This land is not for sale.'); return; }
   if (sipDollars < price) { sfx.nope(); showNotif(`❌ Need ${price.toLocaleString()} S.I.P. to buy ${plot.name}!`); return; }
-  sipDollars -= price; updateSIP();
+  spendSip(price); updateSIP();
   const transferred = (ownerData.plotBuildings && ownerData.plotBuildings[plot.id]) || [];
   const transferredColor = ownerData.landColor && ownerData.landColor[plot.id];
   patchUserData(ownerName, d => {
@@ -10914,7 +10938,7 @@ function placeBuilding(idx, buildingId) {
   let slot = -1;
   for(let i=0;i<plot.slots.length;i++){ if(!usedSlots.includes(i)) { slot=i; break; } }
   if(def.wood) { woodCount -= def.wood; updateWood(); }
-  if(def.sip)  { sipDollars -= def.sip; updateSIP(); }
+  if(def.sip)  { spendSip(def.sip); updateSIP(); }
   if(def.scrap) { scrapMetal -= def.scrap; updateScrapMetal(); }
   spendMats(def.mats);
   placed.push({ slot, id: buildingId, _t:0 });
@@ -14655,7 +14679,7 @@ function hostGrandOpening() {
 function hostConcert() {
   const price = 15;
   if (sipDollars < price) { sfx.nope(); showNotif(`❌ Need ${price} S.I.P. for a concert ticket!`); return; }
-  sipDollars -= price; updateSIP();
+  spendSip(price); updateSIP();
   buildEventDecor('concert', TOWN_EVENT_SPOT.x, TOWN_EVENT_SPOT.z);
   const trackIdx = Math.floor(Math.random()*bgMusic.TRACKS.length);
   bgMusic.switchTrack(trackIdx);
