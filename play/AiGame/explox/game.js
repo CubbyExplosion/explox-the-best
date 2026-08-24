@@ -476,7 +476,8 @@ function saveCurrentUser() {
     unpaidBills: unpaidBills, lastBillCheck: lastBillCheck, hasSeenGuide: hasSeenGuide,
     myStocks: myStocks, ffaKills: ffaKills,
     eliteLevel: eliteLevel, activeQuests: activeQuests,
-    lifetimeRobotKills: lifetimeRobotKills, lifetimeRogueKills: lifetimeRogueKills, lifetimeWarHits: lifetimeWarHits
+    lifetimeRobotKills: lifetimeRobotKills, lifetimeRogueKills: lifetimeRogueKills, lifetimeWarHits: lifetimeWarHits,
+    killerDefeats: killerDefeats
   };
   localStorage.setItem('explox_user_' + currentUser, JSON.stringify(data));
   localStorage.setItem('explox_current_user', currentUser);
@@ -845,6 +846,7 @@ async function doLogin(name) {
   lifetimeRobotKills = d.lifetimeRobotKills !== undefined ? d.lifetimeRobotKills : 0;
   lifetimeRogueKills = d.lifetimeRogueKills !== undefined ? d.lifetimeRogueKills : 0;
   lifetimeWarHits    = d.lifetimeWarHits !== undefined ? d.lifetimeWarHits : 0;
+  killerDefeats      = d.killerDefeats !== undefined ? d.killerDefeats : 0;
   ensureQuests();
   shopOpen = false; // never resume a shop as open across a reload — you have to reopen it yourself
   document.getElementById('skinColor').value  = playerColors.skin;
@@ -1458,6 +1460,7 @@ let activeQuests = []; // [{id, type, icon, desc, target, rewardElite, startValu
 let lifetimeRobotKills = 0; // Scrapyard-spawner robots
 let lifetimeRogueKills = 0; // roaming rogue robots
 let lifetimeWarHits    = 0; // hits landed on any War territory defender
+let killerDefeats      = 0; // real persisted count — more of these means Killers spawn more often (see tickKillers)
 const ELITE_LEVEL_THRESHOLDS = [100, 500, 1000, 1500, 2000, 3000, 4500];
 function eliteThresholdForLevel(level) { // cost in Elite Coins to go from level-1 to level
   if (level <= ELITE_LEVEL_THRESHOLDS.length) return ELITE_LEVEL_THRESHOLDS[level - 1];
@@ -11217,6 +11220,126 @@ function defeatRogueRobot(robot) {
   lifetimeRogueKills++;
 }
 
+// ── Killers — no spawner, no warning notification, they're just suddenly there ────────────────
+// User's own ask: "killers with no sign they just come at you." Unlike a rogue robot (which
+// announces itself with a "⚠️ incoming!" notification and visibly walks in all the way from a
+// real spawner), a Killer spawns silently at a real random point out in the city and its mesh
+// stays completely invisible (mesh.visible=false) the whole time it's closing in — the only
+// "warning" is genuinely just seeing it once it's already within KILLER_REVEAL_RANGE. Armed
+// with a dagger (a real prop mesh, not just a text label) and tanky at a flat 200 HP — a real
+// fight, not a quick mob — but a defeat pays out purely in Elite Coins, no S.I.P. at all.
+let killers = []; // NOT persisted — {id,mesh,x,z,hp,maxHp,alive,speed,attackTimer,revealed}
+let killerTimer = 0;
+const KILLER_REVEAL_RANGE = 7, KILLER_ATTACK_RANGE = 2.5, KILLER_ATTACK_INTERVAL = 1.1;
+const KILLER_HP = 200, KILLER_REWARD_ELITE = 500;
+// User's own follow-up: "you see them more if you kill them, if not they're pretty rare." Both
+// scale off the real persisted killerDefeats count — a fresh account waits a long 90s between
+// checks and only ever sees 1 at a time; by 25 real defeats that's down to a 30s check with up
+// to 4 active at once. Floors/caps keep it from ever being either instant or unbounded.
+function killerSpawnInterval() { return Math.max(30, 90 - killerDefeats*3); }
+function killerMaxActive() { return Math.min(4, 1 + Math.floor(killerDefeats/8)); }
+function buildKillerMesh(x, z) {
+  const g = new THREE.Group(); g.position.set(x, 0, z);
+  const dark = 0x0a0a0a;
+  const mk = (w,h,d,color,px,py,pz) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color})); m.position.set(px,py,pz); m.castShadow = true; g.add(m); return m; };
+  mk(1,1,1, dark, 0,2.8,0); // head
+  const eyeMat = new THREE.MeshBasicMaterial({color:0xff0000});
+  [-0.22,0.22].forEach(ex => { const e = new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.05), eyeMat); e.position.set(ex,2.85,0.51); g.add(e); });
+  mk(1.15,0.35,1.1, dark, 0,3.35,0); // hood
+  mk(0.9,1.1,0.5, dark, 0,1.75,0); // torso
+  mk(0.35,0.9,0.35, dark,-0.65,1.75,0); mk(0.35,0.9,0.35, dark,0.65,1.75,0); // arms
+  mk(0.38,0.9,0.38, dark,-0.22,0.75,0); mk(0.38,0.9,0.38, dark,0.22,0.75,0); // legs
+  mk(0.42,0.22,0.5, dark,-0.22,0.1,0.05); mk(0.42,0.22,0.5, dark,0.22,0.1,0.05); // feet
+  // Dagger, held forward at the right hand — a real prop so the weapon reads visually, not
+  // just in the attack text.
+  const blade = mk(0.08,0.55,0.1, 0xc0c0c0, 0.65,1.32,0.28); blade.rotation.x = -0.5;
+  const hilt = mk(0.14,0.2,0.14, 0x3a2a1a, 0.65,1.05,0.15); hilt.rotation.x = -0.5;
+  // A real nametag like other players get would show a real name — this one deliberately shows
+  // a glitchy "UNKNOWN" tag instead, since nobody's supposed to know who or what this is.
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64;
+  const cx2 = cv.getContext('2d');
+  cx2.fillStyle = 'rgba(20,0,0,0.75)'; cx2.fillRect(0,16,256,32);
+  cx2.fillStyle = '#ff2222'; cx2.font = 'bold 24px monospace'; cx2.textAlign = 'center';
+  cx2.fillText('▓▓ UNKNOWN ▓▓', 128, 40);
+  const tag = new THREE.Mesh(new THREE.PlaneGeometry(2.4,0.6), new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+  tag.position.y = 4.5; g.add(tag);
+  scene.add(g);
+  return g;
+}
+function spawnKiller() {
+  const ang = Math.random()*Math.PI*2, dist = 30+Math.random()*20;
+  const x = Math.max(-1900, Math.min(1900, playerGroup.position.x+Math.cos(ang)*dist));
+  const z = Math.max(-1900, Math.min(1900, playerGroup.position.z+Math.sin(ang)*dist));
+  const mesh = buildKillerMesh(x, z);
+  mesh.visible = false; // hidden until it closes to KILLER_REVEAL_RANGE — no sign it's coming
+  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, revealed:false });
+}
+function tickKillers(dt) {
+  killerTimer += dt;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle;
+  if (killerTimer >= killerSpawnInterval()) {
+    killerTimer = 0;
+    if (outdoors && killers.filter(k=>k.alive).length < killerMaxActive()) spawnKiller();
+  }
+  if (!outdoors) return;
+  killers.forEach(k => {
+    if (!k.alive) return;
+    const dx = playerGroup.position.x-k.x, dz = playerGroup.position.z-k.z;
+    const dist = Math.hypot(dx,dz);
+    if (!k.revealed && dist <= KILLER_REVEAL_RANGE) { k.revealed = true; k.mesh.visible = true; sfx.tense(); }
+    if (dist < KILLER_ATTACK_RANGE) {
+      k.attackTimer += dt;
+      if (k.attackTimer > KILLER_ATTACK_INTERVAL) { k.attackTimer = 0; damagePlayer(8+Math.floor(Math.random()*8), "a Killer's dagger"); }
+    } else {
+      k.x += dx/dist*k.speed*dt; k.z += dz/dist*k.speed*dt;
+      k.mesh.position.set(k.x, 0, k.z);
+      k.mesh.rotation.y = Math.atan2(dx, dz);
+    }
+  });
+}
+function fightKiller(killer) {
+  if (!killer.alive) return;
+  const dmg = getWeaponDamage();
+  killer.hp -= dmg;
+  triggerSwing();
+  startKnockback(playerGroup.position.x, playerGroup.position.z, killer.x, killer.z,
+    (x, z) => { killer.x = x; killer.z = z; killer.mesh.position.set(x, 0, z); });
+  sfx.clang();
+  if (killer.hp > 0) {
+    showNotif(`⚔️ Hit the killer for ${dmg}! (${killer.hp}/${killer.maxHp} HP left)`);
+    return;
+  }
+  defeatKiller(killer);
+}
+// User's own follow-up: "the killer drops down with blood, with a dead bloody body" — a real
+// fallen-figure mesh + blood pool left behind at the exact spot, same "leave real evidence
+// behind" idea as buildWreckage() below for robots, just a body instead of scrap.
+let killerCorpses = []; // NOT persisted — purely decorative, same category as wreckagePiles
+function buildKillerCorpse(x, z) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = Math.random()*Math.PI*2;
+  const dark = 0x0a0a0a;
+  const mk = (w,h,d,color,px,py,pz) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color})); m.position.set(px,py,pz); g.add(m); return m; };
+  const blood = new THREE.Mesh(new THREE.CircleGeometry(1.3, 12), new THREE.MeshBasicMaterial({color:0x7a0000}));
+  blood.rotation.x = -Math.PI/2; blood.position.y = 0.015; g.add(blood);
+  mk(1.7,0.35,0.6, dark, 0,0.18,0);       // torso, lying flat
+  mk(0.7,0.35,0.6, dark, 1.05,0.18,0);    // head end
+  mk(0.5,0.3,0.5, dark, -0.9,0.15,0.3); mk(0.5,0.3,0.5, dark, -0.9,0.15,-0.3); // legs, splayed
+  const bloodSplat = new THREE.Mesh(new THREE.CircleGeometry(0.4, 8), new THREE.MeshBasicMaterial({color:0x990000}));
+  bloodSplat.rotation.x = -Math.PI/2; bloodSplat.position.set(0.6,0.36,0.1); g.add(bloodSplat);
+  scene.add(g);
+  killerCorpses.push({ x, z, mesh:g });
+  return g;
+}
+function defeatKiller(killer) {
+  killer.alive = false;
+  scene.remove(killer.mesh);
+  buildKillerCorpse(killer.x, killer.z);
+  killerDefeats++;
+  eliteCoins += KILLER_REWARD_ELITE; updateElite();
+  sfx.boom();
+  showNotif(`💀 Defeated the killer! +${KILLER_REWARD_ELITE} 💎`);
+}
+
 // ── The Grinder — turns real robot wreckage into Scrap Metal + the robot's real materials ──
 const GRINDER_POS = { x:SCRAPYARD_CENTER.x, z:SCRAPYARD_CENTER.z+18 };
 let wreckagePiles = []; // {x,z,mesh,type} — NOT persisted, same category as the ambient robots themselves
@@ -11772,6 +11895,7 @@ function isNearCombatTarget() {
   }
   if(!inHouse && !inMall && !inArcade && !inStore) {
     for(const r of rogueRobots) { if(r.alive && Math.hypot(px-r.x, pz-r.z) < 3) return true; }
+    for(const k of killers) { if(k.alive && k.revealed && Math.hypot(px-k.x, pz-k.z) < 3) return true; }
   }
   for(const z of CITY_ZONES) { if(z.action === hitDummy && Math.hypot(px-z.x, pz-z.z) < z.r) return true; }
   return false;
@@ -11838,6 +11962,14 @@ function handleInteract() {
       if (d < closestRogueDist) { closestRogueDist = d; closestRogue = r; }
     }
     if (closestRogue) { fightRogueRobot(closestRogue); return; }
+    // Killers (only once revealed — you can't fight what you haven't even seen yet), same tier.
+    let closestKiller = null, closestKillerDist = 3;
+    for (const k of killers) {
+      if (!k.alive || !k.revealed) continue;
+      const d = Math.sqrt((px2-k.x)**2+(pz-k.z)**2);
+      if (d < closestKillerDist) { closestKillerDist = d; closestKiller = k; }
+    }
+    if (closestKiller) { fightKiller(closestKiller); return; }
   }
   const zones = inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : CITY_ZONES;
   for(const z of zones) {
@@ -15057,15 +15189,18 @@ const BOSS_SYNC_INTERVAL = 5;
 function initBossState() {
   BOSS_DEFS.forEach(def => { if (!bossState[def.name]) bossState[def.name] = { hp: def.maxHp, maxHp: def.maxHp, alive: true, level: 0, defeats: 0, attackTimer: 0 }; });
 }
-// Same +20%/level-capped-at-3x formula used both here (the boss swinging on its own) and in
-// fightBoss()'s counter-hit below — pulled out once so the two can't drift apart.
+// A leveled-up boss hits harder too, same +20%-per-level formula as its HP — but capped at 3x
+// base (level 10+), or a level 50 boss would deal ~200 damage a swing and one-shot-kill anyone
+// through a full health bar. HP keeps scaling forever (a high-level boss is meant to be a real
+// long fight), damage dealt is deliberately a different, capped curve so it stays survivable
+// no matter how high the level climbs.
 function bossHitDamage(def, st) { return Math.round(def.damage * Math.min(3, 1 + (st.level||0)*0.2)); }
 // A boss used to only ever hit back as a counter-attack inside fightBoss() — completely passive
-// otherwise, so standing next to one without swinging was totally safe. Real bug the user caught:
-// "my boss needs to attack not only attack when you attack." Now it swings on its own timer
-// whenever a real player is in melee range, same "distance check + attackTimer" shape
+// otherwise, so standing next to one without swinging was totally safe. Now it swings on its own
+// timer whenever a real player is in melee range, same "distance check + attackTimer" shape
 // tickRogueRobots() already uses for its own passive attacks — purely local damage, so this
-// applies identically online or offline, no server round-trip needed.
+// applies identically online or offline, no server round-trip needed. The old counter-hit-only
+// code in fightBoss() has been removed — this is now the ONLY way a boss deals damage.
 const BOSS_ATTACK_RANGE = 6, BOSS_ATTACK_INTERVAL = 1.8;
 function tickBossAttacks(dt) {
   if (!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle) {
@@ -15148,12 +15283,9 @@ async function fightBoss(def) {
   showNotif(`${def.emoji} Hit ${def.name} for ${dmg}!`);
   sipDollars += def.hitSip; if (def.hitElite) eliteCoins += def.hitElite;
   updateSIP(); if (def.hitElite) updateElite();
-  // A leveled-up boss hits back harder too, same +20%-per-level formula as its HP — but
-  // capped at 3x base (level 10+), or a level 50 boss would deal ~200 damage a swing and
-  // one-shot-kill anyone through a full health bar. HP keeps scaling forever (a high-level
-  // boss is meant to be a real long fight), damage dealt back is deliberately a different,
-  // capped curve so it stays survivable no matter how high the level climbs.
-  damagePlayer(bossHitDamage(def, st), def.name);
+  // No counter-hit here anymore — tickBossAttacks() already swings at the player on its own
+  // timer whenever they're in range, attacking or not. A guaranteed extra hit every time you
+  // landed a hit too would just be double damage on top of that.
   st.attackTimer = 0; // landing your own hit resets its swing timer, same as a real fight would
   if (serverMode !== 'online') {
     // Offline solo fight — no server to share this with, resolve entirely locally.
@@ -16794,6 +16926,7 @@ function animate(){
   tickTubeWorld(dt);
   tickTubeGrowth(dt);
   tickRogueRobots(dt);
+  tickKillers(dt);
   billTimerTick(dt);
   tickBillsOverdue();
   tickCarImpactDebris(dt);
