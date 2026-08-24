@@ -850,7 +850,7 @@
   </div>
 
   <!-- MUSIC TAB -->
-  <div id="musicTabBtn" style="position:fixed;top:calc(50% + 145px);left:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
+  <div id="musicTabBtn" style="position:fixed;top:calc(50% + 170px);left:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
     <button onclick="openMusicPanel()" style="display:block;background:linear-gradient(180deg,#2a0a2a,#4a0a4a);border:2px solid #cc44ff;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
       <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🎵</span>MUSIC
     </button>
@@ -865,7 +865,7 @@
   </div>
 
   <!-- ADD ONS TAB -->
-  <div id="addOnsTab" style="position:fixed;top:calc(50% + 180px);left:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
+  <div id="addOnsTab" style="position:fixed;top:calc(50% + 243px);left:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
     <button onclick="toggleAddOnsPanel()" style="display:block;background:linear-gradient(180deg,#2a1a0a,#4a2a0a);border:2px solid #ff9944;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
       <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🧩</span>ADD ONS
     </button>
@@ -879,15 +879,18 @@
     <button onclick="closeAddOnsPanel()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:10px;">✕ Close</button>
   </div>
 
-  <!-- QUESTS TAB -->
-  <div id="questsTab" style="position:fixed;top:calc(50% + 250px);left:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
-    <button onclick="toggleQuestsPanel()" style="display:block;background:linear-gradient(180deg,#1a0a2a,#2a0a4a);border:2px solid #cc66ff;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
-      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">📜</span>QUESTS
+  <!-- QUESTS TAB — right side, well clear of the crowded left-side stack (SAI/Music/Add
+       Ons/Help overlap each other there on real mobile screens, a pre-existing spacing bug
+       this tab would have made worse by piling on) and clear of the right side's own
+       Mini Games (+0) and Bag (+100) tabs too, measured for real on a real mobile viewport. -->
+  <div id="questsTab" style="position:fixed;top:calc(50% + 166px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
+    <button onclick="toggleQuestsPanel()" style="display:block;background:linear-gradient(180deg,#1a0a2a,#2a0a4a);border:2px solid #cc66ff;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-weight:bold;letter-spacing:1px;font-size:11px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
+      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">📜</span>QUESTS
     </button>
   </div>
 
   <!-- QUESTS PANEL -->
-  <div id="questsPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:20;background:linear-gradient(135deg,#0f0518,#1a0828);border:2px solid #cc66ff;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:290px;pointer-events:auto;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;">
+  <div id="questsPanel" style="display:none;position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:20;background:linear-gradient(135deg,#0f0518,#1a0828);border:2px solid #cc66ff;border-right:none;border-radius:14px 0 0 14px;padding:14px 12px;width:290px;pointer-events:auto;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;">
     <div style="color:#cc66ff;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:8px;">📜 QUESTS</div>
     <div style="background:rgba(255,255,255,0.06);border:2px solid #cc66ff;border-radius:10px;padding:10px;margin-bottom:10px;text-align:center;">
       <div id="questsLevelLine" style="color:#fff;font-size:12px;margin-bottom:8px;"></div>
@@ -900,7 +903,7 @@
   </div>
 
   <!-- HELP/GUIDE TAB — always available so a returning or confused player can reopen the guide -->
-  <div id="guideTab" style="position:fixed;top:calc(50% + 215px);left:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
+  <div id="guideTab" style="position:fixed;top:calc(50% + 322px);left:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
     <button onclick="openGuide()" style="display:block;background:linear-gradient(180deg,#0a1a2a,#0a2a4a);border:2px solid #44ccff;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
       <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">❓</span>HELP
     </button>
