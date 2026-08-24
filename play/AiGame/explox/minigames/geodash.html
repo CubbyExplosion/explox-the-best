@@ -10,11 +10,16 @@
   #ui {
     position:fixed; inset:0; display:flex; flex-direction:column;
     align-items:center; justify-content:center; z-index:10;
+    pointer-events:none; /* only the visible screen (start/win/lose) re-enables this — otherwise
+                             this full-screen box sits on top of the canvas the whole game and
+                             silently eats every click/tap meant for tryJump(), even once its
+                             children are all hidden during actual gameplay */
   }
   #startScreen, #winScreen, #loseScreen {
     background:rgba(10,10,26,0.92); border:2px solid #e94560;
     border-radius:18px; padding:32px 40px; text-align:center;
     max-width:360px; width:90%;
+    pointer-events:auto;
   }
   #startScreen h1 { color:#e94560; font-size:2em; margin-bottom:6px; }
   #startScreen p  { color:#aaa; margin-bottom:18px; font-size:0.95em; }
