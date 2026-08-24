@@ -14965,13 +14965,13 @@ const BOSS_DEFS = [
   { name:'Storm Titan', emoji:'⚡', x:-650, z:650, maxHp:2500, damage:18,
     color:0x3355cc, shape:'elite', sipReward:[350,550], eliteReward:40, hitSip:2, hitElite:0 },
 ];
-let bossState  = {}; // name -> {hp, maxHp, alive} — local mirror, kept in sync with the server when online
+let bossState  = {}; // name -> {hp, maxHp, alive, level, defeats} — local mirror, synced from the server when online
 let bossMeshes = {}; // name -> {mesh, col}
 let currentNearBoss = null;
 let _lastBossSync = -999;
 const BOSS_SYNC_INTERVAL = 5;
 function initBossState() {
-  BOSS_DEFS.forEach(def => { if (!bossState[def.name]) bossState[def.name] = { hp: def.maxHp, maxHp: def.maxHp, alive: true }; });
+  BOSS_DEFS.forEach(def => { if (!bossState[def.name]) bossState[def.name] = { hp: def.maxHp, maxHp: def.maxHp, alive: true, level: 0, defeats: 0 }; });
 }
 function buildBosses() {
   initBossState();
@@ -14995,9 +14995,13 @@ async function syncBosses() {
       const srv = data[def.name];
       if (!srv) return; // nobody's ever hit it — local full-health default is already correct
       const st = bossState[def.name];
-      const wasAlive = st.alive;
+      const wasAlive = st.alive, wasLevel = st.level;
       st.hp = srv.hp; st.maxHp = srv.maxHp; st.alive = srv.alive;
-      if (!wasAlive && st.alive) showNotif(`${def.emoji} ${def.name} has returned!`);
+      if (srv.level !== undefined) st.level = srv.level;
+      if (srv.defeats !== undefined) st.defeats = srv.defeats;
+      if (!wasAlive && st.alive) {
+        showNotif(st.level > wasLevel ? `${def.emoji} ${def.name} has returned — now Level ${st.level}!` : `${def.emoji} ${def.name} has returned!`);
+      }
       const bm = bossMeshes[def.name]; if (bm) bm.mesh.visible = st.alive;
       if (currentNearBoss === def) showBossHud(def);
     });
@@ -15006,7 +15010,7 @@ async function syncBosses() {
 function showBossHud(def) {
   const st = bossState[def.name];
   document.getElementById('bossHud').style.display = 'block';
-  document.getElementById('bossHudName').textContent = `${def.emoji} ${def.name}`;
+  document.getElementById('bossHudName').textContent = `${def.emoji} ${def.name}${st.level > 0 ? ` — Lv.${st.level}` : ''}`;
   document.getElementById('bossHudFill').style.width = Math.max(0, st.hp/st.maxHp*100) + '%';
   document.getElementById('bossHudHp').textContent = st.alive ? `${Math.ceil(Math.max(0,st.hp))} / ${st.maxHp} HP` : 'Down — respawning...';
 }
@@ -15031,7 +15035,8 @@ async function fightBoss(def) {
   showNotif(`${def.emoji} Hit ${def.name} for ${dmg}!`);
   sipDollars += def.hitSip; if (def.hitElite) eliteCoins += def.hitElite;
   updateSIP(); if (def.hitElite) updateElite();
-  damagePlayer(def.damage, def.name);
+  // A leveled-up boss hits back harder too — same +20%-per-level formula as its HP.
+  damagePlayer(Math.round(def.damage * (1 + (st.level||0)*0.2)), def.name);
   if (serverMode !== 'online') {
     // Offline solo fight — no server to share this with, resolve entirely locally.
     if (st.hp <= 0) {
@@ -15059,6 +15064,8 @@ async function fightBoss(def) {
     const res = await r.json();
     const wasAlive = st.alive;
     st.hp = res.hp; st.alive = res.alive; st.maxHp = res.maxHp;
+    if (res.level !== undefined) st.level = res.level;
+    if (res.defeats !== undefined) st.defeats = res.defeats;
     showBossHud(def);
     const bm = bossMeshes[def.name]; if (bm) bm.mesh.visible = st.alive;
     if (res.justDefeated && wasAlive) awardBossDefeat(def);
