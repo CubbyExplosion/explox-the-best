@@ -1425,6 +1425,10 @@ const ADD_ONS = [
   { id:'snowday',      name:'Snow Day',       emoji:'❄️', category:'Weather', type:'toggle', desc:'Force snow, no matter the season.' },
   { id:'leafstorm',    name:'Leaf Storm',     emoji:'🍂', category:'Weather', type:'toggle', desc:'Force falling leaves, no matter the season.' },
 ];
+// Every add-on that doesn't already cost real S.I.P. (every toggle, every free/cost:0 action)
+// costs 1 Elite Coin (💎) instead — the ones with a real `cost` above keep costing S.I.P.,
+// completely untouched. Charged in toggleAddOn()/triggerAddOn() below.
+ADD_ONS.forEach(a => { if (!a.cost) { delete a.cost; a.eliteCost = 1; } });
 let activeAddOns = [];  // array of toggle-type ADD_ONS ids currently ON — persisted per account
 let warCryEndTime = 0;  // clock.getElapsedTime() value War Cry's damage buff expires at (0 = not active)
 let nitroEndTime = 0;   // clock.getElapsedTime() value Nitro Boost's speed buff expires at (0 = not active)
@@ -6610,15 +6614,20 @@ function renderAddOnsPanel() {
       const d = document.createElement('div'); d.className='shopItem';
       if(a.type === 'toggle') {
         const on = activeAddOns.includes(a.id);
+        const cantAffordToggle = !on && a.eliteCost && eliteCoins < a.eliteCost;
         d.innerHTML = `<div class="siName">${a.emoji} ${a.name}</div>
           <div style="color:#999;font-size:11px;margin:2px 0 4px;">${locked ? 'Adopt a buddy first to use this one!' : a.desc}</div>
-          <button class="shopBtn" onclick="toggleAddOn('${a.id}')" ${locked?'disabled':''} style="width:100%;${on?'background:#2a8f4a;':''}">${locked?'🔒 Locked':(on?'✅ ON':'Turn On')}</button>`;
+          ${a.eliteCost && !on ? `<div class="siCost">💎 ${a.eliteCost}</div>` : ''}
+          <button class="shopBtn" onclick="toggleAddOn('${a.id}')" ${locked||cantAffordToggle?'disabled':''} style="width:100%;${on?'background:#2a8f4a;':''}">${locked?'🔒 Locked':(on?'✅ ON':(cantAffordToggle?'❌ Need '+a.eliteCost+' 💎':'Turn On'))}</button>`;
       } else {
-        const cantAfford = a.cost && sipDollars < a.cost;
+        const cantAffordSip = a.cost && sipDollars < a.cost;
+        const cantAffordElite = a.eliteCost && eliteCoins < a.eliteCost;
+        const cantAfford = cantAffordSip || cantAffordElite;
         d.innerHTML = `<div class="siName">${a.emoji} ${a.name}</div>
           <div style="color:#999;font-size:11px;margin:2px 0 4px;">${a.desc}</div>
           ${a.cost ? `<div class="siCost">💰 ${a.cost} S.I.P.</div>` : ''}
-          <button class="shopBtn" onclick="triggerAddOn('${a.id}')" ${cantAfford?'disabled':''} style="width:100%;">${cantAfford?'❌ Need '+a.cost:'Do It!'}</button>`;
+          ${a.eliteCost ? `<div class="siCost">💎 ${a.eliteCost}</div>` : ''}
+          <button class="shopBtn" onclick="triggerAddOn('${a.id}')" ${cantAfford?'disabled':''} style="width:100%;">${cantAffordSip?'❌ Need '+a.cost+' S.I.P.':(cantAffordElite?'❌ Need '+a.eliteCost+' 💎':'Do It!')}</button>`;
       }
       items.appendChild(d);
     });
@@ -6996,6 +7005,8 @@ function toggleAddOn(id) {
   if(def.needsBuddy && !buddyOwned) { showNotif('❌ Adopt a buddy first!'); return; }
   const idx = activeAddOns.indexOf(id);
   if(idx===-1) {
+    if(def.eliteCost && eliteCoins < def.eliteCost) { showNotif(`❌ Need ${def.eliteCost} 💎`); return; }
+    if(def.eliteCost) { eliteCoins -= def.eliteCost; updateElite(); }
     const EXCLUSIVE_PAIRS = [['tinymode','giantmode'],['petxl','petmini'],['snowday','leafstorm']];
     EXCLUSIVE_PAIRS.forEach(([a,b]) => {
       if(id===a) activeAddOns = activeAddOns.filter(x=>x!==b);
@@ -7045,10 +7056,11 @@ function triggerAddOn(id) {
   if((id==='nitro'||id==='partyhorn') && !inCar) { showNotif('❌ You need to be driving for this one!'); return; }
   if((id==='giftfriends'||id==='friendparty'||id==='shoutout'||id==='surprisevisit') && friends.length===0) { showNotif('❌ Make a friend first!'); return; }
   const cost = def.cost||0;
-  if(cost>0) {
-    if(sipDollars < cost) { showNotif(`❌ Need ${cost} S.I.P.`); return; }
-    sipDollars -= cost; updateSIP();
-  }
+  const eliteCost = def.eliteCost||0;
+  if(cost>0 && sipDollars < cost) { showNotif(`❌ Need ${cost} S.I.P.`); return; }
+  if(eliteCost>0 && eliteCoins < eliteCost) { showNotif(`❌ Need ${eliteCost} 💎`); return; }
+  if(cost>0) { sipDollars -= cost; updateSIP(); }
+  if(eliteCost>0) { eliteCoins -= eliteCost; updateElite(); }
   const pick = arr => arr[Math.floor(Math.random()*arr.length)];
   if(id==='diceroll') showNotif(`🎲 You rolled a ${1+Math.floor(Math.random()*6)}!`);
   else if(id==='coinflip') showNotif(`🪙 ${Math.random()<0.5?'Heads!':'Tails!'}`);
@@ -7120,7 +7132,7 @@ function triggerAddOn(id) {
   else if(id==='launchobby') window.open('AiGame/explox/minigames/obby.html', '_blank');
   else if(id==='launchparkour') window.open('AiGame/explox/minigames/parkour.html', '_blank');
   else if(id==='launchsf') window.open('AiGame/explox/minigames/sf.html', '_blank');
-  if(cost>0) { saveCurrentUser(); renderAddOnsPanel(); }
+  if(cost>0 || eliteCost>0) { saveCurrentUser(); renderAddOnsPanel(); }
 }
 
 function buyOutfit(i) {
