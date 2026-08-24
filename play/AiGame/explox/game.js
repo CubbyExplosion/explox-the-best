@@ -1534,8 +1534,16 @@ function renderQuestsPanel() {
   list.innerHTML = activeQuests.map(q => {
     const prog = questProgress(q);
     const done = prog >= q.target;
+    // Always derive the icon fresh from QUEST_TEMPLATES by type instead of trusting the
+    // persisted q.icon — real bug found live: an old server-side encoding bug (now fixed)
+    // had already baked a corrupted icon into some accounts' saved quests, and since a
+    // client only re-pulls clean server data on a real fresh login, anyone who just kept
+    // playing in an already-open tab would keep re-saving (and seeing) the same garbage
+    // forever, no matter how many times the underlying data got repaired server-side. This
+    // makes the display self-healing regardless of what's actually sitting in save data.
+    const icon = (QUEST_TEMPLATES.find(t => t.type === q.type) || {}).icon || q.icon;
     return `<div style="background:rgba(255,255,255,0.05);border:2px solid ${done ? '#44ff88' : '#333'};border-radius:10px;padding:10px;margin-bottom:8px;">
-      <div style="color:#fff;font-size:12px;font-weight:bold;margin-bottom:4px;">${q.icon} ${q.desc}</div>
+      <div style="color:#fff;font-size:12px;font-weight:bold;margin-bottom:4px;">${icon} ${q.desc}</div>
       <div style="background:#222;border-radius:5px;height:8px;overflow:hidden;margin-bottom:6px;"><div style="background:${done ? '#44ff88' : '#00ccff'};height:100%;width:${Math.min(100, prog / q.target * 100)}%;"></div></div>
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <span style="color:#888;font-size:10px;">${prog}/${q.target}</span>
