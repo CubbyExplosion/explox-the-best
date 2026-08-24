@@ -1220,8 +1220,18 @@ let playerShoes   = 'sneakers';
 let playerWeapon  = 'none';
 let ownedWeapons  = [];
 let playerSwingStart = -999; // 't' (clock.getElapsedTime()) when the last swing began, read every frame in animate()
+let playerSwingPower = 1; // 0-1, how charged the swing currently animating was — read alongside playerSwingStart
+let pendingSwingPower = 1; // set right before the charge-release handleInteract() call, consumed once by the next triggerSwing()
 const SWING_DURATION = 0.25;
-function triggerSwing() { if(clock) playerSwingStart = clock.getElapsedTime(); }
+function triggerSwing() { if(clock){ playerSwingStart = clock.getElapsedTime(); playerSwingPower = pendingSwingPower; } }
+
+// Charge-and-release punch: holding E winds the arm back, releasing throws the punch —
+// the longer it was held (up to PUNCH_MAX_CHARGE seconds), the harder it lands.
+let chargingPunch = false;
+let punchChargeStart = -999;
+let punchChargeMult = 1; // read once by applyDamageBuffs() for the swing currently firing, then reset to 1
+const PUNCH_MAX_CHARGE = 1.0; // seconds held for full power
+const PUNCH_MAX_MULT = 2.5;   // damage multiplier at a full charge
 let playerArmor   = 'none';
 let ownedArmor    = [];
 let ownedItems    = [];   // customization items bought in the shop
@@ -5713,6 +5723,7 @@ function applyDamageBuffs(base) {
   if(activeAddOns.includes('berserker')) dmg *= 1.5;
   if(warCryEndTime) { if(clock.getElapsedTime() < warCryEndTime) dmg *= 2; else warCryEndTime = 0; }
   if(activeAddOns.includes('luckycrits') && Math.random() < 0.2) dmg *= 2;
+  dmg *= punchChargeMult;
   return Math.round(dmg);
 }
 function getWeaponDamage() { return applyDamageBuffs(baseWeaponDamage()); }
@@ -11307,6 +11318,46 @@ const MALL_ZONES = [
 // up to a specific machine and pressing E plays it directly (no flat card-grid lobby anymore).
 const ARCADE_ZONES = [];
 
+// A rough, side-effect-free preview of whether E is currently a COMBAT action (mirrors the
+// combat branches of handleInteract() below without actually triggering them) — used only to
+// decide whether holding E should wind up a charged punch, or fire the normal instant
+// interaction (open a shop, sit down, talk to a neighbor...) the moment it's pressed. It
+// doesn't need to be perfectly exhaustive: if it under-detects, E just acts instantly like
+// before; if it over-detects, the real check inside handleInteract() on release just finds
+// nothing to hit and shows "Nothing nearby to interact with." like always.
+function isNearCombatTarget() {
+  if(playerSeated || inCar) return false;
+  const px = playerGroup.position.x, pz = playerGroup.position.z;
+  if(dueling) return true;
+  if(inArena && ffaAlive) return true;
+  if(!inArena && !inHouse && !inMall && !inArcade && !inStore && serverMode === 'online' && nearestRemotePlayer(35)) return true;
+  if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade) {
+    for(const npc of npcs) { if(Math.hypot(px-npc.group.position.x, pz-npc.group.position.z) < 3.5) return true; }
+  }
+  if(!inHouse && !inMall && !inArcade && !inStore) {
+    for(const r of rogueRobots) { if(r.alive && Math.hypot(px-r.x, pz-r.z) < 3) return true; }
+  }
+  for(const z of CITY_ZONES) { if(z.action === hitDummy && Math.hypot(px-z.x, pz-z.z) < z.r) return true; }
+  return false;
+}
+function onInteractDown() {
+  if(chargingPunch) return; // already charging — a stray repeat/duplicate event, ignore
+  if(isNearCombatTarget()) { chargingPunch = true; punchChargeStart = clock.getElapsedTime(); }
+  else handleInteract();
+}
+function onInteractUp() {
+  if(!chargingPunch) return;
+  chargingPunch = false;
+  const held = Math.min(clock.getElapsedTime() - punchChargeStart, PUNCH_MAX_CHARGE);
+  pendingSwingPower = held / PUNCH_MAX_CHARGE;
+  punchChargeMult = 1 + pendingSwingPower * (PUNCH_MAX_MULT - 1);
+  handleInteract();
+  // One-shot — don't let this charge leak into some later, unrelated triggerSwing() call
+  // (War/world-event fights swing through the same function but aren't chargeable).
+  punchChargeMult = 1;
+  pendingSwingPower = 1;
+}
+
 function handleInteract() {
   const px2 = playerGroup.position.x, pz = playerGroup.position.z;
   // Stand up if seated — takes priority over everything else, same as exiting a car
@@ -15645,7 +15696,7 @@ function setupControls(){
     if(e.code==='KeyS') moveState.s=true;
     if(e.code==='KeyA') moveState.a=true;
     if(e.code==='KeyD') moveState.d=true;
-    if(e.code==='KeyE') handleInteract();
+    if(e.code==='KeyE' && !e.repeat) onInteractDown();
     if(e.code==='KeyI'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) eatIceCream(); }
     if(e.code==='KeyC'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) eatFromBag(); }
     // Keyboard shortcuts for the side tabs — these work even while the mouse
@@ -15667,6 +15718,7 @@ function setupControls(){
     if(e.code==='KeyS') moveState.s=false;
     if(e.code==='KeyA') moveState.a=false;
     if(e.code==='KeyD') moveState.d=false;
+    if(e.code==='KeyE') onInteractUp();
     if(e.code==='ShiftLeft'||e.code==='ShiftRight') moveState.run=false;
   });
   renderer.domElement.addEventListener('click',()=>renderer.domElement.requestPointerLock());
@@ -15759,7 +15811,8 @@ function setupMobileControls(){
   }, {passive:true});
 
   jumpBtn.addEventListener('touchstart', e=>{ e.preventDefault(); tryCityJump(); });
-  interactBtn.addEventListener('touchstart', e=>{ e.preventDefault(); handleInteract(); });
+  interactBtn.addEventListener('touchstart', e=>{ e.preventDefault(); onInteractDown(); });
+  interactBtn.addEventListener('touchend',   e=>{ e.preventDefault(); onInteractUp(); });
   runBtn.addEventListener('touchstart', e=>{ e.preventDefault(); moveState.run=true; runBtn.classList.add('active'); });
   runBtn.addEventListener('touchend',   e=>{ e.preventDefault(); moveState.run=false; runBtn.classList.remove('active'); });
 }
@@ -15940,18 +15993,33 @@ function animate(){
     p.mesh.scale.setScalar(0.4+lifeFrac*0.6);
     if(p.life<=0) { scene.remove(p.mesh); trailParticles.splice(pi,1); }
   }
-  // Weapon swing — a real arc driven by elapsed time, same t-based approach as the walk cycle above,
-  // not a fire-and-forget setTimeout chain that could drift out of sync with the render loop.
-  if(player.weaponGroup) {
+  // Punch / weapon swing — charging (holding E near a fightable target) winds the right arm
+  // back the longer it's held (capped at PUNCH_MAX_CHARGE), and releasing snaps it forward
+  // into a real swing — same t-based arc technique as the walk cycle above, not a
+  // fire-and-forget setTimeout chain that could drift out of sync with the render loop. A
+  // harder charge (playerSwingPower, baked in by triggerSwing() at release time) swings both
+  // the arm and any held weapon further and a touch slower, so it reads as heavier landing.
+  if(chargingPunch) {
+    const heldT = Math.min(t - punchChargeStart, PUNCH_MAX_CHARGE);
+    const chargeFrac = heldT / PUNCH_MAX_CHARGE;
+    if(player.rArm) { player.rArm.rotation.x = -0.3 - chargeFrac*1.1; player.rArm.rotation.z = -chargeFrac*0.35; }
+    if(player.weaponGroup) { player.weaponGroup.rotation.z = -0.2 + chargeFrac*0.3; player.weaponGroup.rotation.x = -chargeFrac*0.3; }
+    const chargeHud = document.getElementById('punchChargeHud');
+    if(chargeHud) { chargeHud.style.display = 'block'; document.getElementById('punchChargeFill').style.width = (chargeFrac*100) + '%'; }
+  } else {
+    const chargeHud = document.getElementById('punchChargeHud');
+    if(chargeHud) chargeHud.style.display = 'none';
     const swingElapsed = t - playerSwingStart;
-    if(swingElapsed >= 0 && swingElapsed < SWING_DURATION) {
-      const p = swingElapsed / SWING_DURATION;
-      const arc = Math.sin(p*Math.PI); // 0 -> 1 -> 0, smooth in and out
-      player.weaponGroup.rotation.z = -0.2 - arc*1.7;
-      player.weaponGroup.rotation.x = arc*0.7;
-    } else {
-      player.weaponGroup.rotation.z = -0.2;
-      player.weaponGroup.rotation.x = 0;
+    const swingWindow = SWING_DURATION + playerSwingPower*0.15;
+    const swingActive = swingElapsed >= 0 && swingElapsed < swingWindow;
+    const arc = swingActive ? Math.sin((swingElapsed/swingWindow)*Math.PI) : 0; // 0 -> 1 -> 0, smooth in and out
+    if(player.rArm) {
+      if(swingActive) { player.rArm.rotation.x = -0.3 + arc*(1.0 + playerSwingPower*0.9); player.rArm.rotation.z = -0.1 + arc*0.25; }
+      else player.rArm.rotation.z = 0; // rotation.x while idle/walking is already owned by the walk cycle above
+    }
+    if(player.weaponGroup) {
+      player.weaponGroup.rotation.z = -0.2 - arc*(1.3 + playerSwingPower*0.8);
+      player.weaponGroup.rotation.x = arc*(0.5 + playerSwingPower*0.4);
     }
   }
   if(player.nametag) player.nametag.lookAt(camera.position);
