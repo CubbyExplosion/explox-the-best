@@ -1153,6 +1153,7 @@ function buyStockShares(symbol) {
   updateSIP();
   sfx.buy();
   refreshStockMarketUI();
+  saveCurrentUser();
 }
 function sellStockShares(symbol) {
   const owned = myStocks[symbol] || 0;
@@ -1164,6 +1165,7 @@ function sellStockShares(symbol) {
   updateSIP();
   sfx.coin();
   refreshStockMarketUI();
+  saveCurrentUser();
 }
 
 // Bank interval started in startGame() so it doesn't fire during login/customization
