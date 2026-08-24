@@ -15030,13 +15030,20 @@ async function fightBoss(def) {
   const dmg = getWeaponDamage();
   triggerSwing();
   sfx.clang();
-  st.hp = Math.max(0, st.hp - dmg);
+  // Instant feedback floors at 1, never 0 — the server is the only thing allowed to declare a
+  // real kill (via justDefeated below). If a run of requests fails to round-trip (e.g. a tunnel
+  // hiccup), this guess can no longer drift down to a fake "0/HP defeated" the server never saw.
+  st.hp = Math.max(1, st.hp - dmg);
   showBossHud(def);
   showNotif(`${def.emoji} Hit ${def.name} for ${dmg}!`);
   sipDollars += def.hitSip; if (def.hitElite) eliteCoins += def.hitElite;
   updateSIP(); if (def.hitElite) updateElite();
-  // A leveled-up boss hits back harder too — same +20%-per-level formula as its HP.
-  damagePlayer(Math.round(def.damage * (1 + (st.level||0)*0.2)), def.name);
+  // A leveled-up boss hits back harder too, same +20%-per-level formula as its HP — but
+  // capped at 3x base (level 10+), or a level 50 boss would deal ~200 damage a swing and
+  // one-shot-kill anyone through a full health bar. HP keeps scaling forever (a high-level
+  // boss is meant to be a real long fight), damage dealt back is deliberately a different,
+  // capped curve so it stays survivable no matter how high the level climbs.
+  damagePlayer(Math.round(def.damage * Math.min(3, 1 + (st.level||0)*0.2)), def.name);
   if (serverMode !== 'online') {
     // Offline solo fight — no server to share this with, resolve entirely locally.
     if (st.hp <= 0) {
