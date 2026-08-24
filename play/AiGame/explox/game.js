@@ -474,7 +474,9 @@ function saveCurrentUser() {
     familyKidAdopted: familyKidAdopted, familyKidId: familyKidId, familyKidName: familyKidName, familyKidPlayTime: familyKidPlayTime,
     familyKidInSchool: familyKidInSchool, familyKidSmarts: familyKidSmarts, familyKidLastStageId: familyKidLastStageId,
     unpaidBills: unpaidBills, lastBillCheck: lastBillCheck, hasSeenGuide: hasSeenGuide,
-    myStocks: myStocks, ffaKills: ffaKills
+    myStocks: myStocks, ffaKills: ffaKills,
+    eliteLevel: eliteLevel, activeQuests: activeQuests,
+    lifetimeRobotKills: lifetimeRobotKills, lifetimeRogueKills: lifetimeRogueKills, lifetimeWarHits: lifetimeWarHits
   };
   localStorage.setItem('explox_user_' + currentUser, JSON.stringify(data));
   localStorage.setItem('explox_current_user', currentUser);
@@ -838,6 +840,12 @@ async function doLogin(name) {
   hasSeenGuide = d.hasSeenGuide !== undefined ? !!d.hasSeenGuide : !isBrandNewAccount;
   myStocks = d.myStocks && typeof d.myStocks === 'object' ? d.myStocks : {};
   ffaKills = d.ffaKills !== undefined ? d.ffaKills : 0;
+  eliteLevel = d.eliteLevel !== undefined ? d.eliteLevel : 0;
+  activeQuests = Array.isArray(d.activeQuests) ? d.activeQuests : [];
+  lifetimeRobotKills = d.lifetimeRobotKills !== undefined ? d.lifetimeRobotKills : 0;
+  lifetimeRogueKills = d.lifetimeRogueKills !== undefined ? d.lifetimeRogueKills : 0;
+  lifetimeWarHits    = d.lifetimeWarHits !== undefined ? d.lifetimeWarHits : 0;
+  ensureQuests();
   shopOpen = false; // never resume a shop as open across a reload — you have to reopen it yourself
   document.getElementById('skinColor').value  = playerColors.skin;
   document.getElementById('shirtColor').value = playerColors.shirt;
@@ -1431,6 +1439,107 @@ let playerHealth    = 100;
 const playerMaxHealth = 100;
 let bankBalance     = 0;
 let eliteCoins      = 0;
+
+// ─── QUESTS & ROBOT LEVEL — completing quests pays out Elite Coins; spending 100/500/1000/
+// 1500/2000/3000/4500/... of them "levels up" the robots themselves (bigger, tougher, hit
+// harder), but scales their rewards up to match so the loop stays worth playing.
+let eliteLevel = 0;
+let activeQuests = []; // [{id, type, icon, desc, target, rewardElite, startValue}]
+let lifetimeRobotKills = 0; // Scrapyard-spawner robots
+let lifetimeRogueKills = 0; // roaming rogue robots
+let lifetimeWarHits    = 0; // hits landed on any War territory defender
+const ELITE_LEVEL_THRESHOLDS = [100, 500, 1000, 1500, 2000, 3000, 4500];
+function eliteThresholdForLevel(level) { // cost in Elite Coins to go from level-1 to level
+  if (level <= ELITE_LEVEL_THRESHOLDS.length) return ELITE_LEVEL_THRESHOLDS[level - 1];
+  let last = ELITE_LEVEL_THRESHOLDS[ELITE_LEVEL_THRESHOLDS.length - 1];
+  let delta = last - ELITE_LEVEL_THRESHOLDS[ELITE_LEVEL_THRESHOLDS.length - 2];
+  for (let i = ELITE_LEVEL_THRESHOLDS.length + 1; i <= level; i++) { delta = Math.round(delta * 1.5 / 50) * 50; last += delta; }
+  return last;
+}
+function robotPowerMult() { return 1 + eliteLevel * 0.35; } // HP/damage/reward scale
+function robotSizeMult()  { return 1 + eliteLevel * 0.15; } // visual scale — noticeable, not absurd
+function levelUpElite() {
+  const cost = eliteThresholdForLevel(eliteLevel + 1);
+  if (eliteCoins < cost) { showNotif(`❌ Need ${cost.toLocaleString()} 💎 to reach Level ${eliteLevel + 1} (you have ${Math.floor(eliteCoins)})`); return; }
+  eliteCoins -= cost;
+  eliteLevel++;
+  updateElite();
+  showNotif(`🆙 Robot Level ${eliteLevel}! Robots are bigger and stronger now — but worth more too.`);
+  sfx.buy();
+  saveCurrentUser();
+  renderQuestsPanel();
+}
+
+const QUEST_TEMPLATES = [
+  { type:'robots', icon:'🤖', desc:n=>`Defeat ${n} Scrapyard robots`,               roll:()=>3+Math.floor(Math.random()*5),   reward:()=>15+Math.floor(Math.random()*20), lifetime:()=>lifetimeRobotKills },
+  { type:'rogue',  icon:'⚠️', desc:n=>`Defeat ${n} rogue robots`,                    roll:()=>2+Math.floor(Math.random()*4),   reward:()=>20+Math.floor(Math.random()*25), lifetime:()=>lifetimeRogueKills },
+  { type:'war',    icon:'🪖', desc:n=>`Land ${n} hits on a War territory defender`,  roll:()=>5+Math.floor(Math.random()*8),   reward:()=>15+Math.floor(Math.random()*20), lifetime:()=>lifetimeWarHits },
+  { type:'sip',    icon:'💰', desc:n=>`Reach ${n} S.I.P. in your wallet`,            roll:()=>200+Math.floor(Math.random()*400), reward:()=>10+Math.floor(Math.random()*10), lifetime:()=>sipDollars },
+];
+const MAX_ACTIVE_QUESTS = 3;
+function generateQuest() {
+  const t = QUEST_TEMPLATES[Math.floor(Math.random() * QUEST_TEMPLATES.length)];
+  const target = t.roll();
+  return { id: 'q' + Date.now() + Math.floor(Math.random() * 9999), type: t.type, icon: t.icon, desc: t.desc(target), target, rewardElite: t.reward(), startValue: t.lifetime() };
+}
+function ensureQuests() { while (activeQuests.length < MAX_ACTIVE_QUESTS) activeQuests.push(generateQuest()); }
+function questProgress(q) {
+  const tmpl = QUEST_TEMPLATES.find(t => t.type === q.type);
+  return Math.max(0, Math.min(q.target, Math.floor(tmpl.lifetime() - q.startValue)));
+}
+function claimQuest(id) {
+  const idx = activeQuests.findIndex(q => q.id === id);
+  if (idx < 0) return;
+  const q = activeQuests[idx];
+  if (questProgress(q) < q.target) return;
+  eliteCoins += q.rewardElite; updateElite();
+  showNotif(`✅ Quest complete! +${q.rewardElite} 💎`);
+  sfx.buy();
+  activeQuests.splice(idx, 1);
+  ensureQuests();
+  saveCurrentUser();
+  renderQuestsPanel();
+}
+function toggleQuestsPanel() {
+  const panel = document.getElementById('questsPanel');
+  if (panel.style.display === 'none') {
+    if (document.pointerLockElement) document.exitPointerLock();
+    isPointerLocked = false;
+    ensureQuests();
+    renderQuestsPanel();
+    panel.style.display = 'flex';
+    document.getElementById('questsTab').style.display = 'none';
+  } else { closeQuestsPanel(); }
+}
+function closeQuestsPanel() {
+  document.getElementById('questsPanel').style.display = 'none';
+  document.getElementById('questsTab').style.display = 'block';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function renderQuestsPanel() {
+  const nextCost = eliteThresholdForLevel(eliteLevel + 1);
+  document.getElementById('questsLevelLine').innerHTML =
+    `💎 Robot Level <b>${eliteLevel}</b><br>Next level: ${nextCost.toLocaleString()} 💎 (you have ${Math.floor(eliteCoins).toLocaleString()})`;
+  const btn = document.getElementById('questsLevelUpBtn');
+  const canLevel = eliteCoins >= nextCost;
+  btn.disabled = !canLevel;
+  btn.style.opacity = canLevel ? '1' : '0.5';
+  btn.style.cursor = canLevel ? 'pointer' : 'not-allowed';
+  btn.textContent = canLevel ? `⬆️ LEVEL UP! (-${nextCost.toLocaleString()} 💎)` : `⬆️ Need ${Math.ceil(nextCost - eliteCoins).toLocaleString()} more 💎`;
+  const list = document.getElementById('questsList');
+  list.innerHTML = activeQuests.map(q => {
+    const prog = questProgress(q);
+    const done = prog >= q.target;
+    return `<div style="background:rgba(255,255,255,0.05);border:2px solid ${done ? '#44ff88' : '#333'};border-radius:10px;padding:10px;margin-bottom:8px;">
+      <div style="color:#fff;font-size:12px;font-weight:bold;margin-bottom:4px;">${q.icon} ${q.desc}</div>
+      <div style="background:#222;border-radius:5px;height:8px;overflow:hidden;margin-bottom:6px;"><div style="background:${done ? '#44ff88' : '#00ccff'};height:100%;width:${Math.min(100, prog / q.target * 100)}%;"></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="color:#888;font-size:10px;">${prog}/${q.target}</span>
+        <button onclick="claimQuest('${q.id}')" ${done ? '' : 'disabled'} style="padding:5px 12px;background:${done ? '#2a7a2a' : '#333'};border:none;border-radius:6px;color:#fff;font-size:11px;cursor:${done ? 'pointer' : 'not-allowed'};">+${q.rewardElite} 💎</button>
+      </div>
+    </div>`;
+  }).join('');
+}
 
 // ─── GROWTH — a real, shared "age up" system driven by accumulated real PLAY seconds (same
 // convention as elderLifespans below: only ticks while actually playing, not wall-clock time).
@@ -10895,9 +11004,17 @@ function trySpawnRobot(spawnerIdx) {
   const angle = Math.random()*Math.PI*2, dist = 3+Math.random()*2;
   const x = sp.x + Math.cos(angle)*dist, z = sp.z + Math.sin(angle)*dist;
   const mesh = buildRobotMesh(x, z, type.color, type.shape);
+  // Robot Level (Quests panel) scales each freshly-spawned robot's own stats — baked into the
+  // INSTANCE, never the shared `type` object, so leveling up never retroactively corrupts
+  // already-spawned robots or other spawners' base stats.
+  const mult = robotPowerMult();
+  mesh.scale.setScalar(robotSizeMult());
   const col = addCol(CITY_COLS, x, z, 0.6, 0.6); // real reference kept so defeat can actually remove it (was a known stale-collider quirk, item 146)
-  const robot = { id:ROBOT_ID_SEQ++, x, z, hp:type.hp, maxHp:type.hp, type, mesh, spawnerIdx, alive:true, zone:null, col,
-    homeX:sp.x, homeZ:sp.z, wanderX:x, wanderZ:z, speed:(2+Math.random()*1.3)*(type.speedMult||1) };
+  const hp = Math.round(type.hp * mult);
+  const robot = { id:ROBOT_ID_SEQ++, x, z, hp, maxHp:hp, type, mesh, spawnerIdx, alive:true, zone:null, col,
+    homeX:sp.x, homeZ:sp.z, wanderX:x, wanderZ:z, speed:(2+Math.random()*1.3)*(type.speedMult||1),
+    powerMult:mult, rewardRange:[Math.round(type.reward[0]*mult), Math.round(type.reward[1]*mult)],
+    eliteReward: Math.round((ELITE_COIN_REWARD[type.id]||0)*mult) };
   const zone = { x, z, r:2.8, label:`🤖 Fight ${type.name}`, action: () => fightRobot(robot) };
   robot.zone = zone;
   CITY_ZONES.push(zone);
@@ -10911,7 +11028,7 @@ function fightRobot(robot) {
   sfx.clang();
 
   if(robot.hp > 0) {
-    const backDmg = Math.round(6 + Math.random()*8);
+    const backDmg = Math.round((6 + Math.random()*8) * robot.powerMult);
     showNotif(`🤖 Hit ${robot.type.name} for ${dmg}! (${robot.hp} HP left)`);
     damagePlayer(backDmg, robot.type.name);
     return;
@@ -10926,14 +11043,15 @@ function defeatRobot(robot) {
   // Real fix to a known pre-existing quirk (item 146): the collider was never removed on defeat,
   // leaving an invisible stale wall where the robot used to stand. Now genuinely removed too.
   if (robot.col) { const ci = CITY_COLS.indexOf(robot.col); if (ci>-1) CITY_COLS.splice(ci,1); }
-  const [lo,hi] = robot.type.reward;
+  const [lo,hi] = robot.rewardRange;
   const reward = lo + Math.floor(Math.random()*(hi-lo+1));
   sipDollars += reward; updateSIP();
-  const eliteReward = ELITE_COIN_REWARD[robot.type.id] || 0;
+  const eliteReward = robot.eliteReward;
   if (eliteReward > 0) { eliteCoins += eliteReward; updateElite(); }
   sfx.boom();
   showNotif(`🤖💥 ${robot.type.name} destroyed! +${reward} S.I.P.${eliteReward ? ` +${eliteReward} 💎` : ''}`);
   buildWreckage(robot.x, robot.z, robot.type); // leaves real scrap behind — take it to the Grinder for materials
+  lifetimeRobotKills++;
   // The spawner sends out a replacement after a real cooldown, same idea as item 135's tree respawn.
   setTimeout(() => trySpawnRobot(robot.spawnerIdx), 7000);
 }
@@ -10956,7 +11074,12 @@ function spawnRogueRobot() {
   });
   const type = pickRobotType();
   const mesh = buildRobotMesh(closest.x, closest.z, type.color, type.shape);
-  rogueRobots.push({ id:'rogue'+ROBOT_ID_SEQ++, x:closest.x, z:closest.z, hp:type.hp, maxHp:type.hp, type, mesh, alive:true, speed:2.5+Math.random()*1.5, attackTimer:0 });
+  const mult = robotPowerMult();
+  mesh.scale.setScalar(robotSizeMult());
+  const hp = Math.round(type.hp * mult);
+  rogueRobots.push({ id:'rogue'+ROBOT_ID_SEQ++, x:closest.x, z:closest.z, hp, maxHp:hp, type, mesh, alive:true, speed:2.5+Math.random()*1.5, attackTimer:0,
+    powerMult:mult, rewardRange:[Math.round(type.reward[0]*mult), Math.round(type.reward[1]*mult)],
+    eliteReward: Math.round((ELITE_COIN_REWARD[type.id]||0)*mult) });
   showNotif(`⚠️ A ${type.name} broke off from a nearby spawner and is coming for you!`);
 }
 function tickRogueRobots(dt) {
@@ -10973,7 +11096,7 @@ function tickRogueRobots(dt) {
     const dist = Math.hypot(dx,dz);
     if (dist < 2.5) {
       r.attackTimer += dt;
-      if (r.attackTimer > 1.5) { r.attackTimer = 0; damagePlayer(6+Math.floor(Math.random()*8), r.type.name+' (Rogue)'); }
+      if (r.attackTimer > 1.5) { r.attackTimer = 0; damagePlayer(Math.round((6+Math.floor(Math.random()*8))*r.powerMult), r.type.name+' (Rogue)'); }
     } else {
       // Always closes the real distance now — spawning at the nearest real spawner (above) means
       // it's never absurdly far away, so the old 250-unit chase cap was just cutting the "walks to
@@ -11003,13 +11126,14 @@ function fightRogueRobot(robot) {
 function defeatRogueRobot(robot) {
   robot.alive = false;
   scene.remove(robot.mesh);
-  const [lo,hi] = robot.type.reward;
+  const [lo,hi] = robot.rewardRange;
   const reward = lo + Math.floor(Math.random()*(hi-lo+1));
   sipDollars += reward; updateSIP();
-  const eliteReward = ELITE_COIN_REWARD[robot.type.id] || 0;
+  const eliteReward = robot.eliteReward;
   if (eliteReward > 0) { eliteCoins += eliteReward; updateElite(); }
   sfx.boom();
   showNotif(`💥 Defeated the rogue ${robot.type.name}! +${reward} S.I.P.${eliteReward ? ` +${eliteReward} 💎` : ''}`);
+  lifetimeRogueKills++;
 }
 
 // ── The Grinder — turns real robot wreckage into Scrap Metal + the robot's real materials ──
@@ -14709,6 +14833,7 @@ function fightWarNpc(npc, terr) {
   const dmg = getRobotDamage();
   npc.hp -= dmg;
   triggerSwing(); sfx.clang();
+  lifetimeWarHits++;
   if (npc.hp > 0) {
     showNotif(`🪖 Hit for ${dmg}! (${npc.hp} HP left)`);
     damagePlayer(terr.npcDamage, terr.name + ' defender');
