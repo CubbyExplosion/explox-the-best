@@ -1232,6 +1232,45 @@ let punchChargeStart = -999;
 let punchChargeMult = 1; // read once by applyDamageBuffs() for the swing currently firing, then reset to 1
 const PUNCH_MAX_CHARGE = 1.0; // seconds held for full power
 const PUNCH_MAX_MULT = 2.5;   // damage multiplier at a full charge
+
+// Knockback — a landed hit slides the target away from the player over a short real
+// window instead of teleporting it, harder the more charged the punch was
+// (playerSwingPower, same 0-1 value the swing arc itself already scales by). Works on
+// anything with a settable x/z (NPCs, rogue robots) via a shared ticker so every hit
+// site just calls startKnockback() once instead of re-deriving its own easing.
+let activeKnockbacks = []; // {setXZ, x, z, vx, vz, life}
+const KNOCKBACK_DURATION = 0.28; // seconds
+const KNOCKBACK_MIN = 3, KNOCKBACK_MAX = 9; // total distance covered over KNOCKBACK_DURATION, scaled by charge
+function startKnockback(fromX, fromZ, curX, curZ, setXZ) {
+  const dx = curX - fromX, dz = curZ - fromZ;
+  const dist = Math.hypot(dx, dz) || 1;
+  const nx = dx / dist, nz = dz / dist;
+  const force = (KNOCKBACK_MIN + playerSwingPower * (KNOCKBACK_MAX - KNOCKBACK_MIN)) / KNOCKBACK_DURATION;
+  activeKnockbacks.push({ setXZ, x: curX, z: curZ, vx: nx * force, vz: nz * force, life: KNOCKBACK_DURATION });
+}
+function tickKnockbacks(dt) {
+  for (let i = activeKnockbacks.length - 1; i >= 0; i--) {
+    const k = activeKnockbacks[i];
+    k.life -= dt;
+    const ease = Math.max(0, k.life) / KNOCKBACK_DURATION; // eases out as it runs down
+    k.x += k.vx * dt * ease; k.z += k.vz * dt * ease;
+    k.setXZ(k.x, k.z);
+    if (k.life <= 0) activeKnockbacks.splice(i, 1);
+  }
+}
+// The training dummy is a fixed anchor point (its interact zone never moves), so it gets a
+// tilt-and-spring bounce instead of sliding away — same charge-scaled feel without drifting
+// out of its own hit zone after a few punches.
+let dummyKnockStart = -999;
+let dummyKnockDirX = 0, dummyKnockDirZ = 1; // horizontal direction the dummy tips away in — away from wherever the player was standing at hit time
+const DUMMY_KNOCK_DURATION = 0.3;
+function startDummyKnockback() {
+  if (!clock) return;
+  dummyKnockStart = clock.getElapsedTime();
+  const dx = DUMMY.x - playerGroup.position.x, dz = DUMMY.z - playerGroup.position.z;
+  const d = Math.hypot(dx, dz) || 1;
+  dummyKnockDirX = dx / d; dummyKnockDirZ = dz / d;
+}
 let playerArmor   = 'none';
 let ownedArmor    = [];
 let ownedItems    = [];   // customization items bought in the shop
@@ -6043,6 +6082,8 @@ function attackNPC(npc) {
   const dmg = getWeaponDamage();
   npc.combatHp -= dmg;
   triggerSwing();
+  startKnockback(playerGroup.position.x, playerGroup.position.z, npc.group.position.x, npc.group.position.z,
+    (x, z) => { npc.group.position.x = x; npc.group.position.z = z; });
   sfx.hit();
 
   if(npc.combatHp > 0) {
@@ -9827,6 +9868,7 @@ function hitDummy() {
   const dmg = getWeaponDamage();
   DUMMY.hp -= dmg;
   triggerSwing();
+  startDummyKnockback();
   sfx.hit();
   if(DUMMY.hp <= 0) {
     DUMMY.defeated = true;
@@ -10933,6 +10975,8 @@ function fightRogueRobot(robot) {
   const dmg = getRobotDamage();
   robot.hp -= dmg;
   triggerSwing();
+  startKnockback(playerGroup.position.x, playerGroup.position.z, robot.x, robot.z,
+    (x, z) => { robot.x = x; robot.z = z; robot.mesh.position.set(x, 0, z); });
   sfx.clang();
   if (robot.hp > 0) {
     showNotif(`⚔️ Hit the rogue ${robot.type.name} for ${dmg}! (${robot.hp} HP left)`);
@@ -15834,6 +15878,7 @@ function animate(){
   if(t - _lastStockSync > STOCK_SYNC_INTERVAL) { _lastStockSync = t; syncStocks(); }
   if(t - _lastMailboxSync > MAILBOX_SYNC_INTERVAL) { _lastMailboxSync = t; syncMailbox(); }
   if(t - _lastLightCullSync > LIGHT_CULL_INTERVAL) { _lastLightCullSync = t; cullDistantLights(); }
+  if(activeKnockbacks.length) tickKnockbacks(dt);
   if(placingStore) updatePlacementMarker();
 
   // Arena free-for-all: enter/exit detection, knockout-cooldown timer, leaderboard sync
@@ -16020,6 +16065,20 @@ function animate(){
     if(player.weaponGroup) {
       player.weaponGroup.rotation.z = -0.2 - arc*(1.3 + playerSwingPower*0.8);
       player.weaponGroup.rotation.x = arc*(0.5 + playerSwingPower*0.4);
+    }
+  }
+  // Training dummy — tips away from the hit and springs back upright (same
+  // charge-scaled feel as the real position knockback above, but it stays anchored
+  // to its fixed interact zone instead of drifting off after a few punches).
+  if(DUMMY.mesh && !DUMMY.defeated) {
+    const dke = t - dummyKnockStart;
+    if(dke >= 0 && dke < DUMMY_KNOCK_DURATION) {
+      const p = dke / DUMMY_KNOCK_DURATION;
+      const tilt = Math.sin(p*Math.PI) * (0.15 + playerSwingPower*0.35);
+      DUMMY.mesh.rotation.x = -dummyKnockDirZ * tilt;
+      DUMMY.mesh.rotation.z =  dummyKnockDirX * tilt;
+    } else {
+      DUMMY.mesh.rotation.x = 0; DUMMY.mesh.rotation.z = 0;
     }
   }
   if(player.nametag) player.nametag.lookAt(camera.position);
