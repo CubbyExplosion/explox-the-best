@@ -1474,7 +1474,7 @@ const QUEST_TEMPLATES = [
   { type:'robots', icon:'🤖', desc:n=>`Defeat ${n} Scrapyard robots`,               roll:()=>3+Math.floor(Math.random()*5),   reward:()=>15+Math.floor(Math.random()*20), lifetime:()=>lifetimeRobotKills },
   { type:'rogue',  icon:'⚠️', desc:n=>`Defeat ${n} rogue robots`,                    roll:()=>2+Math.floor(Math.random()*4),   reward:()=>20+Math.floor(Math.random()*25), lifetime:()=>lifetimeRogueKills },
   { type:'war',    icon:'🪖', desc:n=>`Land ${n} hits on a War territory defender`,  roll:()=>5+Math.floor(Math.random()*8),   reward:()=>15+Math.floor(Math.random()*20), lifetime:()=>lifetimeWarHits },
-  { type:'sip',    icon:'💰', desc:n=>`Reach ${n} S.I.P. in your wallet`,            roll:()=>200+Math.floor(Math.random()*400), reward:()=>10+Math.floor(Math.random()*10), lifetime:()=>sipDollars },
+  { type:'sip',    icon:'💰', desc:n=>`Earn ${n} more S.I.P.`,                       roll:()=>200+Math.floor(Math.random()*400), reward:()=>10+Math.floor(Math.random()*10), lifetime:()=>sipDollars },
 ];
 const MAX_ACTIVE_QUESTS = 3;
 function generateQuest() {
