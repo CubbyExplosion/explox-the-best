@@ -14775,6 +14775,25 @@ const WORLD_EVENT_SYNC_INTERVAL = 3;
 let worldEventDecor = [];
 let worldEventNpcs = [];       // {x,z,hp,maxHp,mesh,col,alive,zone}
 let worldEventGatherAccum = 0, worldEventHazardAccum = 0;
+// The concert World Event used to just be an empty stage despite its own description
+// promising "draws a crowd" — now it actually spawns one (real townsfolk colors, cheap
+// 2-box figures so a real crowd of 20 costs almost nothing to render) and really plays
+// one of the game's music tracks through the real bgMusic engine, not just flavor text.
+let worldEventCrowd = []; // [{meshes:[body,head], baseY:[y,y], phase}]
+function clearWorldEventCrowd() { worldEventCrowd.forEach(p => p.meshes.forEach(m => scene.remove(m))); worldEventCrowd = []; }
+function spawnConcertCrowd(x, z) {
+  clearWorldEventCrowd();
+  const COUNT = 20;
+  for (let i = 0; i < COUNT; i++) {
+    const person = SHOPPER_IDENTITIES[Math.floor(Math.random()*SHOPPER_IDENTITIES.length)];
+    const angle = Math.random()*Math.PI*2, dist = 3.5 + Math.random()*6.5;
+    const px = x + Math.cos(angle)*dist, pz = z + Math.sin(angle)*dist;
+    const bodyY = 0.7, headY = 1.4;
+    const body = box(0.5, 1.0, 0.4, person.shirt, px, bodyY, pz);
+    const head = box(0.4, 0.4, 0.4, person.skin, px, headY, pz);
+    worldEventCrowd.push({ meshes:[body, head], baseY:[bodyY, headY], phase: Math.random()*Math.PI*2 });
+  }
+}
 
 function buildWorldEventsBoard() {
   const { x, z } = WORLD_EVENT_SPOT;
@@ -14924,11 +14943,16 @@ async function syncWorldEvent() {
       const survivedHazard = prev && prev.data.template === 'hazard' && !ev && playerHealth > 0;
       clearWorldEventDecor();
       clearWorldEventNpcs();
+      clearWorldEventCrowd();
       worldEventGatherAccum = 0; worldEventHazardAccum = 0;
       if (ev) {
         showNotif(`${ev.data.emoji} ${ev.data.name} started at ${ev.data.locName || 'the city'}!${ev.startedBy === currentUser ? '' : ' Started by ' + ev.startedBy + '.'}`);
         buildWorldEventDecor(ev);
         if (ev.data.template === 'hostileFaction') spawnWorldEventNpcs(ev);
+        if (ev.type === 'concert') {
+          spawnConcertCrowd(ev.data.x, ev.data.z);
+          bgMusic.switchTrack(Math.floor(Math.random()*bgMusic.TRACKS.length));
+        }
       } else if (prev) {
         showNotif(`The ${prev.data.name} event ended.`);
         if (survivedHazard) {
@@ -15254,6 +15278,14 @@ function tickWar(t) {
 // its NPCs are fought the same press-E way as regular robots.
 function tickWorldEvent(dt) {
   if (!activeWorldEvent) return;
+  if (worldEventCrowd.length && activeWorldEvent.type === 'concert') {
+    const t = clock.getElapsedTime();
+    worldEventCrowd.forEach(p => {
+      const bob = Math.sin(t*4 + p.phase) * 0.12;
+      p.meshes[0].position.y = p.baseY[0] + bob;
+      p.meshes[1].position.y = p.baseY[1] + bob;
+    });
+  }
   const { template, x, z, params } = activeWorldEvent.data;
   if (template !== 'gathering' && template !== 'hazard') return;
   const d = Math.hypot(playerGroup.position.x - x, playerGroup.position.z - z);
