@@ -15015,7 +15015,33 @@ let currentNearBoss = null;
 let _lastBossSync = -999;
 const BOSS_SYNC_INTERVAL = 5;
 function initBossState() {
-  BOSS_DEFS.forEach(def => { if (!bossState[def.name]) bossState[def.name] = { hp: def.maxHp, maxHp: def.maxHp, alive: true, level: 0, defeats: 0 }; });
+  BOSS_DEFS.forEach(def => { if (!bossState[def.name]) bossState[def.name] = { hp: def.maxHp, maxHp: def.maxHp, alive: true, level: 0, defeats: 0, attackTimer: 0 }; });
+}
+// Same +20%/level-capped-at-3x formula used both here (the boss swinging on its own) and in
+// fightBoss()'s counter-hit below — pulled out once so the two can't drift apart.
+function bossHitDamage(def, st) { return Math.round(def.damage * Math.min(3, 1 + (st.level||0)*0.2)); }
+// A boss used to only ever hit back as a counter-attack inside fightBoss() — completely passive
+// otherwise, so standing next to one without swinging was totally safe. Real bug the user caught:
+// "my boss needs to attack not only attack when you attack." Now it swings on its own timer
+// whenever a real player is in melee range, same "distance check + attackTimer" shape
+// tickRogueRobots() already uses for its own passive attacks — purely local damage, so this
+// applies identically online or offline, no server round-trip needed.
+const BOSS_ATTACK_RANGE = 6, BOSS_ATTACK_INTERVAL = 1.8;
+function tickBossAttacks(dt) {
+  if (!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle) {
+    BOSS_DEFS.forEach(def => {
+      const st = bossState[def.name];
+      if (!st || !st.alive) return;
+      const dist = Math.hypot(playerGroup.position.x-def.x, playerGroup.position.z-def.z);
+      if (dist > BOSS_ATTACK_RANGE) { st.attackTimer = 0; return; }
+      st.attackTimer += dt;
+      if (st.attackTimer >= BOSS_ATTACK_INTERVAL) {
+        st.attackTimer = 0;
+        damagePlayer(bossHitDamage(def, st), def.name);
+        showNotif(`${def.emoji} ${def.name} attacks!`);
+      }
+    });
+  }
 }
 function buildBosses() {
   initBossState();
@@ -15087,7 +15113,8 @@ async function fightBoss(def) {
   // one-shot-kill anyone through a full health bar. HP keeps scaling forever (a high-level
   // boss is meant to be a real long fight), damage dealt back is deliberately a different,
   // capped curve so it stays survivable no matter how high the level climbs.
-  damagePlayer(Math.round(def.damage * Math.min(3, 1 + (st.level||0)*0.2)), def.name);
+  damagePlayer(bossHitDamage(def, st), def.name);
+  st.attackTimer = 0; // landing your own hit resets its swing timer, same as a real fight would
   if (serverMode !== 'online') {
     // Offline solo fight — no server to share this with, resolve entirely locally.
     if (st.hp <= 0) {
@@ -16419,6 +16446,7 @@ function animate(){
   tickWar(t);
   if(serverMode === 'online' && t - _lastBossSync > BOSS_SYNC_INTERVAL) { _lastBossSync = t; syncBosses(); }
   tickBossHud();
+  tickBossAttacks(dt);
 
   // Movement with collision
   let moving=false;
