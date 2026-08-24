@@ -16393,7 +16393,7 @@ function animate(){
       // out from downtown, so none of them can be subject to the outdoor city's boundary — before
       // this only excluded inHouse/inMall, which silently worked only because Hotel/Store/FriendHouse/
       // Prison used to sit at 750-1200, still inside the old +-1950 clamp by coincidence.
-      if(!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade){
+      if(!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inArenaBattle){
         playerGroup.position.x=Math.max(-1950,Math.min(1950,playerGroup.position.x));
         playerGroup.position.z=Math.max(-1950,Math.min(1950,playerGroup.position.z));
         const _px=playerGroup.position.x, _pz=playerGroup.position.z;
