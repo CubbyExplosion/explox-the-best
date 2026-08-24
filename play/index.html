@@ -809,6 +809,15 @@
   <div id="arenaHud" style="display:none;position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:110;background:linear-gradient(135deg,#2a0a0a,#1a0a2a);border:2px solid #ff4444;border-radius:12px;padding:8px 18px;box-shadow:0 4px 20px rgba(0,0,0,0.6);">
     <span id="arenaHudText" style="color:#fff;font-weight:bold;font-size:13px;"></span>
   </div>
+  <!-- BOSS HEALTH HUD — shows whenever you're near a boss, live-updated on every hit and every
+       server sync so a co-op fight's shared HP is visible in real time, not just your own hits. -->
+  <div id="bossHud" style="display:none;position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:110;background:linear-gradient(135deg,#2a0a0a,#1a0505);border:2px solid #ff2222;border-radius:12px;padding:10px 20px;box-shadow:0 4px 20px rgba(0,0,0,0.6);text-align:center;min-width:260px;">
+    <div id="bossHudName" style="color:#fff;font-weight:bold;font-size:14px;margin-bottom:6px;"></div>
+    <div style="background:#330000;border-radius:6px;height:14px;overflow:hidden;border:1px solid #661111;">
+      <div id="bossHudFill" style="background:linear-gradient(90deg,#ff2222,#ff8844);height:100%;width:100%;transition:width 0.2s;"></div>
+    </div>
+    <div id="bossHudHp" style="color:#ffaaaa;font-size:11px;margin-top:4px;"></div>
+  </div>
   <!-- NAV COMPASS HUD -->
   <div id="navHud" style="display:none;position:fixed;bottom:100px;left:50%;transform:translateX(-50%);z-index:30;pointer-events:none;text-align:center;">
     <div style="background:rgba(0,0,0,0.75);border:2px solid #00ffff;border-radius:14px;padding:8px 18px;display:inline-block;">

@@ -12025,6 +12025,7 @@ function _startGameInner() {
   _dbg('buildAirportLoungeInterior', buildAirportLoungeInterior);
   _dbg('buildScrapyard', buildScrapyard);
   _dbg('buildRobotArenaInterior', buildRobotArenaInterior);
+  _dbg('buildBosses', buildBosses);
   _dbg('buildFightArena', buildFightArena);
   _dbg('buildGlobalSpawners', buildGlobalSpawners);
   _dbg('buildDump', buildDump);
@@ -14953,6 +14954,127 @@ const WAR_ROOM_SPOT = { x: ARENA_CENTER.x, z: ARENA_CENTER.z - 60 }; // just out
 let territoryState = {};   // synced from server: {name: {captured, kills, capturedBy}}
 let _lastTerritorySync = -999;
 const TERRITORY_SYNC_INTERVAL = 5;
+// ─── BOSSES — real, huge enemies with a SHARED health pool tracked on the server (via
+// /api/bosses, same "server just tracks the counter, client owns the config" split as
+// territories) so co-op damage from different real players' clients actually adds up
+// against one real total. Works solo too — offline (or if the server hit fails) resolves
+// entirely with a local copy instead, so "fight alone" never requires anyone else online. ──
+const BOSS_DEFS = [
+  { name:'Mega-Bot', emoji:'🤖', x: SCRAPYARD_CENTER.x, z: SCRAPYARD_CENTER.z+55, maxHp:3000, damage:22,
+    color:0xaa2222, shape:'tank', sipReward:[400,600], eliteReward:50, hitSip:2, hitElite:0 },
+  { name:'Storm Titan', emoji:'⚡', x:-650, z:650, maxHp:2500, damage:18,
+    color:0x3355cc, shape:'elite', sipReward:[350,550], eliteReward:40, hitSip:2, hitElite:0 },
+];
+let bossState  = {}; // name -> {hp, maxHp, alive} — local mirror, kept in sync with the server when online
+let bossMeshes = {}; // name -> {mesh, col}
+let currentNearBoss = null;
+let _lastBossSync = -999;
+const BOSS_SYNC_INTERVAL = 5;
+function initBossState() {
+  BOSS_DEFS.forEach(def => { if (!bossState[def.name]) bossState[def.name] = { hp: def.maxHp, maxHp: def.maxHp, alive: true }; });
+}
+function buildBosses() {
+  initBossState();
+  BOSS_DEFS.forEach(def => {
+    const mesh = buildRobotMesh(def.x, def.z, def.color, def.shape);
+    mesh.scale.setScalar(3.2); // genuinely huge — that's the whole point of a boss
+    const col = addCol(CITY_COLS, def.x, def.z, 2.2, 2.2);
+    buildLogoSign(def.name.toUpperCase(), def.emoji, '#220000', '#ff4444', def.x, 9, def.z-4.5);
+    const pl = new THREE.PointLight(def.color, 2, 60); pl.position.set(def.x, 8, def.z); scene.add(pl);
+    bossMeshes[def.name] = { mesh, col };
+    CITY_ZONES.push({ x:def.x, z:def.z+4.5, r:4.5, label:`${def.emoji} Fight ${def.name}`, action: () => fightBoss(def) });
+  });
+}
+async function syncBosses() {
+  if (serverMode !== 'online') return;
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/bosses', {}, 4000);
+    if (!r.ok) return;
+    const data = await r.json();
+    BOSS_DEFS.forEach(def => {
+      const srv = data[def.name];
+      if (!srv) return; // nobody's ever hit it — local full-health default is already correct
+      const st = bossState[def.name];
+      const wasAlive = st.alive;
+      st.hp = srv.hp; st.maxHp = srv.maxHp; st.alive = srv.alive;
+      if (!wasAlive && st.alive) showNotif(`${def.emoji} ${def.name} has returned!`);
+      const bm = bossMeshes[def.name]; if (bm) bm.mesh.visible = st.alive;
+      if (currentNearBoss === def) showBossHud(def);
+    });
+  } catch(e) { /* next sync will catch up */ }
+}
+function showBossHud(def) {
+  const st = bossState[def.name];
+  document.getElementById('bossHud').style.display = 'block';
+  document.getElementById('bossHudName').textContent = `${def.emoji} ${def.name}`;
+  document.getElementById('bossHudFill').style.width = Math.max(0, st.hp/st.maxHp*100) + '%';
+  document.getElementById('bossHudHp').textContent = st.alive ? `${Math.ceil(Math.max(0,st.hp))} / ${st.maxHp} HP` : 'Down — respawning...';
+}
+function tickBossHud() {
+  let nearest = null, nearestDist = 30;
+  BOSS_DEFS.forEach(def => {
+    const d = Math.hypot(playerGroup.position.x-def.x, playerGroup.position.z-def.z);
+    if (d < nearestDist) { nearestDist = d; nearest = def; }
+  });
+  currentNearBoss = nearest;
+  if (nearest) showBossHud(nearest);
+  else document.getElementById('bossHud').style.display = 'none';
+}
+async function fightBoss(def) {
+  const st = bossState[def.name];
+  if (!st.alive) { showNotif(`${def.emoji} ${def.name} is down — back in a bit...`); return; }
+  const dmg = getWeaponDamage();
+  triggerSwing();
+  sfx.clang();
+  st.hp = Math.max(0, st.hp - dmg);
+  showBossHud(def);
+  showNotif(`${def.emoji} Hit ${def.name} for ${dmg}!`);
+  sipDollars += def.hitSip; if (def.hitElite) eliteCoins += def.hitElite;
+  updateSIP(); if (def.hitElite) updateElite();
+  damagePlayer(def.damage, def.name);
+  if (serverMode !== 'online') {
+    // Offline solo fight — no server to share this with, resolve entirely locally.
+    if (st.hp <= 0) {
+      st.alive = false;
+      const bm = bossMeshes[def.name]; if (bm) bm.mesh.visible = false;
+      showBossHud(def);
+      awardBossDefeat(def);
+      // No server here to run the real respawn timer, so mirror it locally — same
+      // BOSS_RESPAWN wait either way, just not shared with anyone else since offline play
+      // by definition has no one else to share it with.
+      setTimeout(() => {
+        st.alive = true; st.hp = st.maxHp;
+        if (bm) bm.mesh.visible = true;
+        if (currentNearBoss === def) showBossHud(def);
+      }, 600000);
+    }
+    return;
+  }
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/bosses/hit', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name: def.name, maxHp: def.maxHp, damage: dmg, attackerName: currentUser })
+    }, 4000);
+    if (!r.ok) return;
+    const res = await r.json();
+    const wasAlive = st.alive;
+    st.hp = res.hp; st.alive = res.alive; st.maxHp = res.maxHp;
+    showBossHud(def);
+    const bm = bossMeshes[def.name]; if (bm) bm.mesh.visible = st.alive;
+    if (res.justDefeated && wasAlive) awardBossDefeat(def);
+  } catch(e) { /* the local hit above already landed — next sync reconciles */ }
+}
+function awardBossDefeat(def) {
+  const [lo,hi] = def.sipReward;
+  const reward = lo + Math.floor(Math.random()*(hi-lo+1));
+  sipDollars += reward; updateSIP();
+  eliteCoins += def.eliteReward; updateElite();
+  lifetimeRobotKills++; // a real robot kill either way, just a huge one — counts toward the Quests panel too
+  saveCurrentUser();
+  sfx.boom();
+  showNotif(`🏆 ${def.emoji} ${def.name} DEFEATED! +${reward} S.I.P. +${def.eliteReward} 💎`);
+}
+
 let warGarrisons = {};     // territory name -> [{hp,maxHp,mesh,col,alive,zone}]
 let warFlags = {};         // territory name -> flag Group, once captured
 let currentWarZone = null; // the WAR_TERRITORIES entry I'm currently near, or null
@@ -16229,6 +16351,8 @@ function animate(){
   tickWorldEvent(dt);
   if(serverMode === 'online' && t - _lastTerritorySync > TERRITORY_SYNC_INTERVAL) { _lastTerritorySync = t; syncTerritories(); }
   tickWar(t);
+  if(serverMode === 'online' && t - _lastBossSync > BOSS_SYNC_INTERVAL) { _lastBossSync = t; syncBosses(); }
+  tickBossHud();
 
   // Movement with collision
   let moving=false;
