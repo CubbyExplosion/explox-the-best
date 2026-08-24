@@ -53,6 +53,26 @@
       padding:8px 12px; border-radius:8px; line-height:1.9;
     }
 
+    /* Touch controls — hidden by default, shown only on touch-primary devices */
+    #mobileControls { display:none; }
+    @media (pointer: coarse) { #controls { display:none; } #mobileControls { display:block; } }
+    #joyBase {
+      position:fixed; left:20px; bottom:26px; width:92px; height:92px; border-radius:50%;
+      background:rgba(255,255,255,0.12); border:2px solid rgba(255,255,255,0.35);
+      touch-action:none; z-index:25; pointer-events:auto;
+    }
+    #joyStick {
+      position:absolute; left:50%; top:50%; width:40px; height:40px; margin-left:-20px; margin-top:-20px;
+      border-radius:50%; background:rgba(255,255,255,0.5); border:2px solid rgba(255,255,255,0.75);
+      pointer-events:none;
+    }
+    #mobileJumpBtn {
+      position:fixed; right:20px; bottom:36px; width:64px; height:64px; border-radius:50%;
+      background:rgba(0,0,0,0.45); border:2px solid rgba(255,255,255,0.5);
+      color:#fff; font-weight:bold; font-size:22px; display:flex; align-items:center; justify-content:center;
+      z-index:25; touch-action:none; user-select:none; pointer-events:auto;
+    }
+
     /* ── SCREENS ── */
     .screen {
       position:fixed; inset:0; display:flex; flex-direction:column;
@@ -112,6 +132,11 @@
   <div id="bestBox">🏆 Best: --</div>
   <div id="notif"></div>
   <div id="controls">WASD — Move &nbsp;|&nbsp; Mouse — Look &nbsp;|&nbsp; SPACE — Jump</div>
+</div>
+
+<div id="mobileControls">
+  <div id="joyBase"><div id="joyStick"></div></div>
+  <div id="mobileJumpBtn">⬆</div>
 </div>
 
 <!-- LEVEL SELECT -->
@@ -374,6 +399,7 @@ function respawn() {
 
 // ─── CONTROLS ────────────────────────────────────────────────────────────────
 const keys={};
+const isTouchDevice = matchMedia('(pointer: coarse)').matches; // no real Pointer Lock on touch — skip the "click to enable mouse look" prompt
 document.addEventListener('keydown',e=>{keys[e.code]=true;});
 document.addEventListener('keyup',  e=>{keys[e.code]=false;});
 document.addEventListener('keydown',e=>{
@@ -395,6 +421,64 @@ window.addEventListener('resize',()=>{
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight);
 });
+
+// ─── TOUCH CONTROLS ──────────────────────────────────────────────────────────
+// One touch drags the on-screen joystick (sets the same `keys[...]` flags WASD
+// already sets — the movement code below reads those either way), a second
+// touch anywhere else on the canvas drags to look around (writes yaw/pitch
+// directly — there's no real Pointer Lock equivalent on touch, so this
+// doesn't wait for `isLocked` the way mouse-look does).
+(function setupTouchControls(){
+  const joyBase = document.getElementById('joyBase');
+  const joyStick = document.getElementById('joyStick');
+  const jumpBtn = document.getElementById('mobileJumpBtn');
+  if(!joyBase) return;
+  let joyTouchId=null, joyCenterX=0, joyCenterY=0;
+  let lookTouchId=null, lookLastX=0, lookLastY=0;
+  function updateJoy(cx,cy){
+    const r=45;
+    const dx=cx-joyCenterX, dy=cy-joyCenterY;
+    const dist=Math.min(Math.sqrt(dx*dx+dy*dy), r);
+    const angle=Math.atan2(dy,dx);
+    const sx=Math.cos(angle)*dist, sy=Math.sin(angle)*dist;
+    joyStick.style.transform=`translate(${sx}px,${sy}px)`;
+    const nx=sx/r, ny=sy/r, th=0.3;
+    keys['KeyW']=ny<-th; keys['KeyS']=ny>th; keys['KeyA']=nx<-th; keys['KeyD']=nx>th;
+  }
+  function resetJoy(){ keys['KeyW']=keys['KeyA']=keys['KeyS']=keys['KeyD']=false; joyStick.style.transform='translate(0px,0px)'; }
+  joyBase.addEventListener('touchstart', e=>{
+    e.preventDefault();
+    const tch=e.changedTouches[0]; joyTouchId=tch.identifier;
+    const r=joyBase.getBoundingClientRect(); joyCenterX=r.left+r.width/2; joyCenterY=r.top+r.height/2;
+    updateJoy(tch.clientX,tch.clientY);
+  }, {passive:false});
+  document.addEventListener('touchmove', e=>{
+    for(const tch of e.changedTouches){
+      if(tch.identifier===joyTouchId) updateJoy(tch.clientX,tch.clientY);
+      if(tch.identifier===lookTouchId){
+        const dx=tch.clientX-lookLastX, dy=tch.clientY-lookLastY;
+        yaw-=dx*0.004; pitch-=dy*0.004; pitch=Math.max(-0.55,Math.min(0.35,pitch));
+        lookLastX=tch.clientX; lookLastY=tch.clientY;
+      }
+    }
+  }, {passive:true});
+  document.addEventListener('touchend', e=>{
+    for(const tch of e.changedTouches){
+      if(tch.identifier===joyTouchId){ joyTouchId=null; resetJoy(); }
+      if(tch.identifier===lookTouchId) lookTouchId=null;
+    }
+  });
+  renderer.domElement.addEventListener('touchstart', e=>{
+    for(const tch of e.changedTouches){
+      if(tch.identifier===joyTouchId) continue;
+      if(lookTouchId===null){ lookTouchId=tch.identifier; lookLastX=tch.clientX; lookLastY=tch.clientY; }
+    }
+  }, {passive:true});
+  if(jumpBtn){
+    jumpBtn.addEventListener('touchstart', e=>{ e.preventDefault(); keys['Space']=true; });
+    jumpBtn.addEventListener('touchend',   e=>{ e.preventDefault(); keys['Space']=false; });
+  }
+})();
 
 // ─── COLLISION ───────────────────────────────────────────────────────────────
 function checkCollision() {
@@ -513,7 +597,7 @@ function startLevel(lvlIdx){
   plats.forEach(p=>{ p.state='idle'; p.ft=0; p.mesh.position.set(p.bx,p.by,p.bz); p.mesh.material.color.setHex(p.def.c); });
   respawn();
   document.getElementById('hud').style.display='block';
-  document.getElementById('clickMsg').style.display='block';
+  if(!isTouchDevice) document.getElementById('clickMsg').style.display='block'; // touch already has its own drag-to-look, no click-to-lock prompt needed
 }
 
 refreshSelect();
