@@ -6162,7 +6162,15 @@ function tryFfaInteract() {
     const d = Math.hypot(playerGroup.position.x - rp.mesh.position.x, playerGroup.position.z - rp.mesh.position.z);
     if(d < targetDist) { targetDist = d; target = name; }
   });
-  if(!target) { showNotif('⚔️ No one in range — get closer to another player in the arena!'); return true; }
+  // Real bug found live: this used to unconditionally return true here, so standing in the
+  // arena while a World Event (e.g. Pirate Raiders) happened to have a fightable NPC in real
+  // range made every single E-press silently eat itself on this "no one in range" message —
+  // the actual "[E] Fight Pirate Raiders" prompt showing on screen was a total lie, since this
+  // branch always won before handleInteract() ever reached the zones loop that prompt reads
+  // from. Same "step aside for something real that's actually nearby" fix as the duel/FFA
+  // priority note right above this function's caller — only claim the E-press when there's
+  // truly no PvP target, letting the caller fall through to check everything else first.
+  if(!target) { return false; }
   const dmg = getWeaponDamage();
   triggerSwing();
   sfx.hit();
