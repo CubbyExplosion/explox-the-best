@@ -1581,14 +1581,16 @@ let groundMesh      = null;    // ground mesh ref for seasonal color
 let weatherParticles = [];     // snow / leaf particle meshes
 
 // Items that cost S.I.P. — free items are not listed here
+// Exactly 5 free options per section (hat/hair/shirt/pants/shoes), everything past that costs
+// real S.I.P. — a section only needs an entry added here to make a 6th+ option paid, so this
+// scales up to 50 options per section without any other code changing (refreshItemLocks() and
+// setupBtnGroup() already key off whatever buttons exist in the HTML, not a hardcoded count).
+// Pants/shoes only have 5 options total right now, so all 5 are free — the first new one added
+// past that becomes the section's first paid item.
 const ITEM_PRICES = {
-  hat_cap:20,    hat_beanie:20,  hat_cowboy:40,  hat_fedora:40,
-  hat_helmet:60, hat_tophat:60,  hat_pirate:80,  hat_wizard:80,
-  hat_crown:100, hat_santa:100,
-  hair_long:15,  hair_curly:15,  hair_ponytail:25, hair_spiky:25, hair_afro:50,
-  shirt_hoodie:20, shirt_striped:20, shirt_tanktop:20, shirt_jersey:40, shirt_suit:60,
-  pants_shorts:15, pants_cargo:25, pants_ripped:25,
-  shoe_sandals:10, shoe_hightop:20, shoe_boots:30,
+  hat_helmet:60, hat_tophat:60, hat_pirate:80, hat_wizard:80, hat_crown:100, hat_santa:100,
+  hair_ponytail:25, hair_afro:50,
+  shirt_suit:60,
 };
 
 // ─── PRE-MADE SKINS ──────────────────────────────────────────────────────────
