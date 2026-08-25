@@ -558,7 +558,10 @@ function updateServerModeButtons() {
   if(onBtn)  onBtn.classList.toggle('modeActive', serverMode === 'online');
   if(offBtn) offBtn.classList.toggle('modeActive', serverMode === 'offline');
   if(urlBox) {
-    urlBox.style.display = (serverMode === 'online') ? 'block' : 'none';
+    // Always hidden now — there's a real default server (EXPLOX_DEFAULT_SERVER_URL), so
+    // players never need to see or paste an address. Value stays synced for setServerMode()'s
+    // read of it, and a ?server= link (or the empty-value fallback below) can still override it.
+    urlBox.style.display = 'none';
     if(document.activeElement !== urlBox) urlBox.value = EXPLOX_ONLINE_URL;
   }
 }
