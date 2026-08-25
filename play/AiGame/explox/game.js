@@ -15348,6 +15348,150 @@ function awardBossDefeat(def) {
   showNotif(`🏆 ${def.emoji} ${def.name} DEFEATED! +${reward} S.I.P. +${def.eliteReward} 💎`);
 }
 
+// ─── COMPANION COMBAT — Buddy and the adopted kid land their own real hits on whatever
+// you're fighting, PvE (rogue robots, killers, bosses) and PvP (duels, Arena FFA) alike —
+// not just cosmetic followers anymore. Each has its own pacing timer and deals a fraction
+// of the player's own weapon/robot damage stat, so gearing up still matters. A baby-stage
+// kid sits fights out (same 'kid'/'teen'/'adult'-only gate the School feature already uses).
+const BUDDY_ATTACK_INTERVAL = 2.4, KID_ATTACK_INTERVAL = 2.8;
+const BUDDY_DAMAGE_MULT = 0.4, KID_DAMAGE_MULT = 0.3; // a real assist, not a full second fighter
+let buddyAttackTimer = 0, kidAttackTimer = 0; // NOT persisted — just pacing, like every other attackTimer in the file
+
+// Finds whatever the player is actively fighting right now, in the same priority order
+// handleInteract() itself checks: an active duel > Arena FFA > a killer/boss/rogue robot in
+// range. Read-only — doesn't consume/trigger anything, just tells the companions where to swing.
+function getCompanionCombatTarget() {
+  const px = playerGroup.position.x, pz = playerGroup.position.z;
+  if (dueling && serverMode === 'online') {
+    const rp = remotePlayers[dueling];
+    if (rp) {
+      const d = Math.hypot(px-rp.mesh.position.x, pz-rp.mesh.position.z);
+      if (d <= 8) return { type:'duel', name: dueling };
+    }
+  }
+  if (inArena && serverMode === 'online' && ffaAlive) {
+    let target = null, targetDist = 8;
+    Object.keys(remotePlayers).forEach(name => {
+      const rp = remotePlayers[name];
+      const dToArena = Math.hypot(rp.mesh.position.x-ARENA_CENTER.x, rp.mesh.position.z-ARENA_CENTER.z);
+      if (dToArena > ARENA_RADIUS) return;
+      const d = Math.hypot(px-rp.mesh.position.x, pz-rp.mesh.position.z);
+      if (d < targetDist) { targetDist = d; target = name; }
+    });
+    if (target) return { type:'ffa', name: target };
+  }
+  if (!inHouse && !inMall && !inArcade && !inStore) {
+    let closestKiller = null, closestKillerDist = 3.5;
+    for (const k of killers) { if (!k.alive || !k.revealed) continue; const d = Math.hypot(px-k.x, pz-k.z); if (d < closestKillerDist) { closestKillerDist = d; closestKiller = k; } }
+    if (closestKiller) return { type:'killer', ref: closestKiller };
+    let closestBoss = null, closestBossDist = 6;
+    // st.curX/curZ (a live chase position) may not exist on every deployment yet — fall back
+    // to the boss's fixed home spot (def.x/def.z) so this still works either way.
+    for (const def of BOSS_DEFS) {
+      const st = bossState[def.name]; if (!st || !st.alive) continue;
+      const bx = st.curX !== undefined ? st.curX : def.x, bz = st.curZ !== undefined ? st.curZ : def.z;
+      const d = Math.hypot(px-bx, pz-bz);
+      if (d < closestBossDist) { closestBossDist = d; closestBoss = def; }
+    }
+    if (closestBoss) return { type:'boss', ref: closestBoss };
+    let closestRobot = null, closestRobotDist = 3.5;
+    for (const r of rogueRobots) { if (!r.alive) continue; const d = Math.hypot(px-r.x, pz-r.z); if (d < closestRobotDist) { closestRobotDist = d; closestRobot = r; } }
+    if (closestRobot) return { type:'robot', ref: closestRobot };
+  }
+  return null;
+}
+// A lighter-weight sibling of fightBoss() for a companion's own hit — same HP-sync/defeat/
+// respawn handling (online via the server, offline mirrored locally), just no player swing
+// animation and its own attacker label instead of a generic one.
+function companionHitBoss(def, dmg, label) {
+  const st = bossState[def.name];
+  if (!st || !st.alive) return;
+  st.hp = Math.max(serverMode === 'online' ? 1 : 0, st.hp - dmg);
+  st.attackTimer = 0; st.aggro = true;
+  showBossHud(def);
+  showNotif(`${label} hits ${def.name} for ${dmg}!`);
+  sfx.clang();
+  if (serverMode !== 'online') {
+    if (st.hp <= 0) {
+      st.alive = false;
+      const bm = bossMeshes[def.name]; if (bm) bm.mesh.visible = false;
+      showBossHud(def);
+      awardBossDefeat(def);
+      setTimeout(() => {
+        st.alive = true; st.hp = st.maxHp; st.aggro = false; st.curX = def.x; st.curZ = def.z;
+        const bm2 = bossMeshes[def.name];
+        if (bm2) { bm2.mesh.visible = true; bm2.mesh.position.set(def.x, 0, def.z); if (bm2.light) bm2.light.position.set(def.x, 8, def.z); }
+        if (currentNearBoss === def) showBossHud(def);
+      }, 600000);
+    }
+    return;
+  }
+  fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/bosses/hit', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ name: def.name, maxHp: def.maxHp, damage: dmg, attackerName: currentUser })
+  }, 4000).then(async r => {
+    if (!r.ok) return;
+    const res = await r.json();
+    const wasAlive = st.alive;
+    st.hp = res.hp; st.alive = res.alive; st.maxHp = res.maxHp;
+    if (res.level !== undefined) st.level = res.level;
+    if (res.defeats !== undefined) st.defeats = res.defeats;
+    showBossHud(def);
+    const bm = bossMeshes[def.name]; if (bm) bm.mesh.visible = st.alive;
+    if (res.justDefeated && wasAlive) awardBossDefeat(def);
+  }).catch(()=>{});
+}
+function landCompanionHit(target, mult, label) {
+  if (target.type === 'duel') {
+    const dmg = Math.max(1, Math.round(getWeaponDamage() * mult));
+    sendMail(target.name, 'duel_hit', { damage: dmg });
+    showNotif(`${label} hits ${target.name} for ${dmg}!`);
+    sfx.hit();
+  } else if (target.type === 'ffa') {
+    const dmg = Math.max(1, Math.round(getWeaponDamage() * mult));
+    sendMail(target.name, 'ffa_hit', { damage: dmg });
+    showNotif(`${label} hits ${target.name} for ${dmg}!`);
+    sfx.hit();
+  } else if (target.type === 'killer') {
+    const k = target.ref; if (!k.alive) return;
+    const dmg = Math.max(1, Math.round(getWeaponDamage() * mult));
+    k.hp -= dmg;
+    sfx.clang();
+    if (k.hp > 0) { showNotif(`${label} hits the killer for ${dmg}! (${k.hp}/${k.maxHp} HP left)`); return; }
+    showNotif(`${label} lands the final hit!`);
+    defeatKiller(k);
+  } else if (target.type === 'boss') {
+    const dmg = Math.max(1, Math.round(getWeaponDamage() * mult));
+    companionHitBoss(target.ref, dmg, label);
+  } else if (target.type === 'robot') {
+    const r = target.ref; if (!r.alive) return;
+    const dmg = Math.max(1, Math.round(getRobotDamage() * mult));
+    r.hp -= dmg;
+    sfx.clang();
+    if (r.hp > 0) { showNotif(`${label} hits the rogue ${r.type.name} for ${dmg}! (${r.hp} HP left)`); return; }
+    showNotif(`${label} lands the final hit!`);
+    defeatRogueRobot(r);
+  }
+}
+function tickCompanionAssist(dt) {
+  if (!buddyOwned && !familyKidAdopted) return;
+  const target = getCompanionCombatTarget();
+  if (buddyOwned) {
+    buddyAttackTimer += dt;
+    if (buddyAttackTimer >= BUDDY_ATTACK_INTERVAL) {
+      buddyAttackTimer = 0;
+      if (target) landCompanionHit(target, BUDDY_DAMAGE_MULT, `🐾 ${buddyName}`);
+    }
+  }
+  if (familyKidAdopted && growthStageFor(familyKidPlayTime).id !== 'baby') {
+    kidAttackTimer += dt;
+    if (kidAttackTimer >= KID_ATTACK_INTERVAL) {
+      kidAttackTimer = 0;
+      if (target) landCompanionHit(target, KID_DAMAGE_MULT, `👦 ${familyKidName}`);
+    }
+  }
+}
+
 let warGarrisons = {};     // territory name -> [{hp,maxHp,mesh,col,alive,zone}]
 let warFlags = {};         // territory name -> flag Group, once captured
 let currentWarZone = null; // the WAR_TERRITORIES entry I'm currently near, or null
@@ -16944,6 +17088,7 @@ function animate(){
   tickTubeGrowth(dt);
   tickRogueRobots(dt);
   tickKillers(dt);
+  tickCompanionAssist(dt);
   billTimerTick(dt);
   tickBillsOverdue();
   tickCarImpactDebris(dt);
