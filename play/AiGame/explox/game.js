@@ -2116,6 +2116,11 @@ let inMall  = false;
 let inHotel = false;
 let inStore = false;
 let inArcade = false;
+let inBankInterior = false;
+const BANK_INTERIOR_COLS = [];
+const BANK_INTERIOR = { x:130000, z:0 }; // own 10,000-unit lane, next free one after AirportLounge(120000)
+const BANK_INTERIOR_EXIT = { x:130000, z:7 };
+const BANK_INTERIOR_ENTRANCE = { x:160, z:198 }; // exterior employee door, just outside the building's real north wall (z:200)
 const ARCADE_COLS  = [];
 const ARCADE_SPAWN = { x:70000, z:0 }; // own 10,000-unit lane, after Store(40000)/FriendHouse(50000)/Prison(60000)
 const ARCADE_EXIT  = { x:40, z:90 };
@@ -2358,7 +2363,7 @@ function addCol(arr, cx, cz, hw, hd) { const c = { cx, cz, hw, hd }; arr.push(c)
 
 function isBlocked(nx, nz, rOverride) {
   const r = rOverride !== undefined ? rOverride : 0.65; // real optional radius — cars (item 159 fix) pass a bigger one
-  const cols = inMovieFight ? MOVIE_FIGHT_COLS : inArenaBattle ? ROBOT_ARENA_COLS : inPrison ? [] : inFriendHouse ? [] : inLandHouse ? LAND_HOUSE_COLS : inCountryHotel ? COUNTRY_HOTEL_COLS : inAirportLounge ? AIRPORT_LOUNGE_COLS : inArcade ? ARCADE_COLS : inHotel ? HOTEL_COLS : inHouse ? HOUSE_COLS : inMall ? MALL_COLS : inStore ? STORE_COLS : CITY_COLS;
+  const cols = inMovieFight ? MOVIE_FIGHT_COLS : inArenaBattle ? ROBOT_ARENA_COLS : inPrison ? [] : inFriendHouse ? [] : inLandHouse ? LAND_HOUSE_COLS : inCountryHotel ? COUNTRY_HOTEL_COLS : inAirportLounge ? AIRPORT_LOUNGE_COLS : inArcade ? ARCADE_COLS : inHotel ? HOTEL_COLS : inHouse ? HOUSE_COLS : inMall ? MALL_COLS : inStore ? STORE_COLS : inBankInterior ? BANK_INTERIOR_COLS : CITY_COLS;
   for(const c of cols) {
     if(nx+r > c.cx-c.hw && nx-r < c.cx+c.hw &&
        nz+r > c.cz-c.hd && nz-r < c.cz+c.hd) return true;
@@ -2403,8 +2408,9 @@ function toggleJob(type, pay, taskText) {
     activeJob = type; activeJobPay = pay; activeJobTaskText = taskText;
     jobTaskActive = false;
     jobNextTaskIn = 2 + Math.random()*3; // first task arrives soon after clocking in
-    showNotif(`Started working as ${type}! Stay nearby — you'll need to help out when asked.`);
+    showNotif(`Started working as ${type}! You'll need to help out when asked.`);
   }
+  renderJobsPanel();
 }
 // ─── BANK JOBS — long, low-attention shifts with a real currency choice, unlike the reaction-task
 // jobs above (Shopkeeper/Officer). User's own ask: "you can work at the bank as [Money Printer,
@@ -2418,6 +2424,38 @@ const BANK_JOBS = [
   { id:'counter', label:'Money Counter', durationSec:300,  repeatSec:0,  sipPay:10000, elitePay:5000 },
 ];
 let activeBankJob = null; // {job, currency:'sip'|'elite', elapsed, sinceLastPay} — NOT persisted, same as the regular job system
+// User's own follow-up correction: "to work as money printer or counter you have to go inside th
+// bank" — an outdoor zone wasn't good enough, so this now checks a REAL walk-in interior
+// (BANK_INTERIOR, its own 10,000-unit pocket lane like every other building's interior in this
+// file — see enterBankInterior/exitBankInterior/buildBankInterior below) instead of distance to an
+// outdoor CITY_ZONES circle. Guard is still deliberately exempt: defending against the killer
+// swarm means moving around freely outdoors (see tickGuardKillerCombat), and it can still be
+// started remotely from the Jobs tab (item 217).
+function nearBankJobZone(jobId, currency) {
+  return inBankInterior;
+}
+function enterBankInterior() {
+  inBankInterior = true;
+  playerGroup.position.set(BANK_INTERIOR.x, 0, BANK_INTERIOR.z);
+  yaw = Math.PI;
+  showNotif('🏦 Bank employee area — the Money Printer and Money Counter stations are here.');
+}
+function exitBankInterior() {
+  inBankInterior = false;
+  playerGroup.position.set(BANK_INTERIOR_ENTRANCE.x, 0, BANK_INTERIOR_ENTRANCE.z - 8);
+  yaw = 0;
+  showNotif('Leaving the Bank employee area...');
+}
+// Same flat-array shape every other pocket interior's own _ZONES array uses (see STORE_ZONES,
+// HOUSE_ZONES, etc.) — wired into isBlocked()/handleInteract()/updatePrompt()'s existing
+// inX-ternary chains alongside them, not a new mechanism.
+const BANK_INTERIOR_ZONES = [
+  { x:BANK_INTERIOR_EXIT.x,   z:BANK_INTERIOR_EXIT.z,   r:3,   label:'Exit Bank',                       action: exitBankInterior },
+  { x:BANK_INTERIOR.x-5, z:BANK_INTERIOR.z-3, r:2.2, label:'🖨️ Work as Money Printer (1,000 S.I.P./min, 5 min shift)', action: ()=>toggleBankJob('printer','sip'),   isBankJobZone:true, bankJobId:'printer', currency:'sip' },
+  { x:BANK_INTERIOR.x-5, z:BANK_INTERIOR.z+3, r:2.2, label:'🖨️ Work as Money Printer (500 💎/min, 5 min shift)',        action: ()=>toggleBankJob('printer','elite'), isBankJobZone:true, bankJobId:'printer', currency:'elite' },
+  { x:BANK_INTERIOR.x+5, z:BANK_INTERIOR.z-3, r:2.2, label:'🧮 Work as Money Counter (10,000 S.I.P. after 5 min)',      action: ()=>toggleBankJob('counter','sip'),   isBankJobZone:true, bankJobId:'counter', currency:'sip' },
+  { x:BANK_INTERIOR.x+5, z:BANK_INTERIOR.z+3, r:2.2, label:'🧮 Work as Money Counter (5,000 💎 after 5 min)',           action: ()=>toggleBankJob('counter','elite'), isBankJobZone:true, bankJobId:'counter', currency:'elite' },
+];
 function toggleBankJob(jobId, currency) {
   if(activeJob) { showNotif('❌ Already working a regular job — quit that one first!'); return; }
   if(activeBankJob && activeBankJob.job.id === jobId && activeBankJob.currency === currency) {
@@ -2425,46 +2463,299 @@ function toggleBankJob(jobId, currency) {
     return;
   }
   if(activeBankJob) { showNotif(`❌ Already working as ${activeBankJob.job.label} — quit that shift first!`); return; }
+  if (jobId !== 'guard' && !nearBankJobZone(jobId, currency)) {
+    showNotif(`❌ You need to go inside the Bank to work as ${BANK_JOBS.find(j=>j.id===jobId).label}! Use the employee entrance.`);
+    return;
+  }
   const job = BANK_JOBS.find(j => j.id === jobId);
   activeBankJob = { job, currency, elapsed:0, sinceLastPay:0 };
+  if (jobId === 'guard') resetBankHealth(); // start every shift with the Bank at full health, not whatever it was left at
   const payTxt = currency === 'sip' ? `${job.sipPay.toLocaleString()} S.I.P.` : `${job.elitePay.toLocaleString()} 💎`;
-  showNotif(`💼 Clocked in as ${job.label}! ${job.repeatSec ? `${payTxt}/min` : payTxt} — stay for ${Math.round(job.durationSec/60)} min.`);
+  showNotif(`💼 Clocked in as ${job.label}! ${job.repeatSec ? `${payTxt}/min` : payTxt} for ${Math.round(job.durationSec/60)} min.`);
+  renderJobsPanel();
 }
 function quitBankJob(msg) {
   activeBankJob = null;
   document.getElementById('jobHud').textContent = '💼 No Job';
   document.getElementById('jobHud').style.color = '#fff';
   showNotif(msg);
+  renderJobsPanel();
 }
-function payBankJob(job, currency) {
-  queueEarning(currency==='sip' ? job.sipPay : 0, currency==='elite' ? job.elitePay : 0, job.label);
+function payBankJob(job, currency, ratio=1) {
+  const sip = currency==='sip' ? Math.round(job.sipPay*ratio) : 0;
+  const elite = currency==='elite' ? Math.round(job.elitePay*ratio) : 0;
+  if (sip || elite) queueEarning(sip, elite, job.label);
 }
 function tickBankJob(dt) {
   if(!activeBankJob) return;
   const bj = activeBankJob;
-  // Same "wander off, lose the shift" rule the regular jobs already use — no free pay for leaving.
-  const zone = CITY_ZONES.find(z => z.bankJobId === bj.job.id && z.currency === bj.currency);
-  if(zone) {
-    const d = Math.hypot(playerGroup.position.x - zone.x, playerGroup.position.z - zone.z);
-    if(d > zone.r) { quitBankJob(`You wandered off — ${bj.job.label} shift ended early!`); return; }
+  // Printer/Counter require staying physically at the Bank for the whole shift; Guard is exempt
+  // (see nearBankJobZone's comment above) and keeps the old "no stay-near-zone rule" freedom.
+  if (bj.job.id !== 'guard' && !nearBankJobZone(bj.job.id, bj.currency)) {
+    showNotif(`❌ You left the Bank — ${bj.job.label} shift cancelled, no pay.`);
+    activeBankJob = null;
+    document.getElementById('jobHud').textContent = '💼 No Job';
+    document.getElementById('jobHud').style.color = '#fff';
+    renderJobsPanel();
+    return;
   }
   bj.elapsed += dt; bj.sinceLastPay += dt;
   if(bj.job.repeatSec > 0 && bj.sinceLastPay >= bj.job.repeatSec && bj.elapsed < bj.job.durationSec) {
     bj.sinceLastPay = 0;
-    payBankJob(bj.job, bj.currency);
+    if (bj.job.id === 'printer') {
+      // User's own ask: "you print money alot" — pay scales with how many real presses (see
+      // tickPrinter/pressPrinter below) landed this minute instead of paying blindly on the timer.
+      const ratio = Math.min(1, printerPressesThisMin / PRINTER_TARGET_PRESSES);
+      payBankJob(bj.job, bj.currency, ratio);
+      if (printerPressesThisMin === 0) showNotif('🖨️ No sheets printed this minute — no pay.');
+      else if (ratio < 1) showNotif(`🖨️ Printed ${printerPressesThisMin}/${PRINTER_TARGET_PRESSES} sheets — partial pay this minute.`);
+      printerPressesThisMin = 0;
+    } else {
+      payBankJob(bj.job, bj.currency);
+    }
   }
   if(bj.elapsed >= bj.job.durationSec) {
-    if(bj.job.repeatSec === 0) payBankJob(bj.job, bj.currency); // one lump sum at the very end
+    // Counter pays per-round as each count is solved (see tickCounter/finishCounterRound) instead
+    // of one blind lump sum here — user's own ask for a real counting minigame, not an idle wait.
+    if(bj.job.repeatSec === 0 && bj.job.id !== 'counter') payBankJob(bj.job, bj.currency); // one lump sum at the very end
     showNotif(`🏁 ${bj.job.label} shift complete!`);
     activeBankJob = null;
     document.getElementById('jobHud').textContent = '💼 No Job';
     document.getElementById('jobHud').style.color = '#fff';
+    renderJobsPanel();
     return;
   }
   const remaining = Math.max(0, bj.job.durationSec - bj.elapsed);
   const mm = Math.floor(remaining/60), ss = Math.floor(remaining%60);
-  document.getElementById('jobHud').textContent = `💼 ${bj.job.label} — ${mm}:${ss.toString().padStart(2,'0')} left`;
+  const bankHpTxt = bj.job.id === 'guard' ? ` | 🏦 ${bankHealth}/${bankMaxHealth} HP` : '';
+  document.getElementById('jobHud').textContent = `💼 ${bj.job.label} — ${mm}:${ss.toString().padStart(2,'0')} left${bankHpTxt}`;
   document.getElementById('jobHud').style.color = '#FFD700';
+}
+
+// ─── MONEY PRINTER — active click-to-print, user's own ask: "you print money alot." A silent
+// per-minute timer used to pay out on its own; now a short real press window pops up every few
+// seconds (works from anywhere, same as the rest of the Bank Jobs since item 217 dropped the
+// zone-proximity rule) and pressing E during it prints one sheet. tickBankJob() above scales that
+// minute's payout by how many of PRINTER_TARGET_PRESSES you actually landed — same "miss the
+// reaction, no pay" convention the Shopkeeper/Officer reaction jobs already use.
+let printerPressActive = false, printerPressTimer = 0, printerNextPressIn = 2, printerPressesThisMin = 0;
+const PRINTER_PRESS_WINDOW = 1.4, PRINTER_TARGET_PRESSES = 10;
+function tickPrinter(dt) {
+  const onPrinter = activeBankJob && activeBankJob.job.id === 'printer';
+  if (!onPrinter) {
+    if (printerPressActive || printerPressesThisMin) { printerPressActive = false; printerPressesThisMin = 0; printerNextPressIn = 2; }
+    return;
+  }
+  if (printerPressActive) {
+    printerPressTimer -= dt;
+    document.getElementById('jobHud').textContent = `🖨️ PRESS [E] TO PRINT! (${Math.max(0,printerPressTimer).toFixed(1)}s)`;
+    document.getElementById('jobHud').style.color = '#ff6644';
+    if (printerPressTimer <= 0) { printerPressActive = false; printerNextPressIn = 2.5 + Math.random()*2; }
+    return;
+  }
+  printerNextPressIn -= dt;
+  if (printerNextPressIn <= 0) {
+    printerPressActive = true;
+    printerPressTimer = PRINTER_PRESS_WINDOW;
+    sfx.notify();
+  }
+}
+// Called from handleInteract() (E key) — returns true if it consumed the press.
+function pressPrinter() {
+  if (!printerPressActive) return false;
+  printerPressActive = false;
+  printerPressesThisMin++;
+  printerNextPressIn = 2.5 + Math.random()*2;
+  sfx.clang();
+  showNotif(`🖨️ Printed a sheet! (${printerPressesThisMin}/${PRINTER_TARGET_PRESSES} this minute)`);
+  return true;
+}
+
+// ─── MONEY COUNTER — real counting minigame, user's own ask: "you count money froum like 10 20
+// dollar bills and 40 10 dollar bills like that." Instead of one silent 5-minute wait, the shift
+// is split into COUNTER_ROUNDS timed rounds — each shows two random bill-stack counts and the
+// player has to do the real arithmetic and type the total before time runs out. Correct answers
+// each pay 1/COUNTER_ROUNDS of the job's normal payout; wrong or timed-out rounds pay nothing,
+// same convention as every other reaction-based job in this file.
+const COUNTER_ROUNDS = 5, COUNTER_ROUND_WINDOW = 60; // a real person doing real mental math needs more than a few seconds — user's own ask: "give them 1 min they are not ai"
+let counterRoundActive = false, counterRoundTimer = 0, counterNextRoundIn = 3, counterRoundsDone = 0;
+let counterTwenties = 0, counterTens = 0, counterAnswer = 0;
+function tickCounter(dt) {
+  const onCounter = activeBankJob && activeBankJob.job.id === 'counter';
+  if (!onCounter) {
+    if (counterRoundActive) { counterRoundActive = false; document.getElementById('counterModal').style.display = 'none'; }
+    counterRoundsDone = 0; counterNextRoundIn = 3;
+    return;
+  }
+  if (counterRoundActive) {
+    counterRoundTimer -= dt;
+    const el = document.getElementById('counterTimer');
+    if (el) el.textContent = Math.max(0,counterRoundTimer).toFixed(1) + 's';
+    if (counterRoundTimer <= 0) finishCounterRound(false);
+    return;
+  }
+  if (counterRoundsDone >= COUNTER_ROUNDS) return; // all rounds resolved — just ride out the rest of the shift
+  counterNextRoundIn -= dt;
+  const jobsPanelOpen = document.getElementById('jobsPanel') && document.getElementById('jobsPanel').style.display !== 'none';
+  if (counterNextRoundIn <= 0 && !jobsPanelOpen) openCounterRound();
+}
+function openCounterRound() {
+  counterTwenties = 2 + Math.floor(Math.random()*18); // 2-19
+  counterTens = 2 + Math.floor(Math.random()*38);     // 2-39
+  counterAnswer = counterTwenties*20 + counterTens*10;
+  counterRoundActive = true;
+  counterRoundTimer = COUNTER_ROUND_WINDOW;
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('counterStacksText').textContent = `${counterTwenties} × 💵 $20 bills + ${counterTens} × 💵 $10 bills`;
+  document.getElementById('counterAnswerInput').value = '';
+  document.getElementById('counterTimer').textContent = COUNTER_ROUND_WINDOW.toFixed(1) + 's';
+  document.getElementById('counterModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('counterAnswerInput').focus(), 50);
+  sfx.notify();
+}
+function submitCounterAnswer() {
+  if (!counterRoundActive) return;
+  const val = parseInt(document.getElementById('counterAnswerInput').value, 10);
+  finishCounterRound(val === counterAnswer);
+}
+function finishCounterRound(correct) {
+  counterRoundActive = false;
+  counterRoundsDone++;
+  document.getElementById('counterModal').style.display = 'none';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+  const stillCounting = activeBankJob && activeBankJob.job.id === 'counter';
+  if (correct && stillCounting) {
+    payBankJob(activeBankJob.job, activeBankJob.currency, 1/COUNTER_ROUNDS);
+    sfx.coin();
+    showNotif(`🧮 Correct — $${counterAnswer.toLocaleString()}! Payout added to Earnings.`);
+  } else if (stillCounting) {
+    sfx.nope();
+    showNotif(`🧮 Wrong! It was $${counterAnswer.toLocaleString()}. No pay this round.`);
+  }
+  counterNextRoundIn = 4 + Math.random()*3;
+}
+// ─── JOB TAB — user's own ask: "go to the job tab click bank and than you actually work as the
+// job" — every job in the game (Shopkeeper/Officer above, plus the 3 Bank Jobs) can now be
+// started from one menu instead of needing to find and walk to each one's physical spot. Removed
+// the "wander off and lose the job" rule from tickJob()/tickBankJob() above to match — hiring on
+// remotely and then still needing to stand in one specific spot forever would defeat the point.
+function toggleJobsPanel() {
+  const panel = document.getElementById('jobsPanel');
+  if (panel.style.display === 'none') {
+    if (document.pointerLockElement) document.exitPointerLock();
+    isPointerLocked = false;
+    renderJobsPanel();
+    panel.style.display = 'flex';
+    document.getElementById('jobsTab').style.display = 'none';
+  } else { closeJobsPanel(); }
+}
+function closeJobsPanel() {
+  document.getElementById('jobsPanel').style.display = 'none';
+  document.getElementById('jobsTab').style.display = 'block';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+// ─── SHOP JOBS — a real job at each of the 340 generated shops (100 CITY_SHOPS + 200 MALL_SHOPS +
+// 40 OUTFIT_SHOPS), not just the one fixed Shopkeeper corner. User's own ask: "make a job for each
+// shop." Reuses the exact same generic toggleJob()/tickJob()/completeJobTask() reaction-task engine
+// already driving Shopkeeper/Officer — a shop job is just toggleJob() called with that specific
+// shop's own name as the job "type" (unique in practice — every shop's emoji+name combo is
+// generated distinctly), so the shared engine needed zero changes. Pay is derived live from each
+// shop's own real price data (its items' or outfits' average cost / 8, clamped 4-25) instead of a
+// flat rate, so a Furniture Store job pays more than a Candy Shop job.
+function findAnyShop(id) {
+  return CITY_SHOPS.find(s => s.id === id) || MALL_SHOPS.find(s => s.id === id) || OUTFIT_SHOPS.find(s => s.id === id);
+}
+function shopJobPay(shop) {
+  const prices = shop.items ? shop.items.map(it => it.price) : shop.outfits.map(o => o.cost);
+  const avg = prices.reduce((a,b) => a+b, 0) / prices.length;
+  return Math.min(25, Math.max(4, Math.round(avg / 8)));
+}
+function startShopJob(shopId) {
+  const shop = findAnyShop(shopId);
+  if (!shop) return;
+  toggleJob(`${shop.emoji} ${shop.name}`, shopJobPay(shop), `📦 A customer at ${shop.name} needs help!`);
+}
+// No separate "which shop am I working at" state to keep in sync — derived fresh from activeJob
+// every time it's needed, so there's nothing to go stale if the player switches jobs directly.
+function findActiveShopJob() {
+  if (!activeJob) return null;
+  return [...CITY_SHOPS, ...MALL_SHOPS, ...OUTFIT_SHOPS].find(s => `${s.emoji} ${s.name}` === activeJob) || null;
+}
+function filterShopJobList() {
+  const input = document.getElementById('shopJobSearch');
+  const results = document.getElementById('shopJobResults');
+  if (!input || !results) return;
+  const q = input.value.trim().toLowerCase();
+  if (q.length < 2) { results.innerHTML = `<div style="color:#666;font-size:10px;text-align:center;padding:6px 0;">Type at least 2 letters to search all 340 shops...</div>`; return; }
+  const busy = !!activeJob || !!activeBankJob;
+  const matches = [...CITY_SHOPS, ...MALL_SHOPS, ...OUTFIT_SHOPS].filter(s => s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q)).slice(0, 20);
+  results.innerHTML = matches.length ? matches.map(s => `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:4px 2px;border-bottom:1px solid #222;">
+      <span style="color:#ddd;font-size:11px;">${s.emoji} ${s.name}</span>
+      <button ${busy ? 'disabled' : ''} onclick="startShopJob('${s.id}')" style="padding:3px 8px;background:${busy?'#333':'#1a5a7a'};border:none;border-radius:5px;color:#fff;font-size:10px;cursor:${busy?'not-allowed':'pointer'};opacity:${busy?'0.5':'1'};white-space:nowrap;">+${shopJobPay(s)} Work</button>
+    </div>`).join('') : `<div style="color:#888;font-size:10px;text-align:center;padding:6px 0;">No shops match "${q}"</div>`;
+}
+function renderJobsPanel() {
+  const list = document.getElementById('jobsList');
+  if (!list) return; // panel HTML not loaded yet (e.g. called before startGame())
+  const busy = !!activeJob || !!activeBankJob;
+  const card = (active) => `background:rgba(255,255,255,0.05);border:2px solid ${active ? '#44ddff' : '#333'};border-radius:10px;padding:10px;margin-bottom:8px;`;
+  const startBtn = (onclick, label) => `<button ${busy ? 'disabled' : ''} onclick="${onclick}" style="width:100%;padding:6px;background:${busy ? '#333' : '#1a5a7a'};border:none;border-radius:6px;color:#fff;font-size:11px;cursor:${busy ? 'not-allowed' : 'pointer'};opacity:${busy ? '0.5' : '1'};">${label}</button>`;
+  const stopBtn = (onclick, label) => `<button onclick="${onclick}" style="width:100%;padding:6px;background:#7a1a1a;border:none;border-radius:6px;color:#fff;font-size:11px;cursor:pointer;">${label}</button>`;
+
+  const shopActive = activeJob === 'Shopkeeper';
+  const copActive = activeJob === 'Officer';
+  let html = `
+    <div style="${card(shopActive)}">
+      <div style="color:#fff;font-size:12px;font-weight:bold;margin-bottom:6px;">📦 Shopkeeper — +5 S.I.P./task</div>
+      ${shopActive ? stopBtn("quitJob('Stopped working.')", 'Stop Working') : startBtn(`toggleJob('Shopkeeper',5,'📦 A customer needs help!')`, 'Start Working')}
+    </div>
+    <div style="${card(copActive)}">
+      <div style="color:#fff;font-size:12px;font-weight:bold;margin-bottom:6px;">🚨 Officer — +10 S.I.P./task</div>
+      ${copActive ? stopBtn("quitJob('Stopped working.')", 'Stop Working') : startBtn(`toggleJob('Officer',10,'🚨 Trouble downtown — respond!')`, 'Start Working')}
+    </div>
+    <div style="color:#88ccff;font-size:11px;font-weight:bold;letter-spacing:2px;text-align:center;margin:12px 0 8px;">🏦 BANK</div>
+  `;
+  html += BANK_JOBS.map(job => {
+    const active = activeBankJob && activeBankJob.job.id === job.id;
+    const payTxt = job.id === 'printer'
+      ? `Up to ${job.sipPay.toLocaleString()} S.I.P. or ${job.elitePay.toLocaleString()} 💎/min — press [E] fast enough when it flashes! Must be inside the Bank.`
+      : job.id === 'counter'
+      ? `Up to ${job.sipPay.toLocaleString()} S.I.P. or ${job.elitePay.toLocaleString()} 💎 — count 5 real bill stacks correctly. Must be inside the Bank.`
+      : `${job.sipPay.toLocaleString()} S.I.P. or ${job.elitePay.toLocaleString()} 💎 after ${Math.round(job.durationSec/60)} min. Killers attack the Bank itself — fight them off, call backup, or let the police help!`;
+    // Guard's own "Call for Backup" ability — user's spec: 30s cooldown, 10 Coin Bots. Only shown
+    // while actively on a Guard shift, since it's meaningless otherwise.
+    const backupCooldown = active && job.id === 'guard' ? Math.max(0, Math.ceil(backupReadyAt - clock.getElapsedTime())) : 0;
+    const backupBtn = active && job.id === 'guard'
+      ? `<button ${backupCooldown > 0 ? 'disabled' : ''} onclick="callBackup()" style="width:100%;padding:6px;margin-top:6px;background:${backupCooldown > 0 ? '#333' : '#2a5a4a'};border:none;border-radius:6px;color:#fff;font-size:11px;cursor:${backupCooldown > 0 ? 'not-allowed' : 'pointer'};opacity:${backupCooldown > 0 ? '0.5' : '1'};">${backupCooldown > 0 ? `📣 Backup (${backupCooldown}s)` : '📣 Call for Backup (10 Coin Bots)'}</button>`
+      : '';
+    return `<div style="${card(active)}">
+      <div style="color:#fff;font-size:12px;font-weight:bold;margin-bottom:3px;">${job.label}</div>
+      <div style="color:#888;font-size:10px;margin-bottom:6px;">${payTxt}</div>
+      ${active
+        ? stopBtn("quitBankJob('Stopped working.')", `Stop Working (${activeBankJob.currency === 'sip' ? 'S.I.P.' : '💎'})`)
+        : `<div style="display:flex;gap:6px;">${startBtn(`toggleBankJob('${job.id}','sip')`, '💰 S.I.P.')}${startBtn(`toggleBankJob('${job.id}','elite')`, '💎 Diamonds')}</div>`}
+      ${backupBtn}
+    </div>`;
+  }).join('');
+
+  html += `<div style="color:#88ccff;font-size:11px;font-weight:bold;letter-spacing:2px;text-align:center;margin:12px 0 8px;">🏪 SHOPS (340)</div>`;
+  const activeShop = findActiveShopJob();
+  if (activeShop) {
+    html += `<div style="${card(true)}">
+      <div style="color:#fff;font-size:12px;font-weight:bold;margin-bottom:6px;">${activeShop.emoji} Working at ${activeShop.name}</div>
+      ${stopBtn("quitJob('Stopped working.')", 'Stop Working')}
+    </div>`;
+  } else {
+    html += `<div style="${card(false)}">
+      <div style="color:#aaa;font-size:10px;margin-bottom:6px;">Every shop in the city &amp; mall is a real job — search by name or category.</div>
+      <input id="shopJobSearch" oninput="filterShopJobList()" placeholder="Search shops..." ${busy ? 'disabled' : ''}
+        style="width:100%;box-sizing:border-box;padding:6px 8px;background:rgba(255,255,255,0.08);border:1px solid #444;border-radius:6px;color:#fff;font-size:11px;margin-bottom:6px;outline:none;">
+      <div id="shopJobResults"></div>
+    </div>`;
+  }
+  list.innerHTML = html;
 }
 function quitJob(msg) {
   activeJob = null; activeJobPay = 0; activeJobTaskText = '';
@@ -2472,6 +2763,7 @@ function quitJob(msg) {
   document.getElementById('jobHud').textContent = '💼 No Job';
   document.getElementById('jobHud').style.color = '#fff';
   showNotif(msg);
+  renderJobsPanel();
 }
 function completeJobTask() {
   if(!jobTaskActive) return;
@@ -2483,12 +2775,9 @@ function completeJobTask() {
 
 function tickJob(dt) {
   if(!activeJob) return;
-  // You have to actually stay on the job — wandering off auto-fires you, no more free pay for leaving.
-  const zone = CITY_ZONES.find(z => z.jobType === activeJob);
-  if(zone) {
-    const d = Math.hypot(playerGroup.position.x - zone.x, playerGroup.position.z - zone.z);
-    if(d > zone.r) { quitJob(`You wandered off the job — ${activeJob} position given up!`); return; }
-  }
+  // No "stay near the zone" rule anymore — see tickBankJob()'s note above, same reasoning:
+  // jobs can now be started from the Job tab from anywhere, so once you're clocked in you're
+  // working regardless of where you roam.
   if(jobTaskActive) {
     jobTaskTimer -= dt;
     document.getElementById('jobHud').textContent = `💼 ${activeJobTaskText} [E] (${Math.max(0,jobTaskTimer).toFixed(1)}s)`;
@@ -5473,7 +5762,7 @@ function watchHotelTV() {
 const SITS_ROUTES = [
   { id:'red',    name:'Red Line',    emoji:'🔴', tagline:'Uptown Express',    fare:2,
     stops:[
-      { name:'City Bank',        x:-30, z:30,   emoji:'🏦' },
+      { name:'City Bank',        x:160, z:210,  emoji:'🏦' },
       { name:'Your House',       x:-30, z:-107, emoji:'🏠' },
       { name:'Shady Dealer',     x:34,  z:3,    emoji:'🕴️' },
     ]},
@@ -5487,7 +5776,7 @@ const SITS_ROUTES = [
     stops:[
       { name:'Police Station',   x:-70, z:10,   emoji:'🚔' },
       { name:'Transit Hub',      x:0,   z:50,   emoji:'🚇' },
-      { name:'City Bank',        x:-30, z:30,   emoji:'🏦' },
+      { name:'City Bank',        x:160, z:210,  emoji:'🏦' },
     ]},
   { id:'yellow', name:'Yellow Line', emoji:'🟡', tagline:'Westside Loop',     fare:4,
     stops:[
@@ -6176,6 +6465,16 @@ function knockoutPlayer() {
     updateHealthBar();
     return;
   }
+  if(activeJob || activeBankJob) {
+    // User's own ask: "if you die you respawn where you were if you are working" — ties directly
+    // into the Guard-duty killer swarm above (item 215/217 follow-up): losing your spot to a
+    // teleport-home would undo the whole point of standing your ground against them. Same "just a
+    // breather in place" pattern as the War Zone/Arena cases above, just for any active job.
+    showNotif('💀 Knocked out on the job! Shake it off and get back to it.');
+    playerHealth = playerMaxHealth;
+    updateHealthBar();
+    return;
+  }
   showNotif('😵 Knocked out! Waking up at home...');
   playerGroup.position.set(HOUSE_DOOR.x, 0, HOUSE_DOOR.z + 3);
   yaw = 0;
@@ -6374,7 +6673,7 @@ function tryDuelInteract() {
   // whatever you're actually standing near" philosophy as the d>25 case above, just
   // extended to this not-yet-dueling case too, which never had it.
   if(!duelChallengeSentTo) {
-    const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : CITY_ZONES;
+    const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : CITY_ZONES;
     const px3 = playerGroup.position.x, pz3 = playerGroup.position.z;
     const nearZone = zones.some(z => Math.hypot(px3 - z.x, pz3 - z.z) < z.r)
       || rogueRobots.some(r => r.alive && Math.hypot(px3 - r.x, pz3 - r.z) < 3)
@@ -7602,7 +7901,10 @@ function openOutfitBoutique(id) {
   document.getElementById('shopOverlay').style.display = 'flex';
   document.getElementById('shopTitle').textContent = `${shop.emoji} ${shop.name}`;
   const items = document.getElementById('shopItems');
-  items.innerHTML = `<div style="text-align:center;color:#ffd54a;font-style:italic;font-size:12px;margin-bottom:8px;">"${shop.ad}"</div>`;
+  const workingHere = activeJob === `${shop.emoji} ${shop.name}`;
+  const shopBusy = !workingHere && (!!activeJob || !!activeBankJob);
+  items.innerHTML = `<div style="text-align:center;color:#ffd54a;font-style:italic;font-size:12px;margin-bottom:8px;">"${shop.ad}"</div>
+    <button ${shopBusy ? 'disabled' : ''} onclick="${workingHere ? "quitJob('Stopped working.')" : `startShopJob('${shop.id}')`};closeShop()" style="width:100%;padding:8px;margin-bottom:10px;background:${workingHere ? '#7a1a1a' : shopBusy ? '#333' : '#1a5a7a'};border:none;border-radius:8px;color:#fff;font-weight:bold;font-size:12px;cursor:${shopBusy ? 'not-allowed' : 'pointer'};opacity:${shopBusy ? '0.5' : '1'};">${workingHere ? '⏹ Stop Working Here' : `💼 Work Here (+${shopJobPay(shop)} S.I.P./task)`}</button>`;
   shop.outfits.forEach((o, i) => {
     const d = document.createElement('div'); d.className = 'shopItem';
     d.innerHTML = `<div class="siName">${o.name}</div>
@@ -11377,7 +11679,7 @@ function spawnRogueRobot() {
 }
 function tickRogueRobots(dt) {
   rogueTimer += dt;
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior;
   if (rogueTimer >= 20) {
     rogueTimer = 0;
     if (outdoors && rogueRobots.filter(r=>r.alive).length < 5) spawnRogueRobot();
@@ -11446,6 +11748,206 @@ const KILLER_HP = 200, KILLER_REWARD_ELITE = 500;
 // to 4 active at once. Floors/caps keep it from ever being either instant or unbounded.
 function killerSpawnInterval() { return Math.max(30, 90 - killerDefeats*3); }
 function killerMaxActive() { return Math.min(4, 1 + Math.floor(killerDefeats/8)); }
+// Guard Bank Job (item 215/217 follow-up), user's own ask: "alot of killers attack the bank" while
+// on a Guard shift, and "you get nothing from the killers" — defeating one of these pays zero,
+// unlike an ambient Killer's normal 500💎 (see defeatKiller() below), since the point is defending
+// the bank as part of the job, not farming loot through it. These share the exact same `killers`
+// array/mesh/movement code as ambient Killers (just tagged `guardKiller:true`) so the existing
+// interact-priority loop still lets the player fight them directly for free — but their COMBAT
+// targeting is entirely separate (see tickGuardKillerCombat below): a later correction from the
+// user — "the bad guys attack the bank not you" — means a guard killer never touches the player at
+// all any more, only the Bank's own health or a Coin Bot defender.
+let guardKillerTimer = 0;
+const GUARD_KILLER_SPAWN_INTERVAL = 6, GUARD_KILLER_MAX_ACTIVE = 5;
+const BANK_ATTACK_POS = { x:160, z:214 }; // just outside the real City Bank entrance (160,218)/building (160,210)
+
+// The Bank's own health — a real structure the Guard shift is defending, entirely separate from
+// the player's own HP. Not persisted (resets to full at the start of every Guard shift, same
+// category of state as the guard killers/coin bots themselves).
+let bankHealth = 0, bankMaxHealth = 2000;
+function resetBankHealth() { bankHealth = bankMaxHealth; } // displayed live via tickBankJob()'s own jobHud text, no separate UI push needed
+// Real consequence if the killers win — the shift ends early with no payout (Guard is a
+// lump-sum-at-the-end job, so failing before `durationSec` naturally means nothing was ever
+// queued). Same cleanup shape as a normal shift-end/quit.
+function failGuardShift() {
+  if (!activeBankJob || activeBankJob.job.id !== 'guard') return;
+  showNotif('🚨 The bank was breached! Guard shift failed — no pay.');
+  sfx.alarm();
+  activeBankJob = null;
+  document.getElementById('jobHud').textContent = '💼 No Job';
+  document.getElementById('jobHud').style.color = '#fff';
+  clearGuardKillers();
+  clearCoinBots();
+  clearPoliceHelpers();
+  resetBankHealth();
+  renderJobsPanel();
+}
+function spawnGuardKiller() {
+  const ang = Math.random()*Math.PI*2, dist = 6+Math.random()*12;
+  const x = BANK_ATTACK_POS.x + Math.cos(ang)*dist;
+  const z = BANK_ATTACK_POS.z + Math.sin(ang)*dist;
+  const mesh = buildKillerMesh(x, z);
+  mesh.visible = true; // no stealth reveal here — you know they're coming for the Bank
+  const atkInterval = KILLER_ATTACK_INTERVAL * (0.8 + Math.random()*0.5);
+  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval, revealed:true, guardKiller:true });
+}
+function clearGuardKillers() {
+  killers.filter(k => k.guardKiller && k.alive).forEach(k => { k.alive = false; scene.remove(k.mesh); });
+  guardKillerTimer = 0;
+}
+
+// ── Coin Bots — Guard's "Call for Backup" ability (30s cooldown) ───────────────────────────────
+// User's own spec, verbatim: 10 of them, 50 HP, 100 damage, look "like a giant credit card with
+// limbs and eyes, blue, ten times bigger than you." Built at ~human proportions then scaled 10x as
+// a whole group so that multiplier is exact, not eyeballed. They're allies, not enemies — they
+// never target the player, only the nearest guardKiller, and fight entirely on their own once
+// summoned (no further player input), same autonomous-combat shape as the guard killers themselves.
+let coinBots = []; // NOT persisted — {id,mesh,x,z,hp,maxHp,alive,attackTimer}
+let backupReadyAt = 0;
+const BACKUP_COOLDOWN = 30, COINBOT_COUNT = 10, COINBOT_HP = 50, COINBOT_DAMAGE = 100;
+const COINBOT_ATTACK_RANGE = 6, COINBOT_ATTACK_INTERVAL = 1.5, COINBOT_SPEED = 2.5;
+function buildCoinBotMesh(x, z) {
+  const g = new THREE.Group(); g.position.set(x, 0, z);
+  const blue = 0x2266ee, blueDark = 0x1a4fc0;
+  const mk = (w,h,d,color,px,py,pz) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color})); m.position.set(px,py,pz); m.castShadow = true; g.add(m); return m; };
+  mk(1.0,1.6,0.15, blue, 0,0.9,0);            // the "card" body
+  mk(1.0,0.18,0.17, blueDark, 0,1.25,0.01);   // a magnetic-stripe detail band
+  const eyeMat = new THREE.MeshBasicMaterial({color:0xffffff});
+  const pupilMat = new THREE.MeshBasicMaterial({color:0x111111});
+  [-0.22,0.22].forEach(ex => {
+    const e = new THREE.Mesh(new THREE.BoxGeometry(0.22,0.22,0.05), eyeMat); e.position.set(ex,0.75,0.09); g.add(e);
+    const p = new THREE.Mesh(new THREE.BoxGeometry(0.09,0.09,0.05), pupilMat); p.position.set(ex,0.75,0.13); g.add(p);
+  });
+  mk(0.18,0.55,0.18, blue,-0.62,0.85,0); mk(0.18,0.55,0.18, blue,0.62,0.85,0); // arms
+  mk(0.2,0.5,0.2, blueDark,-0.28,0.25,0); mk(0.2,0.5,0.2, blueDark,0.28,0.25,0); // legs
+  g.scale.set(10,10,10); // "ten times bigger than you" — a group scale, so it's exact
+  scene.add(g);
+  return g;
+}
+function spawnCoinBot(i) {
+  const ang = (i/COINBOT_COUNT)*Math.PI*2, dist = 25+Math.random()*10; // an even ring around the Bank — 10 giant bodies need real spacing
+  const x = BANK_ATTACK_POS.x + Math.cos(ang)*dist;
+  const z = BANK_ATTACK_POS.z + Math.sin(ang)*dist;
+  const mesh = buildCoinBotMesh(x, z);
+  coinBots.push({ id:'coinbot'+ROBOT_ID_SEQ++, x, z, hp:COINBOT_HP, maxHp:COINBOT_HP, mesh, alive:true, attackTimer:0 });
+}
+function callBackup() {
+  if (!activeBankJob || activeBankJob.job.id !== 'guard') { showNotif('❌ Backup is only available while on Guard duty.'); return; }
+  const remaining = backupReadyAt - clock.getElapsedTime();
+  if (remaining > 0) { showNotif(`📣 Backup still on cooldown (${Math.ceil(remaining)}s)`); return; }
+  backupReadyAt = clock.getElapsedTime() + BACKUP_COOLDOWN;
+  for (let i = 0; i < COINBOT_COUNT; i++) spawnCoinBot(i);
+  showNotif(`📣 Backup called! ${COINBOT_COUNT} Coin Bots are defending the bank!`);
+  sfx.power();
+  renderJobsPanel();
+}
+function defeatCoinBot(bot) {
+  bot.alive = false;
+  scene.remove(bot.mesh);
+}
+function clearCoinBots() {
+  coinBots.forEach(b => { if (b.alive) { b.alive = false; scene.remove(b.mesh); } });
+  coinBots = [];
+  backupReadyAt = 0;
+}
+function tickCoinBots(dt) {
+  if (!activeBankJob || activeBankJob.job.id !== 'guard') {
+    if (coinBots.length) clearCoinBots();
+    return;
+  }
+  coinBots.forEach(b => {
+    if (!b.alive) return;
+    let target = null, bestDist = Infinity;
+    killers.forEach(k => { if (!k.alive || !k.guardKiller) return; const d = Math.hypot(k.x-b.x, k.z-b.z); if (d < bestDist) { bestDist = d; target = k; } });
+    if (!target) return; // nothing to fight right now — stand guard
+    if (bestDist < COINBOT_ATTACK_RANGE) {
+      b.attackTimer += dt;
+      if (b.attackTimer > COINBOT_ATTACK_INTERVAL) {
+        b.attackTimer = 0;
+        target.hp -= COINBOT_DAMAGE;
+        if (target.hp <= 0) defeatKiller(target);
+      }
+    } else {
+      const dx = target.x-b.x, dz = target.z-b.z, d = Math.hypot(dx,dz);
+      b.x += dx/d*COINBOT_SPEED*dt; b.z += dz/d*COINBOT_SPEED*dt;
+      b.mesh.position.set(b.x, 0, b.z);
+      b.mesh.rotation.y = Math.atan2(dx, dz);
+    }
+  });
+}
+
+// ── Police Backup — user's follow-up: "police help protect too." Unlike Coin Bots (an explicit
+// limited-use ability the player triggers), officers show up on their own as a steady passive
+// reinforcement for the whole Guard shift — one more every POLICE_SPAWN_INTERVAL, capped at
+// POLICE_MAX_ACTIVE. Deliberately a brand new, ephemeral, non-persisted array/mesh — NOT the real
+// Cruz/Park/Blake NPCs from the Police Station (who are permanent, hand-placed, and whose only
+// existing "defeat" path in this file is the PERMANENT one used against the player — reusing that
+// for disposable Guard-shift combat would risk actually deleting one of the game's 3 named cops
+// for good). Reuses the same 60 HP officers already carry as their established stat in `attackNPC`.
+let policeHelpers = []; // NOT persisted — {id,mesh,x,z,hp,maxHp,alive,attackTimer}
+let policeSpawnTimer = 0;
+const POLICE_SPAWN_INTERVAL = 15, POLICE_MAX_ACTIVE = 3, POLICE_HP = 60, POLICE_DAMAGE = 25;
+const POLICE_ATTACK_RANGE = 6, POLICE_ATTACK_INTERVAL = 1.2, POLICE_SPEED = 3.5;
+function buildPoliceHelperMesh(x, z) {
+  const g = new THREE.Group(); g.position.set(x, 0, z);
+  const uniform = 0x1a2a55, uniformDark = 0x223366, skin = 0xe0b090;
+  const mk = (w,h,d,color,px,py,pz) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color})); m.position.set(px,py,pz); m.castShadow = true; g.add(m); return m; };
+  mk(0.9,1.1,0.5, uniform, 0,1.75,0); // torso
+  mk(1,1,1, skin, 0,2.8,0); // head
+  mk(1.0,0.15,1.0, uniformDark, 0,3.35,0); mk(0.85,0.3,0.85, uniform, 0,3.2,0); // police cap
+  mk(0.3,0.06,0.3, 0xFFD700, 0,3.15,0.45); // badge
+  mk(0.35,0.9,0.35, uniform,-0.65,1.75,0); mk(0.35,0.9,0.35, uniform,0.65,1.75,0); // arms
+  mk(0.38,0.9,0.38, uniformDark,-0.22,0.75,0); mk(0.38,0.9,0.38, uniformDark,0.22,0.75,0); // legs
+  scene.add(g);
+  return g;
+}
+function spawnPoliceHelper() {
+  const ang = Math.random()*Math.PI*2, dist = 10+Math.random()*15;
+  const x = BANK_ATTACK_POS.x + Math.cos(ang)*dist;
+  const z = BANK_ATTACK_POS.z + Math.sin(ang)*dist;
+  const mesh = buildPoliceHelperMesh(x, z);
+  policeHelpers.push({ id:'police'+ROBOT_ID_SEQ++, x, z, hp:POLICE_HP, maxHp:POLICE_HP, mesh, alive:true, attackTimer:0 });
+}
+function defeatPoliceHelper(p) {
+  p.alive = false;
+  scene.remove(p.mesh);
+}
+function clearPoliceHelpers() {
+  policeHelpers.forEach(p => { if (p.alive) { p.alive = false; scene.remove(p.mesh); } });
+  policeHelpers = [];
+  policeSpawnTimer = 0;
+}
+function tickPoliceHelpers(dt) {
+  if (!activeBankJob || activeBankJob.job.id !== 'guard') {
+    if (policeHelpers.length) clearPoliceHelpers();
+    return;
+  }
+  policeSpawnTimer += dt;
+  if (policeSpawnTimer >= POLICE_SPAWN_INTERVAL) {
+    policeSpawnTimer = 0;
+    if (policeHelpers.filter(p=>p.alive).length < POLICE_MAX_ACTIVE) spawnPoliceHelper();
+  }
+  policeHelpers.forEach(p => {
+    if (!p.alive) return;
+    let target = null, bestDist = Infinity;
+    killers.forEach(k => { if (!k.alive || !k.guardKiller) return; const d = Math.hypot(k.x-p.x, k.z-p.z); if (d < bestDist) { bestDist = d; target = k; } });
+    if (!target) return; // nothing to fight right now — stand guard
+    if (bestDist < POLICE_ATTACK_RANGE) {
+      p.attackTimer += dt;
+      if (p.attackTimer > POLICE_ATTACK_INTERVAL) {
+        p.attackTimer = 0;
+        target.hp -= POLICE_DAMAGE;
+        if (target.hp <= 0) defeatKiller(target);
+      }
+    } else {
+      const dx = target.x-p.x, dz = target.z-p.z, d = Math.hypot(dx,dz);
+      p.x += dx/d*POLICE_SPEED*dt; p.z += dz/d*POLICE_SPEED*dt;
+      p.mesh.position.set(p.x, 0, p.z);
+      p.mesh.rotation.y = Math.atan2(dx, dz);
+    }
+  });
+}
+
 function buildKillerMesh(x, z) {
   const g = new THREE.Group(); g.position.set(x, 0, z);
   const dark = 0x0a0a0a;
@@ -11488,27 +11990,92 @@ function spawnKiller() {
   const atkInterval = KILLER_ATTACK_INTERVAL * (0.8 + Math.random()*0.5);
   killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval, revealed:false });
 }
+// Combat for an ambient Killer — always targets the player. Unchanged behavior from before this
+// session's Guard-duty split, just extracted into its own function.
+function tickAmbientKillerCombat(k, dt) {
+  const dx = playerGroup.position.x-k.x, dz = playerGroup.position.z-k.z;
+  const dist = Math.hypot(dx,dz);
+  if (!k.revealed && dist <= KILLER_REVEAL_RANGE) { k.revealed = true; k.mesh.visible = true; sfx.tense(); }
+  if (dist < KILLER_ATTACK_RANGE) {
+    k.attackTimer += dt;
+    if (k.attackTimer > k.atkInterval) { k.attackTimer = 0; damagePlayer(8+Math.floor(Math.random()*8), "a Killer's dagger"); }
+  } else {
+    k.x += dx/dist*k.speed*dt; k.z += dz/dist*k.speed*dt;
+    k.mesh.position.set(k.x, 0, k.z);
+    k.mesh.rotation.y = Math.atan2(dx, dz);
+  }
+}
+// Combat for a Guard-shift Killer — user's correction: "the bad guys attack the bank not you."
+// Never touches the player at all. Prefers attacking the nearest Coin Bot defender within range
+// (see tickCoinBots above); otherwise its real goal is BANK_ATTACK_POS itself, chipping away at
+// bankHealth on the same attack cadence ambient Killers use against the player, just with bigger
+// numbers since a whole building has far more effective HP than one person.
+// Finds the nearest living defender (Coin Bot or Police Backup, see spawnCoinBot/spawnPoliceHelper
+// above) to a given guard killer — generalized so tickGuardKillerCombat doesn't care which kind of
+// ally it's fighting, just its position/hp/defeat-function.
+function nearestDefender(k) {
+  let best = null, bestDist = Infinity;
+  coinBots.forEach(b => { if (!b.alive) return; const d = Math.hypot(b.x-k.x, b.z-k.z); if (d < bestDist) { bestDist = d; best = { ref:b, defeat:defeatCoinBot }; } });
+  policeHelpers.forEach(p => { if (!p.alive) return; const d = Math.hypot(p.x-k.x, p.z-k.z); if (d < bestDist) { bestDist = d; best = { ref:p, defeat:defeatPoliceHelper }; } });
+  return best ? { ...best, dist:bestDist } : null;
+}
+function tickGuardKillerCombat(k, dt) {
+  const nearest = nearestDefender(k);
+  const targetingDefender = nearest && nearest.dist < 40; // aggro range — don't beeline across the whole map for a defender that isn't actually relevant
+  const tx = targetingDefender ? nearest.ref.x : BANK_ATTACK_POS.x;
+  const tz = targetingDefender ? nearest.ref.z : BANK_ATTACK_POS.z;
+  const dx = tx-k.x, dz = tz-k.z, dist = Math.hypot(dx,dz);
+  const range = targetingDefender ? KILLER_ATTACK_RANGE + 5 : KILLER_ATTACK_RANGE + 4; // generous — a defender/building is a big target
+  if (dist < range) {
+    k.attackTimer += dt;
+    if (k.attackTimer > k.atkInterval) {
+      k.attackTimer = 0;
+      if (targetingDefender) {
+        nearest.ref.hp -= 8+Math.floor(Math.random()*8);
+        if (nearest.ref.hp <= 0) nearest.defeat(nearest.ref);
+      } else {
+        bankHealth = Math.max(0, bankHealth - (20+Math.floor(Math.random()*16)));
+        if (bankHealth <= 0) failGuardShift();
+      }
+    }
+  } else {
+    k.x += dx/dist*k.speed*dt; k.z += dz/dist*k.speed*dt;
+    k.mesh.position.set(k.x, 0, k.z);
+    k.mesh.rotation.y = Math.atan2(dx, dz);
+  }
+}
 function tickKillers(dt) {
   killerTimer += dt;
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior;
   if (killerTimer >= killerSpawnInterval()) {
     killerTimer = 0;
-    if (outdoors && killers.filter(k=>k.alive).length < killerMaxActive()) spawnKiller();
+    // Only counts ambient killers against the ambient cap now — a Guard shift's own separate
+    // GUARD_KILLER_MAX_ACTIVE pool used to count against this too, silently starving ambient
+    // spawns for the whole 20-minute shift. Real bug, fixed while touching this code anyway.
+    if (outdoors && killers.filter(k=>k.alive && !k.guardKiller).length < killerMaxActive()) spawnKiller();
   }
-  if (!outdoors) return;
+  const onGuardShift = activeBankJob && activeBankJob.job.id === 'guard';
+  if (onGuardShift) {
+    if (bankHealth <= 0) resetBankHealth(); // a fresh shift always starts the bank at full health
+    guardKillerTimer += dt;
+    // No `outdoors` gate here any more — the guard-killer fight targets the Bank/Coin Bots, not
+    // the player, so it keeps simulating even while you're indoors somewhere across the city
+    // (which also matters for Guard's "no walking required" remote-start carve-out — a shift
+    // started from clear across the map still needs killers to actually show up).
+    if (guardKillerTimer >= GUARD_KILLER_SPAWN_INTERVAL) {
+      guardKillerTimer = 0;
+      if (killers.filter(k=>k.alive && k.guardKiller).length < GUARD_KILLER_MAX_ACTIVE) spawnGuardKiller();
+    }
+  } else if (killers.some(k => k.alive && k.guardKiller)) {
+    clearGuardKillers(); // shift ended/quit mid-fight — don't leave the swarm standing there
+    clearCoinBots();
+    clearPoliceHelpers();
+  }
   killers.forEach(k => {
     if (!k.alive) return;
-    const dx = playerGroup.position.x-k.x, dz = playerGroup.position.z-k.z;
-    const dist = Math.hypot(dx,dz);
-    if (!k.revealed && dist <= KILLER_REVEAL_RANGE) { k.revealed = true; k.mesh.visible = true; sfx.tense(); }
-    if (dist < KILLER_ATTACK_RANGE) {
-      k.attackTimer += dt;
-      if (k.attackTimer > k.atkInterval) { k.attackTimer = 0; damagePlayer(8+Math.floor(Math.random()*8), "a Killer's dagger"); }
-    } else {
-      k.x += dx/dist*k.speed*dt; k.z += dz/dist*k.speed*dt;
-      k.mesh.position.set(k.x, 0, k.z);
-      k.mesh.rotation.y = Math.atan2(dx, dz);
-    }
+    if (k.guardKiller) { tickGuardKillerCombat(k, dt); return; }
+    if (!outdoors) return;
+    tickAmbientKillerCombat(k, dt);
   });
 }
 function fightKiller(killer) {
@@ -11548,6 +12115,14 @@ function defeatKiller(killer) {
   killer.alive = false;
   scene.remove(killer.mesh);
   buildKillerCorpse(killer.x, killer.z);
+  if (killer.guardKiller) {
+    // User's own words: "you get nothing from the killers" during Guard duty — no reward, and
+    // doesn't count toward killerDefeats (that stat scales ambient Killer frequency/difficulty,
+    // which shouldn't inflate just from doing Guard shifts).
+    sfx.boom();
+    showNotif('💀 Fought off a bank attacker! (Guard duty — no reward)');
+    return;
+  }
   killerDefeats++;
   queueEarning(0, KILLER_REWARD_ELITE, 'Killer');
   sfx.boom();
@@ -12206,13 +12781,13 @@ const CITY_ZONES = [
   { x:20,  z:88,  r:8,  label:'🍕 Pizza Place',  action: ()=>shopOrRob('Pizza Place', 10,30), isShop:true },
   { x:34,  z:3,   r:5,  label:'🕴️ Talk to Shady Dealer',                       action: toggleAlignment,   isDealerZone:true },
   { x:-80, z:-71, r:5,  label:'⬛ ???',                                         action: openBlackMarket,   isBlackMarket:true },
-  { x:-30, z:38,  r:7,  label:'🏦 Enter City Bank',                             action: openBankPasscode },
-  { x:-30, z:52,  r:6,  label:'🖨️ Work as Money Printer (1,000 S.I.P./min, 5 min shift)', action: ()=>toggleBankJob('printer','sip'),   isBankJobZone:true, bankJobId:'printer', currency:'sip' },
-  { x:-16, z:52,  r:6,  label:'🖨️ Work as Money Printer (500 💎/min, 5 min shift)',        action: ()=>toggleBankJob('printer','elite'), isBankJobZone:true, bankJobId:'printer', currency:'elite' },
-  { x:-30, z:66,  r:6,  label:'💂 Work as Guard (5,000 S.I.P. after 20 min)',              action: ()=>toggleBankJob('guard','sip'),     isBankJobZone:true, bankJobId:'guard',   currency:'sip' },
-  { x:-16, z:66,  r:6,  label:'💂 Work as Guard (2,500 💎 after 20 min)',                   action: ()=>toggleBankJob('guard','elite'),   isBankJobZone:true, bankJobId:'guard',   currency:'elite' },
-  { x:-30, z:80,  r:6,  label:'🧮 Work as Money Counter (10,000 S.I.P. after 5 min)',      action: ()=>toggleBankJob('counter','sip'),   isBankJobZone:true, bankJobId:'counter', currency:'sip' },
-  { x:-16, z:80,  r:6,  label:'🧮 Work as Money Counter (5,000 💎 after 5 min)',            action: ()=>toggleBankJob('counter','elite'), isBankJobZone:true, bankJobId:'counter', currency:'elite' },
+  { x:160, z:218, r:7,  label:'🏦 Enter City Bank',                             action: openBankPasscode },
+  // Printer/Counter moved INSIDE the Bank (see BANK_INTERIOR_ZONES) — user's own ask: "to work as
+  // money printer or counter you have to go inside th bank." This outdoor door leads there; Guard's
+  // 2 zones below stay outdoor since Guard is exempt from the "go inside" requirement.
+  { x:BANK_INTERIOR_ENTRANCE.x, z:BANK_INTERIOR_ENTRANCE.z, r:5, label:'🚪 Bank Employee Entrance', action: enterBankInterior },
+  { x:160, z:246, r:6,  label:'💂 Work as Guard (5,000 S.I.P. after 20 min)',              action: ()=>toggleBankJob('guard','sip'),     isBankJobZone:true, bankJobId:'guard',   currency:'sip' },
+  { x:174, z:246, r:6,  label:'💂 Work as Guard (2,500 💎 after 20 min)',                   action: ()=>toggleBankJob('guard','elite'),   isBankJobZone:true, bankJobId:'guard',   currency:'elite' },
   { x:70,  z:60,  r:12, label:'🏫 Enter School',                                action: openSchool },
   { x:50,  z:-72, r:8,  label:'🎬 Movie Theater – Pick a Movie!', action: openCinema },
   { x:0,   z:50,  r:13, label:'🚇 S.I.T.S. Transit Hub – Ride anywhere!', action: openSITS },
@@ -12317,6 +12892,10 @@ function handleInteract() {
     const dx=px2-pc.group.position.x, dz=pz-pc.group.position.z;
     if(Math.sqrt(dx*dx+dz*dz)<7) { enterCar(pc); return; }
   }
+  // Money Printer press window (Bank Jobs) — a short real-time reaction that can happen from
+  // anywhere in the city now that jobs don't require standing at a physical zone (item 217), so
+  // it's checked here up front rather than tied to any CITY_ZONES entry.
+  if (printerPressActive) { pressPrinter(); return; }
   // Store restocking: pick up a delivered box, or place a carried one on its matching shelf
   if(inStore) {
     // Try placing a carried box on the shelf you're standing at first; if that's not where
@@ -12378,7 +12957,7 @@ function handleInteract() {
     }
     if (closestBoss) { fightBoss(closestBoss); return; }
   }
-  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : CITY_ZONES;
+  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : CITY_ZONES;
   for(const z of zones) {
     if(Math.sqrt((px2-z.x)**2+(pz-z.z)**2) < z.r) { z.action(); return; }
   }
@@ -12397,7 +12976,7 @@ function updatePrompt() {
     const dx=px2-pc.group.position.x, dz=pz-pc.group.position.z;
     if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent=`[E] ${pc.def.emoji} Get in ${pc.def.name}`; el.style.display='block'; return; }
   }
-  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : CITY_ZONES;
+  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : CITY_ZONES;
   for(const z of zones) {
     if(Math.sqrt((px2-z.x)**2+(pz-z.z)**2) < z.r) {
       if(z.isComputer) {
@@ -12495,7 +13074,7 @@ const LOC_ZONES = [
   {name:'Hospital',        x:-40, z:60,  r:22},
   {name:'School',          x:70,  z:60,  r:22},
   {name:'Apartments',      x:-50, z:-50, r:28},
-  {name:'City Bank',       x:-30, z:30,  r:18},
+  {name:'City Bank',       x:160, z:210, r:18},
   {name:'Movie Theater',   x:50,  z:-85, r:22},
   {name:'Transit Hub',     x:0,   z:50,  r:22},
   {name:'City Hotel',      x:-15, z:-5,  r:18},
@@ -12616,6 +13195,7 @@ function _startGameInner() {
     }
   }
   _dbg('buildCity', buildCity);
+  _dbg('buildBankInterior', buildBankInterior);
   _dbg('buildPlayerHouse', buildPlayerHouse);
   _dbg('buildHouseInterior', buildHouseInterior);
   _dbg('buildHotelInterior', buildHotelInterior);
@@ -13145,18 +13725,24 @@ function buildCity() {
   box(0.55,0.55,0.4, 0x222211, 34,2.55,5);
   addCol(CITY_COLS, 34,4, 3.5,3.5);
 
-  // CITY BANK — marble building at x=-30, z=30
-  box(24,18,18, 0xf0ece0, -30,9,30);                 // marble main building
-  box(24,1.2,18, 0xFFD700, -30,18.6,30);             // gold roof band
-  box(10,14,2, 0xc8e0ff, -30,7,39.1);                // glass front
-  for(let i=-2;i<=2;i++) box(1.4,16,1.4, 0xf8f4ec, i*5-30,8,38.5); // marble columns
-  for(let s=0;s<3;s++) box(28-s*2,0.5,2, 0xe0d8cc, -30,0.5+s*0.5,40.5+s); // front steps
-  box(3,9,1.4, 0x886600, -30,4.5,39.2);              // gold door frame
-  box(2.4,7,0.2, 0xaaddff, -30,4.5,39.3);            // door glass
-  buildSign('🏦 CITY BANK', -30,21,39);
+  // CITY BANK — user's own ask: "move the bank to a more open area" (the old spot at x:-30,z:30
+  // had its Guard/Printer job zones actually overlapping the Hospital's real collision box next
+  // door — a genuine physical conflict, not just visually tight). Relocated to a real 120x160
+  // clear block northeast of downtown (x:100-220, z:130-290 — between Uptown Plaza and the
+  // Suburbs, north of the School/Arcade block, south of the Shopping District), translated by a
+  // flat +190x/+180z from every original coordinate so the whole complex (building, entrance,
+  // BANK_ATTACK_POS, all 6 job zones below) moved together as one unit.
+  box(24,18,18, 0xf0ece0, 160,9,210);                 // marble main building
+  box(24,1.2,18, 0xFFD700, 160,18.6,210);             // gold roof band
+  box(10,14,2, 0xc8e0ff, 160,7,219.1);                // glass front
+  for(let i=-2;i<=2;i++) box(1.4,16,1.4, 0xf8f4ec, i*5+160,8,218.5); // marble columns
+  for(let s=0;s<3;s++) box(28-s*2,0.5,2, 0xe0d8cc, 160,0.5+s*0.5,220.5+s); // front steps
+  box(3,9,1.4, 0x886600, 160,4.5,219.2);              // gold door frame
+  box(2.4,7,0.2, 0xaaddff, 160,4.5,219.3);            // door glass
+  buildSign('🏦 CITY BANK', 160,21,219);
   const bankLight = new THREE.PointLight(0xffeeaa, 1.0, 24);
-  bankLight.position.set(-30,8,38); scene.add(bankLight);
-  addCol(CITY_COLS, -30,30, 13,10);
+  bankLight.position.set(160,8,218); scene.add(bankLight);
+  addCol(CITY_COLS, 160,210, 13,10);
 
   // MOVIE THEATER — x=50, z=-85
   box(28,14,20, 0x8B1A1A, 50,7,-85);           // main building (dark red)
@@ -13469,6 +14055,40 @@ function buildPlayerHouse() {
   });
   // Collision for house body
   addCol(CITY_COLS, hx,hz, 9,7);
+}
+
+// ─── BANK INTERIOR ────────────────────────────────────────────────────────────
+// User's own ask: Printer/Counter jobs require actually walking inside, not just standing near an
+// outdoor zone — a real walk-in employee area, same "own 10,000-unit pocket lane" pattern as every
+// other interior (see BANK_INTERIOR/BANK_INTERIOR_EXIT/enterBankInterior/exitBankInterior above,
+// BANK_INTERIOR_ZONES for the two work stations + exit). Built once at world-load like the House
+// interior (not conditionally, unlike the player's own ownable Store) since it's always the same
+// room for everyone.
+function buildBankInterior() {
+  const ix = BANK_INTERIOR.x, iz = BANK_INTERIOR.z;
+  box(18,0.3,16, 0xc8aa80, ix,0.15,iz);            // floor
+  box(18,0.2,16, 0xf0ece0, ix,5,iz);               // ceiling
+  box(18,5,0.3, 0xf0ece0, ix,2.5,iz-8);            // back wall
+  box(7,5,0.3,  0xf0ece0, ix-6.5,2.5,iz+8);        // front wall left (door gap between)
+  box(7,5,0.3,  0xf0ece0, ix+6.5,2.5,iz+8);        // front wall right
+  box(6,1.6,0.3, 0xf0ece0, ix,4.5,iz+8);           // above door
+  box(0.3,5,16, 0xf0ece0, ix-9,2.5,iz);            // left wall
+  box(0.3,5,16, 0xf0ece0, ix+9,2.5,iz);            // right wall
+  box(2,3,0.1, 0x886600, ix,1.5,iz+8.1);           // door opening visual (gold, matching the real Bank's outdoor door frame)
+
+  // Money Printer station (west side) — a real printing-press prop
+  box(2.4,1,1.4, 0x8B5A2B, ix-5,0.5,iz-3);         // desk
+  box(1,1,0.8, 0x445566, ix-5,1.1,iz-3);           // press body
+  box(0.9,0.1,0.7, 0xeeeecc, ix-5,1.55,iz-3);      // paper tray
+  const printerLight = new THREE.PointLight(0xffee88, 0.6, 6); printerLight.position.set(ix-5,2,iz-3); scene.add(printerLight);
+
+  // Money Counter station (east side) — a real counting table with stacked bills
+  box(2.4,1,1.4, 0x8B5A2B, ix+5,0.5,iz-3);         // table
+  [0,1,2,3].forEach(i => box(0.5,0.15+i*0.08,0.3, 0x3a8a3a, ix+4.5+i*0.35, 1.05+i*0.04, iz-3.3));
+
+  buildSign('🏦 BANK EMPLOYEES ONLY', ix,4.6,iz-7.9);
+  addCol(BANK_INTERIOR_COLS, ix-5,iz-3, 1.3,0.9);  // printer desk
+  addCol(BANK_INTERIOR_COLS, ix+5,iz-3, 1.3,0.9);  // counter table
 }
 
 // ─── HOUSE INTERIOR ───────────────────────────────────────────────────────────
@@ -14737,9 +15357,12 @@ function openCityShopModal(id) {
   if (document.pointerLockElement) document.exitPointerLock();
   isPointerLocked = false;
   document.getElementById('cityShopModalTitle').textContent = `${shop.emoji} ${shop.name}`;
+  const workingHere = activeJob === `${shop.emoji} ${shop.name}`;
+  const shopBusy = !workingHere && (!!activeJob || !!activeBankJob);
   document.getElementById('cityShopModalBody').innerHTML = `
     <div style="text-align:center;color:#888;font-size:11px;margin-bottom:10px;">${shop.category}</div>
     <div style="text-align:center;color:#ffd54a;font-style:italic;font-size:12px;margin-bottom:12px;">"${shop.ad}"</div>
+    <button ${shopBusy ? 'disabled' : ''} onclick="${workingHere ? "quitJob('Stopped working.')" : `startShopJob('${shop.id}')`};closeCityShopModal()" style="width:100%;padding:8px;margin-bottom:12px;background:${workingHere ? '#7a1a1a' : shopBusy ? '#333' : '#1a5a7a'};border:none;border-radius:8px;color:#fff;font-weight:bold;font-size:12px;cursor:${shopBusy ? 'not-allowed' : 'pointer'};opacity:${shopBusy ? '0.5' : '1'};">${workingHere ? '⏹ Stop Working Here' : `💼 Work Here (+${shopJobPay(shop)} S.I.P./task)`}</button>
     <div style="font-size:12px;color:#ccc;margin-bottom:6px;"><b>What they sell:</b></div>
     ${shop.items.map(it => `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid #2a3a3a;">
@@ -14965,7 +15588,7 @@ const SHOPPER_JOBS = [
   { title:'Tech Support',    workplace:'Computer Shop',  x:100, z:58  },
   { title:'Ticket Seller',   workplace:'Movie Theater',  x:50,  z:-85 },
   { title:'Bus Driver',      workplace:'Transit Hub',    x:0,   z:50  },
-  { title:'Bank Teller',     workplace:'City Bank',      x:-30, z:30  },
+  { title:'Bank Teller',     workplace:'City Bank',      x:160, z:210  },
 ];
 function buildShopperPopulation() {
   const homes = buildSuburbs(); // 40 {x,z} door coords, one per shopper by index
@@ -15644,7 +16267,7 @@ function bossHitDamage(def, st) { return Math.round(def.damage * Math.min(3, 1 +
 const BOSS_DETECT_RANGE = 20, BOSS_DEAGGRO_RANGE = 55, BOSS_ATTACK_RANGE = 6, BOSS_ATTACK_INTERVAL = 1.8;
 const BOSS_CHASE_SPEED = 9.5; // faster than the player's 8 walk speed, slower than 14.8 run — outrunnable, not out-walkable
 function tickBossChase(dt) {
-  if (!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight) {
+  if (!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior) {
     BOSS_DEFS.forEach(def => {
       const st = bossState[def.name];
       if (!st || !st.alive) return;
@@ -17384,7 +18007,7 @@ function animate(){
       // out from downtown, so none of them can be subject to the outdoor city's boundary — before
       // this only excluded inHouse/inMall, which silently worked only because Hotel/Store/FriendHouse/
       // Prison used to sit at 750-1200, still inside the old +-1950 clamp by coincidence.
-      if(!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inArenaBattle && !inMovieFight){
+      if(!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inArenaBattle && !inMovieFight && !inBankInterior){
         playerGroup.position.x=Math.max(-1950,Math.min(1950,playerGroup.position.x));
         playerGroup.position.z=Math.max(-1950,Math.min(1950,playerGroup.position.z));
         const _px=playerGroup.position.x, _pz=playerGroup.position.z;
@@ -17587,7 +18210,7 @@ function animate(){
     camera.position.lerp(new THREE.Vector3(camX,camY,camZ),0.08);
     camera.lookAt(activeCar.group.position.x,2,activeCar.group.position.z);
   } else {
-    const interior = inHotel || inHouse || inMall || inStore || inArcade || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge;
+    const interior = inHotel || inHouse || inMall || inStore || inArcade || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inBankInterior;
     const camDist = interior ? 4 : 9;
     const camHeight = interior ? 2.5 : 4;
     const camX=playerGroup.position.x-Math.sin(yaw)*camDist;
@@ -17606,6 +18229,7 @@ function animate(){
   if(inCountryHotel && playerGroup.position.z > COUNTRY_HOTEL_SPAWN.z + 4.5) checkoutCountryHotel();
   if(inAirportLounge && playerGroup.position.z > AIRPORT_LOUNGE_SPAWN.z + 7.5) exitAirportLounge();
   if(inArcade && playerGroup.position.z > 16.5) leaveArcade();
+  if(inBankInterior && playerGroup.position.z > BANK_INTERIOR_EXIT.z + 1.5) exitBankInterior();
 
   // NPC movement
   const shoppersToRemove = [];
@@ -17658,6 +18282,8 @@ function animate(){
   // Systems
   tickJob(dt);
   tickBankJob(dt);
+  tickPrinter(dt);
+  tickCounter(dt);
   tickCook(dt);
   tickWanted(dt);
   tickElders(dt);
@@ -17667,6 +18293,8 @@ function animate(){
   tickTubeGrowth(dt);
   tickRogueRobots(dt);
   tickKillers(dt);
+  tickCoinBots(dt);
+  tickPoliceHelpers(dt);
   tickCompanionAssist(dt);
   billTimerTick(dt);
   tickBillsOverdue();
@@ -17728,7 +18356,7 @@ const SAI_TIPS = [
 ];
 
 const SAI_LOCATIONS = [
-  { label:'City Bank',       x:-30,  z:30,   color:'#FFD700', emoji:'🏦' },
+  { label:'City Bank',       x:160,  z:210,  color:'#FFD700', emoji:'🏦' },
   { label:'Your House',      x:-30,  z:-110, color:'#44ff88', emoji:'🏠' },
   { label:'Shopping Street', x:60,   z:50,   color:'#00ccff', emoji:'🛍️' },
   { label:'City Mall',       x:80,   z:-20,  color:'#cc44ff', emoji:'🏬' },
@@ -17808,7 +18436,7 @@ function renderSaiBossesView() {
 }
 
 const SAI_KB = [
-  { keys:['bank','vault'],           reply:'🏦 The City Bank is northwest of center (x=-30, z=30). A passcode is required. Your bank earns +10,000 S.I.P. interest every 60 seconds!' },
+  { keys:['bank','vault'],           reply:'🏦 The City Bank is northeast of downtown near the Suburbs (x=160, z=210). A passcode is required. Your bank earns +10,000 S.I.P. interest every 60 seconds!' },
   { keys:['house','home'],           reply:'🏠 Your house is south of the city at x=-30, z=-110. Head south down the road past the park.' },
   { keys:['shop','store','buy'],     reply:'🛍️ Shopping Street is east of center (x=60, z=50). Coffee Shop, Toy Store, Outfit Shop and Weapon Shop are all there!' },
   { keys:['mall','directory'],       reply:'🏬 The City Mall is far east at x=80, z=-20. Past the fountain is a Shopping Wing with 200 more real shops, plus a 🗺️ Mall Directory kiosk to search all 300 shops in the game!' },
