@@ -7918,8 +7918,9 @@ function currentRoomDepth(){
   return STORE_SIZES[def.size].d + 6;
 }
 let storeBoxes = [];      // boxes delivered and sitting on the floor, waiting to be carried: {ingredientId, group, x, z}
-let carriedBox = null;    // {ingredientId} while you're holding one, else null — not persisted, you have to finish the job
-let carriedBoxMesh = null;
+const MAX_CARRY_BOXES = 3; // carry a small stack at once instead of one trip per box — less tedious restocking
+let carriedBoxes = [];    // [{ingredientId}, ...] up to MAX_CARRY_BOXES — not persisted, you have to finish the job
+let carriedBoxMeshes = [];
 
 function spawnStoreBox(ingredientId){
   const ing = STORE_INGREDIENTS.find(i => i.id === ingredientId);
@@ -7936,76 +7937,79 @@ function spawnStoreBox(ingredientId){
   scene.add(g);
   storeBoxes.push({ingredientId, group:g, x:dropX, z:dropZ});
 }
+function restackCarriedBoxMeshes(){
+  carriedBoxMeshes.forEach((m,i) => m.position.set(0, 2.4 + i*0.55, 0.6));
+}
 function tryPickUpBox(){
   const px=playerGroup.position.x, pz=playerGroup.position.z;
   const idx = storeBoxes.findIndex(b => Math.hypot(px-b.x, pz-b.z) < 2);
   if(idx===-1) return false;
+  if(carriedBoxes.length >= MAX_CARRY_BOXES){
+    showNotif(`🙌 Hands full — carrying ${MAX_CARRY_BOXES}/${MAX_CARRY_BOXES} boxes. Go shelve one first!`);
+    return true;
+  }
   const box = storeBoxes[idx];
   scene.remove(box.group);
   storeBoxes.splice(idx,1);
-  carriedBox = { ingredientId: box.ingredientId };
+  carriedBoxes.push({ ingredientId: box.ingredientId });
   const ing = STORE_INGREDIENTS.find(i => i.id === box.ingredientId);
-  showNotif(`📦 Picked up ${ing.emoji} ${ing.name} — find its shelf and press E!`);
-  if(carriedBoxMesh) playerGroup.remove(carriedBoxMesh);
+  showNotif(`📦 Picked up ${ing.emoji} ${ing.name} (${carriedBoxes.length}/${MAX_CARRY_BOXES}) — shelve it (E) or grab more!`);
   const g = new THREE.Group();
   g.add(new THREE.Mesh(new THREE.BoxGeometry(0.6,0.6,0.6), new THREE.MeshLambertMaterial({color:0xC08040})));
-  g.position.set(0, 2.4, 0.6);
   playerGroup.add(g);
-  carriedBoxMesh = g;
+  carriedBoxMeshes.push(g);
+  restackCarriedBoxMeshes();
   return true;
 }
+// Places whichever ONE of the carried boxes matches the shelf you're currently standing at —
+// carrying several different ingredients at once just means a few E-presses at their own
+// shelves instead of a separate round trip per box.
 function tryPlaceBox(){
-  if(!ownedStore) return false;
+  if(!ownedStore || carriedBoxes.length === 0) return false;
   const roomD = currentRoomDepth();
   const px=playerGroup.position.x, pz=playerGroup.position.z;
-  const carriedIsNew = !storeStockOrder.includes(carriedBox.ingredientId);
   const slots = getShelfSlots();
-  // A brand-new ingredient (never shelved before) can go on any EMPTY slot within the grid —
-  // that spot becomes its permanent shelf. An ingredient that already has a shelf must go
-  // on that SAME shelf (the "wrong shelf" rejection), even if other empty ones are closer.
-  const targetSlots = carriedIsNew
-    ? Array.from({length: 5*SHELF_ROW_CAP}, (_,i) => ({ x:[-4,-2,0,2,4][i%5], row:Math.floor(i/5) })).filter((s,i) => i >= slots.length)
-    : slots.filter(s => s.id === carriedBox.ingredientId);
-  for(const slot of targetSlots){
+  for(let i=0; i<carriedBoxes.length; i++){
+    const carried = carriedBoxes[i];
+    const carriedIsNew = !storeStockOrder.includes(carried.ingredientId);
+    // A brand-new ingredient (never shelved before) can go on any EMPTY slot within the grid —
+    // that spot becomes its permanent shelf. An ingredient that already has a shelf must go
+    // on that SAME shelf (the "wrong shelf" rejection), even if other empty ones are closer.
+    const targetSlots = carriedIsNew
+      ? Array.from({length: 5*SHELF_ROW_CAP}, (_,k) => ({ x:[-4,-2,0,2,4][k%5], row:Math.floor(k/5) })).filter((s,k) => k >= slots.length)
+      : slots.filter(s => s.id === carried.ingredientId);
+    for(const slot of targetSlots){
+      const lp = shelfLocalPos(slot, roomD);
+      const wx = STORE_INTERIOR.x + lp.x, wz = STORE_INTERIOR.z + lp.z;
+      if(Math.hypot(px-wx, pz-wz) < 1.8){
+        const ing = STORE_INGREDIENTS.find(x => x.id === carried.ingredientId);
+        if(carriedIsNew) storeStockOrder.push(carried.ingredientId); // only claim a new shelf slot once, ever
+        storeStock[carried.ingredientId] = (storeStock[carried.ingredientId]||0) + BOX_QTY;
+        saveCurrentUser();
+        carriedBoxes.splice(i,1);
+        const mesh = carriedBoxMeshes.splice(i,1)[0];
+        if(mesh) playerGroup.remove(mesh);
+        restackCarriedBoxMeshes();
+        const remaining = carriedBoxes.length ? ` (${carriedBoxes.length} more box${carriedBoxes.length>1?'es':''} to go)` : '';
+        showNotif((carriedIsNew
+          ? `🏷️ New shelf labeled: ${ing.emoji} ${ing.name} (+${BOX_QTY} — ${storeStock[ing.id]} in stock)`
+          : `📦 Restocked: ${ing.emoji} ${ing.name} (+${BOX_QTY} — ${storeStock[ing.id]} in stock)`) + remaining);
+        sfx.buy();
+        buildStoreInterior();
+        refreshStoreManagerUI();
+        return true;
+      }
+    }
+  }
+  // Nothing we're carrying matches this spot — if we're standing at an existing shelf,
+  // explain why nothing happened instead of just doing nothing silently.
+  for(const slot of slots){
     const lp = shelfLocalPos(slot, roomD);
     const wx = STORE_INTERIOR.x + lp.x, wz = STORE_INTERIOR.z + lp.z;
     if(Math.hypot(px-wx, pz-wz) < 1.8){
-      const ing = STORE_INGREDIENTS.find(i => i.id === carriedBox.ingredientId);
-      if(carriedIsNew) storeStockOrder.push(carriedBox.ingredientId); // only claim a new shelf slot once, ever
-      storeStock[carriedBox.ingredientId] = (storeStock[carriedBox.ingredientId]||0) + BOX_QTY;
-      saveCurrentUser();
-      if(carriedBoxMesh){ playerGroup.remove(carriedBoxMesh); carriedBoxMesh=null; }
-      showNotif(carriedIsNew
-        ? `🏷️ New shelf labeled: ${ing.emoji} ${ing.name} (+${BOX_QTY} — ${storeStock[ing.id]} in stock)`
-        : `📦 Restocked: ${ing.emoji} ${ing.name} (+${BOX_QTY} — ${storeStock[ing.id]} in stock)`);
-      sfx.buy();
-      carriedBox = null;
-      buildStoreInterior();
-      refreshStoreManagerUI();
+      const wrongIng = STORE_INGREDIENTS.find(x => x.id === slot.id);
+      showNotif(`❌ That's the ${wrongIng.name} shelf — none of what you're carrying goes there.`);
       return true;
-    }
-  }
-  // Carrying a restock for an ingredient that already has a shelf — check if we're standing
-  // at the WRONG existing shelf, so we can explain why nothing happened
-  if(!carriedIsNew){
-    for(const slot of slots){
-      if(slot.id === carriedBox.ingredientId) continue;
-      const lp = shelfLocalPos(slot, roomD);
-      const wx = STORE_INTERIOR.x + lp.x, wz = STORE_INTERIOR.z + lp.z;
-      if(Math.hypot(px-wx, pz-wz) < 1.8){
-        const wrongIng = STORE_INGREDIENTS.find(i => i.id === slot.id);
-        showNotif(`❌ That's the ${wrongIng.name} shelf — wrong one! Keep looking.`);
-        return true;
-      }
-    }
-  } else if(slots.length){
-    for(const slot of slots){
-      const lp = shelfLocalPos(slot, roomD);
-      const wx = STORE_INTERIOR.x + lp.x, wz = STORE_INTERIOR.z + lp.z;
-      if(Math.hypot(px-wx, pz-wz) < 1.8){
-        showNotif(`❌ That shelf's already taken — find an empty spot.`);
-        return true;
-      }
     }
   }
   return false;
@@ -8026,10 +8030,11 @@ function exitStore(){
     clearInterval(shopSalesTimer);
     shopSalesTimer = null;
   }
-  if(carriedBox){ // can't carry a box out into the city — drop it, it'll be waiting inside
-    if(carriedBoxMesh){ playerGroup.remove(carriedBoxMesh); carriedBoxMesh=null; }
-    spawnStoreBox(carriedBox.ingredientId);
-    carriedBox = null;
+  if(carriedBoxes.length){ // can't carry boxes out into the city — drop them, they'll be waiting inside
+    carriedBoxes.forEach(b => spawnStoreBox(b.ingredientId));
+    carriedBoxMeshes.forEach(m => playerGroup.remove(m));
+    carriedBoxes = [];
+    carriedBoxMeshes = [];
   }
   inStore = false;
   playerGroup.position.set(STORE_PLOT.x, 0, STORE_PLOT.z + 15);
@@ -8071,7 +8076,6 @@ function buyIngredient(idx) {
   const def = STORE_INGREDIENTS[idx];
   const boxPrice = def.price * BOX_QTY;
   if(sipDollars < boxPrice) { sfx.nope(); showNotif(`❌ Need ${boxPrice} S.I.P.!`); return; }
-  if(carriedBox) { showNotif('📦 Your hands are full — shelve that box first!'); return; }
   spendSip(boxPrice);
   updateSIP();
   sfx.buy();
@@ -11940,8 +11944,11 @@ function handleInteract() {
   }
   // Store restocking: pick up a delivered box, or place a carried one on its matching shelf
   if(inStore) {
-    if(carriedBox) { if(tryPlaceBox()) return; }
-    else { if(tryPickUpBox()) return; }
+    // Try placing a carried box on the shelf you're standing at first; if that's not where
+    // you are, try picking up a floor box instead — lets you keep grabbing more (up to
+    // MAX_CARRY_BOXES) between shelf trips instead of one round trip per box.
+    if(carriedBoxes.length && tryPlaceBox()) return;
+    if(tryPickUpBox()) return;
   }
   // A duel you've already committed to (accepted a real challenge) always takes
   // priority, even inside the arena - real bug found live: without this, walking
@@ -16643,7 +16650,8 @@ function animate(){
     if(!rollerVel) rollerVel = new THREE.Vector3();
     if(moving){
       dir.normalize();
-      const addonSpeedMult = (activeAddOns.includes('speedboost')?1.6:1) * (activeAddOns.includes('slowmo')?0.5:1);
+      const carryMult = carriedBoxes.length ? Math.max(0.65, 1 - carriedBoxes.length*0.1) : 1; // a light penalty for a full arm-load
+      const addonSpeedMult = (activeAddOns.includes('speedboost')?1.6:1) * (activeAddOns.includes('slowmo')?0.5:1) * carryMult;
       const step=SPEED*(moveState.run?1.85:1)*addonSpeedMult*dt;
       const nx=playerGroup.position.x+dir.x*step;
       const nz=playerGroup.position.z+dir.z*step;
