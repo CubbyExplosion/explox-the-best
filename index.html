@@ -242,6 +242,33 @@
   .worldRating .num { font-size:22px; font-weight:900; color:var(--cyan); }
   .worldRating .lbl { font-size:12px; color:var(--muted); text-align:left; line-height:1.4; }
 
+  /* ── COMMENTS ── */
+  .commentWidget { max-width:640px; margin:0 auto; }
+  .commentLogin, .commentForm { display:flex; flex-direction:column; gap:10px; }
+  .commentLogin input, .commentForm textarea {
+    background:var(--card); border:1px solid rgba(0,242,254,0.15); border-radius:6px;
+    padding:12px 14px; color:var(--text); font-family:inherit; font-size:14px; outline:none; resize:vertical;
+  }
+  .commentLogin input:focus, .commentForm textarea:focus { border-color:var(--cyan); }
+  .commentLogin button, .commentForm button {
+    align-self:flex-end; cursor:pointer; border:none; font-family:inherit;
+    padding:12px 28px; font-size:14px;
+  }
+  .commentLogin button:disabled, .commentForm button:disabled { opacity:0.6; cursor:default; }
+  .commentAs { font-size:13px; color:var(--muted); }
+  .commentAs b { color:var(--cyan); }
+  .commentAs a { color:var(--purple); text-decoration:underline; cursor:pointer; }
+  .commentMsg { margin-top:10px; font-size:13px; color:var(--muted); min-height:18px; text-align:center; }
+  .commentList { margin-top:24px; display:flex; flex-direction:column; gap:12px; }
+  .commentItem {
+    background:var(--card); border:1px solid rgba(0,242,254,0.12); border-left:3px solid var(--purple);
+    border-radius:6px; padding:14px 16px;
+  }
+  .commentItem .cName { color:var(--cyan); font-weight:bold; font-size:13.5px; }
+  .commentItem .cTime { color:var(--muted); font-size:11px; margin-left:8px; }
+  .commentItem .cText { color:var(--text); font-size:13.5px; margin-top:6px; line-height:1.5; white-space:pre-wrap; word-break:break-word; }
+  .commentEmpty { color:var(--muted); font-size:13px; text-align:center; }
+
   /* ── EXPLAINER CHATBOT ── */
   .explainerWidget {
     max-width:640px; margin:0 auto; padding:22px;
@@ -506,6 +533,29 @@
   </div>
 </section>
 
+<section>
+  <div class="sectionHead">
+    <div class="eyebrow">Leave your mark</div>
+    <h2>Comments</h2>
+    <p>Log in with your real Explox account to leave a comment — visible to every visitor, worldwide.</p>
+  </div>
+  <div class="commentWidget">
+    <div class="commentLogin" id="commentLogin">
+      <input id="loginUser" type="text" maxlength="30" placeholder="Explox username" autocomplete="username">
+      <input id="loginPw" type="password" maxlength="60" placeholder="Explox password" autocomplete="current-password">
+      <button id="commentLoginBtn" class="btnPrimary">Log In to Comment</button>
+      <div class="commentMsg" id="loginMsg">Same username &amp; password as your Explox game account. (First check can take ~30s if the server's asleep.)</div>
+    </div>
+    <div class="commentForm" id="commentForm" style="display:none;">
+      <div class="commentAs">Commenting as <b id="commentAsName"></b> · <a href="#" id="commentLogoutLink">Log out</a></div>
+      <textarea id="commentText" maxlength="300" rows="3" placeholder="Write a comment..."></textarea>
+      <button id="commentSubmitBtn" class="btnPrimary">Post Comment</button>
+    </div>
+    <div class="commentMsg" id="commentMsg"></div>
+    <div class="commentList" id="commentList">Loading comments…</div>
+  </div>
+</section>
+
 <div class="ctaBand">
   <h2>Ready to start your Explox life?</h2>
   <p>Free to play, right in your browser — no download, no install.</p>
@@ -664,6 +714,133 @@ function toggleThemeSong(){
 
   render();
   fetchWorld().then(paintWorld);
+})();
+
+(function(){
+  // Comments are stored in the same public Firebase Realtime Database node as before
+  // (explox_comments) — but posting is now gated behind a REAL login check against the actual
+  // Explox game server (Node + MongoDB Atlas, see explox-server/server.js /api/login), so the
+  // name on a comment is always someone's genuine Explox account, not free-typed text. The
+  // password itself is never stored anywhere client-side — only the username is remembered
+  // (explox_site_comment_user) once /api/login has confirmed it against that exact password.
+  var EXPLOX_SERVER = 'https://explox-server.onrender.com';
+  var USER_KEY = 'explox_site_comment_user';
+
+  var loginBox   = document.getElementById('commentLogin');
+  var loginUser  = document.getElementById('loginUser');
+  var loginPw    = document.getElementById('loginPw');
+  var loginBtn   = document.getElementById('commentLoginBtn');
+  var loginMsg   = document.getElementById('loginMsg');
+
+  var formBox    = document.getElementById('commentForm');
+  var asName     = document.getElementById('commentAsName');
+  var logoutLink = document.getElementById('commentLogoutLink');
+  var textInput  = document.getElementById('commentText');
+  var submitBtn  = document.getElementById('commentSubmitBtn');
+  var msg        = document.getElementById('commentMsg');
+  var list       = document.getElementById('commentList');
+  var FIREBASE_COMMENTS = 'https://study-buddy-chat-a29e1-default-rtdb.firebaseio.com/explox_comments';
+
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; });
+  }
+  function timeAgo(ts){
+    var s = Math.max(0, Math.floor((Date.now()-ts)/1000));
+    if (s < 60) return 'just now';
+    var m = Math.floor(s/60); if (m < 60) return m+'m ago';
+    var h = Math.floor(m/60); if (h < 24) return h+'h ago';
+    var d = Math.floor(h/24); if (d < 30) return d+'d ago';
+    return new Date(ts).toLocaleDateString();
+  }
+  function render(comments){
+    if (!comments || !comments.length) {
+      list.innerHTML = '<div class="commentEmpty">No comments yet — be the first!</div>';
+      return;
+    }
+    comments.sort(function(a,b){ return (b.ts||0) - (a.ts||0); });
+    list.innerHTML = comments.map(function(c){
+      return '<div class="commentItem"><span class="cName">'+esc(c.name||'Anonymous')+'</span>'
+        + '<span class="cTime">'+timeAgo(c.ts||0)+'</span>'
+        + '<div class="cText">'+esc(c.text||'')+'</div></div>';
+    }).join('');
+  }
+  function fetchComments(){
+    return fetch(FIREBASE_COMMENTS + '.json').then(function(r){ if(!r.ok) throw new Error('fetch failed: '+r.status); return r.json(); }).then(function(d){
+      var comments = d ? Object.keys(d).map(function(k){ return d[k]; }) : [];
+      render(comments);
+    }).catch(function(){
+      list.innerHTML = '<div class="commentEmpty">Couldn\'t load comments right now.</div>';
+    });
+  }
+
+  function showLoggedIn(name){
+    loginBox.style.display = 'none';
+    formBox.style.display = 'flex';
+    asName.textContent = name;
+  }
+  function showLoggedOut(){
+    formBox.style.display = 'none';
+    loginBox.style.display = 'flex';
+    loginPw.value = '';
+  }
+
+  var savedUser = localStorage.getItem(USER_KEY);
+  if (savedUser) showLoggedIn(savedUser); else showLoggedOut();
+
+  loginBtn.addEventListener('click', function(){
+    var name = loginUser.value.trim();
+    var pw = loginPw.value;
+    if (!name || !pw) { loginMsg.textContent = 'Enter your Explox username and password.'; return; }
+    loginBtn.disabled = true;
+    loginMsg.textContent = 'Checking your Explox account…';
+    fetch(EXPLOX_SERVER + '/api/login', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ name: name, pw: pw })
+    }).then(function(r){ return r.json(); }).then(function(d){
+      loginBtn.disabled = false;
+      if (d && d.ok) {
+        localStorage.setItem(USER_KEY, name);
+        loginMsg.textContent = '';
+        loginPw.value = '';
+        showLoggedIn(name);
+      } else {
+        loginMsg.textContent = "That username/password doesn't match an Explox account.";
+      }
+    }).catch(function(){
+      loginBtn.disabled = false;
+      loginMsg.textContent = "Couldn't reach the Explox server — try again in a moment.";
+    });
+  });
+  loginPw.addEventListener('keydown', function(e){ if (e.key === 'Enter') loginBtn.click(); });
+
+  logoutLink.addEventListener('click', function(e){
+    e.preventDefault();
+    localStorage.removeItem(USER_KEY);
+    showLoggedOut();
+  });
+
+  submitBtn.addEventListener('click', function(){
+    var name = localStorage.getItem(USER_KEY);
+    if (!name) { showLoggedOut(); return; }
+    var text = textInput.value.trim().slice(0,300);
+    if (!text) { msg.textContent = 'Write something first!'; return; }
+    submitBtn.disabled = true;
+    msg.textContent = 'Posting…';
+    fetch(FIREBASE_COMMENTS + '.json', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name: name, text: text, ts: Date.now() })
+    }).then(function(r){ if(!r.ok) throw new Error('post failed: '+r.status); return r.json(); }).then(function(){
+      textInput.value = '';
+      msg.textContent = 'Posted!';
+      submitBtn.disabled = false;
+      return fetchComments();
+    }).catch(function(){
+      submitBtn.disabled = false;
+      msg.textContent = "Couldn't post your comment — check your connection and try again.";
+    });
+  });
+
+  fetchComments();
 })();
 
 (function(){
