@@ -477,7 +477,7 @@ function saveCurrentUser() {
     myStocks: myStocks, ffaKills: ffaKills,
     eliteLevel: eliteLevel, activeQuests: activeQuests,
     lifetimeRobotKills: lifetimeRobotKills, lifetimeRogueKills: lifetimeRogueKills, lifetimeWarHits: lifetimeWarHits,
-    killerDefeats: killerDefeats
+    killerDefeats: killerDefeats, pendingEarnings: pendingEarnings
   };
   localStorage.setItem('explox_user_' + currentUser, JSON.stringify(data));
   localStorage.setItem('explox_current_user', currentUser);
@@ -797,7 +797,7 @@ async function doLogin(name) {
   mySubscribers = d.mySubscribers !== undefined ? d.mySubscribers : 0;
   carLocation = d.carLocation || 'Downtown Explox';
   installedApps = Array.isArray(d.installedApps) ? d.installedApps : [];
-  bankBalance     = d.bankBalance !== undefined ? d.bankBalance : 10000000000000;
+  bankBalance     = d.bankBalance !== undefined ? d.bankBalance : 0;
   playerInventory = d.inventory   || {};
   playerBirthday = d.birthday || '';
   setBirthdayDropdowns(playerBirthday);
@@ -860,6 +860,9 @@ async function doLogin(name) {
   lifetimeRogueKills = d.lifetimeRogueKills !== undefined ? d.lifetimeRogueKills : 0;
   lifetimeWarHits    = d.lifetimeWarHits !== undefined ? d.lifetimeWarHits : 0;
   killerDefeats      = d.killerDefeats !== undefined ? d.killerDefeats : 0;
+  pendingEarnings    = Array.isArray(d.pendingEarnings) ? d.pendingEarnings : [];
+  _earningsOverdueNotified = new Set(); // fresh per login — a still-overdue earning just nags again once, not a bug
+  updateEarningsBadge();
   ensureQuests();
   shopOpen = false; // never resume a shop as open across a reload — you have to reopen it yourself
   document.getElementById('skinColor').value  = playerColors.skin;
@@ -1188,7 +1191,7 @@ function sellStockShares(symbol) {
   const owned = myStocks[symbol] || 0;
   if(owned <= 0) return;
   const price = stockPrices[symbol] || 0;
-  sipDollars += price;
+  queueEarning(price, 0, 'Stock Sale');
   myStocks[symbol] = owned - 1;
   if(myStocks[symbol] <= 0) delete myStocks[symbol];
   updateSIP();
@@ -1545,8 +1548,8 @@ function claimQuest(id) {
   if (idx < 0) return;
   const q = activeQuests[idx];
   if (questProgress(q) < q.target) return;
-  eliteCoins += q.rewardElite; updateElite();
-  showNotif(`✅ Quest complete! +${q.rewardElite} 💎`);
+  queueEarning(0, q.rewardElite, 'Quest');
+  showNotif(`✅ Quest complete! Check Earnings to collect +${q.rewardElite} 💎`);
   sfx.buy();
   activeQuests.splice(idx, 1);
   ensureQuests();
@@ -1604,6 +1607,118 @@ function renderQuestsPanel() {
         <span style="color:#888;font-size:10px;">${prog}/${q.target}</span>
         <button onclick="claimQuest('${q.id}')" ${done ? '' : 'disabled'} style="padding:5px 12px;background:${done ? '#2a7a2a' : '#333'};border:none;border-radius:6px;color:#fff;font-size:11px;cursor:${done ? 'pointer' : 'not-allowed'};">+${q.rewardElite} 💎</button>
       </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── EARNINGS TAB — user's own ask: "when you earn money it goes there click the earning to
+// get the earning ... if you let it sit for more than 30 min you get a notification and a big
+// red ! on the tab." EVERY real S.I.P./Elite Coin reward in the game now queues here via
+// queueEarning() instead of landing in the wallet instantly — collecting is a real, separate
+// action. Persisted (it's real money owed to the player, shouldn't vanish on logout) with a
+// real Date.now() timestamp per entry so the 30-minute check survives a relog, unlike the
+// clock.getElapsedTime()-based timers used elsewhere in this file that reset every page load.
+let pendingEarnings = []; // {id, sip, elite, source, ts} — persisted
+const EARNING_OVERDUE_MS = 30 * 60 * 1000; // 30 real minutes
+let _earningsOverdueNotified = new Set(); // which overdue ids already got their one nag — not persisted, fine to re-nag once after a relog
+const EARNING_MERGE_WINDOW_MS = 6000; // rapid same-source earnings (boss hitSip per swing, gathering-event's 5s ticks) stack into one row instead of flooding the tab
+function queueEarning(sip, elite, source) {
+  sip = sip || 0; elite = elite || 0;
+  if (!sip && !elite) return;
+  const now = Date.now();
+  const last = pendingEarnings[pendingEarnings.length - 1];
+  if (last && last.source === source && now - last.ts <= EARNING_MERGE_WINDOW_MS) {
+    last.sip += sip; last.elite += elite; last.ts = now; // extends its own 30-minute clock from the latest addition, same as a real running total would
+  } else {
+    pendingEarnings.push({ id:'earn'+now+'_'+Math.floor(Math.random()*99999), sip, elite, source, ts:now });
+  }
+  updateEarningsBadge();
+  renderEarningsPanel();
+  saveCurrentUser();
+}
+function collectEarning(id) {
+  const idx = pendingEarnings.findIndex(e => e.id === id);
+  if (idx < 0) return;
+  const e = pendingEarnings[idx];
+  pendingEarnings.splice(idx, 1);
+  if (e.sip)   { sipDollars += e.sip; updateSIP(); }
+  if (e.elite) { eliteCoins += e.elite; updateElite(); }
+  sfx.coin();
+  const parts = [e.sip ? `${e.sip.toLocaleString()} S.I.P.` : '', e.elite ? `${e.elite.toLocaleString()} 💎` : ''].filter(Boolean).join(' + ');
+  showNotif(`💰 Collected ${parts} from ${e.source}!`);
+  _earningsOverdueNotified.delete(id);
+  saveCurrentUser();
+  renderEarningsPanel();
+  updateEarningsBadge();
+}
+function collectAllEarnings() {
+  if (!pendingEarnings.length) return;
+  let sip = 0, elite = 0;
+  pendingEarnings.forEach(e => { sip += e.sip; elite += e.elite; });
+  pendingEarnings = [];
+  _earningsOverdueNotified.clear();
+  if (sip)   { sipDollars += sip; updateSIP(); }
+  if (elite) { eliteCoins += elite; updateElite(); }
+  sfx.coin();
+  showNotif(`💰 Collected everything: +${sip.toLocaleString()} S.I.P. +${elite.toLocaleString()} 💎!`);
+  saveCurrentUser();
+  renderEarningsPanel();
+  updateEarningsBadge();
+}
+function updateEarningsBadge() {
+  const countEl = document.getElementById('earningsCount');
+  if (countEl) { countEl.textContent = pendingEarnings.length; countEl.style.display = pendingEarnings.length ? 'flex' : 'none'; }
+  const now = Date.now();
+  const hasOverdue = pendingEarnings.some(e => now - e.ts >= EARNING_OVERDUE_MS);
+  const badge = document.getElementById('earningsBadge');
+  if (badge) badge.style.display = hasOverdue ? 'flex' : 'none';
+}
+// Checked every real EARNINGS_CHECK_INTERVAL seconds (not every frame — a Date.now() diff over a
+// small array is cheap, but there's no reason to touch the DOM 60x/sec for a 30-MINUTE threshold).
+const EARNINGS_CHECK_INTERVAL = 5;
+function tickEarnings() {
+  if (!pendingEarnings.length) return;
+  const now = Date.now();
+  pendingEarnings.forEach(e => {
+    if (now - e.ts >= EARNING_OVERDUE_MS && !_earningsOverdueNotified.has(e.id)) {
+      _earningsOverdueNotified.add(e.id);
+      showNotif(`🔔 ${e.source}'s earning has been sitting for 30+ min — go collect it!`);
+      sfx.notify();
+    }
+  });
+  updateEarningsBadge();
+}
+function toggleEarningsPanel() {
+  const panel = document.getElementById('earningsPanel');
+  if (panel.style.display === 'none') {
+    if (document.pointerLockElement) document.exitPointerLock();
+    isPointerLocked = false;
+    renderEarningsPanel();
+    panel.style.display = 'flex';
+    document.getElementById('earningsTab').style.display = 'none';
+  } else { closeEarningsPanel(); }
+}
+function closeEarningsPanel() {
+  document.getElementById('earningsPanel').style.display = 'none';
+  document.getElementById('earningsTab').style.display = 'block';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function renderEarningsPanel() {
+  const list = document.getElementById('earningsList');
+  const btn = document.getElementById('earningsCollectAllBtn');
+  if (btn) btn.style.display = pendingEarnings.length ? 'block' : 'none';
+  if (!pendingEarnings.length) {
+    list.innerHTML = `<div style="color:#555;font-size:12px;text-align:center;padding:24px 10px;">No pending earnings yet —<br>go earn some S.I.P. or 💎!</div>`;
+    return;
+  }
+  const now = Date.now();
+  list.innerHTML = pendingEarnings.slice().reverse().map(e => {
+    const ageMin = Math.floor((now - e.ts) / 60000);
+    const overdue = now - e.ts >= EARNING_OVERDUE_MS;
+    const amountTxt = [e.sip ? `${e.sip.toLocaleString()} S.I.P.` : '', e.elite ? `${e.elite.toLocaleString()} 💎` : ''].filter(Boolean).join(' + ');
+    return `<div onclick="collectEarning('${e.id}')" style="cursor:pointer;background:rgba(255,255,255,0.05);border:2px solid ${overdue ? '#ff3333' : '#333'};border-radius:10px;padding:10px;margin-bottom:8px;">
+      <div style="color:#fff;font-size:12px;font-weight:bold;margin-bottom:3px;">💰 +${amountTxt}</div>
+      <div style="color:${overdue ? '#ff6666' : '#888'};font-size:10px;">from ${e.source} — ${ageMin < 1 ? 'just now' : ageMin + 'm ago'}${overdue ? ' ⚠️ OVERDUE' : ''}</div>
     </div>`;
   }).join('');
 }
@@ -2322,10 +2437,7 @@ function quitBankJob(msg) {
   showNotif(msg);
 }
 function payBankJob(job, currency) {
-  if(currency === 'sip') { sipDollars += job.sipPay; updateSIP(); } else { eliteCoins += job.elitePay; updateElite(); }
-  saveCurrentUser();
-  sfx.earn();
-  showNotif(`💰 +${currency==='sip' ? job.sipPay.toLocaleString()+' S.I.P.' : job.elitePay.toLocaleString()+' 💎'} from ${job.label}!`);
+  queueEarning(currency==='sip' ? job.sipPay : 0, currency==='elite' ? job.elitePay : 0, job.label);
 }
 function tickBankJob(dt) {
   if(!activeBankJob) return;
@@ -2365,10 +2477,8 @@ function completeJobTask() {
   if(!jobTaskActive) return;
   jobTaskActive = false;
   jobNextTaskIn = 3 + Math.random()*4;
-  sipDollars += activeJobPay;
-  updateSIP();
-  sfx.earn();
-  showNotif(`✅ Nice work! +${activeJobPay} S.I.P.`);
+  queueEarning(activeJobPay, 0, activeJob);
+  showNotif(`✅ Nice work! +${activeJobPay} S.I.P. pending in Earnings`);
 }
 
 function tickJob(dt) {
@@ -2451,9 +2561,8 @@ function serveAtTable(idx) {
   cookState = 'idle';
   cookSubPresses = 0;
   const dish = tableOrders[idx];
-  sipDollars += 20;
-  updateSIP();
-  showNotif(`✅ ${dish} delivered! +20 S.I.P.`);
+  queueEarning(20, 0, 'Diner Job');
+  showNotif(`✅ ${dish} delivered! +20 S.I.P. pending in Earnings`);
   document.getElementById('jobHud').textContent = '💼 No Job';
   document.getElementById('jobHud').style.color = '#fff';
   tableOrders[idx] = '✅ Thank you!';
@@ -2560,11 +2669,10 @@ function robShop(shopName, gain) {
   if(robbedCooldowns[shopName] > 0) {
     showNotif(`🚫 ${shopName} already robbed! Wait ${Math.ceil(robbedCooldowns[shopName])}s`); return;
   }
-  sipDollars += gain;
-  updateSIP();
+  queueEarning(gain, 0, `Robbed ${shopName}`);
   robbedCooldowns[shopName] = 60;
   increaseWanted(1);
-  showNotif(`🔫 Robbed ${shopName}! +${gain} S.I.P.`);
+  showNotif(`🔫 Robbed ${shopName}! +${gain} S.I.P. pending in Earnings`);
 }
 
 // ─── CINEMA SYSTEM ────────────────────────────────────────────────────────────
@@ -6170,8 +6278,8 @@ function handleMailboxMessage(msg) {
     if(dueling === msg.from) {
       dueling = null;
       if(msg.data && msg.data.result === 'you_won') {
-        sipDollars += 50; updateSIP();
-        showNotif(`🏆 You won the duel against ${msg.from}! +50 S.I.P.`);
+        queueEarning(50, 0, `Duel win vs ${msg.from}`);
+        showNotif(`🏆 You won the duel against ${msg.from}! +50 S.I.P. pending in Earnings`);
       } else {
         showNotif(`Duel with ${msg.from} ended.`);
       }
@@ -6179,13 +6287,12 @@ function handleMailboxMessage(msg) {
   } else if(msg.type === 'ffa_hit') {
     if(inArena && ffaAlive) { lastFfaAttacker = msg.from; damagePlayer(msg.data.damage, msg.from + ' (arena)'); }
   } else if(msg.type === 'sip_gift') {
-    sipDollars += msg.data.amount; updateSIP(); saveCurrentUser();
+    queueEarning(msg.data.amount, 0, `Gift from ${msg.from}`);
     showNotif(`💸 ${msg.from} gave you ${msg.data.amount} S.I.P.! Thanks!`);
   } else if(msg.type === 'ffa_kill') {
     ffaKills++;
-    sipDollars += 20; updateSIP();
-    saveCurrentUser();
-    showNotif(`💀 Knocked out ${msg.from}! +20 S.I.P. (${ffaKills} arena kills)`);
+    queueEarning(20, 0, 'Arena FFA Kill');
+    showNotif(`💀 Knocked out ${msg.from}! +20 S.I.P. pending (${ffaKills} arena kills)`);
   }
 }
 
@@ -6381,10 +6488,9 @@ function defeatNPC(npc) {
     npc.isDown = true;
     npc.group.rotation.z = Math.PI / 2;
     npc.group.position.y = -0.5;
-    sipDollars += 10;
-    updateSIP();
+    queueEarning(10, 0, `Defeated ${npc.name}`);
     increaseWanted(1);
-    showNotif(`💥 Defeated ${npc.name}! +10 S.I.P.`);
+    showNotif(`💥 Defeated ${npc.name}! +10 S.I.P. pending in Earnings`);
     setTimeout(() => {
       npc.isDown = false;
       npc.group.rotation.z = 0;
@@ -6401,8 +6507,7 @@ function defeatNPC(npc) {
   deadNPCs[npc.name] = { x, z };
   saveCurrentUser();
   buildGrave(npc.name, x, z);
-  sipDollars += pay;
-  updateSIP();
+  queueEarning(pay, 0, `Defeated ${npc.name}`);
   showNotif(`💥 ...🪦 Nobody's noticed yet.`);
   // Nobody finds out right away — the wanted level (and the officers reacting to it) only
   // kicks in after a real delay, instead of instantly like the old knockdown-only version did.
@@ -6467,7 +6572,7 @@ function buyBlackMarketItem(idx) {
   const item = BLACK_MARKET_ITEMS[idx];
   if(sipDollars < item.cost) { showNotif('❌ Not enough S.I.P.!'); return; }
   spendSip(item.cost);
-  if(item.sipReward) { sipDollars += item.sipReward; showNotif(`💰 Laundered! +${item.sipReward} S.I.P.`); }
+  if(item.sipReward) { queueEarning(item.sipReward, 0, 'Black Market'); showNotif(`💰 Laundered! +${item.sipReward} S.I.P. pending in Earnings`); }
   if(item.weaponId) {
     if(!ownedWeapons.includes(item.weaponId)) ownedWeapons.push(item.weaponId);
     playerWeapon = item.weaponId;
@@ -6898,9 +7003,8 @@ function tickGrowth(dt) {
     if (cStage.id !== familyKidLastStageId) {
       if (cStage.id === 'adult' && familyKidSmarts > 0) {
         const payout = Math.round(familyKidSmarts * 5);
-        sipDollars += payout;
-        updateSIP();
-        showNotif(`🎓 ${familyKidName} graduated and got a great job — they gave you ${payout.toLocaleString()} S.I.P. to say thanks!`);
+        queueEarning(payout, 0, `${familyKidName} graduated`);
+        showNotif(`🎓 ${familyKidName} graduated and got a great job — they gave you ${payout.toLocaleString()} S.I.P. to say thanks! (pending in Earnings)`);
         sfx.cheer && sfx.cheer();
       } else {
         showNotif(`${cStage.emoji} ${familyKidName} grew into a ${cStage.label}!`);
@@ -8286,8 +8390,7 @@ function trySellToCustomer(){
   const buyChance = Math.max(0.05, Math.min(0.95, 1 - (price-fairValue)/50 + staffBonus));
   if(Math.random() < buyChance){
     storeStock[soldId] -= 1;
-    sipDollars += price;
-    updateSIP();
+    queueEarning(price, 0, 'Your Store');
     const levelBefore = storeLevel();
     storeSalesCount += 1;
     saveCurrentUser();
@@ -8327,10 +8430,9 @@ function spawnShopperCustomer(){
 function giveShopperTip(){
   if(Math.random() < 0.3){
     const tip = 1 + Math.floor(Math.random()*100); // 1-100 S.I.P.
-    sipDollars += tip;
-    updateSIP();
+    queueEarning(tip, 0, 'Store Tip');
     sfx.cheer();
-    showNotif(`🎉 A happy customer left you a ${tip} S.I.P. tip!`);
+    showNotif(`🎉 A happy customer left you a ${tip} S.I.P. tip! (pending in Earnings)`);
   }
 }
 // Builds/updates the OPEN or CLOSED sign on the front of the building
@@ -9300,7 +9402,7 @@ function endWhack() {
   clearTimeout(arcadeState.whackSpawnTimer);
   for(let i=0;i<9;i++){ const m=document.getElementById('mole'+i); if(m) m.style.transform='translateY(60px)'; }
   const reward = arcadeState.whackScore * 3;
-  sipDollars += reward; updateSIP();
+  queueEarning(reward, 0, 'Whack-a-Mole');
   document.getElementById('whackResult').textContent = `Time's up! You whacked ${arcadeState.whackScore} moles — +${reward} S.I.P.!`;
   showNotif(`🐹 Whack-a-Mole: ${arcadeState.whackScore} hits (+${reward} S.I.P.)`);
 }
@@ -9406,7 +9508,7 @@ function mazeWin() {
   document.removeEventListener('keydown', mazeKeydown);
   drawMaze();
   const reward = 40;
-  sipDollars += reward; updateSIP();
+  queueEarning(reward, 0, 'Maze Chase');
   document.getElementById('mazeResult').textContent = `You cleared the maze! +${reward} S.I.P.`;
   showNotif(`👻 Maze Chase cleared! (+${reward} S.I.P.)`);
 }
@@ -9488,7 +9590,7 @@ function flipMemoryCard(i) {
 }
 function memoryWin() {
   const reward = Math.max(80 - arcadeState.memMoves*3, 20);
-  sipDollars += reward; updateSIP();
+  queueEarning(reward, 0, 'Memory Match');
   document.getElementById('memResult').textContent = `Solved in ${arcadeState.memMoves} moves! +${reward} S.I.P.`;
   showNotif(`🧠 Memory Match cleared in ${arcadeState.memMoves} moves (+${reward} S.I.P.)`);
 }
@@ -9551,7 +9653,7 @@ function simonClick(idx) {
 function simonOver() {
   arcadeState.simLocked = true;
   const reward = (arcadeState.simRound-1) * 5;
-  if(reward > 0) { sipDollars += reward; updateSIP(); }
+  if(reward > 0) queueEarning(reward, 0, 'Simon Says');
   document.getElementById('simResult').textContent = `Game over at round ${arcadeState.simRound}! +${reward} S.I.P.`;
   showNotif(`🎵 Simon Says: reached round ${arcadeState.simRound} (+${reward} S.I.P.)`);
 }
@@ -9633,7 +9735,7 @@ function snakeGameOver() {
   clearInterval(arcadeState.snakeTimer);
   document.removeEventListener('keydown', snakeKeydown);
   const reward = arcadeState.snakeScore * 4;
-  sipDollars += reward; updateSIP();
+  queueEarning(reward, 0, 'Snake');
   document.getElementById('snakeResult').textContent = `Game over! Ate ${arcadeState.snakeScore} — +${reward} S.I.P.`;
   showNotif(`🐍 Snake: ${arcadeState.snakeScore} eaten (+${reward} S.I.P.)`);
 }
@@ -9717,7 +9819,7 @@ function breakoutWin() {
   arcadeState.brkOver = true;
   stopBreakout();
   const reward = 100;
-  sipDollars += reward; updateSIP();
+  queueEarning(reward, 0, 'Brick Breaker');
   document.getElementById('breakoutResult').textContent = `All bricks cleared! +${reward} S.I.P.`;
   showNotif(`🧱 Brick Breaker cleared! (+${reward} S.I.P.)`);
 }
@@ -9725,7 +9827,7 @@ function breakoutLose() {
   arcadeState.brkOver = true;
   stopBreakout();
   const reward = arcadeState.brkBroken * 3;
-  sipDollars += reward; updateSIP();
+  queueEarning(reward, 0, 'Brick Breaker');
   document.getElementById('breakoutResult').textContent = `Ball dropped! Broke ${arcadeState.brkBroken} bricks — +${reward} S.I.P.`;
   showNotif(`🧱 Brick Breaker: ${arcadeState.brkBroken} broken (+${reward} S.I.P.)`);
 }
@@ -9768,7 +9870,7 @@ function reactionClick() {
     arcadeState.rxnState = 'idle';
     let reward;
     if(ms < 250) reward = 40; else if(ms < 400) reward = 25; else if(ms < 600) reward = 15; else reward = 8;
-    sipDollars += reward; updateSIP();
+    queueEarning(reward, 0, 'Quick Draw');
     box.style.background = '#552222';
     box.textContent = 'Tap to try again';
     document.getElementById('reactionResult').textContent = `${ms}ms reaction time! +${reward} S.I.P.`;
@@ -9884,7 +9986,7 @@ function tetGameOver() {
   clearInterval(arcadeState.tetTimer);
   document.removeEventListener('keydown', tetKeydown);
   const reward = arcadeState.tetLines * 15;
-  sipDollars += reward; updateSIP();
+  queueEarning(reward, 0, 'Tetris');
   document.getElementById('tetrisResult').textContent = `Game over! Cleared ${arcadeState.tetLines} lines — +${reward} S.I.P.`;
   showNotif(`🧩 Tetris: ${arcadeState.tetLines} lines (+${reward} S.I.P.)`);
 }
@@ -9953,7 +10055,7 @@ function clawDrop() {
       if(success) {
         clawState.prizes[clawState.clawX] = null;
         clawState.won.push(target);
-        sipDollars += target.value; updateSIP();
+        queueEarning(target.value, 0, 'Claw Machine');
         resultEl.textContent = `You grabbed the ${target.emoji} ${target.name}! +${target.value} S.I.P.`;
         showNotif(`🧸 Claw win: ${target.emoji} ${target.name} (+${target.value} S.I.P.)`);
       } else {
@@ -10774,9 +10876,9 @@ function attackOwner(idx, ownerName) {
     d.pendingNotices = Array.isArray(d.pendingNotices) ? d.pendingNotices : [];
     d.pendingNotices.push({ message: `💀 ${currentUser} attacked you at ${plot.name} and you dropped ${lost.toLocaleString()} S.I.P.! (Money in the bank is always safe.)` });
   });
-  sipDollars += lost; updateSIP();
+  if(lost>0) queueEarning(lost, 0, `Looted ${ownerName}`);
   sfx.boom();
-  showNotif(lost>0 ? `⚔️ You defeated ${ownerName} and looted ${lost.toLocaleString()} S.I.P.!` : `⚔️ You defeated ${ownerName}, but their wallet was empty!`);
+  showNotif(lost>0 ? `⚔️ You defeated ${ownerName} and looted ${lost.toLocaleString()} S.I.P.! (pending in Earnings)` : `⚔️ You defeated ${ownerName}, but their wallet was empty!`);
   closeVisitLand();
 }
 // Shown right when a fresh world finishes loading — real "while you were away" reports
@@ -11090,7 +11192,7 @@ function tickMachines(dt) {
       if (entry._t >= def.produces.everySec) {
         entry._t = 0;
         const p = def.produces;
-        if (p.type==='sip') { sipDollars += p.amount; updateSIP(); }
+        if (p.type==='sip') { queueEarning(p.amount, 0, def.name || 'Land Building'); }
         else if (p.type==='wood') { woodCount += p.amount; updateWood(); }
         else if (p.type==='scrap') { scrapMetal += p.amount; updateScrapMetal(); }
         showNotif(`${def.emoji} ${def.name} produced ${p.amount} ${p.type==='sip'?'S.I.P.':p.type==='wood'?'Wood':'Scrap'}!`);
@@ -11237,9 +11339,8 @@ function defeatRobot(robot) {
   if (robot.col) { const ci = CITY_COLS.indexOf(robot.col); if (ci>-1) CITY_COLS.splice(ci,1); }
   const [lo,hi] = robot.rewardRange;
   const reward = lo + Math.floor(Math.random()*(hi-lo+1));
-  sipDollars += reward; updateSIP();
   const eliteReward = robot.eliteReward;
-  if (eliteReward > 0) { eliteCoins += eliteReward; updateElite(); }
+  queueEarning(reward, eliteReward, robot.type.name);
   sfx.boom();
   showNotif(`🤖💥 ${robot.type.name} destroyed! +${reward} S.I.P.${eliteReward ? ` +${eliteReward} 💎` : ''}`);
   buildWreckage(robot.x, robot.z, robot.type); // leaves real scrap behind — take it to the Grinder for materials
@@ -11320,9 +11421,8 @@ function defeatRogueRobot(robot) {
   scene.remove(robot.mesh);
   const [lo,hi] = robot.rewardRange;
   const reward = lo + Math.floor(Math.random()*(hi-lo+1));
-  sipDollars += reward; updateSIP();
   const eliteReward = robot.eliteReward;
-  if (eliteReward > 0) { eliteCoins += eliteReward; updateElite(); }
+  queueEarning(reward, eliteReward, robot.type.name);
   sfx.boom();
   showNotif(`💥 Defeated the rogue ${robot.type.name}! +${reward} S.I.P.${eliteReward ? ` +${eliteReward} 💎` : ''}`);
   lifetimeRogueKills++;
@@ -11449,7 +11549,7 @@ function defeatKiller(killer) {
   scene.remove(killer.mesh);
   buildKillerCorpse(killer.x, killer.z);
   killerDefeats++;
-  eliteCoins += KILLER_REWARD_ELITE; updateElite();
+  queueEarning(0, KILLER_REWARD_ELITE, 'Killer');
   sfx.boom();
   showNotif(`💀 Defeated the killer! +${KILLER_REWARD_ELITE} 💎`);
 }
@@ -11679,8 +11779,7 @@ function defeatArenaRobot(robot) {
   const ai = arenaActiveRobots.indexOf(robot); if (ai>-1) arenaActiveRobots.splice(ai,1);
   const [lo,hi] = robot.rewardRange;
   const reward = lo + Math.floor(Math.random()*(hi-lo+1));
-  sipDollars += reward; updateSIP();
-  if (robot.eliteReward > 0) { eliteCoins += robot.eliteReward; updateElite(); }
+  queueEarning(reward, robot.eliteReward, `Arena ${robot.type.name}`);
   sfx.boom();
   arenaDefeatedCount++;
   lifetimeRobotKills++; // a real robot kill either way — counts toward the Quests panel too
@@ -11694,8 +11793,7 @@ function finishArenaBattle() {
   // robot chosen (was 5 S.I.P. + 0.5 Elite Coins), so any count still scales cleanly.
   const bonusSip = arenaTotalRobots * 10;
   const bonusElite = arenaTotalRobots * 2;
-  sipDollars += bonusSip; updateSIP();
-  eliteCoins += bonusElite; updateElite();
+  queueEarning(bonusSip, bonusElite, 'Robot Arena Clear');
   saveCurrentUser();
   document.getElementById('arenaHud').style.display = 'none';
   showNotif(`🏆 ARENA CLEARED! All ${arenaTotalRobots} robots defeated! +${bonusSip} S.I.P. +${bonusElite} 💎`);
@@ -11830,8 +11928,7 @@ function defeatMovieBoss() {
   mb.alive = false;
   const [lo,hi] = mb.def.sipReward;
   const reward = lo + Math.floor(Math.random()*(hi-lo+1));
-  sipDollars += reward; updateSIP(); // earning, not spending — same as awardBossDefeat()/defeatRogueRobot(), no spendSip() involved (that's only for purchases, item 207)
-  eliteCoins += mb.def.eliteReward; updateElite();
+  queueEarning(reward, mb.def.eliteReward, mb.def.name);
   saveCurrentUser();
   sfx.boom();
   showNotif(`🏆 ${mb.def.emoji} ${mb.def.name} DEFEATED! +${reward} S.I.P. +${mb.def.eliteReward} 💎`);
@@ -11978,7 +12075,7 @@ function sellMaterial(id, qty) {
   const total = price * qty;
   held.qty -= qty;
   if(held.qty <= 0) delete playerInventory[id];
-  sipDollars += total; updateSIP();
+  queueEarning(total, 0, 'Sold Materials');
   sfx.coin();
   const m = MATERIALS.find(x=>x.id===id);
   showNotif(`💰 Sold ${qty}x ${m.emoji} ${m.name} for ${total} S.I.P.!`);
@@ -12751,9 +12848,9 @@ function applySeasonEffects() {
     saveCurrentUser();
     setTimeout(() => {
       buildEventDecor('birthday', TOWN_EVENT_SPOT.x, TOWN_EVENT_SPOT.z);
-      sipDollars += 30; updateSIP();
+      queueEarning(30, 0, 'Birthday Gift');
       sfx.cheer();
-      showNotif(`🎂 Happy Birthday, ${playerName || 'Player'}! The neighbors chipped in a gift. (+30 S.I.P.)`);
+      showNotif(`🎂 Happy Birthday, ${playerName || 'Player'}! The neighbors chipped in a gift. (+30 S.I.P. pending)`);
     }, 2000);
   }
 }
@@ -15119,9 +15216,9 @@ function hostGrandOpening() {
   const spot = spots[Math.floor(Math.random()*spots.length)];
   buildEventDecor('grandopening', TOWN_EVENT_SPOT.x, TOWN_EVENT_SPOT.z);
   addToInventory('grand_opening_gift', 'Grand Opening Gift Bag', '🎁');
-  sipDollars += 30; updateSIP(); saveCurrentUser();
+  queueEarning(30, 0, 'Grand Opening');
   sfx.cheer();
-  showNotif(`🎗️ Grand Opening for ${spot.name}! Everyone got a free gift bag. (+30 S.I.P. +🎁 Gift Bag)`);
+  showNotif(`🎗️ Grand Opening for ${spot.name}! Everyone got a free gift bag. (+30 S.I.P. pending +🎁 Gift Bag)`);
   closeTownEvents();
 }
 function hostConcert() {
@@ -15131,9 +15228,9 @@ function hostConcert() {
   buildEventDecor('concert', TOWN_EVENT_SPOT.x, TOWN_EVENT_SPOT.z);
   const trackIdx = Math.floor(Math.random()*bgMusic.TRACKS.length);
   bgMusic.switchTrack(trackIdx);
-  sipDollars += 40; updateSIP(); saveCurrentUser();
+  queueEarning(40, 0, 'Concert Merch');
   sfx.cheer();
-  showNotif(`🎤 The concert kicked off with "${bgMusic.TRACKS[trackIdx].name}"! You sold merch in the crowd. (-${price} ticket, +40 S.I.P. merch)`);
+  showNotif(`🎤 The concert kicked off with "${bgMusic.TRACKS[trackIdx].name}"! You sold merch in the crowd. (-${price} ticket, +40 S.I.P. merch pending)`);
   closeTownEvents();
 }
 function closeTownEvents() {
@@ -15151,9 +15248,9 @@ function hostWedding() {
   saveCurrentUser();
   [a, b].forEach(n => { const npc = npcs.find(x => x.name === n); if (npc) setNPCEmotion(npc, '🥰'); });
   buildEventDecor('wedding', TOWN_EVENT_SPOT.x, TOWN_EVENT_SPOT.z);
-  sipDollars += 50; updateSIP();
+  queueEarning(50, 0, `${a} & ${b}'s Wedding`);
   sfx.cheer();
-  showNotif(`💍 ${a} and ${b} got married! The whole town celebrated. (+50 S.I.P. wedding gift)`);
+  showNotif(`💍 ${a} and ${b} got married! The whole town celebrated. (+50 S.I.P. wedding gift pending)`);
   closeTownEvents();
 }
 function throwBirthdayParty() {
@@ -15163,9 +15260,9 @@ function throwBirthdayParty() {
   const npc = npcs.find(x => x.name === name);
   if (npc) setNPCEmotion(npc, '🎉');
   buildEventDecor('birthday', TOWN_EVENT_SPOT.x, TOWN_EVENT_SPOT.z);
-  sipDollars += 20; updateSIP();
+  queueEarning(20, 0, `${name}'s Birthday`);
   sfx.cheer();
-  showNotif(`🎂 It's ${name}'s birthday! Everyone sang and had cake. (+20 S.I.P. party favor)`);
+  showNotif(`🎂 It's ${name}'s birthday! Everyone sang and had cake. (+20 S.I.P. party favor pending)`);
   closeTownEvents();
 }
 function buildTownEventsBoard() {
@@ -15411,9 +15508,9 @@ function fightWorldEventNpc(npc, ev) {
   scene.remove(npc.mesh);
   const zi = CITY_ZONES.indexOf(npc.zone); if (zi > -1) CITY_ZONES.splice(zi, 1);
   if (npc.col) { const ci = CITY_COLS.indexOf(npc.col); if (ci > -1) CITY_COLS.splice(ci, 1); }
-  sipDollars += ev.data.params.rewardPerKill; updateSIP(); saveCurrentUser();
+  queueEarning(ev.data.params.rewardPerKill, 0, ev.data.name);
   sfx.boom();
-  showNotif(`${ev.data.emoji} Defeated! +${ev.data.params.rewardPerKill} S.I.P.`);
+  showNotif(`${ev.data.emoji} Defeated! +${ev.data.params.rewardPerKill} S.I.P. pending`);
 }
 
 function updateWorldEventBanner() {
@@ -15452,8 +15549,8 @@ async function syncWorldEvent() {
       } else if (prev) {
         showNotif(`The ${prev.data.name} event ended.`);
         if (survivedHazard) {
-          sipDollars += prev.data.params.rewardOnSurvive; updateSIP(); saveCurrentUser();
-          showNotif(`🎉 You survived ${prev.data.name}! +${prev.data.params.rewardOnSurvive} S.I.P.`);
+          queueEarning(prev.data.params.rewardOnSurvive, 0, `Survived ${prev.data.name}`);
+          showNotif(`🎉 You survived ${prev.data.name}! +${prev.data.params.rewardOnSurvive} S.I.P. pending`);
         }
       }
     }
@@ -15524,6 +15621,7 @@ let bossState  = {}; // name -> {hp, maxHp, alive, level, defeats} — local mir
 let bossMeshes = {}; // name -> {mesh, col}
 let currentNearBoss = null;
 let _lastBossSync = -999;
+let _lastEarningsCheck = -999;
 const BOSS_SYNC_INTERVAL = 5;
 function initBossState() {
   BOSS_DEFS.forEach(def => { if (!bossState[def.name]) bossState[def.name] = { hp: def.maxHp, maxHp: def.maxHp, alive: true, level: 0, defeats: 0, attackTimer: 0, curX: def.x, curZ: def.z, aggro: false }; });
@@ -15771,7 +15869,7 @@ async function fightBoss(def) {
   st.hp = Math.max(serverMode === 'online' ? 1 : 0, st.hp - dmg);
   showBossHud(def);
   showNotif(`${def.emoji} Hit ${def.name} for ${dmg}!`);
-  sipDollars += def.hitSip; if (def.hitElite) eliteCoins += def.hitElite;
+  queueEarning(def.hitSip, def.hitElite, def.name); // small per-hit ticks merge into one Earnings row (EARNING_MERGE_WINDOW_MS) instead of flooding it during a long fight
   updateSIP(); if (def.hitElite) updateElite();
   // No counter-hit here anymore — tickBossAttacks() already swings at the player on its own
   // timer whenever they're in range, attacking or not. A guaranteed extra hit every time you
@@ -15818,8 +15916,7 @@ async function fightBoss(def) {
 function awardBossDefeat(def) {
   const [lo,hi] = def.sipReward;
   const reward = lo + Math.floor(Math.random()*(hi-lo+1));
-  sipDollars += reward; updateSIP();
-  eliteCoins += def.eliteReward; updateElite();
+  queueEarning(reward, def.eliteReward, def.name);
   lifetimeRobotKills++; // a real robot kill either way, just a huge one — counts toward the Quests panel too
   saveCurrentUser();
   sfx.boom();
@@ -16054,9 +16151,9 @@ function fightWarNpc(npc, terr) {
   scene.remove(npc.mesh);
   const zi = CITY_ZONES.indexOf(npc.zone); if (zi > -1) CITY_ZONES.splice(zi, 1);
   if (npc.col) { const ci = CITY_COLS.indexOf(npc.col); if (ci > -1) CITY_COLS.splice(ci, 1); }
-  sipDollars += terr.rewardPerKill; updateSIP(); saveCurrentUser();
+  queueEarning(terr.rewardPerKill, 0, `${terr.name} Defender`);
   sfx.boom();
-  showNotif(`🪖 Defender defeated! +${terr.rewardPerKill} S.I.P.`);
+  showNotif(`🪖 Defender defeated! +${terr.rewardPerKill} S.I.P. pending`);
   reportWarKill(terr);
   // a replacement shows up after a cooldown, same idea as the Scrapyard's robot
   // spawners - but only if the territory hasn't just been captured out from under it
@@ -16076,8 +16173,8 @@ async function reportWarKill(terr) {
     const res = await r.json();
     territoryState[terr.name] = { captured: res.captured, kills: res.kills };
     if (res.justCaptured) {
-      sipDollars += terr.captureBonus; updateSIP(); saveCurrentUser();
-      showNotif(`🏆🎉 ${terr.name} CAPTURED for Explox! +${terr.captureBonus} S.I.P. bonus!`);
+      queueEarning(terr.captureBonus, 0, `${terr.name} Captured`);
+      showNotif(`🏆🎉 ${terr.name} CAPTURED for Explox! +${terr.captureBonus} S.I.P. bonus pending!`);
       clearWarGarrison(terr.name);
       buildWarFlag(terr);
     }
@@ -16140,7 +16237,7 @@ function tickWorldEvent(dt) {
     worldEventGatherAccum += dt;
     if (worldEventGatherAccum >= 5) {
       worldEventGatherAccum -= 5;
-      sipDollars += params.rewardPerTick; updateSIP(); saveCurrentUser();
+      queueEarning(params.rewardPerTick, 0, activeWorldEvent.data.name);
       showNotif(`${activeWorldEvent.data.emoji} +${params.rewardPerTick} S.I.P. enjoying ${activeWorldEvent.data.name}!`);
     }
   } else if (template === 'hazard') {
@@ -16196,9 +16293,9 @@ function haveBaby() {
   saveCurrentUser();
   buildChildren();
   [couple.a, couple.b].forEach(n => { const npc = npcs.find(x => x.name === n); if (npc) setNPCEmotion(npc, '🥰'); });
-  sipDollars += 15; updateSIP();
+  queueEarning(15, 0, `${name}'s Birth`);
   sfx.cheer();
-  showNotif(`👶 ${couple.a} and ${couple.b} welcomed a baby named ${name}! (+15 S.I.P. baby gift)`);
+  showNotif(`👶 ${couple.a} and ${couple.b} welcomed a baby named ${name}! (+15 S.I.P. baby gift pending)`);
   closeTownEvents();
 }
 
@@ -17255,6 +17352,7 @@ function animate(){
   if(serverMode === 'online' && t - _lastTerritorySync > TERRITORY_SYNC_INTERVAL) { _lastTerritorySync = t; syncTerritories(); }
   tickWar(t);
   if(serverMode === 'online' && t - _lastBossSync > BOSS_SYNC_INTERVAL) { _lastBossSync = t; syncBosses(); }
+  if(t - _lastEarningsCheck > EARNINGS_CHECK_INTERVAL) { _lastEarningsCheck = t; tickEarnings(); }
   tickBossHud();
   tickBossChase(dt);
   tickMovieBossFight(dt);
