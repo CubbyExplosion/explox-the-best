@@ -2225,7 +2225,7 @@ function addCol(arr, cx, cz, hw, hd) { const c = { cx, cz, hw, hd }; arr.push(c)
 
 function isBlocked(nx, nz, rOverride) {
   const r = rOverride !== undefined ? rOverride : 0.65; // real optional radius — cars (item 159 fix) pass a bigger one
-  const cols = inArenaBattle ? ROBOT_ARENA_COLS : inPrison ? [] : inFriendHouse ? [] : inLandHouse ? LAND_HOUSE_COLS : inCountryHotel ? COUNTRY_HOTEL_COLS : inAirportLounge ? AIRPORT_LOUNGE_COLS : inArcade ? ARCADE_COLS : inHotel ? HOTEL_COLS : inHouse ? HOUSE_COLS : inMall ? MALL_COLS : inStore ? STORE_COLS : CITY_COLS;
+  const cols = inMovieFight ? MOVIE_FIGHT_COLS : inArenaBattle ? ROBOT_ARENA_COLS : inPrison ? [] : inFriendHouse ? [] : inLandHouse ? LAND_HOUSE_COLS : inCountryHotel ? COUNTRY_HOTEL_COLS : inAirportLounge ? AIRPORT_LOUNGE_COLS : inArcade ? ARCADE_COLS : inHotel ? HOTEL_COLS : inHouse ? HOUSE_COLS : inMall ? MALL_COLS : inStore ? STORE_COLS : CITY_COLS;
   for(const c of cols) {
     if(nx+r > c.cx-c.hw && nx-r < c.cx+c.hw &&
        nz+r > c.cz-c.hd && nz-r < c.cz+c.hd) return true;
@@ -5553,8 +5553,10 @@ function buildMovieGrid() {
     card.innerHTML = `<div style="font-size:32px;margin-bottom:6px;">${m.icons}</div>
       <div style="color:#fff;font-weight:bold;font-size:12px;margin-bottom:3px;">${m.title}</div>
       <div style="color:#aaa;font-size:10px;margin-bottom:8px;">${m.genre}</div>
-      <div style="background:#e94560;color:#fff;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:bold;">🎟️ ${m.price} S.I.P.</div>`;
+      <div style="background:#e94560;color:#fff;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:bold;margin-bottom:6px;">🎟️ ${m.price} S.I.P.</div>
+      <div class="movieFightBtn" style="background:#333;color:#ff8844;border:1px solid #ff8844;padding:4px 10px;border-radius:6px;font-size:10px;font-weight:bold;">⚔️ Fight (Free)</div>`;
     card.onclick = () => selectCinemaMovie(i);
+    card.querySelector('.movieFightBtn').onclick = (e) => { e.stopPropagation(); enterMovieFight(i); };
     grid.appendChild(card);
   });
 }
@@ -5988,6 +5990,8 @@ function knockoutPlayer() {
   yaw = 0;
   playerHealth = playerMaxHealth;
   updateHealthBar();
+  resetAllBossAggro(); // the "die" end condition for a boss chase — it doesn't just resume hunting you the instant you wake up across the map
+  if (inMovieFight) cleanupMovieFight(); // same "no orphaned interior state after a teleport-home" concern — the room/boss don't stay half-active behind you
 }
 
 // ─── FIGHT ARENA — a dedicated place to duel; the duel mechanic itself works
@@ -6172,7 +6176,7 @@ function tryDuelInteract() {
   // whatever you're actually standing near" philosophy as the d>25 case above, just
   // extended to this not-yet-dueling case too, which never had it.
   if(!duelChallengeSentTo) {
-    const zones = inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : CITY_ZONES;
+    const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : CITY_ZONES;
     const px3 = playerGroup.position.x, pz3 = playerGroup.position.z;
     const nearZone = zones.some(z => Math.hypot(px3 - z.x, pz3 - z.z) < z.r)
       || rogueRobots.some(r => r.alive && Math.hypot(px3 - r.x, pz3 - r.z) < 3)
@@ -11181,7 +11185,7 @@ function spawnRogueRobot() {
 }
 function tickRogueRobots(dt) {
   rogueTimer += dt;
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight;
   if (rogueTimer >= 20) {
     rogueTimer = 0;
     if (outdoors && rogueRobots.filter(r=>r.alive).length < 5) spawnRogueRobot();
@@ -11285,11 +11289,17 @@ function spawnKiller() {
   const z = Math.max(-1900, Math.min(1900, playerGroup.position.z+Math.sin(ang)*dist));
   const mesh = buildKillerMesh(x, z);
   mesh.visible = false; // hidden until it closes to KILLER_REVEAL_RANGE — no sign it's coming
-  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, revealed:false });
+  // Real bug the user caught: every killer shared the exact same KILLER_ATTACK_INTERVAL and
+  // started attackTimer at 0, so once killerMaxActive() allows 2+ at a time (item 208), a pair
+  // that both entered melee range around the same moment stayed locked in perfect sync forever —
+  // every future hit landed on the SAME tick, turning "two independent threats" into a scripted
+  // double-hit combo. Each killer now gets its own randomized cadence so they drift apart instead.
+  const atkInterval = KILLER_ATTACK_INTERVAL * (0.8 + Math.random()*0.5);
+  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval, revealed:false });
 }
 function tickKillers(dt) {
   killerTimer += dt;
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight;
   if (killerTimer >= killerSpawnInterval()) {
     killerTimer = 0;
     if (outdoors && killers.filter(k=>k.alive).length < killerMaxActive()) spawnKiller();
@@ -11302,7 +11312,7 @@ function tickKillers(dt) {
     if (!k.revealed && dist <= KILLER_REVEAL_RANGE) { k.revealed = true; k.mesh.visible = true; sfx.tense(); }
     if (dist < KILLER_ATTACK_RANGE) {
       k.attackTimer += dt;
-      if (k.attackTimer > KILLER_ATTACK_INTERVAL) { k.attackTimer = 0; damagePlayer(8+Math.floor(Math.random()*8), "a Killer's dagger"); }
+      if (k.attackTimer > k.atkInterval) { k.attackTimer = 0; damagePlayer(8+Math.floor(Math.random()*8), "a Killer's dagger"); }
     } else {
       k.x += dx/dist*k.speed*dt; k.z += dz/dist*k.speed*dt;
       k.mesh.position.set(k.x, 0, k.z);
@@ -11574,6 +11584,138 @@ function clearArenaRobots() {
 function updateArenaHud() {
   const el = document.getElementById('arenaHudText');
   if (el) el.textContent = `🤖 Arena: ${arenaDefeatedCount} / ${arenaTotalRobots} defeated`;
+}
+
+// ── Movie Fight Room — user's own ask: "make movie fight where the movie you want will fight
+// you," clarified to a dedicated special room (not scattered outdoors like BOSS_DEFS) that you
+// enter by picking a "⚔️ Fight" option on any movie card in the Cinema, same 14 movies you can
+// already watch. One shared reflavored fight (name/color/shape/difficulty pulled straight from
+// that movie's real title/genre/price — no hand-authored combat per movie) rather than 14 fully
+// unique fights, covering every movie immediately. Free to fight (unlike watching, which costs
+// a real ticket) — the payoff is the defeat reward, not a purchase. Own 10,000-unit pocket lane,
+// same convention as every other interior (House/10000 ... AirportLounge/120000).
+function movieBossShape(genre) {
+  if (/Mecha|Sci-Fi/i.test(genre)) return 'tank';
+  if (/Space|Sports/i.test(genre)) return 'drone';
+  if (/Mystery|Thriller/i.test(genre)) return 'spider';
+  if (/Epic/i.test(genre)) return 'elite';
+  return 'guard';
+}
+const MOVIE_BOSS_DEFS = CINEMA_MOVIES.map((m, i) => {
+  const maxHp = 2000 + (m.price-20)*50; // the existing 20-40 S.I.P. ticket price doubles as a real difficulty knob
+  return {
+    name: m.title, emoji: Array.from(m.icons)[0] || '🎬', movieIdx: i,
+    maxHp, damage: Math.round(16 + (m.price-20)*0.5),
+    color: parseInt(m.bg.slice(1), 16), shape: movieBossShape(m.genre),
+    sipReward: [Math.round(maxHp*0.15), Math.round(maxHp*0.22)],
+    eliteReward: Math.round(maxHp/60), hitSip:2, hitElite:0,
+  };
+});
+const MOVIE_FIGHT_SPAWN = { x:110000, z:0 }; // own lane, the one free slot between RobotArena(90000)/CountryHotel(100000) and AirportLounge(120000)
+const MOVIE_FIGHT_EXIT  = { x:110000, z:18 };
+const MOVIE_FIGHT_COLS  = [];
+const MOVIE_FIGHT_SIZE  = 20;
+const MOVIE_FIGHT_ATTACK_RANGE = 6, MOVIE_FIGHT_ATTACK_INTERVAL = 1.6;
+let inMovieFight = false;
+let movieBossFight = null; // {def, mesh, hp, maxHp, alive, curX, curZ, attackTimer} — NOT persisted, fresh every visit, no server/co-op involved (a personal instanced fight, same category as the Robot Arena)
+const MOVIE_FIGHT_ZONES = [
+  { x:MOVIE_FIGHT_EXIT.x, z:MOVIE_FIGHT_EXIT.z, r:3, label:'🚪 Leave', action: leaveMovieFight },
+];
+function buildMovieFightRoom() {
+  const ix = MOVIE_FIGHT_SPAWN.x, iz = 0, S = MOVIE_FIGHT_SIZE;
+  box(S*2, 0.3, S*2, 0x1a0a2a, ix, 0.15, iz);   // floor — theater-purple, distinct from the Robot Arena's grey
+  box(S*2, 6, 0.5, 0x2a1a3a, ix, 3, iz-S);      // back wall
+  box(S*2, 6, 0.5, 0x2a1a3a, ix, 3, iz+S);      // front wall
+  box(0.5, 6, S*2, 0x2a1a3a, ix-S, 3, iz);      // left wall
+  box(0.5, 6, S*2, 0x2a1a3a, ix+S, 3, iz);      // right wall
+  box(3, 4, 0.2, 0xff3333, ix, 2, iz+S-0.3);    // exit marker, front wall
+  buildLogoSign('MOVIE FIGHT', '🎬', '#2a1a3a', '#ffcc44', ix, 6.5, iz-S+1.5);
+  buildSign('EXIT', ix, 3.7, iz+S-1.4);
+  addCol(MOVIE_FIGHT_COLS, ix, iz-S, S, 0.6);
+  addCol(MOVIE_FIGHT_COLS, ix, iz+S, S, 0.6);
+  addCol(MOVIE_FIGHT_COLS, ix-S, iz, 0.6, S);
+  addCol(MOVIE_FIGHT_COLS, ix+S, iz, 0.6, S);
+  const pl = new THREE.PointLight(0xffcc44, 1.3, 45); pl.position.set(ix, 8, iz); scene.add(pl);
+}
+function enterMovieFight(movieIdx) {
+  const def = MOVIE_BOSS_DEFS[movieIdx];
+  document.getElementById('cinemaModal').style.display = 'none';
+  inMovieFight = true;
+  playerGroup.position.set(MOVIE_FIGHT_SPAWN.x, 0, MOVIE_FIGHT_SPAWN.z-10);
+  yaw = 0;
+  const mesh = buildRobotMesh(MOVIE_FIGHT_SPAWN.x, MOVIE_FIGHT_SPAWN.z+6, def.color, def.shape);
+  mesh.scale.setScalar(2.2); // huge, but a bit smaller than the outdoor BOSS_DEFS (3.2) — this room is tight
+  buildLogoSign(def.name.toUpperCase(), def.emoji, '#220000', '#ff4444', MOVIE_FIGHT_SPAWN.x, 9, MOVIE_FIGHT_SPAWN.z+2);
+  movieBossFight = { def, mesh, hp:def.maxHp, maxHp:def.maxHp, alive:true,
+    curX:MOVIE_FIGHT_SPAWN.x, curZ:MOVIE_FIGHT_SPAWN.z+6, attackTimer:0 };
+  showNotif(`${def.emoji} ${def.name} wants to fight!`);
+}
+// Shared by the real "Leave" zone AND a knockout mid-fight (knockoutPlayer's default branch) —
+// same "don't leave an orphaned zone/collider/mesh behind" concern item 146/192/209 already
+// fixed elsewhere; here there's only ever one boss and one exit zone, but the same rule applies.
+function cleanupMovieFight() {
+  if (movieBossFight && movieBossFight.mesh) scene.remove(movieBossFight.mesh);
+  movieBossFight = null;
+  inMovieFight = false;
+  document.getElementById('bossHud').style.display = 'none';
+}
+function leaveMovieFight() {
+  cleanupMovieFight();
+  playerGroup.position.set(50, 0, -72+3); // right outside the real Cinema door in the city
+  yaw = Math.PI;
+  showNotif('Leaving the fight...');
+}
+function tickMovieBossFight(dt) {
+  if (!inMovieFight || !movieBossFight || !movieBossFight.alive) return;
+  const mb = movieBossFight;
+  const dx = playerGroup.position.x-mb.curX, dz = playerGroup.position.z-mb.curZ;
+  const dist = Math.hypot(dx,dz);
+  // Always aggro, no detect range — you walked in here specifically to fight it, unlike an
+  // outdoor boss you might stumble on by surprise.
+  if (dist > MOVIE_FIGHT_ATTACK_RANGE) {
+    mb.curX += dx/dist*BOSS_CHASE_SPEED*dt; mb.curZ += dz/dist*BOSS_CHASE_SPEED*dt;
+    mb.mesh.rotation.y = Math.atan2(dx, dz);
+    mb.attackTimer = 0;
+  } else {
+    mb.attackTimer += dt;
+    if (mb.attackTimer >= MOVIE_FIGHT_ATTACK_INTERVAL) {
+      mb.attackTimer = 0;
+      damagePlayer(mb.def.damage, mb.def.name);
+      showNotif(`${mb.def.emoji} ${mb.def.name} attacks!`);
+    }
+  }
+  mb.mesh.position.set(mb.curX, 0, mb.curZ);
+}
+function fightMovieBoss() {
+  if (!movieBossFight || !movieBossFight.alive) return;
+  const mb = movieBossFight;
+  const dmg = getWeaponDamage();
+  mb.hp = Math.max(0, mb.hp - dmg); // no server involved here at all — always a real, immediate 0, same as an offline solo boss fight (item 209's fix)
+  triggerSwing();
+  sfx.clang();
+  mb.attackTimer = 0;
+  if (mb.hp <= 0) { defeatMovieBoss(); return; }
+  showNotif(`⚔️ Hit ${mb.def.name} for ${dmg}! (${mb.hp}/${mb.maxHp} HP left)`);
+}
+function defeatMovieBoss() {
+  const mb = movieBossFight;
+  mb.alive = false;
+  const [lo,hi] = mb.def.sipReward;
+  const reward = lo + Math.floor(Math.random()*(hi-lo+1));
+  sipDollars += reward; updateSIP(); // earning, not spending — same as awardBossDefeat()/defeatRogueRobot(), no spendSip() involved (that's only for purchases, item 207)
+  eliteCoins += mb.def.eliteReward; updateElite();
+  saveCurrentUser();
+  sfx.boom();
+  showNotif(`🏆 ${mb.def.emoji} ${mb.def.name} DEFEATED! +${reward} S.I.P. +${mb.def.eliteReward} 💎`);
+  leaveMovieFight();
+}
+function showMovieBossHud() {
+  if (!movieBossFight) { document.getElementById('bossHud').style.display = 'none'; return; }
+  const mb = movieBossFight;
+  document.getElementById('bossHud').style.display = 'block';
+  document.getElementById('bossHudName').textContent = `${mb.def.emoji} ${mb.def.name}`;
+  document.getElementById('bossHudFill').style.width = Math.max(0, mb.hp/mb.maxHp*100) + '%';
+  document.getElementById('bossHudHp').textContent = `${Math.ceil(Math.max(0,mb.hp))} / ${mb.maxHp} HP`;
 }
 
 // ── 100 spawners scattered across the whole city (The Scrapyard's own 3 above + 97 more here) ──
@@ -11906,10 +12048,12 @@ function isNearCombatTarget() {
   if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade) {
     for(const npc of npcs) { if(Math.hypot(px-npc.group.position.x, pz-npc.group.position.z) < 3.5) return true; }
   }
-  if(!inHouse && !inMall && !inArcade && !inStore) {
+  if(!inHouse && !inMall && !inArcade && !inStore && !inMovieFight) {
     for(const r of rogueRobots) { if(r.alive && Math.hypot(px-r.x, pz-r.z) < 3) return true; }
     for(const k of killers) { if(k.alive && k.revealed && Math.hypot(px-k.x, pz-k.z) < 3) return true; }
+    for(const def of BOSS_DEFS) { const st = bossState[def.name]; if(st && st.alive && Math.hypot(px-st.curX, pz-st.curZ) < 4.5) return true; }
   }
+  if(inMovieFight && movieBossFight && movieBossFight.alive && Math.hypot(px-movieBossFight.curX, pz-movieBossFight.curZ) < 4.5) return true;
   for(const z of CITY_ZONES) { if(z.action === hitDummy && Math.hypot(px-z.x, pz-z.z) < z.r) return true; }
   return false;
 }
@@ -11958,9 +12102,9 @@ function handleInteract() {
   // Arena free-for-all takes priority over open-world 1v1 duels while standing in it
   if(inArena && serverMode === 'online' && tryFfaInteract()) return;
   // PvP duel: swing at your opponent if one's active, else challenge whoever's nearby
-  if(!inArena && !inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && serverMode === 'online' && tryDuelInteract()) return;
+  if(!inArena && !inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && !inMovieFight && serverMode === 'online' && tryDuelInteract()) return;
   // Bad guy with weapon: NPC attack takes priority over zone actions
-  if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade && !inArenaBattle) {
+  if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade && !inArenaBattle && !inMovieFight) {
     let closest = null, closestDist = 3.5;
     for(const npc of npcs) {
       const d = Math.sqrt((px2-npc.group.position.x)**2+(pz-npc.group.position.z)**2);
@@ -11970,7 +12114,13 @@ function handleInteract() {
   }
   // Rogue robots (item 156) roam freely into the city and can be fought back any time, same
   // priority tier as attacking an NPC — they aren't tied to a fixed CITY_ZONES position since they move.
-  if (!inHouse && !inMall && !inArcade && !inStore && !inArenaBattle) {
+  // The Movie Fight Room's single boss is its own dedicated combat target — none of the outdoor
+  // rogue robot/killer/boss systems apply inside this pocket interior.
+  if (inMovieFight && movieBossFight && movieBossFight.alive) {
+    const d = Math.sqrt((px2-movieBossFight.curX)**2+(pz-movieBossFight.curZ)**2);
+    if (d < 4.5) { fightMovieBoss(); return; }
+  }
+  if (!inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && !inMovieFight) {
     let closestRogue = null, closestRogueDist = 3;
     for (const r of rogueRobots) {
       if (!r.alive) continue;
@@ -11986,12 +12136,22 @@ function handleInteract() {
       if (d < closestKillerDist) { closestKillerDist = d; closestKiller = k; }
     }
     if (closestKiller) { fightKiller(closestKiller); return; }
+    // Bosses now chase (see tickBossChase) instead of sitting at a fixed CITY_ZONES spot, so
+    // fighting one has to be a live proximity check off its real curX/curZ, same as the two above.
+    let closestBoss = null, closestBossDist = 4.5;
+    for (const def of BOSS_DEFS) {
+      const st = bossState[def.name];
+      if (!st || !st.alive) continue;
+      const d = Math.sqrt((px2-st.curX)**2+(pz-st.curZ)**2);
+      if (d < closestBossDist) { closestBossDist = d; closestBoss = def; }
+    }
+    if (closestBoss) { fightBoss(closestBoss); return; }
   }
-  const zones = inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : CITY_ZONES;
+  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : CITY_ZONES;
   for(const z of zones) {
     if(Math.sqrt((px2-z.x)**2+(pz-z.z)**2) < z.r) { z.action(); return; }
   }
-  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle) {
+  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle && !inMovieFight) {
     const neighbor = findNearestNeighbor(px2, pz, 3);
     if(neighbor) { openNeighborModal(neighbor.name); return; }
   }
@@ -12006,7 +12166,7 @@ function updatePrompt() {
     const dx=px2-pc.group.position.x, dz=pz-pc.group.position.z;
     if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent=`[E] ${pc.def.emoji} Get in ${pc.def.name}`; el.style.display='block'; return; }
   }
-  const zones = inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : CITY_ZONES;
+  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : CITY_ZONES;
   for(const z of zones) {
     if(Math.sqrt((px2-z.x)**2+(pz-z.z)**2) < z.r) {
       if(z.isComputer) {
@@ -12073,7 +12233,7 @@ function updatePrompt() {
     }
   }
   // Talk to a nearby neighbor — lowest priority, only out in the open city
-  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle) {
+  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle && !inMovieFight) {
     const neighbor = findNearestNeighbor(px2, pz, 3);
     if(neighbor) { el.textContent = `[E] 👋 Talk to ${neighbor.name}`; el.style.display='block'; return; }
   }
@@ -12234,6 +12394,7 @@ function _startGameInner() {
   _dbg('buildScrapyard', buildScrapyard);
   _dbg('buildRobotArenaInterior', buildRobotArenaInterior);
   _dbg('buildBosses', buildBosses);
+  _dbg('buildMovieFightRoom', buildMovieFightRoom);
   _dbg('buildFightArena', buildFightArena);
   _dbg('buildGlobalSpawners', buildGlobalSpawners);
   _dbg('buildDump', buildDump);
@@ -15191,11 +15352,27 @@ const TERRITORY_SYNC_INTERVAL = 5;
 // territories) so co-op damage from different real players' clients actually adds up
 // against one real total. Works solo too — offline (or if the server hit fails) resolves
 // entirely with a local copy instead, so "fight alone" never requires anyone else online. ──
+// User's own ask: "add multiple bosses to fight in different areas and certaint level to fight
+// a boss" — grew from 2 to 6, spread across real named spots already on the map (the Dump, the
+// Canada/Egypt/Space Station War Territories) instead of two isolated coordinates nobody else
+// uses, plus a real `minLevel` gate per boss (checked against the player's existing Robot Level —
+// `eliteLevel`, the only real player-progression level this game already has, see item ~199's
+// "spend Elite Coins to level up" system). A boss still chases and attacks ANYONE regardless of
+// level — the gate only blocks fightBoss() from letting an under-leveled player actually damage
+// it back, so wandering into a high-level boss's area early is genuinely dangerous, not a wall.
 const BOSS_DEFS = [
-  { name:'Mega-Bot', emoji:'🤖', x: SCRAPYARD_CENTER.x, z: SCRAPYARD_CENTER.z+55, maxHp:3000, damage:22,
+  { name:'Mega-Bot', emoji:'🤖', x: SCRAPYARD_CENTER.x, z: SCRAPYARD_CENTER.z+55, maxHp:3000, damage:22, minLevel:0,
     color:0xaa2222, shape:'tank', sipReward:[400,600], eliteReward:50, hitSip:2, hitElite:0 },
-  { name:'Storm Titan', emoji:'⚡', x:-650, z:650, maxHp:2500, damage:18,
+  { name:'Storm Titan', emoji:'⚡', x:-650, z:650, maxHp:2500, damage:18, minLevel:0,
     color:0x3355cc, shape:'elite', sipReward:[350,550], eliteReward:40, hitSip:2, hitElite:0 },
+  { name:'Scrap King', emoji:'🗑️', x: DUMP_CENTER.x+40, z: DUMP_CENTER.z-20, maxHp:2000, damage:16, minLevel:0,
+    color:0x778833, shape:'spider', sipReward:[250,400], eliteReward:30, hitSip:2, hitElite:0 },
+  { name:'Frost Colossus', emoji:'❄️', x:-600, z:440, maxHp:4000, damage:26, minLevel:1,
+    color:0x66ccff, shape:'tank', sipReward:[500,750], eliteReward:60, hitSip:2, hitElite:0 },
+  { name:'Sahara Golem', emoji:'🏜️', x:940, z:340, maxHp:5000, damage:30, minLevel:2,
+    color:0xd2a679, shape:'guard', sipReward:[650,900], eliteReward:75, hitSip:3, hitElite:0 },
+  { name:'Void Serpent', emoji:'🌌', x:40, z:1240, maxHp:6000, damage:36, minLevel:3,
+    color:0x440088, shape:'drone', sipReward:[800,1200], eliteReward:100, hitSip:3, hitElite:1 },
 ];
 let bossState  = {}; // name -> {hp, maxHp, alive, level, defeats} — local mirror, synced from the server when online
 let bossMeshes = {}; // name -> {mesh, col}
@@ -15203,7 +15380,7 @@ let currentNearBoss = null;
 let _lastBossSync = -999;
 const BOSS_SYNC_INTERVAL = 5;
 function initBossState() {
-  BOSS_DEFS.forEach(def => { if (!bossState[def.name]) bossState[def.name] = { hp: def.maxHp, maxHp: def.maxHp, alive: true, level: 0, defeats: 0, attackTimer: 0 }; });
+  BOSS_DEFS.forEach(def => { if (!bossState[def.name]) bossState[def.name] = { hp: def.maxHp, maxHp: def.maxHp, alive: true, level: 0, defeats: 0, attackTimer: 0, curX: def.x, curZ: def.z, aggro: false }; });
 }
 // A leveled-up boss hits harder too, same +20%-per-level formula as its HP — but capped at 3x
 // base (level 10+), or a level 50 boss would deal ~200 damage a swing and one-shot-kill anyone
@@ -15211,39 +15388,73 @@ function initBossState() {
 // long fight), damage dealt is deliberately a different, capped curve so it stays survivable
 // no matter how high the level climbs.
 function bossHitDamage(def, st) { return Math.round(def.damage * Math.min(3, 1 + (st.level||0)*0.2)); }
-// A boss used to only ever hit back as a counter-attack inside fightBoss() — completely passive
-// otherwise, so standing next to one without swinging was totally safe. Now it swings on its own
-// timer whenever a real player is in melee range, same "distance check + attackTimer" shape
-// tickRogueRobots() already uses for its own passive attacks — purely local damage, so this
-// applies identically online or offline, no server round-trip needed. The old counter-hit-only
-// code in fightBoss() has been removed — this is now the ONLY way a boss deals damage.
-const BOSS_ATTACK_RANGE = 6, BOSS_ATTACK_INTERVAL = 1.8;
-function tickBossAttacks(dt) {
-  if (!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle) {
+// User's own ask: "the boss needs to do more than just stand and attack it needs to chase you
+// until you die quit or win." A boss used to be a fixed statue that only ever hit back as a
+// counter-attack (and later, once it got its own timer, still never actually MOVED from its
+// spawn spot). Now it has a real live position (bossState[name].curX/curZ, separate from its
+// fixed BOSS_DEFS home spot) and genuinely gives chase — same "close the real distance" style
+// tickRogueRobots() uses, just gated by three real end conditions instead of running forever:
+// WIN (you defeat it — alive flips false, handled in fightBoss/syncBosses), DIE (knockoutPlayer's
+// default branch below calls resetAllBossAggro(), snapping every boss back home), and QUIT (get
+// far enough away — BOSS_DEAGGRO_RANGE — and it gives up and walks back to its post itself).
+const BOSS_DETECT_RANGE = 20, BOSS_DEAGGRO_RANGE = 55, BOSS_ATTACK_RANGE = 6, BOSS_ATTACK_INTERVAL = 1.8;
+const BOSS_CHASE_SPEED = 9.5; // faster than the player's 8 walk speed, slower than 14.8 run — outrunnable, not out-walkable
+function tickBossChase(dt) {
+  if (!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight) {
     BOSS_DEFS.forEach(def => {
       const st = bossState[def.name];
       if (!st || !st.alive) return;
-      const dist = Math.hypot(playerGroup.position.x-def.x, playerGroup.position.z-def.z);
-      if (dist > BOSS_ATTACK_RANGE) { st.attackTimer = 0; return; }
-      st.attackTimer += dt;
-      if (st.attackTimer >= BOSS_ATTACK_INTERVAL) {
-        st.attackTimer = 0;
-        damagePlayer(bossHitDamage(def, st), def.name);
-        showNotif(`${def.emoji} ${def.name} attacks!`);
+      const bm = bossMeshes[def.name]; if (!bm) return;
+      const dx = playerGroup.position.x-st.curX, dz = playerGroup.position.z-st.curZ;
+      const dist = Math.hypot(dx,dz);
+      if (!st.aggro && dist <= BOSS_DETECT_RANGE) st.aggro = true;
+      if (st.aggro && dist > BOSS_DEAGGRO_RANGE) { st.aggro = false; showNotif(`${def.emoji} ${def.name} gives up the chase!`); }
+      if (st.aggro) {
+        if (dist > BOSS_ATTACK_RANGE) {
+          st.attackTimer = 0;
+          st.curX += dx/dist*BOSS_CHASE_SPEED*dt; st.curZ += dz/dist*BOSS_CHASE_SPEED*dt;
+          bm.mesh.rotation.y = Math.atan2(dx, dz);
+        } else {
+          st.attackTimer += dt;
+          if (st.attackTimer >= BOSS_ATTACK_INTERVAL) {
+            st.attackTimer = 0;
+            damagePlayer(bossHitDamage(def, st), def.name);
+            showNotif(`${def.emoji} ${def.name} attacks!`);
+          }
+        }
+      } else {
+        // Given up (or never aggroed) — walk itself back to its own home spot instead of
+        // freezing wherever it happens to be, same as a real guard returning to its post.
+        const hx = def.x-st.curX, hz = def.z-st.curZ, hd = Math.hypot(hx,hz);
+        if (hd > 0.5) { st.curX += hx/hd*BOSS_CHASE_SPEED*dt; st.curZ += hz/hd*BOSS_CHASE_SPEED*dt; bm.mesh.rotation.y = Math.atan2(hx, hz); }
       }
+      bm.mesh.position.set(st.curX, 0, st.curZ);
+      if (bm.light) bm.light.position.set(st.curX, 8, st.curZ);
     });
   }
+}
+// Called on a real player knockout (see knockoutPlayer's default branch) — the chase is truly
+// over, so every currently-chasing boss snaps back to its post rather than resuming the hunt
+// the instant the player wakes up somewhere across the map.
+function resetAllBossAggro() {
+  BOSS_DEFS.forEach(def => {
+    const st = bossState[def.name]; if (!st) return;
+    st.aggro = false; st.attackTimer = 0; st.curX = def.x; st.curZ = def.z;
+    const bm = bossMeshes[def.name];
+    if (bm) { bm.mesh.position.set(def.x, 0, def.z); if (bm.light) bm.light.position.set(def.x, 8, def.z); }
+  });
 }
 function buildBosses() {
   initBossState();
   BOSS_DEFS.forEach(def => {
     const mesh = buildRobotMesh(def.x, def.z, def.color, def.shape);
     mesh.scale.setScalar(3.2); // genuinely huge — that's the whole point of a boss
-    const col = addCol(CITY_COLS, def.x, def.z, 2.2, 2.2);
+    // No collision wall anymore — a boss that moves can't be a static addCol() collider (it'd
+    // leave a ghost wall behind at the spawn spot the moment it starts chasing). Same
+    // walk-through-able convention rogue robots and Killers already use.
     buildLogoSign(def.name.toUpperCase(), def.emoji, '#220000', '#ff4444', def.x, 9, def.z-4.5);
-    const pl = new THREE.PointLight(def.color, 2, 60); pl.position.set(def.x, 8, def.z); scene.add(pl);
-    bossMeshes[def.name] = { mesh, col };
-    CITY_ZONES.push({ x:def.x, z:def.z+4.5, r:4.5, label:`${def.emoji} Fight ${def.name}`, action: () => fightBoss(def) });
+    const light = new THREE.PointLight(def.color, 2, 60); light.position.set(def.x, 8, def.z); scene.add(light);
+    bossMeshes[def.name] = { mesh, light };
   });
 }
 async function syncBosses() {
@@ -15260,10 +15471,14 @@ async function syncBosses() {
       st.hp = srv.hp; st.maxHp = srv.maxHp; st.alive = srv.alive;
       if (srv.level !== undefined) st.level = srv.level;
       if (srv.defeats !== undefined) st.defeats = srv.defeats;
+      const bm = bossMeshes[def.name];
       if (!wasAlive && st.alive) {
         showNotif(st.level > wasLevel ? `${def.emoji} ${def.name} has returned — now Level ${st.level}!` : `${def.emoji} ${def.name} has returned!`);
+        // Back at its own post on respawn, not stuck wherever the chase last left it.
+        st.aggro = false; st.curX = def.x; st.curZ = def.z;
+        if (bm) { bm.mesh.position.set(def.x, 0, def.z); if (bm.light) bm.light.position.set(def.x, 8, def.z); }
       }
-      const bm = bossMeshes[def.name]; if (bm) bm.mesh.visible = st.alive;
+      if (bm) bm.mesh.visible = st.alive;
       if (currentNearBoss === def) showBossHud(def);
     });
   } catch(e) { /* next sync will catch up */ }
@@ -15271,14 +15486,22 @@ async function syncBosses() {
 function showBossHud(def) {
   const st = bossState[def.name];
   document.getElementById('bossHud').style.display = 'block';
-  document.getElementById('bossHudName').textContent = `${def.emoji} ${def.name}${st.level > 0 ? ` — Lv.${st.level}` : ''}`;
+  const locked = def.minLevel > 0 && eliteLevel < def.minLevel;
+  document.getElementById('bossHudName').textContent = `${def.emoji} ${def.name}${st.level > 0 ? ` — Lv.${st.level}` : ''}${locked ? ` 🔒 Requires Robot Lv.${def.minLevel}` : ''}`;
   document.getElementById('bossHudFill').style.width = Math.max(0, st.hp/st.maxHp*100) + '%';
   document.getElementById('bossHudHp').textContent = st.alive ? `${Math.ceil(Math.max(0,st.hp))} / ${st.maxHp} HP` : 'Down — respawning...';
 }
 function tickBossHud() {
+  // The Movie Fight Room shares this same HUD panel (only one of the two fights can ever be
+  // active at once) — delegate entirely while inside it so the outdoor loop below doesn't
+  // fight over the same DOM elements and force-hide it every frame.
+  if (inMovieFight) { showMovieBossHud(); return; }
+  // Measured off each boss's real LIVE position now, not its fixed home spot — once one's
+  // chasing you it could be nowhere near where it started.
   let nearest = null, nearestDist = 30;
   BOSS_DEFS.forEach(def => {
-    const d = Math.hypot(playerGroup.position.x-def.x, playerGroup.position.z-def.z);
+    const st = bossState[def.name]; if (!st) return;
+    const d = Math.hypot(playerGroup.position.x-st.curX, playerGroup.position.z-st.curZ);
     if (d < nearestDist) { nearestDist = d; nearest = def; }
   });
   currentNearBoss = nearest;
@@ -15288,13 +15511,23 @@ function tickBossHud() {
 async function fightBoss(def) {
   const st = bossState[def.name];
   if (!st.alive) { showNotif(`${def.emoji} ${def.name} is down — back in a bit...`); return; }
+  // The level gate only blocks YOU from hurting it back — tickBossChase() still chases/attacks
+  // an under-leveled player exactly the same as anyone else, on purpose (see BOSS_DEFS comment).
+  if (def.minLevel > 0 && eliteLevel < def.minLevel) {
+    showNotif(`🔒 ${def.name} is too strong — reach Robot Level ${def.minLevel} first! (you're Lv.${eliteLevel})`);
+    return;
+  }
   const dmg = getWeaponDamage();
   triggerSwing();
   sfx.clang();
-  // Instant feedback floors at 1, never 0 — the server is the only thing allowed to declare a
-  // real kill (via justDefeated below). If a run of requests fails to round-trip (e.g. a tunnel
-  // hiccup), this guess can no longer drift down to a fake "0/HP defeated" the server never saw.
-  st.hp = Math.max(1, st.hp - dmg);
+  // Real pre-existing bug found while verifying the new chase feature: this floor used to be
+  // Math.max(1, ...) UNCONDITIONALLY, even in offline mode — which meant an offline solo boss
+  // fight could NEVER actually reach 0 HP, so the boss could never be won against without a
+  // server. The floor-at-1 (never letting the optimistic local guess claim a kill the server
+  // hasn't confirmed yet) only makes sense ONLINE, where the server is what's allowed to declare
+  // a real kill (via justDefeated below) and a dropped request could otherwise drift the guess to
+  // a fake "0/HP defeated." Offline has no server to wait for, so it can just floor at the real 0.
+  st.hp = Math.max(serverMode === 'online' ? 1 : 0, st.hp - dmg);
   showBossHud(def);
   showNotif(`${def.emoji} Hit ${def.name} for ${dmg}!`);
   sipDollars += def.hitSip; if (def.hitElite) eliteCoins += def.hitElite;
@@ -15303,6 +15536,7 @@ async function fightBoss(def) {
   // timer whenever they're in range, attacking or not. A guaranteed extra hit every time you
   // landed a hit too would just be double damage on top of that.
   st.attackTimer = 0; // landing your own hit resets its swing timer, same as a real fight would
+  st.aggro = true; // attacking it guarantees the chase starts, even if you somehow reached it from outside BOSS_DETECT_RANGE
   if (serverMode !== 'online') {
     // Offline solo fight — no server to share this with, resolve entirely locally.
     if (st.hp <= 0) {
@@ -15315,7 +15549,10 @@ async function fightBoss(def) {
       // by definition has no one else to share it with.
       setTimeout(() => {
         st.alive = true; st.hp = st.maxHp;
-        if (bm) bm.mesh.visible = true;
+        // Respawns back at its own post, not wherever the chase happened to end — same reset
+        // resetAllBossAggro() does on a player knockout.
+        st.aggro = false; st.curX = def.x; st.curZ = def.z;
+        if (bm) { bm.mesh.visible = true; bm.mesh.position.set(def.x, 0, def.z); if (bm.light) bm.light.position.set(def.x, 8, def.z); }
         if (currentNearBoss === def) showBossHud(def);
       }, 600000);
     }
@@ -16778,7 +17015,8 @@ function animate(){
   tickWar(t);
   if(serverMode === 'online' && t - _lastBossSync > BOSS_SYNC_INTERVAL) { _lastBossSync = t; syncBosses(); }
   tickBossHud();
-  tickBossAttacks(dt);
+  tickBossChase(dt);
+  tickMovieBossFight(dt);
 
   // Movement with collision
   let moving=false;
@@ -16806,7 +17044,7 @@ function animate(){
       // out from downtown, so none of them can be subject to the outdoor city's boundary — before
       // this only excluded inHouse/inMall, which silently worked only because Hotel/Store/FriendHouse/
       // Prison used to sit at 750-1200, still inside the old +-1950 clamp by coincidence.
-      if(!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inArenaBattle){
+      if(!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inArenaBattle && !inMovieFight){
         playerGroup.position.x=Math.max(-1950,Math.min(1950,playerGroup.position.x));
         playerGroup.position.z=Math.max(-1950,Math.min(1950,playerGroup.position.z));
         const _px=playerGroup.position.x, _pz=playerGroup.position.z;
@@ -17186,7 +17424,7 @@ function closeSAI() {
 
 function saiSwitchTab(tab) {
   saiCurrentTab = tab;
-  ['chat','map','tips'].forEach(t => {
+  ['chat','map','bosses','tips'].forEach(t => {
     const btn  = document.getElementById('saiTab' + t[0].toUpperCase() + t.slice(1));
     const view = document.getElementById('sai' + t[0].toUpperCase() + t.slice(1) + 'View');
     const active = t === tab;
@@ -17195,8 +17433,37 @@ function saiSwitchTab(tab) {
     btn.style.color        = active ? '#00ff88'   : '#888';
     view.style.display     = active ? 'block'     : 'none';
   });
-  if(tab === 'map')  drawSAIMap();
-  if(tab === 'tips') showSaiTip();
+  if(tab === 'map')    drawSAIMap();
+  if(tab === 'bosses') renderSaiBossesView();
+  if(tab === 'tips')   showSaiTip();
+}
+// Most bosses live FAR outside the SAI map's zoomed-in city view (some are 600-1200+ units out —
+// literally off the 234x220 canvas at its SC=0.7 scale), so they were never actually clickable
+// there. This gives them their own list, with real live distance and a Navigate button that
+// calls the exact same saiNavigateTo() the map uses — works at any distance since the compass
+// beacon is just angle/distance math, not tied to the map canvas at all.
+function renderSaiBossesView() {
+  const box = document.getElementById('saiBossesList'); if(!box) return;
+  box.innerHTML = '';
+  const px = playerGroup ? playerGroup.position.x : 0, pz = playerGroup ? playerGroup.position.z : 0;
+  BOSS_DEFS.forEach(def => {
+    const st = bossState[def.name];
+    const alive = !st || st.alive;
+    const dist = Math.round(Math.hypot(px - def.x, pz - def.z));
+    const locked = def.minLevel > 0 && eliteLevel < def.minLevel;
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:6px;background:rgba(0,255,136,0.05);border:1px solid #00ff8833;border-radius:8px;padding:6px 8px;margin-bottom:6px;';
+    row.innerHTML = `
+      <div style="font-size:18px;">${def.emoji}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="color:${alive ? '#fff' : '#666'};font-size:11px;font-weight:bold;">${def.name}${locked ? ' 🔒' : ''}</div>
+        <div style="color:#00ff8877;font-size:9px;">${alive ? dist + 'm away' : 'Defeated — respawning'}${locked ? ` · needs Lv.${def.minLevel}` : ''}</div>
+      </div>
+      <button style="padding:5px 8px;background:#004422;border:1px solid #00ff88;border-radius:6px;color:#00ff88;font-size:10px;cursor:pointer;white-space:nowrap;">🧭 Go</button>
+    `;
+    row.querySelector('button').onclick = () => saiNavigateTo(def.x, def.z, def.emoji + ' ' + def.name);
+    box.appendChild(row);
+  });
 }
 
 const SAI_KB = [
@@ -17226,6 +17493,7 @@ const SAI_KB = [
   { keys:['cinema','movie','film','theater','watch'], reply:'🎬 The Movie Theater is south-east at x=50, z=-85. Walk in to pick from 14 movies — buy a ticket, grab snacks, and watch! Ticket prices: 20–40 SIP depending on the film.' },
   { keys:['fast travel','teleport','warp','shortcut'], reply:'🚇 Use S.I.T.S. at the Transit Hub (center of city, x=0, z=-40) to fast-travel anywhere! Pick a line, click your stop, and you\'re there in seconds.' },
   { keys:['airport','fly','flight','plane','airline','ticket'], reply:'✈️ The City Airport is southwest at x=-200, z=-200. Walk up and press E to enter! Buy a ticket (45–80 SIP) and fly to 5 destinations: Palm Beach 🌴, Mountain View 🏔️, Harbor Bay 🌊, Sky Tower District 🏙️, or Desert Sands 🏜️. Enjoy the window view!' },
+  { keys:['boss','bosses','mega-bot','storm titan','scrap king','frost colossus','sahara golem','void serpent'], reply:'⚔️ 6 bosses guard the far edges of the map — some are hundreds of units out, way past the city! Switch to the new Bosses tab (next to Map) to see each one\'s live distance and hit 🧭 Go to drop a compass beacon straight to it, no matter how far away.' },
 ];
 
 function saiAsk() {

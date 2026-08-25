@@ -852,9 +852,10 @@
     <p style="color:#555;font-size:9px;text-align:center;margin-bottom:10px;letter-spacing:1px;">SUPER ARTIFICIAL INTELLIGENCE</p>
     <!-- Sub-tabs -->
     <div style="display:flex;gap:4px;margin-bottom:10px;">
-      <button id="saiTabChat" onclick="saiSwitchTab('chat')" style="flex:1;padding:5px;background:#00ff8833;border:1px solid #00ff88;border-radius:6px;color:#00ff88;font-size:10px;cursor:pointer;font-weight:bold;">💬 Chat</button>
-      <button id="saiTabMap"  onclick="saiSwitchTab('map')"  style="flex:1;padding:5px;background:none;border:1px solid #444;border-radius:6px;color:#888;font-size:10px;cursor:pointer;">🗺️ Map</button>
-      <button id="saiTabTips" onclick="saiSwitchTab('tips')" style="flex:1;padding:5px;background:none;border:1px solid #444;border-radius:6px;color:#888;font-size:10px;cursor:pointer;">💡 Tips</button>
+      <button id="saiTabChat"   onclick="saiSwitchTab('chat')"   style="flex:1;padding:5px;background:#00ff8833;border:1px solid #00ff88;border-radius:6px;color:#00ff88;font-size:10px;cursor:pointer;font-weight:bold;">💬 Chat</button>
+      <button id="saiTabMap"    onclick="saiSwitchTab('map')"    style="flex:1;padding:5px;background:none;border:1px solid #444;border-radius:6px;color:#888;font-size:10px;cursor:pointer;">🗺️ Map</button>
+      <button id="saiTabBosses" onclick="saiSwitchTab('bosses')" style="flex:1;padding:5px;background:none;border:1px solid #444;border-radius:6px;color:#888;font-size:10px;cursor:pointer;">⚔️ Bosses</button>
+      <button id="saiTabTips"   onclick="saiSwitchTab('tips')"   style="flex:1;padding:5px;background:none;border:1px solid #444;border-radius:6px;color:#888;font-size:10px;cursor:pointer;">💡 Tips</button>
     </div>
     <!-- CHAT VIEW -->
     <div id="saiChatView">
@@ -871,6 +872,11 @@
       <canvas id="saiMapCanvas" width="234" height="220" style="border:1px solid #00ff8844;border-radius:8px;cursor:crosshair;display:block;" onclick="saiMapClick(event)"></canvas>
       <p style="color:#00ff8877;font-size:9px;text-align:center;margin-top:4px;">Click a location to navigate</p>
       <div id="saiNavLabel" style="color:#00ffff;font-size:10px;text-align:center;min-height:14px;font-weight:bold;"></div>
+    </div>
+    <!-- BOSSES VIEW -->
+    <div id="saiBossesView" style="display:none;">
+      <p style="color:#00ff8877;font-size:9px;text-align:center;margin-bottom:8px;">Tap 🧭 Go for a compass beacon straight to any boss, no matter the distance</p>
+      <div id="saiBossesList" style="max-height:230px;overflow-y:auto;padding-right:2px;"></div>
     </div>
     <!-- TIPS VIEW -->
     <div id="saiTipsView" style="display:none;">
