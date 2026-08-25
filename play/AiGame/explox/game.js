@@ -851,6 +851,10 @@ async function doLogin(name) {
   myStocks = d.myStocks && typeof d.myStocks === 'object' ? d.myStocks : {};
   ffaKills = d.ffaKills !== undefined ? d.ffaKills : 0;
   eliteLevel = d.eliteLevel !== undefined ? d.eliteLevel : 0;
+  // Recomputed here (not left at the module-load default of 100) so a login always starts fresh
+  // at the CORRECT full health for this account's real Robot Level, not last account's or nobody's.
+  playerMaxHealth = computePlayerMaxHealth();
+  playerHealth = playerMaxHealth;
   activeQuests = Array.isArray(d.activeQuests) ? d.activeQuests : [];
   lifetimeRobotKills = d.lifetimeRobotKills !== undefined ? d.lifetimeRobotKills : 0;
   lifetimeRogueKills = d.lifetimeRogueKills !== undefined ? d.lifetimeRogueKills : 0;
@@ -1457,7 +1461,7 @@ let sipDollars      = 0;
 let woodCount       = 0;
 let scrapMetal      = 0;
 let playerHealth    = 100;
-const playerMaxHealth = 100;
+let playerMaxHealth = 100; // was a const 100 forever — now grows with Robot Level, see computePlayerMaxHealth()
 let bankBalance     = 0;
 let eliteCoins      = 0;
 
@@ -1480,13 +1484,27 @@ function eliteThresholdForLevel(level) { // cost in Elite Coins to go from level
 }
 function robotPowerMult() { return 1 + eliteLevel * 0.35; } // HP/damage/reward scale
 function robotSizeMult()  { return 1 + eliteLevel * 0.15; } // visual scale — noticeable, not absurd
+// User's own ask: "when you level up you also level up" — Robot Level used to be a pure enemy-side
+// scale (robots get tougher and worth more, item 199-ish) with nothing for the player themselves.
+// Now leveling up genuinely makes YOU stronger too: +15 real Max HP per level, plus a real damage
+// multiplier folded into applyDamageBuffs() below (the one shared choke point every outgoing hit
+// already passes through), so it applies to every weapon swing automatically, not just a new stat
+// nobody's damage math actually reads.
+function computePlayerMaxHealth() { return 100 + eliteLevel * 15; }
+function playerLevelDamageMult()  { return 1 + eliteLevel * 0.08; }
 function levelUpElite() {
   const cost = eliteThresholdForLevel(eliteLevel + 1);
   if (eliteCoins < cost) { showNotif(`❌ Need ${cost.toLocaleString()} 💎 to reach Level ${eliteLevel + 1} (you have ${Math.floor(eliteCoins)})`); return; }
   eliteCoins -= cost;
   eliteLevel++;
   updateElite();
-  showNotif(`🆙 Robot Level ${eliteLevel}! Robots are bigger and stronger now — but worth more too.`);
+  // The level-up itself doubles as a real heal (added to current HP, not a full refill you have
+  // to earn back) rather than just quietly raising a cap you won't notice until you're hurt.
+  const oldMax = playerMaxHealth;
+  playerMaxHealth = computePlayerMaxHealth();
+  playerHealth += playerMaxHealth - oldMax;
+  updateHealthBar();
+  showNotif(`🆙 Robot Level ${eliteLevel}! Robots are bigger and stronger now — but worth more too. You're stronger too: +${playerMaxHealth-oldMax} Max HP, +${Math.round((playerLevelDamageMult()-1)*100)}% damage!`);
   sfx.buy();
   saveCurrentUser();
   renderQuestsPanel();
@@ -2262,6 +2280,7 @@ const BLACK_MARKET_ITEMS = [
 ];
 
 function toggleJob(type, pay, taskText) {
+  if(activeJob !== type && activeBankJob) { showNotif('❌ Already working a Bank job — quit that one first!'); return; }
   if(activeJob === type) {
     if(jobTaskActive) { completeJobTask(); return; } // E during an active task completes it, doesn't quit
     quitJob('Stopped working.');
@@ -2271,6 +2290,69 @@ function toggleJob(type, pay, taskText) {
     jobNextTaskIn = 2 + Math.random()*3; // first task arrives soon after clocking in
     showNotif(`Started working as ${type}! Stay nearby — you'll need to help out when asked.`);
   }
+}
+// ─── BANK JOBS — long, low-attention shifts with a real currency choice, unlike the reaction-task
+// jobs above (Shopkeeper/Officer). User's own ask: "you can work at the bank as [Money Printer,
+// Guard, Money Counter]" with specific S.I.P.-or-diamonds numbers per shift length. Money Printer
+// pays out every real minute for a 5-minute shift; Guard and Money Counter are a single lump sum
+// at the end of a longer/shorter shift. Mutually exclusive with the regular job system above (and
+// vice versa) since both would otherwise fight over the same #jobHud element.
+const BANK_JOBS = [
+  { id:'printer', label:'Money Printer', durationSec:300,  repeatSec:60, sipPay:1000,  elitePay:500  },
+  { id:'guard',   label:'Guard',         durationSec:1200, repeatSec:0,  sipPay:5000,  elitePay:2500 },
+  { id:'counter', label:'Money Counter', durationSec:300,  repeatSec:0,  sipPay:10000, elitePay:5000 },
+];
+let activeBankJob = null; // {job, currency:'sip'|'elite', elapsed, sinceLastPay} — NOT persisted, same as the regular job system
+function toggleBankJob(jobId, currency) {
+  if(activeJob) { showNotif('❌ Already working a regular job — quit that one first!'); return; }
+  if(activeBankJob && activeBankJob.job.id === jobId && activeBankJob.currency === currency) {
+    quitBankJob('Stopped working.');
+    return;
+  }
+  if(activeBankJob) { showNotif(`❌ Already working as ${activeBankJob.job.label} — quit that shift first!`); return; }
+  const job = BANK_JOBS.find(j => j.id === jobId);
+  activeBankJob = { job, currency, elapsed:0, sinceLastPay:0 };
+  const payTxt = currency === 'sip' ? `${job.sipPay.toLocaleString()} S.I.P.` : `${job.elitePay.toLocaleString()} 💎`;
+  showNotif(`💼 Clocked in as ${job.label}! ${job.repeatSec ? `${payTxt}/min` : payTxt} — stay for ${Math.round(job.durationSec/60)} min.`);
+}
+function quitBankJob(msg) {
+  activeBankJob = null;
+  document.getElementById('jobHud').textContent = '💼 No Job';
+  document.getElementById('jobHud').style.color = '#fff';
+  showNotif(msg);
+}
+function payBankJob(job, currency) {
+  if(currency === 'sip') { sipDollars += job.sipPay; updateSIP(); } else { eliteCoins += job.elitePay; updateElite(); }
+  saveCurrentUser();
+  sfx.earn();
+  showNotif(`💰 +${currency==='sip' ? job.sipPay.toLocaleString()+' S.I.P.' : job.elitePay.toLocaleString()+' 💎'} from ${job.label}!`);
+}
+function tickBankJob(dt) {
+  if(!activeBankJob) return;
+  const bj = activeBankJob;
+  // Same "wander off, lose the shift" rule the regular jobs already use — no free pay for leaving.
+  const zone = CITY_ZONES.find(z => z.bankJobId === bj.job.id && z.currency === bj.currency);
+  if(zone) {
+    const d = Math.hypot(playerGroup.position.x - zone.x, playerGroup.position.z - zone.z);
+    if(d > zone.r) { quitBankJob(`You wandered off — ${bj.job.label} shift ended early!`); return; }
+  }
+  bj.elapsed += dt; bj.sinceLastPay += dt;
+  if(bj.job.repeatSec > 0 && bj.sinceLastPay >= bj.job.repeatSec && bj.elapsed < bj.job.durationSec) {
+    bj.sinceLastPay = 0;
+    payBankJob(bj.job, bj.currency);
+  }
+  if(bj.elapsed >= bj.job.durationSec) {
+    if(bj.job.repeatSec === 0) payBankJob(bj.job, bj.currency); // one lump sum at the very end
+    showNotif(`🏁 ${bj.job.label} shift complete!`);
+    activeBankJob = null;
+    document.getElementById('jobHud').textContent = '💼 No Job';
+    document.getElementById('jobHud').style.color = '#fff';
+    return;
+  }
+  const remaining = Math.max(0, bj.job.durationSec - bj.elapsed);
+  const mm = Math.floor(remaining/60), ss = Math.floor(remaining%60);
+  document.getElementById('jobHud').textContent = `💼 ${bj.job.label} — ${mm}:${ss.toString().padStart(2,'0')} left`;
+  document.getElementById('jobHud').style.color = '#FFD700';
 }
 function quitJob(msg) {
   activeJob = null; activeJobPay = 0; activeJobTaskText = '';
@@ -5922,6 +6004,7 @@ function baseWeaponDamage() { return WEAPON_DAMAGE[playerWeapon] !== undefined ?
 // apply everywhere real damage is dealt, not just to one target type.
 function applyDamageBuffs(base) {
   let dmg = base;
+  dmg *= playerLevelDamageMult();
   if(activeAddOns.includes('berserker')) dmg *= 1.5;
   if(warCryEndTime) { if(clock.getElapsedTime() < warCryEndTime) dmg *= 2; else warCryEndTime = 0; }
   if(activeAddOns.includes('luckycrits') && Math.random() < 0.2) dmg *= 2;
@@ -5992,6 +6075,14 @@ function knockoutPlayer() {
   updateHealthBar();
   resetAllBossAggro(); // the "die" end condition for a boss chase — it doesn't just resume hunting you the instant you wake up across the map
   if (inMovieFight) cleanupMovieFight(); // same "no orphaned interior state after a teleport-home" concern — the room/boss don't stay half-active behind you
+  // Real bug found live while testing the Robot Arena's new active-attacking robots: the Arena
+  // never had knockout handling at all, so dying there used to leave inArenaBattle/arenaRunning
+  // stuck TRUE while the player got teleported home — walking around downtown while every
+  // COLS/ZONES lookup silently kept resolving to the Robot Arena's own walls/zones instead of the
+  // city's. Barely reachable before (robots only ever hit back as a counter to your own swing);
+  // now that they attack on their own, getting surrounded and knocked out is a real, easy way to
+  // die in there, so this can no longer stay a dormant edge case.
+  if (inArenaBattle) { clearArenaRobots(); inArenaBattle = false; arenaConfiguring = false; arenaRunning = false; closeArenaConfig(); document.getElementById('arenaHud').style.display = 'none'; }
 }
 
 // ─── FIGHT ARENA — a dedicated place to duel; the duel mechanic itself works
@@ -11509,6 +11600,13 @@ function spawnArenaWave() {
   const toSpawn = Math.max(0, Math.min(ARENA_MAX_ACTIVE - arenaActiveRobots.length, remaining));
   for (let i=0; i<toSpawn; i++) spawnOneArenaRobot();
 }
+// Arena robots used to be completely stationary (spawn point fixed forever, only ever moved by a
+// knockback) and totally passive (the ONLY damage they ever dealt was a guaranteed counter-hit
+// inside fightArenaRobot, i.e. exactly the "only attacks when you attack" bug already fixed for
+// bosses in item 209). User's own ask: "make the robots move ... the robots need to attack."
+// tickArenaRobots() below gives them the same real chase-then-attack behavior every other
+// enemy in this game already has.
+const ARENA_ROBOT_ATTACK_RANGE = 2.8, ARENA_ROBOT_ATTACK_INTERVAL = 1.5;
 function spawnOneArenaRobot() {
   const type = pickRobotType();
   const angle = Math.random()*Math.PI*2, dist = 6+Math.random()*(ARENA_SIZE-8);
@@ -11517,11 +11615,14 @@ function spawnOneArenaRobot() {
   const mult = robotPowerMult();
   mesh.scale.setScalar(robotSizeMult());
   const hp = Math.round(type.hp * mult);
-  const col = addCol(ROBOT_ARENA_COLS, x, z, 0.6, 0.6);
+  // No collider anymore — now that it moves, a fixed addCol() here would leave a ghost wall
+  // behind at the spawn spot the moment it starts chasing (the exact bug already fixed for
+  // bosses in item 209). Same walk-through-able convention every other mobile enemy uses.
   // Per-kill reward is deliberately smaller than the same robot out in the city (0.6x) — the
   // real payout here is the completion bonus in finishArenaBattle(), scaled by how many
   // robots were chosen, so picking a bigger fight is worth meaningfully more, not just longer.
-  const robot = { id:'arena'+ROBOT_ID_SEQ++, x, z, hp, maxHp:hp, type, mesh, alive:true, zone:null, col,
+  const robot = { id:'arena'+ROBOT_ID_SEQ++, x, z, hp, maxHp:hp, type, mesh, alive:true, zone:null, col:null,
+    speed:2.5+Math.random()*1.5, attackTimer:0,
     powerMult:mult, rewardRange:[Math.round(type.reward[0]*mult*0.6), Math.round(type.reward[1]*mult*0.6)],
     eliteReward: Math.round((ELITE_COIN_REWARD[type.id]||0)*mult*0.6) };
   const zone = { x, z, r:2.8, label:`🤖 Fight ${type.name}`, action: () => fightArenaRobot(robot) };
@@ -11529,18 +11630,43 @@ function spawnOneArenaRobot() {
   ROBOT_ARENA_ZONES.push(zone);
   arenaActiveRobots.push(robot);
 }
+function tickArenaRobots(dt) {
+  if (!inArenaBattle || !arenaRunning) return;
+  arenaActiveRobots.forEach(robot => {
+    if (!robot.alive) return;
+    const dx = playerGroup.position.x-robot.x, dz = playerGroup.position.z-robot.z;
+    const dist = Math.hypot(dx,dz);
+    if (dist > ARENA_ROBOT_ATTACK_RANGE) {
+      robot.attackTimer = 0;
+      robot.x += dx/dist*robot.speed*dt; robot.z += dz/dist*robot.speed*dt;
+      robot.mesh.position.set(robot.x, 0, robot.z);
+      robot.mesh.rotation.y = Math.atan2(dx, dz);
+      robot.zone.x = robot.x; robot.zone.z = robot.z; // the E-press fight zone has to follow it too
+    } else {
+      robot.attackTimer += dt;
+      if (robot.attackTimer >= ARENA_ROBOT_ATTACK_INTERVAL) {
+        robot.attackTimer = 0;
+        const dmg = Math.round((6 + Math.random()*8) * robot.powerMult);
+        damagePlayer(dmg, robot.type.name + ' (Arena)');
+        showNotif(`⚔️ ${robot.type.name} attacks!`);
+      }
+    }
+  });
+}
 function fightArenaRobot(robot) {
   if (!robot.alive || !arenaRunning) return;
   const dmg = getRobotDamage();
   robot.hp -= dmg;
   triggerSwing();
   startKnockback(playerGroup.position.x, playerGroup.position.z, robot.x, robot.z,
-    (x, z) => { robot.x = x; robot.z = z; robot.mesh.position.set(x, 0, z); });
+    (x, z) => { robot.x = x; robot.z = z; robot.mesh.position.set(x, 0, z); robot.zone.x = x; robot.zone.z = z; });
   sfx.clang();
+  robot.attackTimer = 0; // landing a hit resets its swing timer, same as a real fight would
   if (robot.hp > 0) {
-    const backDmg = Math.round((6 + Math.random()*8) * robot.powerMult);
+    // No counter-hit here anymore — tickArenaRobots() already attacks on its own timer whenever
+    // it's in range, attacking or not. A guaranteed extra hit every time you landed one too would
+    // just be double damage on top of that (same fix as item 209's bosses).
     showNotif(`🤖 Hit ${robot.type.name} for ${dmg}! (${robot.hp} HP left)`);
-    damagePlayer(backDmg, robot.type.name);
     return;
   }
   defeatArenaRobot(robot);
@@ -11564,8 +11690,10 @@ function defeatArenaRobot(robot) {
 }
 function finishArenaBattle() {
   arenaRunning = false;
-  const bonusSip = arenaTotalRobots * 5;
-  const bonusElite = Math.round(arenaTotalRobots * 0.5);
+  // User's own ask: "100 sip 20 daimounds per 10 robots" — a flat 10 S.I.P. + 2 Elite Coins per
+  // robot chosen (was 5 S.I.P. + 0.5 Elite Coins), so any count still scales cleanly.
+  const bonusSip = arenaTotalRobots * 10;
+  const bonusElite = arenaTotalRobots * 2;
   sipDollars += bonusSip; updateSIP();
   eliteCoins += bonusElite; updateElite();
   saveCurrentUser();
@@ -11982,6 +12110,12 @@ const CITY_ZONES = [
   { x:34,  z:3,   r:5,  label:'🕴️ Talk to Shady Dealer',                       action: toggleAlignment,   isDealerZone:true },
   { x:-80, z:-71, r:5,  label:'⬛ ???',                                         action: openBlackMarket,   isBlackMarket:true },
   { x:-30, z:38,  r:7,  label:'🏦 Enter City Bank',                             action: openBankPasscode },
+  { x:-30, z:52,  r:6,  label:'🖨️ Work as Money Printer (1,000 S.I.P./min, 5 min shift)', action: ()=>toggleBankJob('printer','sip'),   isBankJobZone:true, bankJobId:'printer', currency:'sip' },
+  { x:-16, z:52,  r:6,  label:'🖨️ Work as Money Printer (500 💎/min, 5 min shift)',        action: ()=>toggleBankJob('printer','elite'), isBankJobZone:true, bankJobId:'printer', currency:'elite' },
+  { x:-30, z:66,  r:6,  label:'💂 Work as Guard (5,000 S.I.P. after 20 min)',              action: ()=>toggleBankJob('guard','sip'),     isBankJobZone:true, bankJobId:'guard',   currency:'sip' },
+  { x:-16, z:66,  r:6,  label:'💂 Work as Guard (2,500 💎 after 20 min)',                   action: ()=>toggleBankJob('guard','elite'),   isBankJobZone:true, bankJobId:'guard',   currency:'elite' },
+  { x:-30, z:80,  r:6,  label:'🧮 Work as Money Counter (10,000 S.I.P. after 5 min)',      action: ()=>toggleBankJob('counter','sip'),   isBankJobZone:true, bankJobId:'counter', currency:'sip' },
+  { x:-16, z:80,  r:6,  label:'🧮 Work as Money Counter (5,000 💎 after 5 min)',            action: ()=>toggleBankJob('counter','elite'), isBankJobZone:true, bankJobId:'counter', currency:'elite' },
   { x:70,  z:60,  r:12, label:'🏫 Enter School',                                action: openSchool },
   { x:50,  z:-72, r:8,  label:'🎬 Movie Theater – Pick a Movie!', action: openCinema },
   { x:0,   z:50,  r:13, label:'🚇 S.I.T.S. Transit Hub – Ride anywhere!', action: openSITS },
@@ -12179,6 +12313,11 @@ function updatePrompt() {
         } else {
           el.textContent = `[E]  ${z.label}`;
         }
+        el.style.display='block'; return;
+      }
+      if(z.isBankJobZone) {
+        const onThisShift = activeBankJob && activeBankJob.job.id === z.bankJobId && activeBankJob.currency === z.currency;
+        el.textContent = onThisShift ? `[E] Stop working as ${activeBankJob.job.label}` : `[E]  ${z.label}`;
         el.style.display='block'; return;
       }
       if(z.isGuestSpot) {
@@ -15360,19 +15499,26 @@ const TERRITORY_SYNC_INTERVAL = 5;
 // "spend Elite Coins to level up" system). A boss still chases and attacks ANYONE regardless of
 // level — the gate only blocks fightBoss() from letting an under-leveled player actually damage
 // it back, so wandering into a high-level boss's area early is genuinely dangerous, not a wall.
+// Each boss shape id below (the 'boss-*' prefix) is its own hand-built silhouette in
+// buildBossMesh() — bosses used to just call buildRobotMesh() with the SAME shape strings as
+// the small rogue robots ('tank'/'spider'/'elite'/'drone'/'guard') scaled up 3.2x, so a boss
+// was literally just a giant regular robot. User's own ask: make them look different from the
+// robots, not just bigger. No shared geometry with buildRobotMesh() anymore — every boss has a
+// silhouette a robot enemy could never have (a mech isn't just a big Tank Bot, a serpent isn't
+// just a big Drone Bot, etc).
 const BOSS_DEFS = [
   { name:'Mega-Bot', emoji:'🤖', x: SCRAPYARD_CENTER.x, z: SCRAPYARD_CENTER.z+55, maxHp:3000, damage:22, minLevel:0,
-    color:0xaa2222, shape:'tank', sipReward:[400,600], eliteReward:50, hitSip:2, hitElite:0 },
+    color:0xaa2222, shape:'boss-mech', sipReward:[400,600], eliteReward:50, hitSip:2, hitElite:0 },
   { name:'Storm Titan', emoji:'⚡', x:-650, z:650, maxHp:2500, damage:18, minLevel:0,
-    color:0x3355cc, shape:'elite', sipReward:[350,550], eliteReward:40, hitSip:2, hitElite:0 },
+    color:0x3355cc, shape:'boss-titan', sipReward:[350,550], eliteReward:40, hitSip:2, hitElite:0 },
   { name:'Scrap King', emoji:'🗑️', x: DUMP_CENTER.x+40, z: DUMP_CENTER.z-20, maxHp:2000, damage:16, minLevel:0,
-    color:0x778833, shape:'spider', sipReward:[250,400], eliteReward:30, hitSip:2, hitElite:0 },
+    color:0x778833, shape:'boss-scrapking', sipReward:[250,400], eliteReward:30, hitSip:2, hitElite:0 },
   { name:'Frost Colossus', emoji:'❄️', x:-600, z:440, maxHp:4000, damage:26, minLevel:1,
-    color:0x66ccff, shape:'tank', sipReward:[500,750], eliteReward:60, hitSip:2, hitElite:0 },
+    color:0x66ccff, shape:'boss-frost', sipReward:[500,750], eliteReward:60, hitSip:2, hitElite:0 },
   { name:'Sahara Golem', emoji:'🏜️', x:940, z:340, maxHp:5000, damage:30, minLevel:2,
-    color:0xd2a679, shape:'guard', sipReward:[650,900], eliteReward:75, hitSip:3, hitElite:0 },
+    color:0xd2a679, shape:'boss-golem', sipReward:[650,900], eliteReward:75, hitSip:3, hitElite:0 },
   { name:'Void Serpent', emoji:'🌌', x:40, z:1240, maxHp:6000, damage:36, minLevel:3,
-    color:0x440088, shape:'drone', sipReward:[800,1200], eliteReward:100, hitSip:3, hitElite:1 },
+    color:0x440088, shape:'boss-serpent', sipReward:[800,1200], eliteReward:100, hitSip:3, hitElite:1 },
 ];
 let bossState  = {}; // name -> {hp, maxHp, alive, level, defeats} — local mirror, synced from the server when online
 let bossMeshes = {}; // name -> {mesh, col}
@@ -15444,10 +15590,105 @@ function resetAllBossAggro() {
     if (bm) { bm.mesh.position.set(def.x, 0, def.z); if (bm.light) bm.light.position.set(def.x, 8, def.z); }
   });
 }
+// One hand-built silhouette per boss — deliberately NOT reusing buildRobotMesh()'s shapes (a
+// boss used to just be a 3.2x-scaled Tank/Spider/Elite/Drone/Guard Bot, same geometry as the
+// small rogue robots you fight everywhere else). Each shape here is something no regular robot
+// enemy has: a bipedal war-mech instead of a treaded box, a limbless energy titan instead of an
+// armored humanoid, a segmented snake instead of a sphere-and-ring drone, etc.
+function buildBossMesh(x, z, color, shape) {
+  const g = new THREE.Group(); g.position.set(x,0,z); scene.add(g);
+  const eyeMat = new THREE.MeshBasicMaterial({color:0xff3333});
+
+  if (shape === 'boss-mech') { // Mega-Bot — bipedal war-mech, not Tank Bot's treaded box
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(1.9,1.5,1.3), mat(color)); torso.position.y=1.9; g.add(torso);
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.3,8,6), new THREE.MeshBasicMaterial({color:0xffcc44})); core.position.set(0,1.9,0.68); g.add(core);
+    const pl = new THREE.PointLight(0xffcc44, 1.2, 8); pl.position.set(0,1.9,0.7); g.add(pl);
+    [[-1.15,2.3],[1.15,2.3]].forEach(([sx,sy]) => { const p=new THREE.Mesh(new THREE.BoxGeometry(0.55,0.5,0.9), mat(0x333333)); p.position.set(sx,sy,0); g.add(p); });
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.75,0.4,0.6), mat(0x1a1a1a)); head.position.y=2.75; g.add(head);
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.6,0.08,0.05), eyeMat); visor.position.set(0,2.75,0.33); g.add(visor);
+    [[-0.6,1.3],[0.6,1.3]].forEach(([ax,ay]) => { const arm=new THREE.Mesh(new THREE.CylinderGeometry(0.24,0.28,1.5,8), mat(0x2a2a2a)); arm.position.set(ax,ay,0); g.add(arm);
+      const fist=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.4,0.4), mat(color)); fist.position.set(ax,ay-0.85,0); g.add(fist); });
+    [[-0.55,0],[0.55,0]].forEach(([lx]) => { const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.38,1.6,8), mat(0x2a2a2a)); leg.position.set(lx,0.8,0); g.add(leg);
+      const foot=new THREE.Mesh(new THREE.BoxGeometry(0.55,0.3,0.85), mat(0x1a1a1a)); foot.position.set(lx,0.05,0.15); g.add(foot); });
+    return g;
+  }
+  if (shape === 'boss-titan') { // Storm Titan — floating energy giant, not Elite Bot's armored body
+    const coreMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(0.85,0), new THREE.MeshBasicMaterial({color, transparent:true, opacity:0.85})); coreMesh.position.y=2.3; g.add(coreMesh);
+    const pl = new THREE.PointLight(0x88bbff, 2, 12); pl.position.y=2.3; g.add(pl);
+    [[0.05,0.9,1.05],[0.35,1.15,0.85],[-0.2,1.25,0.7]].forEach(([rx,ry,scale],i) => {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(scale,0.06,6,16), new THREE.MeshBasicMaterial({color:0xaaddff})); ring.position.y=2.3; ring.rotation.set(rx+i,ry,0); g.add(ring);
+    });
+    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.35,0.9,6), mat(0xccebff)); spike.position.y=3.5; g.add(spike);
+    [-1,1].forEach(side => { // jagged lightning-bolt limbs instead of straight rectangular arms
+      const seg1 = new THREE.Mesh(new THREE.BoxGeometry(0.22,0.7,0.2), new THREE.MeshBasicMaterial({color:0xccebff})); seg1.position.set(side*0.95,1.9,0); seg1.rotation.z=side*0.5; g.add(seg1);
+      const seg2 = new THREE.Mesh(new THREE.BoxGeometry(0.18,0.6,0.18), new THREE.MeshBasicMaterial({color:0xccebff})); seg2.position.set(side*1.35,1.25,0); seg2.rotation.z=side*-0.4; g.add(seg2);
+    });
+    return g;
+  }
+  if (shape === 'boss-scrapking') { // Scrap King — lumpy junk-pile arachnid, not Spider Bot's smooth sphere
+    [[0,1.15,0.6,0],[0.35,1.35,0.4,0.5],[-0.3,1.4,0.35,-0.4],[0,0.95,0.45,0.2]].forEach(([bx,by,s,rz]) => {
+      const chunk = new THREE.Mesh(new THREE.BoxGeometry(s*1.6,s*1.3,s*1.4), mat(color)); chunk.position.set(bx,by,0); chunk.rotation.z=rz; g.add(chunk);
+    });
+    for (let i=0;i<3;i++) { const spike=new THREE.Mesh(new THREE.ConeGeometry(0.18,0.5,5), mat(0x554422)); spike.position.set((i-1)*0.35,1.95,-0.1); spike.rotation.z=(i-1)*0.3; g.add(spike); }
+    [[-0.18,1.4,0.6],[0.05,1.42,0.62],[0.28,1.38,0.58]].forEach(([ex,ey,ez]) => { const eye=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,0.05), eyeMat); eye.position.set(ex,ey,ez); g.add(eye); });
+    for (let i=0; i<8; i++) { // 8 uneven legs, not 6 matched ones — genuinely scrappy, not symmetric
+      const ang = (i/8)*Math.PI*2;
+      const len = 0.85 + (i%3)*0.15;
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.05,len,4), mat(0x3a3a3a));
+      leg.position.set(Math.cos(ang)*0.6, 0.6, Math.sin(ang)*0.6);
+      leg.rotation.z = Math.cos(ang)*0.9; leg.rotation.x = Math.sin(ang)*0.9;
+      g.add(leg);
+    }
+    return g;
+  }
+  if (shape === 'boss-frost') { // Frost Colossus — faceted ice crystal, not Tank Bot's boxy treads
+    const iceMat = new THREE.MeshBasicMaterial({color, transparent:true, opacity:0.88});
+    const torso = new THREE.Mesh(new THREE.OctahedronGeometry(1.05,0), iceMat); torso.position.y=1.9; g.add(torso);
+    const head = new THREE.Mesh(new THREE.OctahedronGeometry(0.5,0), iceMat); head.position.y=3.0; g.add(head);
+    const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.12,0.12,0.05), new THREE.MeshBasicMaterial({color:0x1155aa})); eyeL.position.set(-0.18,3.0,0.35); g.add(eyeL);
+    const eyeR = eyeL.clone(); eyeR.position.x = 0.18; g.add(eyeR);
+    [[-1.0,2.3,0.6],[1.0,2.3,-0.5],[0,3.5,0.2]].forEach(([sx,sy,rz]) => { const spike=new THREE.Mesh(new THREE.ConeGeometry(0.25,1.0,6), iceMat); spike.position.set(sx,sy,0); spike.rotation.z=rz; g.add(spike); });
+    [[-0.6,0],[0.6,0]].forEach(([lx]) => { const leg=new THREE.Mesh(new THREE.ConeGeometry(0.5,1.4,6), iceMat); leg.position.set(lx,0.7,0); leg.rotation.x=Math.PI; g.add(leg); });
+    const pl = new THREE.PointLight(0xaaddff, 1, 10); pl.position.y=2; g.add(pl);
+    return g;
+  }
+  if (shape === 'boss-golem') { // Sahara Golem — stacked sandstone blocks, not the default smooth humanoid
+    const stackMat = new THREE.MeshBasicMaterial({color});
+    [[0,0.55,1.5,1.3,0.08],[0,1.5,1.25,1.0,-0.06],[0,2.3,0.95,0.75,0.09]].forEach(([bx,by,w,h,rz]) => {
+      const block = new THREE.Mesh(new THREE.BoxGeometry(w,h,0.95), stackMat); block.position.set(bx,by,0); block.rotation.z=rz; g.add(block);
+    });
+    const runeMat = new THREE.MeshBasicMaterial({color:0xffaa33});
+    [1.0,1.7,2.4].forEach(ry => { const rune=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.06,0.05), runeMat); rune.position.set(0,ry,0.5); g.add(rune); });
+    const face = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.35,0.06), runeMat); face.position.set(0,2.35,0.5); g.add(face);
+    const pl = new THREE.PointLight(0xffaa33, 1, 8); pl.position.set(0,1.6,0.6); g.add(pl);
+    [[-0.55,0],[0.55,0]].forEach(([lx]) => { const leg=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.6,0.7), stackMat); leg.position.set(lx,0.3,0); g.add(leg); });
+    return g;
+  }
+  if (shape === 'boss-serpent') { // Void Serpent — a real segmented snake, not Drone Bot's sphere+ring
+    const segMat = new THREE.MeshBasicMaterial({color});
+    const segCount = 6;
+    for (let i=0; i<segCount; i++) {
+      const t = i/(segCount-1);
+      const segSize = 0.75 - t*0.4;
+      const seg = new THREE.Mesh(new THREE.SphereGeometry(segSize,8,6), segMat);
+      seg.position.set(Math.sin(t*Math.PI*1.3)*1.4, 1.8 + Math.cos(t*Math.PI*1.6)*0.5, -t*2.6+1.3);
+      g.add(seg);
+      if (i>0 && i%2===0) { const ring=new THREE.Mesh(new THREE.TorusGeometry(segSize+0.15,0.05,6,12), new THREE.MeshBasicMaterial({color:0xcc88ff})); ring.position.copy(seg.position); ring.rotation.x=Math.PI/2; g.add(ring); }
+    }
+    const headPos = new THREE.Vector3(0, 1.8, 1.3);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.85,10,8), segMat); head.position.copy(headPos); g.add(head);
+    const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.12,6,6), eyeMat); eyeL.position.set(-0.35,1.95,1.85); g.add(eyeL);
+    const eyeR = eyeL.clone(); eyeR.position.x = 0.35; g.add(eyeR);
+    const jaw = new THREE.Mesh(new THREE.ConeGeometry(0.3,0.6,6), segMat); jaw.position.set(0,1.55,1.95); jaw.rotation.x=Math.PI/2; g.add(jaw);
+    const pl = new THREE.PointLight(0xcc88ff, 1.5, 10); pl.position.copy(headPos); g.add(pl);
+    return g;
+  }
+  return buildRobotMesh(x, z, color, shape); // fallback — never hit while every BOSS_DEFS entry uses a 'boss-*' shape above
+}
 function buildBosses() {
   initBossState();
   BOSS_DEFS.forEach(def => {
-    const mesh = buildRobotMesh(def.x, def.z, def.color, def.shape);
+    const mesh = buildBossMesh(def.x, def.z, def.color, def.shape);
     mesh.scale.setScalar(3.2); // genuinely huge — that's the whole point of a boss
     // No collision wall anymore — a boss that moves can't be a static addCol() collider (it'd
     // leave a ghost wall behind at the spawn spot the moment it starts chasing). Same
@@ -17017,6 +17258,7 @@ function animate(){
   tickBossHud();
   tickBossChase(dt);
   tickMovieBossFight(dt);
+  tickArenaRobots(dt);
 
   // Movement with collision
   let moving=false;
@@ -17317,6 +17559,7 @@ function animate(){
 
   // Systems
   tickJob(dt);
+  tickBankJob(dt);
   tickCook(dt);
   tickWanted(dt);
   tickElders(dt);
