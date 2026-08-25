@@ -520,8 +520,14 @@ function hashPassword(pw) {
 // host shares that link), and it's remembered from then on until it's changed.
 // When there's no server, or it's off, we fall back to the always-available
 // Offline mode, which is exactly the local-only behavior this file always had.
+const EXPLOX_DEFAULT_SERVER_URL = 'https://explox-server.onrender.com';
 let serverMode = localStorage.getItem('explox_mode') || 'offline';
-let EXPLOX_ONLINE_URL = localStorage.getItem('explox_server_url') || '';
+let EXPLOX_ONLINE_URL = localStorage.getItem('explox_server_url') || EXPLOX_DEFAULT_SERVER_URL;
+if (EXPLOX_ONLINE_URL.includes('trycloudflare.com')) {
+  // Old family-PC tunnel address, now retired — fall back to the permanent server.
+  EXPLOX_ONLINE_URL = EXPLOX_DEFAULT_SERVER_URL;
+  localStorage.setItem('explox_server_url', EXPLOX_ONLINE_URL);
+}
 (function seedServerUrlFromLink() {
   const fromLink = new URLSearchParams(location.search).get('server');
   if (fromLink) {
