@@ -861,6 +861,11 @@ async function doLogin(name) {
   // at the CORRECT full health for this account's real Robot Level, not last account's or nobody's.
   playerMaxHealth = computePlayerMaxHealth();
   playerHealth = playerMaxHealth;
+  hunger = 100; _starveDamageAt = 0; // same "always start this session full" treatment as health above
+  sick = false; sickUntil = 0; _sickCheckAt = 0; _sickDamageAt = 0;
+  updateSickHud();
+  bladder = 100; embarrassedUntil = 0;
+  updateBladderHud();
   activeQuests = Array.isArray(d.activeQuests) ? d.activeQuests : [];
   lifetimeRobotKills = d.lifetimeRobotKills !== undefined ? d.lifetimeRobotKills : 0;
   lifetimeRogueKills = d.lifetimeRogueKills !== undefined ? d.lifetimeRogueKills : 0;
@@ -1390,6 +1395,22 @@ let familyKidMeshes    = null;           // tagged parts, mirrors buddyMeshes
 let familyKidInSchool  = false;          // persisted — enrolled while 'kid'/'teen' stage, grows up a bit faster + earns Smarts
 let familyKidSmarts    = 0;              // persisted — accumulated while in school, pays out a S.I.P. bonus on reaching 'adult'
 let familyKidLastStageId = 'baby';       // persisted — so a fresh login doesn't re-fire the growth/graduation notif
+
+// ─── SCHOOL EVENTS — user's own ask: "make school events you participate if you have a kid
+// that goes to school". Not persisted (short-lived, session state, same as other timed World
+// Events/Celebrity-challenge style mechanics) — the clock only runs while a school-age kid is
+// actually enrolled, and resets the moment they're pulled out or age past 'teen'.
+const SCHOOL_EVENTS = [
+  { id:'bakesale',    emoji:'🧁', name:'Bake Sale',    desc:'Help run the table and sell treats to other parents.' },
+  { id:'sciencefair', emoji:'🔬', name:'Science Fair', desc:'Help set up their project display before judging.' },
+  { id:'fieldday',    emoji:'🏃', name:'Field Day',    desc:'Cheer them on and help referee the games.' },
+  { id:'talentshow',  emoji:'🎤', name:'Talent Show',  desc:'Help backstage before they go on.' },
+  { id:'bookfair',    emoji:'📚', name:'Book Fair',    desc:'Volunteer at the book fair table.' },
+];
+const SCHOOL_EVENT_WINDOW_SEC = 60;    // once one starts, this long to actually go participate
+const SCHOOL_EVENT_MIN_GAP = 120, SCHOOL_EVENT_MAX_GAP = 240; // real seconds between events
+let schoolEventActive = null;   // {def, endsAt} in playTimeSeconds terms, or null
+let schoolEventNextAt = null;   // playTimeSeconds value the next event fires at, or null while ineligible
 let lastAllowanceAt = -999;              // persisted — playTimeSeconds of the last "Ask for Allowance" from a relative
 
 // ─── BILLS — real recurring expenses for what you own (house, land, cars), paid with a real
@@ -1494,6 +1515,7 @@ const ADD_ONS = [
   { id:'launchsf',     name:'Play: Special Forces', emoji:'🪖', category:'Minigames', type:'action', desc:'Jump straight into the FPS mission.', cost:0 },
   { id:'freearcade',   name:'Free Arcade',    emoji:'🎰', category:'Minigames', type:'toggle', desc:'Every arcade game (claw, snake, tetris & more) is free to play.' },
   { id:'hirekiller',   name:'Hire a Killer',  emoji:'🗡️', category:'Crime', type:'action', desc:'Pay to have someone hunted down by name — you get their money once the hit lands.', cost:0 },
+  { id:'relieve',      name:'Duck Behind a Bush', emoji:'🌳', category:'Crime', type:'action', desc:'Relieve yourself outdoors instead of finding a real toilet — quick, but people sometimes notice.', cost:0 },
   // WEATHER — real hooks into the actual real-calendar weather-particle system.
   { id:'snowday',      name:'Snow Day',       emoji:'❄️', category:'Weather', type:'toggle', desc:'Force snow, no matter the season.' },
   { id:'leafstorm',    name:'Leaf Storm',     emoji:'🍂', category:'Weather', type:'toggle', desc:'Force falling leaves, no matter the season.' },
@@ -1514,6 +1536,40 @@ let woodCount       = 0;
 let scrapMetal      = 0;
 let playerHealth    = 100;
 let playerMaxHealth = 100; // was a const 100 forever — now grows with Robot Level, see computePlayerMaxHealth()
+// ─── HUNGER — user's own ask: "if you get too hungry you can starve [in your] sleep". Not
+// persisted, same as playerHealth above — always starts full on login rather than surprising
+// someone with an already-starving account days later. Full bar drains over 30 real minutes of
+// play; eating (through the one shared eatFood(), so every meal source refills it) tops it back
+// up. See tickHunger()/restoreHunger() near sleepAtHome().
+let hunger = 100;
+const HUNGER_DECAY_PER_SEC = 100 / (30 * 60);
+const STARVE_DAMAGE_INTERVAL_SEC = 6, STARVE_DAMAGE_AMOUNT = 2;
+let _starveDamageAt = 0; // playTimeSeconds value the next starvation tick lands at
+
+// ─── SICKNESS — user's own ask (right after hunger): "make sickness". A real chance to catch
+// something, rolled periodically, MUCH more likely while starving — a real second-order
+// consequence for letting hunger run out, not just a coin-flip out of nowhere. Not persisted,
+// same "always starts clean this session" treatment as health/hunger above.
+let sick = false;
+let sickUntil = 0;          // playTimeSeconds value it clears on its own
+let _sickCheckAt = 0;        // playTimeSeconds value the next roll-to-catch-something happens
+let _sickDamageAt = 0;       // playTimeSeconds value the next sickness HP tick lands at
+const SICK_CHECK_INTERVAL_SEC = 60;
+const SICK_CHANCE_NORMAL = 0.03, SICK_CHANCE_STARVING = 0.25; // per check
+const SICK_DURATION_MIN = 240, SICK_DURATION_MAX = 420;       // 4-7 real minutes if it just runs its course
+const SICK_DAMAGE_INTERVAL_SEC = 15, SICK_DAMAGE_AMOUNT = 1;  // milder drain than outright starving
+let _sickVomitCheckAt = 0;          // playTimeSeconds value the next roll-to-vomit happens
+const SICK_VOMIT_CHECK_INTERVAL_SEC = 45, SICK_VOMIT_CHANCE = 0.3; // per check, only while sick
+
+// ─── TOILET / BLADDER — user's own ask, right after Vomit: "toilet". Same declining-meter shape
+// as Hunger (100=comfortable, 0=crisis), drains a bit faster since real life works that way too.
+// Not persisted, same "always starts clean this session" treatment as the others above. Real
+// toilets live in the player's House and any player-built Land House — see useToilet() and the
+// 🚽 zone entries in HOUSE_ZONES/LAND_HOUSE_ZONES.
+let bladder = 100;
+const BLADDER_DECAY_PER_SEC = 100 / (20 * 60); // full drain over ~20 real minutes
+let embarrassedUntil = 0; // playTimeSeconds value the post-accident slowdown ends
+const ACCIDENT_SLOW_DURATION_SEC = 20;
 let bankBalance     = 0;
 let eliteCoins      = 0;
 // User's own ask: "make it so the bank also has 100000000000000000000000000000000000000000000000000
@@ -2582,6 +2638,7 @@ const EAT_BITES = 4;
 function eatFood(emoji,name,taste){
   if(_eatBusy || _iceCreamBusy) return;
   _eatBusy = true;
+  restoreHunger(35);
   const cv=document.createElement('canvas'); cv.width=240; cv.height=240;
   cv.style.cssText='position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:9998;pointer-events:none;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.5));';
   document.body.appendChild(cv);
@@ -2623,16 +2680,38 @@ function tasteReaction(taste,name){
   document.body.appendChild(ov);
   showNotif(R.face+' '+name+': '+R.word);
   const bad=(R.rating==='BAD'), dur=1600, start=performance.now();
+  if (bad) setTimeout(() => vomit('bad food'), dur); // a real consequence for eating something gross, not just a face and a word
   function f(now){ const p=(now-start)/dur, dx=bad?Math.sin(now*0.05)*7*(1-p):0; ov.style.transform='translateX('+dx+'px)'; if(p<1) requestAnimationFrame(f); else { ov.style.opacity='0'; setTimeout(()=>ov.remove(),420); } }
   requestAnimationFrame(f);
+}
+// ─── VOMIT — user's own ask, right after Sickness. Two real triggers: eating something 'bitter'
+// (BAD taste rating, above) or being sick (rolled in tickSickness()). Real cost either way — you
+// lose the food you just "ate" back out as Hunger, and can't act for a moment — not just a gag.
+function vomit(reason) {
+  if (_eatBusy) return; // don't stack on top of an eating/vomiting animation already in progress
+  _eatBusy = true;
+  const lostHunger = 15 + Math.round(Math.random() * 10);
+  hunger = Math.max(0, hunger - lostHunger);
+  updateHungerHud();
+  showNotif(`🤮 You threw up${reason ? ' from ' + reason : ''}! Lost ${lostHunger} Hunger.`);
+  sfx.nope();
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;pointer-events:none;background:radial-gradient(circle at 50% 60%, rgba(120,200,60,0) 25%, rgba(120,200,60,0.45) 100%);transition:opacity .5s;';
+  ov.innerHTML = '<div style="position:absolute;top:56%;left:50%;transform:translate(-50%,-50%);font-size:64px;">🤮</div>';
+  document.body.appendChild(ov);
+  setTimeout(() => { ov.style.opacity = '0'; setTimeout(() => ov.remove(), 500); }, 900);
+  setTimeout(() => { _eatBusy = false; }, 1300); // real, felt "can't immediately act" beat
 }
 
 // ─── HOME ACTIVITIES — real functions any house interior's furniture zones call into
 // (the player's own House AND every player-built land house share these, not separate copies) ──
 function sleepAtHome() {
+  if (hunger <= 0) { sleepWhileStarving(); return; }
   playerHealth = playerMaxHealth;
   updateHealthBar();
-  const msgs = [
+  const wasSick = sick;
+  if (sick) { sick = false; updateSickHud(); }
+  const msgs = wasSick ? ["😴 You slept it off — feeling much better now!"] : [
     '😴 You slept for 8 hours. Feel completely rested!',
     '💤 Dreamed about S.I.P. coins falling from the sky!',
     '🌙 Best sleep ever. The pillow was ultra fluffy!',
@@ -6317,7 +6396,10 @@ function checkoutHotel() {
   showNotif('🏨 Thanks for staying at City Hotel! Come back soon!');
 }
 function sleepInHotel() {
-  const msgs = [
+  if (hunger <= 0) { sleepWhileStarving(); return; }
+  const wasSick = sick;
+  if (sick) { sick = false; updateSickHud(); }
+  const msgs = wasSick ? ["😴 You slept it off — feeling much better now!"] : [
     '😴 You slept for 8 hours. Feel completely rested!',
     '💤 Dreamed about SIP coins falling from the sky!',
     '🌙 Best sleep ever. The pillow was ultra fluffy!',
@@ -6325,6 +6407,16 @@ function sleepInHotel() {
   ];
   showNotif(msgs[Math.floor(Date.now()/1000) % msgs.length]);
   sfx.earn();
+}
+// Shared by sleepAtHome()/sleepInHotel() — starving through the night is a real bad night's
+// sleep, not the usual full heal: you wake up having lost health instead of recovering it, with
+// a real nudge that food (not more sleep) is what actually fixes this.
+function sleepWhileStarving() {
+  const lost = Math.min(playerHealth, Math.round(playerMaxHealth * 0.15));
+  playerHealth = Math.max(1, playerHealth - lost); // starving in your sleep is dangerous, not fatal on its own
+  updateHealthBar();
+  showNotif(`😫 You tossed and turned all night, starving. Woke up ${lost} HP worse off — go eat something!`);
+  sfx.nope();
 }
 function watchHotelTV() {
   const channels = [
@@ -7089,6 +7181,148 @@ function updateHealthBar() {
   document.getElementById('healthBarFill').style.width = pct+'%';
   document.getElementById('healthText').textContent = `${Math.round(playerHealth)}/${playerMaxHealth} HP`;
 }
+function restoreHunger(amount) {
+  const wasStarving = hunger <= 0;
+  hunger = Math.min(100, hunger + amount);
+  if (wasStarving && hunger > 0) showNotif('🍽️ Not starving anymore — phew!');
+  updateHungerHud();
+}
+function updateHungerHud() {
+  const hud = document.getElementById('hungerHud');
+  if (!hud) return;
+  const pct = Math.round(hunger);
+  const color = hunger <= 0 ? '#ff3333' : (hunger < 25 ? '#ff8844' : (hunger < 60 ? '#ffdd44' : '#88ff88'));
+  hud.style.color = color;
+  hud.textContent = `🍔 Hunger: ${pct}%${hunger <= 0 ? ' — STARVING!' : ''}`;
+}
+function tickHunger(dt) {
+  if (hunger > 0) {
+    hunger = Math.max(0, hunger - HUNGER_DECAY_PER_SEC * dt);
+    if (hunger <= 0) {
+      showNotif("😫 You're starving! Find food or you'll start losing health.");
+      _starveDamageAt = playTimeSeconds + STARVE_DAMAGE_INTERVAL_SEC;
+    }
+    updateHungerHud();
+    return;
+  }
+  // Already starving — chip away at real HP on a cooldown, not every frame, using the same
+  // damagePlayer() every other damage source uses so armor/knockout/hit-flash all still apply.
+  if (playTimeSeconds >= _starveDamageAt) {
+    _starveDamageAt = playTimeSeconds + STARVE_DAMAGE_INTERVAL_SEC;
+    damagePlayer(STARVE_DAMAGE_AMOUNT, 'starving');
+  }
+}
+function updateSickHud() {
+  const hud = document.getElementById('sickHud');
+  if (hud) hud.style.display = sick ? 'block' : 'none';
+}
+function updateBladderHud() {
+  const hud = document.getElementById('bladderHud');
+  if (!hud) return;
+  const pct = Math.round(bladder);
+  hud.style.color = bladder <= 0 ? '#ff3333' : (bladder < 25 ? '#ff8844' : (bladder < 60 ? '#ffdd44' : '#66ccff'));
+  hud.textContent = `🚽 Bladder: ${pct}%`;
+}
+function haveAccident() {
+  bladder = 100; // relieved — nothing left to hold, that's what just happened
+  embarrassedUntil = playTimeSeconds + ACCIDENT_SLOW_DURATION_SEC;
+  showNotif("💦 You couldn't hold it — accident! Pretty embarrassing, slower for a bit.");
+  sfx.nope();
+  updateBladderHud();
+}
+function tickBladder(dt) {
+  if (bladder > 0) {
+    bladder = Math.max(0, bladder - BLADDER_DECAY_PER_SEC * dt);
+    if (bladder <= 0) haveAccident();
+    updateBladderHud();
+  }
+}
+function useToilet() {
+  bladder = 100;
+  showNotif('🚽 Ahh, much better!');
+  sfx.click();
+  updateBladderHud();
+}
+// ─── DUCK BEHIND A BUSH — user's own ask, right after Toilet: a faster no-walk-home option that
+// trades the toilet's guaranteed-safe relief for a real risk — Add Ons -> Crime -> 🌳. Same
+// embarrassment slowdown as a real accident, PLUS a real wanted-level bump (ties into the actual
+// Officer/arrest system) when caught, not just a funny message. Follow-up ask: "make it actually
+// show" — a real temporary bush + the actual soft-serve pile or puddle (picked at random, same
+// "leak or soft serve" the user asked for) + stink lines, spawned right where it happens, not
+// just a stat change and a notif.
+const RELIEVE_CAUGHT_CHANCE = 0.35;
+const RELIEVE_MARK_LIFETIME_MS = 25000;
+function spawnRelieveMark(isPoop) {
+  if (!playerGroup || !scene) return;
+  const mx = playerGroup.position.x - Math.sin(yaw) * 1.4;
+  const mz = playerGroup.position.z - Math.cos(yaw) * 1.4;
+  const meshes = [];
+  // the bush itself — two overlapping green clumps, low-poly like every other city prop
+  meshes.push(box(0.9,0.9,0.9, 0x2e7d32, mx-0.6,0.45,mz-0.3));
+  meshes.push(box(0.7,0.7,0.7, 0x388e3c, mx-0.3,0.55,mz+0.3));
+  if (isPoop) {
+    // soft-serve swirl — 3 tapering stacked segments
+    meshes.push(box(0.5,0.18,0.5,  0x5a3a1a, mx,0.09,mz));
+    meshes.push(box(0.36,0.16,0.36,0x6a4422, mx,0.24,mz));
+    meshes.push(box(0.22,0.16,0.22,0x7a4e2a, mx,0.38,mz));
+  } else {
+    meshes.push(box(0.75,0.03,0.6, 0xddcc55, mx,0.02,mz)); // puddle
+  }
+  // stink lines rising off it
+  for (let i = 0; i < 3; i++) {
+    meshes.push(box(0.06,0.28,0.06, 0x77dd77, mx+(i-1)*0.22, 0.55+i*0.04, mz));
+  }
+  setTimeout(() => meshes.forEach(m => scene.remove(m)), RELIEVE_MARK_LIFETIME_MS);
+}
+function relieveOutdoors() {
+  bladder = 100;
+  updateBladderHud();
+  spawnRelieveMark(Math.random() < 0.5);
+  if (Math.random() < RELIEVE_CAUGHT_CHANCE) {
+    increaseWanted(1);
+    embarrassedUntil = playTimeSeconds + ACCIDENT_SLOW_DURATION_SEC;
+    showNotif('😳 Someone saw you ducking behind a bush! Real embarrassing — wanted level up.');
+    sfx.nope();
+  } else {
+    showNotif('🌳 Ducked behind a bush real quick — nobody saw. Phew!');
+    sfx.click();
+  }
+}
+function catchSickness() {
+  sick = true;
+  sickUntil = playTimeSeconds + SICK_DURATION_MIN + Math.random() * (SICK_DURATION_MAX - SICK_DURATION_MIN);
+  _sickDamageAt = playTimeSeconds + SICK_DAMAGE_INTERVAL_SEC;
+  _sickVomitCheckAt = playTimeSeconds + SICK_VOMIT_CHECK_INTERVAL_SEC;
+  showNotif(hunger <= 0
+    ? '🤒 All that starving caught up with you — you got sick!'
+    : '🤒 You caught a cold — feeling sick and slow.');
+  sfx.nope();
+  updateSickHud();
+}
+function tickSickness() {
+  if (sick) {
+    if (playTimeSeconds >= sickUntil) {
+      sick = false;
+      showNotif('🤒➡️😊 You feel better — the sickness passed on its own!');
+      updateSickHud();
+      return;
+    }
+    if (playTimeSeconds >= _sickDamageAt) {
+      _sickDamageAt = playTimeSeconds + SICK_DAMAGE_INTERVAL_SEC;
+      damagePlayer(SICK_DAMAGE_AMOUNT, 'sickness');
+    }
+    if (playTimeSeconds >= _sickVomitCheckAt) {
+      _sickVomitCheckAt = playTimeSeconds + SICK_VOMIT_CHECK_INTERVAL_SEC;
+      if (Math.random() < SICK_VOMIT_CHANCE) vomit('being sick');
+    }
+    return;
+  }
+  if (playTimeSeconds >= _sickCheckAt) {
+    _sickCheckAt = playTimeSeconds + SICK_CHECK_INTERVAL_SEC;
+    const chance = hunger <= 0 ? SICK_CHANCE_STARVING : SICK_CHANCE_NORMAL;
+    if (Math.random() < chance) catchSickness();
+  }
+}
 function damagePlayer(amount, sourceLabel) {
   if(playerHealth <= 0) return;
   const armorDef = ARMOR.find(a => a.id === playerArmor);
@@ -7126,13 +7360,17 @@ function knockoutPlayer() {
     return; // arena knockouts don't send you home either — you just sit out the cooldown
   }
   if(currentWarZone) {
-    // War NPCs are PvE, not competitive like the arena, and a territory can be a
-    // real long trip out from downtown - getting teleported all the way home
-    // after finally reaching one would undo the whole point of "bigger and
-    // longer." Just a breather in place, straight back into the fight.
-    showNotif(`💀 Knocked back by ${currentWarZone.name}'s defenders! Shake it off and keep fighting.`);
+    // User's follow-up correction: not a plain countdown — "when you die you have to choose
+    // where to respawn." warAlive stays false (can't fight, can't be hit) until a choice is
+    // actually made in warDeathModal; picking "Right Here" keeps the original no-travel-penalty
+    // territory grind possible, the other two are a real trip in exchange for safety.
+    warAlive = false;
+    const lostSip = Math.round(sipDollars * WAR_DEATH_SIP_LOSS_PCT);
+    sipDollars = Math.max(0, sipDollars - lostSip);
+    updateSIP();
     playerHealth = playerMaxHealth;
     updateHealthBar();
+    showWarDeathModal(currentWarZone, lostSip);
     return;
   }
   if(activeJob || activeBankJob) {
@@ -7343,7 +7581,7 @@ function tryDuelInteract() {
   // whatever you're actually standing near" philosophy as the d>25 case above, just
   // extended to this not-yet-dueling case too, which never had it.
   if(!duelChallengeSentTo) {
-    const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : CITY_ZONES;
+    const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : CITY_ZONES;
     const px3 = playerGroup.position.x, pz3 = playerGroup.position.z;
     const nearZone = zones.some(z => Math.hypot(px3 - z.x, pz3 - z.z) < z.r)
       || rogueRobots.some(r => r.alive && Math.hypot(px3 - r.x, pz3 - r.z) < 3)
@@ -8868,15 +9106,72 @@ function refreshSchoolUI() {
     box.innerHTML = `<div style="color:#aaa;font-size:13px;">🎓 ${familyKidName} already graduated and is all grown up — nothing left to learn here!</div>`;
     return;
   }
+  let eventHtml = '';
+  if (familyKidInSchool) {
+    if (schoolEventActive) {
+      const secsLeft = Math.max(0, Math.round(schoolEventActive.endsAt - playTimeSeconds));
+      const { def } = schoolEventActive;
+      eventHtml = `
+        <div style="background:rgba(255,215,0,0.1);border:2px solid #FFD700;border-radius:10px;padding:10px;margin-bottom:12px;">
+          <div style="color:#FFD700;font-size:12px;font-weight:bold;margin-bottom:4px;">${def.emoji} ${def.name} — happening now!</div>
+          <div style="color:#ccc;font-size:11px;margin-bottom:8px;">${def.desc}</div>
+          <div style="color:#888;font-size:10px;margin-bottom:8px;">Ends in ${secsLeft}s</div>
+          <button class="shopBtn" onclick="participateInSchoolEvent()" style="width:100%;">🙋 Participate</button>
+        </div>`;
+    } else if (schoolEventNextAt !== null) {
+      const secsUntil = Math.max(0, Math.round(schoolEventNextAt - playTimeSeconds));
+      eventHtml = `<div style="color:#666;font-size:10px;margin-bottom:12px;">📅 Next school event in about ${secsUntil}s</div>`;
+    }
+  }
   box.innerHTML = `
     <div style="color:#fff;font-size:14px;margin-bottom:6px;">${stage.emoji} ${familyKidName} — ${stage.label}</div>
     <div style="color:#7fc8ff;font-size:12px;margin-bottom:12px;">📚 Smarts earned so far: ${Math.floor(familyKidSmarts).toLocaleString()}</div>
     <div style="color:#888;font-size:11px;margin-bottom:12px;">Enrolled = grows up 20% faster and earns Smarts — cash out as a bonus when they become an Adult.</div>
+    ${eventHtml}
     <button class="shopBtn" onclick="toggleKidSchool()" style="width:100%;">${familyKidInSchool ? '🚪 Take Out of School' : '🏫 Enroll in School'}</button>`;
 }
 function toggleKidSchool() {
   familyKidInSchool = !familyKidInSchool;
   showNotif(familyKidInSchool ? `🏫 ${familyKidName} is enrolled in school!` : `${familyKidName} is out of school for now.`);
+  saveCurrentUser();
+  refreshSchoolUI();
+}
+function scheduleNextSchoolEvent() {
+  schoolEventNextAt = playTimeSeconds + SCHOOL_EVENT_MIN_GAP + Math.random() * (SCHOOL_EVENT_MAX_GAP - SCHOOL_EVENT_MIN_GAP);
+}
+function tickSchoolEvent() {
+  const schoolAge = familyKidAdopted && ['kid','teen'].includes(growthStageFor(familyKidPlayTime).id);
+  const eligible = schoolAge && familyKidInSchool;
+  if (!eligible) { schoolEventActive = null; schoolEventNextAt = null; return; }
+  if (schoolEventNextAt === null) { scheduleNextSchoolEvent(); return; }
+  if (schoolEventActive) {
+    if (playTimeSeconds >= schoolEventActive.endsAt) {
+      showNotif(`${schoolEventActive.def.emoji} The ${schoolEventActive.def.name} ended — you missed it this time.`);
+      schoolEventActive = null;
+      scheduleNextSchoolEvent();
+      if (document.getElementById('schoolModal').style.display !== 'none') refreshSchoolUI();
+    }
+    return;
+  }
+  if (playTimeSeconds >= schoolEventNextAt) {
+    const def = SCHOOL_EVENTS[Math.floor(Math.random() * SCHOOL_EVENTS.length)];
+    schoolEventActive = { def, endsAt: playTimeSeconds + SCHOOL_EVENT_WINDOW_SEC };
+    showNotif(`${def.emoji} ${familyKidName}'s school just started a ${def.name} — head to School to join in!`);
+    sfx.earn && sfx.earn();
+    if (document.getElementById('schoolModal').style.display !== 'none') refreshSchoolUI();
+  }
+}
+function participateInSchoolEvent() {
+  if (!schoolEventActive) return;
+  const { def } = schoolEventActive;
+  const sipReward = 80 + Math.round(Math.random() * 120);
+  const smartsBonus = 30 + Math.round(Math.random() * 40);
+  familyKidSmarts += smartsBonus;
+  queueEarning(sipReward, 0, `${def.name} at ${familyKidName}'s school`);
+  showNotif(`${def.emoji} You helped out at the ${def.name}! +${smartsBonus} Smarts, ${sipReward} S.I.P. pending in Earnings.`);
+  sfx.cheer ? sfx.cheer() : sfx.buy();
+  schoolEventActive = null;
+  scheduleNextSchoolEvent();
   saveCurrentUser();
   refreshSchoolUI();
 }
@@ -9194,6 +9489,7 @@ function triggerAddOn(id) {
   else if(id==='launchparkour') window.open('AiGame/explox/minigames/parkour.html', '_blank');
   else if(id==='launchsf') window.open('AiGame/explox/minigames/sf.html', '_blank');
   else if(id==='hirekiller') openHitmanModal();
+  else if(id==='relieve') relieveOutdoors();
   if(cost>0 || eliteCost>0) { saveCurrentUser(); renderAddOnsPanel(); }
 }
 
@@ -12565,6 +12861,11 @@ function buildLandHouseInterior() {
   for (let s=0; s<3; s++) box(1.6,0.08,0.6, 0x7a5030, ix+5.8,0.5+s*0.9,iz-1);
   addCol(LAND_HOUSE_COLS, ix+5.8,iz-1, 0.9,0.5);
 
+  // Toilet
+  box(0.5,0.32,0.55, 0xffffff, ix+1,0.32,iz-3.8);
+  box(0.55,0.5,0.16, 0xffffff, ix+1,0.78,iz-4.02);
+  addCol(LAND_HOUSE_COLS, ix+1,iz-3.8, 0.45,0.45);
+
   // Windows
   box(2,1.5,0.15, 0x88ccff, ix-3,2.7,iz-4.9);
   box(2,1.5,0.15, 0x88ccff, ix+2,2.7,iz-4.9);
@@ -12581,6 +12882,7 @@ const LAND_HOUSE_ZONES = [
   { x:LAND_HOUSE_SPAWN.x-3,   z:2,    r:2.2, label:'🛋️ Sit on Sofa',  action: sitOnSofa },
   { x:LAND_HOUSE_SPAWN.x-4.5, z:-3.8, r:2.2, label:'🍳 Cook a Meal',  action: cookMeal },
   { x:LAND_HOUSE_SPAWN.x+5.8, z:-1,   r:2,   label:'📚 Read a Book',  action: readBook },
+  { x:LAND_HOUSE_SPAWN.x+1,   z:-3.8, r:1.8, label:'🚽 Use Toilet',   action: useToilet },
 ];
 function enterLandHouse(idx) {
   landHouseReturnIdx = idx;
@@ -13434,7 +13736,7 @@ function spawnRogueRobot() {
 }
 function tickRogueRobots(dt) {
   rogueTimer += dt;
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark;
   if (rogueTimer >= 20) {
     rogueTimer = 0;
     if (outdoors && rogueRobots.filter(r=>r.alive).length < 5) spawnRogueRobot();
@@ -13503,6 +13805,17 @@ const KILLER_HP = 200, KILLER_REWARD_ELITE = 500;
 // to 4 active at once. Floors/caps keep it from ever being either instant or unbounded.
 function killerSpawnInterval() { return Math.max(30, 90 - killerDefeats*3); }
 function killerMaxActive() { return Math.min(4, 1 + Math.floor(killerDefeats/8)); }
+// ─── ROBBERS — user's own ask: "robbers". A petty-crime counterpart to the assassin-tier ambient
+// Killer above — same shared killers[] array/mesh/fight infrastructure (a 4th mode alongside
+// guardKiller/hitTargetName/ambient), flagged `robber:true`. Low HP (easy to scare off if you
+// catch one in time), and instead of dealing damage they make one grab at your WALLET (not the
+// bank — a real reason to keep money deposited) then flee. Catch them before the grab and you get
+// a bounty; catch them after, you don't get the money back, but they're stopped for good.
+let robberTimer = 0;
+const ROBBER_SPAWN_INTERVAL = 45, ROBBER_MAX_ACTIVE = 3;
+const ROBBER_HP = 40, ROBBER_REVEAL_RANGE = 20, ROBBER_ATTACK_RANGE = 2.5;
+const ROBBER_STEAL_PCT_MIN = 0.15, ROBBER_STEAL_PCT_MAX = 0.25;
+const ROBBER_BOUNTY_MIN = 100, ROBBER_BOUNTY_MAX = 200;
 // Guard Bank Job (item 215/217 follow-up), user's own ask: "alot of killers attack the bank" while
 // on a Guard shift, and "you get nothing from the killers" — defeating one of these pays zero,
 // unlike an ambient Killer's normal 500💎 (see defeatKiller() below), since the point is defending
@@ -13772,6 +14085,78 @@ function buildKillerMesh(x, z) {
   scene.add(g);
   return g;
 }
+function buildRobberMesh(x, z) {
+  const g = new THREE.Group(); g.position.set(x, 0, z);
+  const mk = (w,h,d,color,px,py,pz) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color})); m.position.set(px,py,pz); m.castShadow = true; g.add(m); return m; };
+  mk(0.9,0.9,0.9, 0xd9b38c, 0,2.7,0);            // head
+  mk(0.3,0.15,0.95, 0x222222, 0,2.95,0.15);      // bandit eye mask
+  mk(0.9,1.1,0.5, 0x5a4a3a, 0,1.7,0);            // torso — drab jacket, not an assassin's black
+  mk(0.35,0.9,0.35, 0x5a4a3a,-0.65,1.7,0); mk(0.35,0.9,0.35, 0x5a4a3a,0.65,1.7,0); // arms
+  mk(0.38,0.9,0.38, 0x3a3025,-0.22,0.7,0); mk(0.38,0.9,0.38, 0x3a3025,0.22,0.7,0); // legs
+  mk(0.42,0.22,0.5, 0x3a3025,-0.22,0.05,0.05); mk(0.42,0.22,0.5, 0x3a3025,0.22,0.05,0.05); // feet
+  const sack = mk(0.5,0.6,0.5, 0x8a7355, -0.8,2.0,0.15); sack.rotation.z = 0.35; // loot sack
+  scene.add(g);
+  return g;
+}
+function spawnRobber() {
+  const ang = Math.random()*Math.PI*2, dist = 25+Math.random()*15;
+  const x = Math.max(-WORLD_BOUND, Math.min(WORLD_BOUND, playerGroup.position.x+Math.cos(ang)*dist));
+  const z = Math.max(-WORLD_BOUND, Math.min(WORLD_BOUND, playerGroup.position.z+Math.sin(ang)*dist));
+  const mesh = buildRobberMesh(x, z);
+  mesh.visible = false;
+  killers.push({ id:'robber'+ROBOT_ID_SEQ++, x, z, hp:ROBBER_HP, maxHp:ROBBER_HP, mesh, alive:true, speed:4+Math.random()*1.5, revealed:false, robber:true, fleeing:false });
+}
+function robMoney(k) {
+  const stolen = Math.round(sipDollars * (ROBBER_STEAL_PCT_MIN + Math.random()*(ROBBER_STEAL_PCT_MAX-ROBBER_STEAL_PCT_MIN)));
+  sipDollars = Math.max(0, sipDollars - stolen);
+  updateSIP();
+  showNotif(`🥷 A robber snatched ${stolen.toLocaleString()} S.I.P. right out of your wallet and ran off!`);
+  sfx.nope();
+  k.fleeing = true;
+}
+function tickRobberCombat(k, dt) {
+  if (k.fleeing) {
+    const dx = k.x-playerGroup.position.x, dz = k.z-playerGroup.position.z, dist = Math.hypot(dx,dz) || 0.01;
+    if (dist > 40) { k.alive = false; scene.remove(k.mesh); return; }
+    k.x += dx/dist*k.speed*1.4*dt; k.z += dz/dist*k.speed*1.4*dt;
+    k.mesh.position.set(k.x, 0, k.z);
+    k.mesh.rotation.y = Math.atan2(-dx, -dz);
+    return;
+  }
+  const dx = playerGroup.position.x-k.x, dz = playerGroup.position.z-k.z, dist = Math.hypot(dx,dz);
+  if (!k.revealed && dist <= ROBBER_REVEAL_RANGE) { k.revealed = true; k.mesh.visible = true; }
+  if (dist < ROBBER_ATTACK_RANGE) {
+    robMoney(k);
+  } else {
+    k.x += dx/dist*k.speed*dt; k.z += dz/dist*k.speed*dt;
+    k.mesh.position.set(k.x, 0, k.z);
+    k.mesh.rotation.y = Math.atan2(dx, dz);
+  }
+}
+function fightRobber(k) {
+  if (!k.alive) return;
+  const dmg = getWeaponDamage();
+  k.hp -= dmg;
+  triggerSwing();
+  startKnockback(playerGroup.position.x, playerGroup.position.z, k.x, k.z,
+    (x, z) => { k.x = x; k.z = z; k.mesh.position.set(x, 0, z); });
+  sfx.clang();
+  if (k.hp > 0) { showNotif(`⚔️ Hit the robber for ${dmg}! (${k.hp}/${k.maxHp} HP left)`); return; }
+  defeatRobber(k);
+}
+function defeatRobber(k) {
+  k.alive = false;
+  scene.remove(k.mesh);
+  if (k.fleeing) {
+    showNotif("🥷 Caught the robber after the fact — too late to get your money back, but they won't bother anyone else tonight.");
+    sfx.boom();
+    return;
+  }
+  const bounty = ROBBER_BOUNTY_MIN + Math.floor(Math.random()*(ROBBER_BOUNTY_MAX-ROBBER_BOUNTY_MIN));
+  queueEarning(bounty, 0, 'Caught a robber');
+  showNotif(`🥷 Caught the robber before they could steal anything! +${bounty} S.I.P.`);
+  sfx.boom();
+}
 function spawnKiller() {
   const ang = Math.random()*Math.PI*2, dist = 30+Math.random()*20;
   const x = Math.max(-WORLD_BOUND, Math.min(WORLD_BOUND, playerGroup.position.x+Math.cos(ang)*dist));
@@ -13842,13 +14227,18 @@ function tickGuardKillerCombat(k, dt) {
 }
 function tickKillers(dt) {
   killerTimer += dt;
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark;
   if (killerTimer >= killerSpawnInterval()) {
     killerTimer = 0;
     // Only counts ambient killers against the ambient cap now — a Guard shift's own separate
     // GUARD_KILLER_MAX_ACTIVE pool used to count against this too, silently starving ambient
     // spawns for the whole 20-minute shift. Real bug, fixed while touching this code anyway.
-    if (outdoors && killers.filter(k=>k.alive && !k.guardKiller && !k.hitTargetName).length < killerMaxActive()) spawnKiller();
+    if (outdoors && killers.filter(k=>k.alive && !k.guardKiller && !k.hitTargetName && !k.robber).length < killerMaxActive()) spawnKiller();
+  }
+  robberTimer += dt;
+  if (robberTimer >= ROBBER_SPAWN_INTERVAL) {
+    robberTimer = 0;
+    if (outdoors && killers.filter(k=>k.alive && k.robber).length < ROBBER_MAX_ACTIVE) spawnRobber();
   }
   const onGuardShift = activeBankJob && activeBankJob.job.id === 'guard';
   if (onGuardShift) {
@@ -13873,6 +14263,7 @@ function tickKillers(dt) {
     if (k.guardKiller) { tickGuardKillerCombat(k, dt); return; }
     if (k.hitTargetName) { tickHitmanCombat(k, dt); return; } // hunts a specific NPC, not the player — keeps going indoors/outdoors same as a guard killer
     if (!outdoors) return;
+    if (k.robber) { tickRobberCombat(k, dt); return; }
     tickAmbientKillerCombat(k, dt);
   });
 }
@@ -14211,6 +14602,157 @@ const MOVIE_BOSS_DEFS = CINEMA_MOVIES.map((m, i) => {
   };
 });
 const MOVIE_FIGHT_SPAWN = { x:110000, z:0 }; // own lane, the one free slot between RobotArena(90000)/CountryHotel(100000) and AirportLounge(120000)
+const SPORTS_SPAWN = { x:130000, z:0 }; // own lane, next free one after AirportLounge(120000) — user's own ask: "sports"
+const SPORTS_EXIT = { x:-10, z:-95 }; // real-world gate, just south of The Park (which had no room left)
+let inSportsPark = false;
+let soccerGoalieMesh = null;
+const BB_SHOOT_SPOT = { x:SPORTS_SPAWN.x-25, z:SPORTS_SPAWN.z+3 };
+const BB_HOOP_POS = { x:SPORTS_SPAWN.x-31.4, y:3.2, z:SPORTS_SPAWN.z+0.3 };
+const SOCCER_KICK_SPOT = { x:SPORTS_SPAWN.x+25, z:SPORTS_SPAWN.z-6 };
+const SOCCER_GOAL_X = { left:SPORTS_SPAWN.x+30, center:SPORTS_SPAWN.x+33, right:SPORTS_SPAWN.x+36 };
+const SOCCER_GOAL_Z = SPORTS_SPAWN.z;
+function enterSportsPark() {
+  inSportsPark = true;
+  playerGroup.position.set(SPORTS_SPAWN.x, 0, SPORTS_SPAWN.z+20);
+  yaw = Math.PI;
+  showNotif('🏟️ Welcome to the Sports Park!');
+}
+function leaveSportsPark() {
+  inSportsPark = false;
+  playerGroup.position.set(SPORTS_EXIT.x, 0, SPORTS_EXIT.z+3);
+  yaw = 0;
+  showNotif('Leaving the Sports Park...');
+}
+const SPORTS_ZONES = [
+  { x:BB_SHOOT_SPOT.x, z:BB_SHOOT_SPOT.z, r:3.5, label:'🏀 Shoot Hoops', action: openBasketball },
+  { x:SOCCER_KICK_SPOT.x, z:SOCCER_KICK_SPOT.z, r:3.5, label:'⚽ Take a Penalty Kick', action: openSoccer },
+  { x:SPORTS_SPAWN.x, z:SPORTS_SPAWN.z+20, r:4, label:'🚪 Leave Sports Park', action: leaveSportsPark },
+];
+function buildSportsParkInterior() {
+  const { x:sx, z:sz } = SPORTS_SPAWN;
+  box(90,0.2,50, 0x4a9e2a, sx,0.1,sz); // grass field
+  buildSign('🏟️ SPORTS PARK', sx, 7, sz-23);
+  box(8,3,0.4, 0x8B5E3C, sx, 1.5, sz+23); // exit gate marker
+
+  // ── BASKETBALL COURT (west side) ──
+  const bx = BB_SHOOT_SPOT.x - 6.4; // court center, a bit past the shooting spot toward the hoop
+  box(16,0.15,14, 0xcc8844, bx, 0.15, sz);
+  box(0.4,3.5,0.4, 0x888888, BB_HOOP_POS.x, 1.75, sz); // pole
+  box(2.2,1.6,0.15, 0xffffff, BB_HOOP_POS.x, 3.4, sz+0.3); // backboard
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.5,0.06,8,16), new THREE.MeshLambertMaterial({color:0xff6600}));
+  rim.position.set(BB_HOOP_POS.x, BB_HOOP_POS.y, BB_HOOP_POS.z); rim.rotation.x = Math.PI/2; scene.add(rim);
+  buildSign('🏀 SHOOT HOOPS', BB_SHOOT_SPOT.x, 4, BB_SHOOT_SPOT.z+2.5);
+
+  // ── SOCCER FIELD (east side) ──
+  const cx = SOCCER_KICK_SPOT.x + 8;
+  box(22,0.15,16, 0x3a9e3a, cx, 0.15, sz);
+  box(0.25,2.4,0.25, 0xffffff, SOCCER_GOAL_X.left-0.5, 1.2, SOCCER_GOAL_Z);
+  box(0.25,2.4,0.25, 0xffffff, SOCCER_GOAL_X.right+0.5, 1.2, SOCCER_GOAL_Z);
+  box(7,0.25,0.25, 0xffffff, SOCCER_GOAL_X.center, 2.4, SOCCER_GOAL_Z);
+  soccerGoalieMesh = box(1,2,0.6, 0x2244aa, SOCCER_GOAL_X.center, 1, SOCCER_GOAL_Z);
+  buildSign('⚽ PENALTY KICK', SOCCER_KICK_SPOT.x, 4, SOCCER_KICK_SPOT.z-2.5);
+}
+
+// ─── BASKETBALL — a real power meter (a live requestAnimationFrame loop drives both the DOM
+// marker AND the value SHOOT reads, so what you see is exactly what gets scored, not two things
+// that only look synced) plus a real ball that visibly arcs from the shooting spot to the hoop —
+// dead-center for a make, offset to a side for a miss, not just a text result.
+let bbAnimId = null, bbPower = 0, bbDir = 1;
+function openBasketball() {
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('basketballModal').style.display = 'flex';
+  bbPower = 0; bbDir = 1;
+  (function frame() {
+    bbPower += bbDir * 2.2;
+    if (bbPower >= 100) { bbPower = 100; bbDir = -1; }
+    if (bbPower <= 0) { bbPower = 0; bbDir = 1; }
+    const marker = document.getElementById('bbMarker');
+    if (marker) marker.style.left = bbPower + '%';
+    bbAnimId = requestAnimationFrame(frame);
+  })();
+}
+function closeBasketball() {
+  if (bbAnimId) cancelAnimationFrame(bbAnimId);
+  document.getElementById('basketballModal').style.display = 'none';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function shootBasketball() {
+  if (bbAnimId) cancelAnimationFrame(bbAnimId);
+  const off = Math.abs(bbPower - 50); // 0 = dead center of the meter, 50 = worst possible timing
+  let result, reward, missOffset;
+  if (off < 8)       { result = "🏀🔥 SWISH!";          reward = 100; missOffset = 0; }
+  else if (off < 20)  { result = '🏀 Nothing but net!';  reward = 60;  missOffset = 0; }
+  else if (off < 35)  { result = '😅 Off the rim... IN!'; reward = 30;  missOffset = 0.4; }
+  else                { result = '😔 Miss!';              reward = 0;   missOffset = 1; }
+  document.getElementById('basketballModal').style.display = 'none';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+  animateBasketballShot(missOffset, () => {
+    if (reward > 0) { queueEarning(reward, 0, 'Basketball'); showNotif(`${result} +${reward} S.I.P.`); sfx.buy(); }
+    else { showNotif(result); sfx.nope(); }
+  });
+}
+function animateBasketballShot(missOffset, onDone) {
+  const start = { x:BB_SHOOT_SPOT.x, y:1.6, z:BB_SHOOT_SPOT.z };
+  const missSide = Math.random() < 0.5 ? -1 : 1;
+  const end = { x:BB_HOOP_POS.x + missSide*missOffset*1.6, y:BB_HOOP_POS.y, z:BB_HOOP_POS.z };
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.32,10,10), new THREE.MeshLambertMaterial({color:0xdd6622}));
+  ball.position.set(start.x, start.y, start.z);
+  scene.add(ball);
+  const dur = 800, t0 = performance.now();
+  (function step(now) {
+    const p = Math.min(1, (now-t0)/dur);
+    ball.position.x = start.x + (end.x-start.x)*p;
+    ball.position.z = start.z + (end.z-start.z)*p;
+    ball.position.y = start.y + (end.y-start.y)*p + Math.sin(p*Math.PI)*3.2;
+    if (p < 1) requestAnimationFrame(step);
+    else { scene.remove(ball); onDone(); }
+  })(t0); // seed with t0, not undefined — an un-seeded first call makes p=NaN, and NaN<1 is
+          // false, so the "still animating" branch never runs and this jumps straight to
+          // "done" in the same synchronous tick: the ball is added and removed instantly,
+          // zero visible arc, even though nothing here throws or looks wrong at a glance.
+}
+
+// ─── SOCCER — pick a side, a keeper independently picks a side to dive; different sides = a real
+// goal, same side = saved. The keeper mesh actually moves to whichever side it dove, and the ball
+// visibly flies there too — not just "you win" text.
+function openSoccer() {
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('soccerModal').style.display = 'flex';
+}
+function closeSoccer() {
+  document.getElementById('soccerModal').style.display = 'none';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function kickSoccer(direction) {
+  const sides = ['left','center','right'];
+  const dive = sides[Math.floor(Math.random()*3)];
+  const scored = dive !== direction;
+  document.getElementById('soccerModal').style.display = 'none';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+  animateSoccerKick(direction, dive, () => {
+    if (scored) { const reward = 50; queueEarning(reward, 0, 'Soccer'); showNotif(`⚽ GOAL! The keeper dove ${dive} — +${reward} S.I.P.`); sfx.buy(); }
+    else { showNotif(`🧤 Saved! The keeper guessed ${dive} and got it right.`); sfx.nope(); }
+  });
+}
+function animateSoccerKick(direction, dive, onDone) {
+  if (soccerGoalieMesh) soccerGoalieMesh.position.x = SOCCER_GOAL_X[dive];
+  const start = { x:SOCCER_KICK_SPOT.x, y:0.3, z:SOCCER_KICK_SPOT.z };
+  const end = { x:SOCCER_GOAL_X[direction], y:0.5, z:SOCCER_GOAL_Z };
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.28,10,10), new THREE.MeshLambertMaterial({color:0xffffff}));
+  ball.position.set(start.x, start.y, start.z);
+  scene.add(ball);
+  const dur = 650, t0 = performance.now();
+  (function step(now) {
+    const p = Math.min(1, (now-t0)/dur);
+    ball.position.x = start.x + (end.x-start.x)*p;
+    ball.position.z = start.z + (end.z-start.z)*p;
+    ball.position.y = start.y + (end.y-start.y)*p + Math.sin(p*Math.PI)*0.6;
+    if (p < 1) requestAnimationFrame(step);
+    else { scene.remove(ball); onDone(); }
+  })(t0); // same seeded-first-call fix as animateBasketballShot — see its comment
+}
 const MOVIE_FIGHT_EXIT  = { x:110000, z:18 };
 const MOVIE_FIGHT_COLS  = [];
 const MOVIE_FIGHT_SIZE  = 20;
@@ -14597,6 +15139,7 @@ const CITY_ZONES = [
   { x:110, z:-13, r:8,  label:'🍽️ The Diner – Order a real meal!',  action: openRestaurant },
   { x:160, z:-13, r:8,  label:'🏪 Your Store',    action: interactWithStorePlot },
   { x:40,  z:93,  r:9,  label:'🕹️ Enter Pixel Palace Arcade', action: enterArcade },
+  { x:-10, z:-95, r:9,  label:'🏟️ Enter Sports Park', action: enterSportsPark },
 ];
 const HOUSE_ZONES = [
   { x:HOUSE_EXIT.x, z:HOUSE_EXIT.z, r:3, label:'Exit House', action: exitHouse },
@@ -14610,6 +15153,7 @@ const HOUSE_ZONES = [
   { x:HOUSE_SPAWN.x+9.5, z:2,    r:1.8, label:'📺 Watch TV',     action: watchHotelTV },
   { x:HOUSE_SPAWN.x-6,   z:-6.3, r:2.5, label:'🍳 Cook a Meal',  action: cookMeal },
   { x:HOUSE_SPAWN.x-9.5, z:-2,   r:2,   label:'📚 Read a Book',  action: readBook },
+  { x:HOUSE_SPAWN.x+2.5, z:-6.8, r:1.8, label:'🚽 Use Toilet',   action: useToilet },
 ];
 const HOTEL_ZONES = [
   // Budget room (x=HOTEL_SPAWN.x+0)
@@ -14732,7 +15276,7 @@ function handleInteract() {
     const d = Math.sqrt((px2-movieBossFight.curX)**2+(pz-movieBossFight.curZ)**2);
     if (d < 4.5) { fightMovieBoss(); return; }
   }
-  if (!inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && !inMovieFight) {
+  if (!inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && !inMovieFight && !inSportsPark) {
     let closestRogue = null, closestRogueDist = 3;
     for (const r of rogueRobots) {
       if (!r.alive) continue;
@@ -14747,7 +15291,7 @@ function handleInteract() {
       const d = Math.sqrt((px2-k.x)**2+(pz-k.z)**2);
       if (d < closestKillerDist) { closestKillerDist = d; closestKiller = k; }
     }
-    if (closestKiller) { fightKiller(closestKiller); return; }
+    if (closestKiller) { if (closestKiller.robber) fightRobber(closestKiller); else fightKiller(closestKiller); return; }
     // Bosses now chase (see tickBossChase) instead of sitting at a fixed CITY_ZONES spot, so
     // fighting one has to be a live proximity check off its real curX/curZ, same as the two above.
     let closestBoss = null, closestBossDist = 4.5;
@@ -14759,7 +15303,7 @@ function handleInteract() {
     }
     if (closestBoss) { fightBoss(closestBoss); return; }
   }
-  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : CITY_ZONES;
+  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : CITY_ZONES;
   for(const z of zones) {
     if(Math.sqrt((px2-z.x)**2+(pz-z.z)**2) < z.r) { z.action(); return; }
   }
@@ -14779,7 +15323,7 @@ function updatePrompt() {
     const dx=px2-pc.group.position.x, dz=pz-pc.group.position.z;
     if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent=`[E] ${pc.def.emoji} Get in ${pc.def.name}`; el.style.display='block'; return; }
   }
-  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : CITY_ZONES;
+  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : CITY_ZONES;
   for(const z of zones) {
     if(Math.sqrt((px2-z.x)**2+(pz-z.z)**2) < z.r) {
       if(z.isComputer) {
@@ -15055,6 +15599,8 @@ function _startGameInner() {
   _dbg('buildCountryZones', buildCountryZones);
   _dbg('buildSpaceZone', buildSpaceZone);
   _dbg('buildDeepSpaceZones', buildDeepSpaceZones);
+  _dbg('buildTraffic', buildTraffic);
+  _dbg('buildSportsParkInterior', buildSportsParkInterior);
   _dbg('spawnOwnedCars', spawnOwnedCars);
   _dbg('buildWeaponLevels', buildWeaponLevels); // must run before buildPlayer()/updateWeaponMesh() touch the currently-equipped weapon's damage — otherwise a returning player's weapon keeps dealing OLD (pre-rebalance) damage until they happen to open the shop
   _dbg('buildPlayer', buildPlayer);
@@ -15212,6 +15758,79 @@ function buildParkedDecorCar(x, z, color, yawAngle) {
   });
   g.children.forEach(c=>{c.castShadow=true;c.receiveShadow=true;});
   g.position.set(x,0,z); g.rotation.y = yawAngle; scene.add(g);
+  return g;
+}
+// ─── TRAFFIC — user's own ask: "roads all over the world traffic". Downtown already had real
+// paved roads (roadSegments()/the main-street slabs above); every country did not — buildRoadLoop()
+// gives each one a real paved square loop it never had before, sized (650-unit half-width) to
+// clear every country's own buildings with margin (France's ~580-unit footprint is the largest).
+// Traffic cars are simple waypoint-followers — same seek-and-rotate math tickCelebrityCrowds()
+// already uses for crowds — either looping a 4-corner square (countries) or driving back and
+// forth along an existing street (Downtown, so nothing gets drawn twice).
+let trafficCars = []; // NOT persisted — {mesh,x,z,waypoints,wpIndex,dir,pingpong,speed}
+const TRAFFIC_CAR_COLORS = [0xcc3333,0x3366cc,0xdddddd,0x33aa55,0xffcc33,0x9955cc];
+function spawnTrafficCar(waypoints, opts) {
+  opts = opts || {};
+  const start = waypoints[0];
+  const mesh = buildParkedDecorCar(start.x, start.z, TRAFFIC_CAR_COLORS[trafficCars.length % TRAFFIC_CAR_COLORS.length], 0);
+  trafficCars.push({ mesh, x:start.x, z:start.z, waypoints, wpIndex:1 % waypoints.length, dir:1, pingpong: !!opts.pingpong, speed: opts.speed || (9+Math.random()*4) });
+}
+function buildRoadLoop(cx, cz, half) {
+  const w = 14;
+  box(half*2+w, 0.05, w, 0x555566, cx, 0.01, cz-half);
+  box(half*2+w, 0.05, w, 0x555566, cx, 0.01, cz+half);
+  box(w, 0.05, half*2+w, 0x555566, cx-half, 0.01, cz);
+  box(w, 0.05, half*2+w, 0x555566, cx+half, 0.01, cz);
+}
+function buildTraffic() {
+  // Downtown — reuse the existing main streets (x=±9.5, z=±9.5), cars just drive back and forth.
+  spawnTrafficCar([{x:9.5,z:-140},{x:9.5,z:140}], {pingpong:true});
+  spawnTrafficCar([{x:-9.5,z:140},{x:-9.5,z:-140}], {pingpong:true});
+  spawnTrafficCar([{x:-140,z:9.5},{x:140,z:9.5}], {pingpong:true});
+  spawnTrafficCar([{x:140,z:-9.5},{x:-140,z:-9.5}], {pingpong:true});
+
+  // Every country — a real road loop it didn't have before, 2 cars circling each one.
+  Object.keys(COUNTRY_CENTERS).forEach(name => {
+    const { x:cx, z:cz } = COUNTRY_CENTERS[name];
+    const half = 650;
+    buildRoadLoop(cx, cz, half);
+    const corners = [
+      {x:cx-half,z:cz-half}, {x:cx+half,z:cz-half},
+      {x:cx+half,z:cz+half}, {x:cx-half,z:cz+half},
+    ];
+    spawnTrafficCar(corners);
+    spawnTrafficCar([corners[2],corners[3],corners[0],corners[1]]); // starts on the far side of the same loop
+  });
+}
+function tickTraffic(dt) {
+  trafficCars.forEach(c => {
+    // Distance-remaining loop (not a single step-and-check) so a big dt — a lag spike, a
+    // backgrounded tab catching up — can't send a car flying past its waypoint and never
+    // registering arrival; leftover movement always carries into the next leg instead.
+    let remaining = c.speed * dt;
+    let guard = 0;
+    while (remaining > 0 && guard++ < 20) {
+      const target = c.waypoints[c.wpIndex];
+      const dx = target.x-c.x, dz = target.z-c.z, d = Math.hypot(dx,dz);
+      if (d <= remaining) {
+        c.x = target.x; c.z = target.z;
+        remaining -= d;
+        if (c.pingpong) {
+          const next = c.wpIndex + c.dir;
+          if (next < 0 || next >= c.waypoints.length) c.dir *= -1;
+          c.wpIndex += c.dir;
+        } else {
+          c.wpIndex = (c.wpIndex+1) % c.waypoints.length;
+        }
+        if (d < 0.001) break;
+      } else {
+        c.x += dx/d*remaining; c.z += dz/d*remaining;
+        c.mesh.rotation.y = Math.atan2(dx, dz);
+        remaining = 0;
+      }
+    }
+    c.mesh.position.set(c.x, 0, c.z);
+  });
 }
 // Reusable roadside billboard — posts + backing + a canvas ad panel, same visual recipe
 // buildCityShops() already proved for the 100 outdoor shops (item 104), just generalized
@@ -15567,6 +16186,12 @@ function buildCity() {
   box(5,0.4,1, 0xaa7755,-18,0.7,-68); box(5,1.5,0.3, 0xaa7755,-18,1,-68.6);
   box(5,0.4,1, 0xaa7755,4,0.7,-52);   box(5,1.5,0.3, 0xaa7755,4,1,-52.6);
   box(6,0.5,6, 0x88aacc,-4,0.3,-60); box(0.5,3,0.5, 0xaaa,-4,1.5,-60); box(2,0.3,2, 0x88aacc,-4,3.2,-60);
+
+  // SPORTS PARK ENTRANCE — real gate just south of the park proper, teleports into its own
+  // pocket space (same trick as House/Prison/Arcade) since the park itself has no free room left.
+  box(0.5,4,0.5, 0x555555,-16,2,-95); box(0.5,4,0.5, 0x555555,-4,2,-95);
+  box(12,0.6,0.5, 0xdd6622,-10,4.2,-95);
+  buildSign('🏟️ SPORTS PARK',-10,5.3,-95);
 
   // CITY HALL
   box(30,22,24, 0xe8dcc8,0,11,-35); box(30,1,24, 0xd4c8b0,0,22.5,-35);
@@ -16087,6 +16712,12 @@ function buildHouseInterior() {
   // Overhead light
   box(3,0.15,1, 0xffffee, ix-6,4.7,iz-6);
   const kl=new THREE.PointLight(0xffffff,0.7,8); kl.position.set(ix-6,4.5,iz-6); scene.add(kl);
+
+  // ── TOILET (back wall, between kitchen and bedroom) ──────────────────────────
+  box(0.55,0.35,0.6, 0xffffff, ix+2.5,0.35,iz-6.8);   // bowl
+  box(0.6,0.55,0.18, 0xffffff, ix+2.5,0.85,iz-7.05);  // tank
+  box(0.62,0.06,0.18, 0xeeeeee, ix+2.5,1.14,iz-7.05); // tank lid
+  addCol(HOUSE_COLS, ix+2.5,iz-6.8, 0.5,0.5);
 
   // ── DINING TABLE (center) ────────────────────────────────────────────────────
   box(3.5,0.1,2.5, 0x8B5E3C, ix,1.1,iz+5);
@@ -19068,6 +19699,13 @@ let warGarrisons = {};     // territory name -> [{hp,maxHp,mesh,alive,zone,x,z,a
 let warCitizens  = {};     // territory name -> [{hp,maxHp,mesh,alive,x,z,attackTimer}] — Explox allies, fight FOR the player
 let warFlags = {};         // territory name -> flag Group, once captured
 let currentWarZone = null; // the WAR_TERRITORIES entry I'm currently near, or null
+// ─── WAR DEATH — user's own ask: "death in war". War used to be the one death path in the whole
+// game with zero real cost (instant full heal, right back to fighting). Follow-up correction:
+// not a plain countdown either — "when you die you have to choose where to respawn", a real
+// interruption (can't fight, can't be hit) until warDeathModal's choice is made, plus a real
+// S.I.P. loss either way. See knockoutPlayer()'s currentWarZone branch / showWarDeathModal().
+let warAlive = true;
+const WAR_DEATH_SIP_LOSS_PCT = 0.1; // lose 10% of your CURRENT wallet — lost gear, not a bank deposit
 
 function buildWarRoom() {
   const { x, z } = WAR_ROOM_SPOT;
@@ -19222,8 +19860,33 @@ function defeatWarNpc(npc, terr) {
     if (!st || !st.captured) spawnOneWarNpc(terr, npc.isTank);
   }, 8000);
 }
+// ─── WAR DEATH RESPAWN CHOICE — see knockoutPlayer()'s currentWarZone branch, which flips
+// warAlive false and opens this instead of just healing you back up in place.
+function showWarDeathModal(terr, lostSip) {
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('warDeathLossText').textContent =
+    `Downed by ${terr.name}'s defenders — lost ${lostSip.toLocaleString()} S.I.P.`;
+  document.getElementById('warDeathModal').style.display = 'flex';
+}
+function respawnFromWarDeath(where) {
+  document.getElementById('warDeathModal').style.display = 'none';
+  if (where === 'home') {
+    playerGroup.position.set(HOUSE_DOOR.x, 0, HOUSE_DOOR.z + 3);
+    yaw = 0;
+    showNotif('🏠 Respawned at Home.');
+  } else if (where === 'warroom') {
+    playerGroup.position.set(WAR_ROOM_SPOT.x, 0, WAR_ROOM_SPOT.z);
+    showNotif('🪖 Respawned at the War Room.');
+  } else {
+    showNotif('📍 Back in the fight, right where you fell.');
+  }
+  warAlive = true;
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
 function fightWarNpc(npc, terr) {
   if (!npc.alive) { showNotif('That fight is over.'); return; }
+  if (!warAlive) { showNotif('⏳ Still down — pick where to respawn first!'); return; }
   const dmg = getRobotDamage();
   npc.hp -= dmg;
   triggerSwing(); sfx.clang();
@@ -19243,6 +19906,8 @@ function fightWarNpc(npc, terr) {
 // a time" architecture (see tickWar below).
 function tickWarCombat(dt) {
   if (!currentWarZone) return;
+  // No auto-restore on a timer — warAlive only flips back true from respawnFromWarDeath(),
+  // once the player actually picks where to come back.
   const terr = currentWarZone;
   const enemies = warGarrisons[terr.name] || [];
   const citizens = warCitizens[terr.name] || [];
@@ -19266,7 +19931,7 @@ function tickWarCombat(dt) {
         fireWarShot(npc.x, npc.isTank ? 1.4 : 1.7, npc.z, tx, tz);
         sfx.laser();
         if (targetCitizen) { targetCitizen.hp -= dmg; if (targetCitizen.hp <= 0) defeatWarCitizen(targetCitizen, terr); }
-        else damagePlayer(dmg, npc.isTank ? `a ${terr.name} Tank` : `a ${terr.name} soldier`);
+        else if (warAlive) damagePlayer(dmg, npc.isTank ? `a ${terr.name} Tank` : `a ${terr.name} soldier`);
       }
     } else {
       const speed = npc.isTank ? WAR_TANK_SPEED : WAR_SOLDIER_SPEED;
@@ -20743,7 +21408,9 @@ function animate(){
     if(moving){
       dir.normalize();
       const carryMult = carriedBoxes.length ? Math.max(0.65, 1 - carriedBoxes.length*0.1) : 1; // a light penalty for a full arm-load
-      const addonSpeedMult = (activeAddOns.includes('speedboost')?1.6:1) * (activeAddOns.includes('slowmo')?0.5:1) * carryMult;
+      const sickMult = sick ? 0.6 : 1; // real, felt slowdown while sick — not just a HUD label
+      const embarrassedMult = playTimeSeconds < embarrassedUntil ? 0.7 : 1; // after a toilet accident
+      const addonSpeedMult = (activeAddOns.includes('speedboost')?1.6:1) * (activeAddOns.includes('slowmo')?0.5:1) * carryMult * sickMult * embarrassedMult;
       const step=SPEED*(moveState.run?1.85:1)*addonSpeedMult*dt;
       const nx=playerGroup.position.x+dir.x*step;
       const nz=playerGroup.position.z+dir.z*step;
@@ -21056,6 +21723,11 @@ function animate(){
   tickPresidents(dt);
   tickElders(dt);
   tickGrowth(dt);
+  tickSchoolEvent();
+  tickHunger(dt);
+  tickSickness();
+  tickBladder(dt);
+  tickTraffic(dt);
   tickMachines(dt);
   tickTubeWorld(dt);
   tickTubeGrowth(dt);

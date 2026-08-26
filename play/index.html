@@ -60,6 +60,9 @@
     #woodHud       { position:fixed; top:278px; right:14px; color:#c89860; font-size:13px; font-weight:bold; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; }
     #scrapHud      { position:fixed; top:316px; right:14px; color:#8899aa; font-size:13px; font-weight:bold; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; }
     #growthHud     { position:fixed; top:354px; right:14px; color:#9be89b; font-size:13px; font-weight:bold; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; }
+    #hungerHud     { position:fixed; top:392px; right:14px; color:#88ff88; font-size:13px; font-weight:bold; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; }
+    #sickHud       { position:fixed; top:430px; right:14px; color:#aaff66; font-size:13px; font-weight:bold; background:rgba(40,60,0,0.85); padding:7px 12px; border-radius:8px; border:1px solid #779922; display:none; }
+    #bladderHud    { position:fixed; top:468px; right:14px; color:#66ccff; font-size:13px; font-weight:bold; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; }
     #healthHud     { position:fixed; top:60px; left:14px; z-index:15; background:rgba(0,0,0,0.5); padding:8px 12px; border-radius:8px; }
     #healthBarBg   { width:150px; height:14px; background:#330000; border:1px solid #ff4444; border-radius:7px; overflow:hidden; }
     #healthBarFill { width:100%; height:100%; background:linear-gradient(90deg,#ff4444,#ff8844); transition:width 0.2s; }
@@ -855,6 +858,9 @@
   <div id="scrapHud">🔩 <span id="scrapAmount">0</span> Scrap</div>
   <div id="eliteHud">💎 <span id="eliteAmount">0</span> Elite</div>
   <div id="growthHud">🧒 Kid</div>
+  <div id="hungerHud">🍔 Hunger: 100%</div>
+  <div id="sickHud">🤒 SICK — slower, losing health</div>
+  <div id="bladderHud">🚽 Bladder: 100%</div>
   <div id="healthHud">
     <div id="healthBarBg"><div id="healthBarFill"></div></div>
     <div id="healthText">100/100 HP</div>
@@ -1223,6 +1229,54 @@
       <p id="hitmanPreview" style="font-size:12px;min-height:16px;margin-bottom:12px;"></p>
       <button onclick="confirmHireKiller()" style="width:100%;padding:10px;background:#7a1a1a;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:13px;margin-bottom:8px;">🗡️ Hire (150 S.I.P.)</button>
       <button onclick="closeHitmanModal()" style="width:100%;padding:8px;background:none;border:1px solid #444;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- WAR DEATH MODAL — user's own ask: "when you die you have to choose where to respawn" (a
+       correction to War Death's first pass, which just healed you in place after a countdown).
+       See showWarDeathModal()/respawnFromWarDeath() in game.js. -->
+  <div id="warDeathModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;pointer-events:auto;">
+    <div style="background:linear-gradient(135deg,#1a0a0a,#2a0e0e);border:2px solid #cc3333;border-radius:16px;padding:28px 26px;width:320px;text-align:center;">
+      <div style="font-size:40px;margin-bottom:8px;">💀</div>
+      <h2 style="color:#cc3333;font-size:18px;letter-spacing:2px;margin-bottom:6px;">DOWNED</h2>
+      <p id="warDeathLossText" style="color:#ff8888;font-size:13px;margin-bottom:16px;"></p>
+      <p style="color:#aaa;font-size:12px;margin-bottom:14px;">Where do you want to respawn?</p>
+      <button onclick="respawnFromWarDeath('here')" style="width:100%;padding:10px;background:#3a1a1a;border:1px solid #cc3333;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:13px;margin-bottom:8px;">📍 Right Here — jump back in</button>
+      <button onclick="respawnFromWarDeath('warroom')" style="width:100%;padding:10px;background:#1a2a3a;border:1px solid #4488cc;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:13px;margin-bottom:8px;">🪖 War Room — regroup safely</button>
+      <button onclick="respawnFromWarDeath('home')" style="width:100%;padding:10px;background:#1a3a1a;border:1px solid #44cc66;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:13px;">🏠 Home — get clear of it</button>
+    </div>
+  </div>
+
+  <!-- BASKETBALL MODAL — user's own ask: "sports". A real live power meter (marker driven by the
+       same requestAnimationFrame loop that scores the shot, see openBasketball()/shootBasketball()
+       in game.js) — stop it near the middle for the best shot. -->
+  <div id="basketballModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.82);align-items:center;justify-content:center;pointer-events:auto;">
+    <div style="background:linear-gradient(135deg,#1a1200,#2a1e00);border:2px solid #dd6622;border-radius:16px;padding:28px 26px;width:320px;text-align:center;">
+      <div style="font-size:40px;margin-bottom:8px;">🏀</div>
+      <h2 style="color:#dd6622;font-size:18px;letter-spacing:2px;margin-bottom:6px;">SHOOT HOOPS</h2>
+      <p style="color:#aaa;font-size:12px;margin-bottom:16px;">Stop the marker near the middle for the best shot!</p>
+      <div style="position:relative;height:20px;background:linear-gradient(90deg,#552200,#dd8800,#ffcc44,#dd8800,#552200);border-radius:10px;margin-bottom:20px;">
+        <div style="position:absolute;left:50%;top:-4px;width:2px;height:28px;background:#fff;opacity:0.6;"></div>
+        <div id="bbMarker" style="position:absolute;left:0%;top:-6px;width:4px;height:32px;background:#fff;border-radius:2px;box-shadow:0 0 6px #fff;"></div>
+      </div>
+      <button onclick="shootBasketball()" style="width:100%;padding:12px;background:#7a3300;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:14px;margin-bottom:8px;">🏀 SHOOT!</button>
+      <button onclick="closeBasketball()" style="width:100%;padding:8px;background:none;border:1px solid #444;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- SOCCER MODAL — user's own ask: "sports". Pick a side, the keeper independently picks a
+       side to dive — see openSoccer()/kickSoccer() in game.js. -->
+  <div id="soccerModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.82);align-items:center;justify-content:center;pointer-events:auto;">
+    <div style="background:linear-gradient(135deg,#001a08,#00280e);border:2px solid #33aa55;border-radius:16px;padding:28px 26px;width:320px;text-align:center;">
+      <div style="font-size:40px;margin-bottom:8px;">⚽</div>
+      <h2 style="color:#33aa55;font-size:18px;letter-spacing:2px;margin-bottom:6px;">PENALTY KICK</h2>
+      <p style="color:#aaa;font-size:12px;margin-bottom:16px;">Pick a side — the keeper's guessing too!</p>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <button onclick="kickSoccer('left')" style="flex:1;padding:14px 6px;background:#1a4a2a;border:1px solid #33aa55;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:13px;">⬅️ Left</button>
+        <button onclick="kickSoccer('center')" style="flex:1;padding:14px 6px;background:#1a4a2a;border:1px solid #33aa55;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:13px;">⬆️ Center</button>
+        <button onclick="kickSoccer('right')" style="flex:1;padding:14px 6px;background:#1a4a2a;border:1px solid #33aa55;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:13px;">➡️ Right</button>
+      </div>
+      <button onclick="closeSoccer()" style="width:100%;padding:8px;background:none;border:1px solid #444;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">Cancel</button>
     </div>
   </div>
 
