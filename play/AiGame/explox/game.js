@@ -445,6 +445,7 @@ function saveCurrentUser() {
   if(!currentUser) return;
   const data = {
     bankBalance: bankBalance,
+    bankEliteBalance: bankEliteBalance,
     inventory:   playerInventory,
     safeBalance:   safeBalance,
     safeCombo:     safeCombo,
@@ -454,7 +455,7 @@ function saveCurrentUser() {
     pantsColor:playerColors.pants, shoesColor:playerColors.shoes,
     hairColor:playerColors.hair, name:playerName, sip:sipDollars, wood:woodCount, scrap:scrapMetal, ownedLand:ownedLand, plotBuildings:plotBuildings,
     landInvites:landInvites, landColor:landColor, landForSale:landForSale, pendingNotices:pendingNotices,
-    tubeLikes:tubeLikes, tubeViews:tubeViews, myUploads:myUploads, mySubscribers:mySubscribers, carLocation:carLocation, installedApps:installedApps,
+    tubeLikes:tubeLikes, tubeViews:tubeViews, tubeBaseComments:tubeBaseComments, myUploads:myUploads, mySubscribers:mySubscribers, carLocation:carLocation, installedApps:installedApps,
     weapon:playerWeapon, ownedWeapons:ownedWeapons, ownedItems:ownedItems, ownedSkins:ownedSkins,
     armor:playerArmor, ownedArmor:ownedArmor,
     alignment:alignment, wanted:wantedLevel,
@@ -473,11 +474,13 @@ function saveCurrentUser() {
     playTimeSeconds: playTimeSeconds, lastGrowthStageId: lastGrowthStageId, eliteCoins: eliteCoins,
     familyKidAdopted: familyKidAdopted, familyKidId: familyKidId, familyKidName: familyKidName, familyKidPlayTime: familyKidPlayTime,
     familyKidInSchool: familyKidInSchool, familyKidSmarts: familyKidSmarts, familyKidLastStageId: familyKidLastStageId,
+    lastAllowanceAt: lastAllowanceAt,
     unpaidBills: unpaidBills, lastBillCheck: lastBillCheck, hasSeenGuide: hasSeenGuide,
     myStocks: myStocks, ffaKills: ffaKills,
     eliteLevel: eliteLevel, activeQuests: activeQuests,
     lifetimeRobotKills: lifetimeRobotKills, lifetimeRogueKills: lifetimeRogueKills, lifetimeWarHits: lifetimeWarHits,
-    killerDefeats: killerDefeats, pendingEarnings: pendingEarnings
+    killerDefeats: killerDefeats, pendingEarnings: pendingEarnings,
+    peakSip: peakSip, peakElite: peakElite, totalQuestsCompleted: totalQuestsCompleted, totalBossesDefeated: totalBossesDefeated
   };
   localStorage.setItem('explox_user_' + currentUser, JSON.stringify(data));
   localStorage.setItem('explox_current_user', currentUser);
@@ -793,11 +796,13 @@ async function doLogin(name) {
   pendingNotices = Array.isArray(d.pendingNotices) ? d.pendingNotices : [];
   tubeLikes = d.tubeLikes && typeof d.tubeLikes === 'object' ? d.tubeLikes : {};
   tubeViews = d.tubeViews && typeof d.tubeViews === 'object' ? d.tubeViews : {};
+  tubeBaseComments = d.tubeBaseComments && typeof d.tubeBaseComments === 'object' ? d.tubeBaseComments : {};
   myUploads = Array.isArray(d.myUploads) ? d.myUploads : [];
   mySubscribers = d.mySubscribers !== undefined ? d.mySubscribers : 0;
   carLocation = d.carLocation || 'Downtown Explox';
   installedApps = Array.isArray(d.installedApps) ? d.installedApps : [];
   bankBalance     = d.bankBalance !== undefined ? d.bankBalance : 0;
+  bankEliteBalance = d.bankEliteBalance !== undefined ? d.bankEliteBalance : BANK_VAULT_ELITE_SEED;
   playerInventory = d.inventory   || {};
   playerBirthday = d.birthday || '';
   setBirthdayDropdowns(playerBirthday);
@@ -842,6 +847,7 @@ async function doLogin(name) {
   familyKidInSchool = !!d.familyKidInSchool;
   familyKidSmarts   = d.familyKidSmarts !== undefined ? d.familyKidSmarts : 0;
   familyKidLastStageId = d.familyKidLastStageId || growthStageFor(familyKidPlayTime).id;
+  lastAllowanceAt = d.lastAllowanceAt !== undefined ? d.lastAllowanceAt : -999;
   unpaidBills   = Array.isArray(d.unpaidBills) ? d.unpaidBills : [];
   lastBillCheck = d.lastBillCheck !== undefined ? d.lastBillCheck : playTimeSeconds;
   // Same brand-new-vs-existing-account distinction as playTimeSeconds above: a genuinely new
@@ -860,6 +866,12 @@ async function doLogin(name) {
   lifetimeRogueKills = d.lifetimeRogueKills !== undefined ? d.lifetimeRogueKills : 0;
   lifetimeWarHits    = d.lifetimeWarHits !== undefined ? d.lifetimeWarHits : 0;
   killerDefeats      = d.killerDefeats !== undefined ? d.killerDefeats : 0;
+  // max()'d against the account's real current balance so an account that already had money
+  // before this feature existed shows a correct record immediately, not a jarring 0.
+  peakSip  = Math.max(d.peakSip !== undefined ? d.peakSip : 0, sipDollars);
+  peakElite = Math.max(d.peakElite !== undefined ? d.peakElite : 0, eliteCoins);
+  totalQuestsCompleted = d.totalQuestsCompleted !== undefined ? d.totalQuestsCompleted : 0;
+  totalBossesDefeated  = d.totalBossesDefeated !== undefined ? d.totalBossesDefeated : 0;
   pendingEarnings    = Array.isArray(d.pendingEarnings) ? d.pendingEarnings : [];
   _earningsOverdueNotified = new Set(); // fresh per login — a still-overdue earning just nags again once, not a bug
   updateEarningsBadge();
@@ -1110,6 +1122,9 @@ function openBank() {
   document.getElementById('bankWalletDisplay').textContent = sipDollars.toLocaleString() + ' S.I.P.';
   document.getElementById('bankBalDisplay').textContent = bankBalance.toLocaleString() + ' S.I.P.';
   document.getElementById('bankAmtInput').value = '';
+  document.getElementById('bankEliteWalletDisplay').textContent = Math.floor(eliteCoins).toLocaleString() + ' 💎';
+  document.getElementById('bankEliteBalDisplay').textContent = formatBigNum(bankEliteBalance) + ' 💎';
+  document.getElementById('bankEliteAmtInput').value = '';
   document.getElementById('bankMsg').textContent = '';
   document.getElementById('bankOverlay').style.display = 'flex';
 }
@@ -1231,6 +1246,38 @@ function bankWithdraw() {
   msg.textContent = '✅ Withdrew ' + amt.toLocaleString() + ' S.I.P.!';
   saveCurrentUser();
 }
+// Same shape as bankDeposit/bankWithdraw above, just for Elite Coins against the new
+// bankEliteBalance (see its declaration for why that starts absurdly high instead of at 0).
+function bankEliteDeposit() {
+  const amt = parseInt(document.getElementById('bankEliteAmtInput').value);
+  const msg = document.getElementById('bankMsg');
+  if(!amt || amt <= 0) { msg.style.color='#ff8888'; msg.textContent='Enter a valid amount!'; return; }
+  if(amt > eliteCoins) { sfx.nope(); msg.style.color='#ff8888'; msg.textContent="You don't have that many 💎!"; return; }
+  eliteCoins -= amt;
+  bankEliteBalance += amt;
+  updateElite();
+  document.getElementById('bankEliteWalletDisplay').textContent = Math.floor(eliteCoins).toLocaleString() + ' 💎';
+  document.getElementById('bankEliteBalDisplay').textContent = formatBigNum(bankEliteBalance) + ' 💎';
+  sfx.bank();
+  msg.style.color = '#66ccff';
+  msg.textContent = '✅ Deposited ' + amt.toLocaleString() + ' 💎!';
+  saveCurrentUser();
+}
+function bankEliteWithdraw() {
+  const amt = parseInt(document.getElementById('bankEliteAmtInput').value);
+  const msg = document.getElementById('bankMsg');
+  if(!amt || amt <= 0) { msg.style.color='#ff8888'; msg.textContent='Enter a valid amount!'; return; }
+  if(amt > bankEliteBalance) { sfx.nope(); msg.style.color='#ff8888'; msg.textContent='Not enough in the vault!'; return; }
+  bankEliteBalance -= amt;
+  eliteCoins += amt;
+  updateElite();
+  document.getElementById('bankEliteWalletDisplay').textContent = Math.floor(eliteCoins).toLocaleString() + ' 💎';
+  document.getElementById('bankEliteBalDisplay').textContent = formatBigNum(bankEliteBalance) + ' 💎';
+  sfx.coin();
+  msg.style.color = '#FFD700';
+  msg.textContent = '✅ Withdrew ' + amt.toLocaleString() + ' 💎!';
+  saveCurrentUser();
+}
 
 function backToLogin() {
   if(shopSalesTimer){ clearInterval(shopSalesTimer); shopSalesTimer=null; } // don't let a staffed shop's timer outlive the logged-in account
@@ -1343,6 +1390,7 @@ let familyKidMeshes    = null;           // tagged parts, mirrors buddyMeshes
 let familyKidInSchool  = false;          // persisted — enrolled while 'kid'/'teen' stage, grows up a bit faster + earns Smarts
 let familyKidSmarts    = 0;              // persisted — accumulated while in school, pays out a S.I.P. bonus on reaching 'adult'
 let familyKidLastStageId = 'baby';       // persisted — so a fresh login doesn't re-fire the growth/graduation notif
+let lastAllowanceAt = -999;              // persisted — playTimeSeconds of the last "Ask for Allowance" from a relative
 
 // ─── BILLS — real recurring expenses for what you own (house, land, cars), paid with a real
 // stack of cash-bill denominations instead of an abstract number disappearing. ──────────────
@@ -1445,6 +1493,7 @@ const ADD_ONS = [
   { id:'launchparkour',name:'Play: Rooftop Parkour', emoji:'🏙️', category:'Minigames', type:'action', desc:'Jump straight into rooftop running.', cost:0 },
   { id:'launchsf',     name:'Play: Special Forces', emoji:'🪖', category:'Minigames', type:'action', desc:'Jump straight into the FPS mission.', cost:0 },
   { id:'freearcade',   name:'Free Arcade',    emoji:'🎰', category:'Minigames', type:'toggle', desc:'Every arcade game (claw, snake, tetris & more) is free to play.' },
+  { id:'hirekiller',   name:'Hire a Killer',  emoji:'🗡️', category:'Crime', type:'action', desc:'Pay to have someone hunted down by name — you get their money once the hit lands.', cost:0 },
   // WEATHER — real hooks into the actual real-calendar weather-particle system.
   { id:'snowday',      name:'Snow Day',       emoji:'❄️', category:'Weather', type:'toggle', desc:'Force snow, no matter the season.' },
   { id:'leafstorm',    name:'Leaf Storm',     emoji:'🍂', category:'Weather', type:'toggle', desc:'Force falling leaves, no matter the season.' },
@@ -1467,6 +1516,18 @@ let playerHealth    = 100;
 let playerMaxHealth = 100; // was a const 100 forever — now grows with Robot Level, see computePlayerMaxHealth()
 let bankBalance     = 0;
 let eliteCoins      = 0;
+// User's own ask: "make it so the bank also has 100000000000000000000000000000000000000000000000000
+// daimounds" — confirmed live (not a display-only flourish) that this should be a real, withdrawable
+// Bank Diamond balance, same shape as the existing S.I.P. bankBalance above, just seeded absurdly
+// high instead of starting at 0. A plain JS number can't hold this exactly (doubles only carry
+// ~15-17 significant digits) but that's fine here — the balance is meant to functionally never run
+// out, and formatBigNum() below switches to scientific notation past the point where toLocaleString()
+// would otherwise print float-precision garbage digits.
+const BANK_VAULT_ELITE_SEED = 1e53;
+let bankEliteBalance = 0;
+function formatBigNum(n) {
+  return Math.abs(n) >= 1e21 ? n.toExponential(2) : n.toLocaleString();
+}
 
 // ─── QUESTS & ROBOT LEVEL — completing quests pays out Elite Coins; spending 100/500/1000/
 // 1500/2000/3000/4500/... of them "levels up" the robots themselves (bigger, tougher, hit
@@ -1477,6 +1538,118 @@ let lifetimeRobotKills = 0; // Scrapyard-spawner robots
 let lifetimeRogueKills = 0; // roaming rogue robots
 let lifetimeWarHits    = 0; // hits landed on any War territory defender
 let killerDefeats      = 0; // real persisted count — more of these means Killers spawn more often (see tickKillers)
+
+// ─── RECORDS — user's own ask: "records like most diamonds, sip and more". peakSip/peakElite
+// track the highest balance ever actually held (updated in updateSIP()/updateElite(), the same
+// choke point every S.I.P./Elite Coin change already flows through) — NOT current balance, which
+// can go back down after spending. eliteLevel and ownedWeapons.length are already real lifetime
+// highs on their own (both only ever grow, never shrink), so they don't need separate tracking.
+let peakSip = 0, peakElite = 0, totalQuestsCompleted = 0, totalBossesDefeated = 0;
+function formatPlayTime(sec) {
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m ${Math.floor(sec % 60)}s`;
+}
+// Every entry has a `key` matching LEADERBOARD_STATS in server-node/server.js — that's how a
+// row's own stat gets matched up with the fetched leaderboard's holder+value for that same key.
+// `fmt` formats a RAW NUMBER (used for the leaderboard holder's value); `mine` formats this
+// account's own live value (usually the same formatting, just off local variables not a number).
+const numFmt = n => Math.round(n).toLocaleString();
+const RECORD_DEFS = [
+  { key:'peakSip',              icon:'💰', label:'Most S.I.P. Ever Held',       mine:() => formatBigNum(Math.round(peakSip)), fmt: n => formatBigNum(Math.round(n)) },
+  { key:'peakElite',            icon:'💎', label:'Most Diamonds Ever Held',      mine:() => formatBigNum(peakElite), fmt: n => formatBigNum(Math.round(n)) },
+  { key:'eliteLevel',           icon:'🤖', label:'Highest Robot Level Reached',  mine:() => eliteLevel.toLocaleString(), fmt: numFmt },
+  { key:'totalBossesDefeated',  icon:'⚔️', label:'Most Bosses Defeated',         mine:() => totalBossesDefeated.toLocaleString(), fmt: numFmt },
+  { key:'totalQuestsCompleted', icon:'📜', label:'Most Quests Completed',        mine:() => totalQuestsCompleted.toLocaleString(), fmt: numFmt },
+  { key:'playTimeSeconds',      icon:'⏱️', label:'Longest Time Played',          mine:() => formatPlayTime(playTimeSeconds), fmt: formatPlayTime },
+  { key:'ownedWeapons',         icon:'🗡️', label:'Most Weapons Collected',       mine:() => ownedWeapons.length.toLocaleString(), fmt: numFmt },
+  // 20 more — every one below reads a real stat the game was already tracking somewhere else
+  // (robot/PvP kill counters, owned-item arrays, etc.), just never surfaced as a record before.
+  { key:'lifetimeRobotKills',   icon:'🤖', label:'Most Scrapyard Robots Defeated',    mine:() => lifetimeRobotKills.toLocaleString(), fmt: numFmt },
+  { key:'lifetimeRogueKills',   icon:'🏃', label:'Most Rogue Robots Defeated',        mine:() => lifetimeRogueKills.toLocaleString(), fmt: numFmt },
+  { key:'lifetimeWarHits',      icon:'⚔️', label:'Most War Hits Landed',              mine:() => lifetimeWarHits.toLocaleString(), fmt: numFmt },
+  { key:'killerDefeats',        icon:'👻', label:'Most Killers Defeated',             mine:() => killerDefeats.toLocaleString(), fmt: numFmt },
+  { key:'ffaKills',             icon:'🏟️', label:'Most Arena FFA Kills',              mine:() => ffaKills.toLocaleString(), fmt: numFmt },
+  { key:'ownedCars',            icon:'🚗', label:'Most Cars Owned',                   mine:() => ownedCars.length.toLocaleString(), fmt: numFmt },
+  { key:'ownedComputers',       icon:'🖥️', label:'Most Computers Owned',              mine:() => ownedComputers.length.toLocaleString(), fmt: numFmt },
+  { key:'ownedFurniture',       icon:'🪑', label:'Most Furniture Owned',              mine:() => ownedFurniture.length.toLocaleString(), fmt: numFmt },
+  { key:'ownedSkins',           icon:'🎽', label:'Most Skins Unlocked',               mine:() => ownedSkins.length.toLocaleString(), fmt: numFmt },
+  { key:'ownedArmor',           icon:'🛡️', label:'Most Armor Pieces Collected',       mine:() => ownedArmor.length.toLocaleString(), fmt: numFmt },
+  { key:'ownedItems',           icon:'🎨', label:'Most Customization Items Owned',    mine:() => ownedItems.length.toLocaleString(), fmt: numFmt },
+  { key:'friends',              icon:'👥', label:'Most Friends Made',                 mine:() => friends.length.toLocaleString(), fmt: numFmt },
+  { key:'children',             icon:'👶', label:'Most Kids Adopted',                 mine:() => children.length.toLocaleString(), fmt: numFmt },
+  { key:'ownedStaff',           icon:'🧑‍💼', label:'Most Staff Hired',                 mine:() => ownedStaff.length.toLocaleString(), fmt: numFmt },
+  { key:'myUploads',            icon:'📺', label:'Most STV Videos Uploaded',          mine:() => myUploads.length.toLocaleString(), fmt: numFmt },
+  { key:'mySubscribers',        icon:'🔔', label:'Most STV Subscribers',              mine:() => mySubscribers.toLocaleString(), fmt: numFmt },
+  { key:'ownedLand',            icon:'🏞️', label:'Most Land Plots Owned',             mine:() => ownedLand.length.toLocaleString(), fmt: numFmt },
+  { key:'buildings',            icon:'🏗️', label:'Most Buildings Built',              mine:() => Object.values(plotBuildings).reduce((sum,arr) => sum+arr.length, 0).toLocaleString(), fmt: numFmt },
+  { key:'storeSalesCount',      icon:'💰', label:'Most Store Sales Made',             mine:() => storeSalesCount.toLocaleString(), fmt: numFmt },
+  { key:'installedApps',        icon:'📲', label:'Most Apps Downloaded',              mine:() => installedApps.length.toLocaleString(), fmt: numFmt },
+];
+let leaderboardData = null; // null until a fetch resolves; per key: {holder, value}
+function toggleRecordsPanel() {
+  const panel = document.getElementById('recordsPanel');
+  if (panel.style.display === 'none') {
+    if (document.pointerLockElement) document.exitPointerLock();
+    isPointerLocked = false;
+    renderRecordsPanel();
+    panel.style.display = 'flex';
+    document.getElementById('recordsTab').style.display = 'none';
+  } else { closeRecordsPanel(); }
+}
+function closeRecordsPanel() {
+  document.getElementById('recordsPanel').style.display = 'none';
+  document.getElementById('recordsTab').style.display = 'block';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function recordRowHtml(r, loadingLeader) {
+  let leaderLine;
+  if (serverMode !== 'online') {
+    leaderLine = `<div style="color:#666;font-size:9px;margin-top:4px;">Go online to see who holds this record</div>`;
+  } else if (loadingLeader) {
+    leaderLine = `<div style="color:#666;font-size:9px;margin-top:4px;">Loading leader...</div>`;
+  } else if (!leaderboardData) {
+    // A real fetch failure (offline server, 404, timeout) — NOT the same as "fetched fine, this
+    // stat just has no holder yet". Conflating the two used to print "No one holds this record
+    // yet" on every row whenever the leaderboard endpoint was simply unreachable, which reads as
+    // real data when it isn't.
+    leaderLine = `<div style="color:#a55;font-size:9px;margin-top:4px;">Couldn't reach the leaderboard — try again</div>`;
+  } else {
+    const lb = leaderboardData[r.key];
+    if (lb && lb.holder) {
+      const isMe = lb.holder === currentUser;
+      leaderLine = `<div style="color:#FFD700;font-size:10px;font-weight:bold;margin-top:4px;">🥇 ${isMe ? 'You!' : lb.holder} — ${r.fmt(lb.value)}</div>`;
+    } else {
+      leaderLine = `<div style="color:#666;font-size:9px;margin-top:4px;">No one holds this record yet</div>`;
+    }
+  }
+  return `
+    <div style="background:rgba(255,255,255,0.05);border:2px solid #333;border-radius:10px;padding:10px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <div style="color:#fff;font-size:12px;font-weight:bold;">${r.icon} ${r.label}</div>
+        <div style="color:#bb66ff;font-size:13px;font-weight:bold;white-space:nowrap;">You: ${r.mine()}</div>
+      </div>
+      ${leaderLine}
+    </div>`;
+}
+async function fetchLeaderboard() {
+  try {
+    const res = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/leaderboard', {}, 4000);
+    leaderboardData = await res.json();
+  } catch (e) { leaderboardData = null; }
+}
+function renderRecordsPanel() {
+  const list = document.getElementById('recordsList');
+  if (!list) return; // panel HTML not loaded yet (e.g. called before startGame())
+  const goingToFetch = serverMode === 'online';
+  list.innerHTML = RECORD_DEFS.map(r => recordRowHtml(r, goingToFetch && !leaderboardData)).join('');
+  if (goingToFetch) {
+    fetchLeaderboard().then(() => {
+      if (document.getElementById('recordsPanel').style.display !== 'none') {
+        list.innerHTML = RECORD_DEFS.map(r => recordRowHtml(r, false)).join('');
+      }
+    });
+  }
+}
 const ELITE_LEVEL_THRESHOLDS = [100, 500, 1000, 1500, 2000, 3000, 4500];
 function eliteThresholdForLevel(level) { // cost in Elite Coins to go from level-1 to level
   if (level <= ELITE_LEVEL_THRESHOLDS.length) return ELITE_LEVEL_THRESHOLDS[level - 1];
@@ -1485,8 +1658,25 @@ function eliteThresholdForLevel(level) { // cost in Elite Coins to go from level
   for (let i = ELITE_LEVEL_THRESHOLDS.length + 1; i <= level; i++) { delta = Math.round(delta * 1.5 / 50) * 50; last += delta; }
   return last;
 }
-function robotPowerMult() { return 1 + eliteLevel * 0.35; } // HP/damage/reward scale
-function robotSizeMult()  { return 1 + eliteLevel * 0.15; } // visual scale — noticeable, not absurd
+// User's own follow-up after seeing giant robots from the new bottomless Bank Diamond balance
+// (item 229) let Robot Level climb way past anything normal grinding would ever reach: "no max
+// level but cap the robot strenghth and size but you keep your strenghth you can also upgrade the
+// wepon" — eliteLevel itself still climbs forever (no cap on leveling, no cap on the player's own
+// computePlayerMaxHealth()/playerLevelDamageMult() below), only the ENEMY-side scale these two
+// feed is clamped, so a maxed-out level still means a genuinely tougher/bigger swarm (roughly
+// what old level ~20 used to look like) without literally spiraling into unkillable, screen-filling
+// robots. The player's own weapon upgrades (Weapon Shop, WEAPON_DAMAGE/ROBOT_BONUS_DAMAGE below)
+// stay a real, uncapped way to keep growing stronger against them regardless of this cap.
+const ROBOT_POWER_MULT_CAP = 8;   // ≈ level 20 worth of the old uncapped formula
+function robotPowerMult() { return Math.min(ROBOT_POWER_MULT_CAP, 1 + eliteLevel * 0.35); } // HP/damage/reward scale
+// Robot SIZE used to also scale with the viewing player's own Robot Level, same formula as
+// power above — but robots aren't networked objects (each client spawns its own local copies),
+// so two players standing in the same spot saw genuinely different sizes for "the same" robot
+// depending on whose Robot Level was higher. User's own report: "the robots are huge but the
+// other player thinks they look normal." Size is now always 1 — a real, consistent look for
+// everyone online — while power/reward stays personal, so Robot Level is still a real, felt
+// upgrade (tougher, more rewarding fights), just not a mismatched visual anymore.
+function robotSizeMult()  { return 1; }
 // User's own ask: "when you level up you also level up" — Robot Level used to be a pure enemy-side
 // scale (robots get tougher and worth more, item 199-ish) with nothing for the player themselves.
 // Now leveling up genuinely makes YOU stronger too: +15 real Max HP per level, plus a real damage
@@ -1551,6 +1741,7 @@ function claimQuest(id) {
   queueEarning(0, q.rewardElite, 'Quest');
   showNotif(`✅ Quest complete! Check Earnings to collect +${q.rewardElite} 💎`);
   sfx.buy();
+  totalQuestsCompleted++;
   activeQuests.splice(idx, 1);
   ensureQuests();
   saveCurrentUser();
@@ -1769,6 +1960,18 @@ const ITEM_PRICES = {
   hat_helmet:60, hat_tophat:60, hat_pirate:80, hat_wizard:80, hat_crown:100, hat_santa:100,
   hair_ponytail:25, hair_afro:50,
   shirt_suit:60,
+  // 50 new hat/shirt/pants/shoe styles (item ~236, user's own correction: "there is shirts hats
+  // and stuff that is what i mean" — real new styles, not outfit color presets).
+  hat_bandana:40, hat_headband:35, hat_partyhat:45, hat_bucket:55, hat_jester:75,
+  hat_viking:85, hat_graduation:65, hat_flower:50, hat_backwards:40, hat_sombrero:70,
+  hat_propeller:60, hat_antlers:65, hat_headphones:70, hat_chef:55, hat_turban:60,
+  shirt_crewneck:35, shirt_vneck:40, shirt_flannel:55, shirt_polo:50, shirt_crop:45,
+  shirt_turtleneck:50, shirt_buttonup:55, shirt_camo:60, shirt_graphic:45, shirt_raincoat:70,
+  shirt_denim:65, shirt_tuxedo:90, shirt_sweater:55, shirt_crophoodie:60, shirt_overshirt:50,
+  pants_overalls:50, pants_skirt:35, pants_leggings:35, pants_capri:40, pants_plaid:45,
+  pants_bellbottom:50, pants_camopants:55, pants_skinny:40, pants_sweatpants:35, pants_kilt:65,
+  shoe_flipflops:25, shoe_rainboots:45, shoe_cleats:55, shoe_slippers:25, shoe_platform:50,
+  shoe_cowboyboots:70, shoe_crocs:35, shoe_wedges:50, shoe_moccasins:40, shoe_skates:80,
 };
 
 // ─── PRE-MADE SKINS ──────────────────────────────────────────────────────────
@@ -1997,6 +2200,17 @@ function drawPreview() {
   if(playerShoes==='boots')   { px.fillRect(cx-18,160,15,28); px.fillRect(cx+3,160,15,28); }
   else if(playerShoes==='sandals') { px.fillRect(cx-17,178,14,8); px.fillRect(cx+3,178,14,8); }
   else if(playerShoes==='hightop') { px.fillRect(cx-18,168,15,20); px.fillRect(cx+3,168,15,20); }
+  // 10 new shoes
+  else if(playerShoes==='flipflops')  { px.fillRect(cx-17,182,14,4); px.fillRect(cx+3,182,14,4); }
+  else if(playerShoes==='rainboots')  { px.fillRect(cx-18,155,15,33); px.fillRect(cx+3,155,15,33); }
+  else if(playerShoes==='cowboyboots'){ px.fillRect(cx-19,150,16,38); px.fillRect(cx+3,150,16,38); }
+  else if(playerShoes==='platform')   { px.fillRect(cx-18,170,15,18); px.fillRect(cx+3,170,15,18); }
+  else if(playerShoes==='cleats')     { px.fillRect(cx-18,178,15,10); px.fillRect(cx+3,178,15,10); px.fillStyle='#222'; for(let i=0;i<3;i++){px.fillRect(cx-16+i*5,188,2,4);px.fillRect(cx+5+i*5,188,2,4);} }
+  else if(playerShoes==='slippers')   { px.beginPath(); px.ellipse(cx-10,183,9,7,0,0,Math.PI*2); px.fill(); px.beginPath(); px.ellipse(cx+10,183,9,7,0,0,Math.PI*2); px.fill(); }
+  else if(playerShoes==='crocs')      { px.fillRect(cx-18,175,15,13); px.fillRect(cx+3,175,15,13); px.fillStyle='rgba(0,0,0,0.3)'; px.fillRect(cx-15,178,3,3); px.fillRect(cx-9,178,3,3); px.fillRect(cx+6,178,3,3); px.fillRect(cx+12,178,3,3); }
+  else if(playerShoes==='wedges')     { px.fillRect(cx-18,168,15,20); px.fillRect(cx+3,168,15,20); }
+  else if(playerShoes==='moccasins')  { px.fillRect(cx-17,180,14,8); px.fillRect(cx+3,180,14,8); }
+  else if(playerShoes==='skates')     { px.fillRect(cx-18,178,15,10); px.fillRect(cx+3,178,15,10); px.fillStyle='#888'; [-14,-6,6,14].forEach(sx=>{px.beginPath();px.arc(cx+sx,190,3,0,Math.PI*2);px.fill();}); }
   else { px.fillRect(cx-18,178,15,10); px.fillRect(cx+3,178,15,10); }
   px.strokeStyle='rgba(255,255,255,0.18)'; px.lineWidth=1;
   px.strokeRect(cx-18,178,15,10); px.strokeRect(cx+3,178,15,10);
@@ -2004,9 +2218,19 @@ function drawPreview() {
   // Pants
   px.fillStyle=pants;
   if(playerPants==='shorts')  { px.fillRect(cx-16,130,14,22); px.fillRect(cx+2,130,14,22); px.fillStyle=skin; px.fillRect(cx-15,152,13,24); px.fillRect(cx+2,152,13,24); px.fillStyle=pants; }
+  else if(playerPants==='skirt' || playerPants==='kilt') { px.beginPath(); px.moveTo(cx-18,130); px.lineTo(cx+18,130); px.lineTo(cx+24,160); px.lineTo(cx-24,160); px.closePath(); px.fill(); px.fillStyle=skin; px.fillRect(cx-15,160,13,16); px.fillRect(cx+2,160,13,16); px.fillStyle=pants; }
   else { px.fillRect(cx-16,130,14,46); px.fillRect(cx+2,130,14,46); }
   if(playerPants==='ripped')  { px.fillStyle='rgba(0,0,0,0.25)'; px.fillRect(cx-14,148,10,4); px.fillRect(cx+4,155,10,4); }
   if(playerPants==='cargo')   { px.fillStyle='rgba(0,0,0,0.2)'; px.fillRect(cx-15,148,12,10); px.fillRect(cx+3,148,12,10); }
+  // 10 new pants (2 new leg SHAPES above — skirt/kilt — plus 8 accent-only styles below).
+  if(playerPants==='capri')      { px.fillStyle=skin; px.fillRect(cx-15,160,13,16); px.fillRect(cx+2,160,13,16); }
+  if(playerPants==='leggings')   { px.fillStyle='rgba(0,0,0,0.15)'; px.fillRect(cx-16,130,3,46); px.fillRect(cx+13,130,3,46); }
+  if(playerPants==='plaid')      { px.strokeStyle='rgba(0,0,0,0.3)'; px.lineWidth=1.5; for(let i=0;i<3;i++){px.beginPath();px.moveTo(cx-16,140+i*12);px.lineTo(cx+16,140+i*12);px.stroke();} }
+  if(playerPants==='bellbottom') { px.fillStyle=pants; px.fillRect(cx-19,166,18,10); px.fillRect(cx+1,166,18,10); }
+  if(playerPants==='camopants')  { px.fillStyle='rgba(40,60,20,0.5)'; [[cx-10,140],[cx+8,150],[cx-6,166]].forEach(([bx,by])=>{px.beginPath();px.ellipse(bx,by,6,5,0.4,0,Math.PI*2);px.fill();}); }
+  if(playerPants==='skinny')     { px.fillStyle='rgba(0,0,0,0.1)'; px.fillRect(cx-16,130,3,46); px.fillRect(cx+13,130,3,46); }
+  if(playerPants==='sweatpants') { px.fillStyle='rgba(255,255,255,0.3)'; px.fillRect(cx-16,172,14,4); px.fillRect(cx+2,172,14,4); }
+  if(playerPants==='overalls')   { px.fillStyle=pants; px.fillRect(cx-10,90,6,42); px.fillRect(cx+4,90,6,42); px.fillRect(cx-14,120,28,20); }
 
   // Shirt
   px.fillStyle=shirt;
@@ -2026,6 +2250,60 @@ function drawPreview() {
   } else if(playerShirt==='jersey') {
     px.fillRect(cx-22,82,44,50); px.fillRect(cx-28,84,10,44); px.fillRect(cx+18,84,10,44);
     px.fillStyle='rgba(255,255,255,0.8)'; px.font='bold 18px Arial'; px.textAlign='center'; px.fillText('10',cx,112);
+  } else if(playerShirt==='crewneck') {
+    px.fillRect(cx-22,82,44,50); px.fillRect(cx-28,84,10,44); px.fillRect(cx+18,84,10,44);
+    px.strokeStyle='rgba(0,0,0,0.3)'; px.lineWidth=2; px.beginPath(); px.arc(cx,84,10,0,Math.PI); px.stroke();
+  } else if(playerShirt==='vneck') {
+    px.fillRect(cx-22,82,44,50); px.fillRect(cx-28,84,10,44); px.fillRect(cx+18,84,10,44);
+    px.fillStyle=skin; px.beginPath(); px.moveTo(cx-8,82); px.lineTo(cx,100); px.lineTo(cx+8,82); px.closePath(); px.fill();
+  } else if(playerShirt==='flannel') {
+    px.fillRect(cx-22,82,44,50); px.fillRect(cx-28,84,10,44); px.fillRect(cx+18,84,10,44);
+    px.strokeStyle='rgba(0,0,0,0.3)'; px.lineWidth=2;
+    for(let i=0;i<4;i++){px.beginPath();px.moveTo(cx-22,90+i*11);px.lineTo(cx+22,90+i*11);px.stroke();}
+    for(let i=0;i<4;i++){px.beginPath();px.moveTo(cx-16+i*11,82);px.lineTo(cx-16+i*11,132);px.stroke();}
+  } else if(playerShirt==='polo') {
+    px.fillRect(cx-22,82,44,50); px.fillRect(cx-28,84,10,44); px.fillRect(cx+18,84,10,44);
+    px.fillStyle='#fff'; px.beginPath(); px.moveTo(cx-9,82); px.lineTo(cx,92); px.lineTo(cx-9,100); px.closePath(); px.fill();
+    px.beginPath(); px.moveTo(cx+9,82); px.lineTo(cx,92); px.lineTo(cx+9,100); px.closePath(); px.fill();
+    px.fillRect(cx-2,92,4,4); px.fillRect(cx-2,100,4,4);
+  } else if(playerShirt==='crop') {
+    px.fillRect(cx-22,82,44,30); px.fillRect(cx-28,84,10,26); px.fillRect(cx+18,84,10,26);
+  } else if(playerShirt==='turtleneck') {
+    px.fillRect(cx-22,82,44,50); px.fillRect(cx-28,84,10,44); px.fillRect(cx+18,84,10,44);
+    px.fillRect(cx-11,74,22,10);
+  } else if(playerShirt==='buttonup') {
+    px.fillRect(cx-22,82,44,50); px.fillRect(cx-28,84,10,44); px.fillRect(cx+18,84,10,44);
+    px.fillStyle='rgba(255,255,255,0.85)'; px.beginPath(); px.moveTo(cx-9,82); px.lineTo(cx,94); px.lineTo(cx-9,104); px.closePath(); px.fill();
+    px.beginPath(); px.moveTo(cx+9,82); px.lineTo(cx,94); px.lineTo(cx+9,104); px.closePath(); px.fill();
+    px.fillStyle='#333'; for(let i=0;i<4;i++) px.fillRect(cx-2,92+i*9,4,4);
+  } else if(playerShirt==='camo') {
+    px.fillRect(cx-22,82,44,50); px.fillRect(cx-28,84,10,44); px.fillRect(cx+18,84,10,44);
+    px.fillStyle='rgba(40,60,20,0.5)'; [[cx-16,90],[cx+2,100],[cx-8,118],[cx+8,88],[cx-2,128]].forEach(([bx,by])=>{px.beginPath();px.ellipse(bx,by,9,6,0.4,0,Math.PI*2);px.fill();});
+  } else if(playerShirt==='graphic') {
+    px.fillRect(cx-22,82,44,50); px.fillRect(cx-28,84,10,44); px.fillRect(cx+18,84,10,44);
+    px.fillStyle='#ffcc00'; px.fillRect(cx-9,98,18,18);
+    px.fillStyle='#222'; px.font='bold 12px Arial'; px.textAlign='center'; px.fillText('★',cx,111);
+  } else if(playerShirt==='raincoat') {
+    px.fillRect(cx-24,80,48,56); px.fillRect(cx-30,82,10,48); px.fillRect(cx+20,82,10,48);
+    px.fillStyle='rgba(255,255,255,0.3)'; px.fillRect(cx-24,80,48,4);
+  } else if(playerShirt==='denim') {
+    px.fillRect(cx-22,82,44,50); px.fillRect(cx-28,84,10,44); px.fillRect(cx+18,84,10,44);
+    px.strokeStyle='rgba(255,220,120,0.6)'; px.lineWidth=1.5;
+    px.beginPath(); px.moveTo(cx-16,82); px.lineTo(cx-10,100); px.stroke(); px.beginPath(); px.moveTo(cx+16,82); px.lineTo(cx+10,100); px.stroke();
+  } else if(playerShirt==='tuxedo') {
+    px.fillStyle='#111'; px.fillRect(cx-22,82,44,50); px.fillRect(cx-28,84,10,44); px.fillRect(cx+18,84,10,44);
+    px.fillStyle='#fff'; px.beginPath(); px.moveTo(cx-9,82); px.lineTo(cx,95); px.lineTo(cx-9,105); px.closePath(); px.fill();
+    px.beginPath(); px.moveTo(cx+9,82); px.lineTo(cx,95); px.lineTo(cx+9,105); px.closePath(); px.fill();
+    px.fillStyle='#111'; px.beginPath(); px.moveTo(cx-6,84); px.lineTo(cx,88); px.lineTo(cx+6,84); px.lineTo(cx,92); px.closePath(); px.fill();
+  } else if(playerShirt==='sweater') {
+    px.fillRect(cx-23,82,46,50); px.fillRect(cx-29,84,10,44); px.fillRect(cx+19,84,10,44);
+    px.fillStyle='rgba(0,0,0,0.15)'; for(let i=0;i<8;i++) px.fillRect(cx-23,86+i*6,46,3);
+  } else if(playerShirt==='crophoodie') {
+    px.fillRect(cx-22,82,44,32); px.fillRect(cx-28,84,10,28); px.fillRect(cx+18,84,10,28);
+    px.strokeStyle='rgba(0,0,0,0.3)'; px.lineWidth=2; px.beginPath(); px.moveTo(cx-6,84); px.lineTo(cx-4,96); px.stroke(); px.beginPath(); px.moveTo(cx+6,84); px.lineTo(cx+4,96); px.stroke();
+  } else if(playerShirt==='overshirt') {
+    px.fillStyle=skin; px.fillRect(cx-16,84,32,44); px.fillStyle=shirt;
+    px.fillRect(cx-24,82,48,50); px.fillRect(cx-30,84,10,44); px.fillRect(cx+20,84,10,44);
   } else {
     px.fillRect(cx-22,82,44,50); px.fillRect(cx-28,84,10,44); px.fillRect(cx+18,84,10,44);
   }
@@ -2054,6 +2332,23 @@ function drawPreview() {
   else if(playerHat==='wizard') { px.fillStyle='#4444aa'; px.beginPath(); px.moveTo(cx,0); px.lineTo(cx-20,36); px.lineTo(cx+20,36); px.closePath(); px.fill(); px.fillRect(cx-28,34,56,6); }
   else if(playerHat==='pirate') { px.fillStyle='#111'; px.fillRect(cx-28,32,56,6); px.fillRect(cx-18,10,36,24); px.fillStyle='#fff'; px.beginPath(); px.arc(cx,24,9,0,Math.PI*2); px.fill(); px.fillStyle='#111'; px.fillRect(cx-6,26,5,6); px.fillRect(cx+1,26,5,6); px.fillRect(cx-8,20,5,5); px.fillRect(cx+3,20,5,5); }
   else if(playerHat==='santa')  { px.fillStyle='#dd2222'; px.fillRect(cx-22,32,44,6); px.beginPath(); px.moveTo(cx-18,32); px.lineTo(cx+8,4); px.lineTo(cx+20,32); px.closePath(); px.fill(); px.fillStyle='#fff'; px.fillRect(cx-24,30,48,8); px.beginPath(); px.arc(cx+10,6,6,0,Math.PI*2); px.fill(); }
+  // 15 new hats (item ~236, user's own correction: "there is shirts hats and stuff that is what
+  // i mean" — real new style options, not outfit color presets).
+  else if(playerHat==='bandana')   { px.fillStyle='#cc3355'; px.fillRect(cx-22,20,44,10); px.beginPath(); px.moveTo(cx+20,25); px.lineTo(cx+32,20); px.lineTo(cx+32,30); px.closePath(); px.fill(); }
+  else if(playerHat==='headband')  { px.fillStyle='#3388cc'; px.fillRect(cx-22,18,44,7); }
+  else if(playerHat==='partyhat')  { px.fillStyle='#ffcc00'; px.beginPath(); px.moveTo(cx,-2); px.lineTo(cx-16,32); px.lineTo(cx+16,32); px.closePath(); px.fill(); px.fillStyle='#ff3366'; px.beginPath(); px.arc(cx,0,4,0,Math.PI*2); px.fill(); }
+  else if(playerHat==='bucket')    { px.fillStyle='#4a7a4a'; px.fillRect(cx-30,30,60,7); px.fillRect(cx-18,14,36,20); }
+  else if(playerHat==='jester')    { px.fillStyle='#8833cc'; [-14,0,14].forEach((jx,i)=>{px.beginPath();px.moveTo(cx+jx-8,32);px.lineTo(cx+jx,32-24-i%2*6);px.lineTo(cx+jx+8,32);px.closePath();px.fill();}); px.fillRect(cx-20,30,40,6); }
+  else if(playerHat==='viking')    { px.fillStyle='#999999'; px.fillRect(cx-16,18,32,18); px.fillStyle='#eeeecc'; px.beginPath(); px.moveTo(cx-16,20); px.lineTo(cx-30,6); px.lineTo(cx-22,22); px.closePath(); px.fill(); px.beginPath(); px.moveTo(cx+16,20); px.lineTo(cx+30,6); px.lineTo(cx+22,22); px.closePath(); px.fill(); }
+  else if(playerHat==='graduation'){ px.fillStyle='#111111'; px.fillRect(cx-16,20,32,16); px.fillRect(cx-26,14,52,5); px.strokeStyle='#FFD700'; px.lineWidth=2; px.beginPath(); px.moveTo(cx+22,16); px.lineTo(cx+22,34); px.stroke(); }
+  else if(playerHat==='flower')    { px.fillStyle='#2d7a2d'; px.fillRect(cx-20,18,40,7); ['#ff69b4','#ffcc00','#ff6688','#cc88ff','#ffffff'].forEach((col,i)=>{px.fillStyle=col;px.beginPath();px.arc(cx-16+i*8,20,4,0,Math.PI*2);px.fill();}); }
+  else if(playerHat==='backwards') { px.fillStyle='#3355aa'; px.fillRect(cx-16,14,32,20); px.fillRect(cx-16,30,32,6); px.fillRect(cx-6,10,12,8); }
+  else if(playerHat==='sombrero')  { px.fillStyle='#d4a860'; px.fillRect(cx-38,30,76,6); px.fillRect(cx-16,10,32,22); px.fillStyle='#a8763a'; px.fillRect(cx-38,30,76,3); }
+  else if(playerHat==='propeller') { px.fillStyle='#dd4444'; px.fillRect(cx-20,16,40,22); px.fillStyle='#888'; px.fillRect(cx-2,10,4,8); px.fillStyle='#ccc'; px.fillRect(cx-14,10,28,3); }
+  else if(playerHat==='antlers')   { px.fillStyle=hair; px.fillRect(cx-18,16,36,18); px.fillStyle='#8B5A2B'; [-14,14].forEach(ax=>{px.fillRect(cx+ax-2,-2,4,20); px.fillRect(cx+ax-8,4,8,3); px.fillRect(cx+ax,10,8,3);}); }
+  else if(playerHat==='headphones'){ px.fillStyle='#222222'; px.fillRect(cx-24,20,6,16); px.fillRect(cx+18,20,6,16); px.fillRect(cx-22,10,44,6); }
+  else if(playerHat==='chef')      { px.fillStyle='#ffffff'; px.fillRect(cx-18,26,36,10); px.beginPath(); px.ellipse(cx,14,20,16,0,0,Math.PI*2); px.fill(); }
+  else if(playerHat==='turban')    { px.fillStyle='#8833aa'; px.beginPath(); px.ellipse(cx,20,22,18,0,0,Math.PI*2); px.fill(); px.fillStyle='#ffcc00'; px.beginPath(); px.arc(cx,10,4,0,Math.PI*2); px.fill(); }
 
   // Nametag
   const name = document.getElementById('nameInput').value || 'Player';
@@ -2104,8 +2399,10 @@ document.getElementById('playBtn').addEventListener('click', () => {
 
 // ─── 3D GAME ─────────────────────────────────────────────────────────────────
 let scene, camera, renderer, player, playerGroup;
+let sunLight, ambientLight; // set once in the init block below, then modulated every frame by updateDayNight()
 let moveState = { w:false, a:false, s:false, d:false, run:false };
 let jumpVel = 0, onGround = true;
+let inOuterSpace = false; // NOT persisted, matches inHouse/inMall/etc. — true while launched up off the Space Station platform
 let rollerVel = null; // THREE.Vector3, lazily created — carries momentum for the Roller Feet add-on
 let playerBag = []; // food items waiting to be eaten with C
 let yaw = 0, pitch = 0.3;
@@ -2137,16 +2434,21 @@ const HOTEL_SPAWN = { x:30000, z:0 };
 // colliders via isBlocked(): land 10 units past the airport, on its open (non-shop) side —
 // x:apX=cx-30, z:apZ+10=cz+65 — genuinely open ground clear of the airport, its neighboring filler
 // tower, and everything else buildTownExtras() builds.
+// Coordinates below are 20x-scale (item ~234, user: "lets make the countrys 20 times bigger")
+// versions of the same "cx-30, cz+65" open-ground-past-the-airport offset described above,
+// now "cx-600, cz+1300" — computed by hand against the new COUNTRY_CENTERS ring (defined later
+// in the file, so still hardcoded here to avoid the same TDZ crash the original comment warned
+// about — this array runs hundreds of lines before that table exists).
 const AIRPORT_FLIGHTS = [
-  { name:'Japan',     emoji:'🌸', desc:'Neon lights, cherry blossoms & ramen',     price:80,  x:570,  z:-535 },
-  { name:'France',    emoji:'🗼', desc:'Eiffel Tower, baguettes & haute couture',  price:90,  x:-630, z:-535 },
-  { name:'Brazil',    emoji:'🌴', desc:'Carnival, rainforest & golden beaches',    price:75,  x:570,  z:765  },
-  { name:'Egypt',     emoji:'🏛️', desc:'Pyramids, pharaohs & golden sands',       price:100, x:870,  z:365  },
-  { name:'UK',        emoji:'🎡', desc:'Big Ben, red buses & afternoon tea',       price:85,  x:-730, z:-635 },
-  { name:'Australia', emoji:'🦘', desc:'Outback, opera house & surf beaches',     price:95,  x:770,  z:-135 },
-  { name:'Canada',    emoji:'🍁', desc:'Maple forests, mounties & hockey',        price:70,  x:-630, z:465  },
-  { name:'Italy',     emoji:'🍕', desc:'Colosseum, pasta & Venice gondolas',      price:88,  x:-30,  z:-835 },
-  { name:'Space Station', emoji:'🚀', desc:'Zero gravity, a real rocket & a sky full of stars', price:150, x:0, z:1230 }, // matches SPACE_ZONE.x, SPACE_ZONE.z+30 — declared later in the file, so hardcoded here to avoid a TDZ crash at parse time
+  { name:'Japan',     emoji:'🌸', desc:'Neon lights, cherry blossoms & ramen',     price:80,  x:5530,  z:-3840 },
+  { name:'France',    emoji:'🗼', desc:'Eiffel Tower, baguettes & haute couture',  price:90,  x:-8120, z:-1440 },
+  { name:'Brazil',    emoji:'🌴', desc:'Carnival, rainforest & golden beaches',    price:75,  x:790,   z:9180  },
+  { name:'Egypt',     emoji:'🏛️', desc:'Pyramids, pharaohs & golden sands',       price:100, x:5530,  z:6440  },
+  { name:'UK',        emoji:'🎡', desc:'Big Ben, red buses & afternoon tea',       price:85,  x:-4600, z:-5630 },
+  { name:'Australia', emoji:'🦘', desc:'Outback, opera house & surf beaches',     price:95,  x:7400,  z:1300  },
+  { name:'Canada',    emoji:'🍁', desc:'Maple forests, mounties & hockey',        price:70,  x:-8120, z:4040  },
+  { name:'Italy',     emoji:'🍕', desc:'Colosseum, pasta & Venice gondolas',      price:88,  x:790,   z:-6580 },
+  { name:'Space Station', emoji:'🚀', desc:'Zero gravity, a real rocket & a sky full of stars', price:150, x:-4000, z:7530 }, // matches SPACE_ZONE.x, SPACE_ZONE.z+600 — declared later in the file, so hardcoded here to avoid a TDZ crash at parse time
 ];
 const HOTEL_CITY_POS = { x:-15, z:-5 };
 const MALL_COLS  = [];
@@ -2162,7 +2464,7 @@ function showNotif(msg) {
   clearTimeout(notifTimer);
   notifTimer = setTimeout(() => el.style.opacity = '0', 2400);
 }
-function updateSIP() { document.getElementById('sipAmount').textContent = sipDollars; saveCurrentUser(); }
+function updateSIP() { document.getElementById('sipAmount').textContent = sipDollars; if(sipDollars > peakSip) peakSip = sipDollars; saveCurrentUser(); }
 // Elite Coins — a real premium currency, deliberately NOT earnable by just walking around: only
 // the toughest robots drop any, and only 1-3 at a time, so an Elite Shop item priced at 15-30
 // actually takes real fights to afford, unlike S.I.P. which piles up from almost anything.
@@ -2170,6 +2472,7 @@ const ELITE_COIN_REWARD = { elite:3, tank:2, guard:1, spider:1, scout:0, drone:0
 function updateElite() {
   const el = document.getElementById('eliteAmount');
   if (el) el.textContent = eliteCoins;
+  if (eliteCoins > peakElite) peakElite = eliteCoins;
   saveCurrentUser();
 }
 function updateWood() {
@@ -2271,6 +2574,11 @@ const TASTE_REACTION = {
   bitter: {face:'🤢', word:'Bitter — yuck!',  rating:'BAD',  col:'120,200,60'},
 };
 let _eatBusy = false;
+// Real, discrete bites — the food visibly loses a chunk each time instead of just uniformly
+// shrinking in place. Each bite punches a permanent hole out of the emoji (alternating sides,
+// working inward) via 'destination-out' compositing, redrawn fresh every frame so the hole
+// stays correctly attached and scaled as the remaining food keeps shrinking toward the mouth.
+const EAT_BITES = 4;
 function eatFood(emoji,name,taste){
   if(_eatBusy || _iceCreamBusy) return;
   _eatBusy = true;
@@ -2278,15 +2586,29 @@ function eatFood(emoji,name,taste){
   cv.style.cssText='position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:9998;pointer-events:none;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.5));';
   document.body.appendChild(cv);
   const ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
-  const dur=1200, start=performance.now();
+  const dur=1400, start=performance.now();
+  let bitesTaken=0;
   function frame(now){
-    const p=Math.min(1,(now-start)/dur), remaining=1-p, within=(p*3)%1, squash=1+Math.sin(within*Math.PI)*0.14;
+    const p=Math.min(1,(now-start)/dur), remaining=1-p, within=(p*EAT_BITES)%1, squash=1+Math.sin(within*Math.PI)*0.14;
+    const biteIndex=Math.min(EAT_BITES-1, Math.floor(p*EAT_BITES));
+    if(biteIndex>bitesTaken) bitesTaken=biteIndex; // a new bite lands the instant its time window starts
     ctx.clearRect(0,0,W,H);
     const base=H*0.55*(0.45+0.55*remaining);
     ctx.save();ctx.translate(W/2,H*0.55);ctx.scale(squash,2-squash);
     ctx.globalAlpha=Math.max(0,Math.min(1,remaining*1.3));
     ctx.font=base+'px serif';ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText(emoji,0,0);ctx.restore();
+    ctx.fillText(emoji,0,0);
+    ctx.globalCompositeOperation='destination-out';
+    ctx.globalAlpha=1; // punch each bite hole at full strength, independent of how faded the
+                        // remaining food currently is — otherwise a late, faded bite would only
+                        // partially erase and barely show up as a real missing chunk
+    for(let b=0;b<bitesTaken;b++){
+      const angle=b*(Math.PI/2); // a different edge each time (right, top, left, bottom) so bites never just re-carve the same already-eaten spot
+      const dist=0.30*base, r=0.28*base;
+      ctx.beginPath(); ctx.arc(Math.cos(angle)*dist, Math.sin(angle)*dist, r, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalCompositeOperation='source-over';
+    ctx.restore();
     for(let i=0;i<6;i++){ const a=now*0.01+i, cr=p*W*0.42; ctx.fillStyle='rgba(210,170,90,'+remaining+')'; ctx.beginPath(); ctx.arc(W/2+Math.cos(a)*cr,H*0.55+Math.sin(a)*cr,3,0,Math.PI*2); ctx.fill(); }
     if(p<1) requestAnimationFrame(frame);
     else { cv.remove(); _eatBusy=false; tasteReaction(taste,name); }
@@ -2359,7 +2681,12 @@ function readBook() {
 const CITY_COLS = [];       // city building colliders
 const HOUSE_COLS = [];      // house interior colliders
 
-function addCol(arr, cx, cz, hw, hd) { const c = { cx, cz, hw, hd }; arr.push(c); return c; }
+function addCol(arr, cx, cz, hw, hd) {
+  // See scalePt()/scaleLen()'s own comment (HELPERS section, near box()) for why this is real
+  // math and not a free ride on some parent transform.
+  if (_buildOrigin) { [cx,cz] = scalePt(cx,cz); hw = scaleLen(hw); hd = scaleLen(hd); }
+  const c = { cx, cz, hw, hd }; arr.push(c); return c;
+}
 
 function isBlocked(nx, nz, rOverride) {
   const r = rOverride !== undefined ? rOverride : 0.65; // real optional radius — cars (item 159 fix) pass a bigger one
@@ -2655,6 +2982,161 @@ function closeJobsPanel() {
   document.getElementById('jobsTab').style.display = 'block';
   if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
 }
+
+// ─── CURRENCY SHOP TAB — user's own ask: a shop tab to buy S.I.P./diamond packages, up to a
+// bundled "VIP Package", now with real dollar price tags. No payment processor is wired up yet —
+// that needs a parent to actually create a Stripe/PayPal business account first — so tapping a
+// package shows a real "coming soon" message instead of a fake charge, and instead of secretly
+// still handing out free currency behind a price tag (which would make the price meaningless).
+const CURRENCY_SHOP_PACKAGES = [
+  { id:'sip100',      sip:100,     elite:0,    label:'100 S.I.P.',       price:'$5'  },
+  { id:'sip1000',     sip:1000,    elite:0,    label:'1,000 S.I.P.',     price:'$10' },
+  { id:'sip5000',     sip:5000,    elite:0,    label:'5,000 S.I.P.',     price:'$15' },
+  { id:'sip10000',    sip:10000,   elite:0,    label:'10,000 S.I.P.',    price:'$20' },
+  { id:'sip50000',    sip:50000,   elite:0,    label:'50,000 S.I.P.',    price:'$22' },
+  { id:'sip100000',   sip:100000,  elite:0,    label:'100,000 S.I.P.',   price:'$25' },
+  { id:'sip1000000',  sip:1000000, elite:0,    label:'1,000,000 S.I.P.', price:'$35' },
+  { id:'elite100',     sip:0, elite:100,      label:'100 💎',       price:'$5'  },
+  { id:'elite1000',    sip:0, elite:1000,     label:'1,000 💎',     price:'$10' },
+  { id:'elite5000',    sip:0, elite:5000,     label:'5,000 💎',     price:'$15' },
+  { id:'elite50000',   sip:0, elite:50000,    label:'50,000 💎',    price:'$25' },
+  { id:'elite100000',  sip:0, elite:100000,   label:'100,000 💎',   price:'$35' },
+  { id:'elite1000000', sip:0, elite:1000000,  label:'1,000,000 💎', price:'$45' },
+  { id:'vip', sip:100000, elite:5000, label:'👑 VIP Package', desc:'100,000 S.I.P. + 5,000 💎', price:'$25', vip:true },
+];
+function toggleCurrencyShopPanel() {
+  const panel = document.getElementById('currencyShopPanel');
+  if (panel.style.display === 'none') {
+    if (document.pointerLockElement) document.exitPointerLock();
+    isPointerLocked = false;
+    renderCurrencyShopPanel();
+    panel.style.display = 'flex';
+    document.getElementById('currencyShopTab').style.display = 'none';
+  } else { closeCurrencyShopPanel(); }
+}
+function closeCurrencyShopPanel() {
+  document.getElementById('currencyShopPanel').style.display = 'none';
+  document.getElementById('currencyShopTab').style.display = 'block';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function renderCurrencyShopPanel() {
+  const list = document.getElementById('currencyShopList');
+  if (!list) return; // panel HTML not loaded yet (e.g. called before startGame())
+  list.innerHTML = `<div style="color:#ffcc66;font-size:10.5px;text-align:center;background:rgba(255,204,102,0.1);border:1px dashed #886600;border-radius:8px;padding:6px;margin-bottom:8px;">Sorry, payments are unavailable.</div>` +
+    CURRENCY_SHOP_PACKAGES.map(p => `
+    <div style="background:${p.vip ? 'linear-gradient(90deg,#3a2a00,#4a3800)' : 'rgba(255,255,255,0.05)'};border:2px solid ${p.vip ? '#FFD700' : '#333'};border-radius:10px;padding:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+      <div>
+        <div style="color:#fff;font-size:12px;font-weight:bold;">${p.label}</div>
+        ${p.desc ? `<div style="color:#aaa;font-size:10px;">${p.desc}</div>` : ''}
+        <div style="color:#7CFC00;font-size:12px;font-weight:bold;margin-top:2px;">${p.price}</div>
+      </div>
+      <button onclick="buyCurrencyPackage('${p.id}')" style="padding:7px 12px;background:#444;border:none;border-radius:6px;color:#ccc;font-size:11px;font-weight:bold;cursor:pointer;white-space:nowrap;">🚧 Soon</button>
+    </div>`).join('');
+}
+// No payment processor is wired up yet — that needs a parent to actually create a Stripe/PayPal
+// business account first. IMPORTANT for whoever implements this later, user's own explicit rule:
+// once a real USD purchase succeeds, credit sipDollars/eliteCoins directly (updateSIP()/
+// updateElite()) — NEVER route it through queueEarning()/the Earnings tab. Earnings is a fun
+// "go collect it" delay for stuff you earned playing (robbery, quests, giveaways); a customer who
+// just paid real money needs to get exactly what they paid for immediately, with zero risk of it
+// sitting uncollected, getting lost, or looking like it wasn't delivered — that's the kind of
+// thing that gets a real business sued, not just a bad review.
+function buyCurrencyPackage(id) {
+  const pkg = CURRENCY_SHOP_PACKAGES.find(p => p.id === id);
+  if (!pkg) return;
+  showNotif(`Sorry, payments are unavailable.`);
+}
+
+// ─── TEST LAB TAB — user's own ask: a private place to drop new mini-game files and try them
+// before deciding whether they're good enough to become real. Nothing in DRAFT_GAMES is wired
+// into the real Minigames menu, and this file only lives locally (not synced to explox_site),
+// so a draft game is automatically private until the user chooses to publish it for real.
+const DRAFT_GAMES = [
+  // Add one entry per file dropped into explox/minigames/drafts/, e.g.:
+  // { id:'mygame', name:'My Game', emoji:'🎮', file:'mygame.html' },
+];
+function toggleTestLabPanel() {
+  const panel = document.getElementById('testLabPanel');
+  if (panel.style.display === 'none') {
+    if (document.pointerLockElement) document.exitPointerLock();
+    isPointerLocked = false;
+    renderTestLabPanel();
+    panel.style.display = 'flex';
+    document.getElementById('testLabTab').style.display = 'none';
+  } else { closeTestLabPanel(); }
+}
+function closeTestLabPanel() {
+  document.getElementById('testLabPanel').style.display = 'none';
+  document.getElementById('testLabTab').style.display = 'block';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function renderTestLabPanel() {
+  const list = document.getElementById('testLabList');
+  if (!list) return; // panel HTML not loaded yet (e.g. called before startGame())
+  if (!DRAFT_GAMES.length) {
+    list.innerHTML = `<div style="color:#555;font-size:12px;text-align:center;padding:24px 10px;">No draft games yet —<br>drop one in explox/minigames/drafts/<br>and add it to DRAFT_GAMES.</div>`;
+    return;
+  }
+  list.innerHTML = DRAFT_GAMES.map(g => `
+    <div style="background:rgba(255,255,255,0.05);border:2px solid #333;border-radius:10px;padding:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+      <div style="color:#fff;font-size:12px;font-weight:bold;">${g.emoji} ${g.name}</div>
+      <button onclick="playDraftGame('${g.file}')" style="padding:7px 12px;background:#5a2a00;border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:bold;cursor:pointer;white-space:nowrap;">▶ Test Play</button>
+    </div>`).join('');
+}
+// A draft game only gets to open once it passes two real checks, run on its actual file text
+// (fetched fresh every click, not trusted from whenever it was added to DRAFT_GAMES): if it has
+// real code (<script>), that code must be at least DRAFT_MIN_CODE_LINES lines — a real, substantial
+// game, not a stub — and it can't contain self-promotion telling the player to like/subscribe/go
+// play a different game.
+const DRAFT_MIN_CODE_LINES = 10000;
+const DRAFT_AD_PHRASES = [
+  'like and subscribe', 'please like', 'subscribe to', 'smash that like',
+  'like this game', 'rate this game', 'give me a like', 'follow me on',
+  'play my game', 'play my other game', 'check out my other', 'like my game',
+  'play more of my games', 'go play my',
+];
+// Stored base64-encoded (decoded only at check time) so the actual words never sit as plain
+// readable text in this file — same idea real profanity filters use to keep a word list from
+// being casually read by anyone browsing the source. Matched on real word boundaries so it
+// doesn't false-positive on unrelated words that merely contain one as a substring.
+const DRAFT_AGE_BLOCKLIST_B64 = [
+  'ZGFtbg==','aGVsbA==','YXNz','Yml0Y2g=','YmFzdGFyZA==','Y3JhcA==','c2hpdA==',
+  'ZnVjaw==','cGlzcw==','ZGljaw==','Y29jaw==','cHVzc3k=','d2hvcmU=','c2x1dA==',
+];
+function draftHasBadWord(text) {
+  const lower = text.toLowerCase();
+  return DRAFT_AGE_BLOCKLIST_B64.some(b64 => new RegExp('\\b' + atob(b64) + '\\b', 'i').test(lower));
+}
+async function playDraftGame(file) {
+  showNotif('🔍 Checking ' + file + '...');
+  let text;
+  try {
+    const res = await fetch('AiGame/explox/minigames/drafts/' + file);
+    if (!res.ok) { showNotif('❌ Could not find ' + file + '.'); return; }
+    text = await res.text();
+  } catch (e) {
+    showNotif('❌ Could not read ' + file + '.');
+    return;
+  }
+  const hasScript = /<script[\s>]/i.test(text);
+  const lineCount = text.split('\n').length;
+  if (hasScript && lineCount < DRAFT_MIN_CODE_LINES) {
+    showNotif(`🚫 Blocked: needs at least ${DRAFT_MIN_CODE_LINES.toLocaleString()} lines of code (this has ${lineCount.toLocaleString()}).`);
+    return;
+  }
+  const lower = text.toLowerCase();
+  const adHit = DRAFT_AD_PHRASES.find(p => lower.includes(p));
+  if (adHit) {
+    showNotif(`🚫 Blocked: found ad-like text ("${adHit}") — no asking players to like or play other games.`);
+    return;
+  }
+  if (draftHasBadWord(text)) {
+    showNotif(`🚫 Blocked: found language that's not appropriate for your age.`);
+    return;
+  }
+  window.open('AiGame/explox/minigames/drafts/' + file, '_blank');
+}
+
 // ─── SHOP JOBS — a real job at each of the 340 generated shops (100 CITY_SHOPS + 200 MALL_SHOPS +
 // 40 OUTFIT_SHOPS), not just the one fixed Shopkeeper corner. User's own ask: "make a job for each
 // shop." Reuses the exact same generic toggleJob()/tickJob()/completeJobTask() reaction-task engine
@@ -2907,22 +3389,111 @@ function increaseWanted(n) {
 // CENTER of the police station's own solid exterior box — i.e. inside a plain gray building
 // shell with nothing in it. Now arrest() sends you to a real furnished cell (same teleported
 // pocket-space trick as House/Store/Hotel/Friend's House) and you actually serve real time.
+// User's own follow-up ask ("the prison is not real enough") added: patrolling guards, real
+// cellmates you can talk to, activities (yard/cafeteria), and a real risk-based escape — a
+// whole small Cell Block, not just one lonely room. Guard/Prisoner NPCs live out in this same
+// remote pocket-space lane (see PRISON_SPAWN), so — same trick every other interior's own NPCs
+// use — they're only ever actually encountered while inPrison.
 const PRISON_SPAWN = { x:60000, z:0 };
-const PRISON_ZONES = []; // nothing to interact with — you serve your time and get released automatically
-let inPrison = false, prisonTimeLeft = 0;
+const PRISON_ESCAPE_DIGS_NEEDED = 5, PRISON_DIG_COOLDOWN = 4, PRISON_GUARD_CATCH_RADIUS = 6;
+const PRISON_WORKOUT_COOLDOWN = 8, PRISON_WORKOUT_TIME_OFF = 10;
+const PRISON_ZONES = [
+  { x:PRISON_SPAWN.x+2, z:PRISON_SPAWN.z+2, r:1.3, label:'🥄 Dig at the Loose Brick', action: () => digEscape() },
+  { x:PRISON_SPAWN.x, z:PRISON_SPAWN.z+18, r:3, label:'🏋️ Work Out (Good Behavior)', action: () => prisonWorkout() },
+  { x:PRISON_SPAWN.x, z:PRISON_SPAWN.z+36, r:3, label:'🍽️ Eat Prison Food', action: () => prisonEat() },
+  { x:PRISON_SPAWN.x-11, z:PRISON_SPAWN.z-1.5, r:2, label:'💬 Talk to Rocco', action: () => openPrisonNpcModal('Rocco', '🦝 "Third time in here, not that I\'m counting. Word of advice — the guards always swing back through this hallway. Time it right if you\'re thinking about that loose brick."') },
+  { x:PRISON_SPAWN.x+11, z:PRISON_SPAWN.z-1.5, r:2, label:'💬 Talk to Dusty', action: () => openPrisonNpcModal('Dusty', '😎 "Food\'s terrible, bunks are lumpy, but hey, free rent. You thinking about digging out? Wait for the guard to walk past first, rookie."') },
+];
+let inPrison = false, prisonTimeLeft = 0, prisonEscapeProgress = 0, prisonDigCooldown = 0, prisonWorkoutCooldown = 0;
+// One 8x8 cell shell — the player's own cell (withCot) keeps its exact original furniture;
+// Rocco's and Dusty's cells reuse the same shell so the whole row of 3 lines up in the hallway.
+function buildPrisonCell(cx, cz, withCot) {
+  box(8, 0.3, 8, 0x888888, cx, 0.15, cz);        // stone floor
+  box(8, 0.2, 8, 0x666666, cx, 5, cz);           // ceiling
+  box(8, 5, 0.3, 0x777777, cx, 2.5, cz - 4);     // back wall
+  box(0.3, 5, 8, 0x777777, cx - 4, 2.5, cz);     // left wall
+  box(0.3, 5, 8, 0x777777, cx + 4, 2.5, cz);     // right wall
+  for(let i = -3; i <= 3; i++) box(0.12, 5, 0.12, 0x2a2a2a, cx + i*0.9, 2.5, cz + 4); // jail bars instead of a 4th solid wall
+  box(8, 0.3, 0.3, 0x2a2a2a, cx, 4.9, cz + 4);   // top bar rail
+  if(withCot) {
+    box(2.5, 0.4, 1.2, 0x5a4a3a, cx - 2, 0.5, cz - 2.5); // cot frame
+    box(2.3, 0.3, 1.0, 0xccccdd, cx - 2, 0.72, cz - 2.5); // cot mattress
+  }
+  box(1.2, 1, 0.2, 0x334455, cx, 3, cz - 3.9);   // small barred window
+}
 function buildPrisonInterior() {
   const ix = PRISON_SPAWN.x, iz = PRISON_SPAWN.z;
-  box(8, 0.3, 8, 0x888888, ix, 0.15, iz);        // stone floor
-  box(8, 0.2, 8, 0x666666, ix, 5, iz);           // ceiling
-  box(8, 5, 0.3, 0x777777, ix, 2.5, iz - 4);     // back wall
-  box(0.3, 5, 8, 0x777777, ix - 4, 2.5, iz);     // left wall
-  box(0.3, 5, 8, 0x777777, ix + 4, 2.5, iz);     // right wall
-  for(let i = -3; i <= 3; i++) box(0.12, 5, 0.12, 0x2a2a2a, ix + i*0.9, 2.5, iz + 4); // jail bars instead of a 4th solid wall
-  box(8, 0.3, 0.3, 0x2a2a2a, ix, 4.9, iz + 4);   // top bar rail
-  box(2.5, 0.4, 1.2, 0x5a4a3a, ix - 2, 0.5, iz - 2.5); // cot frame
-  box(2.3, 0.3, 1.0, 0xccccdd, ix - 2, 0.72, iz - 2.5); // cot mattress
-  box(1.2, 1, 0.2, 0x334455, ix, 3, iz - 3.9);   // small barred window
+  buildPrisonCell(ix, iz, true);        // your cell
+  buildPrisonCell(ix - 11, iz, false);  // Rocco's cell
+  buildPrisonCell(ix + 11, iz, false);  // Dusty's cell
   buildSign('🔒 CELL', ix, 5.3, iz + 4.2);
+
+  // Hallway running past all 3 cell fronts — this is the strip guards patrol back and forth,
+  // close enough to the bars that timing a dig against their patrol actually matters.
+  box(30, 0.3, 3.2, 0x555555, ix, 0.15, iz + 5.6);
+  buildSign('🔒 CELL BLOCK B', ix, 5, iz + 8.6);
+
+  // Walkway out to the Yard
+  box(4, 0.3, 3, 0x555555, ix, 0.15, iz + 8.5);
+  // Yard — a fenced dirt patch, real activity zone (Work Out) at its center
+  box(16, 0.3, 16, 0x8d6e4a, ix, 0.15, iz + 18);
+  [[-8,-8],[8,-8],[-8,8],[8,8],[0,-8],[0,8],[-8,0],[8,0]].forEach(([dx,dz]) => box(0.25, 2, 0.25, 0x4a3a28, ix+dx, 1, iz+18+dz)); // fence posts
+  box(1.4, 0.5, 0.5, 0x555555, ix - 3, 0.4, iz + 18); box(0.15, 0.9, 0.15, 0x333333, ix - 3, 0.7, iz + 16.7); // simple weight bench + bar
+  buildSign('🏋️ YARD', ix, 3, iz + 25.8);
+
+  // Walkway out to the Cafeteria
+  box(4, 0.3, 3, 0x555555, ix, 0.15, iz + 27);
+  // Cafeteria — open toward the yard, real activity zone (Eat) at its center
+  box(16, 0.3, 16, 0x888888, ix, 0.15, iz + 36);
+  box(16, 0.2, 16, 0x666666, ix, 5, iz + 36);           // ceiling
+  box(16, 5, 0.3, 0x777777, ix, 2.5, iz + 44);          // back wall
+  box(0.3, 5, 16, 0x777777, ix - 8, 2.5, iz + 36);      // left wall
+  box(0.3, 5, 16, 0x777777, ix + 8, 2.5, iz + 36);      // right wall
+  [-4, 4].forEach(dx => { // 2 tables with benches
+    box(2.4, 0.5, 1.2, 0x6a5238, ix+dx, 0.65, iz+36);
+    box(2.2, 0.3, 0.3, 0x5a4a3a, ix+dx, 0.35, iz+35); box(2.2, 0.3, 0.3, 0x5a4a3a, ix+dx, 0.35, iz+37);
+  });
+  buildSign('🍽️ CAFETERIA', ix, 5.3, iz + 43.7);
+}
+function digEscape() {
+  if(!inPrison || prisonDigCooldown > 0) return;
+  prisonDigCooldown = PRISON_DIG_COOLDOWN;
+  const spotX = PRISON_SPAWN.x + 2, spotZ = PRISON_SPAWN.z + 2;
+  const guardNear = npcs.some(n => n.role === 'Guard' && Math.hypot(n.group.position.x - spotX, n.group.position.z - spotZ) < PRISON_GUARD_CATCH_RADIUS);
+  if(guardNear) {
+    prisonEscapeProgress = 0;
+    prisonTimeLeft += 15;
+    showNotif('🚨 A guard spotted you digging! Progress reset — +15s added to your sentence.');
+    return;
+  }
+  prisonEscapeProgress++;
+  showNotif(`🥄 You loosen the brick a little more... (${prisonEscapeProgress}/${PRISON_ESCAPE_DIGS_NEEDED})`);
+  if(prisonEscapeProgress >= PRISON_ESCAPE_DIGS_NEEDED) {
+    inPrison = false;
+    prisonEscapeProgress = 0;
+    increaseWanted(1); // breaking out is itself a crime
+    playerGroup.position.set(-70, 0, 26);
+    yaw = Math.PI;
+    showNotif('🏃💨 You broke out! Guards are on alert now — wanted level up.');
+    const hud = document.getElementById('jobHud'); hud.textContent = '💼 No Job'; hud.style.color = '#fff';
+  }
+}
+function prisonWorkout() {
+  if(!inPrison || prisonWorkoutCooldown > 0) return;
+  prisonWorkoutCooldown = PRISON_WORKOUT_COOLDOWN;
+  prisonTimeLeft = Math.max(0, prisonTimeLeft - PRISON_WORKOUT_TIME_OFF);
+  showNotif(`🏋️ Worked out — good behavior knocks ${PRISON_WORKOUT_TIME_OFF}s off your sentence!`);
+}
+function prisonEat() {
+  if(!inPrison) return;
+  eatFood('🍞', 'Mystery Prison Mush', 'bitter'); // real bite animation, just for the (bad) flavor reaction
+}
+function openPrisonNpcModal(name, line) {
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('neighborModalTitle').textContent = `🔒 ${name}`;
+  document.getElementById('neighborModalBody').innerHTML = `<p style="color:#ddd;font-size:13px;line-height:1.5;">${line}</p>`;
+  document.getElementById('neighborModal').style.display = 'flex';
 }
 function arrest() {
   // Sentence length is based on how wanted you were BEFORE it resets — worse crimes, more time served.
@@ -2934,6 +3505,7 @@ function arrest() {
   updateWantedHud();
   inPrison = true;
   prisonTimeLeft = sentence;
+  prisonEscapeProgress = 0; prisonDigCooldown = 0; prisonWorkoutCooldown = 0;
   playerGroup.position.set(PRISON_SPAWN.x, 0, PRISON_SPAWN.z);
   yaw = Math.PI;
   showNotif(`🚔 ARRESTED! Lost ${fine} S.I.P. — locked up for ${sentence}s.`);
@@ -2941,11 +3513,14 @@ function arrest() {
 function tickPrison(dt) {
   if(!inPrison) return;
   prisonTimeLeft -= dt;
+  if(prisonDigCooldown > 0) prisonDigCooldown = Math.max(0, prisonDigCooldown - dt);
+  if(prisonWorkoutCooldown > 0) prisonWorkoutCooldown = Math.max(0, prisonWorkoutCooldown - dt);
   const hud = document.getElementById('jobHud');
   hud.textContent = `🔒 Serving time: ${Math.ceil(Math.max(0, prisonTimeLeft))}s`;
   hud.style.color = '#ff6644';
   if(prisonTimeLeft <= 0) {
     inPrison = false;
+    prisonEscapeProgress = 0;
     playerGroup.position.set(-70, 0, 26); // just outside the station
     yaw = Math.PI;
     showNotif('🔓 Released! Stay out of trouble...');
@@ -5623,7 +6198,11 @@ function startFlightAnim(dest, bringCar, meal) {
     return { x: i*190+(s*0.4321%1)*100, y: 15+(s*0.3333%1)*90, r: 28+(s*0.2222%1)*45 };
   });
   const TOTAL_W = 22 * 190;
-  const DURATION = 12000; // was 4500 — too short to notice you were even flying, let alone use the meal/screen
+  // was a flat 12000 for every flight — user's own ask for the deep-space destinations ("farther
+  // longer and more expensive") made a real per-flight duration worth doing everywhere, not just
+  // space: dest.duration is set on SPACE_FLIGHTS entries, undefined on the regular AIRPORT_FLIGHTS
+  // ones (which keep the original 12s).
+  const DURATION = dest.duration || 12000;
   const t0 = performance.now();
   let animId = null;
 
@@ -6394,8 +6973,99 @@ function buildGrave(name, x, z) {
 }
 // ─── COMBAT — real player health + hit-for-hit fighting, not an instant kill ──
 const WEAPON_DAMAGE = { none:5, bat:15, sword:25, axe:35, stiletto:20, club:12, metalsword:40, battleaxe:45, crystalsword:55,
-  emphammer:18, plasmacutter:22, railspike:28 };
+  emphammer:18, plasmacutter:22, railspike:28,
+  // 47 new Weapon Shop items (item ~235, "50 weapons that look different") — a real 16-material
+  // tier ladder (Wood through Cosmic) so the shop is a coherent progression to shop up through,
+  // not 47 flat reskins. See WEAPON_VISUALS below for how each one actually looks different.
+  wood_club:10, wood_staff:12, wood_spear:14,
+  stone_club:22, stone_hammer:25, stone_mace:28,
+  bronze_sword:32, bronze_axe:35, bronze_dagger:38,
+  iron_sword:42, iron_doubleaxe:46, iron_warhammer:50,
+  steel_sword:52, steel_cleaver:56, steel_spear:60,
+  silver_sword:62, silver_trident:66, silver_dagger:70,
+  titanium_axe:72, titanium_warhammer:77, titanium_mace:82,
+  obsidian_dagger:85, obsidian_scythe:90, obsidian_claw:95,
+  frost_sword:98, frost_staff:103, frost_spear:108,
+  ember_axe:112, ember_cleaver:118, ember_doubleaxe:124,
+  venom_dagger:128, venom_claw:134, venom_scythe:140,
+  shadow_scythe:145, shadow_dagger:151, shadow_staff:158,
+  holy_sword:165, holy_spear:172, holy_trident:180,
+  storm_warhammer:188, storm_mace:196, storm_trident:205,
+  void_scythe:215, void_claw:223, void_dagger:232,
+  cosmic_sword:245, cosmic_staff:255,
+  // Batch 2 of the 5,000-weapon goal (user's own ask: "we make 50 at a time") — 16 more tiers
+  // (Meteor through Omega) plus a 2-item Genesis cap, continuing the exact same ladder past
+  // Cosmic instead of starting a separate system. Real long-term content: at this batch's top
+  // end, Robot Level requirements (see weaponRequiredLevel() below) reach into the hundreds,
+  // which only makes sense because eliteLevel itself was already deliberately left uncapped.
+  meteor_hammer:270, meteor_axe:282, meteor_spear:294,
+  solar_blade:310, solar_mace:325, solar_trident:340,
+  nebula_dagger:360, nebula_scythe:380, nebula_claw:400,
+  quantum_staff:425, quantum_cleaver:450, quantum_doubleaxe:475,
+  prism_warhammer:505, prism_longsword:535, prism_club:565,
+  diamond_shortsword:600, diamond_axe:635, diamond_dagger:670,
+  mythic_hammer:710, mythic_mace:750, mythic_spear:790,
+  dragon_trident:835, dragon_scythe:880, dragon_claw:925,
+  phoenix_staff:975, phoenix_cleaver:1025, phoenix_doubleaxe:1075,
+  abyssal_warhammer:1130, abyssal_longsword:1190, abyssal_club:1250,
+  arcane_shortsword:1315, arcane_axe:1385, arcane_dagger:1455,
+  runic_hammer:1530, runic_mace:1610, runic_spear:1690,
+  ancient_trident:1775, ancient_scythe:1865, ancient_claw:1955,
+  divine_staff:2050, divine_cleaver:2150, divine_doubleaxe:2250,
+  eternal_warhammer:2360, eternal_longsword:2475, eternal_club:2595,
+  omega_shortsword:2720, omega_axe:2855, omega_dagger:2995,
+  genesis_blade:3150, genesis_orb:3300 };
 function baseWeaponDamage() { return WEAPON_DAMAGE[playerWeapon] !== undefined ? WEAPON_DAMAGE[playerWeapon] : WEAPON_DAMAGE.none; }
+// User's own ask: "you need a level you require to use the weapon" — derived straight from the
+// weapon's own damage instead of a second hand-typed number per item, so it applies automatically
+// to every weapon (old and new batches alike) and can never drift out of sync with its damage.
+// User's own catch: dividing damage by 15 let several weapons land on the exact same level (every
+// weapon within one 15-damage band, common early on where tiers only step up by ~10-50 damage).
+// Ranking every weapon by its own damage instead gives each one a genuinely unique level — #0
+// (lowest damage) is level 0, each next-strongest weapon one level higher — so no two weapons
+// share a level UNTIL the cap. User's own follow-up: cap the max at level 590, not 657 (one per
+// weapon forever) — past rank 590 the "extra" weapons (the strongest handful) all sit together at
+// the same top level 590 instead of pushing the max even higher.
+// Computed lazily, once — WEAPON_DAMAGE is fully populated (every generateWeaponBatch() call
+// already ran) by the time any player action can actually trigger this.
+// User's own final rebalance, replacing both the 590-level rank cap above AND the escalating-
+// into-the-quadrillions damage curve every batch generator built up: "10 weapons share each
+// level, damage = level×10" — one simple, sane rule instead of huge unreadable numbers. Relative
+// power order from every batch is PRESERVED (weapon #1847 by old damage is still stronger than
+// #40), just re-expressed on a scale a kid can actually read. Runs once, lazily, the first time
+// anything asks for a weapon's level — by then every generateWeaponBatch()/generateAutoWeaponBatch()
+// call has already populated WEAPON_DAMAGE, so the sort below sees the real final picture. Also
+// re-derives each shop item's S.I.P. cost from its NEW damage (same ratio the generators already
+// used), so price and power stay in sync instead of a level-1 weapon still costing quadrillions.
+const WEAPONS_PER_LEVEL = 10;
+const DAMAGE_PER_LEVEL = 10;
+let _weaponLevels = null;
+function buildWeaponLevels() {
+  if (_weaponLevels) return;
+  _weaponLevels = {};
+  const sorted = Object.keys(WEAPON_DAMAGE).filter(k => k !== 'none').sort((a,b) => WEAPON_DAMAGE[a] - WEAPON_DAMAGE[b]);
+  sorted.forEach((id,i) => {
+    const level = Math.floor(i / WEAPONS_PER_LEVEL) + 1;
+    _weaponLevels[id] = level;
+    WEAPON_DAMAGE[id] = level * DAMAGE_PER_LEVEL;
+  });
+  WEAPONS.forEach(w => {
+    if (_weaponLevels[w.id] === undefined) return; // robotShopOnly/craftOnly/blackMarketOnly items (emphammer, stiletto, etc.) keep their own hand-set cost
+    w.cost = Math.max(5, Math.round(WEAPON_DAMAGE[w.id] * 17 / 5) * 5);
+  });
+}
+function weaponRequiredLevel(id) {
+  buildWeaponLevels();
+  return _weaponLevels[id] || 1;
+}
+// Same derive-don't-duplicate approach as weaponRequiredLevel() above — the tier is already
+// encoded in every batch weapon's own id ('wood_club' -> 'Wood'), so grouping the shop by
+// category never needs a second hand-typed list that could drift out of sync with WEAPONS.
+function weaponCategory(id) {
+  if (!id.includes('_')) return 'Classic';
+  const tier = id.split('_')[0];
+  return tier.charAt(0).toUpperCase() + tier.slice(1);
+}
 // Real Fights add-ons all funnel through here — the one place every outgoing-damage call
 // (getWeaponDamage AND getRobotDamage) already passes through, so Berserker/War Cry/Lucky Crits
 // apply everywhere real damage is dealt, not just to one target type.
@@ -6757,10 +7427,19 @@ function tickHealth(dt) {
     updateHealthBar();
   }
 }
+// Finds a President's own Bodyguards (matched by the "X's Bodyguard A/B" naming convention set
+// in generatePresidentNPCs) who are alive and actually close enough to react.
+function presidentBodyguardsNear(president, radius) {
+  return npcs.filter(n => n.role === 'Bodyguard' && !n.isDown && n.name.startsWith(president.name + "'s Bodyguard")
+    && Math.hypot(n.group.position.x-president.group.position.x, n.group.position.z-president.group.position.z) < radius);
+}
 function attackNPC(npc) {
   if(npc.isDown) { showNotif(`${npc.name} is already down!`); return; }
   const isCop = npc.role === 'Officer';
-  if(npc.combatHp === undefined) npc.combatHp = npc.job ? 30 : (isCop ? 60 : 40);
+  const isPresident = npc.role === 'President';
+  // A President is a real fight, not a pushover — this is the whole reason "try" and "actually
+  // kill" are different outcomes: Bodyguards below add even more real risk on top of this.
+  if(npc.combatHp === undefined) npc.combatHp = isPresident ? 80 : npc.job ? 30 : (isCop ? 60 : 40);
 
   const dmg = getWeaponDamage();
   npc.combatHp -= dmg;
@@ -6774,6 +7453,13 @@ function attackNPC(npc) {
     const backDmg = Math.round((isCop ? 8 : 5) + Math.random()*(isCop?10:6));
     showNotif(`⚔️ Hit ${npc.name} for ${dmg}! (${Math.max(0,npc.combatHp)} HP left)`);
     damagePlayer(backDmg, npc.name);
+    if (isPresident) {
+      const guards = presidentBodyguardsNear(npc, 15);
+      if (guards.length) {
+        guards.forEach(g => damagePlayer(6 + Math.floor(Math.random()*8), g.name));
+        showNotif(`🛡️ ${guards.map(g=>g.name.replace(npc.name+"'s ",'')).join(' and ')} jump in to defend ${npc.name}!`);
+      }
+    }
     return;
   }
   defeatNPC(npc);
@@ -6782,6 +7468,23 @@ function attackNPC(npc) {
 // — grave, wanted level, S.I.P. — instead of a separate, inconsistent death path.
 function defeatNPC(npc) {
   const isCop = npc.role === 'Officer';
+  const isPresident = npc.role === 'President';
+  if(isPresident) {
+    // Assassinating a head of state is instantly national news — no 15-30s "nobody's noticed
+    // yet" grace period like a regular citizen gets, and a much bigger bounty to match the risk
+    // of actually pulling it off against real Bodyguards.
+    const pay = 1500 + Math.floor(Math.random()*1500);
+    const x = npc.group.position.x, z = npc.group.position.z;
+    scene.remove(npc.group);
+    const i = npcs.indexOf(npc); if(i > -1) npcs.splice(i, 1);
+    deadNPCs[npc.name] = { x, z };
+    saveCurrentUser();
+    buildGrave(npc.name, x, z);
+    queueEarning(pay, 5, `Assassinated ${npc.name}`);
+    showNotif(`👑💀 You have assassinated ${npc.name}! The whole country is in shock.`);
+    increaseWanted(3);
+    return;
+  }
   if(npc.job) {
     // One of the 40 Suburbs friends — always just a temporary knockdown, never permanent.
     npc.isDown = true;
@@ -6817,6 +7520,129 @@ function defeatNPC(npc) {
   }, delaySec * 1000);
 }
 
+// ─── HIRED KILLER — user's own ask: "you can hire killers to kill people by name and you get
+// their money". Reuses the exact same `killers` array/mesh every ambient Killer already uses
+// (see spawnKiller/tickAmbientKillerCombat above), just with a 3rd combat mode alongside
+// ambient-vs-player and guard-shift-vs-bank: k.hitTargetName makes it hunt one specific NPC
+// instead. Deliberately excludes Officers (attacking a cop already has its own real consequence
+// path via wantedLevel/arrest — a hit shouldn't bypass that) and Mom/Dad (family isn't a
+// legitimate hit target even in an otherwise-cartoonish crime sandbox).
+const HIRE_KILLER_FEE = 150;
+const HIT_EXCLUDED_ROLES = ['Officer', 'Your Mom', 'Your Dad'];
+// A target's payout is deterministic from their own name (same trick STV's stvHash/
+// stvFormatCount uses for fake subscriber counts) — the SAME name always pays the SAME amount,
+// rather than a fresh random roll that would make "who's worth hitting" meaningless to learn.
+function npcWealth(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return 300 + (h % 2200); // 300-2500 S.I.P.
+}
+function findHitTarget(name) {
+  const query = name.trim().toLowerCase();
+  if (!query) return null;
+  return npcs.find(n => n.name.toLowerCase() === query && !HIT_EXCLUDED_ROLES.includes(n.role) && !n.isDown) || null;
+}
+function openHitmanModal() {
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('hitmanNameInput').value = '';
+  document.getElementById('hitmanPreview').textContent = '';
+  document.getElementById('hitmanModal').style.display = 'flex';
+}
+function closeHitmanModal() {
+  document.getElementById('hitmanModal').style.display = 'none';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function updateHitmanPreview() {
+  const name = document.getElementById('hitmanNameInput').value;
+  const target = findHitTarget(name);
+  const el = document.getElementById('hitmanPreview');
+  if (!name.trim()) { el.textContent = ''; return; }
+  if (!target) { el.textContent = '❓ No one by that name is out and about right now.'; el.style.color = '#888'; return; }
+  const alreadyTargeted = killers.some(k => k.alive && k.hitTargetName === target.name);
+  if (alreadyTargeted) { el.textContent = `⏳ Already have a killer after ${target.name}.`; el.style.color = '#ffaa44'; return; }
+  el.textContent = `🎯 ${target.name} — estimated payout: ${npcWealth(target.name)} S.I.P.`;
+  el.style.color = '#88ff88';
+}
+function confirmHireKiller() {
+  const name = document.getElementById('hitmanNameInput').value;
+  const target = findHitTarget(name);
+  if (!target) { showNotif('❓ Nobody by that name to hire against.'); return; }
+  if (killers.some(k => k.alive && k.hitTargetName === target.name)) { showNotif(`⏳ Already have a killer after ${target.name}.`); return; }
+  if (sipDollars < HIRE_KILLER_FEE) { showNotif(`❌ Need ${HIRE_KILLER_FEE} S.I.P. to hire a killer.`); return; }
+  spendSip(HIRE_KILLER_FEE); updateSIP();
+  spawnHitman(target);
+  showNotif(`🗡️ A killer is on ${target.name}'s trail...`);
+  closeHitmanModal();
+}
+function spawnHitman(target) {
+  const ang = Math.random()*Math.PI*2, dist = 40+Math.random()*20;
+  const x = target.group.position.x + Math.cos(ang)*dist, z = target.group.position.z + Math.sin(ang)*dist;
+  const mesh = buildKillerMesh(x, z);
+  mesh.visible = true; // a hired hit isn't a jump-scare ambush — you can see them coming for the target
+  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:4+Math.random()*1.5, hitTargetName: target.name, revealed:true });
+}
+function tickHitmanCombat(k, dt) {
+  const target = npcs.find(n => n.name === k.hitTargetName);
+  if (!target) { k.alive = false; if (k.mesh) scene.remove(k.mesh); return; } // target already gone some other way — the hitman just leaves
+  const dx = target.group.position.x-k.x, dz = target.group.position.z-k.z;
+  const dist = Math.hypot(dx, dz);
+  if (dist < KILLER_ATTACK_RANGE) {
+    k.alive = false; if (k.mesh) scene.remove(k.mesh);
+    completeHiredHit(target);
+  } else {
+    k.x += dx/dist*k.speed*dt; k.z += dz/dist*k.speed*dt;
+    k.mesh.position.set(k.x, 0, k.z);
+    k.mesh.rotation.y = Math.atan2(dx, dz);
+  }
+}
+// User's own follow-up: "they could kill them in really unexpected ways 90% of the time" — a
+// pool of cartoon-slapstick methods (Looney Tunes-style anvils/pianos, not anything graphic),
+// each a template with {name} filled in, picked 90% of the time; the other 10% stays the plain
+// original line so "unexpected" still occasionally means "no punchline, just handled."
+const HIT_METHODS = [
+  '{name} was flattened by a piano that fell from a passing crane.',
+  '{name} slipped on a banana peel directly into an open manhole.',
+  '{name} was launched into orbit by a novelty catapult.',
+  '{name} got carried off by a suspiciously well-organized flock of pigeons.',
+  '{name} was struck by lightning during a completely clear sky.',
+  '{name} vanished after tripping over a rogue banana cart.',
+  '{name} got swarmed and carried away by angry bees.',
+  '{name} was run over by their own runaway ice cream truck.',
+  '{name} fell into a vending machine and was never seen again.',
+  '{name} was abducted by a suspiciously well-timed UFO.',
+  '{name} slipped on a "wet floor" sign that definitely wasn\'t wet.',
+  '{name} was squashed flat by a giant anvil, Looney Tunes style.',
+  '{name} got sucked into an industrial-strength vacuum cleaner.',
+  '{name} was launched off a seesaw by an elephant sitting on the other end.',
+  '{name} tripped over their own shoelaces into a bottomless pit.',
+  '{name} was flattened by a safe falling from a 10th-story window.',
+  '{name} got tangled in a kite string and carried off by the wind.',
+  '{name} was mistaken for a pizza and dragged off by a giant seagull.',
+];
+function hitFlavorText(name) {
+  if (HIT_METHODS.length && Math.random() < 0.9) {
+    return HIT_METHODS[Math.floor(Math.random()*HIT_METHODS.length)].replace('{name}', name);
+  }
+  return `The hit on ${name} is done.`;
+}
+function completeHiredHit(target) {
+  const wealth = npcWealth(target.name);
+  const x = target.group.position.x, z = target.group.position.z;
+  scene.remove(target.group);
+  const i = npcs.indexOf(target); if (i > -1) npcs.splice(i, 1);
+  deadNPCs[target.name] = { x, z };
+  saveCurrentUser();
+  buildGrave(target.name, x, z);
+  queueEarning(wealth, 0, `Hit on ${target.name}`);
+  showNotif(`🗡️ ${hitFlavorText(target.name)} ${wealth} S.I.P. pending in Earnings.`);
+  const delaySec = 20 + Math.random()*25;
+  setTimeout(() => {
+    increaseWanted(1);
+    showNotif(`🚨 The hit on ${target.name} got traced back to you. Police are on alert!`);
+  }, delaySec*1000);
+}
+
 function tickWanted(dt) {
   // Cool down shop robbery timers
   for(const shop in robbedCooldowns) {
@@ -6834,6 +7660,113 @@ function tickWanted(dt) {
     npc.group.position.x += (dx/dist) * chaseSpeed;
     npc.group.position.z += (dz/dist) * chaseSpeed;
     npc.group.rotation.y = Math.atan2(dx, dz);
+  }
+}
+
+// ─── CELEBRITIES — user's own ask: "make celebertys and npces will follow them and he does stuff
+// like mr beast". Deliberately 3 ORIGINAL characters (Chaz Diamond/Vex Nova/Bree Millions, see
+// their entries in NPC_DEFS) — never a real person's name or likeness, same reasoning already
+// applied to STV's channels (Explox is sold for real money; using a real, still-active public
+// figure's identity in it is a real legal risk, not just a style choice). Each one roams a big
+// patrol loop (the same shared patrol tick every NPC already uses) and periodically runs a real
+// timed event — a Giveaway (a real S.I.P./Elite reward if you're near them when it fires) or a
+// Challenge (stay within range of them for a real countdown to win a bigger prize, reset if you
+// wander off) — while ordinary Citizen/Jogger/Tourist/Vendor NPCs physically flock toward
+// whichever celebrity is nearest, for the crowd-of-fans look.
+const CELEBRITY_CROWD_ROLES = ['Citizen','Jogger','Tourist','Vendor'];
+const CELEBRITY_FOLLOW_RADIUS = 25, CELEBRITY_FOLLOW_SPEED = 2.2;
+const CELEBRITY_GIVEAWAY_RADIUS = 12, CELEBRITY_CHALLENGE_RADIUS = 8;
+const CELEBRITY_EVENT_MIN_GAP = 40, CELEBRITY_EVENT_MAX_GAP = 90; // real seconds (playTimeSeconds) between events, per celebrity
+const CELEBRITY_CHALLENGE_DURATION = 12; // real seconds standing near them to win
+let celebrityState = {}; // { name: {nextEventAt, activeEvent:null|{type,playerTime,lastPingAt}} } — ambient world state, not persisted, same as rogue robot/killer spawns
+function celebNextEventAt() { return playTimeSeconds + CELEBRITY_EVENT_MIN_GAP + Math.random()*(CELEBRITY_EVENT_MAX_GAP-CELEBRITY_EVENT_MIN_GAP); }
+function celebGet(name) {
+  if(!celebrityState[name]) celebrityState[name] = { nextEventAt: celebNextEventAt(), activeEvent: null };
+  return celebrityState[name];
+}
+function tickCelebrities(dt) {
+  for(const npc of npcs) {
+    if(npc.role !== 'Celebrity') continue;
+    const st = celebGet(npc.name);
+    const dist = Math.hypot(playerGroup.position.x - npc.group.position.x, playerGroup.position.z - npc.group.position.z);
+    if(!st.activeEvent && playTimeSeconds >= st.nextEventAt) {
+      st.activeEvent = { type: Math.random() < 0.5 ? 'giveaway' : 'challenge', playerTime: 0, lastPingAt: 0 };
+      showNotif(`🎉 ${npc.name} is doing a ${st.activeEvent.type === 'giveaway' ? 'GIVEAWAY' : 'CHALLENGE'}! Get close!`);
+    }
+    if(!st.activeEvent) continue;
+    if(st.activeEvent.type === 'giveaway') {
+      if(dist < CELEBRITY_GIVEAWAY_RADIUS) {
+        const sip = 200 + Math.floor(Math.random()*300), elite = 1 + Math.floor(Math.random()*3);
+        queueEarning(sip, elite, `${npc.name}'s Giveaway`);
+        showNotif(`💰 You caught ${npc.name}'s giveaway! Check Earnings.`);
+        st.activeEvent = null; st.nextEventAt = celebNextEventAt();
+      }
+    } else { // challenge
+      if(dist < CELEBRITY_CHALLENGE_RADIUS) {
+        st.activeEvent.playerTime += dt;
+        if(playTimeSeconds - st.activeEvent.lastPingAt > 2) {
+          st.activeEvent.lastPingAt = playTimeSeconds;
+          showNotif(`⚡ Staying with ${npc.name}... ${Math.ceil(CELEBRITY_CHALLENGE_DURATION - st.activeEvent.playerTime)}s to go!`);
+        }
+        if(st.activeEvent.playerTime >= CELEBRITY_CHALLENGE_DURATION) {
+          const sip = 500 + Math.floor(Math.random()*500), elite = 3 + Math.floor(Math.random()*3);
+          queueEarning(sip, elite, `${npc.name}'s Challenge`);
+          showNotif(`🏆 You won ${npc.name}'s challenge! Check Earnings.`);
+          st.activeEvent = null; st.nextEventAt = celebNextEventAt();
+        }
+      } else if(st.activeEvent.playerTime > 0) {
+        showNotif(`❌ You left ${npc.name}'s challenge — progress reset!`);
+        st.activeEvent.playerTime = 0;
+      }
+    }
+  }
+}
+// Regular citizens physically flock toward whichever celebrity is nearest, within range — runs
+// AFTER the shared patrol tick already moved every NPC this frame, same override trick
+// tickWanted() (right above) uses for Officers chasing the player.
+function tickCelebrityCrowds(dt) {
+  const celebs = npcs.filter(n => n.role === 'Celebrity');
+  if(!celebs.length) return;
+  for(const npc of npcs) {
+    if(!CELEBRITY_CROWD_ROLES.includes(npc.role) || npc.isDown) continue;
+    let nearest = null, nearestDist = Infinity;
+    for(const c of celebs) {
+      const d = Math.hypot(c.group.position.x - npc.group.position.x, c.group.position.z - npc.group.position.z);
+      if(d < nearestDist) { nearestDist = d; nearest = c; }
+    }
+    if(!nearest || nearestDist > CELEBRITY_FOLLOW_RADIUS) continue;
+    // A fixed personal spot in the crowd (angle+distance), rolled once per NPC so they don't all
+    // pile onto the exact same point, and reused every frame so the crowd holds its shape.
+    if(npc._crowdAngle === undefined) { npc._crowdAngle = Math.random()*Math.PI*2; npc._crowdDist = 2 + Math.random()*4; }
+    const tx = nearest.group.position.x + Math.cos(npc._crowdAngle)*npc._crowdDist;
+    const tz = nearest.group.position.z + Math.sin(npc._crowdAngle)*npc._crowdDist;
+    const dx = tx - npc.group.position.x, dz = tz - npc.group.position.z;
+    const d = Math.hypot(dx, dz);
+    if(d > 0.3) {
+      npc.group.position.x += (dx/d) * CELEBRITY_FOLLOW_SPEED * dt;
+      npc.group.position.z += (dz/d) * CELEBRITY_FOLLOW_SPEED * dt;
+      npc.group.rotation.y = Math.atan2(dx, dz);
+    }
+  }
+}
+
+// Walking up to a President (see PRESIDENT_ROSTER/generatePresidentNPCs above) triggers a real
+// State Visit reward on a per-president cooldown — simple proximity, same pattern as the
+// Celebrity Giveaway, deliberately not gated behind an E-press since a Bodyguard-flanked head of
+// state greeting you the moment you approach reads better than a menu prompt.
+const PRESIDENT_VISIT_RADIUS = 6, PRESIDENT_VISIT_COOLDOWN = 300; // 5 real minutes between visits, per president
+let presidentVisitState = {}; // { name: lastVisitAt (playTimeSeconds) } — ambient world state, not persisted, same as celebrityState
+function tickPresidents(dt) {
+  for(const npc of npcs) {
+    if(npc.role !== 'President') continue;
+    const dist = Math.hypot(playerGroup.position.x - npc.group.position.x, playerGroup.position.z - npc.group.position.z);
+    if(dist > PRESIDENT_VISIT_RADIUS) continue;
+    const last = presidentVisitState[npc.name] !== undefined ? presidentVisitState[npc.name] : -Infinity;
+    if(playTimeSeconds - last < PRESIDENT_VISIT_COOLDOWN) continue;
+    presidentVisitState[npc.name] = playTimeSeconds;
+    const sip = 300 + Math.floor(Math.random()*400), elite = 2 + Math.floor(Math.random()*3);
+    queueEarning(sip, elite, `State visit with ${npc.name}`);
+    showNotif(`🤝 ${npc.name} welcomes you! A diplomatic gift has been added to Earnings.`);
   }
 }
 
@@ -6914,7 +7847,511 @@ const WEAPONS = [
   { id:'emphammer',    name:'⚡ EMP Hammer',   cost:250, color:0x00ffcc, robotShopOnly:true },
   { id:'plasmacutter', name:'🔥 Plasma Cutter',cost:500, color:0xff6600, robotShopOnly:true },
   { id:'railspike',    name:'🔩 Rail Spike',   cost:900, color:0x8899ff, robotShopOnly:true },
+  // 47 new regular Weapon Shop items — no blackMarketOnly/craftOnly/robotShopOnly flag, so
+  // openShop()'s default branch lists all of them, bringing the shop to a real 50 total
+  // (these 47 + bat/sword/axe above). See WEAPON_DAMAGE's own comment for the tier ladder.
+  { id:'wood_club',  name:'🏏 Wooden Cudgel',    cost:20, color:0x8B5A2B },
+  { id:'wood_staff', name:'🪄 Whittled Staff',   cost:25, color:0x8B5A2B },
+  { id:'wood_spear', name:'🔱 Sharpened Branch', cost:30, color:0x8B5A2B },
+  { id:'stone_club',   name:'🏏 Stone Bludgeon',    cost:65, color:0x999999 },
+  { id:'stone_hammer', name:'🔨 Rockcrusher Hammer',cost:75, color:0x999999 },
+  { id:'stone_mace',   name:'⭐ Boulder Mace',      cost:85, color:0x999999 },
+  { id:'bronze_sword',  name:'⚔️ Bronze Shortblade', cost:130, color:0xcd7f32 },
+  { id:'bronze_axe',    name:'🪓 Bronze Hatchet',    cost:145, color:0xcd7f32 },
+  { id:'bronze_dagger', name:'🗡️ Bronze Dirk',       cost:160, color:0xcd7f32 },
+  { id:'iron_sword',     name:'⚔️ Iron Longsword',   cost:210, color:0x8a8a99 },
+  { id:'iron_doubleaxe', name:'🪓 Iron Cleavemaw',   cost:230, color:0x8a8a99 },
+  { id:'iron_warhammer', name:'🔨 Iron Sledgehammer',cost:250, color:0x8a8a99 },
+  { id:'steel_sword',   name:'⚔️ Steel Shortblade', cost:320, color:0xcccccc },
+  { id:'steel_cleaver', name:'🔪 Steel Cleaver',    cost:345, color:0xcccccc },
+  { id:'steel_spear',   name:'🔱 Steel Pike',       cost:370, color:0xcccccc },
+  { id:'silver_sword',   name:'⚔️ Silver Longsword', cost:450, color:0xe0e0e8 },
+  { id:'silver_trident',  name:'🔱 Silver Trident',   cost:475, color:0xe0e0e8 },
+  { id:'silver_dagger',   name:'🗡️ Silver Fang',      cost:500, color:0xe0e0e8 },
+  { id:'titanium_axe',      name:'🪓 Titanium Hatchet',      cost:600, color:0xb0c4de },
+  { id:'titanium_warhammer',name:'🔨 Titanium Maul',         cost:635, color:0xb0c4de },
+  { id:'titanium_mace',     name:'⭐ Titanium Flanged Mace', cost:670, color:0xb0c4de },
+  { id:'obsidian_dagger', name:'🗡️ Obsidian Shard',   cost:760, color:0x2a1a3a },
+  { id:'obsidian_scythe', name:'🌙 Obsidian Reaper',  cost:805, color:0x2a1a3a },
+  { id:'obsidian_claw',   name:'🐾 Obsidian Talons',  cost:850, color:0x2a1a3a },
+  { id:'frost_sword', name:'⚔️ Frostbite Blade', cost:950,  color:0x99eeff },
+  { id:'frost_staff', name:'🪄 Glacier Staff',   cost:1000, color:0x99eeff },
+  { id:'frost_spear', name:'🔱 Icicle Lance',    cost:1050, color:0x99eeff },
+  { id:'ember_axe',      name:'🪓 Ember Hatchet',      cost:1150, color:0xff6633 },
+  { id:'ember_cleaver',  name:'🔪 Molten Cleaver',     cost:1215, color:0xff6633 },
+  { id:'ember_doubleaxe',name:'🪓 Inferno Cleavemaw',  cost:1280, color:0xff6633 },
+  { id:'venom_dagger', name:'🗡️ Venomfang Dagger', cost:1400, color:0x55dd55 },
+  { id:'venom_claw',   name:'🐾 Serpent Claws',    cost:1475, color:0x55dd55 },
+  { id:'venom_scythe', name:'🌙 Toxic Reaper',     cost:1550, color:0x55dd55 },
+  { id:'shadow_scythe', name:'🌙 Shadowreaper',     cost:1700, color:0x3a1a4a },
+  { id:'shadow_dagger', name:'🗡️ Nightshade Blade', cost:1790, color:0x3a1a4a },
+  { id:'shadow_staff',  name:'🪄 Umbral Staff',      cost:1880, color:0x3a1a4a },
+  { id:'holy_sword',   name:'⚔️ Radiant Longsword', cost:2050, color:0xffe066 },
+  { id:'holy_spear',   name:'🔱 Seraphim Lance',    cost:2150, color:0xffe066 },
+  { id:'holy_trident', name:'🔱 Divine Trident',    cost:2250, color:0xffe066 },
+  { id:'storm_warhammer', name:'🔨 Thunderstrike Maul',  cost:2450, color:0x66aaff },
+  { id:'storm_mace',      name:'⭐ Tempest Mace',        cost:2575, color:0x66aaff },
+  { id:'storm_trident',   name:'🔱 Stormcaller Trident', cost:2700, color:0x66aaff },
+  { id:'void_scythe', name:'🌙 Voidreaper',       cost:3000, color:0x2a1040 },
+  { id:'void_claw',   name:'🐾 Voidling Talons',  cost:3150, color:0x2a1040 },
+  { id:'void_dagger', name:'🗡️ Voidshard Dagger', cost:3300, color:0x2a1040 },
+  { id:'cosmic_sword', name:'⚔️ Starforged Blade', cost:3800, color:0xffffff },
+  { id:'cosmic_staff', name:'🪄 Celestial Staff',  cost:4200, color:0xffffff },
+  // Batch 2 (50 more, item ~236) — see WEAPON_DAMAGE's own comment for why this continues the
+  // same ladder instead of starting a separate one.
+  { id:'meteor_hammer', name:'🔨 Meteor Warhammer', cost:4600, color:0x8b4513 },
+  { id:'meteor_axe',    name:'🪓 Meteor Cleaver',   cost:4800, color:0x8b4513 },
+  { id:'meteor_spear',  name:'🔱 Meteor Lance',     cost:5000, color:0x8b4513 },
+  { id:'solar_blade',   name:'⚔️ Solarflare Blade', cost:5300, color:0xffcc00 },
+  { id:'solar_mace',    name:'⭐ Solar Mace',        cost:5500, color:0xffcc00 },
+  { id:'solar_trident', name:'🔱 Sunfire Trident',  cost:5800, color:0xffcc00 },
+  { id:'nebula_dagger', name:'🗡️ Nebula Fang',      cost:6100, color:0x9933ff },
+  { id:'nebula_scythe', name:'🌙 Nebula Reaper',     cost:6500, color:0x9933ff },
+  { id:'nebula_claw',   name:'🐾 Nebula Talons',     cost:6800, color:0x9933ff },
+  { id:'quantum_staff',     name:'🪄 Quantum Staff',    cost:7200, color:0x00ffff },
+  { id:'quantum_cleaver',   name:'🔪 Quantum Cleaver',  cost:7650, color:0x00ffff },
+  { id:'quantum_doubleaxe', name:'🪓 Quantum Splitter', cost:8100, color:0x00ffff },
+  { id:'prism_warhammer', name:'🔨 Prism Maul',  cost:8600, color:0xff66ff },
+  { id:'prism_longsword', name:'⚔️ Prism Edge',  cost:9100, color:0xff66ff },
+  { id:'prism_club',      name:'🏏 Prism Bludgeon',cost:9600, color:0xff66ff },
+  { id:'diamond_shortsword', name:'⚔️ Diamond Shortblade', cost:10200, color:0xb9f2ff },
+  { id:'diamond_axe',       name:'🪓 Diamond Hatchet',    cost:10800, color:0xb9f2ff },
+  { id:'diamond_dagger',    name:'🗡️ Diamond Shard',      cost:11400, color:0xb9f2ff },
+  { id:'mythic_hammer', name:'🔨 Mythic Warhammer', cost:12100, color:0xffd700 },
+  { id:'mythic_mace',   name:'⭐ Mythic Mace',       cost:12750, color:0xffd700 },
+  { id:'mythic_spear',  name:'🔱 Mythic Lance',      cost:13400, color:0xffd700 },
+  { id:'dragon_trident', name:'🔱 Dragonfang Trident', cost:14200, color:0xcc0000 },
+  { id:'dragon_scythe',  name:'🌙 Dragon Reaper',      cost:15000, color:0xcc0000 },
+  { id:'dragon_claw',    name:'🐾 Dragon Talons',      cost:15700, color:0xcc0000 },
+  { id:'phoenix_staff',      name:'🪄 Phoenix Staff', cost:16600, color:0xff4400 },
+  { id:'phoenix_cleaver',    name:'🔪 Phoenix Cleaver',cost:17400, color:0xff4400 },
+  { id:'phoenix_doubleaxe',  name:'🪓 Phoenix Wings', cost:18300, color:0xff4400 },
+  { id:'abyssal_warhammer', name:'🔨 Abyssal Maul',  cost:19200, color:0x001a33 },
+  { id:'abyssal_longsword', name:'⚔️ Abyssal Edge',  cost:20200, color:0x001a33 },
+  { id:'abyssal_club',      name:'🏏 Abyssal Crusher',cost:21250, color:0x001a33 },
+  { id:'arcane_shortsword', name:'⚔️ Arcane Blade',   cost:22400, color:0x6600cc },
+  { id:'arcane_axe',        name:'🪓 Arcane Cleaver', cost:23500, color:0x6600cc },
+  { id:'arcane_dagger',     name:'🗡️ Arcane Fang',    cost:24700, color:0x6600cc },
+  { id:'runic_hammer', name:'🔨 Runic Warhammer', cost:26000, color:0x445566 },
+  { id:'runic_mace',   name:'⭐ Runic Mace',       cost:27400, color:0x445566 },
+  { id:'runic_spear',  name:'🔱 Runic Lance',      cost:28700, color:0x445566 },
+  { id:'ancient_trident', name:'🔱 Ancient Trident', cost:30200, color:0x554422 },
+  { id:'ancient_scythe',  name:'🌙 Ancient Reaper',  cost:31700, color:0x554422 },
+  { id:'ancient_claw',    name:'🐾 Ancient Talons',  cost:33200, color:0x554422 },
+  { id:'divine_staff',     name:'🪄 Divine Staff', cost:34850, color:0xffffee },
+  { id:'divine_cleaver',   name:'🔪 Divine Cleaver',cost:36550, color:0xffffee },
+  { id:'divine_doubleaxe', name:'🪓 Divine Wings', cost:38250, color:0xffffee },
+  { id:'eternal_warhammer', name:'🔨 Eternal Maul',   cost:40100, color:0x220044 },
+  { id:'eternal_longsword', name:'⚔️ Eternal Edge',   cost:42100, color:0x220044 },
+  { id:'eternal_club',      name:'🏏 Eternal Crusher',cost:44100, color:0x220044 },
+  { id:'omega_shortsword', name:'⚔️ Omega Blade',   cost:46200, color:0x000000 },
+  { id:'omega_axe',        name:'🪓 Omega Cleaver', cost:48500, color:0x000000 },
+  { id:'omega_dagger',     name:'🗡️ Omega Fang',    cost:50900, color:0x000000 },
+  { id:'genesis_blade', name:'⚔️ Genesis Blade', cost:53500, color:0xffffff },
+  { id:'genesis_orb',   name:'🪄 Genesis Orb',   cost:56100, color:0xffffff },
 ];
+// archetype/color(main)/accent/glow/scale per new weapon — see buildWeaponArchetype() near
+// updateWeaponMesh() for what each archetype actually looks like.
+const WEAPON_VISUALS = {
+  wood_club: {archetype:'club', color:0x8B5A2B, accent:0x6b4423, glow:null, scale:1.0},
+  wood_staff:{archetype:'staff',color:0x8B5A2B, accent:0x6b4423, glow:null, scale:1.0},
+  wood_spear:{archetype:'spear',color:0x8B5A2B, accent:0x6b4423, glow:null, scale:1.0},
+  stone_club:  {archetype:'club',  color:0x999999, accent:0x666666, glow:null, scale:1.0},
+  stone_hammer:{archetype:'hammer',color:0x999999, accent:0x666666, glow:null, scale:1.0},
+  stone_mace:  {archetype:'mace',  color:0x999999, accent:0x666666, glow:null, scale:1.0},
+  bronze_sword: {archetype:'shortsword',color:0xcd7f32, accent:0x8b5a2b, glow:null, scale:1.0},
+  bronze_axe:   {archetype:'axe',       color:0xcd7f32, accent:0x8b5a2b, glow:null, scale:1.0},
+  bronze_dagger:{archetype:'dagger',    color:0xcd7f32, accent:0x8b5a2b, glow:null, scale:1.0},
+  iron_sword:     {archetype:'longsword',color:0x8a8a99, accent:0x666677, glow:null, scale:1.05},
+  iron_doubleaxe: {archetype:'doubleaxe',color:0x8a8a99, accent:0x666677, glow:null, scale:1.05},
+  iron_warhammer: {archetype:'warhammer',color:0x8a8a99, accent:0x666677, glow:null, scale:1.05},
+  steel_sword:  {archetype:'shortsword',color:0xcccccc, accent:0x999999, glow:null, scale:1.05},
+  steel_cleaver:{archetype:'cleaver',   color:0xcccccc, accent:0x999999, glow:null, scale:1.05},
+  steel_spear:  {archetype:'spear',     color:0xcccccc, accent:0x999999, glow:null, scale:1.05},
+  silver_sword:  {archetype:'longsword',color:0xe0e0e8, accent:0xaaaaaa, glow:null, scale:1.05},
+  silver_trident:{archetype:'trident',  color:0xe0e0e8, accent:0xaaaaaa, glow:null, scale:1.05},
+  silver_dagger: {archetype:'dagger',   color:0xe0e0e8, accent:0xaaaaaa, glow:null, scale:1.05},
+  titanium_axe:      {archetype:'axe',      color:0xb0c4de, accent:0x778899, glow:null, scale:1.1},
+  titanium_warhammer:{archetype:'warhammer',color:0xb0c4de, accent:0x778899, glow:null, scale:1.1},
+  titanium_mace:     {archetype:'mace',     color:0xb0c4de, accent:0x778899, glow:null, scale:1.1},
+  obsidian_dagger:{archetype:'dagger',color:0x2a1a3a, accent:0x1a0d22, glow:0x330044, scale:1.1},
+  obsidian_scythe:{archetype:'scythe',color:0x2a1a3a, accent:0x1a0d22, glow:0x330044, scale:1.1},
+  obsidian_claw:  {archetype:'claw',  color:0x2a1a3a, accent:0x1a0d22, glow:0x330044, scale:1.1},
+  frost_sword:{archetype:'longsword',color:0x99eeff, accent:0x3388cc, glow:0x2266aa, scale:1.1},
+  frost_staff:{archetype:'staff',    color:0x99eeff, accent:0x3388cc, glow:0x2266aa, scale:1.1},
+  frost_spear:{archetype:'spear',    color:0x99eeff, accent:0x3388cc, glow:0x2266aa, scale:1.1},
+  ember_axe:      {archetype:'axe',      color:0xff6633, accent:0xcc3300, glow:0xaa2200, scale:1.15},
+  ember_cleaver:  {archetype:'cleaver',  color:0xff6633, accent:0xcc3300, glow:0xaa2200, scale:1.15},
+  ember_doubleaxe:{archetype:'doubleaxe',color:0xff6633, accent:0xcc3300, glow:0xaa2200, scale:1.15},
+  venom_dagger:{archetype:'dagger',color:0x55dd55, accent:0x226622, glow:0x115511, scale:1.15},
+  venom_claw:  {archetype:'claw',  color:0x55dd55, accent:0x226622, glow:0x115511, scale:1.15},
+  venom_scythe:{archetype:'scythe',color:0x55dd55, accent:0x226622, glow:0x115511, scale:1.15},
+  shadow_scythe:{archetype:'scythe',color:0x3a1a4a, accent:0x1a0d22, glow:0x440066, scale:1.15},
+  shadow_dagger:{archetype:'dagger',color:0x3a1a4a, accent:0x1a0d22, glow:0x440066, scale:1.15},
+  shadow_staff: {archetype:'staff', color:0x3a1a4a, accent:0x1a0d22, glow:0x440066, scale:1.15},
+  holy_sword:  {archetype:'longsword',color:0xffe066, accent:0xffaa00, glow:0xcc8800, scale:1.2},
+  holy_spear:  {archetype:'spear',    color:0xffe066, accent:0xffaa00, glow:0xcc8800, scale:1.2},
+  holy_trident:{archetype:'trident',  color:0xffe066, accent:0xffaa00, glow:0xcc8800, scale:1.2},
+  storm_warhammer:{archetype:'warhammer',color:0x66aaff, accent:0x2255cc, glow:0x1144aa, scale:1.2},
+  storm_mace:     {archetype:'mace',     color:0x66aaff, accent:0x2255cc, glow:0x1144aa, scale:1.2},
+  storm_trident:  {archetype:'trident',  color:0x66aaff, accent:0x2255cc, glow:0x1144aa, scale:1.2},
+  void_scythe:{archetype:'scythe',color:0x2a1040, accent:0x0d0518, glow:0x6600cc, scale:1.25},
+  void_claw:  {archetype:'claw',  color:0x2a1040, accent:0x0d0518, glow:0x6600cc, scale:1.25},
+  void_dagger:{archetype:'dagger',color:0x2a1040, accent:0x0d0518, glow:0x6600cc, scale:1.25},
+  cosmic_sword:{archetype:'longsword',color:0xffffff, accent:0xaa88ff, glow:0x8844ff, scale:1.3},
+  cosmic_staff:{archetype:'staff',    color:0xffffff, accent:0xaa88ff, glow:0x8844ff, scale:1.3},
+  // Batch 2 — scale keeps climbing past cosmic's 1.3 the exact same way it climbed to get there,
+  // and every tier keeps a real glow (established from Obsidian onward above), not just the last few.
+  meteor_hammer:{archetype:'hammer',color:0x8b4513, accent:0xff4500, glow:0xff6600, scale:1.32},
+  meteor_axe:   {archetype:'axe',   color:0x8b4513, accent:0xff4500, glow:0xff6600, scale:1.32},
+  meteor_spear: {archetype:'spear', color:0x8b4513, accent:0xff4500, glow:0xff6600, scale:1.32},
+  solar_blade:  {archetype:'shortsword',color:0xffcc00, accent:0xff8800, glow:0xffee00, scale:1.34},
+  solar_mace:   {archetype:'mace',      color:0xffcc00, accent:0xff8800, glow:0xffee00, scale:1.34},
+  solar_trident:{archetype:'trident',   color:0xffcc00, accent:0xff8800, glow:0xffee00, scale:1.34},
+  nebula_dagger:{archetype:'dagger',color:0x9933ff, accent:0x3366ff, glow:0xaa66ff, scale:1.36},
+  nebula_scythe:{archetype:'scythe',color:0x9933ff, accent:0x3366ff, glow:0xaa66ff, scale:1.36},
+  nebula_claw:  {archetype:'claw',  color:0x9933ff, accent:0x3366ff, glow:0xaa66ff, scale:1.36},
+  quantum_staff:    {archetype:'staff',    color:0x00ffff, accent:0x0088ff, glow:0x00ffff, scale:1.38},
+  quantum_cleaver:  {archetype:'cleaver',  color:0x00ffff, accent:0x0088ff, glow:0x00ffff, scale:1.38},
+  quantum_doubleaxe:{archetype:'doubleaxe',color:0x00ffff, accent:0x0088ff, glow:0x00ffff, scale:1.38},
+  prism_warhammer:{archetype:'warhammer',color:0xff66ff, accent:0x66ffff, glow:0xff99ff, scale:1.40},
+  prism_longsword:{archetype:'longsword',color:0xff66ff, accent:0x66ffff, glow:0xff99ff, scale:1.40},
+  prism_club:     {archetype:'club',     color:0xff66ff, accent:0x66ffff, glow:0xff99ff, scale:1.40},
+  diamond_shortsword:{archetype:'shortsword',color:0xb9f2ff, accent:0xffffff, glow:0xaaffff, scale:1.42},
+  diamond_axe:       {archetype:'axe',       color:0xb9f2ff, accent:0xffffff, glow:0xaaffff, scale:1.42},
+  diamond_dagger:    {archetype:'dagger',    color:0xb9f2ff, accent:0xffffff, glow:0xaaffff, scale:1.42},
+  mythic_hammer:{archetype:'hammer',color:0xffd700, accent:0x8b008b, glow:0xffee88, scale:1.44},
+  mythic_mace:  {archetype:'mace',  color:0xffd700, accent:0x8b008b, glow:0xffee88, scale:1.44},
+  mythic_spear: {archetype:'spear', color:0xffd700, accent:0x8b008b, glow:0xffee88, scale:1.44},
+  dragon_trident:{archetype:'trident',color:0xcc0000, accent:0xff9900, glow:0xff3300, scale:1.46},
+  dragon_scythe: {archetype:'scythe', color:0xcc0000, accent:0xff9900, glow:0xff3300, scale:1.46},
+  dragon_claw:   {archetype:'claw',   color:0xcc0000, accent:0xff9900, glow:0xff3300, scale:1.46},
+  phoenix_staff:    {archetype:'staff',    color:0xff4400, accent:0xffee00, glow:0xff8800, scale:1.48},
+  phoenix_cleaver:  {archetype:'cleaver',  color:0xff4400, accent:0xffee00, glow:0xff8800, scale:1.48},
+  phoenix_doubleaxe:{archetype:'doubleaxe',color:0xff4400, accent:0xffee00, glow:0xff8800, scale:1.48},
+  abyssal_warhammer:{archetype:'warhammer',color:0x001a33, accent:0x00ffcc, glow:0x00ffcc, scale:1.50},
+  abyssal_longsword:{archetype:'longsword',color:0x001a33, accent:0x00ffcc, glow:0x00ffcc, scale:1.50},
+  abyssal_club:     {archetype:'club',     color:0x001a33, accent:0x00ffcc, glow:0x00ffcc, scale:1.50},
+  arcane_shortsword:{archetype:'shortsword',color:0x6600cc, accent:0x00ffff, glow:0x9933ff, scale:1.52},
+  arcane_axe:       {archetype:'axe',       color:0x6600cc, accent:0x00ffff, glow:0x9933ff, scale:1.52},
+  arcane_dagger:    {archetype:'dagger',    color:0x6600cc, accent:0x00ffff, glow:0x9933ff, scale:1.52},
+  runic_hammer:{archetype:'hammer',color:0x445566, accent:0x00ffaa, glow:0x00ffaa, scale:1.54},
+  runic_mace:  {archetype:'mace',  color:0x445566, accent:0x00ffaa, glow:0x00ffaa, scale:1.54},
+  runic_spear: {archetype:'spear', color:0x445566, accent:0x00ffaa, glow:0x00ffaa, scale:1.54},
+  ancient_trident:{archetype:'trident',color:0x554422, accent:0xffd700, glow:0xffd700, scale:1.56},
+  ancient_scythe: {archetype:'scythe', color:0x554422, accent:0xffd700, glow:0xffd700, scale:1.56},
+  ancient_claw:   {archetype:'claw',   color:0x554422, accent:0xffd700, glow:0xffd700, scale:1.56},
+  divine_staff:    {archetype:'staff',    color:0xffffee, accent:0xffd700, glow:0xffffaa, scale:1.58},
+  divine_cleaver:  {archetype:'cleaver',  color:0xffffee, accent:0xffd700, glow:0xffffaa, scale:1.58},
+  divine_doubleaxe:{archetype:'doubleaxe',color:0xffffee, accent:0xffd700, glow:0xffffaa, scale:1.58},
+  eternal_warhammer:{archetype:'warhammer',color:0x220044, accent:0xff00ff, glow:0xff00ff, scale:1.60},
+  eternal_longsword:{archetype:'longsword',color:0x220044, accent:0xff00ff, glow:0xff00ff, scale:1.60},
+  eternal_club:     {archetype:'club',     color:0x220044, accent:0xff00ff, glow:0xff00ff, scale:1.60},
+  omega_shortsword:{archetype:'shortsword',color:0x000000, accent:0xff0000, glow:0xff0000, scale:1.62},
+  omega_axe:       {archetype:'axe',       color:0x000000, accent:0xff0000, glow:0xff0000, scale:1.62},
+  omega_dagger:    {archetype:'dagger',    color:0x000000, accent:0xff0000, glow:0xff0000, scale:1.62},
+  genesis_blade:{archetype:'longsword',color:0xffffff, accent:0xffffff, glow:0xffffff, scale:1.65},
+  genesis_orb:  {archetype:'staff',    color:0xffffff, accent:0xffffff, glow:0xffffff, scale:1.65},
+};
+// ─── WEAPON BATCH GENERATOR — batches 1-2 above (100 weapons) are hand-authored; the user's own
+// follow-up ask ("lets make 5 more baches (250)") makes hand-typing every single object clearly
+// unsustainable toward the stated 5,000-weapon goal, so from here on a batch is just a compact
+// one-line-per-tier table fed through this generator instead. Damage/scale interpolate smoothly
+// (exponential curve, so early items in a batch don't jump too hard) from a start value picked to
+// continue right where the previous batch's last weapon left off, to an end value for that batch's
+// capstone tier — fully deterministic, not random, so the same id always produces the same weapon
+// for every player. Archetype selection uses one shared cursor across every generateWeaponBatch()
+// call so shapes keep rotating instead of resetting per batch, and since each tier's 3 (or 2, for
+// a capstone) items are always CONSECUTIVE draws from a 15-archetype cycle, no tier can ever
+// accidentally get the same shape twice.
+const WEAPON_ARCHETYPE_CYCLE = ['shortsword','longsword','dagger','axe','doubleaxe','hammer','warhammer','mace','spear','trident','scythe','club','staff','claw','cleaver'];
+const WEAPON_ARCHETYPE_EMOJI = { shortsword:'⚔️',longsword:'⚔️',dagger:'🗡️',axe:'🪓',doubleaxe:'🪓',hammer:'🔨',warhammer:'🔨',mace:'⭐',spear:'🔱',trident:'🔱',scythe:'🌙',club:'🏏',staff:'🪄',claw:'🐾',cleaver:'🔪' };
+const WEAPON_ARCHETYPE_LABEL = { shortsword:'Blade',longsword:'Edge',dagger:'Fang',axe:'Cleaver',doubleaxe:'Splitter',hammer:'Warhammer',warhammer:'Maul',mace:'Mace',spear:'Lance',trident:'Trident',scythe:'Reaper',club:'Crusher',staff:'Staff',claw:'Talons',cleaver:'Cleaver' };
+let _weaponArchCursor = 0;
+function generateWeaponBatch(tiers, startDmg, endDmg, startScale, endScale) {
+  const totalItems = tiers.reduce((n,t) => n + (t.capstone ? 2 : 3), 0);
+  let itemIdx = 0;
+  tiers.forEach(t => {
+    const count = t.capstone ? 2 : 3;
+    // Handles both single-word tiers ('wood' -> 'Wood') and the generator's compound ones
+    // ('ironclad_warden' -> 'Ironclad Warden') the same way.
+    // Also spaces out nextTierNames()'s numeric-suffix fallback ('warden2' -> 'Warden 2') so it
+    // reads as a real name, not a typo.
+    const label = t.tier.split('_').map(w => (w.charAt(0).toUpperCase() + w.slice(1)).replace(/(\D)(\d+)$/, '$1 $2')).join(' ');
+    for (let i=0; i<count; i++) {
+      const frac = totalItems > 1 ? itemIdx/(totalItems-1) : 0;
+      const dmg = Math.round(startDmg * Math.pow(endDmg/startDmg, frac));
+      const scale = +(startScale + (endScale-startScale)*frac).toFixed(2);
+      const cost = Math.round(dmg*17/5)*5;
+      const archetype = WEAPON_ARCHETYPE_CYCLE[_weaponArchCursor % WEAPON_ARCHETYPE_CYCLE.length]; _weaponArchCursor++;
+      const id = `${t.tier}_${archetype}`;
+      WEAPON_DAMAGE[id] = dmg;
+      WEAPON_VISUALS[id] = { archetype, color:t.color, accent:t.accent, glow:t.glow, scale };
+      WEAPONS.push({ id, name:`${WEAPON_ARCHETYPE_EMOJI[archetype]} ${label} ${WEAPON_ARCHETYPE_LABEL[archetype]}`, cost, color:t.color });
+      itemIdx++;
+    }
+  });
+}
+function t(tier,color,accent,glow,capstone){ return {tier,color,accent,glow,capstone:!!capstone}; }
+// User's own follow-up: "next 10 batches" (170 more tier names + colors needed just for that one
+// ask) is well past where hand-typing every single one stays sane toward the stated 5,000-weapon
+// goal. Combining two short word lists guarantees every tier name is unique BY CONSTRUCTION (every
+// prefix+root pair is distinct) instead of needing to manually track ~300 words already used —
+// and colors come from rotating hue by a golden-angle-style step (same trick this file already
+// uses for star scatter/shop placement) so they stay visually spread out instead of clustering,
+// with zero hand-picked hex values.
+// Expanded for the "10" more batches right after the first 10 — 60x20 = 1200 combos comfortably
+// covers the rest of the road to 5,000. The dedup Set above means growing these lists again later
+// is always safe, never a silent collision risk.
+const TIER_NAME_PREFIXES = ['ironclad','stormforged','doombringer','starforged','voidtouched','soulbound','ragefueled','frostbitten','sunblessed','nightborn','bloodforged','skyrending','earthshaking','stormcalling','flamewrought','iceforged','thunderstruck','shadowbound','direforged','warforged',
+  'astralforged','chaosbound','orderbound','timeforged','spaceforged','voidforged','starbound','moonforged','sunforged','stormbound','fireforged','frostforged','thunderbound','lightningforged','shadowforged','lightbound','darkforged','dawnbound','duskforged','twilightbound',
+  'emberforged','glacierbound','infernobound','tempestforged','radiantbound','umbralforged','spectralbound','etherealforged','primalbound','savageforged','wildbound','feralforged','huntersbound','predatorforged','apexbound','zenithforged','pinnaclebound','summitforged','crestbound','peakforged'];
+const TIER_NAME_ROOTS = ['warden','harbinger','sentinel','reaper','warlord','oracle','vanguard','marauder','paragon',
+  'executioner','conqueror','dominator','obliterator','annihilator','vanquisher','destroyer','ravager','plunderer','invader','colossus'];
+let _tierNameCursor = 0;
+// Real dedup, not just trusted math — resizing either word list later (which the very next "10
+// more batches" ask already needed) shifts what floor(cursor/rootsLen) and cursor%rootsLen land
+// on, so a name generated under the OLD list sizes could otherwise coincidentally reappear under
+// the NEW ones. Skipping anything already handed out makes that impossible regardless of how the
+// lists change, instead of requiring hand-verified modular-arithmetic proofs every time.
+const _usedTierNames = new Set();
+function nextTierNames(count) {
+  const names = [];
+  while (names.length < count) {
+    const p = TIER_NAME_PREFIXES[Math.floor(_tierNameCursor / TIER_NAME_ROOTS.length) % TIER_NAME_PREFIXES.length];
+    const r = TIER_NAME_ROOTS[_tierNameCursor % TIER_NAME_ROOTS.length];
+    _tierNameCursor++;        // these still group sensibly by prefix in the shop, not one header per tier
+    // User's own "continue on the last 3000" needs far more tiers than the 1200 prefix×root combos
+    // hold — rather than expanding the word lists a third time, once every combo's used up this
+    // just appends a counter (ironclad_warden, then ironclad_warden2, _warden3, ...), so the SAME
+    // finite word lists generate names forever, no matter how many more batches ever get asked for.
+    let name = p + '_' + r, suffix = 2;
+    while (_usedTierNames.has(name)) { name = p + '_' + r + suffix; suffix++; }
+    _usedTierNames.add(name);
+    names.push(name);
+  }
+  return names;
+}
+function tierColorFromIndex(i) {
+  const hue = (i * 47) % 360; // 47 shares no small factor with 360, so hues spread out instead of repeating a short cycle
+  const c1 = new THREE.Color(); c1.setHSL(hue/360, 0.65, 0.5);
+  const c2 = new THREE.Color(); c2.setHSL(((hue+40)%360)/360, 0.6, 0.32);
+  const c3 = new THREE.Color(); c3.setHSL(hue/360, 0.9, 0.68);
+  return { color:c1.getHex(), accent:c2.getHex(), glow:c3.getHex() };
+}
+// Convenience wrapper around generateWeaponBatch() that pulls its own tier names/colors from the
+// generators above instead of a hand-written tier list — this is what every batch from 21 onward
+// actually calls.
+function generateAutoWeaponBatch(count, startDmg, endDmg, startScale, endScale) {
+  const startIdx = _tierNameCursor;
+  const names = nextTierNames(count);
+  const tiers = names.map((name, i) => {
+    const { color, accent, glow } = tierColorFromIndex(startIdx + i);
+    return t(name, color, accent, glow, i === count - 1);
+  });
+  generateWeaponBatch(tiers, startDmg, endDmg, startScale, endScale);
+}
+// Batch 3 — mystic/elemental
+generateWeaponBatch([
+  t('infernal',0xdd2200,0x220000,0xff4400), t('glacial',0x88ddff,0x224466,0xaaeeff), t('volcanic',0x662200,0xff6600,0xff8800),
+  t('tempest',0x4466aa,0xaaccff,0x88bbff), t('radiant',0xffee88,0xffaa00,0xffffaa), t('umbral',0x1a0a2a,0x6600aa,0x9933dd),
+  t('spectral',0xaaffee,0x44aa99,0xccffee), t('ethereal',0xddeeff,0x88aacc,0xeeffff), t('primal',0x557722,0x88aa33,0xaadd44),
+  t('feral',0x774422,0xaa6633,0xffaa66), t('vicious',0x991122,0xff3344,0xff5566), t('wrathful',0xaa0000,0xff0000,0xff2222),
+  t('furious',0xff4400,0xffaa00,0xffcc44), t('relentless',0x445566,0x88aabb,0xaaccdd), t('unstoppable',0x222222,0xff0000,0xff0000),
+  t('apex',0xffd700,0x000000,0xffee00), t('zenith',0xffffff,0xffd700,0xffffff,true),
+], 3450, 8000, 1.67, 1.85);
+// Batch 4 — cosmic/astral
+generateWeaponBatch([
+  t('astral',0x6644cc,0xaaccff,0x8866ff), t('lunar',0xccccdd,0x8888aa,0xddddff), t('stellar',0xffffcc,0xffee88,0xffffaa),
+  t('galactic',0x330066,0x9933cc,0xaa66ff), t('quasar',0x00ffff,0xff00ff,0x88ffff), t('pulsar',0xffffff,0x00aaff,0xaaeeff),
+  t('supernova',0xff8800,0xffff00,0xffcc00), t('vortex',0x220044,0x8800ff,0xaa44ff), t('eclipse',0x000000,0xff6600,0xff8800),
+  t('comet',0x88ccff,0xffffff,0xaaeeff), t('meteorite',0x554433,0xff6622,0xff8844), t('asteroid',0x776655,0x998877,0xaa9988),
+  t('orbital',0x3366cc,0x66aaff,0x99ccff), t('infinite',0xffffff,0x000000,0xcccccc), t('boundless',0x00ccff,0xffffff,0x66eeff),
+  t('transcendent',0xffee00,0xffffff,0xffff88), t('paramount',0xffd700,0xffffff,0xffee00,true),
+], 8200, 18000, 1.87, 2.05);
+// Batch 5 — gems/minerals
+generateWeaponBatch([
+  t('crimson',0xdc143c,0x8b0000,0xff4466), t('azure',0x007fff,0x0055aa,0x66bbff), t('emerald',0x50c878,0x228844,0x88ffaa),
+  t('sapphire',0x0f52ba,0x0a3a7a,0x66aaff), t('ruby',0xe0115f,0x9a0a3f,0xff4488), t('amber',0xffbf00,0xcc8800,0xffdd66),
+  t('jade',0x00a86b,0x006644,0x66ffcc), t('onyx',0x0a0a0a,0x333333,0x666666), t('platinum',0xe5e4e2,0xaaaaaa,0xffffff),
+  t('mercury',0xc0c0c0,0x888888,0xddddee), t('tungsten',0x707070,0x444444,0x999999), t('quartz',0xffffff,0xccccee,0xeeeeff),
+  t('granite',0x676767,0x444444,0x888888), t('marble',0xf0f0f0,0xcccccc,0xffffff), t('alabaster',0xfaf0e6,0xddccbb,0xffffee),
+  t('ivory',0xfffff0,0xeeeecc,0xffffff), t('pearl',0xfdeef4,0xffccdd,0xffffff,true),
+], 18500, 38000, 2.07, 2.25);
+// Batch 6 — weather disasters
+generateWeaponBatch([
+  t('thunder',0x333366,0xffff00,0xffff44), t('lightning',0xffff44,0xffffff,0xffff88), t('hurricane',0x336699,0x88bbdd,0xaaccff),
+  t('cyclone',0x556677,0x99aabb,0xbbccdd), t('tsunami',0x0066aa,0x00aadd,0x66ddff), t('avalanche',0xddeeff,0xaaccee,0xffffff),
+  t('blizzard',0xeeffff,0xaaddff,0xffffff), t('wildfire',0xff3300,0xff9900,0xffcc00), t('earthquake',0x664422,0x996633,0xcc9966),
+  t('tidal',0x0088aa,0x00ccdd,0x66eeff), t('monsoon',0x224466,0x4488aa,0x66aacc), t('typhoon',0x336688,0x66aacc,0x99ccee),
+  t('whirlwind',0x88aabb,0xccddee,0xffffff), t('maelstrom',0x220044,0x6600aa,0x9933dd), t('cataclysm',0x440000,0xff0000,0xff4444),
+  t('apocalypse',0x1a0000,0xff0000,0xff0000), t('armageddon',0x000000,0xff0000,0xff2200,true),
+], 39000, 75000, 2.27, 2.45);
+// Batch 7 — legendary/monstrous
+generateWeaponBatch([
+  t('draconic',0x882200,0xffaa00,0xff6600), t('seraphic',0xffffee,0xffdd88,0xffffaa), t('angelic',0xffeecc,0xffffff,0xffffee),
+  t('demonic',0x330000,0xff0000,0xff2222), t('titanic',0x445566,0x778899,0xaabbcc), t('colossal',0x554433,0x998866,0xccaa88),
+  t('gigantic',0x336633,0x559955,0x77cc77), t('monstrous',0x442222,0x884444,0xcc6666), t('leviathan',0x004466,0x0088aa,0x66ccee),
+  t('behemoth',0x554422,0x998855,0xccbb88), t('juggernaut',0x333333,0x666666,0x999999), t('vanquisher',0xaa0000,0xffaa00,0xffcc44),
+  t('conqueror',0x665500,0xffd700,0xffee88), t('dominator',0x220022,0xaa00aa,0xff44ff), t('obliterator',0x111111,0xff0000,0xff0000),
+  t('annihilator',0x000000,0xffffff,0xffffff), t('ultimate',0xffffff,0xffd700,0xffffff,true),
+], 77000, 140000, 2.47, 2.65);
+// Batch 8 — reality/god-tier
+generateWeaponBatch([
+  t('sovereign',0x4b0082,0xffd700,0xdaa520), t('imperial',0x800020,0xffd700,0xffcc00), t('absolute',0xffffff,0x000000,0xffffff),
+  t('primordial',0x1a3300,0x66aa33,0x99ff66), t('elemental',0xff6600,0x0099ff,0xffcc00), t('universal',0x000033,0xffffff,0xaaccff),
+  t('immortal',0xeeeeee,0xffd700,0xffffff), t('invincible',0x333333,0xff0000,0xff3333), t('unbreakable',0x555555,0x999999,0xcccccc),
+  t('indestructible',0x222222,0x00ff00,0x66ff66), t('supreme',0xffd700,0x8b008b,0xffee88), t('exalted',0xffffcc,0xffaa00,0xffffee),
+  t('hallowed',0xffffff,0xffee88,0xffffcc), t('sanctified',0xaaddff,0xffffff,0xccffff), t('forsaken',0x1a0000,0x660000,0x990000),
+  t('forbidden',0x220033,0x9900cc,0xcc00ff), t('godly',0xffffff,0xffd700,0xffffff,true),
+], 145000, 280000, 2.67, 2.85);
+// Batch 9 — mythical creatures
+generateWeaponBatch([
+  t('phantom',0x2a2a4a,0x6666aa,0x9999ff), t('wraith',0x1a1a2a,0x4444aa,0x8888ff), t('banshee',0xccccff,0x8888cc,0xffffff),
+  t('revenant',0x330011,0x991144,0xff2266), t('specter',0xaaccff,0x6699cc,0xddeeff), t('poltergeist',0x442266,0x9944cc,0xcc88ff),
+  t('wendigo',0x1a3311,0x557733,0x88aa55), t('kraken',0x002233,0x006699,0x33aadd), t('hydra',0x1a3300,0x338822,0x66cc44),
+  t('chimera',0xaa5522,0xffaa22,0xffcc66), t('griffin',0xccaa66,0x8b5a2b,0xffdd99), t('basilisk',0x224411,0x66aa22,0x99ff44),
+  t('cerberus',0x220000,0x880000,0xff2200), t('minotaur',0x553322,0x885533,0xbb9977), t('sphinx',0xddbb77,0xaa8844,0xffeecc),
+  t('colossus',0x666677,0x9999aa,0xccccdd), t('olympian',0xffffff,0xffd700,0xffffcc,true),
+], 290000, 550000, 2.87, 3.05);
+// Batch 10 — sci-fi tech
+generateWeaponBatch([
+  t('plasma',0xff00ff,0x00ffff,0xff66ff), t('ion',0x00ffcc,0x0088ff,0x66ffee), t('laser',0xff0000,0xffffff,0xff6666),
+  t('photon',0xffffff,0xffff00,0xffffaa), t('neutron',0x888888,0xffffff,0xcccccc), t('positron',0x00ff00,0xffffff,0x88ff88),
+  t('antimatter',0x000000,0xff00ff,0xff00ff), t('hyperspace',0x6600ff,0x00ffff,0xaa88ff), t('warp',0x0044ff,0x00ffff,0x66aaff),
+  t('graviton',0x220044,0x8800ff,0xaa66ff), t('tachyon',0x00ffff,0xffffff,0xaaffff), t('fusion',0xff6600,0xffff00,0xffaa44),
+  t('fission',0x00ff00,0xffff00,0xaaff44), t('cryo',0x88eeff,0xffffff,0xccffff), t('nano',0x00ffaa,0x000000,0x66ffcc),
+  t('cyber',0x00ffff,0xff00ff,0x88ffff), t('digital',0x00ff00,0x000000,0x00ff88,true),
+], 570000, 1050000, 3.07, 3.25);
+// Batch 11 — royalty
+generateWeaponBatch([
+  t('royal',0x4b0082,0xffd700,0x8866cc), t('majestic',0x800080,0xffd700,0xcc88ff), t('noble',0x000080,0xc0c0c0,0x6688cc),
+  t('regal',0x8b008b,0xffd700,0xdd88ff), t('princely',0x9370db,0xffd700,0xccaaff), t('ducal',0x483d8b,0xc0c0c0,0x8888cc),
+  t('baronial',0x556b2f,0xffd700,0x99cc66), t('chivalrous',0xc0c0c0,0x4169e1,0xeeeeff), t('valiant',0xdc143c,0xffd700,0xff6688),
+  t('heroic',0xffd700,0xff0000,0xffee88), t('gallant',0x4169e1,0xffffff,0x88aaff), t('honorable',0xdaa520,0xffffff,0xffdd88),
+  t('virtuous',0xffffff,0xffd700,0xffffcc), t('righteous',0xffffee,0xffd700,0xffffaa), t('pious',0xf0e68c,0xffffff,0xffffcc),
+  t('sacred',0xffffff,0xffd700,0xffffee), t('blessed',0xffffff,0xffd700,0xffffff,true),
+], 1090000, 2000000, 3.27, 3.45);
+// Batch 12 — time/reality
+generateWeaponBatch([
+  t('chrono',0x336699,0xffcc00,0x66aaff), t('temporal',0x6699cc,0xffffff,0xaaccff), t('dimensional',0x9933cc,0x00ffff,0xcc66ff),
+  t('spatial',0x000033,0xffffff,0x6688ff), t('paradox',0x000000,0xffffff,0x888888), t('causality',0x444488,0xffcc00,0x8888ff),
+  t('entropy',0x330000,0x888888,0xff4444), t('chaos',0x660000,0xff6600,0xff2200), t('harmony',0x88ccff,0xffffff,0xccffff),
+  t('discord',0x660066,0xff00ff,0xcc00cc), t('equilibrium',0xcccccc,0x333333,0xffffff), t('flux',0x00ffcc,0xff00cc,0x88ffee),
+  t('continuum',0x3366aa,0x66ccff,0x99ddff), t('reality',0xffffff,0x000000,0xdddddd), t('illusion',0xaa88ff,0xffffff,0xccaaff),
+  t('mirage',0xffccaa,0x88ccff,0xffddcc), t('phantasm',0xeeeeff,0x8888ff,0xffffff,true),
+], 2080000, 3800000, 3.47, 3.65);
+// Batch 13 — warrior titles
+generateWeaponBatch([
+  t('berserker',0x880000,0xff0000,0xff4444), t('gladiator',0xaa8844,0xffd700,0xffee88), t('warlord',0x440000,0x888888,0xff2222),
+  t('marauder',0x553322,0x886644,0xccaa88), t('raider',0x333333,0x996633,0xaa8866), t('plunderer',0x664422,0xffd700,0xffee88),
+  t('pillager',0x442211,0x996644,0xccaa88), t('ravager',0x660000,0xff3300,0xff6644), t('destroyer',0x222222,0xff0000,0xff0000),
+  t('slayer',0x000000,0xcc0000,0xff2222), t('executioner',0x1a0000,0x880000,0xcc0000), t('headhunter',0x442200,0xaa6600,0xffaa44),
+  t('bloodhunter',0x660011,0xff0033,0xff4466), t('warmonger',0x443300,0xff6600,0xffaa44), t('crusader',0xcccccc,0xffd700,0xffffff),
+  t('paladin',0xffffff,0xffd700,0xffffee), t('champion',0xffd700,0xffffff,0xffee88,true),
+], 3950000, 7200000, 3.67, 3.85);
+// Batch 14 — predators
+generateWeaponBatch([
+  t('locust',0x88aa44,0x556622,0xaadd66), t('scorpion',0x442211,0x996633,0xffaa44), t('tarantula',0x1a0a05,0x442211,0x663311),
+  t('wasp',0xffcc00,0x000000,0xffee44), t('hornet',0xff9900,0x1a0a00,0xffcc44), t('viper',0x225522,0x88aa22,0x66ff44),
+  t('cobra',0x333322,0xaaaa44,0xccdd66), t('python',0x445533,0x778855,0xaacc77), t('panther',0x0a0a0a,0x222222,0x444444),
+  t('tiger',0xff8800,0x000000,0xffaa22), t('lion',0xd4a017,0x8b5a1a,0xffcc55), t('wolf',0x666666,0x333333,0x999999),
+  t('bear',0x553322,0x332211,0x886644), t('eagle',0x8b4513,0xffffff,0xcc8844), t('falcon',0x4a4a4a,0x8899aa,0xaabbcc),
+  t('hawk',0x6b4423,0xaa8855,0xccaa77), t('raptor',0x223311,0xff0000,0x66ff22,true),
+], 7500000, 14000000, 3.87, 4.05);
+// Batch 15 — aesthetic light
+generateWeaponBatch([
+  t('crystalline',0xccffff,0xffffff,0xeeffff), t('prismatic',0xff66cc,0x66ccff,0xffaaee), t('luminous',0xffffaa,0xffffff,0xffffcc),
+  t('iridescent',0xaaffcc,0xffaacc,0xccffee), t('opalescent',0xeeeeff,0xffccee,0xffffff), t('translucent',0xddffff,0xffffff,0xeeffff),
+  t('refractive',0x88ccff,0xffffff,0xccffff), t('chromatic',0xff0000,0x00ff00,0xffff00), t('vibrant',0xff00aa,0x00ffaa,0xff66cc),
+  t('resplendent',0xffd700,0xffffff,0xffee88), t('gleaming',0xffffff,0xcccccc,0xffffff), t('shimmering',0xaaeeff,0xffffff,0xccffff),
+  t('glistening',0x88ffee,0xffffff,0xaaffee), t('dazzling',0xffffff,0xffff00,0xffffaa), t('brilliant',0xffffff,0x00ffff,0xaaffff),
+  t('magnificent',0xffd700,0x8b008b,0xffee88), t('sublime',0xffffff,0xffd700,0xffffff,true),
+], 14500000, 27000000, 4.07, 4.25);
+// Batch 16 — geography
+generateWeaponBatch([
+  t('northern',0x88ccff,0xffffff,0xaaeeff), t('southern',0xffaa44,0xff6600,0xffcc88), t('eastern',0xff6699,0xffcc00,0xffaacc),
+  t('western',0xcc8844,0x996633,0xffcc99), t('arctic',0xeeffff,0xaaddff,0xffffff), t('tropical',0x00cc88,0xffcc00,0x66ffcc),
+  t('desert',0xddaa55,0xcc8833,0xffddaa), t('oceanic',0x0066aa,0x00aadd,0x66ccff), t('mountain',0x778899,0xccccdd,0xaabbcc),
+  t('forest',0x225522,0x66aa33,0x88cc55), t('canyon',0xaa6644,0x884422,0xccaa88), t('tundra',0xccddcc,0x88aa88,0xeeffee),
+  t('savanna',0xccaa55,0x998833,0xffddaa), t('glacier',0xaaddff,0xffffff,0xccffff), t('volcano',0xff3300,0x220000,0xff6622),
+  t('geyser',0x66ccff,0xffffff,0xaaeeff), t('oasis',0x00ddaa,0x0088cc,0x66ffdd,true),
+], 28000000, 52000000, 4.27, 4.45);
+// Batch 17 — military rank
+generateWeaponBatch([
+  t('private',0x556655,0x334433,0x778877), t('corporal',0x556677,0x334455,0x7799aa), t('sergeant',0x664422,0x442211,0x996633),
+  t('lieutenant',0x445588,0x2233aa,0x6688cc), t('captain',0x223366,0x4466aa,0x6699cc), t('major',0x8b0000,0xffd700,0xcc4444),
+  t('colonel',0x556b2f,0xaa8844,0x99cc66), t('general',0x000080,0xffd700,0x6688ff), t('admiral',0x00008b,0xc0c0c0,0x6666cc),
+  t('commander',0x2f4f4f,0xffd700,0x668877), t('marshal',0x800000,0xffd700,0xcc6666), t('commodore',0x191970,0xc0c0c0,0x6677aa),
+  t('brigadier',0x4a3c2a,0xaa8844,0x887755), t('tactician',0x333344,0x8899aa,0x6677aa), t('strategist',0x442244,0x9944cc,0xaa66cc),
+  t('overlord',0x220022,0xff00ff,0xaa00aa), t('emperor',0xffd700,0x800020,0xffee88,true),
+], 54000000, 100000000, 4.47, 4.65);
+// Batch 18 — transcendence
+generateWeaponBatch([
+  t('pinnacle',0xffffff,0xffd700,0xffffee), t('culmination',0xffd700,0xffffff,0xffee88), t('epitome',0xffffee,0xffd700,0xffffff),
+  t('quintessence',0xeeffff,0xaaffff,0xffffff), t('perfection',0xffffff,0xffffff,0xffffff), t('transcendence',0xaaeeff,0xffffff,0xccffff),
+  t('apotheosis',0xffee88,0xffffff,0xffffcc), t('ascension',0x88ccff,0xffffff,0xaaeeff), t('enlightenment',0xffffcc,0xffd700,0xffffee),
+  t('awakening',0xffaa66,0xffffcc,0xffcc88), t('revelation',0xffffff,0xffee88,0xffffcc), t('epiphany',0xccffff,0xffffff,0xeeffff),
+  t('nirvana',0xffffee,0xffd700,0xffffff), t('utopia',0x88ffcc,0xffffff,0xaaffdd), t('paradise',0x00ddaa,0xffee88,0x66ffcc),
+  t('elysium',0xaaffee,0xffffff,0xccffee), t('valhalla',0xffd700,0xff0000,0xffee88,true),
+], 104000000, 195000000, 4.67, 4.85);
+// Batch 19 — space exploration
+generateWeaponBatch([
+  t('satellite',0x778899,0xffffff,0xaabbcc), t('telescope',0x445566,0xffd700,0x6688aa), t('observatory',0x223344,0x88aaff,0x4466aa),
+  t('spacecraft',0xcccccc,0xff6600,0xffffff), t('rover',0xaa8855,0xff4400,0xccaa77), t('probe',0x8899aa,0x00ffff,0xaaccdd),
+  t('launchpad',0x555555,0xff6600,0xff9944), t('thruster',0x0088ff,0xffaa00,0x66ccff), t('propulsion',0xff4400,0x00ffff,0xff8866),
+  t('navigation',0x0044aa,0x00ffcc,0x66aaff), t('trajectory',0x00ccff,0xffffff,0x88eeff), t('docking',0x999999,0xffff00,0xcccccc),
+  t('module',0xaaaaaa,0x0088ff,0xcccccc), t('capsule',0xffffff,0xff0000,0xffcccc), t('mission',0x334455,0xffd700,0x6688aa),
+  t('expedition',0x556644,0xffaa00,0x88aa66), t('voyage',0xffffff,0x0088ff,0xaaccff,true),
+], 203000000, 380000000, 4.87, 5.05);
+// Batch 20 — craftsmanship
+generateWeaponBatch([
+  t('forged',0xff6600,0x442200,0xff9944), t('tempered',0x4488cc,0x224466,0x66aadd), t('hammered',0x888888,0x555555,0xaaaaaa),
+  t('sharpened',0xdddddd,0x999999,0xffffff), t('polished',0xeeeeee,0xcccccc,0xffffff), t('engraved',0xaa8844,0x664422,0xccaa66),
+  t('enchanted',0x8844ff,0x00ffff,0xaa66ff), t('inscribed',0xccaa66,0x8b5a2b,0xffdd99), t('gilded',0xffd700,0xaa8800,0xffee88),
+  t('embossed',0xc0a060,0x8b6914,0xffdd88), t('filigreed',0xe5c158,0xffd700,0xffee99), t('wrought',0x333333,0x666666,0x888888),
+  t('honed',0xeeeeee,0x888888,0xffffff), t('whetted',0xcccccc,0x666666,0xeeeeee), t('chiseled',0x999999,0x555555,0xbbbbbb),
+  t('sculpted',0xaaaaaa,0x777777,0xcccccc), t('masterwork',0xffd700,0xffffff,0xffee88,true),
+], 395000000, 740000000, 5.07, 5.25);
+// Batches 21-30 — user's own ask: "next 10 batches". Generated (names/colors) rather than
+// hand-typed from here on, see generateAutoWeaponBatch()'s own comment above for why.
+generateAutoWeaponBatch(17, 770000000, 1450000000, 5.27, 5.45);
+generateAutoWeaponBatch(17, 1500000000, 2800000000, 5.47, 5.65);
+generateAutoWeaponBatch(17, 2900000000, 5500000000, 5.67, 5.85);
+generateAutoWeaponBatch(17, 5700000000, 10500000000, 5.87, 6.05);
+generateAutoWeaponBatch(17, 11000000000, 20000000000, 6.07, 6.25);
+generateAutoWeaponBatch(17, 21000000000, 39000000000, 6.27, 6.45);
+generateAutoWeaponBatch(17, 40000000000, 76000000000, 6.47, 6.65);
+generateAutoWeaponBatch(17, 78000000000, 148000000000, 6.67, 6.85);
+generateAutoWeaponBatch(17, 150000000000, 285000000000, 6.87, 7.05);
+generateAutoWeaponBatch(17, 290000000000, 550000000000, 7.07, 7.25);
+// Batches 31-40 — user's own ask: "10" (more, right after the previous 10).
+generateAutoWeaponBatch(17, 570000000000, 1050000000000, 7.27, 7.45);
+generateAutoWeaponBatch(17, 1100000000000, 2000000000000, 7.47, 7.65);
+generateAutoWeaponBatch(17, 2050000000000, 3900000000000, 7.67, 7.85);
+generateAutoWeaponBatch(17, 4000000000000, 7400000000000, 7.87, 8.05);
+generateAutoWeaponBatch(17, 7600000000000, 14000000000000, 8.07, 8.25);
+generateAutoWeaponBatch(17, 14500000000000, 27000000000000, 8.27, 8.45);
+generateAutoWeaponBatch(17, 27500000000000, 52000000000000, 8.47, 8.65);
+generateAutoWeaponBatch(17, 53000000000000, 99000000000000, 8.67, 8.85);
+generateAutoWeaponBatch(17, 100000000000000, 190000000000000, 8.87, 9.05);
+generateAutoWeaponBatch(17, 195000000000000, 370000000000000, 9.07, 9.25);
+// Batches 41-100 — user's own "coun tin ue on the last 3000", finishing the road to the stated
+// 5,000-weapon goal (2008 so far + 3000 = 5008). A real loop instead of 60 more hand-typed lines:
+// safe to do now because buildWeaponLevels() (see its own comment) immediately re-derives every
+// weapon's REAL damage/level from relative ranking the first time anything asks for one — so the
+// exact raw magnitude generated here is thrown away the moment that runs. All that matters is each
+// new batch ranks above the last, which the same ×1.9-per-batch growth already guarantees.
+{
+  let batchDmg = 400000000000000, batchScale = 9.27;
+  for (let i = 0; i < 60; i++) {
+    const nextDmg = Math.round(batchDmg * 1.9);
+    const nextScale = Math.min(12, batchScale + 0.18);
+    generateAutoWeaponBatch(17, batchDmg, nextDmg, batchScale, nextScale);
+    batchDmg = nextDmg + 1000;
+    batchScale = nextScale;
+  }
+}
 // Real damage reduction, not a cosmetic — applied for real in damagePlayer().
 const ARMOR = [
   { id:'leather', name:'🥋 Leather Armor', cost:80,  reduction:0.15, color:0x8B5A2B },
@@ -6923,6 +8360,24 @@ const ARMOR = [
   { id:'scrap',   name:'🔩 Scrap Armor',   cost:0,   reduction:0.35, color:0x667788, craftOnly:true },
   { id:'titanium',name:'🦾 Titanium Armor',cost:0,   reduction:0.50, color:0xcfd8e0, craftOnly:true },
 ];
+// User's own follow-up: "add armor using the same batch system" — reuses the exact same tier-name
+// generator (and its dedup Set, so it can never collide with a weapon tier id) and hue-rotation
+// colors the weapon batches use, scaled to ~4% as many pieces as weapons. reduction is deliberately
+// capped well short of 1.0 (would mean literally unkillable) — smoothly interpolated up from just
+// above Titanium's 0.50 instead.
+function generateArmorBatch(count, startReduction, endReduction, startCost, endCost) {
+  const startIdx = _tierNameCursor;
+  const names = nextTierNames(count);
+  names.forEach((tierId, i) => {
+    const frac = count > 1 ? i / (count - 1) : 0;
+    const reduction = +(startReduction + (endReduction - startReduction) * frac).toFixed(3);
+    const cost = Math.round(startCost * Math.pow(endCost / startCost, frac));
+    const { color } = tierColorFromIndex(startIdx + i);
+    const label = tierId.split('_').map(w => (w.charAt(0).toUpperCase() + w.slice(1)).replace(/(\D)(\d+)$/, '$1 $2')).join(' ');
+    ARMOR.push({ id: 'armor_' + tierId, name: `🛡️ ${label} Armor`, cost, reduction, color });
+  });
+}
+generateArmorBatch(80, 0.52, 0.90, 700, 250000);
 
 function openShop(type) {
   if(document.pointerLockElement) document.exitPointerLock();
@@ -6973,21 +8428,37 @@ function openShop(type) {
       const realIdx = WEAPONS.indexOf(w);
       const owned = ownedWeapons.includes(w.id);
       const equipped = playerWeapon === w.id;
+      const need = weaponRequiredLevel(w.id);
+      const locked = need > eliteLevel;
       const d = document.createElement('div'); d.className='shopItem';
       d.innerHTML=`<div class="siName">${w.name}</div>
-        <div class="siCost">${owned ? (equipped?'✅ Equipped':'✔ Owned') : '💰 '+w.cost+' S.I.P.'} — ${WEAPON_DAMAGE[w.id]} dmg to people, 🤖 ${ROBOT_BONUS_DAMAGE[w.id]} dmg to robots</div>
-        <button class="shopBtn" onclick="buyWeapon(${realIdx})" ${equipped?'disabled':''}>${owned?(equipped?'Equipped':'Equip'):'Buy'}</button>`;
+        <div class="siCost">${owned ? (equipped?'✅ Equipped':'✔ Owned') : '💰 '+w.cost+' S.I.P.'} — ${WEAPON_DAMAGE[w.id]} dmg to people, 🤖 ${ROBOT_BONUS_DAMAGE[w.id]} dmg to robots${need>0?` — 🔒 Lv.${need}`:''}</div>
+        <button class="shopBtn" onclick="buyWeapon(${realIdx})" ${(equipped||locked)?'disabled':''}>${locked?`Requires Lv.${need}`:(owned?(equipped?'Equipped':'Equip'):'Buy')}</button>`;
       items.appendChild(d);
     });
   } else {
-    WEAPONS.filter(w => !w.blackMarketOnly && !w.craftOnly && !w.robotShopOnly).forEach((w,i) => {
+    // Grouped by tier (user's own ask: "make the weapons under the category") — a header row
+    // per material tier, derived straight from each weapon's own id prefix (e.g. 'wood_club' ->
+    // 'Wood') so a future batch of 50 gets its own header automatically, no list to maintain.
+    let lastCategory = null;
+    WEAPONS.filter(w => !w.blackMarketOnly && !w.craftOnly && !w.robotShopOnly).forEach((w) => {
       const realIdx = WEAPONS.indexOf(w);
+      const category = weaponCategory(w.id);
+      if (category !== lastCategory) {
+        lastCategory = category;
+        const header = document.createElement('div');
+        header.style.cssText = 'color:#FFD700;font-size:11px;font-weight:bold;letter-spacing:1px;margin-top:10px;border-top:1px solid #FFD70033;padding-top:6px;';
+        header.textContent = category.toUpperCase();
+        items.appendChild(header);
+      }
       const owned = ownedWeapons.includes(w.id);
       const equipped = playerWeapon === w.id;
+      const need = weaponRequiredLevel(w.id);
+      const locked = need > eliteLevel;
       const d = document.createElement('div'); d.className='shopItem';
       d.innerHTML=`<div class="siName">${w.name}</div>
-        <div class="siCost">${owned ? (equipped?'✅ Equipped':'✔ Owned') : '💰 '+w.cost+' S.I.P.'}</div>
-        <button class="shopBtn" onclick="buyWeapon(${realIdx})" ${equipped?'disabled':''}>${owned?(equipped?'Equipped':'Equip'):'Buy'}</button>`;
+        <div class="siCost">${owned ? (equipped?'✅ Equipped':'✔ Owned') : '💰 '+w.cost+' S.I.P.'}${need>0?` — 🔒 Requires Lv.${need}`:''}</div>
+        <button class="shopBtn" onclick="buyWeapon(${realIdx})" ${(equipped||locked)?'disabled':''}>${locked?`Requires Lv.${need}`:(owned?(equipped?'Equipped':'Equip'):'Buy')}</button>`;
       items.appendChild(d);
     });
   }
@@ -7107,24 +8578,46 @@ function renderAddOnsPanel() {
     items.appendChild(info);
   }
 
-  // ── Family section — an adopted child, same pattern as Buddy but a small person who visibly
-  // grows up over real play time instead of staying one fixed size forever ──
+  // ── Family section — your real relatives (Mom & Dad, always family, no befriending needed —
+  // walk up to them in the city), your own marriage status, and (once married) a child who
+  // visibly grows up over real play time instead of staying one fixed size forever. Having a
+  // baby used to be a standalone "adopt anytime for S.I.P." button here; now it's gated behind
+  // actually getting married first, so a real family is something the player builds in order,
+  // not an isolated toggle. ──
   const familyHeader = document.createElement('div');
   familyHeader.style.cssText = 'color:#7fc8ff;font-size:11px;font-weight:bold;letter-spacing:1px;margin-top:10px;';
   familyHeader.textContent = '👨‍👩‍👧 FAMILY';
   items.appendChild(familyHeader);
+
+  const relInfo = document.createElement('div'); relInfo.className='shopItem';
+  relInfo.innerHTML = `<div style="color:#aaa;font-size:11px;">❤️ Mom &amp; Dad live right by your house — walk up and press E to say hi, ask for allowance, invite them over, or hire them at your store.</div>`;
+  items.appendChild(relInfo);
+
+  const spouseName = getSpouse(playerName);
+  const marriageInfo = document.createElement('div'); marriageInfo.className='shopItem';
+  marriageInfo.innerHTML = spouseName
+    ? `<div class="siName">💍 Married to ${spouseName}</div>`
+    : `<div style="color:#aaa;font-size:11px;">💍 Not married yet — befriend a Suburbs neighbor, then propose from their profile.</div>`;
+  items.appendChild(marriageInfo);
+
   if(!familyKidAdopted) {
     const intro = document.createElement('div'); intro.className='shopItem';
-    intro.innerHTML = `<div class="siName">👶 Adopt a Child</div>
-      <div style="color:#aaa;font-size:11px;margin:4px 0;">A real family member who follows you around and actually grows up the more you play — starts small, gets bigger over time.</div>`;
-    items.appendChild(intro);
-    ADOPTABLE_KIDS.forEach((k,i) => {
-      const d = document.createElement('div'); d.className='shopItem';
-      d.innerHTML=`<div class="siName">${k.emoji} ${k.name}</div>
-        <div class="siCost">💰 ${k.cost} S.I.P.</div>
-        <button class="shopBtn" onclick="adoptChild(${i})" ${sipDollars<k.cost?'disabled':''}>Adopt</button>`;
-      items.appendChild(d);
-    });
+    if (!spouseName) {
+      intro.innerHTML = `<div class="siName">👶 Have a Baby</div>
+        <div style="color:#aaa;font-size:11px;margin:4px 0;">Get married first — once you have a spouse, you can start a family here.</div>`;
+      items.appendChild(intro);
+    } else {
+      intro.innerHTML = `<div class="siName">👶 Have a Baby with ${spouseName}</div>
+        <div style="color:#aaa;font-size:11px;margin:4px 0;">A real family member who follows you around and actually grows up the more you play — starts small, gets bigger over time.</div>`;
+      items.appendChild(intro);
+      ADOPTABLE_KIDS.forEach((k,i) => {
+        const d = document.createElement('div'); d.className='shopItem';
+        d.innerHTML=`<div class="siName">${k.emoji} ${k.name}</div>
+          <div class="siCost">💰 ${k.cost} S.I.P.</div>
+          <button class="shopBtn" onclick="adoptChild(${i})" ${sipDollars<k.cost?'disabled':''}>Have Baby</button>`;
+        items.appendChild(d);
+      });
+    }
   } else {
     const stage = growthStageFor(familyKidPlayTime);
     const info = document.createElement('div'); info.className='shopItem';
@@ -7226,25 +8719,26 @@ function renameBuddy() {
 }
 // Builds (or rebuilds, e.g. after a repaint's species never changes but a fresh login does) the
 // real 3D companion mesh — same tagged-mesh-array trick as player.skinMeshes so repaints are live.
-function buildBuddy() {
-  if(buddyGroup) { scene.remove(buddyGroup); buddyGroup = null; }
-  if(!buddyOwned || !buddySpecies) return;
-  buddyGroup = new THREE.Group();
-  buddyMeshes = { body:[], accent:[], eye:[] };
-  const bodyC = c3(buddyColors.body), accentC = c3(buddyColors.accent), eyeC = c3(buddyColors.eye);
+// Pure builder, no globals touched — returns {group, meshes} so it works for both the local
+// buddy (buildBuddy() below) and any remote player's buddy (see buildOtherPlayerAvatar /
+// syncPresence), which needs its own independent mesh since two players can each have one.
+function buildBuddyMesh(species, colors) {
+  const group = new THREE.Group();
+  const meshes = { body:[], accent:[], eye:[] };
+  const bodyC = c3(colors.body), accentC = c3(colors.accent), eyeC = c3(colors.eye);
   const mk = (geo, color, x, y, z, tag) => {
     const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color }));
-    m.position.set(x,y,z); m.castShadow = true; buddyGroup.add(m);
-    if(tag) buddyMeshes[tag].push(m);
+    m.position.set(x,y,z); m.castShadow = true; group.add(m);
+    if(tag) meshes[tag].push(m);
     return m;
   };
-  if(buddySpecies==='blob') {
+  if(species==='blob') {
     mk(new THREE.SphereGeometry(0.45,12,10), bodyC, 0,0.45,0,'body');
     mk(new THREE.SphereGeometry(0.12,8,8), accentC, -0.18,0.55,0.38,'accent');
     mk(new THREE.SphereGeometry(0.12,8,8), accentC,  0.18,0.55,0.38,'accent');
     mk(new THREE.SphereGeometry(0.06,6,6), eyeC, -0.18,0.55,0.46,'eye');
     mk(new THREE.SphereGeometry(0.06,6,6), eyeC,  0.18,0.55,0.46,'eye');
-  } else if(buddySpecies==='cat') {
+  } else if(species==='cat') {
     mk(new THREE.BoxGeometry(0.5,0.35,0.75), bodyC, 0,0.35,0,'body');
     mk(new THREE.BoxGeometry(0.32,0.3,0.32), bodyC, 0,0.5,0.48,'body');
     mk(new THREE.ConeGeometry(0.1,0.18,4), accentC, -0.1,0.72,0.48,'accent');
@@ -7253,14 +8747,14 @@ function buildBuddy() {
     mk(new THREE.SphereGeometry(0.045,6,6), eyeC,  0.1,0.52,0.62,'eye');
     const tail = mk(new THREE.CylinderGeometry(0.05,0.05,0.55,6), bodyC, 0,0.5,-0.42,'body'); tail.rotation.x = 0.9;
     [[-0.15,-0.28],[0.15,-0.28],[-0.15,0.28],[0.15,0.28]].forEach(([x,z]) => mk(new THREE.BoxGeometry(0.12,0.3,0.12), accentC, x,0.15,z,'accent'));
-  } else if(buddySpecies==='dragon') {
+  } else if(species==='dragon') {
     mk(new THREE.BoxGeometry(0.55,0.5,0.9), bodyC, 0,0.5,0,'body');
     const snout = mk(new THREE.ConeGeometry(0.25,0.5,6), bodyC, 0,0.55,0.65,'body'); snout.rotation.x = Math.PI/2;
     [[-0.12,0.75],[0.12,0.75]].forEach(([x,z]) => mk(new THREE.ConeGeometry(0.06,0.2,4), accentC, x,0.85,z,'accent'));
     [[-0.1,0.7],[0.1,0.7]].forEach(([x,z]) => mk(new THREE.SphereGeometry(0.05,6,6), eyeC, x,0.6,z,'eye'));
     [[-0.4,0],[0.4,0]].forEach(([x]) => { const wing = mk(new THREE.ConeGeometry(0.35,0.06,3), accentC, x,0.65,-0.1,'accent'); wing.rotation.z = x<0 ? 1.3 : -1.3; });
     const tail = mk(new THREE.CylinderGeometry(0.08,0.02,0.7,6), bodyC, 0,0.4,-0.65,'body'); tail.rotation.x = 1.1;
-  } else if(buddySpecies==='robot') {
+  } else if(species==='robot') {
     mk(new THREE.BoxGeometry(0.55,0.55,0.5), bodyC, 0,0.55,0,'body');
     mk(new THREE.BoxGeometry(0.4,0.4,0.4), bodyC, 0,1.05,0,'body');
     mk(new THREE.SphereGeometry(0.05,6,6), eyeC, -0.1,1.05,0.21,'eye');
@@ -7270,6 +8764,14 @@ function buildBuddy() {
     [[-0.35,0.55],[0.35,0.55]].forEach(([x]) => mk(new THREE.BoxGeometry(0.12,0.3,0.12), accentC, x,0.4,0,'accent'));
     [[-0.18,-0.18],[0.18,-0.18]].forEach(([x,z]) => mk(new THREE.BoxGeometry(0.15,0.15,0.15), accentC, x,0.15,z,'accent'));
   }
+  return { group, meshes };
+}
+function buildBuddy() {
+  if(buddyGroup) { scene.remove(buddyGroup); buddyGroup = null; }
+  if(!buddyOwned || !buddySpecies) return;
+  const built = buildBuddyMesh(buddySpecies, buddyColors);
+  buddyGroup = built.group;
+  buddyMeshes = built.meshes;
   const startX = playerGroup ? playerGroup.position.x - 1 : -1;
   const startZ = playerGroup ? playerGroup.position.z - 1 : 15;
   buddyGroup.position.set(startX, 0, startZ);
@@ -7317,6 +8819,7 @@ function tickGrowth(dt) {
 function adoptChild(i) {
   const k = ADOPTABLE_KIDS[i];
   if (familyKidAdopted) { showNotif('❌ You already have a child!'); return; }
+  if (!getSpouse(playerName)) { showNotif('❌ Get married first!'); return; }
   if (sipDollars < k.cost) { showNotif(`❌ Need ${k.cost} S.I.P.`); return; }
   spendSip(k.cost); updateSIP();
   familyKidAdopted = true;
@@ -7690,6 +9193,7 @@ function triggerAddOn(id) {
   else if(id==='launchobby') window.open('AiGame/explox/minigames/obby.html', '_blank');
   else if(id==='launchparkour') window.open('AiGame/explox/minigames/parkour.html', '_blank');
   else if(id==='launchsf') window.open('AiGame/explox/minigames/sf.html', '_blank');
+  else if(id==='hirekiller') openHitmanModal();
   if(cost>0 || eliteCost>0) { saveCurrentUser(); renderAddOnsPanel(); }
 }
 
@@ -7706,6 +9210,8 @@ function buyOutfit(i) {
 }
 function buyWeapon(i) {
   const w = WEAPONS[i];
+  const need = weaponRequiredLevel(w.id);
+  if (need > eliteLevel) { showNotif(`🔒 ${w.name} requires Robot Level ${need} (you're Lv.${eliteLevel}) — level up in the Quests tab!`); return; }
   if(ownedWeapons.includes(w.id)) { equipWeapon(w.id); closeShop(); return; }
   if(sipDollars < w.cost) { showNotif(`❌ Need ${w.cost} S.I.P.`); return; }
   spendSip(w.cost); updateSIP();
@@ -7822,8 +9328,110 @@ const OUTFIT_CATEGORIES = [
       {name:'Toxic Green',     cost:120, shirt:'#39ff14', pants:'#1a1a1a', shoes:'#39ff14'},
       {name:'Golden Guardian', cost:160, shirt:'#FFD700', pants:'#8b6b00', shoes:'#FFD700'},
     ]},
+  // 10 more categories (item ~235, user's own follow-up: "50 new clothings" on top of the
+  // original 50 above) — same exact shape, 10 fresh non-overlapping themes.
+  { id:'gothic', category:'Gothic', emoji:'🦇',
+    nameTemplates:['{word} Gothic Attire','The {word} Dark Boutique','{word} Shadow Wardrobe','{word} Vampire Couture'],
+    nameWords:['Raven','Crimson','Nocturne','Wraith'], ad:'Embrace the darkness in style!',
+    outfits:[
+      {name:'Raven Black',      cost:40,  shirt:'#0d0d0d', pants:'#0d0d0d', shoes:'#1a1a1a'},
+      {name:'Blood Velvet',     cost:55,  shirt:'#4a0e0e', pants:'#1a0505', shoes:'#2a0a0a'},
+      {name:'Purple Reign',     cost:70,  shirt:'#2e0854', pants:'#1a0330', shoes:'#150220'},
+      {name:'Lace Widow',       cost:90,  shirt:'#1a1a2e', pants:'#0d0d1a', shoes:'#2a2a3a'},
+      {name:'Vampire Royalty',  cost:130, shirt:'#3a0000', pants:'#0d0d0d', shoes:'#6b0000'},
+    ]},
+  { id:'cottagecore', category:'Cottagecore', emoji:'🌼',
+    nameTemplates:['{word} Cottage Closet','The {word} Meadow Shop','{word} Pastoral Wear','{word} Farmhouse Threads'],
+    nameWords:['Meadow','Wildflower','Honeysuckle','Buttercup'], ad:'Simple, sweet, and homegrown!',
+    outfits:[
+      {name:'Sage Meadow',   cost:30, shirt:'#a8c090', pants:'#f0e6d2', shoes:'#d4c4a8'},
+      {name:'Wildflower',    cost:35, shirt:'#e8b4c0', pants:'#f5e8d0', shoes:'#ffffff'},
+      {name:'Honey Harvest', cost:40, shirt:'#e8b04a', pants:'#d4a86a', shoes:'#8b6b3a'},
+      {name:'Cream Linen',   cost:50, shirt:'#f5ecd8', pants:'#e0d4b8', shoes:'#c4a878'},
+      {name:'Rose Garden',   cost:60, shirt:'#d88a9a', pants:'#f0e0d0', shoes:'#ffffff'},
+    ]},
+  { id:'cyberpunk', category:'Cyberpunk', emoji:'🤖',
+    nameTemplates:['{word} Cyber Outfitters','The {word} Chrome Shop','{word} Neon Circuit Wear','{word} Digital Threads'],
+    nameWords:['Chrome','Circuit','Byte','Glitch'], ad:'Jack in and gear up!',
+    outfits:[
+      {name:'Chrome Black',   cost:60,  shirt:'#0d0d0d', pants:'#1a1a1a', shoes:'#00ffff'},
+      {name:'Neon Trim',      cost:75,  shirt:'#111111', pants:'#0d0d0d', shoes:'#ff00ff'},
+      {name:'Circuit Board',  cost:90,  shirt:'#0a1a1a', pants:'#050d0d', shoes:'#00ff88'},
+      {name:'Glitch Pink',    cost:105, shirt:'#1a0a1a', pants:'#0d050d', shoes:'#ff0088'},
+      {name:'Hacker Elite',   cost:140, shirt:'#050505', pants:'#0a0a0a', shoes:'#00ccff'},
+    ]},
+  { id:'retro80s', category:'Retro 80s', emoji:'📼',
+    nameTemplates:['{word} Retro Wear','The {word} Arcade Closet','{word} Synthwave Shop','{word} Flashback Threads'],
+    nameWords:['Neon','Cassette','Turbo','Rewind'], ad:'Totally radical threads!',
+    outfits:[
+      {name:'Hot Pink',         cost:35, shirt:'#ff2e88', pants:'#1a1a2e', shoes:'#00e5ff'},
+      {name:'Cyan Dream',       cost:45, shirt:'#00e5ff', pants:'#1a1a2e', shoes:'#ff2e88'},
+      {name:'Purple Rain',      cost:55, shirt:'#a020f0', pants:'#2a0a4a', shoes:'#ffcc00'},
+      {name:'Sunset Grid',      cost:65, shirt:'#ff6b35', pants:'#4a0a5a', shoes:'#ffcc00'},
+      {name:'Neon Windbreaker', cost:80, shirt:'#39ff14', pants:'#1a1a2e', shoes:'#ff2e88'},
+    ]},
+  { id:'safari', category:'Safari', emoji:'🦁',
+    nameTemplates:['{word} Safari Outfitters','The {word} Expedition Shop','{word} Adventure Wear','{word} Trailblazer Gear'],
+    nameWords:['Savanna','Trek','Ranger','Horizon'], ad:'Ready for the next adventure!',
+    outfits:[
+      {name:'Khaki Explorer',    cost:40, shirt:'#c2a878', pants:'#8a7248', shoes:'#5a4a2a'},
+      {name:'Savanna Tan',       cost:50, shirt:'#d4b896', pants:'#a68a5c', shoes:'#4a3a20'},
+      {name:'Jungle Green',      cost:60, shirt:'#5a7a3a', pants:'#3a5a28', shoes:'#2a3a1a'},
+      {name:'Sunburnt Orange',   cost:70, shirt:'#d4783a', pants:'#8a6040', shoes:'#4a3020'},
+      {name:"Explorer's Vest",   cost:85, shirt:'#a8926a', pants:'#6a5838', shoes:'#3a2e1a'},
+    ]},
+  { id:'nautical', category:'Nautical', emoji:'⚓',
+    nameTemplates:['{word} Nautical Wear','The {word} Sailor Shop','{word} Anchor Boutique','{word} Seafarer Threads'],
+    nameWords:['Anchor','Harbor','Tide','Compass'], ad:'Set sail in style!',
+    outfits:[
+      {name:'Navy Stripe',    cost:35, shirt:'#1a3a6a', pants:'#ffffff', shoes:'#1a3a6a'},
+      {name:'White Sail',     cost:40, shirt:'#ffffff', pants:'#1a3a6a', shoes:'#ffffff'},
+      {name:'Red Buoy',       cost:45, shirt:'#c0392b', pants:'#ffffff', shoes:'#1a3a6a'},
+      {name:"Captain's Coat", cost:55, shirt:'#0d2244', pants:'#0d2244', shoes:'#FFD700'},
+      {name:'Admiral Gold',   cost:90, shirt:'#0d2244', pants:'#0d2244', shoes:'#FFD700'},
+    ]},
+  { id:'western', category:'Western', emoji:'🤠',
+    nameTemplates:['{word} Western Wear','The {word} Saloon Shop','{word} Frontier Outfitters','{word} Rodeo Threads'],
+    nameWords:['Prairie','Outlaw','Canyon','Wrangler'], ad:'Yeehaw, partner!',
+    outfits:[
+      {name:'Denim Drifter',  cost:35, shirt:'#3a5a7a', pants:'#2a3a5a', shoes:'#5a3a1a'},
+      {name:'Desert Duster',  cost:45, shirt:'#c2a670', pants:'#8a6a48', shoes:'#4a3020'},
+      {name:'Canyon Sunset',  cost:60, shirt:'#c2703a', pants:'#4a2f18', shoes:'#2a1a0d'},
+      {name:'Leather Outlaw', cost:55, shirt:'#6b4423', pants:'#4a2f18', shoes:'#2a1a0d'},
+      {name:"Sheriff's Star", cost:70, shirt:'#2a2a2a', pants:'#1a1a1a', shoes:'#5a3a1a'},
+    ]},
+  { id:'harvest', category:'Harvest', emoji:'🍂',
+    nameTemplates:['{word} Harvest Wear','The {word} Autumn Shop','{word} Orchard Outfitters','{word} Pumpkin Patch Threads'],
+    nameWords:['Maple','Cider','Amber','Hazel'], ad:'Cozy vibes, falling leaves!',
+    outfits:[
+      {name:'Pumpkin Spice',  cost:30, shirt:'#d4711a', pants:'#6b3a1a', shoes:'#4a2a10'},
+      {name:'Amber Gold',     cost:45, shirt:'#d4a020', pants:'#8a6410', shoes:'#4a3608'},
+      {name:'Cinnamon Brown', cost:50, shirt:'#7a4a28', pants:'#4a2e18', shoes:'#2a1a0d'},
+      {name:'Maple Red',      cost:40, shirt:'#a8321e', pants:'#4a1810', shoes:'#2a0d08'},
+      {name:'Harvest Moon',   cost:65, shirt:'#e08a3a', pants:'#6b4423', shoes:'#3a2410'},
+    ]},
+  { id:'galaxy', category:'Galaxy', emoji:'🌌',
+    nameTemplates:['{word} Galaxy Wear','The {word} Cosmic Shop','{word} Nebula Outfitters','{word} Starlight Threads'],
+    nameWords:['Nebula','Orbit','Comet','Stardust'], ad:'Out of this world style!',
+    outfits:[
+      {name:'Deep Space',     cost:50,  shirt:'#0a0a2a', pants:'#050515', shoes:'#6644aa'},
+      {name:'Nebula Purple',  cost:65,  shirt:'#4a1a7a', pants:'#2a0d4a', shoes:'#aa66ff'},
+      {name:'Comet Blue',     cost:95,  shirt:'#1a4a8a', pants:'#0d2a4a', shoes:'#66aaff'},
+      {name:'Stardust Silver',cost:80,  shirt:'#8a8aaa', pants:'#4a4a6a', shoes:'#ccccee'},
+      {name:'Supernova',      cost:130, shirt:'#ffcc44', pants:'#4a1a7a', shoes:'#ff6644'},
+    ]},
+  { id:'candypop', category:'Candy Pop', emoji:'🍬',
+    nameTemplates:['{word} Candy Shop','The {word} Sweet Boutique','{word} Sugar Rush Wear','{word} Lollipop Threads'],
+    nameWords:['Sprinkle','Gumdrop','Bubblegum','Lolli'], ad:'Sweet style, sugar rush!',
+    outfits:[
+      {name:'Bubblegum Pink', cost:25, shirt:'#ff69b4', pants:'#ffffff', shoes:'#ff69b4'},
+      {name:'Lemon Drop',     cost:30, shirt:'#fff44f', pants:'#ffffff', shoes:'#fff44f'},
+      {name:'Grape Fizz',     cost:35, shirt:'#a64ac9', pants:'#ffffff', shoes:'#a64ac9'},
+      {name:'Mint Chip',      cost:40, shirt:'#4ac9a6', pants:'#ffffff', shoes:'#4ac9a6'},
+      {name:'Rainbow Swirl',  cost:55, shirt:'#ff69b4', pants:'#4ac9a6', shoes:'#fff44f'},
+    ]},
 ];
-// 10 categories x 4 name variations = 40 shops. Every shop in a category shares that
+// 20 categories x 4 name variations = 80 shops. Every shop in a category shares that
 // category's outfit list (see comment above) so `outfits` is just a reference, not a copy.
 function generateOutfitShops() {
   const shops = [];
@@ -7843,12 +9451,16 @@ let OUTFIT_SHOPS = []; // filled by buildOutfitShopWing() — 40 shop objects, l
 // further west (more negative x). Same reasoning as the Shopping Wing (item 109): this pocket
 // interior now lives in its own isolated 10,000-unit lane (item 110), so there's nothing out
 // there to run into in any direction — verified by construction, not by re-checking neighbors.
-// 8 cols x 5 rows = 40 storefronts, axes swapped from buildMallShopWing (this wing runs along X,
-// storefronts face +x back toward the doorway) since it extends west instead of south.
+// 8 cols x 10 rows = 80 storefronts (widened from 40 for item ~235's 10 new outfit categories),
+// axes swapped from buildMallShopWing (this wing runs along X, storefronts face +x back toward
+// the doorway) since it extends west instead of south. Depth widened 120->160 so row 9 (the
+// farthest row at 10 rows) still sits a real ~23 units clear of the far wall — this whole
+// interior lives in its own isolated 10,000-unit lane (see the entrance-doorway comment above),
+// so extending it further out has nothing else nearby to run into.
 function buildOutfitShopWing() {
   OUTFIT_SHOPS = generateOutfitShops();
   const mx = MALL_SPAWN.x, mz = 0;
-  const X0 = mx - 33, FAR = mx - 33 - 120, HALF_D = 60;
+  const X0 = mx - 33, FAR = mx - 33 - 160, HALF_D = 60;
   const depth = X0 - FAR, centerX = (X0 + FAR) / 2;
 
   box(depth, 0.1, HALF_D * 2, 0xf5f5f0, centerX, 0, mz);
@@ -7884,7 +9496,7 @@ function buildOutfitShopWing() {
     MALL_ZONES.push({ x: x + 3, z, r: 3.2, label: `${shop.emoji} ${shop.name}`, action: () => openOutfitBoutique(shop.id) });
   });
 
-  for (let r = 0; r < 5; r++) {
+  for (let r = 0; r < 10; r++) {
     const pl = new THREE.PointLight(0xfff5e0, 0.3, 20);
     pl.position.set(X0 - 20 - r * FROW_SPACING, 9.5, mz);
     scene.add(pl);
@@ -7933,14 +9545,107 @@ function buyBoutiqueOutfit(shopId, i) {
   closeShop();
 }
 function equipWeapon(id) {
+  const need = weaponRequiredLevel(id);
+  if (need > eliteLevel) { showNotif(`🔒 Requires Robot Level ${need} (you're Lv.${eliteLevel}) — level up in the Quests tab!`); return false; }
   playerWeapon = id;
   updateWeaponMesh();
   saveCurrentUser();
+  return true;
+}
+// ─── 50-WEAPON SHOP — item ~235, user: "make a weapon shop withe 50 weapons that look different".
+// The original 11 weapons (bat/sword/axe/etc. below) are each a hand-built THREE.Group — real
+// shape variety, not palette swaps. Hand-building 47 MORE of those one at a time isn't
+// realistic, so this is the same "one real archetype, many material/color variants" scaling
+// trick the game already uses elsewhere for large item counts (robot shapes, boss silhouettes):
+// 15 genuinely different silhouettes (shortsword/longsword/dagger/axe/doubleaxe/hammer/
+// warhammer/mace/spear/trident/scythe/club/staff/claw/cleaver), each 2-4 primitives — same
+// complexity level as the hand-built ones below — then WEAPON_VISUALS pairs an archetype with a
+// real color+accent(+glow) per weapon. updateWeaponMesh() checks WEAPON_VISUALS FIRST so the
+// original 11 ids keep their exact existing hand-built look untouched below.
+function buildWeaponArchetype(archetype, c1, c2, glow, scale) {
+  const g = new THREE.Group();
+  const mkMat = (color) => new THREE.MeshLambertMaterial(glow ? {color, emissive:glow} : {color});
+  const add = (geo, color, x,y,z, rz) => { const m = new THREE.Mesh(geo, mkMat(color)); m.position.set(x,y,z); if(rz) m.rotation.z=rz; g.add(m); return m; };
+  switch(archetype) {
+    case 'shortsword':
+      add(new THREE.BoxGeometry(0.06,0.7,0.08), c1, 0,0.15,0);
+      add(new THREE.BoxGeometry(0.3,0.05,0.05), c2, 0,-0.22,0);
+      break;
+    case 'longsword':
+      add(new THREE.BoxGeometry(0.07,1.05,0.09), c1, 0,0.25,0);
+      add(new THREE.BoxGeometry(0.42,0.06,0.06), c2, 0,-0.3,0);
+      add(new THREE.ConeGeometry(0.05,0.15,4), c1, 0,0.8,0);
+      break;
+    case 'dagger':
+      add(new THREE.BoxGeometry(0.045,0.4,0.05), c1, 0,0.08,0);
+      add(new THREE.BoxGeometry(0.16,0.05,0.05), c2, 0,-0.16,0);
+      break;
+    case 'axe':
+      add(new THREE.BoxGeometry(0.08,0.75,0.08), c2, 0,0,0);
+      add(new THREE.BoxGeometry(0.4,0.3,0.08), c1, 0.17,0.37,0);
+      break;
+    case 'doubleaxe':
+      add(new THREE.BoxGeometry(0.09,0.95,0.09), c2, 0,0,0);
+      add(new THREE.BoxGeometry(0.32,0.4,0.07), c1, -0.19,0.4,0);
+      add(new THREE.BoxGeometry(0.32,0.4,0.07), c1, 0.19,0.4,0);
+      break;
+    case 'hammer':
+      add(new THREE.BoxGeometry(0.09,0.8,0.09), c2, 0,0,0);
+      add(new THREE.BoxGeometry(0.36,0.26,0.26), c1, 0,0.4,0);
+      break;
+    case 'warhammer':
+      add(new THREE.BoxGeometry(0.1,0.95,0.1), c2, 0,0,0);
+      add(new THREE.BoxGeometry(0.44,0.32,0.32), c1, 0,0.46,0);
+      add(new THREE.ConeGeometry(0.09,0.28,4), c2, 0,0.46,-0.22, Math.PI/2);
+      break;
+    case 'mace':
+      add(new THREE.BoxGeometry(0.08,0.75,0.08), c2, 0,0,0);
+      add(new THREE.SphereGeometry(0.2,8,8), c1, 0,0.42,0);
+      [0,1,2,3,4].forEach(i=>{ const a=i*Math.PI*2/5; add(new THREE.ConeGeometry(0.04,0.14,4), c2, Math.cos(a)*0.2,0.42,Math.sin(a)*0.2); });
+      break;
+    case 'spear':
+      add(new THREE.BoxGeometry(0.06,1.2,0.06), c2, 0,0,0);
+      add(new THREE.ConeGeometry(0.07,0.35,6), c1, 0,0.75,0);
+      break;
+    case 'trident':
+      add(new THREE.BoxGeometry(0.06,1.1,0.06), c2, 0,0,0);
+      [-0.12,0,0.12].forEach(dx=>add(new THREE.ConeGeometry(0.04,0.3,4), c1, dx,0.75,0));
+      break;
+    case 'scythe':
+      add(new THREE.BoxGeometry(0.06,1.1,0.06), c2, 0,0,0);
+      add(new THREE.BoxGeometry(0.5,0.08,0.05), c1, 0.2,0.55,0, 0.6);
+      break;
+    case 'club':
+      add(new THREE.BoxGeometry(0.1,0.55,0.1), c2, 0,0,0);
+      add(new THREE.BoxGeometry(0.24,0.42,0.24), c1, 0,0.42,0);
+      break;
+    case 'staff':
+      add(new THREE.BoxGeometry(0.055,1.15,0.055), c2, 0,0,0);
+      add(new THREE.SphereGeometry(0.14,8,8), c1, 0,0.68,0);
+      break;
+    case 'claw':
+      [-0.1,0,0.1].forEach(dx=>add(new THREE.ConeGeometry(0.035,0.5,4), c1, dx,0.2,0));
+      add(new THREE.BoxGeometry(0.24,0.15,0.14), c2, 0,-0.15,0);
+      break;
+    case 'cleaver':
+      add(new THREE.BoxGeometry(0.06,0.5,0.05), c2, 0,-0.1,0);
+      add(new THREE.BoxGeometry(0.38,0.5,0.06), c1, 0.12,0.28,0);
+      break;
+  }
+  g.scale.setScalar(scale || 1);
+  return g;
 }
 function updateWeaponMesh() {
   if(!playerGroup) return;
   if(player.weaponGroup) { playerGroup.remove(player.weaponGroup); player.weaponGroup=null; }
   if(playerWeapon==='none') return;
+  if (WEAPON_VISUALS[playerWeapon]) {
+    const v = WEAPON_VISUALS[playerWeapon];
+    const g = buildWeaponArchetype(v.archetype, v.color, v.accent, v.glow, v.scale);
+    g.position.set(0.7,1.0,0.2); g.rotation.z=-0.2;
+    playerGroup.add(g); player.weaponGroup=g;
+    return;
+  }
   const g = new THREE.Group();
   if(playerWeapon==='bat') {
     const m=new THREE.Mesh(new THREE.BoxGeometry(0.12,1.0,0.12),new THREE.MeshLambertMaterial({color:0x8B4513}));
@@ -8195,7 +9900,9 @@ function carLocationSpot(name) {
   if (name === 'Downtown Explox' || !name) return null; // downtown uses CAR_PARKING_SPOTS below, unchanged
   if (name === 'Home') return { x: -45, z: -107 }; // real open ground just outside your House's fenced yard (fence spans x:[-40,-20])
   const theme = COUNTRY_THEMES.find(t => t.name === name);
-  return theme ? { x: theme.cx-30, z: theme.cz+90 } : null;
+  // -30/+90 (1x-scale "open ground near the airport") scaled ×20 for item ~234's country resize —
+  // theme.cx/cz are already the new, final scaled center, so only this offset needed the ×20.
+  return theme ? { x: theme.cx-600, z: theme.cz+1800 } : null;
 }
 function parkCarAtHome() {
   if (!ownedCars.length) { showNotif("❌ You don't own a car yet! Buy one at the Car Dealership."); return; }
@@ -9163,6 +10870,13 @@ function uploadTubeVideo(title, sceneKey) {
 
 let tubeLikes = {};  // { videoId: true }  — persisted
 let tubeViews = {};  // { videoId: extraViewCount } — persisted, real count on top of the video's base views
+// User's own ask: "make it so you can comment" — the Comments section only ever showed the
+// auto-generated TUBE_COMMENT_TEMPLATES ones (see fakeCommentOn... below); there was no input,
+// no way for the player to actually post one. Same "extra count layered on top of a shared base
+// constant" shape as tubeViews above for a 'base' video (never mutate TUBE_VIDEOS itself — it's one
+// shared array/object graph reused by every account) — 'mine'/'world' videos push straight into
+// their own real, already-persisted .comments array instead, same as their view-counting already does.
+let tubeBaseComments = {}; // { videoId: [{author,text}] } — persisted, player's own comments on a 'base' video
 let tubePlaying = null; // current video id, or null
 let _tubeAnimId = null;
 function fmtViews(n) {
@@ -9295,11 +11009,7 @@ function openTubePlayer(id) {
   document.getElementById('tubeTitle').textContent = v.title;
   document.getElementById('tubeChannel').textContent = v.channel;
   updateTubeLikeUI();
-  const commentList = document.getElementById('tubeComments');
-  const comments = v.comments || [];
-  commentList.innerHTML = comments.length
-    ? comments.map(c => `<div style="padding:4px 0;border-bottom:1px solid #222;"><b style="color:#ff3333;">${c.author}</b> <span style="color:#ccc;">${c.text}</span></div>`).join('')
-    : '<div style="color:#666;">No comments yet.</div>';
+  renderTubeComments(id);
   const canvas = document.getElementById('tubeCanvas');
   canvas.width = canvas.offsetWidth || 480;
   canvas.height = canvas.offsetHeight || 270;
@@ -9343,6 +11053,49 @@ function updateTubeLikeUI() {
   const liked = !!tubeLikes[tubePlaying];
   btn.textContent = liked ? '❤️ Liked' : '🤍 Like';
   btn.style.background = liked ? '#ff3333' : '#333';
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function renderTubeComments(id) {
+  const v = findTubeVideo(id);
+  const commentList = document.getElementById('tubeComments');
+  if (!v || !commentList) return;
+  const extra = v._src === 'base' ? (tubeBaseComments[id] || []) : [];
+  const comments = (v.comments || []).concat(extra);
+  commentList.innerHTML = comments.length
+    ? comments.map(c => `<div style="padding:4px 0;border-bottom:1px solid #222;"><b style="color:#ff3333;">${escapeHtml(c.author)}</b> <span style="color:#ccc;">${escapeHtml(c.text)}</span></div>`).join('')
+    : '<div style="color:#666;">No comments yet.</div>';
+}
+// User's own ask: "make it so you can comment" — a real post, not just the auto-generated
+// TUBE_COMMENT_TEMPLATES lines. Never mutates TUBE_VIDEOS directly (see tubeBaseComments' own
+// comment above) — 'mine'/'world' videos already have a real, persisted .comments array to push
+// into directly, same as their view-counting in openTubePlayer's frame() already does per-source.
+function postTubeComment() {
+  if (!tubePlaying) return;
+  const input = document.getElementById('tubeCommentInput');
+  const text = (input.value || '').trim();
+  if (!text) return;
+  const v = findTubeVideo(tubePlaying);
+  if (!v) return;
+  const comment = { author: playerName || 'You', text: text.slice(0, 200) };
+  if (v._src === 'mine') {
+    const mv = myUploads.find(x => x.id === tubePlaying);
+    if (mv) { mv.comments = mv.comments || []; mv.comments.push(comment); }
+    saveCurrentUser();
+  } else if (v._src === 'world') {
+    const world = getTubeWorld();
+    const wv = world.find(x => x.id === tubePlaying);
+    if (wv) { wv.comments = wv.comments || []; wv.comments.push(comment); }
+    saveTubeWorld(world);
+  } else {
+    tubeBaseComments[tubePlaying] = tubeBaseComments[tubePlaying] || [];
+    tubeBaseComments[tubePlaying].push(comment);
+    saveCurrentUser();
+  }
+  input.value = '';
+  sfx.click();
+  renderTubeComments(tubePlaying);
 }
 
 let sibPage = 'home';
@@ -10559,7 +12312,7 @@ function renderCraftItems() {
 }
 function craftItem(i) {
   const r = CRAFT_RECIPES[i];
-  if(r.type==='weapon' && ownedWeapons.includes(r.id)) { equipWeapon(r.id); showNotif(`✅ Equipped ${r.emoji} ${r.name}!`); renderCraftItems(); return; }
+  if(r.type==='weapon' && ownedWeapons.includes(r.id)) { if(equipWeapon(r.id)) showNotif(`✅ Equipped ${r.emoji} ${r.name}!`); renderCraftItems(); return; }
   if(r.type==='armor' && ownedArmor.includes(r.id)) { equipArmor(r.id); showNotif(`✅ Equipped ${r.emoji} ${r.name}!`); renderCraftItems(); return; }
   if(!canAffordRecipe(r)) { showNotif(`❌ Need ${craftCostText(r)}`); return; }
   if(r.wood)  { woodCount -= r.wood; updateWood(); }
@@ -11656,6 +13409,8 @@ function defeatRobot(robot) {
 // player once one appears, and attack for real without you pressing E first — "for no reason". ──
 let rogueRobots = []; // NOT persisted — {id,type,mesh,x,z,hp,maxHp,alive,speed,attackTimer}
 let rogueTimer = 0;
+const ROGUE_ROBOT_SPEED = 1000/60; // user's own ask: "1km per min" — 1000m/60s, same unit scale as every other speed constant in the file
+
 // Real bug fix: this used to spawn the robot 40-80 units from the PLAYER directly — it just
 // popped into existence nearby with no real origin, which read as "teleporting in." Now it spawns
 // at whichever of the real ROBOT_SPAWNERS (item 148's 100 scattered spawners) is actually closest
@@ -11672,7 +13427,7 @@ function spawnRogueRobot() {
   const mult = robotPowerMult();
   mesh.scale.setScalar(robotSizeMult());
   const hp = Math.round(type.hp * mult);
-  rogueRobots.push({ id:'rogue'+ROBOT_ID_SEQ++, x:closest.x, z:closest.z, hp, maxHp:hp, type, mesh, alive:true, speed:2.5+Math.random()*1.5, attackTimer:0,
+  rogueRobots.push({ id:'rogue'+ROBOT_ID_SEQ++, x:closest.x, z:closest.z, hp, maxHp:hp, type, mesh, alive:true, speed:ROGUE_ROBOT_SPEED, attackTimer:0,
     powerMult:mult, rewardRange:[Math.round(type.reward[0]*mult), Math.round(type.reward[1]*mult)],
     eliteReward: Math.round((ELITE_COIN_REWARD[type.id]||0)*mult) });
   showNotif(`⚠️ A ${type.name} broke off from a nearby spawner and is coming for you!`);
@@ -11794,6 +13549,47 @@ function spawnGuardKiller() {
 function clearGuardKillers() {
   killers.filter(k => k.guardKiller && k.alive).forEach(k => { k.alive = false; scene.remove(k.mesh); });
   guardKillerTimer = 0;
+}
+
+// ── Bank Wall — user's own ask: "shoot down from the walls." A real elevated vantage point (not
+// just a flag): the staircase built onto the Bank's east side (see buildCity's CITY BANK block)
+// snaps the player up onto the front parapet, directly overlooking BANK_ATTACK_POS below. Only
+// useful — and only reachable — during a Guard shift, since that's the only time there's anything
+// down there to shoot at. Movement freezes while up there (same `!onBankWall` guard added to the
+// animate loop's move/jump blocks as `!inCar`/`!playerSeated` already use) and E fires a ranged
+// shot at the nearest guard killer instead of the usual melee fightKiller().
+let onBankWall = false; // NOT persisted — ephemeral vantage state, same category as inCar/playerSeated
+const BANK_WALL_POS = { x:160, z:213, y:19.5 };       // atop the roof, just behind the front parapet
+const BANK_WALL_STAIR_BASE = { x:180, z:210 };        // ground spot at the foot of the built staircase
+const BANK_WALL_SHOOT_RANGE = 45;                     // generous — you're overlooking the whole attack area from above
+function climbBankWall() {
+  if (!activeBankJob || activeBankJob.job.id !== 'guard') { showNotif('❌ Only worth climbing during a Guard shift — nothing to shoot at otherwise.'); return; }
+  onBankWall = true;
+  playerGroup.position.set(BANK_WALL_POS.x, BANK_WALL_POS.y, BANK_WALL_POS.z);
+  jumpVel = 0; onGround = true;
+  showNotif('🪜 You climb up onto the Bank wall. [E] Shoot the nearest attacker, or climb down once the coast is clear.');
+}
+function climbDownBankWall() {
+  if (!onBankWall) return;
+  onBankWall = false;
+  playerGroup.position.set(BANK_WALL_STAIR_BASE.x, 0, BANK_WALL_STAIR_BASE.z);
+  jumpVel = 0; onGround = true;
+  showNotif('🪜 You climb back down off the wall.');
+}
+function shootFromWall() {
+  let target = null, bestDist = Infinity;
+  killers.forEach(k => {
+    if (!k.alive || !k.guardKiller) return;
+    const d = Math.hypot(k.x - BANK_WALL_POS.x, k.z - BANK_WALL_POS.z);
+    if (d < bestDist) { bestDist = d; target = k; }
+  });
+  if (!target || bestDist > BANK_WALL_SHOOT_RANGE) { climbDownBankWall(); return; } // nothing left to shoot — E climbs back down instead
+  const dmg = getWeaponDamage();
+  target.hp -= dmg;
+  fireWarShot(BANK_WALL_POS.x, BANK_WALL_POS.y, BANK_WALL_POS.z, target.x, target.z);
+  sfx.laser();
+  if (target.hp > 0) { showNotif(`🏹 Shot the attacker for ${dmg} from the wall! (${target.hp}/${target.maxHp} HP left)`); return; }
+  defeatKiller(target);
 }
 
 // ── Coin Bots — Guard's "Call for Backup" ability (30s cooldown) ───────────────────────────────
@@ -11978,8 +13774,8 @@ function buildKillerMesh(x, z) {
 }
 function spawnKiller() {
   const ang = Math.random()*Math.PI*2, dist = 30+Math.random()*20;
-  const x = Math.max(-1900, Math.min(1900, playerGroup.position.x+Math.cos(ang)*dist));
-  const z = Math.max(-1900, Math.min(1900, playerGroup.position.z+Math.sin(ang)*dist));
+  const x = Math.max(-WORLD_BOUND, Math.min(WORLD_BOUND, playerGroup.position.x+Math.cos(ang)*dist));
+  const z = Math.max(-WORLD_BOUND, Math.min(WORLD_BOUND, playerGroup.position.z+Math.sin(ang)*dist));
   const mesh = buildKillerMesh(x, z);
   mesh.visible = false; // hidden until it closes to KILLER_REVEAL_RANGE — no sign it's coming
   // Real bug the user caught: every killer shared the exact same KILLER_ATTACK_INTERVAL and
@@ -12052,7 +13848,7 @@ function tickKillers(dt) {
     // Only counts ambient killers against the ambient cap now — a Guard shift's own separate
     // GUARD_KILLER_MAX_ACTIVE pool used to count against this too, silently starving ambient
     // spawns for the whole 20-minute shift. Real bug, fixed while touching this code anyway.
-    if (outdoors && killers.filter(k=>k.alive && !k.guardKiller).length < killerMaxActive()) spawnKiller();
+    if (outdoors && killers.filter(k=>k.alive && !k.guardKiller && !k.hitTargetName).length < killerMaxActive()) spawnKiller();
   }
   const onGuardShift = activeBankJob && activeBankJob.job.id === 'guard';
   if (onGuardShift) {
@@ -12071,9 +13867,11 @@ function tickKillers(dt) {
     clearCoinBots();
     clearPoliceHelpers();
   }
+  if (onBankWall && !onGuardShift) climbDownBankWall(); // shift ended/failed while up there — don't leave the player stranded on the wall
   killers.forEach(k => {
     if (!k.alive) return;
     if (k.guardKiller) { tickGuardKillerCombat(k, dt); return; }
+    if (k.hitTargetName) { tickHitmanCombat(k, dt); return; } // hunts a specific NPC, not the player — keeps going indoors/outdoors same as a guard killer
     if (!outdoors) return;
     tickAmbientKillerCombat(k, dt);
   });
@@ -12788,6 +14586,7 @@ const CITY_ZONES = [
   { x:BANK_INTERIOR_ENTRANCE.x, z:BANK_INTERIOR_ENTRANCE.z, r:5, label:'🚪 Bank Employee Entrance', action: enterBankInterior },
   { x:160, z:246, r:6,  label:'💂 Work as Guard (5,000 S.I.P. after 20 min)',              action: ()=>toggleBankJob('guard','sip'),     isBankJobZone:true, bankJobId:'guard',   currency:'sip' },
   { x:174, z:246, r:6,  label:'💂 Work as Guard (2,500 💎 after 20 min)',                   action: ()=>toggleBankJob('guard','elite'),   isBankJobZone:true, bankJobId:'guard',   currency:'elite' },
+  { x:BANK_WALL_STAIR_BASE.x, z:BANK_WALL_STAIR_BASE.z, r:3, label:'🪜 Climb the Bank wall (Guard duty)', action: climbBankWall },
   { x:70,  z:60,  r:12, label:'🏫 Enter School',                                action: openSchool },
   { x:50,  z:-72, r:8,  label:'🎬 Movie Theater – Pick a Movie!', action: openCinema },
   { x:0,   z:50,  r:13, label:'🚇 S.I.T.S. Transit Hub – Ride anywhere!', action: openSITS },
@@ -12887,6 +14686,9 @@ function handleInteract() {
   if(playerSeated) { playerSeated = false; showNotif('🪑 You stand up.'); return; }
   // Exit car
   if(inCar) { exitCar(); return; }
+  // Bank Wall — takes priority over everything below (zone-check would otherwise pick up the
+  // "Enter City Bank" zone by pure x/z proximity, since that check ignores height entirely).
+  if(onBankWall) { shootFromWall(); return; }
   // Enter nearby parked car
   for(const pc of parkedCars) {
     const dx=px2-pc.group.position.x, dz=pz-pc.group.position.z;
@@ -12972,6 +14774,7 @@ function updatePrompt() {
   const px2 = playerGroup.position.x, pz = playerGroup.position.z;
   const el = document.getElementById('ePrompt');
   if(inCar) { el.textContent='[E] Exit Car'; el.style.display='block'; return; }
+  if(onBankWall) { el.textContent='[E] 🏹 Shoot (or climb down if nothing\'s in range)'; el.style.display='block'; return; }
   for(const pc of parkedCars) {
     const dx=px2-pc.group.position.x, dz=pz-pc.group.position.z;
     if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent=`[E] ${pc.def.emoji} Get in ${pc.def.name}`; el.style.display='block'; return; }
@@ -13055,6 +14858,35 @@ function updatePrompt() {
   el.style.display = 'none';
 }
 
+// ─── WAR TERRITORY COUNTRIES — 20x scale (item ~234, user: "lets make the countrys 20 times
+// bigger"). Single source of truth for all 9 centers, read by LOC_ZONES below, WAR_TERRITORIES,
+// COUNTRY_THEMES, and SPACE_ZONE further down the file — defined here, before all 4 consumers,
+// specifically so none of them need to hardcode a duplicate copy (AIRPORT_FLIGHTS is the one
+// exception: it runs at line ~2201, hundreds of lines before this, so it stays hand-computed —
+// see its own comment). An even 9-point ring (radius 8000) replaces the original scattered
+// layout — the tightest original pair, France/UK, was only 141 units apart (see the "141 units"
+// comment further down at the real buildCountryZones() site), nowhere near enough clearance once
+// each country's built footprint grows from ~90-100 units to ~1800-2000 units at 20x. Every
+// adjacent pair on this ring is a guaranteed 5472 units center-to-center — roughly 1400+ units of
+// clear ground between footprint edges even in the worst case, not just the closest pair.
+const COUNTRY_SCALE = 20;
+const COUNTRY_CENTERS = {
+  France:        { x:-7520, z:-2740 },
+  UK:             { x:-4000, z:-6930 },
+  Italy:          { x:1390,  z:-7880 },
+  Japan:          { x:6130,  z:-5140 },
+  Australia:      { x:8000,  z:0     },
+  Egypt:          { x:6130,  z:5140  },
+  Brazil:         { x:1390,  z:7880  },
+  'Space Station':{ x:-4000, z:6930  },
+  Canada:         { x:-7520, z:2740  },
+};
+// Farthest possible building edge from origin is the 8000-radius ring plus each country's own
+// ~2000-unit scaled footprint radius = 10000, plus a real walking margin — replaces the old
+// ±1950 movement clamp (player, cars, and spawnKiller's scatter — all 3 needed the same value in
+// lockstep, see each site's own comment) so a country actually reachable, not silently clipped.
+const WORLD_BOUND = 11000;
+
 // ─── LOCATION ZONES ──────────────────────────────────────────────────────────
 const LOC_ZONES = [
   {name:'City Mall',       x:80,  z:-20, r:35},
@@ -13083,15 +14915,15 @@ const LOC_ZONES = [
   {name:'City Airport',    x:-200,z:-200,r:40},
   {name:'The Diner',       x:110, z:-25, r:18},
   {name:'Your Store',      x:160, z:-25, r:18},
-  {name:'Japan',           x:600,  z:-600, r:85},
-  {name:'France',          x:-600, z:-600, r:85},
-  {name:'Brazil',          x:600,  z:700,  r:85},
-  {name:'Egypt',           x:900,  z:300,  r:85},
-  {name:'UK',              x:-700, z:-700, r:85},
-  {name:'Australia',       x:800,  z:-200, r:85},
-  {name:'Canada',          x:-600, z:400,  r:85},
-  {name:'Italy',           x:0,    z:-900, r:85},
-  {name:'Space Station',   x:0,    z:1200, r:65},
+  {name:'Japan',           x:COUNTRY_CENTERS.Japan.x,          z:COUNTRY_CENTERS.Japan.z,          r:85*COUNTRY_SCALE},
+  {name:'France',          x:COUNTRY_CENTERS.France.x,         z:COUNTRY_CENTERS.France.z,         r:85*COUNTRY_SCALE},
+  {name:'Brazil',          x:COUNTRY_CENTERS.Brazil.x,         z:COUNTRY_CENTERS.Brazil.z,         r:85*COUNTRY_SCALE},
+  {name:'Egypt',           x:COUNTRY_CENTERS.Egypt.x,          z:COUNTRY_CENTERS.Egypt.z,          r:85*COUNTRY_SCALE},
+  {name:'UK',              x:COUNTRY_CENTERS.UK.x,             z:COUNTRY_CENTERS.UK.z,             r:85*COUNTRY_SCALE},
+  {name:'Australia',       x:COUNTRY_CENTERS.Australia.x,      z:COUNTRY_CENTERS.Australia.z,      r:85*COUNTRY_SCALE},
+  {name:'Canada',          x:COUNTRY_CENTERS.Canada.x,         z:COUNTRY_CENTERS.Canada.z,         r:85*COUNTRY_SCALE},
+  {name:'Italy',           x:COUNTRY_CENTERS.Italy.x,          z:COUNTRY_CENTERS.Italy.z,          r:85*COUNTRY_SCALE},
+  {name:'Space Station',   x:COUNTRY_CENTERS['Space Station'].x, z:COUNTRY_CENTERS['Space Station'].z, r:65*COUNTRY_SCALE},
 ];
 
 // ─── START GAME ──────────────────────────────────────────────────────────────
@@ -13133,8 +14965,11 @@ function _startGameInner() {
   clock = new THREE.Clock();
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x87CEEB);
-  scene.fog = new THREE.Fog(0x87CEEB, 200, 1200);
-  camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 3000);
+  // Fog far + camera far both widened for the 20x-bigger War Territory countries (item ~234) —
+  // at the old 1200/3000, a country out past WORLD_BOUND would render as solid gray fog (or not
+  // render AT ALL past the camera's hard clip) even after every other part of this change landed.
+  scene.fog = new THREE.Fog(0x87CEEB, 200, 6000);
+  camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 16000);
   renderer = new THREE.WebGLRenderer({ antialias:false });
   renderer.shadowMap.enabled = false;
   document.body.appendChild(renderer.domElement);
@@ -13180,9 +15015,10 @@ function _startGameInner() {
     new ResizeObserver(_resizeRenderer).observe(document.body);
   }
 
-  const sun = new THREE.DirectionalLight(0xfff5e0, 1.2);
-  sun.position.set(60,100,40);
-  scene.add(sun, new THREE.AmbientLight(0x9ab8d8, 0.7));
+  sunLight = new THREE.DirectionalLight(0xfff5e0, 1.2);
+  sunLight.position.set(60,100,40);
+  ambientLight = new THREE.AmbientLight(0x9ab8d8, 0.7);
+  scene.add(sunLight, ambientLight);
 
   function _dbg(label, fn) {
     try { fn(); }
@@ -13218,13 +15054,17 @@ function _startGameInner() {
   _dbg('buildOutfitShopWing', buildOutfitShopWing);
   _dbg('buildCountryZones', buildCountryZones);
   _dbg('buildSpaceZone', buildSpaceZone);
+  _dbg('buildDeepSpaceZones', buildDeepSpaceZones);
   _dbg('spawnOwnedCars', spawnOwnedCars);
+  _dbg('buildWeaponLevels', buildWeaponLevels); // must run before buildPlayer()/updateWeaponMesh() touch the currently-equipped weapon's damage — otherwise a returning player's weapon keeps dealing OLD (pre-rebalance) damage until they happen to open the shop
   _dbg('buildPlayer', buildPlayer);
   _dbg('buildBuddy', buildBuddy);
   _dbg('buildChild', buildChild);
   _dbg('applyCameraFX', applyCameraFX);
   _dbg('buildNPCs', buildNPCs);
   _dbg('buildShopperPopulation', buildShopperPopulation);
+  _dbg('buildRelatives', buildRelatives);
+  _dbg('buildCountryNeighborhoods', buildCountryNeighborhoods);
   _dbg('refreshHouseGuest', refreshHouseGuest); // must run AFTER shoppers exist, in case a save loaded with a guest already set
   _dbg('buildCityShops', buildCityShops);
   _dbg('buildTownEventsBoard', buildTownEventsBoard);
@@ -13235,6 +15075,7 @@ function _startGameInner() {
   _dbg('buildPrisonInterior', buildPrisonInterior);
   _dbg('buildOwnedStore', buildOwnedStore);
   _dbg('applySeasonEffects', applySeasonEffects);
+  _dbg('updateDayNight', updateDayNight); // one call before the first frame renders, so day/night colors are already correct instead of flashing default values
   _dbg('checkPendingNotices', checkPendingNotices);
   setupControls();
   // Snap camera to spawn position so first frame isn't black
@@ -13252,7 +15093,28 @@ function _startGameInner() {
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function mat(color) { return new THREE.MeshLambertMaterial({color}); }
+// Transient "build context" — active ONLY while constructing a scaled-up War Territory country
+// (see buildCountryZones()/buildSpaceZone(), item ~234, user: "lets make the countrys 20 times
+// bigger"). null everywhere else in the file (the other ~99% of box()/addCol()/buildSignPanels()
+// call sites), so scalePt()/scaleLen() below are provably a no-op for everything that isn't a
+// country build. Deliberately NOT a THREE.Group-and-scale-the-group approach: buildTownExtras()
+// computes several plain local variables (airport/hotel door spots) that get reused both as
+// box()/addCol() position args AND passed straight into other functions (enterAirportLounge(),
+// checkinCountryHotel()) and raw CITY_ZONES.push({x,z,...}) object literals that never go
+// through any wrapper at all — a Group transform can't reach those non-mesh, non-collider call
+// sites, so the scale has to be real, absolute-coordinate math applied consistently by hand
+// (scalePt/scaleLen), not something a parent transform can quietly handle for free.
+let _buildOrigin = null, _buildScale = 1;
+// (worldX, worldZ) offset-from-origin, scaled — the one shared formula every transform below
+// reduces to. Used directly by box()/addCol(), and exposed for the handful of buildTownExtras
+// call sites (CITY_ZONES.push, enterAirportLounge, checkinCountryHotel) that bypass both.
+function scalePt(x, z) {
+  if (!_buildOrigin) return [x, z];
+  return [_buildOrigin.x + (x - _buildOrigin.x) * _buildScale, _buildOrigin.z + (z - _buildOrigin.z) * _buildScale];
+}
+function scaleLen(n) { return _buildOrigin ? n * _buildScale : n; }
 function box(w,h,d, color, x,y,z) {
+  if (_buildOrigin) { w=scaleLen(w); h=scaleLen(h); d=scaleLen(d); [x,z]=scalePt(x,z); y=scaleLen(y); }
   const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(color));
   m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true;
   scene.add(m); return m;
@@ -13276,6 +15138,7 @@ function buildSignPanels(cvWidth, cvHeight, drawFn, x, y, z, rot, planeWidth, pl
     c.restore();
     return cv;
   }
+  if (_buildOrigin) { planeWidth=scaleLen(planeWidth); planeHeight=scaleLen(planeHeight); [x,z]=scalePt(x,z); y=scaleLen(y); }
   const geo = new THREE.PlaneGeometry(planeWidth, planeHeight);
   const front = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(makeCanvas(false)), side: THREE.FrontSide }));
   const back  = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(makeCanvas(true)),  side: THREE.BackSide }));
@@ -13408,11 +15271,53 @@ function getSeasonInfo() {
   return {season, sk, holiday, skySky, fogFog, mmdd};
 }
 
+// ─── DAY/NIGHT CYCLE — runs off playTimeSeconds (real seconds actually played, same clock
+// tickGrowth already uses for growth stages), NOT the real-world wall clock, so it advances at
+// the same steady pace no matter what timezone or time of day you actually play at. One full
+// day+night takes DAY_LENGTH real seconds; brightness follows a smooth cosine curve (0 at
+// midnight, 1 at noon) instead of hard day/night cuts, so dawn and dusk fade in and out. Season
+// effects above still own the "full daylight" base sky/fog color (seasonSkyColor/seasonFogColor)
+// — this system only darkens toward that base at night, it never fights season for ownership of
+// scene.background/scene.fog.color. ──────────────────────────────────────────────────────────
+const DAY_LENGTH = 1800; // real seconds for one full day+night cycle (30 minutes)
+let seasonSkyColor, seasonFogColor; // THREE.Color, lazily created in applySeasonEffects (THREE isn't loaded yet at parse time)
+let _dayNightColors = null;         // lazily built cache of THREE.Color helpers, see updateDayNight
+let lastDayPhase = null;            // 'Day'|'Dawn'|'Dusk'|'Night' — only re-renders the HUD when this actually changes
+function getDayNightBrightness() {
+  const frac = (playTimeSeconds % DAY_LENGTH) / DAY_LENGTH; // 0..1, 0 = midnight
+  const raw = (1 - Math.cos(frac * Math.PI * 2)) / 2;       // 0 at midnight, 1 at noon
+  return { frac, raw };
+}
+function updateDayNight() {
+  if (!scene || !sunLight || !ambientLight || !seasonSkyColor) return;
+  if (!_dayNightColors) {
+    _dayNightColors = {
+      nightSky: new THREE.Color(0x0a1030), nightFog: new THREE.Color(0x0a1020),
+      nightAmbient: new THREE.Color(0x1a2a55), dayAmbient: new THREE.Color(0x9ab8d8),
+    };
+  }
+  const c = _dayNightColors;
+  const { frac, raw } = getDayNightBrightness();
+  const b = 0.12 + raw * 0.88; // floor so night dims but is never pitch black
+  scene.background.copy(c.nightSky).lerp(seasonSkyColor, b);
+  scene.fog.color.copy(c.nightFog).lerp(seasonFogColor, b);
+  sunLight.intensity = 0.1 + raw * 1.15;
+  ambientLight.color.copy(c.nightAmbient).lerp(c.dayAmbient, b);
+  ambientLight.intensity = 0.25 + raw * 0.5;
+
+  const phase = raw >= 0.85 ? 'Day' : raw < 0.3 ? 'Night' : (frac < 0.5 ? 'Dawn' : 'Dusk');
+  if (phase !== lastDayPhase) { lastDayPhase = phase; updateSeasonHud(); }
+}
+
 function applySeasonEffects() {
   if(!scene) return;
   const {season, holiday, skySky, fogFog, mmdd} = getSeasonInfo();
-  scene.background.set(skySky);
-  scene.fog.color.set(fogFog);
+  // Sky/fog are no longer set directly here — they're the "full daylight" base color that
+  // updateDayNight() darkens toward at night, every frame. See seasonSkyColor/seasonFogColor above.
+  if (!seasonSkyColor) seasonSkyColor = new THREE.Color();
+  if (!seasonFogColor) seasonFogColor = new THREE.Color();
+  seasonSkyColor.set(skySky);
+  seasonFogColor.set(fogFog);
   if(groundMesh) groundMesh.material.color.set(season.ground);
   treeMeshes.forEach(m => m.material.color.set(season.tree));
   if(season.particle) startWeatherParticles(season.particle);
@@ -13435,11 +15340,13 @@ function applySeasonEffects() {
   }
 }
 
+const DAY_PHASE_EMOJI = { Day:'☀️', Dawn:'🌅', Dusk:'🌇', Night:'🌙' };
 function updateSeasonHud() {
   const el = document.getElementById('seasonHud');
   if(!el) return;
   const {season, holiday} = getSeasonInfo();
-  el.textContent = season.emoji + ' ' + season.name + (holiday ? '  |  ' + holiday.emoji + ' ' + holiday.name : '');
+  const phaseText = lastDayPhase ? '  |  ' + DAY_PHASE_EMOJI[lastDayPhase] + ' ' + lastDayPhase : '';
+  el.textContent = season.emoji + ' ' + season.name + (holiday ? '  |  ' + holiday.emoji + ' ' + holiday.name : '') + phaseText;
 }
 
 function startWeatherParticles(type) {
@@ -13511,8 +15418,10 @@ function closeCalendar() {
 
 // ─── CITY ────────────────────────────────────────────────────────────────────
 function buildCity() {
-  // Ground
-  const g=new THREE.Mesh(new THREE.PlaneGeometry(5000,5000),mat(0x5a9e3c));
+  // Ground — widened from 5000x5000 to comfortably exceed WORLD_BOUND (±11000) for the 20x-bigger
+  // War Territory countries (item ~234) — otherwise a player standing in a new country would see
+  // straight through the world past the old ground edge.
+  const g=new THREE.Mesh(new THREE.PlaneGeometry(24000,24000),mat(0x5a9e3c));
   g.rotation.x=-Math.PI/2; g.receiveShadow=true; scene.add(g); groundMesh = g;
 
   // Roads
@@ -13743,6 +15652,12 @@ function buildCity() {
   const bankLight = new THREE.PointLight(0xffeeaa, 1.0, 24);
   bankLight.position.set(160,8,218); scene.add(bankLight);
   addCol(CITY_COLS, 160,210, 13,10);
+  // Bank Wall — Guard-duty vantage point (see climbBankWall/shootFromWall). A real staircase
+  // hugging the building's east side, climbing from BANK_WALL_STAIR_BASE up to a crenellated
+  // parapet along the front roof edge, right above BANK_ATTACK_POS below.
+  for(let i=0;i<10;i++){ const t=i/9; box(1.6,0.35,2, 0xcfc6b0, 180-t*8, 0.3+t*18.3, 210); } // staircase, ground to roof
+  box(10,1.4,0.4, 0xe8dcc0, 160,19.3,216.5);          // front parapet — the wall itself
+  for(let i=-2;i<=2;i++) box(1,0.6,0.4, 0xe8dcc0, 160+i*2,20.3,216.5); // crenellations
 
   // MOVIE THEATER — x=50, z=-85
   box(28,14,20, 0x8B1A1A, 50,7,-85);           // main building (dark red)
@@ -14586,6 +16501,22 @@ function drawAvatarCard(cv) {
   c.fillRect(cx-20,80,40,36); c.fillRect(cx-28,82,10,24); c.fillRect(cx+18,82,10,24);
   if(playerShirt==='striped'){c.fillStyle='rgba(255,255,255,0.25)';for(let i=0;i<3;i++)c.fillRect(cx-20,82+i*9,40,5);}
   if(playerShirt==='suit'){c.fillStyle=shirtC;c.beginPath();c.moveTo(cx-8,80);c.lineTo(cx,90);c.lineTo(cx-8,102);c.closePath();c.fill();c.beginPath();c.moveTo(cx+8,80);c.lineTo(cx,90);c.lineTo(cx+8,102);c.closePath();c.fill();c.fillStyle='#cc2222';c.fillRect(cx-2,82,4,20);}
+  // 15 new shirts — same accents as drawPreview() above, scaled to this canvas.
+  if(playerShirt==='crewneck'){c.strokeStyle='rgba(0,0,0,0.3)';c.lineWidth=1.5;c.beginPath();c.arc(cx,80,7,0,Math.PI);c.stroke();}
+  else if(playerShirt==='vneck'){c.fillStyle=skin;c.beginPath();c.moveTo(cx-6,80);c.lineTo(cx,92);c.lineTo(cx+6,80);c.closePath();c.fill();}
+  else if(playerShirt==='flannel'){c.strokeStyle='rgba(0,0,0,0.3)';c.lineWidth=1.5;for(let i=0;i<3;i++){c.beginPath();c.moveTo(cx-20,84+i*10);c.lineTo(cx+20,84+i*10);c.stroke();}for(let i=0;i<3;i++){c.beginPath();c.moveTo(cx-14+i*14,80);c.lineTo(cx-14+i*14,116);c.stroke();}}
+  else if(playerShirt==='polo'){c.fillStyle='#fff';c.beginPath();c.moveTo(cx-7,80);c.lineTo(cx,88);c.lineTo(cx-7,94);c.closePath();c.fill();c.beginPath();c.moveTo(cx+7,80);c.lineTo(cx,88);c.lineTo(cx+7,94);c.closePath();c.fill();}
+  else if(playerShirt==='crop'){c.fillStyle='rgba(0,0,0,0.75)';c.fillRect(cx-20,106,40,10);}
+  else if(playerShirt==='turtleneck'){c.fillRect(cx-8,74,16,8);}
+  else if(playerShirt==='buttonup'){c.fillStyle='rgba(255,255,255,0.85)';c.beginPath();c.moveTo(cx-7,80);c.lineTo(cx,90);c.lineTo(cx-7,98);c.closePath();c.fill();c.beginPath();c.moveTo(cx+7,80);c.lineTo(cx,90);c.lineTo(cx+7,98);c.closePath();c.fill();}
+  else if(playerShirt==='camo'){c.fillStyle='rgba(40,60,20,0.5)';[[cx-12,88],[cx+4,96],[cx-4,106]].forEach(([bx,by])=>{c.beginPath();c.ellipse(bx,by,7,5,0.4,0,Math.PI*2);c.fill();});}
+  else if(playerShirt==='graphic'){c.fillStyle='#ffcc00';c.fillRect(cx-6,90,12,12);}
+  else if(playerShirt==='raincoat'){c.fillStyle='rgba(255,255,255,0.3)';c.fillRect(cx-20,80,40,3);}
+  else if(playerShirt==='denim'){c.strokeStyle='rgba(255,220,120,0.6)';c.lineWidth=1;c.beginPath();c.moveTo(cx-13,80);c.lineTo(cx-8,90);c.stroke();c.beginPath();c.moveTo(cx+13,80);c.lineTo(cx+8,90);c.stroke();}
+  else if(playerShirt==='tuxedo'){c.fillStyle='#fff';c.beginPath();c.moveTo(cx-7,80);c.lineTo(cx,90);c.lineTo(cx-7,98);c.closePath();c.fill();c.beginPath();c.moveTo(cx+7,80);c.lineTo(cx,90);c.lineTo(cx+7,98);c.closePath();c.fill();c.fillStyle='#111';c.beginPath();c.moveTo(cx-4,81);c.lineTo(cx,84);c.lineTo(cx+4,81);c.lineTo(cx,88);c.closePath();c.fill();}
+  else if(playerShirt==='sweater'){c.fillStyle='rgba(0,0,0,0.15)';for(let i=0;i<5;i++)c.fillRect(cx-20,84+i*5,40,2);}
+  else if(playerShirt==='crophoodie'){c.fillStyle='rgba(0,0,0,0.75)';c.fillRect(cx-20,102,40,14);c.strokeStyle='rgba(0,0,0,0.3)';c.lineWidth=1.5;c.beginPath();c.moveTo(cx-5,80);c.lineTo(cx-3,92);c.stroke();}
+  else if(playerShirt==='overshirt'){c.fillStyle=skin;c.fillRect(cx-12,84,24,30);}
 
   // Neck
   c.fillStyle=skin; c.fillRect(cx-5,68,10,14);
@@ -14623,6 +16554,22 @@ function drawAvatarCard(cv) {
   else if(playerHat==='wizard'){c.fillStyle='#4444aa';c.beginPath();c.moveTo(cx,0);c.lineTo(cx-18,31);c.lineTo(cx+18,31);c.closePath();c.fill();c.fillRect(cx-26,29,52,6);}
   else if(playerHat==='pirate'){c.fillStyle='#111';c.fillRect(cx-24,29,48,6);c.fillRect(cx-16,8,32,23);c.fillStyle='#fff';c.beginPath();c.arc(cx,22,8,0,Math.PI*2);c.fill();c.fillStyle='#111';c.fillRect(cx-5,24,4,5);c.fillRect(cx+1,24,4,5);}
   else if(playerHat==='santa'){c.fillStyle='#dd2222';c.fillRect(cx-20,29,40,5);c.beginPath();c.moveTo(cx-16,29);c.lineTo(cx+7,3);c.lineTo(cx+18,29);c.closePath();c.fill();c.fillStyle='#fff';c.fillRect(cx-22,27,44,7);c.beginPath();c.arc(cx+9,4,5,0,Math.PI*2);c.fill();}
+  // 15 new hats — same shapes as drawPreview() above, scaled down to this canvas's smaller head.
+  else if(playerHat==='bandana')   { c.fillStyle='#cc3355'; c.fillRect(cx-16,15,32,7); c.beginPath(); c.moveTo(cx+14,18); c.lineTo(cx+22,14); c.lineTo(cx+22,22); c.closePath(); c.fill(); }
+  else if(playerHat==='headband')  { c.fillStyle='#3388cc'; c.fillRect(cx-16,13,32,5); }
+  else if(playerHat==='partyhat')  { c.fillStyle='#ffcc00'; c.beginPath(); c.moveTo(cx,-4); c.lineTo(cx-12,23); c.lineTo(cx+12,23); c.closePath(); c.fill(); c.fillStyle='#ff3366'; c.beginPath(); c.arc(cx,-2,3,0,Math.PI*2); c.fill(); }
+  else if(playerHat==='bucket')    { c.fillStyle='#4a7a4a'; c.fillRect(cx-22,21,44,5); c.fillRect(cx-13,10,26,14); }
+  else if(playerHat==='jester')    { c.fillStyle='#8833cc'; [-10,0,10].forEach((jx,i)=>{c.beginPath();c.moveTo(cx+jx-6,23);c.lineTo(cx+jx,23-17-i%2*4);c.lineTo(cx+jx+6,23);c.closePath();c.fill();}); c.fillRect(cx-14,21,28,4); }
+  else if(playerHat==='viking')    { c.fillStyle='#999999'; c.fillRect(cx-11,13,22,13); c.fillStyle='#eeeecc'; c.beginPath(); c.moveTo(cx-11,14); c.lineTo(cx-21,4); c.lineTo(cx-15,16); c.closePath(); c.fill(); c.beginPath(); c.moveTo(cx+11,14); c.lineTo(cx+21,4); c.lineTo(cx+15,16); c.closePath(); c.fill(); }
+  else if(playerHat==='graduation'){ c.fillStyle='#111111'; c.fillRect(cx-11,14,22,12); c.fillRect(cx-18,10,36,4); c.strokeStyle='#FFD700'; c.lineWidth=1.5; c.beginPath(); c.moveTo(cx+15,11); c.lineTo(cx+15,24); c.stroke(); }
+  else if(playerHat==='flower')    { c.fillStyle='#2d7a2d'; c.fillRect(cx-14,13,28,5); ['#ff69b4','#ffcc00','#ff6688','#cc88ff','#ffffff'].forEach((col,i)=>{c.fillStyle=col;c.beginPath();c.arc(cx-11+i*5.5,14,3,0,Math.PI*2);c.fill();}); }
+  else if(playerHat==='backwards') { c.fillStyle='#3355aa'; c.fillRect(cx-11,10,22,14); c.fillRect(cx-11,21,22,4); c.fillRect(cx-4,7,8,6); }
+  else if(playerHat==='sombrero')  { c.fillStyle='#d4a860'; c.fillRect(cx-26,21,52,4); c.fillRect(cx-11,7,22,15); c.fillStyle='#a8763a'; c.fillRect(cx-26,21,52,2); }
+  else if(playerHat==='propeller') { c.fillStyle='#dd4444'; c.fillRect(cx-14,11,28,15); c.fillStyle='#888'; c.fillRect(cx-1,7,3,6); c.fillStyle='#ccc'; c.fillRect(cx-10,7,20,2); }
+  else if(playerHat==='antlers')   { c.fillStyle=hairC; c.fillRect(cx-12,11,24,13); c.fillStyle='#8B5A2B'; [-10,10].forEach(ax=>{c.fillRect(cx+ax-1,-4,3,15); c.fillRect(cx+ax-6,2,6,2); c.fillRect(cx+ax,7,6,2);}); }
+  else if(playerHat==='headphones'){ c.fillStyle='#222222'; c.fillRect(cx-17,14,4,11); c.fillRect(cx+13,14,4,11); c.fillRect(cx-15,6,30,5); }
+  else if(playerHat==='chef')      { c.fillStyle='#ffffff'; c.fillRect(cx-12,18,24,7); c.beginPath(); c.ellipse(cx,9,14,11,0,0,Math.PI*2); c.fill(); }
+  else if(playerHat==='turban')    { c.fillStyle='#8833aa'; c.beginPath(); c.ellipse(cx,14,15,12,0,0,Math.PI*2); c.fill(); c.fillStyle='#ffcc00'; c.beginPath(); c.arc(cx,7,3,0,Math.PI*2); c.fill(); }
 
   // Name + gold bar at bottom
   c.fillStyle='rgba(233,69,96,0.8)'; c.fillRect(0,108,96,20);
@@ -14681,6 +16628,22 @@ function buildPlayer() {
   else if(playerHat==='wizard'){ const w=new THREE.Mesh(new THREE.ConeGeometry(0.6,1.8,8),new THREE.MeshLambertMaterial({color:0x4444aa}));w.position.set(0,3.9,0);playerGroup.add(w); mk(1.3,0.12,1.3,0x4444aa,0,3.32,0); }
   else if(playerHat==='pirate'){ mk(1.4,0.1,1.4,0x111111,0,3.32,0); mk(0.9,0.6,0.5,0x111111,0,3.66,0); mk(0.3,0.3,0.15,0xffffff,0,3.7,0.3); }
   else if(playerHat==='santa') { mk(1.1,0.2,1.1,0xffffff,0,3.32,0); const cn=new THREE.Mesh(new THREE.ConeGeometry(0.5,1.0,8),new THREE.MeshLambertMaterial({color:0xdd2222}));cn.position.set(0.1,3.88,0);playerGroup.add(cn); mk(0.25,0.25,0.25,0xffffff,0.45,4.32,0); }
+  // 15 new hats — real distinct meshes, same shape-language as the ones above.
+  else if(playerHat==='bandana')   { mk(1.15,0.15,1.15,0xcc3355,0,3.32,0); mk(0.3,0.3,0.1,0xcc3355,0,3.2,-0.6); }
+  else if(playerHat==='headband')  { mk(1.15,0.15,1.15,0x3388cc,0,3.35,0); }
+  else if(playerHat==='partyhat')  { const ph=new THREE.Mesh(new THREE.ConeGeometry(0.55,1.3,8),new THREE.MeshLambertMaterial({color:0xffcc00}));ph.position.set(0,4.0,0);playerGroup.add(ph); mk(0.15,0.15,0.15,0xff3366,0,4.68,0); }
+  else if(playerHat==='bucket')    { mk(1.5,0.15,1.5,0x4a7a4a,0,3.36,0); mk(0.9,0.5,0.9,0x4a7a4a,0,3.65,0); }
+  else if(playerHat==='jester')    { mk(1.15,0.15,1.15,0x8833cc,0,3.35,0); [-0.35,0,0.35].forEach((jx,i)=>{const jc=new THREE.Mesh(new THREE.ConeGeometry(0.16,0.5+i%2*0.2,4),new THREE.MeshLambertMaterial({color:0x8833cc}));jc.position.set(jx,3.7+i%2*0.1,0);playerGroup.add(jc);}); }
+  else if(playerHat==='viking')    { mk(1.15,0.7,1.15,0x999999,0,3.5,0); const hL=new THREE.Mesh(new THREE.ConeGeometry(0.12,0.6,6),new THREE.MeshLambertMaterial({color:0xeeeecc}));hL.position.set(-0.6,3.9,0);hL.rotation.z=0.5;playerGroup.add(hL); const hR=new THREE.Mesh(new THREE.ConeGeometry(0.12,0.6,6),new THREE.MeshLambertMaterial({color:0xeeeecc}));hR.position.set(0.6,3.9,0);hR.rotation.z=-0.5;playerGroup.add(hR); }
+  else if(playerHat==='graduation'){ mk(1.4,0.1,1.4,0x111111,0,3.6,0); mk(0.9,0.5,0.9,0x111111,0,3.35,0); mk(0.06,0.4,0.06,0xFFD700,0.6,3.5,0); }
+  else if(playerHat==='flower')    { mk(1.15,0.15,1.15,0x2d7a2d,0,3.35,0); ['#ff69b4','#ffcc00','#ff6688','#cc88ff','#ffffff'].forEach((col,i)=>{const a2=i*Math.PI*2/5; mk(0.16,0.16,0.16,parseInt(col.slice(1),16),Math.cos(a2)*0.55,3.4,Math.sin(a2)*0.55);}); }
+  else if(playerHat==='backwards') { mk(1.2,0.5,0.8,0x3355aa,0,3.63,0.05); mk(0.5,0.12,0.4,0x3355aa,0,3.28,-0.7); }
+  else if(playerHat==='sombrero')  { mk(2.2,0.12,2.2,0xd4a860,0,3.35,0); mk(0.9,0.7,0.9,0xd4a860,0,3.75,0); }
+  else if(playerHat==='propeller') { mk(1.05,0.7,1.05,0xdd4444,0,3.5,0); mk(0.7,0.06,0.12,0xcccccc,0,3.95,0); mk(0.1,0.15,0.1,0x888888,0,3.9,0); }
+  else if(playerHat==='antlers')   { mk(1.1,0.7,1.1,hairC,0,3.5,0); [-0.4,0.4].forEach(ax=>{ mk(0.1,0.7,0.1,0x8B5A2B,ax,4.0,0); mk(0.3,0.1,0.1,0x8B5A2B,ax-0.15,3.85,0); mk(0.3,0.1,0.1,0x8B5A2B,ax+0.15,4.15,0); }); }
+  else if(playerHat==='headphones'){ mk(0.18,0.5,0.5,0x222222,-0.62,3.15,0); mk(0.18,0.5,0.5,0x222222,0.62,3.15,0); mk(1.3,0.12,0.2,0x222222,0,3.75,0); }
+  else if(playerHat==='chef')      { mk(1.0,0.3,1.0,0xffffff,0,3.45,0); mk(0.8,0.7,0.8,0xffffff,0,3.95,0); }
+  else if(playerHat==='turban')    { mk(1.1,0.7,1.1,0x8833aa,0,3.55,0); mk(0.16,0.16,0.16,0xffcc00,0,3.95,0.4); }
 
   // Body & arms
   const bCol = playerShirt==='suit' ? 0x222222 : shirt;
@@ -14689,21 +16652,57 @@ function buildPlayer() {
   player.lArm = mk(0.35,0.9,0.35, aCol,-0.65,1.75,0);
   player.rArm = mk(0.35,0.9,0.35, aCol, 0.65,1.75,0);
   mk(0.37,0.28,0.37, skin,-0.65,1.22,0); mk(0.37,0.28,0.37, skin,0.65,1.22,0);
+  // 15 new shirts — real distinct accent meshes on top of the shared torso/arm shape above.
+  if(playerShirt==='crop')          { mk(0.94,0.3,0.54, skin, 0,1.35,0); }
+  else if(playerShirt==='vneck')    { mk(0.15,0.25,0.1, skin, 0,2.15,0.26); }
+  else if(playerShirt==='crewneck') { mk(0.45,0.1,0.45, bCol, 0,2.3,0); }
+  else if(playerShirt==='turtleneck'){ mk(0.5,0.22,0.5, bCol, 0,2.35,0); }
+  else if(playerShirt==='polo')     { mk(0.5,0.1,0.1, 0xffffff, 0,2.15,0.26); }
+  else if(playerShirt==='tuxedo')   { mk(0.5,0.1,0.1, 0xffffff, 0,2.15,0.26); mk(0.12,0.12,0.1, 0x111111, 0,2.2,0.3); }
+  else if(playerShirt==='sweater')  { for(let i=0;i<3;i++) mk(0.92,0.06,0.52, 0x000000, 0,1.5+i*0.25,0.001); }
+  else if(playerShirt==='raincoat') { mk(1.0,1.3,0.56, bCol, 0,1.7,0); mk(0.3,0.12,0.5, 0xffffff, 0,2.3,0); }
+  else if(playerShirt==='denim')    { mk(0.15,0.5,0.05, 0xffdc78, -0.35,1.9,0.26); mk(0.15,0.5,0.05, 0xffdc78, 0.35,1.9,0.26); }
+  else if(playerShirt==='camo')     { mk(0.3,0.3,0.1, 0x2a3a14, -0.2,1.9,0.26); mk(0.25,0.25,0.1, 0x3a4a1a, 0.2,1.6,0.26); }
+  else if(playerShirt==='graphic')  { mk(0.3,0.3,0.05, 0xffcc00, 0,1.7,0.26); }
+  else if(playerShirt==='flannel')  { for(let i=0;i<3;i++) mk(0.92,0.06,0.52, 0x000000, 0,1.5+i*0.25,0.001); mk(0.06,1.0,0.52, 0x000000, -0.2,1.75,0.001); }
+  else if(playerShirt==='buttonup') { for(let i=0;i<4;i++) mk(0.06,0.06,0.06, 0x333333, 0,2.15-i*0.2,0.26); }
+  else if(playerShirt==='crophoodie'){ mk(0.94,0.3,0.54, skin, 0,1.35,0); mk(0.08,0.4,0.08, bCol, -0.15,2.15,0.26); mk(0.08,0.4,0.08, bCol, 0.15,2.15,0.26); }
+  else if(playerShirt==='overshirt'){ mk(0.5,1.1,0.1, skin, 0,1.75,0.26); }
 
   // Legs
-  const legH = playerPants==='shorts' ? 0.5 : 0.9;
-  const legY = playerPants==='shorts' ? 0.9 : 0.75;
+  const legH = playerPants==='shorts' ? 0.5 : playerPants==='capri' ? 0.75 : 0.9;
+  const legY = playerPants==='shorts' ? 0.9 : playerPants==='capri' ? 0.72 : 0.75;
   player.lLeg = mk(0.38,legH,0.38, pants,-0.22,legY,0);
   player.rLeg = mk(0.38,legH,0.38, pants, 0.22,legY,0);
   if(playerPants==='shorts'){mk(0.38,0.45,0.38,skin,-0.22,0.32,0);mk(0.38,0.45,0.38,skin,0.22,0.32,0);}
   if(playerPants==='cargo'){mk(0.15,0.25,0.4,0x333333,-0.38,0.9,0.1);mk(0.15,0.25,0.4,0x333333,0.38,0.9,0.1);}
+  // 10 new pants — real distinct accents/shapes on the shared leg meshes above.
+  if(playerPants==='capri')          { mk(0.4,0.2,0.4,skin,-0.22,0.42,0); mk(0.4,0.2,0.4,skin,0.22,0.42,0); }
+  else if(playerPants==='leggings')  { mk(0.06,0.9,0.06,0x000000,-0.22,0.75,0.19); mk(0.06,0.9,0.06,0x000000,0.22,0.75,0.19); }
+  else if(playerPants==='plaid')     { for(let i=0;i<3;i++) mk(0.4,0.06,0.4,0x000000,-0.22,0.5+i*0.25,0); for(let i=0;i<3;i++) mk(0.4,0.06,0.4,0x000000,0.22,0.5+i*0.25,0); }
+  else if(playerPants==='bellbottom'){ mk(0.55,0.2,0.42,pants,-0.22,0.35,0); mk(0.55,0.2,0.42,pants,0.22,0.35,0); }
+  else if(playerPants==='camopants') { mk(0.2,0.2,0.2,0x3a4a1a,-0.22,0.9,0.15); mk(0.2,0.2,0.2,0x2a3a14,0.22,0.6,0.15); }
+  else if(playerPants==='skinny')    { mk(0.06,0.9,0.06,0x000000,-0.24,0.75,0); mk(0.06,0.9,0.06,0x000000,0.24,0.75,0); }
+  else if(playerPants==='sweatpants'){ mk(0.4,0.1,0.4,0xffffff,-0.22,0.32,0); mk(0.4,0.1,0.4,0xffffff,0.22,0.32,0); }
+  else if(playerPants==='overalls')  { mk(0.9,0.6,0.5,pants,0,1.5,0); mk(0.1,0.4,0.1,pants,-0.3,2.0,0); mk(0.1,0.4,0.1,pants,0.3,2.0,0); }
+  else if(playerPants==='skirt' || playerPants==='kilt') { const sk=new THREE.Mesh(new THREE.ConeGeometry(0.55,0.65,4),new THREE.MeshLambertMaterial({color:pants})); sk.position.set(0,0.65,0); sk.rotation.y=Math.PI/4; playerGroup.add(sk); }
 
   // Shoes
   const shoeC=c3(playerColors.shoes);
-  const shH=playerShoes==='boots'?0.45:0.22, shY=playerShoes==='boots'?0.18:0.1;
-  mk(0.42,shH,playerShoes==='sandals'?0.6:0.52, shoeC,-0.22,shY,0.05);
-  mk(0.42,shH,playerShoes==='sandals'?0.6:0.52, shoeC, 0.22,shY,0.05);
+  const shH=playerShoes==='boots'?0.45:playerShoes==='rainboots'?0.6:playerShoes==='cowboyboots'?0.55:playerShoes==='platform'?0.3:0.22;
+  const shY=playerShoes==='boots'?0.18:playerShoes==='rainboots'?0.28:playerShoes==='cowboyboots'?0.25:playerShoes==='platform'?0.13:0.1;
+  const shD=playerShoes==='sandals'?0.6:playerShoes==='flipflops'?0.55:0.52;
+  mk(0.42,shH,shD, shoeC,-0.22,shY,0.05);
+  mk(0.42,shH,shD, shoeC, 0.22,shY,0.05);
   if(playerShoes==='hightop'){mk(0.43,0.3,0.53,shoeC,-0.22,0.32,0.04);mk(0.43,0.3,0.53,shoeC,0.22,0.32,0.04);}
+  // 6 more new shoes — real distinct accents (flipflops/rainboots/cowboyboots/platform already
+  // handled above via shH/shY/shD).
+  else if(playerShoes==='cleats')   { mk(0.06,0.06,0.06,0x222222,-0.3,0.02,0.2); mk(0.06,0.06,0.06,0x222222,0.3,0.02,0.2); }
+  else if(playerShoes==='slippers') { mk(0.05,0.05,0.2,0xffffff,-0.22,0.2,0.2); mk(0.05,0.05,0.2,0xffffff,0.22,0.2,0.2); }
+  else if(playerShoes==='crocs')    { mk(0.1,0.15,0.1,0x000000,-0.22,0.2,0.15); mk(0.1,0.15,0.1,0x000000,0.22,0.2,0.15); }
+  else if(playerShoes==='wedges')   { mk(0.4,0.15,0.5,shoeC,-0.22,0.02,0.05); mk(0.4,0.15,0.5,shoeC,0.22,0.02,0.05); }
+  else if(playerShoes==='moccasins'){ mk(0.1,0.05,0.4,0x6b4423,-0.22,0.22,0.05); mk(0.1,0.05,0.4,0x6b4423,0.22,0.22,0.05); }
+  else if(playerShoes==='skates')   { mk(0.42,0.1,0.55,0x888888,-0.22,0.02,0.08); mk(0.42,0.1,0.55,0x888888,0.22,0.02,0.08); }
 
   player.skinMeshes = skinMeshes;
 
@@ -14886,8 +16885,41 @@ function clearRemotePlayers() {
   remotePlayers = {};
 }
 
+// ─── PRESIDENTS — user's own ask: "make presidents", one per country. Same rule as the
+// Celebrities above: every name here is ORIGINAL — none of these is any real president, prime
+// minister, or other real political figure, past or present, of any country. Political figures
+// are even higher-risk than a fictional YouTuber-style celebrity to depict in a game sold for
+// real money, so this line is held even more firmly. Each President gets 2 named Bodyguards
+// (their own unique names — deadNPCs' permanent-death tracking is keyed by name, so two NPCs
+// sharing one name would incorrectly share death-state too) standing watch nearby; both are
+// purely decorative escorts, walked by the exact same shared patrol tick every NPC already uses.
+const PRESIDENT_ROSTER = [
+  { country:'France',    name:'President Margaux Delacroix', skin:0xf0c8a0, shirt:0x1a3a8a, hair:'long',     hairColor:0x3a2410 },
+  { country:'UK',        name:'President Edmund Hartley',     skin:0xe8c090, shirt:0x8a1a2a, hair:'short',    hairColor:0x2a2a2a },
+  { country:'Italy',     name:'President Giulia Romano',      skin:0xd4a070, shirt:0x1a7a3a, hair:'curly',    hairColor:0x1a1108 },
+  { country:'Japan',     name:'President Haruto Nishida',     skin:0xf0d0a8, shirt:0x2a2a5a, hair:'spiky',    hairColor:0x0a0a0a },
+  { country:'Australia', name:'President Bailey Stirling',    skin:0xe0b080, shirt:0xccaa22, hair:'short',    hairColor:0x8a5a20 },
+  { country:'Egypt',     name:'President Amara Hassan',       skin:0xc07840, shirt:0xddaa44, hair:'long',     hairColor:0x0a0a0a },
+  { country:'Brazil',    name:'President Rafael Moreira',     skin:0xb87040, shirt:0x2a8a4a, hair:'curly',    hairColor:0x1a1108 },
+  { country:'Canada',    name:'President Claire Beaumont',    skin:0xf5d5b5, shirt:0xcc2222, hair:'ponytail', hairColor:0xaa3311 },
+];
+function generatePresidentNPCs() {
+  const out = [];
+  PRESIDENT_ROSTER.forEach(p => {
+    const c = COUNTRY_CENTERS[p.country];
+    out.push({ name:p.name, role:'President', skin:p.skin, shirt:p.shirt, pants:0x111111,
+      pos:[c.x+15, 0, c.z], patrol:[[c.x+15,c.z],[c.x+10,c.z+8],[c.x+18,c.z+4]], hair:p.hair, hairColor:p.hairColor });
+    out.push({ name:p.name+"'s Bodyguard A", role:'Bodyguard', skin:0xd4a070, shirt:0x111111, pants:0x111111,
+      pos:[c.x+18,0,c.z+3], patrol:[[c.x+18,c.z+3],[c.x+12,c.z-3]] });
+    out.push({ name:p.name+"'s Bodyguard B", role:'Bodyguard', skin:0xc07840, shirt:0x111111, pants:0x111111,
+      pos:[c.x+10,0,c.z-3], patrol:[[c.x+10,c.z-3],[c.x+16,c.z+5]] });
+  });
+  return out;
+}
+
 // ─── NPCS ────────────────────────────────────────────────────────────────────
 const NPC_DEFS=[
+  ...generatePresidentNPCs(),
   {name:'Sam',  role:'Shopkeeper',skin:0xf5c89a,shirt:0x2255aa,pants:0x333344,pos:[44,0,52],patrol:[[44,52],[52,52],[52,44],[44,44]],hair:'short',hairColor:0x2a1505},
   {name:'Mia',  role:'Shopkeeper',skin:0xd4956a,shirt:0x1166bb,pants:0x222233,pos:[58,0,52],patrol:[[58,52],[66,52],[66,44],[58,44]],hair:'long',hairColor:0x1a1a1a},
   {name:'Leo',  role:'Shopkeeper',skin:0xe8c080,shirt:0x0044cc,pants:0x111122,pos:[72,0,52],patrol:[[72,52],[80,52],[80,44],[72,44]],hair:'spiky',hairColor:0x3a2410},
@@ -14897,6 +16929,18 @@ const NPC_DEFS=[
   {name:'Cruz', role:'Officer',   skin:0xf0c8a0,shirt:0x223366,pants:0x1a2a55,pos:[-66,0,14],patrol:[[-66,14],[-58,14],[-58,6],[-66,6]],hat:'police'},
   {name:'Park', role:'Officer',   skin:0xd4956a,shirt:0x1a2a55,pants:0x111833,pos:[-74,0,8], patrol:[[-74,8],[-66,8],[-66,0],[-74,0]],hat:'police'},
   {name:'Blake',role:'Officer',   skin:0xe8c080,shirt:0x223366,pants:0x1a2a55,pos:[-62,0,18],patrol:[[-62,18],[-54,18],[-54,10],[-62,10]],hat:'police'},
+  // Prison NPCs — see PRISON_SPAWN; only ever encountered while actually inPrison
+  {name:'Rex',   role:'Guard',    skin:0xd4956a,shirt:0x3a3a3a,pants:0x1a1a1a,pos:[PRISON_SPAWN.x-10,0,PRISON_SPAWN.z+5.6],patrol:[[PRISON_SPAWN.x-10,PRISON_SPAWN.z+5.6],[PRISON_SPAWN.x+10,PRISON_SPAWN.z+5.6],[PRISON_SPAWN.x+6,PRISON_SPAWN.z+18],[PRISON_SPAWN.x-6,PRISON_SPAWN.z+18]],hat:'helmet'},
+  {name:'Tanaka',role:'Guard',    skin:0xe8c080,shirt:0x3a3a3a,pants:0x1a1a1a,pos:[PRISON_SPAWN.x+10,0,PRISON_SPAWN.z+5.6],patrol:[[PRISON_SPAWN.x-10,PRISON_SPAWN.z+5.6],[PRISON_SPAWN.x+10,PRISON_SPAWN.z+5.6],[PRISON_SPAWN.x+6,PRISON_SPAWN.z+36],[PRISON_SPAWN.x-6,PRISON_SPAWN.z+36]],hat:'helmet'},
+  {name:'Rocco', role:'Prisoner', skin:0xc07840,shirt:0xff8800,pants:0xff8800,pos:[PRISON_SPAWN.x-11,0,PRISON_SPAWN.z-1.5],patrol:[[PRISON_SPAWN.x-11,PRISON_SPAWN.z-1.5]],hair:'spiky',hairColor:0x1a1108},
+  {name:'Dusty', role:'Prisoner', skin:0xf0c8a0,shirt:0xff8800,pants:0xff8800,pos:[PRISON_SPAWN.x+11,0,PRISON_SPAWN.z-1.5],patrol:[[PRISON_SPAWN.x+11,PRISON_SPAWN.z-1.5]],hair:'curly',hairColor:0x3a2010},
+  // Celebrities — 3 real ORIGINAL characters (never a real person's name/likeness — see
+  // CELEBRITY_DEFS' own comment), each roaming a big loop through a different part of the city.
+  // tickCelebrities() runs their giveaways/challenges; tickCelebrityCrowds() makes regular
+  // citizens flock to whichever one is nearest, both driven off this same `role:'Celebrity'` tag.
+  {name:'Chaz Diamond', role:'Celebrity', skin:0xd4956a,shirt:0xFFD700,pants:0x111111,pos:[0,0,0],   patrol:[[0,0],[40,0],[40,40],[0,40]],hat:'crown'},
+  {name:'Vex Nova',     role:'Celebrity', skin:0xf0c8a0,shirt:0xff2299,pants:0x1a1a2a,pos:[-40,0,10],patrol:[[-40,10],[-40,45],[-10,45],[-10,10]],hair:'spiky',hairColor:0x00e5ff},
+  {name:'Bree Millions',role:'Celebrity', skin:0xe8c080,shirt:0x9933ff,pants:0xFFD700,pos:[50,0,-20], patrol:[[50,-20],[90,-20],[90,10],[50,10]],hair:'long',hairColor:0xff66cc},
   // City citizens
   {name:'Lily',  role:'Citizen', skin:0xf5d5b5,shirt:0xff88aa,pants:0x334499,pos:[5,0,25],    patrol:[[5,25],[15,25],[15,15],[5,15]],hair:'long',hairColor:0xffcc66},
   {name:'Marco', role:'Citizen', skin:0xd4956a,shirt:0x22aa55,pants:0x222222,pos:[25,0,8],    patrol:[[25,8],[35,8],[35,18],[25,18]],hair:'short',hairColor:0x0a0a0a},
@@ -15636,6 +17680,7 @@ function findNearestNeighbor(px, pz, maxDist) {
   return closest;
 }
 function openNeighborModal(name) {
+  if (RELATIVE_NAMES.includes(name)) { openRelativeModal(name); return; } // your own parents skip the whole befriend flow entirely
   const npc = npcs.find(n => n.name === name);
   if (!npc) return;
   if (document.pointerLockElement) document.exitPointerLock();
@@ -15647,7 +17692,7 @@ function openNeighborModal(name) {
       ${npc.emotion ? `<div style="font-size:24px;">${npc.emotion}</div>` : ''}
       <div style="font-size:13px;color:#fff;">${npc.job} at ${npc.workplace}</div>
       <div style="font-size:11px;color:#888;">🏠 Lives in the Suburbs</div>
-      ${spouse ? `<div style="font-size:11px;color:#ff99bb;">💍 Married to ${spouse}</div>` : ''}
+      ${spouse ? `<div style="font-size:11px;color:#ff99bb;">💍 Married to ${spouse === playerName ? 'YOU! 🥰' : spouse}</div>` : ''}
     </div>`;
   if (!isFriend) {
     html += `<button onclick="befriendNeighbor('${name}')" style="width:100%;padding:8px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;color:#fff;background:#ff6699;">🤝 Become Friends</button>`;
@@ -15664,6 +17709,9 @@ function openNeighborModal(name) {
       } else {
         html += `<button onclick="hireFriendAsStaff('${name}')" style="width:100%;padding:8px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;color:#fff;background:#c9974c;">👥 Hire ${name} as Staff — ${staffHireCost()} S.I.P.</button>`;
       }
+    }
+    if (!spouse && !getSpouse(playerName)) {
+      html += `<button onclick="proposeMarriage('${name}')" style="width:100%;padding:8px;margin-top:6px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;color:#fff;background:#e0669b;">💍 Propose Marriage</button>`;
     }
   }
   document.getElementById('neighborModalBody').innerHTML = html;
@@ -15789,11 +17837,127 @@ function leaveFriendHouse() {
 // is deliberately NOT a button next to party invitations. It's handled separately, ambiently,
 // by a small set of elderly townsfolk (not any of your 40 friends) who peacefully pass on their
 // own time as you play. See the ELDERS section below. ──────────────────────────────────────
-let marriages = []; // persisted — [{a:name, b:name}] couples formed by hosting a wedding
+let marriages = []; // persisted — [{a:name, b:name}] couples formed by hosting a wedding OR the player proposing (see proposeMarriage)
 function getSpouse(name) {
   const m = marriages.find(x => x.a === name || x.b === name);
   return m ? (m.a === name ? m.b : m.a) : null;
 }
+
+// ─── RELATIVES — your own Mom & Dad, real standing NPCs right outside your house. Unlike the
+// 40 Suburbs neighbors, they start already family (no befriending needed, see openNeighborModal's
+// redirect to openRelativeModal below) and are deliberately kept OUT of SHOPPER_IDENTITIES so
+// hostWedding()'s random pool and proposeMarriage() can never pick your own parent. ─────────────
+const RELATIVE_NAMES = ['Mom', 'Dad'];
+const RELATIVE_DEFS = [
+  { name:'Mom', role:'Your Mom', skin:0xE8B87A, shirt:0xE08AB0, pants:0x3A3A5A, hair:'long',  hairColor:0x3A1F0A, pos:[-15,0,-108] },
+  { name:'Dad', role:'Your Dad', skin:0xD9A066, shirt:0x4A7FC9, pants:0x2B2B2B, hair:'short', hairColor:0x1A0A00, pos:[-15,0,-98]  },
+];
+function buildRelatives() {
+  RELATIVE_DEFS.forEach(d => {
+    const npc = makeNPC({
+      name: d.name, role: d.role, skin: d.skin, shirt: d.shirt, pants: d.pants,
+      pos: d.pos, patrol: [[d.pos[0], d.pos[2]]], // single-point patrol = they just stand here forever
+      hair: d.hair, hairColor: d.hairColor, emotion: '🥰',
+    });
+    npc.job = d.role; // truthy so findNearestNeighbor's proximity-interact picks them up like any neighbor
+    npcs.push(npc);
+  });
+}
+
+// ─── COUNTRY NEIGHBORHOODS — user's own ask: "make neiberhoods in each countrys". A small
+// 3-house neighborhood per country (not the full 40-house Suburbs scale — that's a much bigger
+// build than one add-on deserves), with a real named resident per house. Giving each resident a
+// `.job` string is ALL findNearestNeighbor()/openNeighborModal() actually check to treat someone
+// as a real, chat/befriend-able neighbor — same mechanism the 40 Suburbs shoppers use — so these
+// residents plug straight into the existing friend system with zero new interaction code.
+const COUNTRY_NEIGHBORHOOD_ROSTER = [
+  { country:'France',    people:[{n:'Léa Bonnet',       j:'Florist'},   {n:'Théo Marchand',   j:'Baker'},     {n:'Camille Rousseau', j:'Painter'}] },
+  { country:'UK',         people:[{n:'Owen Fairweather', j:'Postman'},   {n:'Freya Whitfield', j:'Librarian'}, {n:'Alfie Norwood',    j:'Plumber'}] },
+  { country:'Italy',      people:[{n:'Nico Ferraro',     j:'Chef'},      {n:'Serena Conti',    j:'Tailor'},    {n:'Dante Bellini',    j:'Fisherman'}] },
+  { country:'Japan',      people:[{n:'Sora Ito',         j:'Chef'},      {n:'Yuki Watanabe',   j:'Teacher'},   {n:'Ren Kobayashi',    j:'Carpenter'}] },
+  { country:'Australia',  people:[{n:'Charlotte Reef',   j:'Lifeguard'}, {n:'Jack Kingston',   j:'Rancher'},   {n:'Ruby Sinclair',    j:'Vet'}] },
+  { country:'Egypt',      people:[{n:'Karim Nasser',     j:'Merchant'},  {n:'Nour Adel',       j:'Weaver'},    {n:'Farida Saleh',     j:'Guide'}] },
+  { country:'Brazil',     people:[{n:'Isabela Duarte',   j:'Dancer'},    {n:'Mateus Silva',    j:'Fisherman'}, {n:'Valentina Costa',  j:'Musician'}] },
+  { country:'Canada',     people:[{n:'Liam Frost',       j:'Ranger'},    {n:'Chloe Bergeron',  j:'Baker'},     {n:'Noah Lachance',    j:'Trapper'}] },
+];
+function buildMiniHouse(x, z, seed) {
+  const wallColor = new THREE.Color().setHSL(((seed*53)%360)/360, 0.3, 0.62).getHex();
+  box(7, 4, 7, wallColor, x, 2, z);
+  box(8.4, 0.6, 8.4, 0x6b4a35, x, 4.3, z);
+  box(1.1, 2.1, 0.12, 0x2e2015, x, 1.05, z-3.55);
+  box(1.1, 1.0, 0.1, 0xaee3f5, x-2, 2.3, z-3.5);
+  box(1.1, 1.0, 0.1, 0xaee3f5, x+2, 2.3, z-3.5);
+}
+function buildCountryNeighborhoods() {
+  COUNTRY_NEIGHBORHOOD_ROSTER.forEach(group => {
+    const c = COUNTRY_CENTERS[group.country];
+    buildSign(`🏘️ ${group.country} Neighborhood`, c.x-15, 5, c.z+2);
+    group.people.forEach((p, idx) => {
+      const hx = c.x - 15, hz = c.z + 12 + idx*10; // a small row of 3 houses, opposite side of the country center from its President
+      buildMiniHouse(hx, hz, idx*7 + group.country.length);
+      const hue = ((idx*53 + group.country.length*17) % 360) / 360;
+      const npc = makeNPC({
+        name: p.n, role: p.j,
+        skin: new THREE.Color().setHSL(0.08, 0.35, 0.6).getHex(),
+        shirt: new THREE.Color().setHSL(hue, 0.55, 0.5).getHex(),
+        pants: 0x223344, hair: ['short','long','spiky','curly'][idx%4], hairColor: 0x2a1508,
+        pos: [hx, 0, hz+3.5], patrol: [[hx, hz+3.5], [hx+5, hz]],
+      });
+      npc.job = p.j; npc.home = { x:hx, z:hz+3.5 }; // truthy .job + real .home makes them a full real neighbor (chat/befriend/visit), same as the 40 Suburbs shoppers
+      npcs.push(npc);
+    });
+  });
+}
+const ALLOWANCE_COOLDOWN = 300; // 5 real minutes between allowance asks — same real-time-cooldown scale as Guard's Call for Backup
+function askForAllowance(name) {
+  const remain = ALLOWANCE_COOLDOWN - (playTimeSeconds - lastAllowanceAt);
+  if (remain > 0) { showNotif(`⏳ ${name} already gave you allowance recently — try again in ${Math.ceil(remain)}s.`); return; }
+  lastAllowanceAt = playTimeSeconds;
+  const amount = 10 + Math.floor(Math.random() * 16); // 10-25 S.I.P.
+  queueEarning(amount, 0, `${name}'s Allowance`);
+  sfx.buy();
+  showNotif(`💰 ${name} gave you ${amount} S.I.P. allowance! (pending in Earnings)`);
+  saveCurrentUser();
+  closeNeighborModal();
+}
+function openRelativeModal(name) {
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('neighborModalTitle').textContent = `❤️ ${name}`;
+  const remain = ALLOWANCE_COOLDOWN - (playTimeSeconds - lastAllowanceAt);
+  let html = `<div style="margin-bottom:10px;text-align:center;">
+      <div style="font-size:24px;">🥰</div>
+      <div style="font-size:13px;color:#fff;">${name} — always happy to see you</div>
+    </div>`;
+  html += `<button onclick="askForAllowance('${name}')" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;color:#fff;${remain>0?'background:#555;cursor:default;':'background:#7ac088;'}" ${remain>0?'disabled':''}>💰 Ask for Allowance${remain>0?` (${Math.ceil(remain)}s)`:''}</button>`;
+  html += `<button onclick="inviteNeighborOver('${name}')" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;color:#fff;background:#3a6ea5;">🏠 Invite ${name} to Your House</button>`;
+  if (ownedStore) {
+    const alreadyStaff = ownedStaff.some(s => s.name === name);
+    if (alreadyStaff) {
+      html += `<div style="text-align:center;color:#888;font-size:11px;">Already works at your store!</div>`;
+    } else if (ownedStaff.length >= MAX_STAFF) {
+      html += `<div style="text-align:center;color:#888;font-size:11px;">Your staff is full (${MAX_STAFF}/${MAX_STAFF}).</div>`;
+    } else {
+      html += `<button onclick="hireFriendAsStaff('${name}')" style="width:100%;padding:8px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;color:#fff;background:#c9974c;">👥 Hire ${name} as Staff — ${staffHireCost()} S.I.P.</button>`;
+    }
+  }
+  document.getElementById('neighborModalBody').innerHTML = html;
+  document.getElementById('neighborModal').style.display = 'flex';
+}
+function proposeMarriage(name) {
+  if (getSpouse(playerName)) { showNotif("❌ You're already married!"); return; }
+  if (getSpouse(name)) { showNotif(`❌ ${name} is already married!`); return; }
+  marriages.push({ a: playerName, b: name });
+  saveCurrentUser();
+  const npc = npcs.find(x => x.name === name);
+  if (npc) setNPCEmotion(npc, '🥰');
+  buildEventDecor('wedding', TOWN_EVENT_SPOT.x, TOWN_EVENT_SPOT.z);
+  sfx.cheer();
+  showNotif(`💍 You and ${name} got married! Congratulations!`);
+  closeNeighborModal();
+  if (typeof renderAddOnsPanel === 'function') renderAddOnsPanel();
+}
+
 const BASE_EMOTIONS = ['😊','😌','🙂','🤔','😴']; // everyday ambient moods the 40 shoppers start with
 const TOWN_EVENT_SPOT = { x:378, z:155 }; // open ground in the Suburbs, clear of houses/streets
 let eventDecorMeshes = [];
@@ -15980,8 +18144,8 @@ const WORLD_EVENTS = [
     description:'A herd of runaway farm animals stampedes through downtown and players work together to herd them back.',
     params:{ count:9, npcHealth:35, npcDamage:7, rewardPerKill:16, durationSec:130 } },
   { id:'invasion-attempt', name:'Invasion Attempt', emoji:'🚨', template:'hostileFaction',
-    description:'One of the countries Explox is fighting sends an army to try to invade — fight them off! (Explox can never actually be conquered, no matter how many times they try.)',
-    params:{ count:7, npcHealth:50, npcDamage:12, rewardPerKill:22, durationSec:150 } },
+    description:'A real army of 20 invaders lands right in Explox — but 40 Explox Citizens rally to defend the homeland. Fight alongside them! (Explox can never actually be conquered, no matter how many times they try.)',
+    params:{ count:20, npcHealth:50, npcDamage:12, rewardPerKill:22, durationSec:150 } },
 ];
 
 const WORLD_EVENT_SPOT = { x: TOWN_EVENT_SPOT.x + 8, z: TOWN_EVENT_SPOT.z }; // same proven-open ground as the Town Events board, just a few units over
@@ -15990,6 +18154,7 @@ let _lastWorldEventSync = -999;
 const WORLD_EVENT_SYNC_INTERVAL = 3;
 let worldEventDecor = [];
 let worldEventNpcs = [];       // {x,z,hp,maxHp,mesh,col,alive,zone}
+let invasionCitizens = [];     // {hp,maxHp,mesh,alive,x,z,attackTimer} — only during an active Invasion Attempt, defenders fighting FOR the player
 let worldEventGatherAccum = 0, worldEventHazardAccum = 0;
 // The concert World Event used to just be an empty stage despite its own description
 // promising "draws a crowd" — now it actually spawns one (real townsfolk colors, cheap
@@ -16020,10 +18185,56 @@ function buildWorldEventsBoard() {
   CITY_ZONES.push({ x, z: z + 1.5, r: 3.5, label: '🌍 World Events Board', action: openWorldEventsBoard });
 }
 
+// User's own ask: "make all the events at the border of the city" — these used to draw from
+// LOC_ZONES (the same skip-filtered list as hostGrandOpening), so a random pick could land
+// literally anywhere from City Hall in the heart of downtown to a War Territory country a
+// thousand+ units out. Every event's own flavor text already reads as something arriving FROM
+// outside (aliens landing, pirates raiding the docks, a wave rolling in from the harbor, animals
+// stampeding through) — a fixed ring of 8 named spots right at the map's outer edge (radius 1800,
+// safely inside the real ±1950 walk clamp and well past every War Territory country's max
+// distance of ~1200, so there's no overlap with that separate system) fits the theme better than
+// downtown ever did, and keeps events from interrupting whatever's going on in the middle of town.
+const WORLD_EVENT_BORDER_SPOTS = [
+  { name:'North Border',     x:0,     z:1800  },
+  { name:'Northeast Border', x:1273,  z:1273  },
+  { name:'East Border',      x:1800,  z:0     },
+  { name:'Southeast Border', x:1273,  z:-1273 },
+  { name:'South Border',     x:0,     z:-1800 },
+  { name:'Southwest Border', x:-1273, z:-1273 },
+  { name:'West Border',      x:-1800, z:0     },
+  { name:'Northwest Border', x:-1273, z:1273  },
+];
 function pickWorldEventLocation() {
-  const skip = ['Whispering Woods', 'Sunset Plains', 'The Scrapyard', 'The Dump', 'Japan', 'France'];
-  const spots = LOC_ZONES.filter(z => !skip.includes(z.name));
-  return spots[Math.floor(Math.random() * spots.length)];
+  return WORLD_EVENT_BORDER_SPOTS[Math.floor(Math.random() * WORLD_EVENT_BORDER_SPOTS.length)];
+}
+// User's own ask: "make it so people attack us in our country" — Invasion Attempt used to be just
+// another random draw from pickWorldEventLocation()'s ~26 spots, meaning it could land in Brazil
+// or the Space Station just as easily as downtown, despite its own flavor text promising an
+// attack on Explox itself. A real fixed "at home" spot instead — The Park, verified clear of any
+// CITY_COLS colliders in a 40-unit radius before picking it.
+const INVASION_SPOT = { x: -10, z: -60, name: 'The Park' };
+const INVASION_CITIZEN_COUNT = 40;
+// User's follow-up: "every country has a wall including explox" — Explox's own wall (built via the
+// shared buildWallRing() helper defined down in the War section) rebuilds at full health at the
+// start of every Invasion Attempt, matching "Explox can never actually be conquered" — no matter
+// how many times invaders tear it down, the next attempt starts against a fresh one. Invaders
+// attack ONLY the wall while it stands (see tickInvasionCombat) — the player and citizens are
+// fully safe from direct fire until it's breached, then combat proceeds exactly as before.
+const EXPLOX_WALL_RADIUS = 26;
+let exploxWallHp = 0, exploxWallMaxHp = 1500, exploxWallMesh = null, exploxWallCols = [];
+function resetExploxWall() {
+  clearExploxWallMesh();
+  exploxWallHp = exploxWallMaxHp;
+  const built = buildWallRing(INVASION_SPOT.x, INVASION_SPOT.z, EXPLOX_WALL_RADIUS, 14, 0x557799);
+  exploxWallMesh = built.mesh;
+  exploxWallCols = built.cols;
+}
+function clearExploxWallMesh() {
+  if (exploxWallMesh) {
+    scene.remove(exploxWallMesh);
+    exploxWallCols.forEach(c => { const ci = CITY_COLS.indexOf(c); if (ci > -1) CITY_COLS.splice(ci, 1); });
+  }
+  exploxWallMesh = null; exploxWallCols = [];
 }
 
 function openWorldEventsBoard() {
@@ -16043,7 +18254,7 @@ function closeWorldEvents() {
 async function triggerWorldEvent(id) {
   const def = WORLD_EVENTS.find(e => e.id === id);
   if (!def) return;
-  const loc = pickWorldEventLocation();
+  const loc = def.id === 'invasion-attempt' ? INVASION_SPOT : pickWorldEventLocation();
   try {
     const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/event', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -16117,6 +18328,17 @@ function spawnWorldEventNpcs(ev) {
     worldEventNpcs.push(npc);
   }
 }
+// Shared cleanup+reward path for a defeated event NPC — called both when the PLAYER lands the
+// killing blow (fightWorldEventNpc) and, for Invasion Attempt specifically, when a defending
+// Explox Citizen does (tickInvasionCombat), so citizen kills pay out exactly like the player's own.
+function defeatWorldEventNpc(npc, ev) {
+  npc.alive = false;
+  scene.remove(npc.mesh);
+  const zi = CITY_ZONES.indexOf(npc.zone); if (zi > -1) CITY_ZONES.splice(zi, 1);
+  if (npc.col) { const ci = CITY_COLS.indexOf(npc.col); if (ci > -1) CITY_COLS.splice(ci, 1); }
+  queueEarning(ev.data.params.rewardPerKill, 0, ev.data.name);
+  sfx.boom();
+}
 function fightWorldEventNpc(npc, ev) {
   if (!npc.alive || !activeWorldEvent || activeWorldEvent.startedAt !== ev.startedAt) { showNotif('That fight is over.'); return; }
   const dmg = getRobotDamage();
@@ -16124,16 +18346,150 @@ function fightWorldEventNpc(npc, ev) {
   triggerSwing(); sfx.clang();
   if (npc.hp > 0) {
     showNotif(`${ev.data.emoji} Hit for ${dmg}! (${npc.hp} HP left)`);
-    damagePlayer(ev.data.params.npcDamage, ev.data.name);
+    // Invasion Attempt's invaders fight back through their own active tick (tickInvasionCombat)
+    // instead of a free counter-hit on every player swing — the other 7 hostileFaction events stay
+    // exactly as they were, still just passive counter-punchers.
+    if (ev.type !== 'invasion-attempt') damagePlayer(ev.data.params.npcDamage, ev.data.name);
     return;
   }
-  npc.alive = false;
-  scene.remove(npc.mesh);
-  const zi = CITY_ZONES.indexOf(npc.zone); if (zi > -1) CITY_ZONES.splice(zi, 1);
-  if (npc.col) { const ci = CITY_COLS.indexOf(npc.col); if (ci > -1) CITY_COLS.splice(ci, 1); }
-  queueEarning(ev.data.params.rewardPerKill, 0, ev.data.name);
-  sfx.boom();
   showNotif(`${ev.data.emoji} Defeated! +${ev.data.params.rewardPerKill} S.I.P. pending`);
+  defeatWorldEventNpc(npc, ev);
+}
+
+// ─── INVASION ATTEMPT — real active combat, user's own ask: "make it so people attack us in our
+// country" + "they attack but you have 40 alies they have 20." Deliberately NOT built on the
+// shared spawnWorldEventNpcs()/fightWorldEventNpc() passive path the other 7 hostileFaction events
+// keep using — reuses the exact War Territory active-combat pattern instead (buildWarCitizenMesh,
+// fireWarShot, the WAR_TANK_*/WAR_ATTACK_*/WAR_CITIZEN_* constants) since that's the proven "two
+// autonomous factions actively fight, the player joins in" template already built this session.
+// Citizens do NOT auto-respawn here (unlike War Territories' 8s reinforcement) — a 150s event has
+// a real end, not an ongoing siege, so losing citizens is a real, lasting cost for that one fight.
+function spawnOneInvasionNpc(ev, isTank) {
+  const { x, z } = ev.data;
+  const angle = Math.random() * Math.PI * 2, dist = 5 + Math.random() * 18;
+  const nx = x + Math.cos(angle) * dist, nz = z + Math.sin(angle) * dist;
+  const color = isTank ? 0x3a4a2a : WAR_SOLDIER_COLORS[Math.floor(Math.random() * WAR_SOLDIER_COLORS.length)];
+  const shape = isTank ? 'tank' : ['drone', 'spider', 'elite'][Math.floor(Math.random() * 3)];
+  const mesh = buildRobotMesh(nx, nz, color, shape);
+  if (isTank) mesh.scale.set(1.6, 1.6, 1.6);
+  const gunLen = isTank ? 1.4 : 0.7;
+  const gun = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, gunLen), new THREE.MeshLambertMaterial({ color: 0x222222 }));
+  gun.position.set(0.4, isTank ? 1.1 : 1.7, 0.5);
+  mesh.add(gun);
+  const baseHp = ev.data.params.npcHealth;
+  const hp = isTank ? Math.round(baseHp * WAR_TANK_HP_MULT) : baseHp;
+  const npc = { hp, maxHp: hp, mesh, alive: true, zone: null, x: nx, z: nz, attackTimer: Math.random() * WAR_ATTACK_INTERVAL, isTank: !!isTank };
+  const zone = { x: nx, z: nz, r: isTank ? 10 : 8, label: isTank ? `${ev.data.emoji} Fight the Invasion Tank` : `${ev.data.emoji} Fight ${ev.data.name}`, action: () => fightWorldEventNpc(npc, ev) };
+  npc.zone = zone;
+  CITY_ZONES.push(zone);
+  worldEventNpcs.push(npc); // no addCol collider — these move, a fixed collider would leave a ghost wall behind
+}
+function spawnOneInvasionCitizen(ev) {
+  const { x, z } = ev.data;
+  const angle = Math.random() * Math.PI * 2, dist = 5 + Math.random() * 22;
+  const nx = x + Math.cos(angle) * dist, nz = z + Math.sin(angle) * dist;
+  const mesh = buildWarCitizenMesh(nx, nz);
+  const hp = ev.data.params.npcHealth;
+  invasionCitizens.push({ hp, maxHp: hp, mesh, alive: true, x: nx, z: nz, attackTimer: Math.random() * WAR_CITIZEN_ATTACK_INTERVAL });
+}
+function clearInvasionCitizens() {
+  invasionCitizens.forEach(c => { if (c.alive) scene.remove(c.mesh); });
+  invasionCitizens = [];
+}
+function defeatInvasionCitizen(c) {
+  c.alive = false;
+  scene.remove(c.mesh); // no respawn — see comment above
+}
+function spawnInvasionForces(ev) {
+  clearWorldEventNpcs();
+  clearInvasionCitizens();
+  resetExploxWall();
+  const tankCount = 2;
+  for (let i = 0; i < ev.data.params.count - tankCount; i++) spawnOneInvasionNpc(ev, false);
+  for (let i = 0; i < tankCount; i++) spawnOneInvasionNpc(ev, true);
+  for (let i = 0; i < INVASION_CITIZEN_COUNT; i++) spawnOneInvasionCitizen(ev);
+}
+function tickInvasionCombat(dt) {
+  if (!activeWorldEvent || activeWorldEvent.type !== 'invasion-attempt') return;
+  const ev = activeWorldEvent;
+  const wallUp = exploxWallHp > 0;
+  worldEventNpcs.forEach(npc => {
+    if (!npc.alive) return;
+    if (wallUp) {
+      // While the wall stands, EVERY invader's real target is the wall itself — the player and
+      // citizens are fully out of reach of direct fire until it comes down.
+      const dx = INVASION_SPOT.x - npc.x, dz = INVASION_SPOT.z - npc.z, dist = Math.hypot(dx, dz);
+      const range = (npc.isTank ? WAR_TANK_ATTACK_RANGE : WAR_ATTACK_RANGE) + EXPLOX_WALL_RADIUS;
+      if (dist < range) {
+        npc.attackTimer += dt;
+        if (npc.attackTimer > WAR_ATTACK_INTERVAL) {
+          npc.attackTimer = 0;
+          const dmg = npc.isTank ? Math.round(ev.data.params.npcDamage * WAR_TANK_DMG_MULT) : ev.data.params.npcDamage;
+          exploxWallHp = Math.max(0, exploxWallHp - dmg);
+          fireWarShot(npc.x, npc.isTank ? 1.4 : 1.7, npc.z, INVASION_SPOT.x, INVASION_SPOT.z);
+          sfx.laser();
+          if (exploxWallHp <= 0) { clearExploxWallMesh(); sfx.alarm(); showNotif('🧱💥 The Explox wall has been breached! Defend the city!'); }
+        }
+      } else {
+        const speed = npc.isTank ? WAR_TANK_SPEED : WAR_SOLDIER_SPEED;
+        npc.x += dx / dist * speed * dt; npc.z += dz / dist * speed * dt;
+        npc.mesh.position.set(npc.x, 0, npc.z);
+        npc.mesh.rotation.y = Math.atan2(dx, dz);
+        npc.zone.x = npc.x; npc.zone.z = npc.z;
+      }
+      return;
+    }
+    let tx = playerGroup.position.x, tz = playerGroup.position.z, targetCitizen = null;
+    let bestDist = Math.hypot(tx - npc.x, tz - npc.z);
+    invasionCitizens.forEach(c => {
+      if (!c.alive) return;
+      const d = Math.hypot(c.x - npc.x, c.z - npc.z);
+      if (d < bestDist) { bestDist = d; tx = c.x; tz = c.z; targetCitizen = c; }
+    });
+    const range = npc.isTank ? WAR_TANK_ATTACK_RANGE : WAR_ATTACK_RANGE;
+    const dx = tx - npc.x, dz = tz - npc.z, dist = Math.hypot(dx, dz);
+    if (dist < range) {
+      npc.attackTimer += dt;
+      if (npc.attackTimer > WAR_ATTACK_INTERVAL) {
+        npc.attackTimer = 0;
+        const dmg = npc.isTank ? Math.round(ev.data.params.npcDamage * WAR_TANK_DMG_MULT) : ev.data.params.npcDamage;
+        fireWarShot(npc.x, npc.isTank ? 1.4 : 1.7, npc.z, tx, tz);
+        sfx.laser();
+        if (targetCitizen) { targetCitizen.hp -= dmg; if (targetCitizen.hp <= 0) defeatInvasionCitizen(targetCitizen); }
+        else damagePlayer(dmg, npc.isTank ? 'an Invasion Tank' : 'an Invader');
+      }
+    } else {
+      const speed = npc.isTank ? WAR_TANK_SPEED : WAR_SOLDIER_SPEED;
+      npc.x += dx / dist * speed * dt; npc.z += dz / dist * speed * dt;
+      npc.mesh.position.set(npc.x, 0, npc.z);
+      npc.mesh.rotation.y = Math.atan2(dx, dz);
+      npc.zone.x = npc.x; npc.zone.z = npc.z;
+    }
+  });
+  invasionCitizens.forEach(c => {
+    if (!c.alive) return;
+    let target = null, bestDist = Infinity;
+    worldEventNpcs.forEach(npc => { if (!npc.alive) return; const d = Math.hypot(npc.x - c.x, npc.z - c.z); if (d < bestDist) { bestDist = d; target = npc; } });
+    if (!target) return;
+    if (bestDist < WAR_CITIZEN_ATTACK_RANGE) {
+      c.attackTimer += dt;
+      if (c.attackTimer > WAR_CITIZEN_ATTACK_INTERVAL) {
+        c.attackTimer = 0;
+        fireWarShot(c.x, 1.7, c.z, target.x, target.z);
+        sfx.laser();
+        target.hp -= ev.data.params.npcDamage; // citizens hit exactly as hard as invaders — parity, same as the War Territory citizens
+        if (target.hp <= 0) {
+          showNotif(`🎖️ Explox Citizens took down an invader! +${ev.data.params.rewardPerKill} S.I.P. pending`);
+          defeatWorldEventNpc(target, ev);
+        }
+      }
+    } else {
+      const dx = target.x - c.x, dz = target.z - c.z, d = Math.hypot(dx, dz);
+      c.x += dx / d * WAR_CITIZEN_SPEED * dt; c.z += dz / d * WAR_CITIZEN_SPEED * dt;
+      c.mesh.position.set(c.x, 0, c.z);
+      c.mesh.rotation.y = Math.atan2(dx, dz);
+    }
+  });
 }
 
 function updateWorldEventBanner() {
@@ -16159,12 +18515,15 @@ async function syncWorldEvent() {
       const survivedHazard = prev && prev.data.template === 'hazard' && !ev && playerHealth > 0;
       clearWorldEventDecor();
       clearWorldEventNpcs();
+      clearInvasionCitizens();
+      clearExploxWallMesh();
       clearWorldEventCrowd();
       worldEventGatherAccum = 0; worldEventHazardAccum = 0;
       if (ev) {
         showNotif(`${ev.data.emoji} ${ev.data.name} started at ${ev.data.locName || 'the city'}!${ev.startedBy === currentUser ? '' : ' Started by ' + ev.startedBy + '.'}`);
         buildWorldEventDecor(ev);
-        if (ev.data.template === 'hostileFaction') spawnWorldEventNpcs(ev);
+        if (ev.type === 'invasion-attempt') spawnInvasionForces(ev);
+        else if (ev.data.template === 'hostileFaction') spawnWorldEventNpcs(ev);
         if (ev.type === 'concert') {
           spawnConcertCrowd(ev.data.x, ev.data.z);
           bgMusic.switchTrack(Math.floor(Math.random()*bgMusic.TRACKS.length));
@@ -16191,17 +18550,27 @@ async function syncWorldEvent() {
 // the only new piece is the server tracking a persistent kill count per
 // territory and flipping it to permanently captured once the count is reached.
 const WAR_TERRITORIES = [
-  { name:'Japan',         x:600,  z:-600, killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
-  { name:'France',        x:-600, z:-600, killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
-  { name:'Brazil',        x:600,  z:700,  killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
-  { name:'Egypt',         x:900,  z:300,  killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
-  { name:'UK',            x:-700, z:-700, killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
-  { name:'Australia',     x:800,  z:-200, killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
-  { name:'Canada',        x:-600, z:400,  killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
-  { name:'Italy',         x:0,    z:-900, killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
-  { name:'Space Station', x:0,    z:1200, killsNeeded:20, npcCount:5, npcHealth:70, npcDamage:15, rewardPerKill:25, captureBonus:400 },
+  { name:'Japan',         x:COUNTRY_CENTERS.Japan.x,          z:COUNTRY_CENTERS.Japan.z,          killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
+  { name:'France',        x:COUNTRY_CENTERS.France.x,         z:COUNTRY_CENTERS.France.z,         killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
+  { name:'Brazil',        x:COUNTRY_CENTERS.Brazil.x,         z:COUNTRY_CENTERS.Brazil.z,         killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
+  { name:'Egypt',         x:COUNTRY_CENTERS.Egypt.x,          z:COUNTRY_CENTERS.Egypt.z,          killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
+  { name:'UK',            x:COUNTRY_CENTERS.UK.x,             z:COUNTRY_CENTERS.UK.z,             killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
+  { name:'Australia',     x:COUNTRY_CENTERS.Australia.x,      z:COUNTRY_CENTERS.Australia.z,      killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
+  { name:'Canada',        x:COUNTRY_CENTERS.Canada.x,         z:COUNTRY_CENTERS.Canada.z,         killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
+  { name:'Italy',         x:COUNTRY_CENTERS.Italy.x,          z:COUNTRY_CENTERS.Italy.z,          killsNeeded:15, npcCount:4, npcHealth:55, npcDamage:12, rewardPerKill:20, captureBonus:300 },
+  { name:'Space Station', x:COUNTRY_CENTERS['Space Station'].x, z:COUNTRY_CENTERS['Space Station'].z, killsNeeded:20, npcCount:5, npcHealth:70, npcDamage:15, rewardPerKill:25, captureBonus:400 },
 ];
 const WAR_ROOM_SPOT = { x: ARENA_CENTER.x, z: ARENA_CENTER.z - 60 }; // just outside the arena's sand, same neighborhood thematically
+
+// User's follow-up ask: "war needs to be like the other country attacks you guns tanks and more
+// their citizens also attack same as yours" — territory defenders used to be pure passive
+// counter-punchers standing still forever; a real Tank unit joins each territory's soldiers, both
+// sides are actively armed (see fireWarShot's tracer), and defenders now chase+shoot whichever is
+// closer: the player or a real Explox Citizen ally (see tickWarCombat below).
+const WAR_TANK_HP_MULT = 3, WAR_TANK_DMG_MULT = 1.8;
+const WAR_SOLDIER_SPEED = 3.5, WAR_TANK_SPEED = 1.8;
+const WAR_ATTACK_RANGE = 13, WAR_TANK_ATTACK_RANGE = 16, WAR_ATTACK_INTERVAL = 1.6;
+const WAR_CITIZEN_SPEED = 3.5, WAR_CITIZEN_ATTACK_RANGE = 12, WAR_CITIZEN_ATTACK_INTERVAL = 1.6;
 
 let territoryState = {};   // synced from server: {name: {captured, kills, capturedBy}}
 let _lastTerritorySync = -999;
@@ -16233,11 +18602,15 @@ const BOSS_DEFS = [
     color:0x3355cc, shape:'boss-titan', sipReward:[350,550], eliteReward:40, hitSip:2, hitElite:0 },
   { name:'Scrap King', emoji:'🗑️', x: DUMP_CENTER.x+40, z: DUMP_CENTER.z-20, maxHp:2000, damage:16, minLevel:0,
     color:0x778833, shape:'boss-scrapking', sipReward:[250,400], eliteReward:30, hitSip:2, hitElite:0 },
-  { name:'Frost Colossus', emoji:'❄️', x:-600, z:440, maxHp:4000, damage:26, minLevel:1,
+  // These 3 bosses stand right next to their thematically-matching country (ice guard/Canada,
+  // desert guard/Egypt, cosmic guard/Space Station) — moved in lockstep with item ~234's 20x
+  // country resize (same old-offset-from-old-center, ×20, applied to the new center) so they
+  // don't end up guarding empty ground where the country used to be.
+  { name:'Frost Colossus', emoji:'❄️', x:-7520, z:3540, maxHp:4000, damage:26, minLevel:1,
     color:0x66ccff, shape:'boss-frost', sipReward:[500,750], eliteReward:60, hitSip:2, hitElite:0 },
-  { name:'Sahara Golem', emoji:'🏜️', x:940, z:340, maxHp:5000, damage:30, minLevel:2,
+  { name:'Sahara Golem', emoji:'🏜️', x:6930, z:5940, maxHp:5000, damage:30, minLevel:2,
     color:0xd2a679, shape:'boss-golem', sipReward:[650,900], eliteReward:75, hitSip:3, hitElite:0 },
-  { name:'Void Serpent', emoji:'🌌', x:40, z:1240, maxHp:6000, damage:36, minLevel:3,
+  { name:'Void Serpent', emoji:'🌌', x:-3200, z:7730, maxHp:6000, damage:36, minLevel:3,
     color:0x440088, shape:'boss-serpent', sipReward:[800,1200], eliteReward:100, hitSip:3, hitElite:1 },
 ];
 let bossState  = {}; // name -> {hp, maxHp, alive, level, defeats} — local mirror, synced from the server when online
@@ -16541,6 +18914,7 @@ function awardBossDefeat(def) {
   const reward = lo + Math.floor(Math.random()*(hi-lo+1));
   queueEarning(reward, def.eliteReward, def.name);
   lifetimeRobotKills++; // a real robot kill either way, just a huge one — counts toward the Quests panel too
+  totalBossesDefeated++;
   saveCurrentUser();
   sfx.boom();
   showNotif(`🏆 ${def.emoji} ${def.name} DEFEATED! +${reward} S.I.P. +${def.eliteReward} 💎`);
@@ -16690,7 +19064,8 @@ function tickCompanionAssist(dt) {
   }
 }
 
-let warGarrisons = {};     // territory name -> [{hp,maxHp,mesh,col,alive,zone}]
+let warGarrisons = {};     // territory name -> [{hp,maxHp,mesh,alive,zone,x,z,attackTimer,isTank}] — enemy soldiers + a Tank unit
+let warCitizens  = {};     // territory name -> [{hp,maxHp,mesh,alive,x,z,attackTimer}] — Explox allies, fight FOR the player
 let warFlags = {};         // territory name -> flag Group, once captured
 let currentWarZone = null; // the WAR_TERRITORIES entry I'm currently near, or null
 
@@ -16738,18 +19113,37 @@ function clearWarGarrison(name) {
     if (!n.alive) return;
     scene.remove(n.mesh);
     const zi = CITY_ZONES.indexOf(n.zone); if (zi > -1) CITY_ZONES.splice(zi, 1);
-    if (n.col) { const ci = CITY_COLS.indexOf(n.col); if (ci > -1) CITY_COLS.splice(ci, 1); }
   });
   warGarrisons[name] = [];
 }
-function spawnOneWarNpc(terr) {
-  const angle = Math.random() * Math.PI * 2, dist = 5 + Math.random() * 15;
+// Deliberately NO addCol() collider any more — these units now actively move (see
+// tickWarCombat), and a fixed collider at spawn position would leave a "ghost wall" behind
+// exactly where it started, same class of bug already fixed once for Robot Arena robots when
+// THEY started moving. Killers/Coin Bots/Police Backup are all similarly walk-through for the
+// same reason — combat here is proximity-based, not physical blocking.
+// Real bug the user caught live ("why is there pink?"): World Events' worldEventNpcLook() picks a
+// soldier's color from the FULL 24-bit hash of the territory name — fine for a Garden Gnome
+// Uprising, but Space Station happened to hash to bright pink (#fbb2db) and Italy to magenta
+// (#d764ec), which undercuts the "real armed invasion" tone this whole overhaul is going for.
+// Same hash trick, but constrained to an actual military palette instead of the full rainbow.
+const WAR_SOLDIER_COLORS = [0x4a5a3a, 0x5a5a4a, 0x3a4a3a, 0x555555, 0x6b5a3a, 0x445544];
+function warSoldierColor(name) {
+  let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return WAR_SOLDIER_COLORS[h % WAR_SOLDIER_COLORS.length];
+}
+function spawnOneWarNpc(terr, isTank) {
+  const angle = Math.random() * Math.PI * 2, dist = (5 + Math.random() * 15) * COUNTRY_SCALE; // scaled with the 20x country resize (item ~234) — old range spawned NPCs almost inside a now much-bigger landmark
   const nx = terr.x + Math.cos(angle) * dist, nz = terr.z + Math.sin(angle) * dist;
-  const look = worldEventNpcLook(terr.name); // same deterministic hash-to-appearance trick as World Events
-  const mesh = buildRobotMesh(nx, nz, look.color, look.shape);
-  const col = addCol(CITY_COLS, nx, nz, 0.6, 0.6);
-  const npc = { hp: terr.npcHealth, maxHp: terr.npcHealth, mesh, col, alive: true, zone: null };
-  const zone = { x: nx, z: nz, r: 8, label: `🪖 Fight for ${terr.name}`, action: () => fightWarNpc(npc, terr) };
+  const look = worldEventNpcLook(terr.name); // still used for shape variety — only the color was the problem
+  const mesh = buildRobotMesh(nx, nz, isTank ? 0x3a4a2a : warSoldierColor(terr.name), isTank ? 'tank' : look.shape);
+  if (isTank) mesh.scale.set(1.6, 1.6, 1.6); // a real dedicated Tank unit, not just a reskinned soldier
+  const gunLen = isTank ? 1.4 : 0.7;
+  const gun = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, gunLen), new THREE.MeshLambertMaterial({ color: 0x222222 }));
+  gun.position.set(0.4, isTank ? 1.1 : 1.7, 0.5);
+  mesh.add(gun); // a visible gun prop — user's own ask: "guns"
+  const hp = isTank ? Math.round(terr.npcHealth * WAR_TANK_HP_MULT) : terr.npcHealth;
+  const npc = { hp, maxHp: hp, mesh, alive: true, zone: null, x: nx, z: nz, attackTimer: Math.random() * WAR_ATTACK_INTERVAL, isTank: !!isTank };
+  const zone = { x: nx, z: nz, r: isTank ? 10 : 8, label: isTank ? `🪖 Fight the ${terr.name} Tank` : `🪖 Fight for ${terr.name}`, action: () => fightWarNpc(npc, terr) };
   npc.zone = zone;
   CITY_ZONES.push(zone);
   if (!warGarrisons[terr.name]) warGarrisons[terr.name] = [];
@@ -16757,7 +19151,76 @@ function spawnOneWarNpc(terr) {
 }
 function spawnWarGarrison(terr) {
   clearWarGarrison(terr.name);
-  for (let i = 0; i < terr.npcCount; i++) spawnOneWarNpc(terr);
+  for (let i = 0; i < terr.npcCount; i++) spawnOneWarNpc(terr, false);
+  const tankCount = terr.name === 'Space Station' ? 2 : 1;
+  for (let i = 0; i < tankCount; i++) spawnOneWarNpc(terr, true);
+}
+// ── Explox Citizens — the player's own side, fighting back "same as yours" (user's own words).
+// Spawned in the same count as the enemy garrison (terr.npcCount) whenever a territory becomes
+// active, and torn down the same way — see spawnWarGarrison above for the exact parallel.
+function buildWarCitizenMesh(x, z) {
+  const g = new THREE.Group(); g.position.set(x, 0, z);
+  const uniform = 0x2299ee, uniformDark = 0x1a6fbb, skin = 0xe0b090; // Explox's own cyan — reads as "yours" at a glance next to the enemy's per-territory robot look
+  const mk = (w, h, d, color, px, py, pz) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color })); m.position.set(px, py, pz); m.castShadow = true; g.add(m); return m; };
+  mk(0.9, 1.1, 0.5, uniform, 0, 1.75, 0);      // torso
+  mk(1, 1, 1, skin, 0, 2.8, 0);                 // head
+  mk(0.35, 0.9, 0.35, uniform, -0.65, 1.75, 0); mk(0.35, 0.9, 0.35, uniform, 0.65, 1.75, 0); // arms
+  mk(0.38, 0.9, 0.38, uniformDark, -0.22, 0.75, 0); mk(0.38, 0.9, 0.38, uniformDark, 0.22, 0.75, 0); // legs
+  const rifle = mk(0.1, 0.1, 0.9, 0x333333, 0.65, 1.6, 0.3); rifle.rotation.x = -0.3; // armed too — same "guns" flavor as the enemy soldiers
+  scene.add(g);
+  return g;
+}
+function spawnOneWarCitizen(terr) {
+  const angle = Math.random() * Math.PI * 2, dist = (5 + Math.random() * 15) * COUNTRY_SCALE; // scaled with the 20x country resize (item ~234) — old range spawned NPCs almost inside a now much-bigger landmark
+  const nx = terr.x + Math.cos(angle) * dist, nz = terr.z + Math.sin(angle) * dist;
+  const mesh = buildWarCitizenMesh(nx, nz);
+  const c = { hp: terr.npcHealth, maxHp: terr.npcHealth, mesh, alive: true, x: nx, z: nz, attackTimer: Math.random() * WAR_CITIZEN_ATTACK_INTERVAL };
+  if (!warCitizens[terr.name]) warCitizens[terr.name] = [];
+  warCitizens[terr.name].push(c);
+}
+function spawnWarCitizens(terr) {
+  clearWarCitizens(terr.name);
+  for (let i = 0; i < terr.npcCount; i++) spawnOneWarCitizen(terr); // matches the enemy soldier count exactly — "same as yours"
+}
+function clearWarCitizens(name) {
+  (warCitizens[name] || []).forEach(c => { if (c.alive) scene.remove(c.mesh); });
+  warCitizens[name] = [];
+}
+function defeatWarCitizen(c, terr) {
+  c.alive = false;
+  scene.remove(c.mesh);
+  // reinforcements, same 8s idea as the enemy's own replacement below
+  setTimeout(() => {
+    const st = territoryState[terr.name];
+    if (!st || !st.captured) spawnOneWarCitizen(terr);
+  }, 8000);
+}
+// A quick visual tracer round — cheap (one box, removed after 90ms, no persistent state) so it's
+// safe to fire from many units at once. sfx.laser() doubles as the gunshot sound.
+function fireWarShot(x1, y1, z1, x2, z2) {
+  const dx = x2 - x1, dz = z2 - z1, len = Math.max(0.5, Math.hypot(dx, dz));
+  const tracer = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, len), new THREE.MeshBasicMaterial({ color: 0xffee66 }));
+  tracer.position.set((x1 + x2) / 2, y1, (z1 + z2) / 2);
+  tracer.rotation.y = Math.atan2(dx, dz);
+  scene.add(tracer);
+  setTimeout(() => scene.remove(tracer), 90);
+}
+// Shared cleanup+reward path for a defeated enemy — called both when the PLAYER lands the
+// killing blow (fightWarNpc) and when a Citizen ally does (tickWarCombat), so citizen kills pay
+// out and count toward capture exactly like the player's own kills do.
+function defeatWarNpc(npc, terr) {
+  npc.alive = false;
+  scene.remove(npc.mesh);
+  const zi = CITY_ZONES.indexOf(npc.zone); if (zi > -1) CITY_ZONES.splice(zi, 1);
+  queueEarning(terr.rewardPerKill, 0, `${terr.name} Defender`);
+  sfx.boom();
+  reportWarKill(terr);
+  // a replacement shows up after a cooldown, same idea as the Scrapyard's robot
+  // spawners - but only if the territory hasn't just been captured out from under it
+  setTimeout(() => {
+    const st = territoryState[terr.name];
+    if (!st || !st.captured) spawnOneWarNpc(terr, npc.isTank);
+  }, 8000);
 }
 function fightWarNpc(npc, terr) {
   if (!npc.alive) { showNotif('That fight is over.'); return; }
@@ -16767,23 +19230,134 @@ function fightWarNpc(npc, terr) {
   lifetimeWarHits++;
   if (npc.hp > 0) {
     showNotif(`🪖 Hit for ${dmg}! (${npc.hp} HP left)`);
-    damagePlayer(terr.npcDamage, terr.name + ' defender');
     return;
   }
-  npc.alive = false;
-  scene.remove(npc.mesh);
-  const zi = CITY_ZONES.indexOf(npc.zone); if (zi > -1) CITY_ZONES.splice(zi, 1);
-  if (npc.col) { const ci = CITY_COLS.indexOf(npc.col); if (ci > -1) CITY_COLS.splice(ci, 1); }
-  queueEarning(terr.rewardPerKill, 0, `${terr.name} Defender`);
-  sfx.boom();
   showNotif(`🪖 Defender defeated! +${terr.rewardPerKill} S.I.P. pending`);
-  reportWarKill(terr);
-  // a replacement shows up after a cooldown, same idea as the Scrapyard's robot
-  // spawners - but only if the territory hasn't just been captured out from under it
-  setTimeout(() => {
-    const st = territoryState[terr.name];
-    if (!st || !st.captured) spawnOneWarNpc(terr);
-  }, 8000);
+  defeatWarNpc(npc, terr);
+}
+// ── Active combat tick — the actual "attacks you" / "citizens also attack" behavior. Every
+// living enemy (soldier or Tank) in the CURRENT territory hunts down whichever is closer, the
+// player or the nearest living Citizen, closing distance and firing once in range; every living
+// Citizen does the same in reverse, always targeting the nearest living enemy. Only
+// currentWarZone's forces ever run this, matching the existing "one territory's forces exist at
+// a time" architecture (see tickWar below).
+function tickWarCombat(dt) {
+  if (!currentWarZone) return;
+  const terr = currentWarZone;
+  const enemies = warGarrisons[terr.name] || [];
+  const citizens = warCitizens[terr.name] || [];
+
+  enemies.forEach(npc => {
+    if (!npc.alive) return;
+    let tx = playerGroup.position.x, tz = playerGroup.position.z, targetCitizen = null;
+    let bestDist = Math.hypot(tx - npc.x, tz - npc.z);
+    citizens.forEach(c => {
+      if (!c.alive) return;
+      const d = Math.hypot(c.x - npc.x, c.z - npc.z);
+      if (d < bestDist) { bestDist = d; tx = c.x; tz = c.z; targetCitizen = c; }
+    });
+    const range = npc.isTank ? WAR_TANK_ATTACK_RANGE : WAR_ATTACK_RANGE;
+    const dx = tx - npc.x, dz = tz - npc.z, dist = Math.hypot(dx, dz);
+    if (dist < range) {
+      npc.attackTimer += dt;
+      if (npc.attackTimer > WAR_ATTACK_INTERVAL) {
+        npc.attackTimer = 0;
+        const dmg = npc.isTank ? Math.round(terr.npcDamage * WAR_TANK_DMG_MULT) : terr.npcDamage;
+        fireWarShot(npc.x, npc.isTank ? 1.4 : 1.7, npc.z, tx, tz);
+        sfx.laser();
+        if (targetCitizen) { targetCitizen.hp -= dmg; if (targetCitizen.hp <= 0) defeatWarCitizen(targetCitizen, terr); }
+        else damagePlayer(dmg, npc.isTank ? `a ${terr.name} Tank` : `a ${terr.name} soldier`);
+      }
+    } else {
+      const speed = npc.isTank ? WAR_TANK_SPEED : WAR_SOLDIER_SPEED;
+      npc.x += dx / dist * speed * dt; npc.z += dz / dist * speed * dt;
+      npc.mesh.position.set(npc.x, 0, npc.z);
+      npc.mesh.rotation.y = Math.atan2(dx, dz);
+      npc.zone.x = npc.x; npc.zone.z = npc.z; // keep the E-interact fight zone following it
+    }
+  });
+
+  citizens.forEach(c => {
+    if (!c.alive) return;
+    let target = null, bestDist = Infinity;
+    enemies.forEach(npc => { if (!npc.alive) return; const d = Math.hypot(npc.x - c.x, npc.z - c.z); if (d < bestDist) { bestDist = d; target = npc; } });
+    if (!target) return;
+    if (bestDist < WAR_CITIZEN_ATTACK_RANGE) {
+      c.attackTimer += dt;
+      if (c.attackTimer > WAR_CITIZEN_ATTACK_INTERVAL) {
+        c.attackTimer = 0;
+        fireWarShot(c.x, 1.7, c.z, target.x, target.z);
+        sfx.laser();
+        target.hp -= terr.npcDamage; // citizens hit exactly as hard as the enemy soldiers — "same as yours"
+        if (target.hp <= 0) {
+          showNotif(`🎖️ Your citizens took down a ${terr.name} defender! +${terr.rewardPerKill} S.I.P. pending`);
+          defeatWarNpc(target, terr);
+        }
+      }
+    } else {
+      const dx = target.x - c.x, dz = target.z - c.z, d = Math.hypot(dx, dz);
+      c.x += dx / d * WAR_CITIZEN_SPEED * dt; c.z += dz / d * WAR_CITIZEN_SPEED * dt;
+      c.mesh.position.set(c.x, 0, c.z);
+      c.mesh.rotation.y = Math.atan2(dx, dz);
+    }
+  });
+}
+// ── WALLS — user's own ask: "every country has a wall including explox," and specifically wants
+// a REAL defense you must breach (not just a decoration, not just a non-lethal barrier) — a real
+// solid ring with its own HP, blocking the player's actual movement (real addCol colliders) until
+// it's beaten down. One shared builder for both the 8 (well, 9 — Space Station included, since it
+// already shares every other War Territory mechanic) territory walls AND Explox's own.
+function buildWallRing(cx, cz, radius, segments, color) {
+  const g = new THREE.Group(); scene.add(g);
+  const cols = [];
+  const segLen = (2 * Math.PI * radius / segments) * 1.15; // slight overlap so there's no gap to slip through
+  for (let i = 0; i < segments; i++) {
+    const ang = (i / segments) * Math.PI * 2;
+    const sx = cx + Math.cos(ang) * radius, sz = cz + Math.sin(ang) * radius;
+    const seg = new THREE.Mesh(new THREE.BoxGeometry(segLen, 6, 1.2), new THREE.MeshLambertMaterial({ color }));
+    seg.position.set(sx, 3, sz);
+    seg.rotation.y = -ang + Math.PI / 2; // face tangent to the circle, wall-like
+    g.add(seg);
+    cols.push(addCol(CITY_COLS, sx, sz, segLen / 2, 0.7));
+  }
+  return { mesh: g, cols };
+}
+function clearWallStructure(w) {
+  if (!w || !w.alive) return;
+  scene.remove(w.mesh);
+  w.cols.forEach(c => { const ci = CITY_COLS.indexOf(c); if (ci > -1) CITY_COLS.splice(ci, 1); });
+  w.alive = false;
+}
+
+const WALL_HP_MULT = 5; // a real fight to bring down, not a speed bump
+const WAR_WALL_RADIUS = 28 * COUNTRY_SCALE; // scaled with the 20x country resize (item ~234) — still needs to clear the largest scaled landmark half-width (Italy: 22*20=440)
+let warWalls = {};        // territory name -> {hp, maxHp, alive, mesh, cols, zone}
+let breachedWarWalls = new Set(); // stays breached for the rest of THIS session once knocked down (matches warGarrisons/warCitizens' own session-only, non-persisted state)
+function spawnWarWall(terr) {
+  if (breachedWarWalls.has(terr.name)) return; // already fought through it this session
+  const hp = Math.round(terr.npcHealth * WALL_HP_MULT);
+  const built = buildWallRing(terr.x, terr.z, WAR_WALL_RADIUS, 12, 0x6b5a3a);
+  const zone = { x: terr.x, z: terr.z, r: WAR_WALL_RADIUS + 4, label: `🧱 Attack the ${terr.name} Wall`, action: () => hitWarWall(terr) };
+  CITY_ZONES.push(zone);
+  warWalls[terr.name] = { hp, maxHp: hp, alive: true, mesh: built.mesh, cols: built.cols, zone };
+}
+function clearWarWall(name) {
+  const w = warWalls[name]; if (!w) return;
+  clearWallStructure(w);
+  const zi = CITY_ZONES.indexOf(w.zone); if (zi > -1) CITY_ZONES.splice(zi, 1);
+  delete warWalls[name];
+}
+function hitWarWall(terr) {
+  const w = warWalls[terr.name];
+  if (!w || !w.alive) { showNotif('The wall is already down — go fight for the territory!'); return; }
+  const dmg = getRobotDamage();
+  w.hp -= dmg;
+  triggerSwing(); sfx.clang();
+  if (w.hp > 0) { showNotif(`🧱 Hit the wall for ${dmg}! (${w.hp}/${w.maxHp} HP left)`); return; }
+  clearWallStructure(w);
+  breachedWarWalls.add(terr.name);
+  sfx.boom();
+  showNotif(`🧱💥 The ${terr.name} wall is breached! Fight your way in and take the territory!`);
 }
 async function reportWarKill(terr) {
   if (serverMode !== 'online') return;
@@ -16799,6 +19373,8 @@ async function reportWarKill(terr) {
       queueEarning(terr.captureBonus, 0, `${terr.name} Captured`);
       showNotif(`🏆🎉 ${terr.name} CAPTURED for Explox! +${terr.captureBonus} S.I.P. bonus pending!`);
       clearWarGarrison(terr.name);
+      clearWarCitizens(terr.name);
+      clearWarWall(terr.name);
       buildWarFlag(terr);
     }
   } catch (e) { /* next report/sync will catch up */ }
@@ -16813,7 +19389,7 @@ async function syncTerritories() {
       territoryState[name] = data[name];
       if (data[name].captured) {
         const terr = WAR_TERRITORIES.find(t => t.name === name);
-        if (terr) { buildWarFlag(terr); clearWarGarrison(name); }
+        if (terr) { buildWarFlag(terr); clearWarGarrison(name); clearWarCitizens(name); clearWarWall(name); }
       }
     });
   } catch (e) { /* next sync will catch up */ }
@@ -16823,17 +19399,17 @@ async function syncTerritories() {
 // kept alive when nobody's anywhere near it).
 function tickWar(t) {
   if (serverMode !== 'online') return;
-  let nearest = null, nearestDist = 70;
+  let nearest = null, nearestDist = 70 * COUNTRY_SCALE; // scaled with the 20x country resize (item ~234) so the garrison/wall trigger distance still makes sense at the new city size
   WAR_TERRITORIES.forEach(terr => {
     const d = Math.hypot(playerGroup.position.x - terr.x, playerGroup.position.z - terr.z);
     if (d < nearestDist) { nearestDist = d; nearest = terr; }
   });
   if (nearest !== currentWarZone) {
-    if (currentWarZone) clearWarGarrison(currentWarZone.name);
+    if (currentWarZone) { clearWarGarrison(currentWarZone.name); clearWarCitizens(currentWarZone.name); clearWarWall(currentWarZone.name); }
     currentWarZone = nearest;
     if (nearest) {
       const st = territoryState[nearest.name];
-      if (!st || !st.captured) spawnWarGarrison(nearest);
+      if (!st || !st.captured) { spawnWarGarrison(nearest); spawnWarCitizens(nearest); spawnWarWall(nearest); }
     }
   }
 }
@@ -17575,14 +20151,14 @@ function buildWindowSceneTexture(){
 // we write it ONCE in buildTownExtras() and feed it a different "theme" object
 // for each country. Same function, different data in = different town out.
 const COUNTRY_THEMES = [
-  { name:'Japan',     cx:600,  cz:-600, wall:0xf5e6d3, roof:0xcc3333, glass:0xffc9dd, tree:0xffaabb, lamp:0xff88aa, shops:['🍣 Sushi Bar','🍜 Ramen Shop','🎎 Kimono Store','🍙 Onigiri Stand','🎏 Origami Studio','🥋 Dojo'] },
-  { name:'France',    cx:-600, cz:-600, wall:0xf0e8d8, roof:0x8899bb, glass:0xcfe6ff, tree:0x5c8a4a, lamp:0xffd700, shops:['🥐 Bakery','☕ Café','🎨 Art Shop','🧀 Cheese Shop','🍷 Wine Cellar','👗 Fashion Boutique'] },
-  { name:'Brazil',    cx:600,  cz:700,  wall:0xffdd88, roof:0x00aa44, glass:0x9fe8ff, tree:0x22aa33, lamp:0xff8800, shops:['⚽ Soccer Shop','🥥 Juice Bar','🎉 Carnival Store','🎶 Samba Studio','🏖️ Beach Shop','🦜 Rainforest Tours'] },
-  { name:'Egypt',     cx:900,  cz:300,  wall:0xe8cf9a, roof:0xcc9944, glass:0xffe9b8, tree:0xb8934a, lamp:0xffdd88, shops:['🏺 Pottery Shop','🐫 Camel Rides','💎 Gem Market','🌶️ Spice Market','📜 Papyrus Shop','⛵ Nile Cruise Booth'] },
-  { name:'UK',        cx:-700, cz:-700, wall:0x9aabcc, roof:0x667799, glass:0xcfe0ff, tree:0x4a7a4a, lamp:0xaabbcc, shops:['🫖 Tea House','📚 Book Shop','☂️ Umbrella Store','🎻 Music Hall','🍺 Pub','🎩 Hat Shop'] },
-  { name:'Australia', cx:800,  cz:-200, wall:0xf5f5f5, roof:0xffcc00, glass:0xbfe8ff, tree:0x2d7a2d, lamp:0xffbb44, shops:['🏄 Surf Shop','🍬 Candy Shack','🐨 Wildlife Store','🦘 Outback Tours','🥧 Meat Pie Shop','🏊 Dive Shop'] },
-  { name:'Canada',    cx:-600, cz:400,  wall:0xffffff, roof:0xcc2222, glass:0xcfe6ff, tree:0x1a7a1a, lamp:0xff4444, shops:['🏒 Hockey Shop','🥞 Pancake House','🧣 Winter Gear','🍁 Maple Syrup Shop','🎣 Fishing Store','🛶 Canoe Rentals'] },
-  { name:'Italy',     cx:0,    cz:-900, wall:0xddb870, roof:0xcc9944, glass:0xffe0b0, tree:0x2d7a2d, lamp:0xffcc88, shops:['🍝 Pasta House','🍦 Gelato Shop','🎭 Mask Shop','🍷 Vineyard Shop','🏛️ Museum Gift Shop','🚤 Gondola Rides'] },
+  { name:'Japan',     cx:COUNTRY_CENTERS.Japan.x,     cz:COUNTRY_CENTERS.Japan.z,     wall:0xf5e6d3, roof:0xcc3333, glass:0xffc9dd, tree:0xffaabb, lamp:0xff88aa, shops:['🍣 Sushi Bar','🍜 Ramen Shop','🎎 Kimono Store','🍙 Onigiri Stand','🎏 Origami Studio','🥋 Dojo'] },
+  { name:'France',    cx:COUNTRY_CENTERS.France.x,    cz:COUNTRY_CENTERS.France.z,    wall:0xf0e8d8, roof:0x8899bb, glass:0xcfe6ff, tree:0x5c8a4a, lamp:0xffd700, shops:['🥐 Bakery','☕ Café','🎨 Art Shop','🧀 Cheese Shop','🍷 Wine Cellar','👗 Fashion Boutique'] },
+  { name:'Brazil',    cx:COUNTRY_CENTERS.Brazil.x,    cz:COUNTRY_CENTERS.Brazil.z,    wall:0xffdd88, roof:0x00aa44, glass:0x9fe8ff, tree:0x22aa33, lamp:0xff8800, shops:['⚽ Soccer Shop','🥥 Juice Bar','🎉 Carnival Store','🎶 Samba Studio','🏖️ Beach Shop','🦜 Rainforest Tours'] },
+  { name:'Egypt',     cx:COUNTRY_CENTERS.Egypt.x,     cz:COUNTRY_CENTERS.Egypt.z,     wall:0xe8cf9a, roof:0xcc9944, glass:0xffe9b8, tree:0xb8934a, lamp:0xffdd88, shops:['🏺 Pottery Shop','🐫 Camel Rides','💎 Gem Market','🌶️ Spice Market','📜 Papyrus Shop','⛵ Nile Cruise Booth'] },
+  { name:'UK',        cx:COUNTRY_CENTERS.UK.x,        cz:COUNTRY_CENTERS.UK.z,        wall:0x9aabcc, roof:0x667799, glass:0xcfe0ff, tree:0x4a7a4a, lamp:0xaabbcc, shops:['🫖 Tea House','📚 Book Shop','☂️ Umbrella Store','🎻 Music Hall','🍺 Pub','🎩 Hat Shop'] },
+  { name:'Australia', cx:COUNTRY_CENTERS.Australia.x, cz:COUNTRY_CENTERS.Australia.z, wall:0xf5f5f5, roof:0xffcc00, glass:0xbfe8ff, tree:0x2d7a2d, lamp:0xffbb44, shops:['🏄 Surf Shop','🍬 Candy Shack','🐨 Wildlife Store','🦘 Outback Tours','🥧 Meat Pie Shop','🏊 Dive Shop'] },
+  { name:'Canada',    cx:COUNTRY_CENTERS.Canada.x,    cz:COUNTRY_CENTERS.Canada.z,    wall:0xffffff, roof:0xcc2222, glass:0xcfe6ff, tree:0x1a7a1a, lamp:0xff4444, shops:['🏒 Hockey Shop','🥞 Pancake House','🧣 Winter Gear','🍁 Maple Syrup Shop','🎣 Fishing Store','🛶 Canoe Rentals'] },
+  { name:'Italy',     cx:COUNTRY_CENTERS.Italy.x,     cz:COUNTRY_CENTERS.Italy.z,     wall:0xddb870, roof:0xcc9944, glass:0xffe0b0, tree:0x2d7a2d, lamp:0xffcc88, shops:['🍝 Pasta House','🍦 Gelato Shop','🎭 Mask Shop','🍷 Vineyard Shop','🏛️ Museum Gift Shop','🚤 Gondola Rides'] },
 ];
 
 // A real city now, not a one-block "little town": a plaza, TWO rows of named shops (6 total, up
@@ -17622,29 +20198,37 @@ function buildTownExtras(t){
     box(9,h,9, wall, cx+dx,h/2,dz);
     box(9.4,0.4,9.4, roof, cx+dx,h+0.2,dz);
     for(let wRow=0; wRow*3+2<h; wRow+=3){
-      const win = new THREE.Mesh(new THREE.BoxGeometry(7.2,1.2,0.1), winMat);
-      win.position.set(cx+dx, wRow+2, dz-4.55);
+      // A manually-built mesh, not routed through box() — needs the same scalePt()/scaleLen()
+      // treatment box() applies internally, done by hand here (see those functions' own comment).
+      const [wx,wz] = scalePt(cx+dx, dz-4.55);
+      const win = new THREE.Mesh(new THREE.BoxGeometry(scaleLen(7.2),scaleLen(1.2),scaleLen(0.1)), winMat);
+      win.position.set(wx, scaleLen(wRow+2), wz);
       scene.add(win);
     }
     addCol(CITY_COLS, cx+dx,dz, 4.5,4.5);
   });
 
   // A real Airport + a real Hotel per country (item 154) — reusing the (-30/+30, dz+55) slot
-  // the filler loop above deliberately skipped.
+  // the filler loop above deliberately skipped. apX/apZ/htX/htZ stay UNSCALED (box()/addCol()/
+  // buildSign() below scale them automatically, same as everywhere else in this function) — but
+  // CITY_ZONES.push and the enterAirportLounge()/checkinCountryHotel() calls bypass all 3 of
+  // those helpers entirely, so they need a real, explicitly-scaled copy of the same point.
   const apX = cx-30, apZ = cz+16+3*13, htX = cx+30, htZ = apZ;
+  const [apXs,apZs] = scalePt(apX,apZ), [htXs,htZs] = scalePt(htX,htZ);
   box(9,3,9, 0xcccccc, apX,1.5,apZ);
   box(1.6,6,1.6, 0x888888, apX,6,apZ);
-  { const bulb=new THREE.Mesh(new THREE.SphereGeometry(0.4,8,8), new THREE.MeshBasicMaterial({color:0xff3333})); bulb.position.set(apX,9.2,apZ); scene.add(bulb);
-    const pl=new THREE.PointLight(0xff3333,0.8,14); pl.position.set(apX,9.2,apZ); scene.add(pl); }
+  { const [bx,bz] = scalePt(apX,apZ);
+    const bulb=new THREE.Mesh(new THREE.SphereGeometry(scaleLen(0.4),8,8), new THREE.MeshBasicMaterial({color:0xff3333})); bulb.position.set(bx,scaleLen(9.2),bz); scene.add(bulb);
+    const pl=new THREE.PointLight(0xff3333,0.8,scaleLen(14)); pl.position.set(bx,scaleLen(9.2),bz); scene.add(pl); }
   buildSign(`✈️ ${t.name} Airport`, apX,5,apZ-5.2);
   addCol(CITY_COLS, apX,apZ, 4.5,4.5);
-  CITY_ZONES.push({ x:apX, z:apZ-4.6, r:3.2, label:`✈️ ${t.name} Airport`, action: () => enterAirportLounge(t.name, apX, apZ-8, false) });
+  CITY_ZONES.push({ x:apXs, z:apZs-scaleLen(4.6), r:scaleLen(3.2), label:`✈️ ${t.name} Airport`, action: () => enterAirportLounge(t.name, apXs, apZs-scaleLen(8), false) });
 
   box(9,10,9, 0xddccbb, htX,5,htZ);
   box(9.4,0.4,9.4, 0x8a6a4a, htX,10.2,htZ);
   buildSign(`🏨 ${t.name} Hotel`, htX,11,htZ-5.2);
   addCol(CITY_COLS, htX,htZ, 4.5,4.5);
-  CITY_ZONES.push({ x:htX, z:htZ-4.6, r:3.2, label:`🏨 ${t.name} Hotel`, action: () => checkinCountryHotel(t.name, htX, htZ-7) });
+  CITY_ZONES.push({ x:htXs, z:htZs-scaleLen(4.6), r:scaleLen(3.2), label:`🏨 ${t.name} Hotel`, action: () => checkinCountryHotel(t.name, htXs, htZs-scaleLen(7)) });
 
   // A real park strip down the middle, wider than before
   [[cx-26,cz+14],[cx+26,cz+14],[cx-26,cz+58],[cx+26,cz+58],[cx-26,cz+36],[cx+26,cz+36]].forEach(([tx,tz])=>{
@@ -17656,16 +20240,27 @@ function buildTownExtras(t){
   [cz+16, cz+30, cz+44, cz+58].forEach(lz=>{
     [[cx-23,lz],[cx+23,lz]].forEach(([lx])=>{
       box(0.25,6,0.25, 0x444444, lx,3,lz);
-      const bulb=new THREE.Mesh(new THREE.SphereGeometry(0.35,8,8), new THREE.MeshBasicMaterial({color:lamp}));
-      bulb.position.set(lx,6,lz); scene.add(bulb);
-      const pl=new THREE.PointLight(lamp,0.6,16); pl.position.set(lx,5.8,lz); scene.add(pl);
+      const [bx,bz] = scalePt(lx,lz);
+      const bulb=new THREE.Mesh(new THREE.SphereGeometry(scaleLen(0.35),8,8), new THREE.MeshBasicMaterial({color:lamp}));
+      bulb.position.set(bx,scaleLen(6),bz); scene.add(bulb);
+      const pl=new THREE.PointLight(lamp,0.6,scaleLen(16)); pl.position.set(bx,scaleLen(5.8),bz); scene.add(pl);
     });
   });
 }
 
 function buildCountryZones(){
-  // JAPAN — x=600, z=-600
-  const jx=600,jz=-600;
+  // Every country's landmark block below sets a transient build-context (_buildOrigin/
+  // _buildScale, see box()'s own comment in HELPERS) for the duration of that ONE country, then
+  // resets it — box()/addCol()/buildSign() all read it automatically. jx/jz (etc.) are now the
+  // real, final, 20x-scaled centers (item ~234, user: "lets make the countrys 20 times bigger" —
+  // see COUNTRY_CENTERS' own comment for the new ring layout) — every "jx-8"/"jz+12"-style local
+  // offset used throughout each block is untouched from the original, still expressed the exact
+  // same way it always was; box() scales just that small offset by 20x automatically, so none of
+  // these ~100 call sites needed hand-editing individually.
+
+  // JAPAN
+  const jx=COUNTRY_CENTERS.Japan.x, jz=COUNTRY_CENTERS.Japan.z;
+  _buildOrigin={x:jx,z:jz}; _buildScale=COUNTRY_SCALE;
   box(20,15,16, 0xf5e6d3, jx,7.5,jz);
   box(24,1.2,20, 0xcc3333, jx,15.8,jz);
   box(22,0.5,18, 0xaa2222, jx,17,jz);
@@ -17673,11 +20268,13 @@ function buildCountryZones(){
   box(18,1.8,2, 0xcc2200, jx,13,jz+12); box(18,1,1.5, 0xcc2200, jx,11,jz+12);
   [-12,-6,0,6,12].forEach(i=>{ box(0.5,5,0.5,0x4a2800,jx+i,2.5,jz+18); box(5,4,5,0xffaabb,jx+i,6,jz+18); });
   buildSign('🌸 JAPAN',jx,18,jz+10);
-  { const pl=new THREE.PointLight(0xff88aa,1.2,50); pl.position.set(jx,8,jz); scene.add(pl); }
+  { const [px,pz]=scalePt(jx,jz); const pl=new THREE.PointLight(0xff88aa,1.2,scaleLen(50)); pl.position.set(px,scaleLen(8),pz); scene.add(pl); }
   addCol(CITY_COLS,jx,jz,12,10);
+  _buildOrigin=null; _buildScale=1;
 
-  // FRANCE — x=-600, z=-600
-  const fx=-600,fz=-600;
+  // FRANCE
+  const fx=COUNTRY_CENTERS.France.x, fz=COUNTRY_CENTERS.France.z;
+  _buildOrigin={x:fx,z:fz}; _buildScale=COUNTRY_SCALE;
   box(16,12,14, 0xf0e8d8, fx,6,fz);
   box(18,0.6,16, 0xddccaa, fx,12.4,fz);
   // Mini Eiffel Tower
@@ -17686,33 +20283,39 @@ function buildCountryZones(){
   box(5,2,5,    0x777788, fx+22,4.5, fz);
   box(2,20,2,   0x888899, fx+22,7,   fz);
   box(0.4,8,0.4, 0x999900, fx+22,28, fz);
-  { const pl=new THREE.PointLight(0xffd700,1.2,60); pl.position.set(fx+22,18,fz); scene.add(pl); }
+  { const [px,pz]=scalePt(fx+22,fz); const pl=new THREE.PointLight(0xffd700,1.2,scaleLen(60)); pl.position.set(px,scaleLen(18),pz); scene.add(pl); }
   buildSign('🗼 FRANCE',fx,14,fz+8);
   addCol(CITY_COLS,fx,fz,10,9);
+  _buildOrigin=null; _buildScale=1;
 
-  // BRAZIL — x=600, z=700
-  const brx=600,brz=700;
+  // BRAZIL
+  const brx=COUNTRY_CENTERS.Brazil.x, brz=COUNTRY_CENTERS.Brazil.z;
+  _buildOrigin={x:brx,z:brz}; _buildScale=COUNTRY_SCALE;
   box(22,14,16, 0xffaa00, brx,7,brz);
   box(24,0.6,18, 0x00aa44, brx,14.4,brz);
   box(10,10,10, 0xff4422, brx+18,5,brz);
   box(10,12,10, 0x00aadd, brx-18,6,brz);
   [-12,-6,0,6,12].forEach(i=>{ box(0.5,8,0.5,0x4a2800,brx+i,4,brz+14); box(7,3,7,0x22aa33,brx+i,9,brz+14); });
   buildSign('🌴 BRAZIL',brx,17,brz+10);
-  { const pl=new THREE.PointLight(0xff8800,1.5,50); pl.position.set(brx,10,brz); scene.add(pl); }
+  { const [px,pz]=scalePt(brx,brz); const pl=new THREE.PointLight(0xff8800,1.5,scaleLen(50)); pl.position.set(px,scaleLen(10),pz); scene.add(pl); }
   addCol(CITY_COLS,brx,brz,13,10);
+  _buildOrigin=null; _buildScale=1;
 
-  // EGYPT — x=900, z=300
-  const ex=900,ez=300;
+  // EGYPT
+  const ex=COUNTRY_CENTERS.Egypt.x, ez=COUNTRY_CENTERS.Egypt.z;
+  _buildOrigin={x:ex,z:ez}; _buildScale=COUNTRY_SCALE;
   for(let i=0;i<9;i++){ const s=18-i*1.9; box(s,2,s,0xddb860,ex,i*2+1,ez); }
   box(14,5,7,  0xcc9944, ex+28,2.5,ez);
   box(4,6,4,   0xddb860, ex+35,5.5,ez);
   box(2,3,8,   0xcc9944, ex+25,1,ez);
   buildSign('🏛️ EGYPT',ex,20,ez+10);
-  { const pl=new THREE.PointLight(0xffdd88,2.0,70); pl.position.set(ex,12,ez); scene.add(pl); }
+  { const [px,pz]=scalePt(ex,ez); const pl=new THREE.PointLight(0xffdd88,2.0,scaleLen(70)); pl.position.set(px,scaleLen(12),pz); scene.add(pl); }
   addCol(CITY_COLS,ex,ez,10,10);
+  _buildOrigin=null; _buildScale=1;
 
-  // UK — x=-700, z=-700
-  const ux=-700,uz=-700;
+  // UK
+  const ux=COUNTRY_CENTERS.UK.x, uz=COUNTRY_CENTERS.UK.z;
+  _buildOrigin={x:ux,z:uz}; _buildScale=COUNTRY_SCALE;
   box(20,14,16, 0x8899bb, ux,7,uz);
   box(22,0.5,18, 0x667799, ux,14.4,uz);
   box(2.2,5.5,2.2, 0xdd2222, ux+12,2.8,uz+10);
@@ -17721,22 +20324,26 @@ function buildCountryZones(){
   box(11,4,11,  0x887766, ux-20,46,uz);
   box(0.6,12,0.6, 0x555544, ux-20,52,uz);
   buildSign('🎡 UK',ux,16,uz+10);
-  { const pl=new THREE.PointLight(0xaabbcc,1.2,50); pl.position.set(ux,10,uz); scene.add(pl); }
+  { const [px,pz]=scalePt(ux,uz); const pl=new THREE.PointLight(0xaabbcc,1.2,scaleLen(50)); pl.position.set(px,scaleLen(10),pz); scene.add(pl); }
   addCol(CITY_COLS,ux,uz,12,10);
+  _buildOrigin=null; _buildScale=1;
 
-  // AUSTRALIA — x=800, z=-200
-  const ax=800,az=-200;
+  // AUSTRALIA
+  const ax=COUNTRY_CENTERS.Australia.x, az=COUNTRY_CENTERS.Australia.z;
+  _buildOrigin={x:ax,z:az}; _buildScale=COUNTRY_SCALE;
   box(28,6,18, 0xf0f0f0, ax,3,az);
   box(14,16,10, 0xf5f5f5, ax-6,11,az);
   box(12,12,8,  0xeeeeee, ax+7,9,az);
   box(8,8,6,    0xffffff, ax,6.5,az+10);
   box(0.2,5,3, 0xffcc00, ax+18,2.5,az+8);
   buildSign('🦘 AUSTRALIA',ax,20,az+10);
-  { const pl=new THREE.PointLight(0xffbb44,1.5,50); pl.position.set(ax,10,az); scene.add(pl); }
+  { const [px,pz]=scalePt(ax,az); const pl=new THREE.PointLight(0xffbb44,1.5,scaleLen(50)); pl.position.set(px,scaleLen(10),pz); scene.add(pl); }
   addCol(CITY_COLS,ax,az,15,11);
+  _buildOrigin=null; _buildScale=1;
 
-  // CANADA — x=-600, z=400
-  const cx2=-600,cz2=400;
+  // CANADA
+  const cx2=COUNTRY_CENTERS.Canada.x, cz2=COUNTRY_CENTERS.Canada.z;
+  _buildOrigin={x:cx2,z:cz2}; _buildScale=COUNTRY_SCALE;
   box(22,14,16, 0xcc2222, cx2,7,cz2);
   box(24,0.5,18, 0xffffff, cx2,14.4,cz2);
   box(14,10,14, 0xdd3333, cx2+22,5,cz2);
@@ -17747,11 +20354,13 @@ function buildCountryZones(){
     box(2,2,2,0x22aa22,cx2+i,10.5,cz2+14);
   });
   buildSign('🍁 CANADA',cx2,17,cz2+10);
-  { const pl=new THREE.PointLight(0xff4444,1.2,50); pl.position.set(cx2,10,cz2); scene.add(pl); }
+  { const [px,pz]=scalePt(cx2,cz2); const pl=new THREE.PointLight(0xff4444,1.2,scaleLen(50)); pl.position.set(px,scaleLen(10),pz); scene.add(pl); }
   addCol(CITY_COLS,cx2,cz2,13,10);
+  _buildOrigin=null; _buildScale=1;
 
-  // ITALY — x=0, z=-900
-  const ix=0,iz=-900;
+  // ITALY
+  const ix=COUNTRY_CENTERS.Italy.x, iz=COUNTRY_CENTERS.Italy.z;
+  _buildOrigin={x:ix,z:iz}; _buildScale=COUNTRY_SCALE;
   for(let a=0;a<8;a++){
     const ang=a*Math.PI/4, rx=Math.cos(ang)*20, rz=Math.sin(ang)*20;
     box(5,20,5, 0xddb870, ix+rx,10,iz+rz);
@@ -17760,49 +20369,184 @@ function buildCountryZones(){
   box(0.6,18,42, 0xccaa66, ix,9,iz-20);
   box(0.6,18,42, 0xccaa66, ix,9,iz+20);
   buildSign('🍕 ITALY',ix,24,iz+22);
-  { const pl=new THREE.PointLight(0xffcc88,1.8,70); pl.position.set(ix,12,iz); scene.add(pl); }
+  { const [px,pz]=scalePt(ix,iz); const pl=new THREE.PointLight(0xffcc88,1.8,scaleLen(70)); pl.position.set(px,scaleLen(12),pz); scene.add(pl); }
   addCol(CITY_COLS,ix,iz,22,22);
+  _buildOrigin=null; _buildScale=1;
 
   // Give every country its own little town (shops + park + lamps)
-  COUNTRY_THEMES.forEach(buildTownExtras);
+  COUNTRY_THEMES.forEach(t => {
+    _buildOrigin = {x:t.cx, z:t.cz}; _buildScale = COUNTRY_SCALE;
+    buildTownExtras(t);
+    _buildOrigin = null; _buildScale = 1;
+  });
 }
 
 // ─── SPACE STATION — a real 9th flight destination, reached through the exact same
 // openAirport()/buyFlight()/startFlightAnim() every country already uses (that whole pipeline
 // is generic over dest.x/dest.z/name/emoji/desc, so a new AIRPORT_FLIGHTS entry is all it takes
 // to make it bookable — see SPACE_ZONE below for the real low-gravity effect once you're there). ──
-const SPACE_ZONE = { x:0, z:1200, r:60 };
+const SPACE_ZONE = { x:COUNTRY_CENTERS['Space Station'].x, z:COUNTRY_CENTERS['Space Station'].z, r:60*COUNTRY_SCALE };
 function buildSpaceZone(){
   const { x:sx, z:sz } = SPACE_ZONE;
+  _buildOrigin = {x:sx, z:sz}; _buildScale = COUNTRY_SCALE; // item ~234, "lets make the countrys 20 times bigger" — see box()'s own comment
   // Gray cratered "moon" platform, raised slightly above the default ground so it visually reads
   // as its own surface rather than just city grass with props scattered on it.
   box(110, 0.6, 110, 0x8a8a8a, sx, 0.3, sz);
   const craterSpots = [[-25,-20],[18,-12],[-8,22],[30,18],[0,0],[-30,10]];
   craterSpots.forEach(([dx,dz]) => box(10+Math.random()*6, 0.3, 10+Math.random()*6, 0x6f6f6f, sx+dx, 0.55, sz+dz));
-  // Rocket ship — nose cone + body + fins, the real landmark for the zone
-  const rocket = new THREE.Group(); rocket.position.set(sx, 0, sz-18); scene.add(rocket);
+  // Rocket ship — nose cone + body + fins, the real landmark for the zone. Already its own
+  // self-contained local-origin THREE.Group, so scaling it 20x is a real, direct group.scale —
+  // unlike everywhere else in this file, box()'s scalePt()/scaleLen() can't reach INSIDE an
+  // existing group's own local-space children, so this one spot uses the group-scale approach
+  // the rest of this refactor deliberately avoided (see box()'s own comment for why).
+  const [rx,rz] = scalePt(sx, sz-18);
+  const rocket = new THREE.Group(); rocket.position.set(rx, 0, rz); rocket.scale.setScalar(_buildScale); scene.add(rocket);
   rocket.add(new THREE.Mesh(new THREE.CylinderGeometry(3,3,16,10), mat(0xe0e0e0)).translateY(9));
   const nose = new THREE.Mesh(new THREE.ConeGeometry(3,7,10), mat(0xcc3333)); nose.position.y = 20.5; rocket.add(nose);
   [0,1,2,3].forEach(i => { const ang=i*Math.PI/2; const fin=new THREE.Mesh(new THREE.BoxGeometry(0.4,4,2.5), mat(0xcc3333)); fin.position.set(Math.cos(ang)*3.2, 2, Math.sin(ang)*3.2); fin.rotation.y=ang; rocket.add(fin); });
-  const glow = new THREE.PointLight(0x66ccff, 2, 40); glow.position.set(sx, 10, sz-18); scene.add(glow);
+  const glow = new THREE.PointLight(0x66ccff, 2, scaleLen(40)); glow.position.set(rx, scaleLen(10), rz); scene.add(glow);
   // Planted flag — a small "someone was here" landmark, matches the Moon-landing fantasy
   box(0.15, 6, 0.15, 0xcccccc, sx+14, 3, sz+6);
   box(2.2, 1.4, 0.1, 0x4fd8ff, sx+15, 5.3, sz+6);
   // A scatter of real stars overhead — small emissive spheres, cheap and reads fine against the sky
   for(let i=0;i<40;i++){
     const s = i*137.508;
-    const px = sx + ((s*0.618)%1 - 0.5)*140, pz = sz + ((s*0.382)%1 - 0.5)*140;
-    const star = new THREE.Mesh(new THREE.SphereGeometry(0.25,4,4), new THREE.MeshBasicMaterial({color:0xffffff}));
-    star.position.set(px, 26+((s*0.214)%1)*14, pz);
+    const [px,pz] = scalePt(sx + ((s*0.618)%1 - 0.5)*140, sz + ((s*0.382)%1 - 0.5)*140);
+    const star = new THREE.Mesh(new THREE.SphereGeometry(scaleLen(0.25),4,4), new THREE.MeshBasicMaterial({color:0xffffff}));
+    star.position.set(px, scaleLen(26+((s*0.214)%1)*14), pz);
     scene.add(star);
   }
   buildSign('🚀 SPACE STATION', sx, 26, sz+24);
   addCol(CITY_COLS, sx, sz-18, 4, 4); // real collider so you can't just walk through the rocket
+  // User's own follow-up: "need to go into space" — the platform/rocket/low-gravity walk were all
+  // real, but there was never an actual way to LEAVE the ground and fly up into the stars. rx,rz
+  // is the rocket's own already-scaled world position (computed above), reused here rather than
+  // calling scalePt() a second time. toggleSpaceLaunch() is a real zero-g thruster flight, not a
+  // teleport-and-look — see its own comment.
+  CITY_ZONES.push({ x: rx, z: rz, r: 100, label: '🚀 Launch into Space', action: toggleSpaceLaunch });
+  _buildOrigin = null; _buildScale = 1;
 }
 
+// ─── DEEP SPACE — user's own follow-up: "lets make mars moon and more the farther longer and
+// more expensive". 4 more real flight destinations past the Space Station, booked from a real
+// terminal there through the exact same openAirport()/buyFlight()/startFlightAnim() pipeline
+// (see SPACE_FLIGHTS below) — farther in actual world distance from Explox genuinely costs more
+// and genuinely takes longer to fly (startFlightAnim's DURATION is now per-flight, not a flat
+// 12s for everyone). No _buildOrigin/COUNTRY_SCALE dance here — these are placed directly at
+// their real final coordinates, comfortably inside the existing ±12000 ground plane, so box()/
+// addCol() run in their plain unscaled mode.
+const MOON_ZONE      = { name:'Moon',      x:8457,  z:3078,   r:120, gravity:12 }; // real Moon gravity ~1/6 Earth's — stylized, same idea SPACE_ZONE already used
+const MARS_ZONE      = { name:'Mars',      x:-1702, z:9652,   r:120, gravity:20 }; // real Mars gravity ~1/3 Earth's
+const JUPITER_ZONE   = { name:'Jupiter',   x:-10500,z:0,      r:120, gravity:50 }; // real Jupiter gravity is HEAVIER than Earth's — a fun twist, jumping is harder here
+const ANDROMEDA_ZONE = { name:'Andromeda', x:-1980, z:-11227, r:120, gravity:3  }; // deep space — true zero-g, same value inOuterSpace uses
+// Every real gravity zone in the game, checked in the main jump/gravity tick below — replaces the
+// single hardcoded inSpaceZone check the Space Station used to own alone.
+const GRAVITY_ZONES = [
+  { x:SPACE_ZONE.x, z:SPACE_ZONE.z, r:SPACE_ZONE.r, gravity:14 },
+  MOON_ZONE, MARS_ZONE, JUPITER_ZONE, ANDROMEDA_ZONE,
+];
+function currentGravity() {
+  if (!playerGroup) return 34;
+  for (const g of GRAVITY_ZONES) {
+    if (Math.hypot(playerGroup.position.x-g.x, playerGroup.position.z-g.z) < g.r) return g.gravity;
+  }
+  return 34;
+}
+// Shared builder for all 4 — same real "platform + craters + landmark + stars + sign" shape
+// buildSpaceZone() already established, just parameterized so a genuinely different landmark per
+// world (buildLandmark) is the only thing that has to vary.
+function buildPlanetZone(zone, groundColor, craterColor, buildLandmark) {
+  const { x:px, z:pz } = zone;
+  box(110, 0.6, 110, groundColor, px, 0.3, pz);
+  [[-25,-20],[18,-12],[-8,22],[30,18],[0,0],[-30,10]].forEach(([dx,dz]) => box(10+Math.random()*6, 0.3, 10+Math.random()*6, craterColor, px+dx, 0.55, pz+dz));
+  buildLandmark(px, pz);
+  for(let i=0;i<40;i++){
+    const s = i*137.508;
+    const star = new THREE.Mesh(new THREE.SphereGeometry(0.3,4,4), new THREE.MeshBasicMaterial({color:0xffffff}));
+    star.position.set(px + ((s*0.618)%1 - 0.5)*140, 26+((s*0.214)%1)*14, pz + ((s*0.382)%1 - 0.5)*140);
+    scene.add(star);
+  }
+  buildSign(`🪐 ${zone.name.toUpperCase()}`, px, 26, pz+24);
+  addCol(CITY_COLS, px, pz, 10, 10);
+}
+function buildDeepSpaceZones() {
+  // MOON — grey dust, a real lander (box body + 4 angled legs), planted flag.
+  buildPlanetZone(MOON_ZONE, 0x999999, 0x777777, (px,pz) => {
+    box(4, 3, 4, 0xdddddd, px, 1.5, pz-14);
+    [[-2,-2],[2,-2],[-2,2],[2,2]].forEach(([dx,dz]) => { const leg = box(0.3,3,0.3,0x888888, px+dx, 0.3, pz-14+dz); leg.rotation.z = dx<0?0.3:-0.3; });
+    box(0.15, 5, 0.15, 0xcccccc, px+14, 2.5, pz+6);
+    box(2.2, 1.4, 0.1, 0xffffff, px+15, 4.8, pz+6);
+  });
+  // MARS — red dust, real rover (box body + 4 wheels + antenna).
+  buildPlanetZone(MARS_ZONE, 0xaa4422, 0x882211, (px,pz) => {
+    box(5, 1.6, 3.2, 0xcc6633, px, 1.6, pz-14);
+    [[-2,-1.3],[2,-1.3],[-2,1.3],[2,1.3]].forEach(([dx,dz]) => { const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.6,0.6,0.4,10), mat(0x222222)); wheel.rotation.x=Math.PI/2; wheel.position.set(px+dx,0.6,pz-14+dz); scene.add(wheel); });
+    box(0.12, 3, 0.12, 0xcccccc, px, 3.2, pz-14);
+    box(0.6, 0.6, 0.1, 0x88ccff, px, 4.6, pz-14);
+  });
+  // JUPITER — a floating outpost platform above the storm bands (a huge banded sphere below).
+  buildPlanetZone(JUPITER_ZONE, 0x998866, 0x776644, (px,pz) => {
+    const planet = new THREE.Mesh(new THREE.SphereGeometry(90,16,16), new THREE.MeshLambertMaterial({color:0xcc9955}));
+    planet.position.set(px, -70, pz); scene.add(planet);
+    [0xddaa66,0xbb8844,0xeecc99].forEach((c,i) => { const band = new THREE.Mesh(new THREE.TorusGeometry(90,6,6,24), new THREE.MeshBasicMaterial({color:c})); band.position.set(px,-70+i*18-18,pz); band.rotation.x=Math.PI/2; scene.add(band); });
+    box(3, 6, 3, 0xaaaaaa, px, 3, pz-14);
+    const dish = new THREE.Mesh(new THREE.SphereGeometry(1.6,8,8,0,Math.PI), new THREE.MeshLambertMaterial({color:0xdddddd}));
+    dish.position.set(px, 6.5, pz-14); dish.rotation.x = -Math.PI/2.5; scene.add(dish);
+  });
+  // ANDROMEDA — alien deep space: dark ground, glowing crystal formations, a beacon.
+  buildPlanetZone(ANDROMEDA_ZONE, 0x1a0a2a, 0x2a1a3a, (px,pz) => {
+    [[-3,-3,4],[3,-2,6],[0,3,5],[-2,4,3.5]].forEach(([dx,dz,h]) => {
+      const crystal = new THREE.Mesh(new THREE.ConeGeometry(0.8,h,5), new THREE.MeshLambertMaterial({color:0x9933ff, emissive:0x6600cc}));
+      crystal.position.set(px+dx,h/2,pz-14+dz); scene.add(crystal);
+    });
+    const beacon = new THREE.Mesh(new THREE.SphereGeometry(1.2,10,10), new THREE.MeshBasicMaterial({color:0xff66ff}));
+    beacon.position.set(px, 4, pz-14); scene.add(beacon);
+    scene.add(new THREE.PointLight(0xff66ff, 2, 60));
+  });
+  // Real terminal at the Space Station itself, a short walk from the rocket (not overlapping its
+  // own r:100 zone) — pressing E here opens the exact same generic flight-picker every airport uses.
+  box(3, 3, 3, 0x445566, SPACE_ZONE.x+30, 1.5, SPACE_ZONE.z+20);
+  buildSign('🛰️ DEEP SPACE TERMINAL', SPACE_ZONE.x+30, 5, SPACE_ZONE.z+20-2);
+  addCol(CITY_COLS, SPACE_ZONE.x+30, SPACE_ZONE.z+20, 2, 2);
+  CITY_ZONES.push({ x:SPACE_ZONE.x+30, z:SPACE_ZONE.z+20, r:8, label:'🛰️ Deep Space Terminal — Fly Farther', action: openSpaceTravel });
+}
+// Booked from a real terminal at the Space Station (not mixed into AIRPORT_FLIGHTS — these aren't
+// Earth countries) through the exact same generic openAirport()/buyFlight() every other flight
+// uses. price/duration both scale with real distance from Explox (Math.hypot from the origin) —
+// farther is genuinely pricier and genuinely slower, not just flavor text.
+const SPACE_FLIGHTS = [
+  // User's own follow-up: "too cheap" — bumped well past the Earth countries (70-150ish) to feel
+  // like a real milestone purchase relative to this game's actual currency scale, not pocket change.
+  { name:'Moon',      emoji:'🌕', desc:'Grey dust, a real lander, and 1/6 gravity',        price:5000,   duration:15000, x:MOON_ZONE.x,      z:MOON_ZONE.z      },
+  { name:'Mars',      emoji:'🔴', desc:'Red dust, a real rover, and lighter gravity',       price:15000,  duration:20000, x:MARS_ZONE.x,      z:MARS_ZONE.z      },
+  { name:'Jupiter',   emoji:'🟠', desc:'An outpost above the storm bands — heavier gravity',price:50000,  duration:28000, x:JUPITER_ZONE.x,   z:JUPITER_ZONE.z   },
+  { name:'Andromeda', emoji:'💫', desc:'Deep space — alien crystals and true zero gravity', price:150000, duration:40000, x:ANDROMEDA_ZONE.x, z:ANDROMEDA_ZONE.z },
+  { name:'Space Station', emoji:'🚀', desc:'Back to the Space Station', price:20, duration:8000, x:SPACE_ZONE.x, z:SPACE_ZONE.z+600 },
+];
+function openSpaceTravel() { openAirport(SPACE_FLIGHTS); }
+
 // ─── CONTROLS ────────────────────────────────────────────────────────────────
+// Launch off the Space Station platform into real zero-gravity flight (see the gravity block in
+// the main tick below, and tryCityJump()'s inOuterSpace branch for the thruster) — press E at the
+// rocket again to toggle back, or just drift back down to the platform on your own.
+function toggleSpaceLaunch(){
+  if(inCar || playerSeated) return;
+  if(inOuterSpace){
+    inOuterSpace = false;
+    playerGroup.position.y = 0; jumpVel = 0; onGround = true;
+    showNotif('🌍 You touch back down on the Space Station platform.');
+  } else {
+    inOuterSpace = true;
+    jumpVel = 45; onGround = false;
+    sfx.earn && sfx.earn();
+    showNotif('🚀 Blastoff! Floating in real zero gravity — tap Space/Jump to thrust, you\'ll drift down slowly otherwise.');
+  }
+}
 function tryCityJump(){
   if(inCar) return;
+  // Zero-gravity thruster — unlimited, unlike the ground jump's onGround/doubleJump gating,
+  // since floating in real outer space with a jetpack shouldn't run out after 1-2 taps.
+  if(inOuterSpace){ jumpVel = 10; onGround = false; return; }
   if(onGround){
     jumpVel=13; onGround=false; jumpsUsed=1;
     if(activeAddOns.includes('confettijump')) burstConfetti(playerGroup.position.clone().setY(playerGroup.position.y+1), 10);
@@ -17950,6 +20694,7 @@ function animate(){
   if(_fc) _fc.textContent = 'Frames: ' + _frames + ' | canvas: ' + (renderer&&renderer.domElement ? renderer.domElement.width+'x'+renderer.domElement.height : 'none');
   const dt=clock.getDelta(), t=clock.getElapsedTime();
 
+  updateDayNight();
   if(t - _lastPresenceSync > PRESENCE_SYNC_INTERVAL) { _lastPresenceSync = t; syncPresence(t); }
   updateRemotePlayers(dt);
   if(t - _lastLandSync > LAND_SYNC_INTERVAL) { _lastLandSync = t; syncLandOwners(); }
@@ -17972,8 +20717,10 @@ function animate(){
   }
   if(serverMode === 'online' && t - _lastWorldEventSync > WORLD_EVENT_SYNC_INTERVAL) { _lastWorldEventSync = t; syncWorldEvent(); }
   tickWorldEvent(dt);
+  tickInvasionCombat(dt);
   if(serverMode === 'online' && t - _lastTerritorySync > TERRITORY_SYNC_INTERVAL) { _lastTerritorySync = t; syncTerritories(); }
   tickWar(t);
+  tickWarCombat(dt);
   if(serverMode === 'online' && t - _lastBossSync > BOSS_SYNC_INTERVAL) { _lastBossSync = t; syncBosses(); }
   if(t - _lastEarningsCheck > EARNINGS_CHECK_INTERVAL) { _lastEarningsCheck = t; tickEarnings(); }
   tickBossHud();
@@ -17983,7 +20730,7 @@ function animate(){
 
   // Movement with collision
   let moving=false;
-  if(!inCar && !playerSeated){
+  if(!inCar && !playerSeated && !onBankWall){
     const dir=new THREE.Vector3();
     const fwd=new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw));
     const right=new THREE.Vector3(-Math.cos(yaw),0,Math.sin(yaw));
@@ -18008,8 +20755,8 @@ function animate(){
       // this only excluded inHouse/inMall, which silently worked only because Hotel/Store/FriendHouse/
       // Prison used to sit at 750-1200, still inside the old +-1950 clamp by coincidence.
       if(!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inArenaBattle && !inMovieFight && !inBankInterior){
-        playerGroup.position.x=Math.max(-1950,Math.min(1950,playerGroup.position.x));
-        playerGroup.position.z=Math.max(-1950,Math.min(1950,playerGroup.position.z));
+        playerGroup.position.x=Math.max(-WORLD_BOUND,Math.min(WORLD_BOUND,playerGroup.position.x));
+        playerGroup.position.z=Math.max(-WORLD_BOUND,Math.min(WORLD_BOUND,playerGroup.position.z));
         const _px=playerGroup.position.x, _pz=playerGroup.position.z;
         // Real bug fix: this used to trigger on ANY _pz below -2.5 with no lower bound — meaning
         // walking the direct route to Whispering Woods (crosses x:73-87 around z=-107 to -131,
@@ -18030,12 +20777,16 @@ function animate(){
     }
   }
   // Jump / gravity (vertical motion, works even while standing still)
-  if(!inCar && !playerSeated && (!onGround || jumpVel!==0)){
-    const inSpaceZone = Math.hypot(playerGroup.position.x-SPACE_ZONE.x, playerGroup.position.z-SPACE_ZONE.z) < SPACE_ZONE.r;
-    jumpVel -= (activeAddOns.includes('moonjump')||inSpaceZone ? 14 : 34)*dt;
+  if(!inCar && !playerSeated && !onBankWall && (!onGround || jumpVel!==0 || inOuterSpace)){
+    // Real zero-g: barely any pull at all while inOuterSpace, so a tap of the thruster (tryCityJump)
+    // carries you a long way up and you drift back down slowly — nothing like the merely-reduced
+    // "moon gravity" the Space Station's ground platform already had before this. currentGravity()
+    // now covers every real gravity zone (Space Station/Moon/Mars/Jupiter/Andromeda), not just one.
+    jumpVel -= (inOuterSpace ? 3 : activeAddOns.includes('moonjump') ? 14 : currentGravity())*dt;
     playerGroup.position.y += jumpVel*dt;
     if(playerGroup.position.y<=0){
       playerGroup.position.y=0;
+      if(inOuterSpace) { inOuterSpace = false; showNotif('🌍 You drift back down and touch down on the Space Station platform.'); }
       if(activeAddOns.includes('bouncyshoes')) { jumpVel=12; onGround=false; }
       else { jumpVel=0; onGround=true; jumpsUsed=0; }
     }
@@ -18062,8 +20813,8 @@ function animate(){
       tickCarRam(nx, nz, CAR_R);
       const blockedX = isBlocked(nx, activeCar.group.position.z, CAR_R);
       const blockedZ = isBlocked(activeCar.group.position.x, nz, CAR_R);
-      if(!blockedX) activeCar.group.position.x=Math.max(-1950,Math.min(1950,nx));
-      if(!blockedZ) activeCar.group.position.z=Math.max(-1950,Math.min(1950,nz));
+      if(!blockedX) activeCar.group.position.x=Math.max(-WORLD_BOUND,Math.min(WORLD_BOUND,nx));
+      if(!blockedZ) activeCar.group.position.z=Math.max(-WORLD_BOUND,Math.min(WORLD_BOUND,nz));
       // Buildings aren't destroyable like item 160's NPCs/robots/trees (they're permanent city
       // architecture) — ramming one instead charges a real repair fee, same spirit, different cost.
       if(blockedX || blockedZ) crashIntoBuilding(activeCar.group.position.x, activeCar.group.position.z);
@@ -18086,8 +20837,22 @@ function animate(){
     const swing=moving?Math.sin(t*8)*swingAmp:0;
     if(player.lArm) player.lArm.rotation.x= swing;
     if(player.rArm) player.rArm.rotation.x=-swing;
-    if(player.lLeg) player.lLeg.rotation.x=-swing;
-    if(player.rLeg) player.rLeg.rotation.x= swing;
+    // Real bug the user caught: strafing (A/D with no W/S held) used this exact same front-to-
+    // back leg swing as walking forward, so sidestepping looked identical to walking straight
+    // ahead. Pure strafing (no forward/back component at all) now swings the legs apart
+    // side-to-side (rotation.z) instead of front-to-back (rotation.x) — a real, visually
+    // distinct side-step shuffle. Forward/backward, and any diagonal that still has a
+    // forward/back component, keep the original walk cycle. Legs only (not arms) — rArm's
+    // rotation.z is already owned by the attack-swing animation just below and would get
+    // stomped back to 0 every frame if reused here.
+    const strafingOnly = moving && !moveState.w && !moveState.s && (moveState.a || moveState.d);
+    if(strafingOnly){
+      if(player.lLeg) { player.lLeg.rotation.x = 0; player.lLeg.rotation.z = -swing; }
+      if(player.rLeg) { player.rLeg.rotation.x = 0; player.rLeg.rotation.z =  swing; }
+    } else {
+      if(player.lLeg) { player.lLeg.rotation.x = -swing; player.lLeg.rotation.z = 0; }
+      if(player.rLeg) { player.rLeg.rotation.x =  swing; player.rLeg.rotation.z = 0; }
+    }
     if(player.headMesh) {
       player.headMesh.rotation.z = (moving && activeAddOns.includes('bobblehead')) ? Math.sin(t*10)*0.25 : 0;
       player.headMesh.scale.setScalar(activeAddOns.includes('bighead') ? 1.7 : 1);
@@ -18286,6 +21051,9 @@ function animate(){
   tickCounter(dt);
   tickCook(dt);
   tickWanted(dt);
+  tickCelebrities(dt);
+  tickCelebrityCrowds(dt);
+  tickPresidents(dt);
   tickElders(dt);
   tickGrowth(dt);
   tickMachines(dt);
@@ -18374,6 +21142,23 @@ const SAI_LOCATIONS = [
   { label:'Your Store',      x:160,  z:-25,  color:'#D8A657', emoji:'🏪' },
   { label:'Robo Arsenal',    x:282,  z:268,  color:'#00ffcc', emoji:'🤖' },
 ];
+// World-zoom markers for the SAI map — kept OUT of SAI_LOCATIONS on purpose: that array also
+// feeds buildShopperPopulation()'s wander pool, and a shopper randomly assigned "walk to Japan"
+// as a patrol leg would try to cross 8000+ units of map. COUNTRY_CENTERS' own coords (real,
+// 20x-scaled ring layout, see its own comment) are reused here as-is, not re-guessed.
+const SAI_WORLD_MARKERS = [
+  { label:'Downtown Explox', x:0, z:0, color:'#00ccff', emoji:'🏙️' },
+  { label:'France',        x:COUNTRY_CENTERS.France.x,        z:COUNTRY_CENTERS.France.z,        color:'#4466ff', emoji:'🥐' },
+  { label:'UK',             x:COUNTRY_CENTERS.UK.x,             z:COUNTRY_CENTERS.UK.z,             color:'#cc3333', emoji:'☕' },
+  { label:'Italy',          x:COUNTRY_CENTERS.Italy.x,          z:COUNTRY_CENTERS.Italy.z,          color:'#44cc44', emoji:'🍝' },
+  { label:'Japan',          x:COUNTRY_CENTERS.Japan.x,          z:COUNTRY_CENTERS.Japan.z,          color:'#ff88aa', emoji:'🌸' },
+  { label:'Australia',      x:COUNTRY_CENTERS.Australia.x,      z:COUNTRY_CENTERS.Australia.z,      color:'#ffaa22', emoji:'🦘' },
+  { label:'Egypt',          x:COUNTRY_CENTERS.Egypt.x,          z:COUNTRY_CENTERS.Egypt.z,          color:'#ddaa44', emoji:'🐫' },
+  { label:'Brazil',         x:COUNTRY_CENTERS.Brazil.x,         z:COUNTRY_CENTERS.Brazil.z,         color:'#22cc66', emoji:'🌴' },
+  { label:'Space Station',  x:COUNTRY_CENTERS['Space Station'].x, z:COUNTRY_CENTERS['Space Station'].z, color:'#aaccff', emoji:'🚀' },
+  { label:'Canada',         x:COUNTRY_CENTERS.Canada.x,         z:COUNTRY_CENTERS.Canada.z,         color:'#ff4444', emoji:'🍁' },
+];
+let saiMapZoomedOut = false; // false = close-up city view (SC=0.7), true = whole-world view including every country
 
 function toggleSAI() {
   const panel = document.getElementById('saiPanel');
@@ -18435,19 +21220,55 @@ function renderSaiBossesView() {
   });
 }
 
+// Real bugs caught live while adding the batch below (user's own ask, more than once now: "make
+// the ai know more"): (1) saiAsk() used plain `.includes()`, a pure substring test — 'hi' (a
+// greeting key) matched inside "claw maCHIne", so asking about the Claw Machine got SAI's hello
+// reply instead. (2) A leading-boundary-only first fix attempt then let short key 'war' swallow
+// the pre-existing 'warp' key's queries (e.g. "warp me somewhere" wrongly hit the new War Room
+// reply), and let 'quest' swallow "question". Both fixed together by saiKeyMatches() below.
+function saiKeyMatches(lq, key) {
+  const esc = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // Real word boundary on BOTH ends (with an optional trailing "s" so "quest"/"weapon" still
+  // match "quests"/"weapons") — a leading-only boundary was the first fix attempt, but it let
+  // "war" swallow "warp" (a real pre-existing key) and let "quest" swallow "question". Full
+  // boundaries fix both without needing a hand-written plural for every single key.
+  return new RegExp('\\b' + esc + '(?:s)?\\b', 'i').test(lq);
+}
 const SAI_KB = [
+  // New topics FIRST — SAI_KB.some() takes the first match, so anything more specific than the
+  // older generic entries below (particularly 'job'/'work'/'earn' at the original #5 entry, which
+  // would otherwise swallow "how does war work"/"job tab"/"earnings" queries meant for one of these)
+  // needs to win the race by being checked first, not by being more "correct".
+  { keys:['guard','siege','robber','attacker','defend the bank','bank job'], reply:"💂 Sign up as Bank Guard at x=160, z=246 (S.I.P.) or x=174, z=246 (💎). Killers attack the Bank for real during your shift — fight them off, call in 📣 Coin Bot backup (10 giant Coin Bots, 30s cooldown), and real Police officers show up too. Let the Bank's health hit 0 and the shift fails with no pay!" },
+  { keys:['wall','shoot down','rooftop','snipe','bank wall'], reply:"🪜 While on Guard duty, climb the staircase on the Bank's east side (x=180, z=210) to reach the wall. Up there, press E to fire down at attackers instead of fighting in melee — press E again to climb back down once it's clear!" },
+  { keys:['world event','earthquake','alien','pirate raid','crab invasion','gnome','stampede','invasion attempt'], reply:'🌍 The World Events board is at x=386, z=155. Pick from 23 shared events — everyone online sees the same one! Most (concerts, hazards, hostile factions) land at one of 8 fixed spots ringing the very edge of the city; Invasion Attempt always hits home turf at The Park (x=-10, z=-60).' },
+  { keys:['wedding','marry','married','birthday party','grand opening','town event','host a concert'], reply:'🎉 The Town Events board is at x=378, z=155. Host a wedding, throw a birthday party, have a baby, open a grand opening, or throw a concert — real events with real S.I.P. rewards!' },
+  { keys:['war','territory','countries to','capture the','conquer'], reply:"⚔️ The War Room is at x=250, z=-260 (ONLINE mode only). Fly to any of 9 countries and fight real soldiers + tanks to capture territory for Explox — permanently! Breach each country's wall first, then fight through to the garrison inside." },
+  { keys:['quest','robot level','elite level','level up'], reply:'📜 Open the QUESTS tab (right side) for real quests that pay Elite Coins. Spend those to level up your Robot Level — real Max HP and damage for YOU forever, and enemy robots get tougher, bigger, and worth more too (capped, so they never get out of hand)!' },
+  { keys:['job tab','hire on','any job','shop job'], reply:'💼 Click the JOB tab (right side) to hire on for ANY job in the game from one menu — no walking required! Every one of the 300+ shops in the city is a real job you can clock into.' },
+  { keys:['earning','collect all','pending reward'], reply:'💰 Every S.I.P./Elite Coin reward in the game queues up in the EARNINGS tab (right side) instead of landing in your wallet instantly — click one (or hit Collect All) to actually collect it!' },
+  { keys:['diamond deposit','shop tab','vip package','buy sip','buy diamonds'], reply:'🛍️ Click the SHOP tab (right side) for instant S.I.P./💎 packages, up to a bundled VIP Package. The Bank also holds its own real 💎 Diamond balance now — deposit or withdraw them right next to your S.I.P. balance!' },
+  { keys:['scrapyard','grinder','rogue robot','wreckage','scrap metal'], reply:'🤖 The Scrapyard is at x=300, z=250 — 100 spawners scattered across the whole city send rogue robots after you! Fight them for rewards, then feed the wreckage into The Grinder (x=300, z=268) for real Scrap Metal and materials.' },
+  { keys:['exploxtube','tube','video','upload','subscriber','channel','comment'], reply:"📺 ExploxTube lives inside SIB (your computer's browser) — watch videos, Like them, leave a real comment, or hit Upload to post your own and grow real subscribers!" },
+  { keys:['neighbor','family','have a baby','spouse'], reply:"👋 40 named neighbors live in the Suburbs, each with a real house, car, and job. Befriend them, invite them over, marry two off at a Town Event, and they'll even have a baby together!" },
+  { keys:['sunset plains','build on','my plot','own land'], reply:'🏗️ Buy your own plot at Sunset Plains (x=-400, z=150) and build real structures on it — furniture, decorations, even invite friends over to sit, paint, or hang out on your land!' },
+  { keys:['arcade','cabinet','whack-a-mole','snake game','tetris','claw machine','simon says','memory match','brick breaker','quick draw'], reply:'🕹️ The Pixel Palace Arcade has 9 real cabinet games — Whack-a-Mole, Maze Chase, Memory Match, Simon Says, Snake, Brick Breaker, Quick Draw, Tetris, and a real Claw Machine!' },
+  { keys:['duel','pvp','ffa','fight another player','fight arena'], reply:'⚔️ Challenge any other online player to a real 1v1 duel anywhere in the city, or head into the Fight Arena (x=250, z=-200) for free-for-all combat against everyone else there!' },
+  { keys:['add-on','addon','power up','berserker','speed boost'], reply:'🧩 Click ADD ONS (left side) for 100+ real gameplay boosts — Berserker damage, Speed Boost, Moon Jump, Bouncy Shoes, and way more!' },
+  { keys:['invest','shares','stock market'], reply:'📈 Open the Bank, then click Stock Market — buy and sell real shares in 6 companies at real-time prices, the same for everyone online!' },
+  { keys:['killer','dagger','hooded','stranger danger'], reply:"⚠️ Hooded Killers roam the city and will attack for real if you get close — fight back to defeat them! They show up more often the more you've defeated." },
   { keys:['bank','vault'],           reply:'🏦 The City Bank is northeast of downtown near the Suburbs (x=160, z=210). A passcode is required. Your bank earns +10,000 S.I.P. interest every 60 seconds!' },
   { keys:['house','home'],           reply:'🏠 Your house is south of the city at x=-30, z=-110. Head south down the road past the park.' },
-  { keys:['shop','store','buy'],     reply:'🛍️ Shopping Street is east of center (x=60, z=50). Coffee Shop, Toy Store, Outfit Shop and Weapon Shop are all there!' },
+  { keys:['shop','buy'],     reply:'🛍️ Shopping Street is east of center (x=60, z=50). Coffee Shop, Toy Store, Outfit Shop and Weapon Shop are all there!' },
   { keys:['mall','directory'],       reply:'🏬 The City Mall is far east at x=80, z=-20. Past the fountain is a Shopping Wing with 200 more real shops, plus a 🗺️ Mall Directory kiosk to search all 300 shops in the game!' },
   { keys:['job','work','earn'],      reply:'💼 Work as a Shopkeeper (Shopping Street, +5 S.I.P./round) or Officer (Police Station, +10 S.I.P./round). Press E near the zone to start!' },
   { keys:['police','cop','officer'], reply:'🚔 The Police Station is west at x=-70, z=10. Work there as an Officer for 10 S.I.P. per round!' },
   { keys:['restaurant','food','pizza','cook'], reply:'🍕 Restaurant Row is north at x=20, z=80. Grab ingredients, cook at the stove, deliver meals for +20 S.I.P. each!' },
   { keys:['diner','eat','hungry','meal','taste'], reply:'🍽️ The Diner is south-east at x=110, z=-25 — a sit-down restaurant with a real menu (burgers, pizza, sushi, tacos, dessert, and more)! Order a dish, then press C to eat it and see your taste reaction.' },
-  { keys:['store','own store','business','property','buy a store'], reply:"🏪 Your Store is east of The Diner at x=160, z=-25! Buy one of 10 store tiers (100 to 15,000 S.I.P.) — bigger ones are 2-story and come furnished. Walk in, stock up on ingredients, set your price, then open the shop — you have to stay while it's open for customers to buy. Decorate the room with furniture too! Only one store at a time — buying a new one replaces the old one." },
+  { keys:['store','own store','business','property'], reply:"🏪 Your Store is east of The Diner at x=160, z=-25! Buy one of 10 store tiers (100 to 15,000 S.I.P.) — bigger ones are 2-story and come furnished. Walk in, stock up on ingredients, set your price, then open the shop — you have to stay while it's open for customers to buy. Decorate the room with furniture too! Only one store at a time — buying a new one replaces the old one." },
   { keys:['black market','underground','dealer'], reply:'🕴️ Talk to the Shady Dealer (x=34, z=3) to go bad. The Black Market is southwest at x=-80, z=-71. Your Wanted level will rise!' },
   { keys:['weapon','sword','bat','axe'], reply:'⚔️ Buy weapons at the Weapon Shop (Shopping Street) or in the Mall. Open the bank safe too — it holds secret mini-game weapons!' },
-  { keys:['robot weapon','robo arsenal','fight robot','emp hammer','plasma cutter','rail spike'], reply:'🤖 The Robo Arsenal shop is at The Scrapyard (x=282, z=268). It sells the EMP Hammer, Plasma Cutter and Rail Spike — weak against people, but they hit robots way harder than a regular sword!' },
+  { keys:['robo arsenal','fight robot','emp hammer','plasma cutter','rail spike'], reply:'🤖 The Robo Arsenal shop is at The Scrapyard (x=282, z=268). It sells the EMP Hammer, Plasma Cutter and Rail Spike — weak against people, but they hit robots way harder than a regular sword!' },
   { keys:['safe','combo'],           reply:'🔐 Enter the bank and click "Open Safe". First time: create a combo. The safe holds secret items and mini-game weapons!' },
   { keys:['map','where'],            reply:'🗺️ Switch to the Map tab! Click any location dot to draw a navigation line on the ground to follow.' },
   { keys:['mini game','minigame','throne','obby','parkour'], reply:'🎮 Click MINI GAMES on the right to play Capture the Throne, Obby, or Rooftop Parkour!' },
@@ -18458,7 +21279,7 @@ const SAI_KB = [
   { keys:['computer','sib','browser','internet','online'], reply:'💻 The Computer Shop is at x=100, z=58 — sells S.I.C., S.I.C.+, and S.D.I.C. computers. Buy one, then use it at the desk in your house to open SIB — the Super Important Browser! Shop online, read news, and more.' },
   { keys:['hello','hi','hey','sup'], reply:'🤖 Hello! I am SAI. Ask me about locations, jobs, the bank, transit, cars, weapons, shops, mini games, or anything in Explox!' },
   { keys:['tip','advice','help'],    reply:'💡 Switch to the Tips tab for 10 game tips that will help you level up fast!' },
-  { keys:['sits','transit','bus','train','subway','metro','ride','travel','transport'], reply:'🚇 S.I.T.S. (Super Important Transit System) is at the city center (x=0, z=-40)! Walk in and pick a route. 5 lines: 🔴 Red (2 SIP), 🔵 Blue (3 SIP), 🟢 Green (2 SIP), 🟡 Yellow (4 SIP), 🟣 Purple (3 SIP). Click any stop to teleport there instantly! Fares go to your bank.' },
+  { keys:['sits','transit','bus','train','subway','metro','ride','transport'], reply:'🚇 S.I.T.S. (Super Important Transit System) is at the city center (x=0, z=-40)! Walk in and pick a route. 5 lines: 🔴 Red (2 SIP), 🔵 Blue (3 SIP), 🟢 Green (2 SIP), 🟡 Yellow (4 SIP), 🟣 Purple (3 SIP). Click any stop to teleport there instantly! Fares go to your bank.' },
   { keys:['cinema','movie','film','theater','watch'], reply:'🎬 The Movie Theater is south-east at x=50, z=-85. Walk in to pick from 14 movies — buy a ticket, grab snacks, and watch! Ticket prices: 20–40 SIP depending on the film.' },
   { keys:['fast travel','teleport','warp','shortcut'], reply:'🚇 Use S.I.T.S. at the Transit Hub (center of city, x=0, z=-40) to fast-travel anywhere! Pick a line, click your stop, and you\'re there in seconds.' },
   { keys:['airport','fly','flight','plane','airline','ticket'], reply:'✈️ The City Airport is southwest at x=-200, z=-200. Walk up and press E to enter! Buy a ticket (45–80 SIP) and fly to 5 destinations: Palm Beach 🌴, Mountain View 🏔️, Harbor Bay 🌊, Sky Tower District 🏙️, or Desert Sands 🏜️. Enjoy the window view!' },
@@ -18473,7 +21294,7 @@ function saiAsk() {
   const lq = q.toLowerCase();
   let reply = '🤔 I\'m not sure about that. Try asking about: locations, jobs, bank, safe, weapons, shops, mini games, or the map!';
   for(const entry of SAI_KB) {
-    if(entry.keys.some(k => lq.includes(k))) { reply = entry.reply; break; }
+    if(entry.keys.some(k => saiKeyMatches(lq, k))) { reply = entry.reply; break; }
   }
   setTimeout(() => saiAddMsg('🤖 ' + reply, 'sai'), 400);
 }
@@ -18489,39 +21310,66 @@ function saiAddMsg(text, who) {
   box.scrollTop = box.scrollHeight;
 }
 
+// Single source of truth for SC + which location list is active, shared by drawSAIMap() AND
+// saiMapClick() — the two used to hardcode SC=0.7 independently with a comment warning they had
+// to be kept in sync by hand; deriving both from here removes that whole failure mode. World zoom
+// (user's own ask: "make the map on sai bigger big enough to show the world") fits the real
+// 8000-radius country ring (see COUNTRY_CENTERS) inside the canvas instead of the old SC=0.7,
+// which only ever showed ~±167 units — countries and most bosses were literally off the canvas.
+function saiMapConfig() {
+  return saiMapZoomedOut
+    ? { SC: 0.016, locations: SAI_WORLD_MARKERS }
+    : { SC: 0.7,   locations: SAI_LOCATIONS };
+}
+function toggleSaiMapZoom() {
+  saiMapZoomedOut = !saiMapZoomedOut;
+  const btn = document.getElementById('saiMapZoomBtn');
+  if(btn) btn.textContent = saiMapZoomedOut ? '🔍 Zoom In to City' : '🌍 Zoom Out to World';
+  drawSAIMap();
+}
 function drawSAIMap() {
   const cv = document.getElementById('saiMapCanvas'); if(!cv) return;
   const ctx = cv.getContext('2d');
-  const W = cv.width, H = cv.height, SC = 0.7; // must match saiMapClick()'s SC, or clicks miss the drawn markers
+  const W = cv.width, H = cv.height;
+  const { SC, locations } = saiMapConfig();
   const ox = W/2, oy = H/2;
   const mx = wx => ox + wx * SC;
   const mz = wz => oy - wz * SC;
 
   ctx.fillStyle = '#050f08'; ctx.fillRect(0,0,W,H);
 
-  // Grid
-  ctx.strokeStyle = '#0a2010'; ctx.lineWidth = 1;
-  for(let i=-5;i<=5;i++){
-    ctx.beginPath(); ctx.moveTo(mx(i*50),0); ctx.lineTo(mx(i*50),H); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0,mz(i*50)); ctx.lineTo(W,mz(i*50)); ctx.stroke();
+  if(!saiMapZoomedOut) {
+    // Grid
+    ctx.strokeStyle = '#0a2010'; ctx.lineWidth = 1;
+    for(let i=-5;i<=5;i++){
+      ctx.beginPath(); ctx.moveTo(mx(i*50),0); ctx.lineTo(mx(i*50),H); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,mz(i*50)); ctx.lineTo(W,mz(i*50)); ctx.stroke();
+    }
+    // Roads
+    ctx.strokeStyle = '#1c3a1c'; ctx.lineWidth = 5;
+    [ [[-150,0],[150,0]], [[0,-130],[0,100]], [[-150,50],[150,50]], [[-30,100],[-30,-130]] ]
+    .forEach(([a,b]) => {
+      ctx.beginPath(); ctx.moveTo(mx(a[0]),mz(a[1])); ctx.lineTo(mx(b[0]),mz(b[1])); ctx.stroke();
+    });
+  } else {
+    // World ring — the real 8000-unit radius every country center sits on (see COUNTRY_CENTERS),
+    // drawn as a guide so the layout reads as "a ring of countries around the city", not random dots.
+    ctx.strokeStyle = '#0a3020'; ctx.lineWidth = 1; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.arc(ox,oy,8000*SC,0,Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
   }
 
-  // Roads
-  ctx.strokeStyle = '#1c3a1c'; ctx.lineWidth = 5;
-  [ [[-150,0],[150,0]], [[0,-130],[0,100]], [[-150,50],[150,50]], [[-30,100],[-30,-130]] ]
-  .forEach(([a,b]) => {
-    ctx.beginPath(); ctx.moveTo(mx(a[0]),mz(a[1])); ctx.lineTo(mx(b[0]),mz(b[1])); ctx.stroke();
-  });
-
   // Location dots
-  SAI_LOCATIONS.forEach(loc => {
+  const dotR = saiMapZoomedOut ? 7 : 5;
+  locations.forEach(loc => {
     const lx = mx(loc.x), ly = mz(loc.z);
-    const g = ctx.createRadialGradient(lx,ly,0,lx,ly,12);
+    const glowR = saiMapZoomedOut ? 16 : 12;
+    const g = ctx.createRadialGradient(lx,ly,0,lx,ly,glowR);
     g.addColorStop(0, loc.color+'99'); g.addColorStop(1,'transparent');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(lx,ly,12,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle = loc.color; ctx.beginPath(); ctx.arc(lx,ly,5,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 8px Arial'; ctx.textAlign = 'center';
-    ctx.fillText(loc.emoji+' '+loc.label, lx, ly-11);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(lx,ly,glowR,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = loc.color; ctx.beginPath(); ctx.arc(lx,ly,dotR,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 9px Arial'; ctx.textAlign = 'center';
+    ctx.fillText(loc.emoji+' '+loc.label, lx, ly-glowR-2);
   });
 
   // Nav line + target
@@ -18549,10 +21397,11 @@ function saiMapClick(event) {
   const cv = document.getElementById('saiMapCanvas');
   const rect = cv.getBoundingClientRect();
   const cx = event.clientX - rect.left, cy = event.clientY - rect.top;
-  const SC = 0.7, ox = cv.width/2, oy = cv.height/2; // must match drawSAIMap()'s SC, or clicks miss the drawn markers
+  const { SC, locations } = saiMapConfig(); // shared with drawSAIMap() — see saiMapConfig()'s own comment
+  const ox = cv.width/2, oy = cv.height/2;
   // Find nearest named location within 28px
   let hit = null, best = 28;
-  SAI_LOCATIONS.forEach(loc => {
+  locations.forEach(loc => {
     const lx = ox + loc.x*SC, ly = oy - loc.z*SC;
     const d = Math.sqrt((cx-lx)**2+(cy-ly)**2);
     if(d < best) { hit = loc; best = d; }

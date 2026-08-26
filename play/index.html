@@ -329,6 +329,26 @@
       <button onclick="bankDeposit()" style="flex:1;padding:10px;background:#1a4a1a;border:1px solid #44aa44;border-radius:8px;color:#44ff88;font-weight:bold;cursor:pointer;font-size:13px;">⬇ Deposit</button>
       <button onclick="bankWithdraw()" style="flex:1;padding:10px;background:#4a1a1a;border:1px solid #aa4444;border-radius:8px;color:#ff8888;font-weight:bold;cursor:pointer;font-size:13px;">⬆ Withdraw</button>
     </div>
+    <div style="background:rgba(100,200,255,0.07);border:1px solid #225577;border-radius:10px;padding:14px;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+        <span style="color:#aaa;font-size:13px;">💎 Diamond Wallet</span>
+        <span id="bankEliteWalletDisplay" style="color:#66ccff;font-weight:bold;font-size:14px;"></span>
+      </div>
+      <div style="display:flex;justify-content:space-between;">
+        <span style="color:#aaa;font-size:13px;">🔷 Bank Diamonds</span>
+        <span id="bankEliteBalDisplay" style="color:#44ff88;font-weight:bold;font-size:14px;"></span>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <div style="color:#aaa;font-size:11px;letter-spacing:1px;margin-bottom:6px;">DIAMOND AMOUNT</div>
+      <input id="bankEliteAmtInput" type="number" min="1" placeholder="Enter 💎 amount..."
+        style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.08);border:2px solid #444;border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;outline:none;"
+        onfocus="this.style.borderColor='#66ccff'" onblur="this.style.borderColor='#444'">
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button onclick="bankEliteDeposit()" style="flex:1;padding:10px;background:#1a3a4a;border:1px solid #4499cc;border-radius:8px;color:#66ccff;font-weight:bold;cursor:pointer;font-size:13px;">⬇ Deposit 💎</button>
+      <button onclick="bankEliteWithdraw()" style="flex:1;padding:10px;background:#4a1a1a;border:1px solid #aa4444;border-radius:8px;color:#ff8888;font-weight:bold;cursor:pointer;font-size:13px;">⬆ Withdraw 💎</button>
+    </div>
     <div id="bankMsg" style="font-size:12px;text-align:center;min-height:16px;margin-bottom:10px;"></div>
     <button onclick="openSafeModal()" style="width:100%;padding:10px;background:linear-gradient(90deg,#2a1a00,#3a2800);border:1px solid #886600;border-radius:8px;color:#FFD700;font-weight:bold;cursor:pointer;font-size:13px;margin-bottom:10px;">🔐 Open Safe</button>
     <button onclick="closeBank();openStockMarket()" style="width:100%;padding:10px;background:linear-gradient(90deg,#0a1a2a,#0a2838);border:1px solid #2277aa;border-radius:8px;color:#4dd0ff;font-weight:bold;cursor:pointer;font-size:13px;margin-bottom:10px;">📈 Stock Market</button>
@@ -464,6 +484,21 @@
         <button class="optBtn" data-val="wizard">Wizard</button>
         <button class="optBtn" data-val="pirate">Pirate</button>
         <button class="optBtn" data-val="santa">Santa</button>
+        <button class="optBtn" data-val="bandana">Bandana</button>
+        <button class="optBtn" data-val="headband">Headband</button>
+        <button class="optBtn" data-val="partyhat">Party Hat</button>
+        <button class="optBtn" data-val="bucket">Bucket Hat</button>
+        <button class="optBtn" data-val="jester">Jester</button>
+        <button class="optBtn" data-val="viking">Viking</button>
+        <button class="optBtn" data-val="graduation">Graduation</button>
+        <button class="optBtn" data-val="flower">Flower Crown</button>
+        <button class="optBtn" data-val="backwards">Backwards Cap</button>
+        <button class="optBtn" data-val="sombrero">Sombrero</button>
+        <button class="optBtn" data-val="propeller">Propeller</button>
+        <button class="optBtn" data-val="antlers">Antlers</button>
+        <button class="optBtn" data-val="headphones">Headphones</button>
+        <button class="optBtn" data-val="chef">Chef Hat</button>
+        <button class="optBtn" data-val="turban">Turban</button>
       </div>
       <div class="sectionLabel">SKIN COLOR</div>
       <div class="colorRow"><label>Skin</label><input type="color" id="skinColor" value="#f5c89a"></div>
@@ -477,6 +512,21 @@
         <button class="optBtn" data-val="suit">Suit</button>
         <button class="optBtn" data-val="tanktop">Tank Top</button>
         <button class="optBtn" data-val="jersey">Jersey</button>
+        <button class="optBtn" data-val="crewneck">Crewneck</button>
+        <button class="optBtn" data-val="vneck">V-Neck</button>
+        <button class="optBtn" data-val="flannel">Flannel</button>
+        <button class="optBtn" data-val="polo">Polo</button>
+        <button class="optBtn" data-val="crop">Crop Top</button>
+        <button class="optBtn" data-val="turtleneck">Turtleneck</button>
+        <button class="optBtn" data-val="buttonup">Button-Up</button>
+        <button class="optBtn" data-val="camo">Camo</button>
+        <button class="optBtn" data-val="graphic">Graphic Tee</button>
+        <button class="optBtn" data-val="raincoat">Raincoat</button>
+        <button class="optBtn" data-val="denim">Denim Jacket</button>
+        <button class="optBtn" data-val="tuxedo">Tuxedo</button>
+        <button class="optBtn" data-val="sweater">Sweater</button>
+        <button class="optBtn" data-val="crophoodie">Cropped Hoodie</button>
+        <button class="optBtn" data-val="overshirt">Overshirt</button>
       </div>
       <div class="sectionLabel">PANTS COLOR</div>
       <div class="colorRow"><label>Pants</label><input type="color" id="pantsColor" value="#333333"></div>
@@ -487,6 +537,16 @@
         <button class="optBtn" data-val="ripped">Ripped</button>
         <button class="optBtn" data-val="cargo">Cargo</button>
         <button class="optBtn" data-val="joggers">Joggers</button>
+        <button class="optBtn" data-val="overalls">Overalls</button>
+        <button class="optBtn" data-val="skirt">Skirt</button>
+        <button class="optBtn" data-val="leggings">Leggings</button>
+        <button class="optBtn" data-val="capri">Capri</button>
+        <button class="optBtn" data-val="plaid">Plaid</button>
+        <button class="optBtn" data-val="bellbottom">Bell-Bottom</button>
+        <button class="optBtn" data-val="camopants">Camo</button>
+        <button class="optBtn" data-val="skinny">Skinny</button>
+        <button class="optBtn" data-val="sweatpants">Sweatpants</button>
+        <button class="optBtn" data-val="kilt">Kilt</button>
       </div>
       <div class="sectionLabel">SHOE COLOR</div>
       <div class="colorRow"><label>Shoes</label><input type="color" id="shoeColor" value="#4e3b2a"></div>
@@ -497,6 +557,16 @@
         <button class="optBtn" data-val="sandals">Sandals</button>
         <button class="optBtn" data-val="dress">Dress</button>
         <button class="optBtn" data-val="hightop">High-Top</button>
+        <button class="optBtn" data-val="flipflops">Flip-Flops</button>
+        <button class="optBtn" data-val="rainboots">Rain Boots</button>
+        <button class="optBtn" data-val="cleats">Cleats</button>
+        <button class="optBtn" data-val="slippers">Slippers</button>
+        <button class="optBtn" data-val="platform">Platform</button>
+        <button class="optBtn" data-val="cowboyboots">Cowboy Boots</button>
+        <button class="optBtn" data-val="crocs">Crocs</button>
+        <button class="optBtn" data-val="wedges">Wedges</button>
+        <button class="optBtn" data-val="moccasins">Moccasins</button>
+        <button class="optBtn" data-val="skates">Roller Skates</button>
       </div>
       <div class="sectionLabel">SKINS</div>
       <div id="skinsSection"></div>
@@ -847,7 +917,7 @@
   </div>
 
   <!-- SAI PANEL -->
-  <div id="saiPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#050f08,#071a0f);border:2px solid #00ff88;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:260px;pointer-events:auto;max-height:85vh;overflow:hidden;">
+  <div id="saiPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#050f08,#071a0f);border:2px solid #00ff88;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:340px;pointer-events:auto;max-height:85vh;overflow:hidden;">
     <div style="color:#00ff88;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:2px;">🤖 SAI</div>
     <p style="color:#555;font-size:9px;text-align:center;margin-bottom:10px;letter-spacing:1px;">SUPER ARTIFICIAL INTELLIGENCE</p>
     <!-- Sub-tabs -->
@@ -869,7 +939,10 @@
     </div>
     <!-- MAP VIEW -->
     <div id="saiMapView" style="display:none;">
-      <canvas id="saiMapCanvas" width="234" height="220" style="border:1px solid #00ff8844;border-radius:8px;cursor:crosshair;display:block;" onclick="saiMapClick(event)"></canvas>
+      <canvas id="saiMapCanvas" width="316" height="300" style="border:1px solid #00ff8844;border-radius:8px;cursor:crosshair;display:block;" onclick="saiMapClick(event)"></canvas>
+      <div style="display:flex;justify-content:center;margin-top:6px;">
+        <button id="saiMapZoomBtn" onclick="toggleSaiMapZoom()" style="padding:5px 14px;background:#004422;border:1px solid #00ff88;border-radius:6px;color:#00ff88;font-size:10px;cursor:pointer;font-weight:bold;">🌍 Zoom Out to World</button>
+      </div>
       <p style="color:#00ff8877;font-size:9px;text-align:center;margin-top:4px;">Click a location to navigate</p>
       <div id="saiNavLabel" style="color:#00ffff;font-size:10px;text-align:center;min-height:14px;font-weight:bold;"></div>
     </div>
@@ -927,7 +1000,7 @@
        Ons/Help overlap each other there on real mobile screens, a pre-existing spacing bug
        this tab would have made worse by piling on) and clear of the right side's own
        Mini Games (+0) and Bag (+100) tabs too, measured for real on a real mobile viewport. -->
-  <div id="questsTab" style="position:fixed;top:calc(50% + 166px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
+  <div id="questsTab" style="position:fixed;top:calc(50% + 183px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
     <button onclick="toggleQuestsPanel()" style="display:block;background:linear-gradient(180deg,#1a0a2a,#2a0a4a);border:2px solid #cc66ff;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
       <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">📜</span>QUESTS
     </button>
@@ -950,7 +1023,7 @@
   <!-- EARNINGS TAB — every S.I.P./Elite Coin reward in the game gets queued here instead of
        landing in your wallet instantly; click an earning to actually collect it. The red "!"
        badge lights up once anything's sat uncollected for 30+ real minutes. -->
-  <div id="earningsTab" style="position:fixed;top:calc(50% + 236px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
+  <div id="earningsTab" style="position:fixed;top:calc(50% + 286px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
     <button onclick="toggleEarningsPanel()" style="display:block;position:relative;background:linear-gradient(180deg,#1a2a0a,#2a4a0a);border:2px solid #88ff44;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
       <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">💰</span>EARNINGS
       <span id="earningsCount" style="display:none;position:absolute;top:-6px;left:-6px;transform:rotate(180deg);background:#FFD700;color:#000;font-size:10px;font-weight:bold;border-radius:50%;width:18px;height:18px;line-height:18px;text-align:center;writing-mode:horizontal-tb;"></span>
@@ -970,19 +1043,146 @@
   <!-- JOB TAB — hire on for ANY job in the game from one menu instead of having to walk to
        find each one's physical spot in the city. Same activeJob/activeBankJob state as the
        physical zones (Scrapyard-style walk-up interaction still works too, this is just a
-       second way in) — see renderJobsPanel() in game.js. -->
-  <div id="jobsTab" style="position:fixed;top:calc(50% + 306px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
-    <button onclick="toggleJobsPanel()" style="display:block;background:linear-gradient(180deg,#0a1a2a,#0a3a4a);border:2px solid #44ddff;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
-      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">💼</span>JOB
+       second way in) — see renderJobsPanel() in game.js. Moved to the left side (was crowding
+       off the bottom of the right-side stack) — next free slot after Guide's +322. -->
+  <div id="jobsTab" style="position:fixed;top:calc(50% + 402px);left:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
+    <button onclick="toggleJobsPanel()" style="display:block;background:linear-gradient(180deg,#0a1a2a,#0a3a4a);border:2px solid #44ddff;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">💼</span>JOB
     </button>
   </div>
 
   <!-- JOB PANEL -->
-  <div id="jobsPanel" style="display:none;position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#050f18,#082838);border:2px solid #44ddff;border-right:none;border-radius:14px 0 0 14px;padding:14px 12px;width:290px;pointer-events:auto;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;">
+  <div id="jobsPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#050f18,#082838);border:2px solid #44ddff;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:290px;pointer-events:auto;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;">
     <div style="color:#44ddff;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:4px;">💼 JOBS</div>
     <p style="color:#555;font-size:9px;text-align:center;margin-bottom:8px;letter-spacing:1px;">HIRE ON FROM ANYWHERE — NO WALKING NEEDED</p>
     <div id="jobsList" style="overflow-y:auto;flex:1;padding-right:4px;"></div>
     <button onclick="closeJobsPanel()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:10px;">✕ Close</button>
+  </div>
+
+  <!-- CURRENCY SHOP TAB — user's own ask: a shop to buy S.I.P./diamond packages up to a bundled
+       VIP Package. Moved to the left side, next free slot after Job's +402. -->
+  <div id="currencyShopTab" style="position:fixed;top:calc(50% + 482px);left:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
+    <button onclick="toggleCurrencyShopPanel()" style="display:block;background:linear-gradient(180deg,#2a1a00,#4a3800);border:2px solid #FFD700;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🛍️</span>SHOP
+    </button>
+  </div>
+
+  <!-- CURRENCY SHOP PANEL -->
+  <div id="currencyShopPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#1a1400,#241d00);border:2px solid #FFD700;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:290px;pointer-events:auto;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;">
+    <div style="color:#FFD700;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:4px;">🛍️ SHOP</div>
+    <p style="color:#555;font-size:9px;text-align:center;margin-bottom:8px;letter-spacing:1px;">PAY SOME GET SOME</p>
+    <div id="currencyShopList" style="overflow-y:auto;flex:1;padding-right:4px;"></div>
+    <button onclick="closeCurrencyShopPanel()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:10px;">✕ Close</button>
+  </div>
+
+  <!-- TEST LAB TAB — private spot to test-play new mini-game files before they're real. Moved
+       back to the right side to balance the two tab stacks, next free slot after Earnings' +286. -->
+  <div id="testLabTab" style="position:fixed;top:calc(50% + 379px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
+    <button onclick="toggleTestLabPanel()" style="display:block;background:linear-gradient(180deg,#2a1400,#4a2800);border:2px solid #ff8833;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
+      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🛠️</span>TEST LAB
+    </button>
+  </div>
+
+  <!-- TEST LAB PANEL -->
+  <div id="testLabPanel" style="display:none;position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#1a0f00,#241400);border:2px solid #ff8833;border-right:none;border-radius:14px 0 0 14px;padding:14px 12px;width:290px;pointer-events:auto;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;">
+    <div style="color:#ff8833;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:4px;">🛠️ TEST LAB</div>
+    <p style="color:#555;font-size:9px;text-align:center;margin-bottom:8px;letter-spacing:1px;">ONLY YOU CAN SEE THESE</p>
+    <div id="testLabList" style="overflow-y:auto;flex:1;padding-right:4px;"></div>
+    <button onclick="closeTestLabPanel()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:10px;">✕ Close</button>
+  </div>
+
+  <!-- RECORDS TAB — user's own ask: "records like most diamonds, sip and more". Moved back to
+       the right side to balance the two tab stacks, next free slot after Test Lab's +379. -->
+  <div id="recordsTab" style="position:fixed;top:calc(50% + 456px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
+    <button onclick="toggleRecordsPanel()" style="display:block;background:linear-gradient(180deg,#1a0a2a,#2a1a4a);border:2px solid #bb66ff;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
+      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🏆</span>RECORDS
+    </button>
+  </div>
+
+  <!-- RECORDS PANEL -->
+  <div id="recordsPanel" style="display:none;position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#120a1a,#1c1128);border:2px solid #bb66ff;border-right:none;border-radius:14px 0 0 14px;padding:14px 12px;width:290px;pointer-events:auto;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;">
+    <div style="color:#bb66ff;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:4px;">🏆 RECORDS</div>
+    <p style="color:#555;font-size:9px;text-align:center;margin-bottom:8px;letter-spacing:1px;">YOUR ALL-TIME BESTS</p>
+    <div id="recordsList" style="overflow-y:auto;flex:1;padding-right:4px;"></div>
+    <button onclick="closeRecordsPanel()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:10px;">✕ Close</button>
+  </div>
+
+  <!-- GAME BUILDER TAB — user's own ask: "make something like scratch incase they have no coding
+       experience for explox mini games". Moved back to the right side to balance the two tab
+       stacks, next free slot after Records' +456. -->
+  <div id="gbTab" style="position:fixed;top:calc(50% + 536px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
+    <button onclick="toggleGameBuilderPanel()" style="display:block;background:linear-gradient(180deg,#0a2a1a,#1a4a2a);border:2px solid #44dd88;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
+      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🧩</span>BUILDER
+    </button>
+  </div>
+
+  <!-- GAME BUILDER MODAL — a real Scratch-style block editor: click blocks together, no typing
+       code, multiple sprites, sounds, backgrounds, variables, and a live Run button that actually
+       plays the result right there on a canvas. Logic lives entirely in game-builder.js. -->
+  <div id="gbModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;">
+    <div style="background:linear-gradient(135deg,#0a1a10,#0f2418);border:2px solid #44dd88;border-radius:16px;padding:16px;width:min(96vw,1180px);height:min(92vh,760px);display:flex;flex-direction:column;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="color:#44dd88;font-size:16px;font-weight:bold;letter-spacing:2px;">🧩 GAME BUILDER — <span id="gbGameNameLabel"></span></div>
+        <div>
+          <button onclick="gbBackToGamesList()" id="gbBackBtn" style="padding:6px 12px;background:#333;border:none;border-radius:6px;color:#fff;font-size:12px;cursor:pointer;margin-right:6px;">⬅ My Games</button>
+          <button onclick="closeGameBuilderPanel()" style="padding:6px 12px;background:#5a2a2a;border:none;border-radius:6px;color:#fff;font-size:12px;cursor:pointer;">✕ Close</button>
+        </div>
+      </div>
+
+      <!-- MY GAMES SCREEN -->
+      <div id="gbGamesScreen" style="flex:1;overflow-y:auto;">
+        <button onclick="gbCreateNewGame()" style="padding:10px 18px;background:#2a5a2a;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:bold;cursor:pointer;margin-bottom:14px;">+ New Game</button>
+        <div id="gbGamesList"></div>
+      </div>
+
+      <!-- EDITOR SCREEN -->
+      <div id="gbEditor" style="display:none;flex:1;gap:10px;overflow:hidden;">
+        <div style="width:190px;display:flex;flex-direction:column;overflow-y:auto;">
+          <div style="color:#888;font-size:10px;font-weight:bold;letter-spacing:1px;margin-bottom:4px;">SPRITES</div>
+          <div id="gbSpriteList" style="margin-bottom:6px;"></div>
+          <div style="color:#888;font-size:10px;font-weight:bold;letter-spacing:1px;margin-bottom:4px;">COSTUMES (this sprite)</div>
+          <div id="gbCostumesList" style="margin-bottom:10px;"></div>
+          <div style="color:#888;font-size:10px;font-weight:bold;letter-spacing:1px;margin-bottom:4px;">BLOCKS — click or drag to add</div>
+          <div id="gbPalette" style="flex:1;overflow-y:auto;"></div>
+        </div>
+        <div style="width:500px;display:flex;flex-direction:column;">
+          <div style="position:relative;">
+            <canvas id="gbStageCanvas" width="480" height="360" style="border-radius:8px;border:2px solid #333;display:block;"></canvas>
+            <div id="gbOutcomeBanner" style="display:none;position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:32px;font-weight:bold;background:rgba(0,0,0,0.55);border-radius:8px;"></div>
+          </div>
+          <div style="display:flex;gap:8px;margin:8px 0;">
+            <button onclick="gbStart()" style="flex:1;padding:8px;background:#2a7a2a;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;">▶ Run</button>
+            <button onclick="gbStop()" style="flex:1;padding:8px;background:#7a2a2a;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;">■ Stop</button>
+          </div>
+          <div style="color:#888;font-size:10px;font-weight:bold;letter-spacing:1px;margin-bottom:4px;">BACKDROPS / LEVELS</div>
+          <div id="gbBackdropsList" style="margin-bottom:8px;"></div>
+          <div style="color:#888;font-size:10px;font-weight:bold;letter-spacing:1px;margin-bottom:4px;">VARIABLES</div>
+          <div id="gbVarsList" style="overflow-y:auto;flex:1;"></div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+          <div style="color:#888;font-size:10px;font-weight:bold;letter-spacing:1px;margin-bottom:4px;">SCRIPTS FOR THIS SPRITE</div>
+          <div id="gbScriptTabs" style="margin-bottom:6px;"></div>
+          <div id="gbScriptArea" ondragover="event.preventDefault()" ondrop="gbHandleDropOnContainer(event,null,1)" style="flex:1;overflow-y:auto;background:rgba(255,255,255,0.03);border-radius:8px;padding:8px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME BUILDER PAINT EDITOR — a real pixel-art tool (like Scratch's Paint Editor) for drawing
+       a custom sprite costume instead of only picking from the preset emoji list. Sits above
+       gbModal (z-index 310 > 300) since it opens from inside the editor. -->
+  <div id="gbPaintModal" style="display:none;position:fixed;inset:0;z-index:310;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;">
+    <div style="background:linear-gradient(135deg,#0a1a10,#0f2418);border:2px solid #44dd88;border-radius:16px;padding:16px;text-align:center;">
+      <div style="color:#44dd88;font-size:14px;font-weight:bold;letter-spacing:2px;margin-bottom:10px;">🖌️ DRAW A NEW COSTUME</div>
+      <canvas id="gbPaintCanvas" width="256" height="256" style="border-radius:6px;cursor:crosshair;touch-action:none;"
+        onmousedown="gbPaintMouseDown(event)" onmousemove="gbPaintMouseMove(event)" onmouseup="gbPaintMouseUp()" onmouseleave="gbPaintMouseUp()"></canvas>
+      <div id="gbPaintPalette" style="margin:10px 0;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="gbClearPaint()" style="flex:1;padding:8px;background:#5a5a2a;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;">🧹 Clear</button>
+        <button onclick="gbSaveDrawnCostume()" style="flex:1;padding:8px;background:#2a7a2a;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;">💾 Save Costume</button>
+        <button onclick="gbClosePaintEditor()" style="flex:1;padding:8px;background:#7a2a2a;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;">✕ Cancel</button>
+      </div>
+    </div>
   </div>
 
   <!-- MONEY COUNTER MODAL — real counting minigame for the Money Counter Bank Job -->
@@ -998,6 +1198,22 @@
         onkeydown="if(event.key==='Enter')submitCounterAnswer()"
         onfocus="this.style.borderColor='#FFD700'" onblur="this.style.borderColor='#444'">
       <button onclick="submitCounterAnswer()" style="width:100%;padding:10px;background:#886600;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:13px;">Submit →</button>
+    </div>
+  </div>
+
+  <!-- HIRE A KILLER MODAL — type a specific NPC's name, hire a killer to hunt them down for a
+       real name-based payout. See HIRE_KILLER_FEE/openHitmanModal in game.js. -->
+  <div id="hitmanModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.82);align-items:center;justify-content:center;">
+    <div style="background:linear-gradient(135deg,#1a0a0a,#2a0e0e);border:2px solid #cc3333;border-radius:16px;padding:32px 28px;width:340px;text-align:center;">
+      <div style="font-size:36px;margin-bottom:8px;">🗡️</div>
+      <h2 style="color:#cc3333;font-size:18px;letter-spacing:2px;margin-bottom:6px;">HIRE A KILLER</h2>
+      <p style="color:#888;font-size:12px;margin-bottom:10px;">Type their exact name. Costs 150 S.I.P. up front — the payout depends on who it is.</p>
+      <input id="hitmanNameInput" type="text" placeholder="Full name..." oninput="updateHitmanPreview()"
+        style="width:100%;padding:10px 14px;background:rgba(255,255,255,0.08);border:2px solid #444;border-radius:10px;color:#fff;font-size:15px;margin-bottom:8px;outline:none;box-sizing:border-box;text-align:center;"
+        onfocus="this.style.borderColor='#cc3333'" onblur="this.style.borderColor='#444'">
+      <p id="hitmanPreview" style="font-size:12px;min-height:16px;margin-bottom:12px;"></p>
+      <button onclick="confirmHireKiller()" style="width:100%;padding:10px;background:#7a1a1a;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:13px;margin-bottom:8px;">🗡️ Hire (150 S.I.P.)</button>
+      <button onclick="closeHitmanModal()" style="width:100%;padding:8px;background:none;border:1px solid #444;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">Cancel</button>
     </div>
   </div>
 
@@ -1025,7 +1241,7 @@
   </div>
 
   <!-- INVENTORY TAB -->
-  <div id="inventoryTab" style="position:fixed;top:calc(50% + 100px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
+  <div id="inventoryTab" style="position:fixed;top:calc(50% + 98px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
     <button onclick="toggleInventory()" style="display:block;background:linear-gradient(180deg,#1a2e1a,#0f4020);border:2px solid #FFD700;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
       <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🎒</span>BAG
     </button>
@@ -1235,6 +1451,12 @@
       </div>
       <div style="border-top:1px solid #2a2a2a;margin-top:10px;padding-top:8px;">
         <div style="color:#888;font-size:11px;font-weight:bold;margin-bottom:6px;">💬 Comments</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <input id="tubeCommentInput" type="text" maxlength="200" placeholder="Add a comment..."
+            style="flex:1;padding:6px 8px;background:#222;border:1px solid #333;border-radius:6px;color:#fff;font-size:11px;outline:none;"
+            onkeydown="if(event.key==='Enter')postTubeComment()">
+          <button onclick="postTubeComment()" style="padding:6px 12px;background:#ff3333;border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:bold;cursor:pointer;">Post</button>
+        </div>
         <div id="tubeComments" style="max-height:110px;overflow-y:auto;font-size:11px;"></div>
       </div>
     </div>
@@ -1375,6 +1597,7 @@ function closeMgPanel(){
 
 <script src="AiGame/explox/three.min.js"></script>
 <script src="AiGame/explox/game.js"></script>
+<script src="AiGame/explox/game-builder.js"></script>
 <script>
 window.addEventListener('load', function() {
   var btn = document.getElementById('createAccBtn');
