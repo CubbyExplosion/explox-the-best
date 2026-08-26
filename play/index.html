@@ -1067,6 +1067,15 @@
     </button>
   </div>
 
+  <!-- HIRE A KILLER TAB — was buried inside Add Ons -> Crime, user asked for its own tab so it's
+       one click instead of two. Opens hitmanModal directly (same as the Add Ons entry already
+       did), no separate panel of its own. Left side, next free slot after Shop's +482. -->
+  <div id="hireKillerTab" style="position:fixed;top:calc(50% + 562px);left:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
+    <button onclick="openHitmanModal()" style="display:block;background:linear-gradient(180deg,#2a0a0a,#4a0e0e);border:2px solid #cc3333;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🗡️</span>KILLER
+    </button>
+  </div>
+
   <!-- CURRENCY SHOP PANEL -->
   <div id="currencyShopPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#1a1400,#241d00);border:2px solid #FFD700;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:290px;pointer-events:auto;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;">
     <div style="color:#FFD700;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:4px;">🛍️ SHOP</div>
