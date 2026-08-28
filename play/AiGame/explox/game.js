@@ -7166,6 +7166,7 @@ function applyDamageBuffs(base) {
   dmg *= playerLevelDamageMult();
   if(activeAddOns.includes('berserker')) dmg *= 1.5;
   if(warCryEndTime) { if(clock.getElapsedTime() < warCryEndTime) dmg *= 2; else warCryEndTime = 0; }
+  if(gymBuffEndTime) { if(clock.getElapsedTime() < gymBuffEndTime) dmg *= 1.15; else gymBuffEndTime = 0; }
   if(activeAddOns.includes('luckycrits') && Math.random() < 0.2) dmg *= 2;
   dmg *= punchChargeMult;
   return Math.round(dmg);
@@ -7581,7 +7582,7 @@ function tryDuelInteract() {
   // whatever you're actually standing near" philosophy as the d>25 case above, just
   // extended to this not-yet-dueling case too, which never had it.
   if(!duelChallengeSentTo) {
-    const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : CITY_ZONES;
+    const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : CITY_ZONES;
     const px3 = playerGroup.position.x, pz3 = playerGroup.position.z;
     const nearZone = zones.some(z => Math.hypot(px3 - z.x, pz3 - z.z) < z.r)
       || rogueRobots.some(r => r.alive && Math.hypot(px3 - r.x, pz3 - r.z) < 3)
@@ -13736,7 +13737,7 @@ function spawnRogueRobot() {
 }
 function tickRogueRobots(dt) {
   rogueTimer += dt;
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital;
   if (rogueTimer >= 20) {
     rogueTimer = 0;
     if (outdoors && rogueRobots.filter(r=>r.alive).length < 5) spawnRogueRobot();
@@ -14227,7 +14228,7 @@ function tickGuardKillerCombat(k, dt) {
 }
 function tickKillers(dt) {
   killerTimer += dt;
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital;
   if (killerTimer >= killerSpawnInterval()) {
     killerTimer = 0;
     // Only counts ambient killers against the ambient cap now — a Guard shift's own separate
@@ -14611,6 +14612,12 @@ const BB_HOOP_POS = { x:SPORTS_SPAWN.x-31.4, y:3.2, z:SPORTS_SPAWN.z+0.3 };
 const SOCCER_KICK_SPOT = { x:SPORTS_SPAWN.x+25, z:SPORTS_SPAWN.z-6 };
 const SOCCER_GOAL_X = { left:SPORTS_SPAWN.x+30, center:SPORTS_SPAWN.x+33, right:SPORTS_SPAWN.x+36 };
 const SOCCER_GOAL_Z = SPORTS_SPAWN.z;
+// User's follow-up: "more sports". Same field, a new row further in (north of the entry/
+// basketball/soccer row) so nothing needed to move.
+const BASEBALL_HOME = { x:SPORTS_SPAWN.x-15, z:SPORTS_SPAWN.z-18 };
+const BOWLING_LANE  = { x:SPORTS_SPAWN.x+15, z:SPORTS_SPAWN.z-18 };
+const GYM_SPOT = { x:SPORTS_SPAWN.x, z:SPORTS_SPAWN.z-18 }; // dead center between Baseball/Bowling's lanes
+let gymBuffEndTime = 0; // read by applyDamageBuffs() near warCryEndTime — real +15% damage, not just a number on a screen
 function enterSportsPark() {
   inSportsPark = true;
   playerGroup.position.set(SPORTS_SPAWN.x, 0, SPORTS_SPAWN.z+20);
@@ -14626,12 +14633,15 @@ function leaveSportsPark() {
 const SPORTS_ZONES = [
   { x:BB_SHOOT_SPOT.x, z:BB_SHOOT_SPOT.z, r:3.5, label:'🏀 Shoot Hoops', action: openBasketball },
   { x:SOCCER_KICK_SPOT.x, z:SOCCER_KICK_SPOT.z, r:3.5, label:'⚽ Take a Penalty Kick', action: openSoccer },
+  { x:BASEBALL_HOME.x, z:BASEBALL_HOME.z, r:3.5, label:'⚾ Take a Swing', action: openBaseball },
+  { x:BOWLING_LANE.x, z:BOWLING_LANE.z, r:3.5, label:'🎳 Roll a Ball', action: openBowling },
+  { x:GYM_SPOT.x, z:GYM_SPOT.z, r:3.5, label:'🏋️ Work Out', action: openGym },
   { x:SPORTS_SPAWN.x, z:SPORTS_SPAWN.z+20, r:4, label:'🚪 Leave Sports Park', action: leaveSportsPark },
 ];
 function buildSportsParkInterior() {
   const { x:sx, z:sz } = SPORTS_SPAWN;
-  box(90,0.2,50, 0x4a9e2a, sx,0.1,sz); // grass field
-  buildSign('🏟️ SPORTS PARK', sx, 7, sz-23);
+  box(90,0.2,100, 0x4a9e2a, sx,0.1,sz-20); // grass field — deepened to fit Baseball/Bowling's own row
+  buildSign('🏟️ SPORTS PARK', sx, 7, sz-68); // moved to the new far edge — used to sit right where Baseball/Bowling's row is now
   box(8,3,0.4, 0x8B5E3C, sx, 1.5, sz+23); // exit gate marker
 
   // ── BASKETBALL COURT (west side) ──
@@ -14651,6 +14661,29 @@ function buildSportsParkInterior() {
   box(7,0.25,0.25, 0xffffff, SOCCER_GOAL_X.center, 2.4, SOCCER_GOAL_Z);
   soccerGoalieMesh = box(1,2,0.6, 0x2244aa, SOCCER_GOAL_X.center, 1, SOCCER_GOAL_Z);
   buildSign('⚽ PENALTY KICK', SOCCER_KICK_SPOT.x, 4, SOCCER_KICK_SPOT.z-2.5);
+
+  // ── BASEBALL DIAMOND (new row, west) — home plate + a real backstop, batting north into the field ──
+  box(1.2,0.1,1.2, 0xeeeedd, BASEBALL_HOME.x, 0.06, BASEBALL_HOME.z); // home plate
+  box(6,3,0.2, 0x777777, BASEBALL_HOME.x, 1.5, BASEBALL_HOME.z+2.5); // backstop
+  buildSign('⚾ TAKE A SWING', BASEBALL_HOME.x, 4, BASEBALL_HOME.z+3);
+
+  // ── BOWLING LANE (new row, east) — a real lane strip + 10 pins, rebuilt fresh each roll ──
+  box(3,0.1,44, 0xddc88c, BOWLING_LANE.x, 0.08, BOWLING_LANE.z-18);
+  box(0.3,0.6,44, 0x8a6d3a, BOWLING_LANE.x-1.6, 0.35, BOWLING_LANE.z-18);
+  box(0.3,0.6,44, 0x8a6d3a, BOWLING_LANE.x+1.6, 0.35, BOWLING_LANE.z-18);
+  buildSign('🎳 ROLL A BALL', BOWLING_LANE.x, 4, BOWLING_LANE.z+3);
+  buildBowlingPins();
+
+  // ── GYM (new row, center) — a real bench press station between Baseball and Bowling ──
+  box(3.5,0.4,1.4, 0x333333, GYM_SPOT.x, 0.5, GYM_SPOT.z); // bench
+  box(0.3,0.5,0.3, 0x555555, GYM_SPOT.x-1.5,0.7,GYM_SPOT.z-0.5); box(0.3,0.5,0.3, 0x555555, GYM_SPOT.x-1.5,0.7,GYM_SPOT.z+0.5);
+  box(0.3,0.5,0.3, 0x555555, GYM_SPOT.x+1.5,0.7,GYM_SPOT.z-0.5); box(0.3,0.5,0.3, 0x555555, GYM_SPOT.x+1.5,0.7,GYM_SPOT.z+0.5);
+  box(4.4,0.15,0.15, 0x777777, GYM_SPOT.x, 1.05, GYM_SPOT.z); // barbell
+  [-2.1,2.1].forEach(off => {
+    box(0.5,0.5,0.5, 0x111111, GYM_SPOT.x+off, 1.05, GYM_SPOT.z);
+    box(0.5,0.5,0.5, 0x111111, GYM_SPOT.x+off*0.85, 1.05, GYM_SPOT.z);
+  });
+  buildSign('🏋️ WORK OUT', GYM_SPOT.x, 4, GYM_SPOT.z+3);
 }
 
 // ─── BASKETBALL — a real power meter (a live requestAnimationFrame loop drives both the DOM
@@ -14752,6 +14785,241 @@ function animateSoccerKick(direction, dive, onDone) {
     if (p < 1) requestAnimationFrame(step);
     else { scene.remove(ball); onDone(); }
   })(t0); // same seeded-first-call fix as animateBasketballShot — see its comment
+}
+
+// ─── GENERIC POWER METER — user's follow-up "more sports". Basketball built its own meter first;
+// Baseball and Bowling share this one instead of each duplicating the same rAF-driven marker.
+let sportsMeterAnimId = null, sportsMeterPower = 0, sportsMeterDir = 1, sportsMeterOnLock = null;
+function openSportsMeter(titleText, onLock) {
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('sportsMeterTitle').textContent = titleText;
+  document.getElementById('sportsMeterModal').style.display = 'flex';
+  sportsMeterPower = 0; sportsMeterDir = 1; sportsMeterOnLock = onLock;
+  (function frame() {
+    sportsMeterPower += sportsMeterDir * 2.4;
+    if (sportsMeterPower >= 100) { sportsMeterPower = 100; sportsMeterDir = -1; }
+    if (sportsMeterPower <= 0) { sportsMeterPower = 0; sportsMeterDir = 1; }
+    const marker = document.getElementById('sportsMeterMarker');
+    if (marker) marker.style.left = sportsMeterPower + '%';
+    sportsMeterAnimId = requestAnimationFrame(frame);
+  })();
+}
+function closeSportsMeter() {
+  if (sportsMeterAnimId) cancelAnimationFrame(sportsMeterAnimId);
+  document.getElementById('sportsMeterModal').style.display = 'none';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function lockSportsMeter() {
+  if (sportsMeterAnimId) cancelAnimationFrame(sportsMeterAnimId);
+  const power = sportsMeterPower;
+  document.getElementById('sportsMeterModal').style.display = 'none';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+  if (sportsMeterOnLock) sportsMeterOnLock(power);
+}
+
+// ─── BASEBALL — same timing-accuracy idea as Basketball, resolved through the shared meter above.
+// A real ball flies off home plate, distance scaling with how close to dead-center the timing was.
+function openBaseball() { openSportsMeter('⚾ Time your swing!', resolveBaseballSwing); }
+function resolveBaseballSwing(power) {
+  const off = Math.abs(power - 50);
+  let result, reward, dist;
+  if (off < 8)       { result = '⚾💥 HOME RUN!';  reward = 120; dist = 55; }
+  else if (off < 20)  { result = '⚾ Double!';      reward = 50;  dist = 32; }
+  else if (off < 35)  { result = '⚾ Single!';      reward = 20;  dist = 16; }
+  else                 { result = '⚾ Strike out!'; reward = 0;   dist = 2; }
+  animateBaseballHit(dist, () => {
+    if (reward > 0) { queueEarning(reward, 0, 'Baseball'); showNotif(`${result} +${reward} S.I.P.`); sfx.buy(); }
+    else { showNotif(result); sfx.nope(); }
+  });
+}
+function animateBaseballHit(dist, onDone) {
+  const start = { x:BASEBALL_HOME.x, y:1, z:BASEBALL_HOME.z };
+  const end = { x:BASEBALL_HOME.x, y:0.3, z:BASEBALL_HOME.z-dist };
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.25,10,10), new THREE.MeshLambertMaterial({color:0xffffff}));
+  ball.position.set(start.x, start.y, start.z);
+  scene.add(ball);
+  const dur = 900, t0 = performance.now();
+  (function step(now) {
+    const p = Math.min(1, (now-t0)/dur);
+    ball.position.z = start.z + (end.z-start.z)*p;
+    ball.position.y = start.y + (end.y-start.y)*p + Math.sin(p*Math.PI)*4;
+    if (p < 1) requestAnimationFrame(step);
+    else { scene.remove(ball); onDone(); }
+  })(t0);
+}
+
+// ─── BOWLING — 10 real pins (rebuilt fresh each roll), knocked down (removed from the scene) in a
+// count matching the meter's accuracy — a real strike visibly clears the whole rack, not a label.
+let bowlingPins = [];
+function buildBowlingPins() {
+  bowlingPins.forEach(p => scene.remove(p));
+  bowlingPins = [];
+  const rows = [[0],[-0.3,0.3],[-0.6,0,0.6],[-0.9,-0.3,0.3,0.9]];
+  rows.forEach((row, ri) => {
+    row.forEach(off => {
+      const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.16,0.55,8), new THREE.MeshLambertMaterial({color:0xffffff}));
+      pin.position.set(BOWLING_LANE.x+off, 0.28, BOWLING_LANE.z-40-ri*0.6);
+      scene.add(pin);
+      bowlingPins.push(pin);
+    });
+  });
+}
+function openBowling() { openSportsMeter('🎳 Time your roll!', resolveBowlingRoll); }
+function resolveBowlingRoll(power) {
+  const off = Math.abs(power - 50);
+  let knocked, result, reward;
+  if (off < 8)       { knocked = 10; result = '🎳 STRIKE!';       reward = 100; }
+  else if (off < 20)  { knocked = 7;  result = '🎳 Nice roll!';    reward = 40; }
+  else if (off < 35)  { knocked = 4;  result = '🎳 A few down.';   reward = 15; }
+  else                 { knocked = 0;  result = '🎳 Gutter ball!'; reward = 0; }
+  animateBowlingRoll(knocked, () => {
+    buildBowlingPins(); // fresh rack for the next roll
+    if (reward > 0) { queueEarning(reward, 0, 'Bowling'); showNotif(`${result} +${reward} S.I.P.`); sfx.buy(); }
+    else { showNotif(result); sfx.nope(); }
+  });
+}
+function animateBowlingRoll(knocked, onDone) {
+  const start = { x:BOWLING_LANE.x, y:0.3, z:BOWLING_LANE.z-4 };
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.3,10,10), new THREE.MeshLambertMaterial({color:0x2244aa}));
+  ball.position.set(start.x, start.y, start.z);
+  scene.add(ball);
+  const dur = 700, t0 = performance.now();
+  (function step(now) {
+    const p = Math.min(1, (now-t0)/dur);
+    ball.position.z = start.z - 38*p;
+    if (p < 1) requestAnimationFrame(step);
+    else {
+      scene.remove(ball);
+      const shuffled = bowlingPins.slice().sort(() => Math.random()-0.5);
+      for (let i = 0; i < knocked && i < shuffled.length; i++) scene.remove(shuffled[i]);
+      onDone();
+    }
+  })(t0);
+}
+
+// ─── GYM — a real mechanic type instead of another timing bar: mash the button for a real 5
+// real-time seconds, reps decided by actual clicks landed (setTimeout-driven, so the window
+// closes on its own even if the player just stops clicking mid-challenge). Enough reps buys a
+// real, felt payoff: +15% damage for a few real minutes, read by applyDamageBuffs() near
+// warCryEndTime — the exact same mechanism War Cry already uses, not a separate fake stat.
+let gymChallengeActive = false, gymClickCount = 0;
+function openGym() {
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  gymChallengeActive = false;
+  gymClickCount = 0;
+  document.getElementById('gymModal').style.display = 'flex';
+  document.getElementById('gymRepsText').textContent = 'Reps: 0';
+  document.getElementById('gymStatusText').textContent = 'Click PUMP! to start — 5 real seconds!';
+}
+function closeGym() {
+  gymChallengeActive = false;
+  document.getElementById('gymModal').style.display = 'none';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function gymPump() {
+  if (document.getElementById('gymModal').style.display === 'none') return; // a stray click after closing
+  if (!gymChallengeActive) {
+    gymChallengeActive = true;
+    gymClickCount = 0;
+    document.getElementById('gymStatusText').textContent = 'GO GO GO!';
+    setTimeout(() => { if (gymChallengeActive) finishGymChallenge(); }, 5000);
+  }
+  if (!gymChallengeActive) return; // window already closed via the timeout above
+  gymClickCount++;
+  document.getElementById('gymRepsText').textContent = `Reps: ${gymClickCount}`;
+}
+function finishGymChallenge() {
+  gymChallengeActive = false;
+  const reps = gymClickCount;
+  let result, reward, buffMinutes;
+  if (reps >= 30)      { result = '💪🔥 INCREDIBLE!';           reward = 100; buffMinutes = 5; }
+  else if (reps >= 20)  { result = '💪 Great workout!';          reward = 50;  buffMinutes = 3; }
+  else if (reps >= 10)  { result = '💪 Decent effort.';          reward = 20;  buffMinutes = 1; }
+  else                   { result = '😅 Barely broke a sweat.';  reward = 0;   buffMinutes = 0; }
+  document.getElementById('gymModal').style.display = 'none';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+  if (buffMinutes > 0) {
+    gymBuffEndTime = clock.getElapsedTime() + buffMinutes*60;
+    showNotif(`${result} ${reps} reps! +15% damage for ${buffMinutes} min${reward>0 ? `, +${reward} S.I.P.` : ''}`);
+    sfx.buy();
+  } else {
+    showNotif(`${result} ${reps} reps — not enough for a real buff.`);
+    sfx.nope();
+  }
+  if (reward > 0) queueEarning(reward, 0, 'Workout');
+}
+
+// ─── HOSPITAL — user's "keep building" follow-up. The building itself has existed since early
+// in the city (real exterior, real sign, a real solid collider) but was never actually walkable
+// in — no door gap, no interior, no doctor. Real door gap cut into the exterior collision above;
+// this is the pocket-space interior + the one real service inside: a paid checkup that heals HP
+// and — the actual point, tying straight into today's Sickness system — cures being sick. It does
+// NOT touch hunger; a doctor fixing a growling stomach would be its own kind of unrealistic.
+const HOSPITAL_SPAWN = { x:140000, z:0 }; // own lane, next free one after SportsPark(130000)
+const HOSPITAL_EXIT = { x:-40, z:74 }; // real-world door, matches the gap cut into the exterior wall
+let inHospital = false;
+const DOCTOR_VISIT_COST = 80;
+function enterHospital() {
+  inHospital = true;
+  playerGroup.position.set(HOSPITAL_SPAWN.x, 0, HOSPITAL_SPAWN.z+10);
+  yaw = Math.PI;
+  showNotif('🏥 Welcome to City Hospital!');
+}
+function leaveHospital() {
+  inHospital = false;
+  playerGroup.position.set(HOSPITAL_EXIT.x, 0, HOSPITAL_EXIT.z+3);
+  yaw = 0;
+  showNotif('Leaving the hospital...');
+}
+const DOCTOR_SPOT = { x:HOSPITAL_SPAWN.x, z:HOSPITAL_SPAWN.z-6 };
+const HOSPITAL_ZONES = [
+  { x:DOCTOR_SPOT.x, z:DOCTOR_SPOT.z, r:3.5, label:`🩺 See the Doctor (${DOCTOR_VISIT_COST} S.I.P.)`, action: seeDoctor },
+  { x:HOSPITAL_SPAWN.x, z:HOSPITAL_SPAWN.z+10, r:4, label:'🚪 Leave Hospital', action: leaveHospital },
+];
+function seeDoctor() {
+  if (sipDollars < DOCTOR_VISIT_COST) { showNotif(`❌ Need ${DOCTOR_VISIT_COST} S.I.P. for a visit.`); sfx.nope(); return; }
+  sipDollars -= DOCTOR_VISIT_COST;
+  updateSIP();
+  playerHealth = playerMaxHealth;
+  updateHealthBar();
+  const wasSick = sick;
+  if (sick) { sick = false; updateSickHud(); }
+  showNotif(wasSick
+    ? `🩺 The doctor treated you — not sick anymore, fully healed! (-${DOCTOR_VISIT_COST} S.I.P.)`
+    : `🩺 Clean bill of health! Fully healed. (-${DOCTOR_VISIT_COST} S.I.P.)`);
+  sfx.buy();
+}
+function buildHospitalInterior() {
+  const { x:hx, z:hz } = HOSPITAL_SPAWN;
+  box(40,0.2,36, 0xf0f0f8, hx,0.1,hz); // floor
+  box(40,0.2,36, 0xffffff, hx,6,hz);   // ceiling
+  box(40,6,0.3, 0xe0e0ee, hx,3,hz-18); // back wall
+  box(0.3,6,36, 0xe0e0ee, hx-20,3,hz); // west wall
+  box(0.3,6,36, 0xe0e0ee, hx+20,3,hz); // east wall
+  box(17,6,0.3, 0xe0e0ee, hx-11.5,3,hz+18); box(17,6,0.3, 0xe0e0ee, hx+11.5,3,hz+18); // front wall, door gap centered
+  buildSign('🏥 CITY HOSPITAL', hx, 6.6, hz-17.7);
+  box(8,3,0.4, 0x8B5E3C, hx, 1.5, hz+18); // exit door marker
+
+  // Doctor's exam area — a real table + a doctor NPC-style figure, not just an empty room
+  box(3,0.9,1.6, 0xffffff, DOCTOR_SPOT.x, 0.45, DOCTOR_SPOT.z-3); // exam table
+  box(3,0.15,1.6, 0xddeeff, DOCTOR_SPOT.x, 0.92, DOCTOR_SPOT.z-3); // table pad
+  const doc = new THREE.Group();
+  const mk = (w,h,d,color,px,py,pz) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color})); m.position.set(px,py,pz); doc.add(m); return m; };
+  mk(0.8,0.8,0.8, 0xd9b38c, 0,2.6,0); // head
+  mk(0.9,1.1,0.5, 0xffffff, 0,1.65,0); // white coat torso
+  mk(0.35,0.9,0.35, 0xffffff,-0.6,1.65,0); mk(0.35,0.9,0.35, 0xffffff,0.6,1.65,0); // arms
+  mk(0.38,0.9,0.38, 0x2244aa,-0.2,0.7,0); mk(0.38,0.9,0.38, 0x2244aa,0.2,0.7,0); // scrub pants
+  doc.position.set(DOCTOR_SPOT.x, 0, DOCTOR_SPOT.z+2);
+  scene.add(doc);
+  buildSign('🩺 SEE THE DOCTOR', DOCTOR_SPOT.x, 4.2, DOCTOR_SPOT.z+3.5);
+
+  // A couple of waiting-room chairs near the entrance, for real furnished feel
+  [[-6,10],[6,10]].forEach(([cx2,cz2]) => {
+    box(1.4,0.7,1.4, 0x88aacc, hx+cx2, 0.35, hz+cz2);
+    box(1.4,1.2,0.2, 0x88aacc, hx+cx2, 0.9, hz+cz2-0.7);
+  });
 }
 const MOVIE_FIGHT_EXIT  = { x:110000, z:18 };
 const MOVIE_FIGHT_COLS  = [];
@@ -15140,6 +15408,7 @@ const CITY_ZONES = [
   { x:160, z:-13, r:8,  label:'🏪 Your Store',    action: interactWithStorePlot },
   { x:40,  z:93,  r:9,  label:'🕹️ Enter Pixel Palace Arcade', action: enterArcade },
   { x:-10, z:-95, r:9,  label:'🏟️ Enter Sports Park', action: enterSportsPark },
+  { x:-40, z:74,  r:5,  label:'🏥 City Hospital – See a Doctor!', action: enterHospital },
 ];
 const HOUSE_ZONES = [
   { x:HOUSE_EXIT.x, z:HOUSE_EXIT.z, r:3, label:'Exit House', action: exitHouse },
@@ -15276,7 +15545,7 @@ function handleInteract() {
     const d = Math.sqrt((px2-movieBossFight.curX)**2+(pz-movieBossFight.curZ)**2);
     if (d < 4.5) { fightMovieBoss(); return; }
   }
-  if (!inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && !inMovieFight && !inSportsPark) {
+  if (!inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital) {
     let closestRogue = null, closestRogueDist = 3;
     for (const r of rogueRobots) {
       if (!r.alive) continue;
@@ -15303,7 +15572,7 @@ function handleInteract() {
     }
     if (closestBoss) { fightBoss(closestBoss); return; }
   }
-  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : CITY_ZONES;
+  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : CITY_ZONES;
   for(const z of zones) {
     if(Math.sqrt((px2-z.x)**2+(pz-z.z)**2) < z.r) { z.action(); return; }
   }
@@ -15323,7 +15592,7 @@ function updatePrompt() {
     const dx=px2-pc.group.position.x, dz=pz-pc.group.position.z;
     if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent=`[E] ${pc.def.emoji} Get in ${pc.def.name}`; el.style.display='block'; return; }
   }
-  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : CITY_ZONES;
+  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : CITY_ZONES;
   for(const z of zones) {
     if(Math.sqrt((px2-z.x)**2+(pz-z.z)**2) < z.r) {
       if(z.isComputer) {
@@ -15601,6 +15870,7 @@ function _startGameInner() {
   _dbg('buildDeepSpaceZones', buildDeepSpaceZones);
   _dbg('buildTraffic', buildTraffic);
   _dbg('buildSportsParkInterior', buildSportsParkInterior);
+  _dbg('buildHospitalInterior', buildHospitalInterior);
   _dbg('spawnOwnedCars', spawnOwnedCars);
   _dbg('buildWeaponLevels', buildWeaponLevels); // must run before buildPlayer()/updateWeaponMesh() touch the currently-equipped weapon's damage — otherwise a returning player's weapon keeps dealing OLD (pre-rebalance) damage until they happen to open the shop
   _dbg('buildPlayer', buildPlayer);
@@ -16217,12 +16487,19 @@ function buildCity() {
   buildSign('⛽ GAS STATION',60,9,-42);
   addCol(CITY_COLS,60,-50, 11,9);
 
-  // HOSPITAL
+  // HOSPITAL — had real exterior geometry and a real collision box for a long time, but nothing
+  // behind it: no door gap (the old single addCol sealed the whole footprint), no interior, no
+  // actual doctor. Real door gap added below (matches the entrance canopy already sitting at
+  // z=72.2) so it's finally walkable in — see enterHospital()/HOSPITAL_ZONES further down.
   box(32,20,24, 0xeeeeff,-40,10,60); box(32,1,24, 0xccccdd,-40,20.5,60);
   box(10,16,4, 0x88aaff,-40,8,72.2); buildSign('🏥 HOSPITAL',-40,22,72);
   box(6,1.5,0.3, 0xdd0000,-40,14,72.3); box(1.5,6,0.3, 0xdd0000,-40,14,72.3);
   box(7,3,3, 0xffffff,-55,1.5,68); box(7,1.5,3, 0xddddff,-55,3.75,68);
-  addCol(CITY_COLS,-40,60, 17,13);
+  addCol(CITY_COLS, -40, 47.3, 17, 0.4);   // back wall (north)
+  addCol(CITY_COLS, -57.3, 60, 0.4, 13);   // west wall
+  addCol(CITY_COLS, -22.7, 60, 0.4, 13);   // east wall
+  addCol(CITY_COLS, -50, 72.7, 7, 0.4);    // front wall, left of the door gap
+  addCol(CITY_COLS, -30, 72.7, 7, 0.4);    // front wall, right of the door gap
 
   // SCHOOL
   box(36,14,22, 0xf5d080,70,7,60); box(36,1,22, 0xe8c050,70,14.5,60);
