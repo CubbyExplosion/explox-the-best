@@ -528,30 +528,59 @@ function _drawSITSMap() {
 }
 
 // ─── CAB — user's own ask: "make a cab tab on the right 10 options some are for multiple
-// peaple". A call-it-from-anywhere premium alternative to S.I.T.S. above (which needs walking to
-// the Transit Hub and only runs its 5 fixed routes): the same 10 real city spots S.I.T.S. already
-// uses as stops, but a direct door-to-door fare from wherever you're standing right now, via a
-// persistent side tab like Quests/Contracts instead of a walk-to zone. 4 of the 10 are real GROUP
-// RIDES — you can bring along up to 3 befriended neighbors (the same `friends` array
-// befriendNeighbor() in game-district.js builds) for a real per-seat fare, and they really show up
+// peaple", then a real follow-up: "the cab can go any where in the timing as any driver". Two
+// real fixes from that second message: (1) go ANYWHERE — built off LOC_ZONES (game-zones.js),
+// the game's own full list of every real named place, not a hand-picked 10; (2) real elapsed
+// drive TIME scaled by actual distance from wherever you're standing right now, like a real
+// driver would take, instead of an instant teleport. Fare is distance-based too for the same
+// reason — a real driver charges more for a longer trip, which also naturally keeps a cab to
+// another COUNTRY pricier than just booking a flight at the Airport, without hard-blocking it.
+// Every destination can now bring along up to 3 befriended neighbors (the same `friends` array
+// befriendNeighbor() in game-district.js builds) for a real per-seat fare — they really show up
 // standing next to you at the destination via buildResidentFigure(), the same figure the House
 // Guest system already uses for "someone's really here", not just a notification.
-const CAB_DESTINATIONS = [
-  { name:'City Bank',        x:160, z:210,  emoji:'🏦', fare:12, group:false },
-  { name:'Your House',       x:-30, z:-107, emoji:'🏠', fare:6,  group:false },
-  { name:'Shady Dealer',     x:34,  z:3,    emoji:'🕴️', fare:8,  group:false },
-  { name:'Shopping Street',  x:60,  z:50,   emoji:'🛍️', fare:10, group:true  },
-  { name:'Pizza Restaurant', x:20,  z:80,   emoji:'🍕', fare:9,  group:true  },
-  { name:'City Mall',        x:80,  z:-20,  emoji:'🏬', fare:10, group:true  },
-  { name:'Police Station',   x:-70, z:10,   emoji:'🚔', fare:7,  group:false },
-  { name:'Transit Hub',      x:0,   z:50,   emoji:'🚇', fare:6,  group:false },
-  { name:'Black Market',     x:-80, z:-71,  emoji:'⚫', fare:14, group:false },
-  { name:'Movie Theater',    x:50,  z:-85,  emoji:'🎬', fare:11, group:true  },
-];
-const CAB_FRIEND_FARE = 5; // extra S.I.P. per friend brought along — group rides only
+//
+// NOTE: game-transit.js loads BEFORE game-zones.js (see the <script> order in EXPLOX.html), so
+// LOC_ZONES doesn't exist yet at THIS file's top-level parse time — getCabDestinations() below
+// builds the list lazily, only once the game is actually running and every script has loaded.
+const CAB_EMOJI = {
+  'City Mall':'🏬', 'Westside Galleria':'🛍️', 'Uptown Plaza':'🏙️', 'Police Station':'🚔',
+  'Restaurant Row':'🍽️', 'The Park':'🌳', 'Shopping Street':'🛒', 'Your House':'🏠',
+  'Whispering Woods':'🌲', 'Sunset Plains':'🏞️', 'The Scrapyard':'🔩', 'Fight Arena':'🥊',
+  'The Dump':'🗑️', 'City Hall':'🏛️', 'Hospital':'🏥', 'School':'🏫', 'Apartments':'🏢',
+  'City Bank':'🏦', 'Movie Theater':'🎬', 'Transit Hub':'🚇', 'City Hotel':'🏨',
+  'Car Dealership':'🚗', 'Computer Shop':'🖥️', 'City Airport':'✈️', 'The Diner':'🍔',
+  'Your Store':'🏪', 'Japan':'🌸', 'France':'🗼', 'Brazil':'🌴', 'Egypt':'🏛️', 'UK':'🎡',
+  'Australia':'🦘', 'Canada':'🍁', 'Italy':'🍕', 'Space Station':'🚀',
+};
+const CAB_BASE_FARE = 4;
+const CAB_FARE_PER_1000_UNITS = 6; // scales fare with real distance — a long haul costs real money
+const CAB_COUNTRY_SURCHARGE = 60;  // countries/space sit ~8000 units out on their own ring — this
+// keeps a cab there noticeably pricier than the Airport's 70-150 flat fare (real driver, not a
+// budget flight), without hard-blocking the trip.
+const CAB_COUNTRIES = new Set(['Japan','France','Brazil','Egypt','UK','Australia','Canada','Italy','Space Station']);
+function cabFareFor(dist, name) {
+  const base = CAB_BASE_FARE + Math.round(dist / 1000 * CAB_FARE_PER_1000_UNITS);
+  return CAB_COUNTRIES.has(name) ? base + CAB_COUNTRY_SURCHARGE : base;
+}
+function getCabDestinations() {
+  const px = playerGroup.position.x, pz = playerGroup.position.z;
+  return LOC_ZONES.map(z => {
+    const dist = Math.hypot(px - z.x, pz - z.z);
+    return { name: z.name, x: z.x, z: z.z, emoji: CAB_EMOJI[z.name] || '📍', dist, fare: cabFareFor(dist, z.name) };
+  });
+}
+const CAB_FRIEND_FARE = 5; // extra S.I.P. per friend brought along
 const CAB_MAX_FRIENDS = 3;
+const CAB_SPEED = 60; // world units/sec a cab "drives" — sets how long a real trip there takes
+function cabRideDuration(dist) { return Math.max(2000, Math.min(20000, (dist / CAB_SPEED) * 1000)); }
 let cabSelectedFriends = {}; // destination name -> Set of friend names currently picked
 let cabCompanionMeshes = []; // "came along" figures standing at your last cab dropoff
+// The full-screen cabRideOverlay physically blocks clicking a new ride mid-drive in real play,
+// but this token still guards startCabRide() against ever running two draw() loops at once (e.g.
+// a stale one somehow left alive) stomping on each other's writes to the same shared DOM/progress
+// bar — a stale loop just checks this and quietly stops instead of racing the current ride.
+let cabRideToken = 0;
 
 function toggleCabPanel() {
   const panel = document.getElementById('cabPanel');
@@ -577,26 +606,25 @@ function toggleCabFriend(destName, friendName) {
 }
 function renderCabPanel() {
   const list = document.getElementById('cabList');
-  list.innerHTML = CAB_DESTINATIONS.map(d => {
-    const picked = d.group ? (cabSelectedFriends[d.name] || new Set()) : new Set();
+  list.innerHTML = getCabDestinations().map(d => {
+    const picked = cabSelectedFriends[d.name] || new Set();
     const total = d.fare + picked.size * CAB_FRIEND_FARE;
     const canAfford = sipDollars >= total;
-    let friendPickerHtml = '';
-    if (d.group) {
-      if (friends.length === 0) {
-        friendPickerHtml = `<div style="color:#666;font-size:9px;margin:6px 0;">Make a friend first to bring one along!</div>`;
-      } else {
-        friendPickerHtml = `<div style="display:flex;flex-wrap:wrap;gap:4px;margin:6px 0;">${friends.map(f => {
-          const isOn = picked.has(f);
-          const safeF = f.replace(/'/g, "\\'");
-          return `<button onclick="toggleCabFriend('${d.name}','${safeF}')" style="padding:4px 8px;border-radius:6px;font-size:9px;cursor:pointer;border:1px solid ${isOn?'#ffcc00':'#333'};background:${isOn?'#ffcc0033':'#111'};color:${isOn?'#ffcc00':'#999'};">${isOn?'✓ ':''}${f}</button>`;
-        }).join('')}</div>`;
-      }
+    let friendPickerHtml;
+    if (friends.length === 0) {
+      friendPickerHtml = `<div style="color:#666;font-size:9px;margin:6px 0;">Make a friend first to bring one along!</div>`;
+    } else {
+      friendPickerHtml = `<div style="display:flex;flex-wrap:wrap;gap:4px;margin:6px 0;">${friends.map(f => {
+        const isOn = picked.has(f);
+        const safeF = f.replace(/'/g, "\\'");
+        return `<button onclick="toggleCabFriend('${d.name}','${safeF}')" style="padding:4px 8px;border-radius:6px;font-size:9px;cursor:pointer;border:1px solid ${isOn?'#ffcc00':'#333'};background:${isOn?'#ffcc0033':'#111'};color:${isOn?'#ffcc00':'#999'};">${isOn?'✓ ':''}${f}</button>`;
+      }).join('')}</div>`;
     }
+    const etaSec = Math.round(cabRideDuration(d.dist) / 1000);
     return `<div style="background:rgba(255,255,255,0.05);border:2px solid #333;border-radius:10px;padding:10px;margin-bottom:8px;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div style="color:#fff;font-size:12px;font-weight:bold;">${d.emoji} ${d.name}</div>
-        ${d.group ? `<span style="color:#ffcc00;font-size:8px;font-weight:bold;background:#ffcc0022;padding:2px 6px;border-radius:8px;">GROUP RIDE</span>` : ''}
+        <span style="color:#888;font-size:9px;">🕐 ~${etaSec}s</span>
       </div>
       ${friendPickerHtml}
       <button onclick="takeCab('${d.name}')" ${canAfford?'':'disabled'} style="width:100%;margin-top:6px;padding:7px;background:${canAfford?'#2a7a2a':'#333'};border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:bold;cursor:${canAfford?'pointer':'not-allowed'};">🚕 Go — ${total} S.I.P.${picked.size?` (${picked.size} friend${picked.size===1?'':'s'})`:''}</button>
@@ -604,25 +632,75 @@ function renderCabPanel() {
   }).join('');
 }
 function takeCab(destName) {
-  const d = CAB_DESTINATIONS.find(x => x.name === destName);
+  const d = getCabDestinations().find(x => x.name === destName);
   if (!d) return;
-  const picked = d.group ? Array.from(cabSelectedFriends[destName] || []) : [];
+  const picked = Array.from(cabSelectedFriends[destName] || []);
   const total = d.fare + picked.length * CAB_FRIEND_FARE;
   if (sipDollars < total) { showNotif(`❌ Need ${total} S.I.P. for this ride!`); return; }
   spendSip(total); saveCurrentUser(); updateSIP();
+  cabSelectedFriends[destName] = new Set();
   closeCabPanel();
+  startCabRide(d, picked);
+}
+function startCabRide(dest, pickedFriends) {
+  const myToken = ++cabRideToken; // stale draw()/timeout calls from an earlier ride check this and bail
+  const overlay = document.getElementById('cabRideOverlay');
+  overlay.style.display = 'block';
+  document.getElementById('cabRideDest').textContent = `${dest.emoji} ${dest.name}`;
+  const DURATION = cabRideDuration(dest.dist);
+  const canvas = document.getElementById('cabRideCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth || 700;
+  canvas.height = canvas.offsetHeight || 400;
+
+  // Deterministic scrolling buildings — no Math.random in the draw loop, so no flicker.
+  const BLD_COUNT = 30, BLD_GAP = 140;
+  const bldgs = Array.from({ length: BLD_COUNT }, (_, i) => {
+    const s = i * 137.508;
+    return { x: i * BLD_GAP + (s * 0.4321 % 1) * 60, w: 30 + (s * 0.31 % 1) * 50, h: 60 + (s * 0.53 % 1) * 140, hue: 40 + (s * 0.21 % 1) * 20 };
+  });
+  const TOTAL_W = BLD_COUNT * BLD_GAP;
+  const t0 = performance.now();
+  let animId = null;
+
+  function draw() {
+    if (myToken !== cabRideToken) return; // a newer ride took over — this loop stops touching shared DOM
+    const W = canvas.width, H = canvas.height;
+    const elapsed = performance.now() - t0;
+    const prog = Math.min(elapsed / DURATION, 1);
+    ctx.fillStyle = '#0f0d05'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#1a1608'; ctx.fillRect(0, H * 0.6, W, H * 0.4);
+    const camX = prog * TOTAL_W * 0.7;
+    bldgs.forEach(b => {
+      const bx = ((b.x - camX) % TOTAL_W + TOTAL_W) % TOTAL_W;
+      if (bx < W + b.w) { ctx.fillStyle = `hsl(${b.hue},30%,15%)`; ctx.fillRect(bx, H * 0.6 - b.h, b.w, b.h); }
+    });
+    ctx.strokeStyle = '#443311'; ctx.lineWidth = 3; ctx.setLineDash([20, 15]);
+    ctx.beginPath(); ctx.moveTo(0, H * 0.8); ctx.lineTo(W, H * 0.8); ctx.stroke(); ctx.setLineDash([]);
+
+    document.getElementById('cabRideProgressBar').style.width = (prog * 100) + '%';
+    const secsLeft = Math.max(0, Math.ceil((DURATION - elapsed) / 1000));
+    document.getElementById('cabRideEta').textContent = prog < 1 ? `${secsLeft}s left` : 'Arriving!';
+
+    if (prog < 1) { animId = requestAnimationFrame(draw); }
+    else { setTimeout(() => { if (myToken === cabRideToken) finishCabRide(dest, pickedFriends); }, 300); }
+  }
+  animId = requestAnimationFrame(draw);
+  setTimeout(() => { if (myToken === cabRideToken && overlay.style.display !== 'none') { cancelAnimationFrame(animId); finishCabRide(dest, pickedFriends); } }, DURATION + 4000); // real safety net, same pattern startFlightAnim() uses
+}
+function finishCabRide(dest, pickedFriends) {
+  document.getElementById('cabRideOverlay').style.display = 'none';
   cabCompanionMeshes.forEach(m => scene.remove(m));
   cabCompanionMeshes = [];
-  playerGroup.position.set(d.x, 0, d.z);
+  playerGroup.position.set(dest.x, 0, dest.z);
   yaw = 0;
-  picked.forEach((name, i) => {
+  pickedFriends.forEach((name, i) => {
     const npc = npcs.find(n => n.name === name);
     if (!npc) return;
-    const ang = (i / Math.max(1, picked.length)) * Math.PI * 2;
-    cabCompanionMeshes.push(...buildResidentFigure(d.x + Math.cos(ang)*2.5, d.z + Math.sin(ang)*2.5, npc));
+    const ang = (i / Math.max(1, pickedFriends.length)) * Math.PI * 2;
+    cabCompanionMeshes.push(...buildResidentFigure(dest.x + Math.cos(ang) * 2.5, dest.z + Math.sin(ang) * 2.5, npc));
   });
-  cabSelectedFriends[destName] = new Set();
-  showNotif(picked.length ? `🚕 Arrived at ${d.emoji} ${d.name} with ${picked.join(', ')}!` : `🚕 Arrived at ${d.emoji} ${d.name}!`);
+  showNotif(pickedFriends.length ? `🚕 Arrived at ${dest.emoji} ${dest.name} with ${pickedFriends.join(', ')}!` : `🚕 Arrived at ${dest.emoji} ${dest.name}!`);
   sfx.earn();
   if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
 }
