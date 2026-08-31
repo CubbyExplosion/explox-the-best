@@ -191,6 +191,10 @@
   <input type="range" id="enemyHpSlider" min="25" max="400" step="5" value="100" oninput="onEnemyHpSliderInput()" style="width:min(90vw,380px);accent-color:#ff4444;">
   <div id="enemyHpSliderLabel" style="color:#ff8888;font-size:14px;font-weight:bold;margin:6px 0 22px;">⚖️ 1.00× HP — Normal</div>
 
+  <div style="color:#ccc;font-size:13px;font-weight:bold;letter-spacing:2px;margin-bottom:10px;">HOW MANY ENEMIES</div>
+  <input type="range" id="enemyCountSlider" min="25" max="300" step="5" value="100" oninput="onEnemyCountSliderInput()" style="width:min(90vw,380px);accent-color:#ff4444;">
+  <div id="enemyCountSliderLabel" style="color:#ff8888;font-size:14px;font-weight:bold;margin:6px 0 22px;">⚖️ 1.00× Enemies — Normal Army</div>
+
   <div style="color:#ccc;font-size:13px;font-weight:bold;letter-spacing:2px;margin-bottom:8px;">ENEMY WEAPON — ANY WEAPON IN THE GAME</div>
   <div id="enemyWeaponPreview" style="color:#ff8888;font-size:13px;font-weight:bold;margin-bottom:8px;">⚡ Laser Sword — 1.0× DMG</div>
   <div class="armGrid" id="enemyWeaponGrid" style="width:min(94vw,600px);max-height:280px;"></div>
@@ -280,7 +284,7 @@ const TIER_NAMES=['The Grasslands','The Forest Keep','The Dark Citadel','The Fin
 // The weapon picker reuses the REAL WEAPONS array (defined further down this file, the exact
 // same 100-weapon list/dmg stat the Armory itself sells) — genuinely "any weapon in the game",
 // not a separate small made-up list.
-let enemyHpMult = 1.0, enemyWeaponId = 'laser_sword';
+let enemyHpMult = 1.0, enemyWeaponId = 'laser_sword', enemyCountMult = 1.0;
 function enemyWeapon() { return WEAPONS.find(w=>w.id===enemyWeaponId) || WEAPONS[0]; }
 function hpTierLabel(mult) {
   if (mult < 0.5)  return '😌 Very Weak';
@@ -290,13 +294,21 @@ function hpTierLabel(mult) {
   if (mult < 3.0)  return '😰 Very Tough';
   return '💀 Brutal';
 }
-// Base reward is deliberately small (15 S.I.P. at 1.0× HP / Laser Sword's 1.0× dmg, level 1) —
-// the whole point is that YOUR OWN choice of HP × weapon is what makes it grow, same spirit as a
-// real wager. WEAPONS' dmg spans 0.8 (Slingshot) to 10.0 (the strongest endgame weapon), and the
-// slider spans 0.25×-4.00×, so the achievable range is genuinely wide. Scales a little further
-// with level too, since later levels are already a harder fight on their own.
+function countTierLabel(mult) {
+  if (mult < 0.5)  return '🧍 Skeleton Crew';
+  if (mult < 0.9)  return '🙂 Small Squad';
+  if (mult < 1.3)  return '⚖️ Normal Army';
+  if (mult < 2.0)  return '👥 Big Army';
+  if (mult < 2.6)  return '⚔️ Horde';
+  return '🌊 Overwhelming Swarm';
+}
+// Base reward is deliberately small (15 S.I.P. at 1.0× HP / Laser Sword's 1.0× dmg / 1.0× count,
+// level 1) — the whole point is that YOUR OWN choice of HP × weapon × count is what makes it
+// grow, same spirit as a real wager. WEAPONS' dmg spans 0.8 (Slingshot) to 10.0 (the strongest
+// endgame weapon), HP and count both span 0.25×-3.00×/4.00×, so the achievable range is genuinely
+// wide. Scales a little further with level too, since later levels are already a harder fight.
 function computeVictoryReward() {
-  const difficultyMult = enemyHpMult * enemyWeapon().dmg;
+  const difficultyMult = enemyHpMult * enemyWeapon().dmg * enemyCountMult;
   return Math.round(15 * difficultyMult * (1 + (level-1)*0.12));
 }
 function onEnemyHpSliderInput() {
@@ -304,10 +316,17 @@ function onEnemyHpSliderInput() {
   document.getElementById('enemyHpSliderLabel').textContent = `${hpTierLabel(enemyHpMult)} — ${enemyHpMult.toFixed(2)}× HP`;
   document.getElementById('enemyRewardPreview').textContent = `💰 ${computeVictoryReward()} S.I.P.`;
 }
+function onEnemyCountSliderInput() {
+  enemyCountMult = document.getElementById('enemyCountSlider').value / 100;
+  document.getElementById('enemyCountSliderLabel').textContent = `${countTierLabel(enemyCountMult)} — ${enemyCountMult.toFixed(2)}× Enemies`;
+  document.getElementById('enemyRewardPreview').textContent = `💰 ${computeVictoryReward()} S.I.P.`;
+}
 function selectEnemyWeapon(id) { enemyWeaponId = id; renderEnemyDesignScreen(); }
 function renderEnemyDesignScreen() {
   document.getElementById('enemyHpSlider').value = Math.round(enemyHpMult*100);
   document.getElementById('enemyHpSliderLabel').textContent = `${hpTierLabel(enemyHpMult)} — ${enemyHpMult.toFixed(2)}× HP`;
+  document.getElementById('enemyCountSlider').value = Math.round(enemyCountMult*100);
+  document.getElementById('enemyCountSliderLabel').textContent = `${countTierLabel(enemyCountMult)} — ${enemyCountMult.toFixed(2)}× Enemies`;
   const w = enemyWeapon();
   document.getElementById('enemyWeaponPreview').textContent = `${w.icon} ${w.name} — ${w.dmg.toFixed(1)}× DMG`;
   const wGrid = document.getElementById('enemyWeaponGrid');
@@ -683,7 +702,10 @@ function spawnWave(w){
   ];
   const cfg=tierCfgs[tier][wb];
   cfg.forEach(({type,n})=>{
-    for(let i=0;i<n;i++){
+    // "you can choose how many peoply you fight" — real per-wave enemy count, scaled by the
+    // Design Your Enemy slider (never allies, same spirit as the HP/weapon multipliers above).
+    const realN=Math.max(1,Math.round(n*enemyCountMult));
+    for(let i=0;i<realN;i++){
       const x=(Math.random()-0.5)*52;
       const z=-54+(Math.random()-0.5)*8;
       enemies.push(makeSoldier('red',[x,0,z],type));
