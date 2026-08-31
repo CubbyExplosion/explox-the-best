@@ -1695,7 +1695,28 @@ function closeMgPanel(){
 </script>
 
 <script src="AiGame/explox/three.min.js"></script>
-<script src="AiGame/explox/game.js"></script>
+<!-- game.js (24,500 lines) was split into these files, in this exact order, so the game still
+     runs identically — each file is one coherent subsystem instead of one giant file. See
+     AiGame/explox/modules/README.md for how this was done and how to keep it split going forward. -->
+<script src="AiGame/explox/modules/game-core.js"></script>
+<script src="AiGame/explox/modules/game-economy.js"></script>
+<script src="AiGame/explox/modules/game-customization.js"></script>
+<script src="AiGame/explox/modules/game-engine.js"></script>
+<script src="AiGame/explox/modules/game-alignment.js"></script>
+<script src="AiGame/explox/modules/game-cinema.js"></script>
+<script src="AiGame/explox/modules/game-transit.js"></script>
+<script src="AiGame/explox/modules/game-social.js"></script>
+<script src="AiGame/explox/modules/game-shops.js"></script>
+<script src="AiGame/explox/modules/game-vehicles.js"></script>
+<script src="AiGame/explox/modules/game-housing.js"></script>
+<script src="AiGame/explox/modules/game-land.js"></script>
+<script src="AiGame/explox/modules/game-zones.js"></script>
+<script src="AiGame/explox/modules/game-buildings.js"></script>
+<script src="AiGame/explox/modules/game-character.js"></script>
+<script src="AiGame/explox/modules/game-district.js"></script>
+<script src="AiGame/explox/modules/game-world.js"></script>
+<script src="AiGame/explox/modules/game-controls.js"></script>
+<script src="AiGame/explox/modules/game-sai.js"></script>
 <script src="AiGame/explox/game-builder.js"></script>
 <script>
 window.addEventListener('load', function() {
