@@ -78,6 +78,10 @@
     #enemyDesignBtn { padding:14px 56px; font-size:18px; font-weight:bold; border:none; border-radius:10px; background:#ff4444; color:#fff; cursor:pointer; letter-spacing:2px; }
     #enemyDesignBtn:hover { background:#ff2222; }
 
+    #armyScreen { background:rgba(0,10,25,0.92); justify-content:flex-start; }
+    #armyDoneBtn { padding:14px 56px; font-size:18px; font-weight:bold; border:none; border-radius:10px; background:#4488ff; color:#fff; cursor:pointer; letter-spacing:2px; }
+    #armyDoneBtn:hover { background:#2266ff; }
+
     #levelScreen { background:rgba(10,0,30,0.93); display:none; }
     #levelScreen h1 { font-size:52px; color:#aa44ff; letter-spacing:4px; text-shadow:0 0 20px #aa44ff; }
     #levelScreen h2 { font-size:24px; color:#cc88ff; margin:10px 0 6px; }
@@ -203,8 +207,41 @@
     <div style="color:#aaa;font-size:11px;letter-spacing:2px;">VICTORY REWARD — PER THRONE CAPTURED</div>
     <div id="enemyRewardPreview" style="color:#FFD700;font-size:28px;font-weight:bold;margin-top:4px;">💰 15 S.I.P.</div>
   </div>
-  <button id="enemyDesignBtn" onclick="openWeaponShop()">⚔️ CONTINUE TO ARMORY</button>
+  <button id="enemyDesignBtn" onclick="openArmyScreen()">🔵 CUSTOMIZE YOUR ARMY</button>
   <button style="margin-top:10px;padding:7px 22px;background:transparent;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:13px;" onclick="document.getElementById('enemyDesignScreen').style.display='none';document.getElementById('startScreen').style.display='flex';">← Back</button>
+</div>
+
+<!-- CUSTOMIZE YOUR ARMY — user's own ask: "you get to custumize your army for money but it
+     remembers". Real parallel to Design Your Enemy, but for your BLUE allies instead of the
+     red enemies, and the opposite economics: instead of predicting a free reward, raising your
+     army's HP/Count ceiling and unlocking stronger weapons for them costs real S.I.P. — and
+     unlike the enemy design (which resets every game), this genuinely persists: armyHpMaxLevel/
+     armyCountMaxLevel/armyWeaponId/armyOwnedWeaponIds all save to the same real player save
+     savePlayerData() already writes, and loadPlayerData() reads them back next time you play. -->
+<div class="overlay" id="armyScreen" style="display:none;padding:20px 0;overflow-y:auto;">
+  <h1 style="font-size:34px;color:#66aaff;letter-spacing:3px;text-shadow:0 0 16px #4488ff;">🔵 CUSTOMIZE YOUR ARMY</h1>
+  <h2 style="font-size:15px;color:#aaccff;margin:6px 0 10px;">Upgrades cost real S.I.P. — but they're yours forever.</h2>
+  <div style="font-size:15px;color:#FFD700;font-weight:bold;margin-bottom:18px;">💰 <span id="armySip">0</span> S.I.P.</div>
+
+  <div style="color:#ccc;font-size:13px;font-weight:bold;letter-spacing:2px;margin-bottom:10px;">ARMY HP <span style="color:#666;font-weight:normal;">(unlocked: <span id="armyHpOwnedLabel">50</span>/100)</span></div>
+  <input type="range" id="armyHpSlider" min="1" max="100" step="1" value="50" oninput="onArmyHpSliderInput()" style="width:min(90vw,380px);accent-color:#4488ff;">
+  <div id="armyHpSliderLabel" style="color:#88bbff;font-size:14px;font-weight:bold;margin:6px 0 4px;">⚖️ 50/100 — Normal (1.00× HP)</div>
+  <button id="armyHpBuyBtn" onclick="buyArmyHpUpgrade()" style="display:none;margin-bottom:18px;padding:8px 20px;background:#2266cc;border:none;border-radius:8px;color:#fff;font-weight:bold;font-size:12px;cursor:pointer;">💰 Recruit Upgrade</button>
+  <div id="armyHpSpacer" style="height:18px;"></div>
+
+  <div style="color:#ccc;font-size:13px;font-weight:bold;letter-spacing:2px;margin-bottom:10px;">ARMY SIZE <span style="color:#666;font-weight:normal;">(unlocked: <span id="armyCountOwnedLabel">50</span>/100)</span></div>
+  <input type="range" id="armyCountSlider" min="1" max="100" step="1" value="50" oninput="onArmyCountSliderInput()" style="width:min(90vw,380px);accent-color:#4488ff;">
+  <div id="armyCountSliderLabel" style="color:#88bbff;font-size:14px;font-weight:bold;margin:6px 0 4px;">⚖️ 50/100 — Normal Army (1.00× Allies)</div>
+  <button id="armyCountBuyBtn" onclick="buyArmyCountUpgrade()" style="display:none;margin-bottom:18px;padding:8px 20px;background:#2266cc;border:none;border-radius:8px;color:#fff;font-weight:bold;font-size:12px;cursor:pointer;">💰 Recruit Upgrade</button>
+  <div id="armyCountSpacer" style="height:18px;"></div>
+
+  <div style="color:#ccc;font-size:13px;font-weight:bold;letter-spacing:2px;margin-bottom:8px;">ARMY WEAPON — ANY WEAPON IN THE GAME</div>
+  <div id="armyWeaponPreview" style="color:#88bbff;font-size:13px;font-weight:bold;margin-bottom:8px;">⚡ Laser Sword — 1.0× DMG</div>
+  <div class="armGrid" id="armyWeaponGrid" style="width:min(94vw,600px);max-height:280px;"></div>
+  <div id="armyMsg" style="min-height:18px;margin:8px 0;font-size:13px;"></div>
+
+  <button id="armyDoneBtn" onclick="openWeaponShop()" style="margin-top:14px;">⚔️ CONTINUE TO ARMORY</button>
+  <button style="margin-top:10px;padding:7px 22px;background:transparent;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:13px;" onclick="document.getElementById('armyScreen').style.display='none';document.getElementById('enemyDesignScreen').style.display='flex';">← Back</button>
 </div>
 
 <!-- WEAPON SHOP -->
@@ -232,7 +269,7 @@
   <div class="armGrid" id="armGrid"></div>
   <div id="shopMsg"></div>
   <button id="goFightBtn" onclick="beginGame()">⚔️ GO FIGHT!</button>
-  <button style="margin-top:8px;padding:7px 22px;background:transparent;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:13px;" onclick="document.getElementById('weaponShop').style.display='none';document.getElementById('enemyDesignScreen').style.display='flex';">← Back</button>
+  <button style="margin-top:8px;padding:7px 22px;background:transparent;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:13px;" onclick="document.getElementById('weaponShop').style.display='none';openArmyScreen();">← Back</button>
 </div>
 
 <div class="overlay" id="levelScreen">
@@ -619,10 +656,10 @@ function makeSoldier(team, pos, type){
   scene.add(g);
 
   const diff=1+(level-1)*0.16;
-  // Design Your Enemy multipliers apply ONLY to the red (enemy) team, never blue allies — your
-  // own chosen HP/weapon toughens the army you're fighting, not the one fighting beside you.
-  const hpMult  = isBlue ? 1 : enemyHpMult;
-  const dmgMult = isBlue ? 1 : enemyWeapon().dmg;
+  // Design Your Enemy multipliers apply to the red team; Customize Your Army's PAID ceilings
+  // (armyHpMaxLevel/armyWeapon) apply to blue allies — each side only ever reads its own values.
+  const hpMult  = isBlue ? sliderToMult(armyHpMaxLevel, ARMY_HP_SLIDER_MAX_MULT) : enemyHpMult;
+  const dmgMult = isBlue ? armyWeapon().dmg : enemyWeapon().dmg;
   const maxHP=Math.round((type==='heavy'?160:type==='archer'?45:75)*diff*hpMult);
   return {
     group:g, team, type,
@@ -730,8 +767,9 @@ function spawnWave(w){
     }
   });
 
-  // Blue allies — more as levels go up
-  const allyN=Math.min(4+w*2+Math.floor((level-1)*0.6),22);
+  // Blue allies — more as levels go up, scaled further by your paid Army Size upgrade
+  const allyCountMult=sliderToMult(armyCountMaxLevel, ARMY_COUNT_SLIDER_MAX_MULT);
+  const allyN=Math.max(1,Math.round(Math.min(4+w*2+Math.floor((level-1)*0.6),22)*allyCountMult));
   for(let i=0;i<allyN;i++){
     const x=(Math.random()-0.5)*42;
     const z=52+(Math.random()-0.5)*8;
@@ -1254,6 +1292,11 @@ const WEAPONS = [
 // ── PLAYER LEVEL / XP ─────────────────────────────────────────────────────────
 let playerLevel = 1, playerXP = 0, shopSip = 0, ownedWeaponIds = ['laser_sword'];
 let equippedWeaponId = 'laser_sword', previewWeaponId = 'laser_sword';
+// ── CUSTOMIZE YOUR ARMY (persisted — see loadPlayerData()/savePlayerData()) ──────────────────
+let armyHpMaxLevel = 50, armyCountMaxLevel = 50, armyWeaponId = 'laser_sword', armyOwnedWeaponIds = ['laser_sword'];
+const ARMY_HP_SLIDER_MAX_MULT = 4.00, ARMY_COUNT_SLIDER_MAX_MULT = 3.00;
+const ARMY_UPGRADE_COST_PER_LEVEL = 5; // S.I.P. per level above your current unlocked ceiling
+function armyWeapon() { return WEAPONS.find(w=>w.id===armyWeaponId) || WEAPONS[0]; }
 
 function xpToNextLevel(lv){ return lv * 100; }
 
@@ -1269,27 +1312,162 @@ function gainXP(amount){
 
 function loadPlayerData(){
   const user = localStorage.getItem('explox_current_user');
-  const blank = { level:1, xp:0, sip:0, ownedWeapons:['laser_sword'], equippedWeapon:'laser_sword' };
+  const blank = { level:1, xp:0, sip:0, ownedWeapons:['laser_sword'], equippedWeapon:'laser_sword',
+                  armyHpMaxLevel:50, armyCountMaxLevel:50, armyWeaponId:'laser_sword', armyOwnedWeapons:['laser_sword'] };
   if(user){
     const d = JSON.parse(localStorage.getItem('explox_user_'+user)||'{}');
     return { level:d.throneLevel||1, xp:d.throneXP||0, sip:d.sip||0,
              ownedWeapons:d.throneOwnedWeapons||['laser_sword'],
-             equippedWeapon:d.throneEquipped||'laser_sword' };
+             equippedWeapon:d.throneEquipped||'laser_sword',
+             armyHpMaxLevel:d.throneArmyHpMaxLevel||50,
+             armyCountMaxLevel:d.throneArmyCountMaxLevel||50,
+             armyWeaponId:d.throneArmyWeaponId||'laser_sword',
+             armyOwnedWeapons:d.throneArmyOwnedWeapons||['laser_sword'] };
   }
   return blank;
 }
 
+// "you get to custumize your army for money but it remembers" — armyHpMaxLevel/armyCountMaxLevel
+// only ever grow (paid ceilings, see buyArmyHpUpgrade()/buyArmyCountUpgrade() below), same
+// permanent-progress spirit as ownedWeaponIds right next to them.
 function savePlayerData(){
   const user = localStorage.getItem('explox_current_user');
   if(!user) return;
   const d = JSON.parse(localStorage.getItem('explox_user_'+user)||'{}');
   d.throneLevel = playerLevel; d.throneXP = playerXP;
   d.throneOwnedWeapons = ownedWeaponIds; d.throneEquipped = equippedWeaponId;
+  d.throneArmyHpMaxLevel = armyHpMaxLevel; d.throneArmyCountMaxLevel = armyCountMaxLevel;
+  d.throneArmyWeaponId = armyWeaponId; d.throneArmyOwnedWeapons = armyOwnedWeaponIds;
   localStorage.setItem('explox_user_'+user, JSON.stringify(d));
+}
+
+// ── CUSTOMIZE YOUR ARMY UI ──────────────────────────────────────────────────────
+// The slider is a pure "what would this cost" explorer — the REAL applied level in battle is
+// always armyHpMaxLevel/armyCountMaxLevel (your paid ceiling), never wherever the slider happens
+// to be sitting, so there's no way to accidentally weaken your army by leaving a slider low.
+function armyUpgradeCost(fromLevel, toLevel) { return Math.max(0, toLevel-fromLevel) * ARMY_UPGRADE_COST_PER_LEVEL; }
+function showArmyMsg(txt, col='#ff8888') {
+  const el = document.getElementById('armyMsg');
+  el.style.color = col; el.textContent = txt;
+  setTimeout(()=>{ if(el.textContent===txt) el.textContent=''; }, 2200);
+}
+function refreshArmyHpUI() {
+  const v = +document.getElementById('armyHpSlider').value;
+  const mult = sliderToMult(v, ARMY_HP_SLIDER_MAX_MULT);
+  document.getElementById('armyHpSliderLabel').textContent = `${hpTierLabel(mult)} — ${v}/100 (${mult.toFixed(2)}× HP)`;
+  document.getElementById('armyHpOwnedLabel').textContent = armyHpMaxLevel;
+  const btn = document.getElementById('armyHpBuyBtn');
+  if (v > armyHpMaxLevel) {
+    const cost = armyUpgradeCost(armyHpMaxLevel, v);
+    const afford = shopSip >= cost;
+    btn.style.display = 'inline-block';
+    btn.textContent = `💰 Recruit Upgrade to ${v}/100 — ${cost} S.I.P.`;
+    btn.disabled = !afford; btn.style.opacity = afford?'1':'0.5'; btn.style.cursor = afford?'pointer':'not-allowed';
+  } else {
+    btn.style.display = 'none';
+  }
+}
+function refreshArmyCountUI() {
+  const v = +document.getElementById('armyCountSlider').value;
+  const mult = sliderToMult(v, ARMY_COUNT_SLIDER_MAX_MULT);
+  document.getElementById('armyCountSliderLabel').textContent = `${countTierLabel(mult)} — ${v}/100 (${mult.toFixed(2)}× Allies)`;
+  document.getElementById('armyCountOwnedLabel').textContent = armyCountMaxLevel;
+  const btn = document.getElementById('armyCountBuyBtn');
+  if (v > armyCountMaxLevel) {
+    const cost = armyUpgradeCost(armyCountMaxLevel, v);
+    const afford = shopSip >= cost;
+    btn.style.display = 'inline-block';
+    btn.textContent = `💰 Recruit Upgrade to ${v}/100 — ${cost} S.I.P.`;
+    btn.disabled = !afford; btn.style.opacity = afford?'1':'0.5'; btn.style.cursor = afford?'pointer':'not-allowed';
+  } else {
+    btn.style.display = 'none';
+  }
+}
+function onArmyHpSliderInput() { refreshArmyHpUI(); }
+function onArmyCountSliderInput() { refreshArmyCountUI(); }
+function persistArmyState() {
+  const user = localStorage.getItem('explox_current_user');
+  if (!user) return;
+  const d = JSON.parse(localStorage.getItem('explox_user_'+user)||'{}');
+  d.sip = shopSip; d.throneArmyHpMaxLevel = armyHpMaxLevel; d.throneArmyCountMaxLevel = armyCountMaxLevel;
+  d.throneArmyWeaponId = armyWeaponId; d.throneArmyOwnedWeapons = armyOwnedWeaponIds;
+  localStorage.setItem('explox_user_'+user, JSON.stringify(d));
+}
+function buyArmyHpUpgrade() {
+  const v = +document.getElementById('armyHpSlider').value;
+  const cost = armyUpgradeCost(armyHpMaxLevel, v);
+  if (v <= armyHpMaxLevel) return;
+  if (shopSip < cost) { showArmyMsg(`❌ Need ${cost} S.I.P. for this upgrade!`); return; }
+  shopSip -= cost; armyHpMaxLevel = v;
+  persistArmyState();
+  document.getElementById('armySip').textContent = shopSip;
+  showArmyMsg(`✅ Army HP permanently upgraded to ${v}/100!`, '#66ff88');
+  refreshArmyHpUI(); refreshArmyCountUI();
+}
+function buyArmyCountUpgrade() {
+  const v = +document.getElementById('armyCountSlider').value;
+  const cost = armyUpgradeCost(armyCountMaxLevel, v);
+  if (v <= armyCountMaxLevel) return;
+  if (shopSip < cost) { showArmyMsg(`❌ Need ${cost} S.I.P. for this upgrade!`); return; }
+  shopSip -= cost; armyCountMaxLevel = v;
+  persistArmyState();
+  document.getElementById('armySip').textContent = shopSip;
+  showArmyMsg(`✅ Army size permanently upgraded to ${v}/100!`, '#66ff88');
+  refreshArmyHpUI(); refreshArmyCountUI();
+}
+function selectArmyWeapon(id) {
+  const w = WEAPONS.find(x=>x.id===id);
+  if (!w) return;
+  if (armyOwnedWeaponIds.includes(id)) {
+    armyWeaponId = id;
+    persistArmyState();
+    renderArmyWeaponGrid();
+    showArmyMsg(`✅ Army equipped with ${w.name}!`, '#66ff88');
+    return;
+  }
+  if (shopSip < w.cost) { showArmyMsg(`❌ Need ${w.cost} S.I.P. to unlock ${w.name} for your army!`); return; }
+  shopSip -= w.cost;
+  armyOwnedWeaponIds.push(id);
+  armyWeaponId = id;
+  persistArmyState();
+  document.getElementById('armySip').textContent = shopSip;
+  renderArmyWeaponGrid();
+  showArmyMsg(`✅ Unlocked ${w.name} for your army! -${w.cost} S.I.P.`, '#66ff88');
+}
+function renderArmyWeaponGrid() {
+  const w = armyWeapon();
+  document.getElementById('armyWeaponPreview').textContent = `${w.icon} ${w.name} — ${w.dmg.toFixed(1)}× DMG`;
+  document.getElementById('armyWeaponGrid').innerHTML = WEAPONS.map(wp => {
+    const owned = armyOwnedWeaponIds.includes(wp.id);
+    const equipped = wp.id === armyWeaponId;
+    return `<div class="armCard${equipped?' arm-equipped':''}${owned&&!equipped?' arm-owned':''}" onclick="selectArmyWeapon('${wp.id}')">
+      <div class="armIcon">${wp.icon}</div>
+      <div class="armName">${wp.name}</div>
+      <div class="armLvl">${owned?'✓ Owned':wp.cost+' 💰'}</div>
+    </div>`;
+  }).join('');
+}
+function renderArmyScreen() {
+  document.getElementById('armySip').textContent = shopSip;
+  document.getElementById('armyHpSlider').value = armyHpMaxLevel;
+  document.getElementById('armyCountSlider').value = armyCountMaxLevel;
+  document.getElementById('armyMsg').textContent = '';
+  refreshArmyHpUI();
+  refreshArmyCountUI();
+  renderArmyWeaponGrid();
+}
+function openArmyScreen() {
+  document.getElementById('enemyDesignScreen').style.display = 'none';
+  const pd = loadPlayerData();
+  shopSip = pd.sip; armyHpMaxLevel = pd.armyHpMaxLevel; armyCountMaxLevel = pd.armyCountMaxLevel;
+  armyWeaponId = pd.armyWeaponId; armyOwnedWeaponIds = pd.armyOwnedWeapons;
+  renderArmyScreen();
+  document.getElementById('armyScreen').style.display = 'flex';
 }
 
 // ── ARMORY UI ─────────────────────────────────────────────────────────────────
 function openWeaponShop(){
+  document.getElementById('armyScreen').style.display = 'none';
   document.getElementById('startScreen').style.display = 'none';
   document.getElementById('enemyDesignScreen').style.display = 'none';
   const pd = loadPlayerData();
