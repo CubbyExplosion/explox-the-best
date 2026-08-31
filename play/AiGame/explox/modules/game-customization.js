@@ -184,6 +184,10 @@ let lifetimeRobotKills = 0; // Scrapyard-spawner robots
 let lifetimeRogueKills = 0; // roaming rogue robots
 let lifetimeWarHits    = 0; // hits landed on any War territory defender
 let killerDefeats      = 0; // real persisted count — more of these means Killers spawn more often (see tickKillers)
+let lifetimeShopsRobbed     = 0; // robShop() calls (game-alignment.js) — Crime Contracts below
+let lifetimeCitizensDefeated = 0; // defeatNPC() non-cop/non-president kills (game-social.js)
+let lifetimeCopsDefeated    = 0; // defeatNPC() Officer kills (game-social.js)
+let totalContractsCompleted = 0; // Crime Contracts claimed — mirrors totalQuestsCompleted
 
 // ─── RECORDS — user's own ask: "records like most diamonds, sip and more". peakSip/peakElite
 // track the highest balance ever actually held (updated in updateSIP()/updateElite(), the same
@@ -206,6 +210,7 @@ const RECORD_DEFS = [
   { key:'eliteLevel',           icon:'🤖', label:'Highest Robot Level Reached',  mine:() => eliteLevel.toLocaleString(), fmt: numFmt },
   { key:'totalBossesDefeated',  icon:'⚔️', label:'Most Bosses Defeated',         mine:() => totalBossesDefeated.toLocaleString(), fmt: numFmt },
   { key:'totalQuestsCompleted', icon:'📜', label:'Most Quests Completed',        mine:() => totalQuestsCompleted.toLocaleString(), fmt: numFmt },
+  { key:'totalContractsCompleted', icon:'🕴️', label:'Most Crime Contracts Completed', mine:() => totalContractsCompleted.toLocaleString(), fmt: numFmt },
   { key:'playTimeSeconds',      icon:'⏱️', label:'Longest Time Played',          mine:() => formatPlayTime(playTimeSeconds), fmt: formatPlayTime },
   { key:'ownedWeapons',         icon:'🗡️', label:'Most Weapons Collected',       mine:() => ownedWeapons.length.toLocaleString(), fmt: numFmt },
   // 20 more — every one below reads a real stat the game was already tracking somewhere else
@@ -280,6 +285,11 @@ function recordRowHtml(r, loadingLeader) {
 async function fetchLeaderboard() {
   try {
     const res = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/leaderboard', {}, 4000);
+    // Real bug found live: fetch() only rejects on a network error, not on a 404/500 — a stale
+    // server missing this route was returning {"error":"not found"} with a 404 status, which
+    // parsed as valid "data" with no keys in it, so every single record silently rendered "No
+    // one holds this record yet" instead of the honest "Couldn't reach the leaderboard" below.
+    if (!res.ok) throw new Error('leaderboard fetch failed: ' + res.status);
     leaderboardData = await res.json();
   } catch (e) { leaderboardData = null; }
 }
@@ -443,6 +453,97 @@ function renderQuestsPanel() {
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <span style="color:#888;font-size:10px;">${prog}/${q.target}</span>
         <button onclick="claimQuest('${q.id}')" ${done ? '' : 'disabled'} style="padding:5px 12px;background:${done ? '#2a7a2a' : '#333'};border:none;border-radius:6px;color:#fff;font-size:11px;cursor:${done ? 'pointer' : 'not-allowed'};">+${q.rewardElite} 💎</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── CRIME CONTRACTS — user's own ask: "the black market is there hq u can go theree once bad
+// and they might ask to do crime stealing killing m0re". Same rolling roll/reward/lifetime-delta
+// shape as QUEST_TEMPLATES above (reusing that exact pattern deliberately — it's already a proven
+// "offer N random goals, track real progress against a persisted lifetime counter, claim for a
+// reward" loop), just themed around crime actions that already exist (robShop() in
+// game-alignment.js, defeatNPC() in game-social.js) and paid out in S.I.P. instead of Elite Coins
+// since this is underworld cash, not Robot Level currency. Only offered once alignment==='bad' —
+// gated in openBlackMarket()/toggleContractsPanel() below, same gate the Black Market itself uses.
+const CRIME_CONTRACT_TEMPLATES = [
+  { type:'shops',    icon:'🏪', desc:n=>`Rob ${n} shops`,           roll:()=>2+Math.floor(Math.random()*3), reward:()=>60+Math.floor(Math.random()*60), lifetime:()=>lifetimeShopsRobbed },
+  { type:'citizens', icon:'🥊', desc:n=>`Mug ${n} citizens`,        roll:()=>3+Math.floor(Math.random()*4), reward:()=>50+Math.floor(Math.random()*50), lifetime:()=>lifetimeCitizensDefeated },
+  { type:'cops',     icon:'👮', desc:n=>`Take down ${n} officers`,  roll:()=>2+Math.floor(Math.random()*2), reward:()=>90+Math.floor(Math.random()*80), lifetime:()=>lifetimeCopsDefeated },
+];
+let activeContracts = []; // [{id, type, icon, desc, target, rewardSip, startValue}]
+const MAX_ACTIVE_CONTRACTS = 3;
+function generateContract() {
+  const t = CRIME_CONTRACT_TEMPLATES[Math.floor(Math.random() * CRIME_CONTRACT_TEMPLATES.length)];
+  const target = t.roll();
+  return { id: 'c' + Date.now() + Math.floor(Math.random() * 9999), type: t.type, icon: t.icon, desc: t.desc(target), target, rewardSip: t.reward(), startValue: t.lifetime() };
+}
+function ensureContracts() { while (activeContracts.length < MAX_ACTIVE_CONTRACTS) activeContracts.push(generateContract()); }
+const CONTRACT_REFRESH_COST = 40;
+function refreshContracts() {
+  if (sipDollars < CONTRACT_REFRESH_COST) { showNotif(`❌ Need ${CONTRACT_REFRESH_COST} S.I.P. to refresh your contracts!`); return; }
+  spendSip(CONTRACT_REFRESH_COST);
+  activeContracts = [];
+  ensureContracts();
+  saveCurrentUser();
+  renderContractsPanel();
+  updateSIP();
+  showNotif(`🔄 Contracts refreshed! -${CONTRACT_REFRESH_COST} S.I.P.`);
+  sfx.buy();
+}
+function contractProgress(c) {
+  const tmpl = CRIME_CONTRACT_TEMPLATES.find(t => t.type === c.type);
+  return Math.max(0, Math.min(c.target, Math.floor(tmpl.lifetime() - c.startValue)));
+}
+function claimContract(id) {
+  const idx = activeContracts.findIndex(c => c.id === id);
+  if (idx < 0) return;
+  const c = activeContracts[idx];
+  if (contractProgress(c) < c.target) return;
+  queueEarning(c.rewardSip, 0, 'Crime Contract');
+  showNotif(`✅ Contract complete! Check Earnings to collect +${c.rewardSip} S.I.P.`);
+  sfx.buy();
+  totalContractsCompleted++;
+  activeContracts.splice(idx, 1);
+  ensureContracts();
+  saveCurrentUser();
+  renderContractsPanel();
+}
+function toggleContractsPanel() {
+  if (alignment !== 'bad') { showNotif('🚫 Only bad guys get contracts. Talk to the Shady Dealer first.'); return; }
+  const panel = document.getElementById('contractsPanel');
+  if (panel.style.display === 'none') {
+    if (document.pointerLockElement) document.exitPointerLock();
+    isPointerLocked = false;
+    ensureContracts();
+    renderContractsPanel();
+    panel.style.display = 'flex';
+    document.getElementById('contractsTab').style.display = 'none';
+  } else { closeContractsPanel(); }
+}
+function closeContractsPanel() {
+  document.getElementById('contractsPanel').style.display = 'none';
+  document.getElementById('contractsTab').style.display = 'block';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function renderContractsPanel() {
+  const refreshBtn = document.getElementById('contractsRefreshBtn');
+  const canRefresh = sipDollars >= CONTRACT_REFRESH_COST;
+  refreshBtn.disabled = !canRefresh;
+  refreshBtn.style.opacity = canRefresh ? '1' : '0.5';
+  refreshBtn.style.cursor = canRefresh ? 'pointer' : 'not-allowed';
+  refreshBtn.textContent = canRefresh ? `🔄 Refresh Contracts (-${CONTRACT_REFRESH_COST} S.I.P.)` : `🔄 Need ${CONTRACT_REFRESH_COST} S.I.P. to refresh`;
+  const list = document.getElementById('contractsList');
+  list.innerHTML = activeContracts.map(c => {
+    const prog = contractProgress(c);
+    const done = prog >= c.target;
+    const icon = (CRIME_CONTRACT_TEMPLATES.find(t => t.type === c.type) || {}).icon || c.icon;
+    return `<div style="background:rgba(255,255,255,0.05);border:2px solid ${done ? '#ff4444' : '#333'};border-radius:10px;padding:10px;margin-bottom:8px;">
+      <div style="color:#fff;font-size:12px;font-weight:bold;margin-bottom:4px;">${icon} ${c.desc}</div>
+      <div style="background:#222;border-radius:5px;height:8px;overflow:hidden;margin-bottom:6px;"><div style="background:${done ? '#ff4444' : '#cc2222'};height:100%;width:${Math.min(100, prog / c.target * 100)}%;"></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="color:#888;font-size:10px;">${prog}/${c.target}</span>
+        <button onclick="claimContract('${c.id}')" ${done ? '' : 'disabled'} style="padding:5px 12px;background:${done ? '#7a2a2a' : '#333'};border:none;border-radius:6px;color:#fff;font-size:11px;cursor:${done ? 'pointer' : 'not-allowed'};">+${c.rewardSip} 💰</button>
       </div>
     </div>`;
   }).join('');

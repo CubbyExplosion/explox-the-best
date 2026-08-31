@@ -8,6 +8,40 @@ const BLACK_MARKET_ITEMS = [
   { name:'🥷 Shadow Hoodie',   cost:50,  shirtId:'shadow' },
 ];
 
+// User's own ask: "if you are bad evil entitys eg robot robber killers won't harm you and work
+// for free" — three real pieces, not just flavor text: (1) immunity from Scrapyard/Rogue/Arena
+// robots, robbers, and ambient/hired-against-you killers, gated at each real damage/steal call
+// site rather than a fragile label-matching hack in damagePlayer() itself; (2) Hire a Killer
+// (both modes) is free for a Bad player — see confirmHireKiller()/hireKillerAgainstType()
+// (game-social.js); (3) any nearby robot/robber/killer periodically lands a real hit on whatever
+// the player is currently fighting, reusing the exact landCompanionHit()/getCompanionCombatTarget()
+// pipeline Buddy already uses — a genuine assist, not a stat bump. Deliberately does NOT cover War
+// Territory soldiers/tanks, World Event mobs, or Invasion Attempt invaders — those are different
+// systems (armies/events), not literally "robots, robbers, or killers".
+function isEvilImmune() { return alignment === 'bad'; }
+const EVIL_ALLY_RADIUS = 10, EVIL_ALLY_INTERVAL = 3, EVIL_ALLY_DAMAGE_MULT = 0.3, EVIL_ALLY_MAX_HELPERS = 3;
+function tickEvilAllies(dt) {
+  if (!isEvilImmune()) return;
+  const target = getCompanionCombatTarget();
+  if (!target) return;
+  const px = playerGroup.position.x, pz = playerGroup.position.z;
+  const candidates = [
+    ...killers.filter(k => k.alive && !k.guardKiller && !k.hitTargetName && !k.hitTargetType),
+    ...rogueRobots.filter(r => r.alive),
+  ];
+  let helpers = 0;
+  for (const e of candidates) {
+    if (helpers >= EVIL_ALLY_MAX_HELPERS) break;
+    if (Math.hypot(px-e.x, pz-e.z) > EVIL_ALLY_RADIUS) continue;
+    helpers++;
+    e._evilAllyTimer = (e._evilAllyTimer || 0) + dt;
+    if (e._evilAllyTimer < EVIL_ALLY_INTERVAL) continue;
+    e._evilAllyTimer = 0;
+    const label = e.robber ? '🥷 A robber' : (e.type ? `🤖 ${e.type.name}` : '🔪 A killer');
+    landCompanionHit(target, EVIL_ALLY_DAMAGE_MULT, label);
+  }
+}
+
 function toggleJob(type, pay, taskText) {
   if(activeJob !== type && activeBankJob) { showNotif('❌ Already working a Bank job — quit that one first!'); return; }
   if(activeJob === type) {
@@ -818,6 +852,7 @@ function robShop(shopName, gain) {
   queueEarning(gain, 0, `Robbed ${shopName}`);
   robbedCooldowns[shopName] = 60;
   increaseWanted(1);
+  lifetimeShopsRobbed++;
   showNotif(`🔫 Robbed ${shopName}! +${gain} S.I.P. pending in Earnings`);
 }
 

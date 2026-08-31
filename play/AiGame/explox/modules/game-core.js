@@ -1227,7 +1227,10 @@ function saveCurrentUser() {
     eliteLevel: eliteLevel, activeQuests: activeQuests,
     lifetimeRobotKills: lifetimeRobotKills, lifetimeRogueKills: lifetimeRogueKills, lifetimeWarHits: lifetimeWarHits,
     killerDefeats: killerDefeats, pendingEarnings: pendingEarnings,
-    peakSip: peakSip, peakElite: peakElite, totalQuestsCompleted: totalQuestsCompleted, totalBossesDefeated: totalBossesDefeated
+    peakSip: peakSip, peakElite: peakElite, totalQuestsCompleted: totalQuestsCompleted, totalBossesDefeated: totalBossesDefeated,
+    activeContracts: activeContracts, lifetimeShopsRobbed: lifetimeShopsRobbed,
+    lifetimeCitizensDefeated: lifetimeCitizensDefeated, lifetimeCopsDefeated: lifetimeCopsDefeated,
+    totalContractsCompleted: totalContractsCompleted
   };
   localStorage.setItem('explox_user_' + currentUser, JSON.stringify(data));
   localStorage.setItem('explox_current_user', currentUser);
@@ -1657,6 +1660,12 @@ async function doLogin(name) {
   _earningsOverdueNotified = new Set(); // fresh per login — a still-overdue earning just nags again once, not a bug
   updateEarningsBadge();
   ensureQuests();
+  activeContracts = Array.isArray(d.activeContracts) ? d.activeContracts : [];
+  lifetimeShopsRobbed = d.lifetimeShopsRobbed !== undefined ? d.lifetimeShopsRobbed : 0;
+  lifetimeCitizensDefeated = d.lifetimeCitizensDefeated !== undefined ? d.lifetimeCitizensDefeated : 0;
+  lifetimeCopsDefeated = d.lifetimeCopsDefeated !== undefined ? d.lifetimeCopsDefeated : 0;
+  totalContractsCompleted = d.totalContractsCompleted !== undefined ? d.totalContractsCompleted : 0;
+  if (alignment === 'bad') ensureContracts();
   shopOpen = false; // never resume a shop as open across a reload — you have to reopen it yourself
   document.getElementById('skinColor').value  = playerColors.skin;
   document.getElementById('shirtColor').value = playerColors.shirt;
@@ -1677,6 +1686,9 @@ async function doLogin(name) {
   renderSkinsSection();
   if(document.getElementById('alignmentHud')) {
     document.getElementById('alignmentHud').style.display = alignment==='bad' ? 'block' : 'none';
+  }
+  if(document.getElementById('contractsTab')) {
+    document.getElementById('contractsTab').style.display = alignment==='bad' ? 'block' : 'none';
   }
   if(document.getElementById('wantedHud')) updateWantedHud();
   refreshPreviews();

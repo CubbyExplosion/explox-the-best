@@ -1054,7 +1054,9 @@ function handleMailboxMessage(msg) {
     showNotif(`💀 Knocked out ${msg.from}! +20 S.I.P. pending (${ffaKills} arena kills)`);
   } else if(msg.type === 'hitman_hit') {
     lastHitmanAttacker = msg.from;
-    damagePlayer(msg.data.damage, `${msg.from}'s hired killer`);
+    // Even a killer someone ELSE hired against you won't land a hit while you're Bad-aligned —
+    // the underworld doesn't touch its own.
+    if (!isEvilImmune()) damagePlayer(msg.data.damage, `${msg.from}'s hired killer`);
   } else if(msg.type === 'hitman_kill_confirmed') {
     const k = killers.find(kk => kk.alive && kk.hitTargetIsPlayer && kk.hitTargetName === msg.data.targetName);
     if (k) { k.alive = false; if (k.mesh) scene.remove(k.mesh); }
@@ -1293,6 +1295,7 @@ function defeatNPC(npc) {
     npc.group.position.y = -0.5;
     queueEarning(10, 0, `Defeated ${npc.name}`);
     increaseWanted(1);
+    lifetimeCitizensDefeated++;
     showNotif(`💥 Defeated ${npc.name}! +10 S.I.P. pending in Earnings`);
     setTimeout(() => {
       npc.isDown = false;
@@ -1311,6 +1314,7 @@ function defeatNPC(npc) {
   saveCurrentUser();
   buildGrave(npc.name, x, z);
   queueEarning(pay, 0, `Defeated ${npc.name}`);
+  if (isCop) lifetimeCopsDefeated++; else lifetimeCitizensDefeated++;
   showNotif(`💥 ...🪦 Nobody's noticed yet.`);
   // Nobody finds out right away — the wanted level (and the officers reacting to it) only
   // kicks in after a real delay, instead of instantly like the old knockdown-only version did.
@@ -1380,10 +1384,15 @@ function confirmHireKiller() {
   const target = findHitTarget(name);
   if (!target) { showNotif('❓ Nobody by that name to hire against.'); return; }
   if (killers.some(k => k.alive && k.hitTargetName === target.name)) { showNotif(`⏳ Already have a killer after ${target.name}.`); return; }
-  if (sipDollars < HIRE_KILLER_FEE) { showNotif(`❌ Need ${HIRE_KILLER_FEE} S.I.P. to hire a killer.`); return; }
-  spendSip(HIRE_KILLER_FEE); updateSIP();
+  // User's own ask: bad-aligned players are already one of the criminal underworld's own, so the
+  // underworld works for free instead of charging its usual fee.
+  const free = alignment === 'bad';
+  if (!free) {
+    if (sipDollars < HIRE_KILLER_FEE) { showNotif(`❌ Need ${HIRE_KILLER_FEE} S.I.P. to hire a killer.`); return; }
+    spendSip(HIRE_KILLER_FEE); updateSIP();
+  }
   spawnHitman(target);
-  showNotif(`🗡️ A killer is on ${target.name}'s trail...`);
+  showNotif(free ? `🗡️ One of your own is on ${target.name}'s trail — no charge.` : `🗡️ A killer is on ${target.name}'s trail...`);
   closeHitmanModal();
 }
 // User's own ask: "make it so you can kill any thing robots to robbers [in killer tab]" — a
@@ -1396,14 +1405,17 @@ const HITMAN_TYPE_ATTACK_RANGE = 3, HITMAN_TYPE_ATTACK_INTERVAL = 1.2, HITMAN_TY
 function hireKillerAgainstType(type) {
   const label = type === 'robot' ? 'robots' : 'robbers';
   if (killers.some(k => k.alive && k.hitTargetType === type)) { showNotif(`⏳ Already have a killer hunting ${label}.`); return; }
-  if (sipDollars < HIRE_KILLER_FEE) { showNotif(`❌ Need ${HIRE_KILLER_FEE} S.I.P. to hire a killer.`); return; }
-  spendSip(HIRE_KILLER_FEE); updateSIP();
+  const free = alignment === 'bad';
+  if (!free) {
+    if (sipDollars < HIRE_KILLER_FEE) { showNotif(`❌ Need ${HIRE_KILLER_FEE} S.I.P. to hire a killer.`); return; }
+    spendSip(HIRE_KILLER_FEE); updateSIP();
+  }
   const ang = Math.random()*Math.PI*2, dist = 15+Math.random()*10;
   const x = playerGroup.position.x + Math.cos(ang)*dist, z = playerGroup.position.z + Math.sin(ang)*dist;
   const mesh = buildKillerMesh(x, z);
   mesh.visible = true;
   killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:4+Math.random()*1.5, hitTargetType: type, attackTimer:0, huntElapsed:0, revealed:true });
-  showNotif(`🗡️ A killer is heading out to hunt down ${label} for you...`);
+  showNotif(free ? `🗡️ One of your own is heading out to hunt down ${label} for you — no charge.` : `🗡️ A killer is heading out to hunt down ${label} for you...`);
   closeHitmanModal();
 }
 function tickHitmanVsType(k, dt) {
@@ -1685,10 +1697,14 @@ function toggleAlignment() {
   if(alignment === 'good') {
     alignment = 'bad';
     document.getElementById('alignmentHud').style.display = 'block';
+    if (document.getElementById('contractsTab')) document.getElementById('contractsTab').style.display = 'block';
+    ensureContracts();
     showNotif('😈 You joined the underground. The Black Market is now open.');
   } else {
     alignment = 'good';
     document.getElementById('alignmentHud').style.display = 'none';
+    if (document.getElementById('contractsPanel')) document.getElementById('contractsPanel').style.display = 'none';
+    if (document.getElementById('contractsTab')) document.getElementById('contractsTab').style.display = 'none';
     showNotif('😇 You went straight. Stay clean.');
   }
   saveCurrentUser();
@@ -1709,6 +1725,14 @@ function openBlackMarket() {
       <button class="shopBtn" ${already?'disabled':''} onclick="buyBlackMarketItem(${i})">${already?'Owned':'Buy'}</button>`;
     items.appendChild(d);
   });
+  // User's own ask: "they might ask to do crime stealing killing m0re" — a real job board of
+  // rolling crime contracts, same rolling-goal shape as the Quests panel, just themed around
+  // robShop()/defeatNPC() and paid in S.I.P. See CRIME_CONTRACT_TEMPLATES in game-customization.js.
+  const cd = document.createElement('div'); cd.className = 'shopItem';
+  cd.style.background = 'rgba(255,68,68,0.08)'; cd.style.border = '1px solid #ff4444';
+  cd.innerHTML = `<div class="siName">🕴️ Crime Contracts</div><div class="siCost" style="color:#ff8888;">Rolling jobs — steal, mug, take down cops</div>
+    <button class="shopBtn" style="background:#7a2a2a;" onclick="closeShop(); toggleContractsPanel();">View Contracts</button>`;
+  items.appendChild(cd);
 }
 
 function buyBlackMarketItem(idx) {
