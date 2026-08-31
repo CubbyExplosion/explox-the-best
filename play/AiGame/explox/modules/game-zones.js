@@ -869,11 +869,14 @@ function getDayNightBrightness() {
 }
 function updateDayNight() {
   if (!scene || !sunLight || !ambientLight || !seasonSkyColor) return;
-  // "sun or moon turns red" (Wrath is chasing you) / "more black sun" (Satan won this round) —
-  // both override the normal day/night blend entirely rather than fighting it every frame.
-  if (wrathActive || Date.now() < satanBadUntil) {
+  // "the safe period is when the sky is still red" — the blood-red sky isn't just for the Wrath
+  // chase itself, it's a real visible marker for the whole 2-day grace period afterward too, so
+  // there's always something to see that says "you're still living in the aftermath." "More black
+  // sun" (Satan won this round) overrides even that, on top.
+  const now = Date.now();
+  if (wrathActive || now < safePeriodEndsAt || now < satanBadUntil) {
     if (!_judgmentColor) _judgmentColor = new THREE.Color();
-    _judgmentColor.set(wrathActive ? 0x660000 : 0x050505);
+    _judgmentColor.set(now < satanBadUntil ? 0x050505 : 0x660000);
     scene.background.copy(_judgmentColor);
     scene.fog.color.copy(_judgmentColor);
     sunLight.intensity = 0.15;

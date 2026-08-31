@@ -721,10 +721,82 @@ function tickSatanEvent(dt) {
   if (Math.random() >= SATAN_ATTACK_CHANCE) return; // no attack this round
   if (Math.random() < SATAN_WIN_CHANCE) {
     satanBadUntil = now + SATAN_BAD_DURATION*1000;
-    showNotif('🔥 Satan has struck down the light — the world is in bad hands for a while...');
+    startDivineClash('satan');
   } else {
-    showNotif('⚔️ Satan attacked, but the light held. The world stays safe... for now.');
+    startDivineClash('god');
   }
+}
+// "you can see him fight" — an abstract light-vs-shadow clash over the Church, never a literal
+// God/Satan character to hit or click on (that would cross the same line as fighting God
+// directly). Two beams push toward the center over CLASH_DURATION_MS; whichever side the roll
+// already decided (see tickSatanEvent above) visibly wins the push, so the notif at the end
+// matches what you just watched happen instead of coming out of nowhere.
+const CLASH_DURATION_MS = 6000;
+const CLASH_POS = new THREE.Vector3(-40, 34, 20); // above the real Church building (game-buildings.js)
+let divineClash = null; // {startTime, outcome, lightMesh, darkMesh, glow}
+function startDivineClash(outcome) {
+  if (divineClash) { scene.remove(divineClash.lightMesh); scene.remove(divineClash.darkMesh); scene.remove(divineClash.glow); }
+  const lightMesh = new THREE.Mesh(new THREE.ConeGeometry(2.2,16,8), new THREE.MeshBasicMaterial({color:0xFFD700, transparent:true, opacity:0.8}));
+  lightMesh.rotation.z = Math.PI/2; lightMesh.position.copy(CLASH_POS).add(new THREE.Vector3(-7,0,0)); scene.add(lightMesh);
+  const darkMesh = new THREE.Mesh(new THREE.ConeGeometry(2.2,16,8), new THREE.MeshBasicMaterial({color:0x220022, transparent:true, opacity:0.8}));
+  darkMesh.rotation.z = -Math.PI/2; darkMesh.position.copy(CLASH_POS).add(new THREE.Vector3(7,0,0)); scene.add(darkMesh);
+  const glow = new THREE.PointLight(outcome==='god' ? 0xFFD700 : 0x880000, 3, 60);
+  glow.position.copy(CLASH_POS); scene.add(glow);
+  divineClash = { startTime: Date.now(), outcome, lightMesh, darkMesh, glow };
+  showNotif('⚡ Light and shadow clash in the sky above the Church...');
+}
+function tickDivineClash() {
+  if (!divineClash) return;
+  const elapsed = Date.now() - divineClash.startTime;
+  const t = Math.min(1, elapsed / CLASH_DURATION_MS);
+  const push = (divineClash.outcome === 'god' ? 1 : -1) * t * 6;
+  divineClash.lightMesh.position.x = CLASH_POS.x - 7 + push;
+  divineClash.darkMesh.position.x = CLASH_POS.x + 7 + push;
+  divineClash.glow.intensity = 3 + t*3;
+  if (elapsed >= CLASH_DURATION_MS) {
+    scene.remove(divineClash.lightMesh); scene.remove(divineClash.darkMesh); scene.remove(divineClash.glow);
+    const outcome = divineClash.outcome;
+    divineClash = null;
+    showNotif(outcome==='god' ? '✨ The light held. The world stays safe... for now.' : '🔥 Satan has struck down the light — the world is in bad hands for a while...');
+  }
+}
+
+// "more people go there in the safe period" — real extra NPCs (the same makeNPC()/patrol system
+// every other NPC in the city already uses, not a decorative stand-in), drawn to the Church while
+// it's a safe/blessed time. Tracked separately from the permanent NPC_DEFS roster so they can be
+// cleanly added/removed without touching anyone else in npcs[].
+let churchWorshippers = [];
+let churchWorshippersActive = false;
+const WORSHIPPER_NAMES = ['Grace','Faith','Noah','Hope','Eli','Ruth','Amos','June'];
+function tickChurchWorshippers() {
+  const active = Date.now() < safePeriodEndsAt;
+  if (active && !churchWorshippersActive) { churchWorshippersActive = true; spawnChurchWorshippers(); }
+  else if (!active && churchWorshippersActive) { churchWorshippersActive = false; clearChurchWorshippers(); }
+}
+function spawnChurchWorshippers() {
+  clearChurchWorshippers();
+  const n = 4 + Math.floor(Math.random()*3);
+  const shirts = [0x8899aa,0x776655,0x557766,0x887766,0x665577];
+  for (let i=0; i<n; i++) {
+    const ang = Math.random()*Math.PI*2, r = 6+Math.random()*8;
+    const x = -40+Math.cos(ang)*r, z = 20+Math.sin(ang)*r;
+    const w = makeNPC({
+      name: WORSHIPPER_NAMES[i % WORSHIPPER_NAMES.length], role: 'Worshipper',
+      skin: 0xf5c89a, shirt: shirts[i % shirts.length], pants: 0x333333, hairColor: 0x3a1f0a, hair: 'short',
+      pos: [x,0,z], patrol: [[x,z],[x+3,z+2],[x-2,z+3]]
+    });
+    w.isWorshipper = true;
+    npcs.push(w);
+    churchWorshippers.push(w);
+  }
+}
+function clearChurchWorshippers() {
+  churchWorshippers.forEach(w => {
+    const i = npcs.indexOf(w);
+    if (i > -1) npcs.splice(i,1);
+    scene.remove(w.group);
+  });
+  churchWorshippers = [];
 }
 // One hand-built silhouette per boss — deliberately NOT reusing buildRobotMesh()'s shapes (a
 // boss used to just be a 3.2x-scaled Tank/Spider/Elite/Drone/Guard Bot, same geometry as the

@@ -218,6 +218,8 @@ function animate(){
   tickArenaRobots(dt);
   tickWrath(dt);
   tickSatanEvent(dt);
+  tickDivineClash();
+  tickChurchWorshippers();
 
   // Movement with collision
   let moving=false;
