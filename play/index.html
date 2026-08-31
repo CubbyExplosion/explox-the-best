@@ -79,6 +79,7 @@
     #hungerHud     { position:fixed; top:392px; right:14px; color:#88ff88; font-size:13px; font-weight:bold; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; }
     #sickHud       { position:fixed; top:430px; right:14px; color:#aaff66; font-size:13px; font-weight:bold; background:rgba(40,60,0,0.85); padding:7px 12px; border-radius:8px; border:1px solid #779922; display:none; }
     #bladderHud    { position:fixed; top:468px; right:14px; color:#66ccff; font-size:13px; font-weight:bold; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; }
+    #tirednessHud  { position:fixed; top:506px; right:14px; color:#bb99ff; font-size:13px; font-weight:bold; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; }
     #healthHud     { position:fixed; top:60px; left:14px; z-index:15; background:rgba(0,0,0,0.5); padding:8px 12px; border-radius:8px; }
     #healthBarBg   { width:150px; height:14px; background:#330000; border:1px solid #ff4444; border-radius:7px; overflow:hidden; }
     #healthBarFill { width:100%; height:100%; background:linear-gradient(90deg,#ff4444,#ff8844); transition:width 0.2s; }
@@ -397,7 +398,7 @@
 
 <!-- SAFE MODAL -->
 <div id="safeModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;">
-  <div style="background:linear-gradient(135deg,#1a1000,#2a1e00);border:3px solid #886600;border-radius:16px;padding:28px;width:320px;text-align:center;">
+  <div style="background:linear-gradient(135deg,#1a1000,#2a1e00);border:3px solid #886600;border-radius:16px;padding:28px;width:320px;text-align:center;max-height:85vh;overflow-y:auto;max-width:90vw;box-sizing:border-box;">
     <div style="font-size:38px;margin-bottom:6px;">🔐</div>
     <h2 style="color:#FFD700;font-size:17px;letter-spacing:3px;margin-bottom:16px;">BANK SAFE</h2>
 
@@ -471,6 +472,10 @@
       <div style="margin-top:12px; border-top:1px solid #e94560; padding-top:10px;">
         <p style="color:#e94560;font-size:10px;letter-spacing:2px;font-weight:bold;margin-bottom:6px;">YOUR BADGE</p>
         <canvas id="avatarPreview" width="96" height="152" style="border-radius:6px;"></canvas>
+        <button onclick="openProfilePicEditor()" style="display:block;width:96px;margin:6px auto 0;padding:5px;background:#2a5a9a;border:none;border-radius:6px;color:#fff;font-size:10px;cursor:pointer;">🖌️ Draw Picture</button>
+        <button onclick="pfpChooseFile()" style="display:block;width:96px;margin:4px auto 0;padding:5px;background:#2a7a4a;border:none;border-radius:6px;color:#fff;font-size:10px;cursor:pointer;">📁 Choose Picture</button>
+        <input type="file" id="pfpFileInput" accept="image/*" style="display:none" onchange="pfpFileSelected(event)">
+        <a href="javascript:void(0)" onclick="removeProfilePicture()" style="display:block;margin-top:4px;color:#888;font-size:9px;text-decoration:underline;cursor:pointer;">remove picture</a>
       </div>
       <p style="color:#FFD700;margin-top:8px;font-size:13px;font-weight:bold;">💰 <span id="customSip">0</span> S.I.P.</p>
       <p id="customMsg" style="font-size:11px;min-height:14px;margin-top:3px;transition:opacity 0.3s;"></p>
@@ -547,6 +552,11 @@
         <button class="optBtn" data-val="crophoodie">Cropped Hoodie</button>
         <button class="optBtn" data-val="overshirt">Overshirt</button>
       </div>
+      <div class="sectionLabel">SHIRT DESIGN</div>
+      <div>
+        <button onclick="openShirtPaintEditor()" style="padding:7px 12px;background:#2a5a9a;border:none;border-radius:8px;color:#fff;font-size:12px;cursor:pointer;">🖌️ Draw Custom Design</button>
+        <a href="javascript:void(0)" onclick="removeShirtDesign()" style="margin-left:10px;color:#888;font-size:10px;text-decoration:underline;cursor:pointer;">remove design</a>
+      </div>
       <div class="sectionLabel">PANTS COLOR</div>
       <div class="colorRow"><label>Pants</label><input type="color" id="pantsColor" value="#333333"></div>
       <div class="sectionLabel">PANTS STYLE</div>
@@ -608,6 +618,26 @@
     </div>
   </div>
   <button id="playBtn">PLAY</button>
+</div>
+
+<!-- PROFILE PICTURE PAINT EDITOR — the same real pixel-art tool as Game Builder's Paint Editor
+     (see gbPaintModal further down), reused here to draw a custom account badge/nametag picture
+     instead of only the procedural look. Lives OUTSIDE #hud (unlike gbPaintModal) because its
+     "Draw Picture" button is on the customization screen, which shows BEFORE #hud ever does. -->
+<div id="pfpModal" style="display:none;position:fixed;inset:0;z-index:310;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;pointer-events:auto;">
+  <div style="background:linear-gradient(135deg,#0a1a10,#0f2418);border:2px solid #44dd88;border-radius:16px;padding:16px;text-align:center;">
+    <div id="pfpModalTitle" style="color:#44dd88;font-size:14px;font-weight:bold;letter-spacing:2px;margin-bottom:10px;">🖌️ DRAW YOUR PROFILE PICTURE</div>
+    <canvas id="pfpCanvas" width="256" height="256" style="border-radius:6px;cursor:crosshair;touch-action:none;"
+      onmousedown="pfpMouseDown(event)" onmousemove="pfpMouseMove(event)" onmouseup="pfpMouseUp()" onmouseleave="pfpMouseUp()"></canvas>
+    <div id="pfpPalette" style="margin:10px 0;"></div>
+    <div id="pfpMsg" style="color:#ff8844;font-size:11px;min-height:14px;margin-bottom:4px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="pfpClear()" style="flex:1;padding:8px;background:#5a5a2a;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;">🧹 Clear</button>
+      <button onclick="pfpSaveDrawing()" style="flex:1;padding:8px;background:#2a7a2a;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;">💾 Save</button>
+      <button onclick="pfpRemovePicture()" style="flex:1;padding:8px;background:#7a4a2a;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;">🗑️ Remove</button>
+      <button onclick="closeProfilePicEditor()" style="flex:1;padding:8px;background:#7a2a2a;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;">✕ Cancel</button>
+    </div>
+  </div>
 </div>
 
 <!-- S.I.T.S. MODAL -->
@@ -908,6 +938,7 @@
   <div id="hungerHud">🍔 Hunger: 100%</div>
   <div id="sickHud">🤒 SICK — slower, losing health</div>
   <div id="bladderHud">🚽 Bladder: 100%</div>
+  <div id="tirednessHud">😴 Tiredness: 100%</div>
   <div id="healthHud">
     <div id="healthBarBg"><div id="healthBarFill"></div></div>
     <div id="healthText">100/100 HP</div>
@@ -1032,6 +1063,59 @@
     <p style="color:#555;font-size:9px;text-align:center;margin-bottom:10px;letter-spacing:1px;">SELECT A TRACK — CLICK TO PLAY</p>
     <div id="musicList" style="display:flex;flex-direction:column;max-height:calc(85vh - 100px);overflow-y:auto;padding-right:4px;"></div>
     <button onclick="closeMusicPanel()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:10px;">✕ Close</button>
+  </div>
+
+  <!-- KARAOKE TAB — user's own ask: a real, easy-to-find way in, not a small icon buried in the
+       Music list. Own tab, own panel, next free left-side slot after Hire Killer's +562. -->
+  <div id="karaokeTabBtn" style="position:fixed;top:calc(50% + 642px);left:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
+    <button onclick="openKaraokePanel()" style="display:block;background:linear-gradient(180deg,#2a0a1a,#4a0a2a);border:2px solid #ff88cc;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🎤</span>KARAOKE
+    </button>
+  </div>
+
+  <!-- KARAOKE PANEL -->
+  <div id="karaokePanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#1a0a1a,#2a0a1e);border:2px solid #ff88cc;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:260px;pointer-events:auto;max-height:85vh;overflow:hidden;">
+    <div style="color:#ff88cc;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:4px;">🎤 KARAOKE</div>
+    <p style="color:#555;font-size:9px;text-align:center;margin-bottom:10px;letter-spacing:1px;">SING ALONG TO YOUR OWN SONGS</p>
+    <div id="karaokeList" style="display:flex;flex-direction:column;gap:8px;max-height:calc(85vh - 100px);overflow-y:auto;padding-right:4px;"></div>
+    <button onclick="closeKaraokePanel()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:10px;">✕ Close</button>
+  </div>
+
+  <!-- KARAOKE SYNC TOOL — tap along with a real song to record when each lyric line actually
+       starts, since that timing can't be guessed from the text alone. See openKaraokeSync() etc. -->
+  <div id="karaokeSyncModal" style="display:none;position:fixed;inset:0;z-index:310;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;pointer-events:auto;">
+    <div style="background:linear-gradient(135deg,#1a0a1a,#2a0e1e);border:2px solid #ff88cc;border-radius:16px;padding:24px;width:360px;max-width:90vw;max-height:85vh;overflow-y:auto;text-align:center;box-sizing:border-box;">
+      <div id="karaokeSyncTitle" style="color:#ff88cc;font-size:15px;font-weight:bold;letter-spacing:1px;margin-bottom:6px;">🎤 Sync</div>
+      <p style="color:#888;font-size:11px;margin-bottom:12px;">Press Play, then tap "Mark Line" the instant each line starts. Tap "Undo" if you're off.</p>
+      <div id="karaokeSyncTime" style="color:#66ffcc;font-size:22px;font-weight:bold;margin-bottom:10px;">0.00s</div>
+      <div id="karaokeSyncUpcoming" style="min-height:70px;margin-bottom:10px;"></div>
+      <div id="karaokeSyncProgress" style="color:#888;font-size:11px;margin-bottom:12px;">0 / 0 lines marked</div>
+      <button id="karaokeAutoSyncBtn" onclick="karaokeAutoSyncStart()" style="width:100%;padding:9px;background:linear-gradient(90deg,#5a2a8f,#8f2a6d);border:none;border-radius:8px;color:#fff;font-weight:bold;font-size:12px;cursor:pointer;margin-bottom:4px;">🤖 Try Auto-Sync (AI, Beta)</button>
+      <div id="karaokeAutoSyncStatus" style="color:#cc99ff;font-size:10px;margin-bottom:10px;min-height:12px;"></div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <button id="karaokeSyncPlayBtn" onclick="karaokeSyncPlayPause()" style="flex:1;padding:10px;background:#3a6d9d;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;">▶ Play</button>
+        <button onclick="karaokeSyncUndoLine()" style="flex:1;padding:10px;background:#5a5a2a;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;">↩ Undo</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
+        <span style="color:#888;font-size:10px;white-space:nowrap;">Keep first</span>
+        <input id="karaokeSyncCutInput" type="number" min="0" style="width:50px;padding:6px;background:#111;color:#fff;border:1px solid #444;border-radius:6px;font-size:11px;text-align:center;">
+        <button onclick="karaokeSyncCutToLine()" style="flex:1;padding:8px;background:#7a3a3a;border:none;border-radius:8px;color:#fff;font-weight:bold;font-size:11px;cursor:pointer;">✂ Cut rest &amp; jump here</button>
+      </div>
+      <button id="karaokeSyncMarkBtn" onclick="karaokeSyncMarkLine()" style="width:100%;padding:14px;background:#cc3388;border:none;border-radius:8px;color:#fff;font-weight:bold;font-size:15px;cursor:pointer;margin-bottom:8px;">⏱ Mark Line</button>
+      <button id="karaokeSyncSaveBtn" onclick="karaokeSyncSave()" style="display:none;width:100%;padding:10px;background:#2a8f4a;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;margin-bottom:8px;">💾 Save Timing</button>
+      <div id="karaokeSyncExportWrap" style="display:none;margin-bottom:8px;">
+        <p style="color:#6f6;font-size:11px;margin-bottom:6px;">✅ Saved on this device! To make this the real timing for EVERYONE (so nobody else ever has to sync it), tap the box to select it all, copy it, and paste it to Claude:</p>
+        <textarea id="karaokeSyncExportBox" readonly onclick="this.select()" style="width:100%;height:56px;background:#111;color:#6f6;border:1px solid #444;border-radius:6px;font-size:10px;padding:6px;font-family:monospace;resize:none;box-sizing:border-box;"></textarea>
+      </div>
+      <button onclick="closeKaraokeSync()" style="width:100%;padding:8px;background:none;border:1px solid #444;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">✕ Close</button>
+    </div>
+  </div>
+
+  <!-- KARAOKE LIVE LYRICS HUD — shows during normal playback of any real song that has synced
+       timing. See tickKaraokeDisplay() in game.js. -->
+  <div id="karaokeHud" style="display:none;position:fixed;bottom:90px;left:50%;transform:translateX(-50%);z-index:15;pointer-events:none;text-align:center;max-width:80vw;">
+    <div id="karaokeCurrentLine" style="color:#fff;font-size:22px;font-weight:bold;text-shadow:0 0 8px #cc44ff,0 2px 4px #000;margin-bottom:4px;"></div>
+    <div id="karaokeNextLine" style="color:#aaa;font-size:14px;text-shadow:0 2px 4px #000;"></div>
   </div>
 
   <!-- ADD ONS TAB -->
@@ -1269,12 +1353,17 @@
     <div style="background:linear-gradient(135deg,#1a0a0a,#2a0e0e);border:2px solid #cc3333;border-radius:16px;padding:32px 28px;width:340px;text-align:center;">
       <div style="font-size:36px;margin-bottom:8px;">🗡️</div>
       <h2 style="color:#cc3333;font-size:18px;letter-spacing:2px;margin-bottom:6px;">HIRE A KILLER</h2>
-      <p style="color:#888;font-size:12px;margin-bottom:10px;">Type their exact name. Costs 150 S.I.P. up front — the payout depends on who it is.</p>
+      <p style="color:#888;font-size:12px;margin-bottom:10px;">Type their exact name — an NPC, or (ONLINE mode) a real player's account name. Costs 150 S.I.P. up front — the payout depends on who it is.</p>
       <input id="hitmanNameInput" type="text" placeholder="Full name..." oninput="updateHitmanPreview()"
         style="width:100%;padding:10px 14px;background:rgba(255,255,255,0.08);border:2px solid #444;border-radius:10px;color:#fff;font-size:15px;margin-bottom:8px;outline:none;box-sizing:border-box;text-align:center;"
         onfocus="this.style.borderColor='#cc3333'" onblur="this.style.borderColor='#444'">
       <p id="hitmanPreview" style="font-size:12px;min-height:16px;margin-bottom:12px;"></p>
       <button onclick="confirmHireKiller()" style="width:100%;padding:10px;background:#7a1a1a;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:13px;margin-bottom:8px;">🗡️ Hire (150 S.I.P.)</button>
+      <p style="color:#666;font-size:11px;margin:10px 0 8px;">— or skip the name, hunt a whole TYPE instead —</p>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <button onclick="hireKillerAgainstType('robot')" style="flex:1;padding:10px;background:#3a5a7a;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:12px;">🤖 Hunt Robots</button>
+        <button onclick="hireKillerAgainstType('robber')" style="flex:1;padding:10px;background:#5a4a2a;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:12px;">🥷 Hunt Robbers</button>
+      </div>
       <button onclick="closeHitmanModal()" style="width:100%;padding:8px;background:none;border:1px solid #444;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">Cancel</button>
     </div>
   </div>
@@ -1537,6 +1626,16 @@
   </div>
 </div>
 
+<!-- HOUSE FURNITURE MODAL -->
+<div id="houseFurnitureModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;flex-direction:column;">
+  <div style="background:linear-gradient(135deg,#1a2e1e,#0f2818);border:2px solid #3a9d3a;border-radius:16px;padding:24px;min-width:340px;max-height:82vh;overflow-y:auto;">
+    <h2 style="color:#88dd88;letter-spacing:2px;margin-bottom:4px;font-size:18px;text-align:center;">🪑 House Furniture</h2>
+    <p style="color:#888;font-size:11px;text-align:center;margin-bottom:16px;">Buy with S.I.P., or build for free using Wood/Scrap — sell anything back any time.</p>
+    <div id="houseFurnitureList" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <button onclick="closeHouseFurnitureShop()" style="margin-top:16px;width:100%;padding:8px;background:none;border:1px solid #555;border-radius:8px;color:#888;font-size:12px;cursor:pointer;">✕ Close</button>
+  </div>
+</div>
+
 <!-- THE DINER MODAL -->
 <div id="restaurantModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;flex-direction:column;">
   <div style="background:linear-gradient(135deg,#2a1510,#3a1f14);border:2px solid #ffaa55;border-radius:16px;padding:24px;min-width:340px;max-height:82vh;overflow-y:auto;">
@@ -1665,6 +1764,13 @@
     <h3 style="color:#fff;font-size:13px;margin:16px 0 8px;">🏘️ Placed here</h3>
     <div id="buildPlaced" style="display:flex;flex-direction:column;gap:8px;"></div>
     <button id="buildSitBtn" style="display:none;margin-top:12px;width:100%;padding:10px;background:#3a6d9d;border:none;border-radius:8px;color:#fff;cursor:pointer;font-weight:bold;" onclick="ownerSit()">🪑 Sit on Bench</button>
+
+    <h3 style="color:#fff;font-size:13px;margin:16px 0 8px;">🏠 Build a Custom House</h3>
+    <p style="color:#9ab;font-size:11px;margin-bottom:6px;">Pick a size and material — bigger houses need more materials, and only fit on bigger land.</p>
+    <div id="houseSizeButtons" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;"></div>
+    <div id="houseMaterialButtons" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;"></div>
+    <p id="houseBuildCostText" style="color:#ffd54a;font-size:12px;margin-bottom:8px;"></p>
+    <button class="shopBtn" style="width:100%;margin-bottom:8px;" onclick="buildCustomHouse(window._buildCtxIdx)">🏠 Build House</button>
 
     <h3 style="color:#fff;font-size:13px;margin:16px 0 8px;">🎨 Paint Your Land</h3>
     <div id="buildPaintSwatches"></div>
