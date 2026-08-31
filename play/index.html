@@ -1569,6 +1569,13 @@
 <div id="shopOverlay" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;">
   <div style="background:linear-gradient(135deg,#1a1a2e,#0f3460);border:2px solid #e94560;border-radius:16px;padding:24px;min-width:300px;max-height:80vh;overflow-y:auto;">
     <h2 id="shopTitle" style="color:#e94560;letter-spacing:2px;margin-bottom:8px;font-size:18px;"></h2>
+    <div style="text-align:center;margin-bottom:10px;">
+      <canvas id="shopPreviewCanvas" width="150" height="190" style="background:radial-gradient(circle,#2a3a5a,#0f1a30);border:2px solid #4a6a8a;border-radius:10px;"></canvas>
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;">
+        <span id="shopPreviewLabel" style="color:#9adcff;font-size:11px;">👁 Your current look</span>
+        <button id="shopPreviewResetBtn" onclick="renderShopPreview(null)" style="display:none;padding:2px 8px;background:#333;border:1px solid #555;border-radius:5px;color:#ccc;font-size:10px;cursor:pointer;">↺ Reset</button>
+      </div>
+    </div>
     <div id="shopTabs" style="display:flex;gap:6px;margin-bottom:14px;">
       <button class="shopTabBtn" onclick="openShop('outfits')" style="flex:1;padding:6px;background:#222;border:1px solid #555;border-radius:6px;color:#ccc;font-size:11px;cursor:pointer;">👗 Outfits</button>
       <button class="shopTabBtn" onclick="openShop('weapons')" style="flex:1;padding:6px;background:#222;border:1px solid #555;border-radius:6px;color:#ccc;font-size:11px;cursor:pointer;">⚔️ Weapons</button>

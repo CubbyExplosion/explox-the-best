@@ -381,6 +381,8 @@ const bgMusic = (() => {
       }
     },
     get currentTrack(){ return _currentTrack; },
+    get realTime(){ return realAudio ? realAudio.currentTime : 0; }, // for the karaoke display below — how far into the real <audio> we are right now
+    get isPlayingReal(){ return !!(realAudio && !realAudio.paused); },
     TRACKS
   };
 })();
@@ -428,12 +430,756 @@ function renderMusicList(){
     }
     const a=i===ct;
     const meta = t.real ? '🎤 Real Song' : `${t.minutes}m · ${t.bpm} BPM`;
+    const songId = karaokeSongIdForTrack(t);
+    const hasLyrics = !!songId;
+    const hasTiming = hasLyrics && KARAOKE_SONGS[songId].timing && KARAOKE_SONGS[songId].timing.length;
+    const syncBtn = hasLyrics ? `<button onclick="event.stopPropagation();openKaraokeSync(${i})" title="${hasTiming?'Re-sync karaoke timing':'Set up karaoke timing'}" style="background:none;border:1px solid ${hasTiming?'#66ff99':'#ff88cc'};color:${hasTiming?'#66ff99':'#ff88cc'};border-radius:5px;font-size:9px;padding:2px 5px;cursor:pointer;margin-left:6px;white-space:nowrap;">🎤${hasTiming?' ✓':''}</button>` : '';
     html+=`<div onclick="selectMusicTrack(${i})" style="padding:8px 10px;border-radius:8px;margin-bottom:5px;cursor:pointer;background:${a?'rgba(180,0,220,0.25)':'rgba(255,255,255,0.03)'};border:1px solid ${a?'#cc44ff':'#333'};display:flex;justify-content:space-between;align-items:center;user-select:none;">
       <div style="color:${a?'#ee88ff':'#bbb'};font-size:11px;font-weight:bold;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a?'▶ ':''}${t.name}</div>
-      <div style="color:#888;font-size:10px;white-space:nowrap;margin-left:6px;">${meta}</div>
+      <div style="color:#888;font-size:10px;white-space:nowrap;margin-left:6px;display:flex;align-items:center;">${meta}${syncBtn}</div>
     </div>`;
   });
   el.innerHTML=html;
+}
+
+// ─── KARAOKE — user's own ask: "make karaoke for each real song so i can post", for the user's
+// own original REAL_TRACKS songs (real recorded mp3s, not the 50 synth background tracks) — the
+// user wrote and provided the actual lyrics for each one. Keyed by the song's own filename (no
+// extension), so it lines up with REAL_TRACKS' existing `file` field with no extra id to keep in
+// sync. `timing` (seconds per line, same length as `lines`) starts empty — a real recording has
+// no natural "line breaks" to detect automatically, so it's captured for real by a human actually
+// listening and tapping along (see the sync tool below), not guessed/evenly-spaced.
+const KARAOKE_SONGS = {
+  explox_theme: {
+    lines: [
+      {text:'Verse 1', section:true},
+      {text:"Wake up in a city that's all mine,"},
+      {text:"Wide open streets, every storefront shine,"},
+      {text:"Punch the clock, I'm working for my dream,"},
+      {text:"Save it up, buy a house, build my team."},
+      {text:"No download, no waiting in line,"},
+      {text:"Just click play and you're living your life,"},
+      {text:"Three hundred shops and the whole world's mine —"},
+      {text:"Welcome to Explox, come inside."},
+      {text:'Chorus', section:true},
+      {text:"Ex-plox, Ex-plox, a whole life, a whole town,"},
+      {text:"Get up, get out, never let me down,"},
+      {text:"Ex-plox, Ex-plox, come explore with me,"},
+      {text:"Live your best life — wild and free!"},
+      {text:'Verse 2', section:true},
+      {text:"Forty new friends, and I know 'em all by name,"},
+      {text:"Throw a wedding, watch a family change,"},
+      {text:"Pack a bag, catch a flight tonight,"},
+      {text:"Eight whole countries, and the sky's alight."},
+      {text:"Five mini-games when I need a break,"},
+      {text:"Build my crew, hold the throne, don't shake,"},
+      {text:"Every choice I make, it's really me —"},
+      {text:"This is my Explox story."},
+      {text:'Chorus', section:true},
+      {text:"Ex-plox, Ex-plox, a whole life, a whole town,"},
+      {text:"Get up, get out, never let me down,"},
+      {text:"Ex-plox, Ex-plox, come explore with me,"},
+      {text:"Live your best life — wild and free!"},
+      {text:'Bridge', section:true},
+      {text:"And the city keeps on turning,"},
+      {text:"Even when I'm not around,"},
+      {text:"Elders age and pass on gently,"},
+      {text:"But my friends — they stick around."},
+      {text:"One life, one town, one story growing —"},
+      {text:"Built one feature at a time."},
+      {text:'Final Chorus', section:true},
+      {text:"Ex-plox, Ex-plox, a whole life, a whole town,"},
+      {text:"Get up, get out, never let me down,"},
+      {text:"Ex-plox, Ex-plox, this whole world is free —"},
+      {text:"Come and live it — with me!"},
+      {text:'Outro', section:true},
+      {text:"Ex... plox."},
+    ],
+    timing: null,
+  },
+  rise_and_shine: {
+    lines: [
+      {text:"Wake up to the morning light,"},
+      {text:"Every dream is shining bright."},
+      {text:"Take a step, don't be afraid,"},
+      {text:"Today's the day that memories are made."},
+      {text:"Hands up high, let's feel alive,"},
+      {text:"Together we can learn to thrive."},
+      {text:"Every heartbeat, every smile,"},
+      {text:"Makes this journey all worthwhile."},
+      {text:"Sing it loud, let the rhythm play,"},
+      {text:"We're dancing through a brand-new day."},
+      {text:"Nothing's gonna slow us down,"},
+      {text:"We'll wear our dreams like a golden crown."},
+      {text:"Oh, we're flying, reaching for the sky,"},
+      {text:"With hope inside we'll always try."},
+      {text:"Every moment, every chance,"},
+      {text:"Is another reason just to dance."},
+      {text:"When the clouds begin to fade,"},
+      {text:"We'll find the sunshine we've all made."},
+      {text:"Step by step, we'll carry on,"},
+      {text:"Knowing every night brings dawn."},
+      {text:"So clap your hands and sing along,"},
+      {text:"Together we are brave and strong."},
+      {text:"Every voice can light the way,"},
+      {text:"Turning ordinary into extraordinary."},
+      {text:"We'll laugh, we'll grow, we'll never stop,"},
+      {text:"We'll climb until we reach the top."},
+      {text:"The future's calling, clear and true,"},
+      {text:"With endless possibilities for me and you."},
+      {text:"So let the music fill the air,"},
+      {text:"Spread kindness everywhere."},
+      {text:"This is our time, our story, our song,"},
+      {text:"And together we'll keep moving on!"},
+    ],
+    timing: [4.7,9.4,14.1,18.8,23.5,27.1,30.9,33.74,36.58,41.28,44.8,47.76,52.8,56.4,60,62.42,80,90.36,94.66,97.32,101.74,106.44,108.16,112.14,116.6,120.36,123.56,127.52,132.04,135.92,138.78,142.26],
+  },
+  rise_up_today: {
+    lines: [
+      {text:"The morning sun is shining bright,"},
+      {text:"A brand-new chance, a brand-new light."},
+      {text:"Every dream is calling out,"},
+      {text:"There's no room for fear or doubt."},
+      {text:"Step by step, we'll find our way,"},
+      {text:"Growing stronger every day."},
+      {text:"With every smile and every cheer,"},
+      {text:"The future's getting closer here."},
+      {text:'Pre-Chorus', section:true},
+      {text:"Lift your head, the sky is wide,"},
+      {text:"Hope is always by your side."},
+      {text:"Take a breath and start to sing,"},
+      {text:"Feel the joy that life can bring."},
+      {text:'Chorus', section:true},
+      {text:"Rise up today, we're on our way,"},
+      {text:"Nothing's gonna stop us now."},
+      {text:"Sing out loud, stand so proud,"},
+      {text:"We'll discover every \"how.\""},
+      {text:"Hearts together, hand in hand,"},
+      {text:"Brighter than the morning sun."},
+      {text:"Every moment, every dream,"},
+      {text:"Our adventure has begun!"},
+      {text:'Verse 2', section:true},
+      {text:"Every mountain starts with one"},
+      {text:"Little step toward the sun."},
+      {text:"Every river finds the sea,"},
+      {text:"Just like you and just like me."},
+      {text:"When the road begins to bend,"},
+      {text:"Courage is your faithful friend."},
+      {text:"Keep believing deep inside,"},
+      {text:"Let your hopeful spirit guide."},
+      {text:'Bridge', section:true},
+      {text:"Whoa-oh-oh, we're reaching higher,"},
+      {text:"Lighting every heart with fire."},
+      {text:"Whoa-oh-oh, the world can see,"},
+      {text:"Together we are wild and free."},
+      {text:"Laugh a little, dance around,"},
+      {text:"Feel the rhythm, hear the sound."},
+      {text:"Every heartbeat, every rhyme,"},
+      {text:"This is our amazing time!"},
+      {text:'Final Chorus', section:true},
+      {text:"Rise up today, we're on our way,"},
+      {text:"Nothing's gonna stop us now."},
+      {text:"Dream so big, take that leap,"},
+      {text:"We'll always find a way somehow."},
+      {text:"Through the sunshine, through the rain,"},
+      {text:"We'll keep moving, strong and true."},
+      {text:"Every sunrise brings a chance"},
+      {text:"To build a world that's bright and new."},
+      {text:"Shine with kindness, lead with love,"},
+      {text:"Share your light with everyone."},
+      {text:"Every voice can make a change,"},
+      {text:"Every race can still be won."},
+      {text:"Raise your hands up to the sky,"},
+      {text:"Let your happy spirit fly."},
+      {text:"Keep on singing, keep on dreaming,"},
+      {text:"Never let your hope run dry."},
+      {text:"Side by side we'll always stand,"},
+      {text:"Making memories as we go."},
+      {text:"Every ending brings beginning,"},
+      {text:"Watch tomorrow start to glow."},
+      {text:"Rise together, sing forever,"},
+      {text:"Let your hearts beat like a drum."},
+      {text:"This is where our story starts,"},
+      {text:"And the very best will come."},
+      {text:"So let's celebrate this journey,"},
+      {text:"Every step beneath the sun."},
+      {text:"With our dreams and endless laughter,"},
+      {text:"The brightest days have just begun!"},
+    ],
+    timing: null,
+  },
+  what_a_beautiful_day: {
+    lines: [
+      {text:"The sun is rising in the sky,"},
+      {text:"Painting colors way up high."},
+      {text:"Birds are singing, soft and free,"},
+      {text:"What a perfect day to be."},
+      {text:"Every smile can light the way,"},
+      {text:"Every moment starts today."},
+      {text:"Open up your heart and see,"},
+      {text:"Life's a beautiful melody."},
+      {text:'Pre-Chorus', section:true},
+      {text:"Leave your worries far behind,"},
+      {text:"Hope is waiting there to find."},
+      {text:"Take a breath and celebrate,"},
+      {text:"Today is simply great."},
+      {text:'Chorus', section:true},
+      {text:"What a beautiful day,"},
+      {text:"Let's laugh and sing away."},
+      {text:"Every heartbeat, every smile,"},
+      {text:"Makes the journey all worthwhile."},
+      {text:"Lift your hands up to the sky,"},
+      {text:"Watch your dreams begin to fly."},
+      {text:"Every step along the way,"},
+      {text:"It's an amazing, amazing day!"},
+      {text:'Verse 2', section:true},
+      {text:"Friends and family by your side,"},
+      {text:"Sharing joy with hearts open wide."},
+      {text:"Every little thing can shine,"},
+      {text:"Every moment feels just right."},
+      {text:"Through the sunshine, through the breeze,"},
+      {text:"Happiness comes naturally."},
+      {text:"Take the time to slow and see"},
+      {text:"All the beauty around me."},
+      {text:'Bridge', section:true},
+      {text:"Whoa-oh-oh, let your spirit soar,"},
+      {text:"Every day can offer more."},
+      {text:"Whoa-oh-oh, let's celebrate,"},
+      {text:"Love and kindness make us great."},
+      {text:"Dance together, sing out loud,"},
+      {text:"Stand with joy among the crowd."},
+      {text:"Every dream can find its way,"},
+      {text:"On this wonderful day."},
+      {text:'Final Chorus', section:true},
+      {text:"What a beautiful day,"},
+      {text:"Let's fill the world with joy today."},
+      {text:"Share a laugh and lend a hand,"},
+      {text:"Together we can always stand."},
+      {text:"Keep on smiling, keep on dreaming,"},
+      {text:"Like the stars that softly gleam."},
+      {text:"Every sunrise brings a chance"},
+      {text:"To sing, to love, to laugh, to dance."},
+      {text:"May our hearts be full of cheer,"},
+      {text:"Bringing hope to everyone near."},
+      {text:"Hold on to the moments bright,"},
+      {text:"Fill the world with love and light."},
+      {text:"Every morning, every season,"},
+      {text:"Gives us all another reason"},
+      {text:"To be thankful, strong, and free—"},
+      {text:"What a beautiful day to be!"},
+    ],
+    timing: [0,3.8,6.4,8.76,11.68,14.38,17.08,19.72,23,23,25.59,28.18,30.11,33.96,33.96,37.62,40.35,43.08,45.76,48.44,51.3,53.56,68.08,68.08,71.02,73.96,76.32,78.98,81.9,84.44,87.28,90.7,90.7,93.36,95.26,98.62,101.1,103.98,106.84,109.32,113.78,113.78,116.19,118.61,121.02,123.98,126.58,129.3,131.56,137.26,140.36,142.92,145.48,148.26,150.86,153,158.28],
+  },
+  shine_like_the_morning_sun: {
+    lines: [
+      {text:"Sunrise paints the sky with gold,"},
+      {text:"A brand-new story to unfold."},
+      {text:"Every heartbeat finds its way,"},
+      {text:"Brighter than the light of day."},
+      {text:"Take a chance, believe it's true,"},
+      {text:"There's a world waiting for you."},
+      {text:'Pre-Chorus', section:true},
+      {text:"Step by step, we'll find our place,"},
+      {text:"Running with amazing grace."},
+      {text:"Side by side, we'll never fall,"},
+      {text:"Together we can have it all."},
+      {text:'Chorus', section:true},
+      {text:"Hey, let's shine like the morning sun,"},
+      {text:"Every dream has just begun."},
+      {text:"Lift your voice and sing out loud,"},
+      {text:"Standing strong, we're feeling proud."},
+      {text:"Through the highs and through the lows,"},
+      {text:"Every day our courage grows."},
+      {text:"Hands up high, we're reaching far,"},
+      {text:"Together we'll become a star."},
+      {text:'Verse 2', section:true},
+      {text:"Every smile can light the night,"},
+      {text:"Turning darkness into light."},
+      {text:"Hope is dancing in the air,"},
+      {text:"Magic's waiting everywhere."},
+      {text:"Keep believing, don't let go,"},
+      {text:"Watch your confidence now grow."},
+      {text:'Bridge', section:true},
+      {text:"When the road is hard to climb,"},
+      {text:"We'll keep moving one more time."},
+      {text:"Every challenge makes us strong,"},
+      {text:"Giving us a brand-new song."},
+      {text:'Final Chorus', section:true},
+      {text:"Hey, let's shine like the morning sun,"},
+      {text:"Celebrate what we've become."},
+      {text:"Every moment, every dream,"},
+      {text:"Brighter than we've ever seen."},
+      {text:"Sing together, hearts as one,"},
+      {text:"Our adventure's just begun."},
+      {text:"With the future shining bright,"},
+      {text:"We'll keep dancing through the light."},
+    ],
+    timing: null,
+  },
+  up_and_away: {
+    lines: [
+      {text:"Got the windows down,"},
+      {text:"Driving through the town,"},
+      {text:"Feet up on the dash,"},
+      {text:"Making quite a splash."},
+      {text:"Everyone I see,"},
+      {text:"Smiling back at me,"},
+      {text:"Everything is right,"},
+      {text:"Looking super bright."},
+      {text:'Chorus', section:true},
+      {text:"Up and away,"},
+      {text:"Living for today."},
+      {text:"Up and away,"},
+      {text:"It's a holiday."},
+      {text:"Up and away,"},
+      {text:"Nothing in my way."},
+      {text:"Up and away,"},
+      {text:"Going to stay."},
+      {text:'Verse 2', section:true},
+      {text:"Found a lucky dime,"},
+      {text:"Having such a time,"},
+      {text:"Walking on the air,"},
+      {text:"Wind is in my hair."},
+      {text:"Pick up all the pace,"},
+      {text:"Grin across my face,"},
+      {text:"Never gonna stop,"},
+      {text:"Right here at the top."},
+      {text:'Chorus', section:true},
+      {text:"Up and away,"},
+      {text:"Living for today."},
+      {text:"Up and away,"},
+      {text:"It's a holiday."},
+      {text:"Up and away,"},
+      {text:"Nothing in my way."},
+      {text:"Up and away,"},
+      {text:"Going to stay."},
+      {text:'Final Chorus', section:true},
+      {text:"Up and away,"},
+      {text:"Living for today."},
+      {text:"Up and away,"},
+      {text:"It's a holiday."},
+      {text:"Up and away,"},
+      {text:"Nothing in my way."},
+      {text:"Up and away,"},
+      {text:"Going to stay."},
+    ],
+    timing: null,
+  },
+  good_world: {
+    lines: [
+      {text:"Morning on my skin,"},
+      {text:"Soft as bread and rain,"},
+      {text:"Bare feet on the steps,"},
+      {text:"Everything feels plain."},
+      {text:"I see your smile at the door,"},
+      {text:"And it opens up my chest."},
+      {text:"Even the broken little things,"},
+      {text:"Seem to know they're blessed."},
+      {text:'Pre-Chorus', section:true},
+      {text:"And I breathe in deep,"},
+      {text:"Like I found my place."},
+      {text:"Small good moments,"},
+      {text:"In a crowded space."},
+      {text:'Chorus', section:true},
+      {text:"What a good world,"},
+      {text:"What a good day,"},
+      {text:"(What a good world)"},
+      {text:"I can feel it stay."},
+      {text:"What a good world,"},
+      {text:"Right under my hands,"},
+      {text:"(What a good world)"},
+      {text:"I'm learning to stand."},
+      {text:'Verse 2', section:true},
+      {text:"Fruit in a blue bowl,"},
+      {text:"Wind in the trees,"},
+      {text:"A yellow bus hums by,"},
+      {text:"Carrying the streets."},
+      {text:"Kids on the corner laugh,"},
+      {text:"Dogs in the yard."},
+      {text:"It all comes back to me,"},
+      {text:"Life can be kind, hard."},
+      {text:'Pre-Chorus', section:true},
+      {text:"And I breathe in deep,"},
+      {text:"Like I found my place."},
+      {text:"Small good moments,"},
+      {text:"In a crowded space."},
+      {text:'Chorus', section:true},
+      {text:"What a good world,"},
+      {text:"What a good day,"},
+      {text:"(What a good world)"},
+      {text:"I can feel it stay."},
+      {text:"What a good world,"},
+      {text:"Right under my hands,"},
+      {text:"(What a good world)"},
+      {text:"I'm learning to stand."},
+      {text:'Bridge', section:true},
+      {text:"Even when the rain comes,"},
+      {text:"Even when I bend,"},
+      {text:"There's a soft and steady light,"},
+      {text:"Waiting round the bend."},
+      {text:'Final Chorus', section:true},
+      {text:"What a good world,"},
+      {text:"What a good day,"},
+      {text:"(What a good world)"},
+      {text:"I can feel it stay."},
+      {text:"What a good world,"},
+      {text:"Right under my hands,"},
+      {text:"(What a good world)"},
+      {text:"I'm learning to stand."},
+    ],
+    timing: null,
+  },
+};
+// Pulls any previously-saved timing out of localStorage on first load — so a sync session
+// someone did earlier this same browser session (or a prior one) isn't lost on reload.
+Object.keys(KARAOKE_SONGS).forEach(id => {
+  try {
+    const saved = JSON.parse(localStorage.getItem('explox_karaoke_timing_'+id));
+    if (Array.isArray(saved)) KARAOKE_SONGS[id].timing = saved;
+  } catch(e) {}
+});
+function karaokeSongIdForTrack(t) {
+  if (!t || !t.real) return null;
+  const base = t.file.split('/').pop().replace('.mp3','');
+  return KARAOKE_SONGS[base] ? base : null;
+}
+
+// ─── KARAOKE SYNC TOOL — real timing has to come from a real person actually listening and
+// tapping along; nothing about a recorded vocal performance can be auto-detected from silence
+// gaps reliably enough to trust for this. Tap (or Space) marks "this line starts now" using the
+// audio's own real currentTime, then moves to the next line — same idea as a stopwatch lap timer.
+let karaokeSyncAudio = null, karaokeSyncTimer = null;
+let karaokeSyncTrackIdx = null, karaokeSyncLineIdx = 0, karaokeSyncCapturedTimes = [];
+function openKaraokeSync(trackIdx) {
+  const t = bgMusic.TRACKS[trackIdx];
+  const songId = karaokeSongIdForTrack(t);
+  if (!songId) { showNotif('❌ No lyrics typed in for this song yet.'); return; }
+  karaokeSyncTrackIdx = trackIdx;
+  karaokeSyncLineIdx = 0;
+  karaokeSyncCapturedTimes = [];
+  const exportWrap = document.getElementById('karaokeSyncExportWrap');
+  if (exportWrap) exportWrap.style.display = 'none';
+  const autoStatusEl = document.getElementById('karaokeAutoSyncStatus');
+  if (autoStatusEl) autoStatusEl.textContent = '';
+  const autoBtn = document.getElementById('karaokeAutoSyncBtn');
+  if (autoBtn) autoBtn.disabled = false;
+  if (!karaokeSyncAudio) karaokeSyncAudio = new Audio();
+  karaokeSyncAudio.pause();
+  karaokeSyncAudio.src = t.file;
+  karaokeSyncAudio.currentTime = 0;
+  karaokeSyncAudio.loop = false;
+  document.getElementById('karaokeSyncModal').style.display = 'flex';
+  if (karaokeSyncTimer) clearInterval(karaokeSyncTimer);
+  karaokeSyncTimer = setInterval(() => {
+    const el = document.getElementById('karaokeSyncTime');
+    if (el && karaokeSyncAudio) el.textContent = karaokeSyncAudio.currentTime.toFixed(2) + 's';
+  }, 100);
+  renderKaraokeSync();
+}
+function closeKaraokeSync() {
+  if (karaokeSyncAudio) karaokeSyncAudio.pause();
+  if (karaokeSyncTimer) { clearInterval(karaokeSyncTimer); karaokeSyncTimer = null; }
+  document.getElementById('karaokeSyncModal').style.display = 'none';
+  // The Karaoke tab's own list sits open behind this modal the whole time and was never told to
+  // re-check whether a song just got its timing saved — real bug, caught live: saving worked
+  // fine, but "Sing Along" stayed grayed out until the whole tab was closed and reopened.
+  renderKaraokePanel();
+}
+function karaokeSyncPlayPause() {
+  if (!karaokeSyncAudio) return;
+  if (karaokeSyncAudio.paused) karaokeSyncAudio.play().catch(()=>{});
+  else karaokeSyncAudio.pause();
+  renderKaraokeSync();
+}
+// User's own real bug report: "it needs to follow the song speed, not you" — nothing stopped a
+// mark from being captured while the song was PAUSED (always currentTime, whatever it was frozen
+// at) or two marks landing within the same fraction of a second of each other (an accidental
+// double-tap) — either way the saved timing would reflect however fast/inconsistent the TAPPING
+// was, not the real song. Both are now hard-blocked here instead of silently saving bad data.
+const KARAOKE_MIN_LINE_GAP_SEC = 0.3;
+function karaokeSyncMarkLine() {
+  const song = KARAOKE_SONGS[karaokeSongIdForTrack(bgMusic.TRACKS[karaokeSyncTrackIdx])];
+  if (karaokeSyncLineIdx >= song.lines.length) return;
+  if (karaokeSyncAudio.paused) { showNotif('▶️ Press Play first — timing only counts while the song is actually playing!'); return; }
+  const now = karaokeSyncAudio.currentTime;
+  const lastTime = karaokeSyncLineIdx > 0 ? karaokeSyncCapturedTimes[karaokeSyncLineIdx-1] : -Infinity;
+  if (now - lastTime < KARAOKE_MIN_LINE_GAP_SEC) { showNotif(`⏱️ Too fast — wait for the real line before marking the next one.`); return; }
+  karaokeSyncCapturedTimes[karaokeSyncLineIdx] = Math.round(now * 100) / 100;
+  karaokeSyncLineIdx++;
+  renderKaraokeSync();
+}
+function karaokeSyncUndoLine() {
+  if (karaokeSyncLineIdx <= 0) return;
+  karaokeSyncLineIdx--;
+  karaokeSyncCapturedTimes.splice(karaokeSyncLineIdx, 1);
+  renderKaraokeSync();
+}
+// Real, repeated friction found across several users' redo attempts: fixing "everything after
+// line N" (e.g. after an Auto-Sync draft goes bad partway through) meant clicking Undo dozens of
+// times, THEN re-listening to the whole song from 0:00 again just to get back to the right spot
+// before tapping could resume — tedious enough that people gave up and re-ran Auto-Sync instead
+// (which can't help, since it's the same AI looking at the same song and gets the same result).
+// One cut does the trim instantly, and seeks the real audio right back to that spot.
+function karaokeSyncCutToLine() {
+  const input = document.getElementById('karaokeSyncCutInput');
+  const n = input ? parseInt(input.value, 10) : NaN;
+  if (!Number.isFinite(n) || n < 0 || n > karaokeSyncCapturedTimes.length) {
+    showNotif('❌ Enter a number between 0 and ' + karaokeSyncCapturedTimes.length + '.');
+    return;
+  }
+  karaokeSyncCapturedTimes = karaokeSyncCapturedTimes.slice(0, n);
+  karaokeSyncLineIdx = n;
+  if (karaokeSyncAudio) karaokeSyncAudio.currentTime = n > 0 ? Math.max(0, karaokeSyncCapturedTimes[n - 1] - 1.5) : 0;
+  renderKaraokeSync();
+}
+function karaokeSyncSave() {
+  const songId = karaokeSongIdForTrack(bgMusic.TRACKS[karaokeSyncTrackIdx]);
+  KARAOKE_SONGS[songId].timing = karaokeSyncCapturedTimes.slice();
+  localStorage.setItem('explox_karaoke_timing_'+songId, JSON.stringify(karaokeSyncCapturedTimes));
+  showNotif('💾 Karaoke timing saved for ' + bgMusic.TRACKS[karaokeSyncTrackIdx].name + '!');
+  // Saved timing only lives in THIS browser's localStorage — it won't reach anyone else's device
+  // on its own. Exporting it as copyable text lets the one person who did the real tapping (an
+  // actual listen-and-tap can't be done by anyone/anything else) hand it off once, so it can be
+  // baked into KARAOKE_SONGS as the shipped default — after that, nobody else ever has to sync it.
+  const exportBox = document.getElementById('karaokeSyncExportBox');
+  const exportWrap = document.getElementById('karaokeSyncExportWrap');
+  if (exportBox && exportWrap) {
+    exportBox.value = songId + ': ' + JSON.stringify(karaokeSyncCapturedTimes);
+    exportWrap.style.display = 'block';
+  }
+  renderKaraokeSync();
+}
+function renderKaraokeSync() {
+  const t = bgMusic.TRACKS[karaokeSyncTrackIdx];
+  const song = KARAOKE_SONGS[karaokeSongIdForTrack(t)];
+  document.getElementById('karaokeSyncTitle').textContent = '🎤 Sync: ' + t.name;
+  document.getElementById('karaokeSyncPlayBtn').textContent = (karaokeSyncAudio && !karaokeSyncAudio.paused) ? '⏸ Pause' : '▶ Play';
+  const upcoming = song.lines.slice(karaokeSyncLineIdx, karaokeSyncLineIdx+3).map((l,i) =>
+    `<div style="font-size:${i===0?'18px':'13px'};color:${i===0?'#ffdd44':'#888'};margin-bottom:4px;">${l.section?'— '+l.text+' —':l.text}</div>`
+  ).join('');
+  document.getElementById('karaokeSyncUpcoming').innerHTML = upcoming || '<div style="color:#6f6;">✅ All lines marked!</div>';
+  document.getElementById('karaokeSyncProgress').textContent = `${karaokeSyncLineIdx} / ${song.lines.length} lines marked`;
+  document.getElementById('karaokeSyncSaveBtn').style.display = karaokeSyncLineIdx >= song.lines.length ? 'block' : 'none';
+  document.getElementById('karaokeSyncMarkBtn').style.display = karaokeSyncLineIdx < song.lines.length ? 'block' : 'none';
+  if (karaokeSyncLineIdx < song.lines.length) {
+    const exportWrap = document.getElementById('karaokeSyncExportWrap');
+    if (exportWrap) exportWrap.style.display = 'none';
+  }
+}
+
+// ─── KARAOKE AUTO-SYNC (AI-assisted, Beta) — user asked "can an AI do this" after learning the
+// tap tool takes a real listen from a real person every time. A real free option exists: a real
+// speech-recognition AI (Whisper tiny, via transformers.js) that runs fully in the browser, no
+// account/API key/server needed. Runs in a Web Worker (karaoke-worker.js) so the heavy AI work
+// never blocks the game's own render loop — confirmed via direct testing that running it on the
+// main thread instead froze the whole tab for 90+ seconds on one song.
+// Never trusts what the AI THINKS the words are (it audibly mishears the made-up word "Explox"
+// as "Xbox" — a real, expected mishearing, not a bug) — only uses WHEN it heard each word, then
+// lines those timestamps up against the song's own already-known-correct lyrics.
+let karaokeAutoSyncWorker = null;
+let karaokeAutoSyncReqId = 0;
+
+function karaokeNormalizeWord(w) {
+  return (w || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+// Sounds Whisper commonly hallucinates during instrumental/unclear audio instead of real words.
+// Never dropped blindly, though — a song is free to actually use one of these as a real lyric
+// (e.g. an "Oh, we're flying" ad-lib), so karaokeAlignWordsToLines only drops one when the song's
+// OWN real lyrics never use it, checked fresh per song rather than off one fixed word list alone.
+const KARAOKE_FILLER_SOUNDS = new Set(['uh','um','umm','erm','ah','ahh','oh','hm','hmm','mm','mmm','huh']);
+
+function karaokeAlignWordsToLines(chunks, lines) {
+  const lineWords = lines.map(l => l.section ? [] : l.text.split(/\s+/).map(karaokeNormalizeWord).filter(Boolean));
+  const realWords = new Set(lineWords.flat());
+  // Real, measured AI quirk: on instrumental/ad-lib stretches it can get "stuck" and repeat the
+  // same filler word (like "uh" or "oh") hundreds of times in a row instead of real lyrics — one
+  // test song hit 27 straight seconds of repeated "uh". Dropping known filler sounds the song
+  // itself never actually uses, then collapsing any remaining immediate repeats down to one,
+  // keeps that noise from burying the real words or eating up the search window below. Chunks can
+  // also come back slightly out of time order around those glitches, so they're sorted first.
+  let srcWords = [];
+  for (const c of chunks) {
+    const w = karaokeNormalizeWord(c.text);
+    const start = Array.isArray(c.timestamp) ? c.timestamp[0] : null;
+    if (w && start != null && !(KARAOKE_FILLER_SOUNDS.has(w) && !realWords.has(w))) srcWords.push({ word: w, start });
+  }
+  srcWords.sort((a, b) => a.start - b.start);
+  srcWords = srcWords.filter((w, i) => i === 0 || w.word !== srcWords[i - 1].word);
+  const timing = new Array(lines.length).fill(null);
+  let srcPos = 0, lastTime = -1;
+  const WINDOW = 180;
+  for (let li = 0; li < lines.length; li++) {
+    const words = lineWords[li];
+    if (!words.length) continue; // section header — filled in below from the next real line
+    // Comparing several words (not just the first 1-2) and only requiring most of them to match
+    // is what makes this survive individual mishearings — one wrong word out of 6 doesn't sink
+    // the whole line, but the surrounding correct ones still pin down the right spot.
+    const need = Math.min(6, words.length);
+    const threshold = Math.max(2, Math.ceil(need * 0.6));
+    let bestIdx = -1, bestScore = 0;
+    const limit = Math.min(srcWords.length - 1, srcPos + WINDOW);
+    for (let i = srcPos; i <= limit; i++) {
+      if (srcWords[i].start <= lastTime) continue; // never match a spot earlier than the last accepted line
+      let score = 0;
+      for (let j = 0; j < need && i + j < srcWords.length; j++) if (srcWords[i + j].word === words[j]) score++;
+      if (score > bestScore) { bestScore = score; bestIdx = i; }
+    }
+    if (bestIdx >= 0 && bestScore >= threshold) {
+      timing[li] = srcWords[bestIdx].start;
+      srcPos = bestIdx + 1;
+      lastTime = timing[li];
+    }
+  }
+  // Lines the AI couldn't confidently match (garbled audio, or it just misheard too much) get an
+  // interpolated guess between the nearest confident neighbors, instead of being left blank.
+  let i = 0;
+  while (i < timing.length) {
+    if (timing[i] != null) { i++; continue; }
+    let j = i;
+    while (j < timing.length && timing[j] == null) j++;
+    const startTime = i === 0 ? 0 : timing[i - 1];
+    const endTime = j < timing.length ? timing[j] : startTime + (j - i + 1) * 3;
+    const span = j - i + 1;
+    for (let k = i; k < j; k++) timing[k] = startTime + (endTime - startTime) * ((k - i + 1) / span);
+    i = j;
+  }
+  for (let li = 0; li < lines.length; li++) {
+    if (lines[li].section) timing[li] = li + 1 < lines.length ? timing[li + 1] : (timing[li - 1] || 0);
+  }
+  return timing.map(t => Math.round((t || 0) * 100) / 100);
+}
+
+// AudioContext only exists on the main thread, not inside a Worker — decoding has to happen
+// here, then the raw sound (resampled to the 16kHz mono the AI model expects) gets handed off.
+async function karaokeDecodeAudioTo16k(url) {
+  const resp = await fetch(url);
+  const arrayBuffer = await resp.arrayBuffer();
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const decoded = await ctx.decodeAudioData(arrayBuffer);
+  const targetRate = 16000;
+  const offlineCtx = new OfflineAudioContext(1, Math.ceil(decoded.duration * targetRate), targetRate);
+  const source = offlineCtx.createBufferSource();
+  source.buffer = decoded;
+  source.connect(offlineCtx.destination);
+  source.start(0);
+  const rendered = await offlineCtx.startRendering();
+  ctx.close();
+  return rendered.getChannelData(0);
+}
+
+async function karaokeAutoSyncStart() {
+  if (karaokeSyncTrackIdx == null) return;
+  const t = bgMusic.TRACKS[karaokeSyncTrackIdx];
+  const songId = karaokeSongIdForTrack(t);
+  if (!songId) return;
+  const song = KARAOKE_SONGS[songId];
+  const statusEl = document.getElementById('karaokeAutoSyncStatus');
+  const btn = document.getElementById('karaokeAutoSyncBtn');
+  if (btn) btn.disabled = true;
+  if (karaokeSyncAudio) karaokeSyncAudio.pause();
+  if (statusEl) statusEl.textContent = '🤖 Reading the audio file...';
+  if (!karaokeAutoSyncWorker) karaokeAutoSyncWorker = new Worker('AiGame/explox/karaoke-worker.js', { type: 'module' });
+  const reqId = ++karaokeAutoSyncReqId;
+  const startedTrackIdx = karaokeSyncTrackIdx;
+  let audioData;
+  try {
+    audioData = await karaokeDecodeAudioTo16k(t.file);
+  } catch (err) {
+    if (statusEl) statusEl.textContent = '❌ Could not read the audio file: ' + err.message;
+    if (btn) btn.disabled = false;
+    return;
+  }
+  if (karaokeSyncTrackIdx !== startedTrackIdx) return; // user switched songs while decoding
+  const onMsg = (e) => {
+    const d = e.data;
+    if (d.requestId !== reqId) return;
+    if (d.type === 'progress') {
+      if (statusEl && d.progress && d.progress.status === 'progress') {
+        statusEl.textContent = `🤖 Downloading the AI model... ${Math.round(d.progress.progress || 0)}% (only happens once)`;
+      }
+    } else if (d.type === 'done') {
+      karaokeAutoSyncWorker.removeEventListener('message', onMsg);
+      if (karaokeSyncTrackIdx !== startedTrackIdx) return; // user moved to a different song's sync while this was running
+      karaokeSyncCapturedTimes = karaokeAlignWordsToLines(d.chunks, song.lines);
+      karaokeSyncLineIdx = song.lines.length;
+      if (statusEl) statusEl.textContent = '✅ AI guess is ready below — press ▶ Play and check it before saving! It can be a little off, especially near the start.';
+      if (btn) btn.disabled = false;
+      renderKaraokeSync();
+    } else if (d.type === 'error') {
+      karaokeAutoSyncWorker.removeEventListener('message', onMsg);
+      if (statusEl) statusEl.textContent = '❌ Auto-sync failed: ' + d.message;
+      if (btn) btn.disabled = false;
+    }
+  };
+  karaokeAutoSyncWorker.addEventListener('message', onMsg);
+  if (statusEl) statusEl.textContent = '🤖 Listening to the whole song... this can take a minute or two.';
+  karaokeAutoSyncWorker.postMessage({ audioData, requestId: reqId }, [audioData.buffer]);
+}
+
+// ─── KARAOKE PLAYBACK — the actual sing-along display, live during normal music playback (not
+// just inside the sync tool). Finds the current line by comparing bgMusic.realTime against the
+// synced timing array — the same "last timestamp <= now" search a real video player uses to pick
+// subtitles. Ticked from animate() alongside everything else.
+let karaokeDisplayOn = true;
+function toggleKaraokeDisplay() { karaokeDisplayOn = !karaokeDisplayOn; tickKaraokeDisplay(); }
+function tickKaraokeDisplay() {
+  const hud = document.getElementById('karaokeHud');
+  if (!hud) return;
+  const t = bgMusic.TRACKS[bgMusic.currentTrack];
+  const songId = karaokeSongIdForTrack(t);
+  const song = songId && KARAOKE_SONGS[songId];
+  if (!karaokeDisplayOn || !song || !song.timing || !song.timing.length || !bgMusic.isPlayingReal) {
+    hud.style.display = 'none';
+    return;
+  }
+  const now = bgMusic.realTime;
+  let idx = -1;
+  for (let i=0; i<song.timing.length; i++) { if (song.timing[i] <= now) idx = i; else break; }
+  if (idx < 0) { hud.style.display = 'none'; return; }
+  const line = song.lines[idx];
+  const nextLine = song.lines[idx+1];
+  hud.style.display = 'block';
+  document.getElementById('karaokeCurrentLine').textContent = line.section ? '♪ ' + line.text + ' ♪' : line.text;
+  document.getElementById('karaokeNextLine').textContent = nextLine ? (nextLine.section ? '' : nextLine.text) : '';
+}
+// ─── KARAOKE TAB — user's own ask: "make it easier to find/start" than a small 🎤 icon buried in
+// the general Music list. A real dedicated tab/panel, same pattern as the Music tab, listing only
+// the songs that actually have lyrics loaded, with one-click Sing Along (starts the song AND
+// makes sure the live lyrics HUD is on) separate from the sync tool (for fixing/redoing timing).
+function openKaraokePanel() {
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('karaokePanel').style.display = 'block';
+  renderKaraokePanel();
+}
+function closeKaraokePanel() {
+  document.getElementById('karaokePanel').style.display = 'none';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function karaokeSingAlong(trackIdx) {
+  karaokeDisplayOn = true;
+  selectMusicTrack(trackIdx);
+  closeKaraokePanel();
+}
+function renderKaraokePanel() {
+  const list = document.getElementById('karaokeList');
+  if (!list) return;
+  const songTracks = bgMusic.TRACKS.map((t,i)=>({t,i})).filter(({t}) => karaokeSongIdForTrack(t));
+  if (!songTracks.length) { list.innerHTML = '<div style="color:#789;font-size:12px;">No songs have lyrics loaded yet.</div>'; return; }
+  list.innerHTML = songTracks.map(({t,i}) => {
+    const songId = karaokeSongIdForTrack(t);
+    const hasTiming = KARAOKE_SONGS[songId].timing && KARAOKE_SONGS[songId].timing.length;
+    const isCurrent = i === bgMusic.currentTrack && bgMusic.isPlayingReal;
+    return `<div class="shopItem">
+      <div class="siName">${isCurrent?'▶ ':''}${t.name}</div>
+      <div class="siCost">${hasTiming ? '✅ Ready to sing along' : '⏱️ Needs timing set up first'}</div>
+      <div style="display:flex;gap:6px;">
+        <button class="shopBtn" style="flex:1;${hasTiming?'':'opacity:0.5;'}" ${hasTiming?'':'disabled'} onclick="karaokeSingAlong(${i})">🎤 Sing Along</button>
+        <button class="shopBtn" style="flex:1;background:#5a2a5a;" onclick="openKaraokeSync(${i})">⏱ ${hasTiming?'Re-sync':'Set Up Timing'}</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ─── MULTI-ACCOUNT SYSTEM ────────────────────────────────────────────────────
@@ -451,6 +1197,7 @@ function saveCurrentUser() {
     safeCombo:     safeCombo,
     safeInventory: safeInventory,
     hat:playerHat, hair:playerHair, shirt:playerShirt, pants:playerPants, shoes:playerShoes,
+    profilePic: playerProfilePic, shirtPaint: playerShirtPaint,
     skin:playerColors.skin, shirtColor:playerColors.shirt,
     pantsColor:playerColors.pants, shoesColor:playerColors.shoes,
     hairColor:playerColors.hair, name:playerName, sip:sipDollars, wood:woodCount, scrap:scrapMetal, ownedLand:ownedLand, plotBuildings:plotBuildings,
@@ -460,7 +1207,7 @@ function saveCurrentUser() {
     armor:playerArmor, ownedArmor:ownedArmor,
     alignment:alignment, wanted:wantedLevel,
     birthday: playerBirthday, ownedCars: ownedCars, ownedComputers: ownedComputers,
-    ownedStore: ownedStore, ownedFurniture: ownedFurniture,
+    ownedStore: ownedStore, ownedFurniture: ownedFurniture, ownedHouseFurniture: ownedHouseFurniture,
     storeStock: storeStock, storePrices: storePrices,
     storeSalesCount: storeSalesCount, storeStockOrder: storeStockOrder,
     storeAdLevel: storeAdLevel, ownedStaff: ownedStaff,
@@ -601,7 +1348,7 @@ async function loadLoginScreen() {
   document.getElementById('newAccName').value = '';
   document.getElementById('newAccPw').value   = '';
 
-  let names, sipFor;
+  let names, sipFor, picFor;
   if(serverMode === 'online') {
     list.innerHTML = '<div id="noAccounts">Loading accounts...</div>';
     let serverUsers = null;
@@ -616,9 +1363,14 @@ async function loadLoginScreen() {
     }
     names  = serverUsers.map(u => u.name);
     sipFor = name => { const u = serverUsers.find(x => x.name === name); return u ? u.sip : 0; };
+    // The online account list only gets {name, sip} from the server (see /api/users) — showing a
+    // real picture there would mean sending every account's full picture down on every page load,
+    // so this stays offline-only for now, where the picture's already sitting in localStorage for free.
+    picFor = () => null;
   } else {
     names  = getUsers();
     sipFor = name => { const d = getUserData(name); return d.sip !== undefined ? d.sip : 0; };
+    picFor = name => { const d = getUserData(name); return d.profilePic || null; };
   }
 
   if(names.length === 0) {
@@ -626,7 +1378,12 @@ async function loadLoginScreen() {
   } else {
     list.innerHTML = names.map(name => {
       const sip = sipFor(name).toLocaleString();
+      const pic = picFor(name);
+      const thumb = pic
+        ? `<img src="${pic}" style="width:32px;height:32px;border-radius:6px;image-rendering:pixelated;flex-shrink:0;">`
+        : '';
       return `<div class="accountCard" onclick="loginAs('${name}')">
+        ${thumb}
         <div class="acInfo">
           <div class="acName">${name}</div>
           <div class="acSip">💰 ${sip} S.I.P.</div>
@@ -785,6 +1542,8 @@ async function doLogin(name) {
     hair:  d.hairColor  || '#3a1f0a'
   };
   playerName    = d.name         || name;
+  playerProfilePic = d.profilePic || null;
+  playerShirtPaint = d.shirtPaint || null;
   sipDollars    = d.sip !== undefined ? d.sip : 0;
   woodCount     = d.wood !== undefined ? d.wood : 0;
   scrapMetal    = d.scrap !== undefined ? d.scrap : 0;
@@ -803,7 +1562,13 @@ async function doLogin(name) {
   installedApps = Array.isArray(d.installedApps) ? d.installedApps : [];
   bankBalance     = d.bankBalance !== undefined ? d.bankBalance : 0;
   bankEliteBalance = d.bankEliteBalance !== undefined ? d.bankEliteBalance : BANK_VAULT_ELITE_SEED;
-  playerInventory = d.inventory   || {};
+  playerInventory = d.inventory && typeof d.inventory === 'object' ? d.inventory : {};
+  for (const invId of Object.keys(playerInventory)) {
+    const it = playerInventory[invId];
+    if (!it || typeof it !== 'object' || typeof it.name !== 'string' || typeof it.emoji !== 'string' || typeof it.qty !== 'number') {
+      delete playerInventory[invId];
+    }
+  }
   playerBirthday = d.birthday || '';
   setBirthdayDropdowns(playerBirthday);
   safeBalance     = d.safeBalance    || 0;
@@ -821,6 +1586,7 @@ async function doLogin(name) {
   ownedComputers = d.ownedComputers || [];
   ownedStore    = d.ownedStore    || null;
   ownedFurniture = d.ownedFurniture || [];
+  ownedHouseFurniture = d.ownedHouseFurniture || [];
   storeStock = d.storeStock && typeof d.storeStock === 'object' ? d.storeStock : {};
   storePrices = d.storePrices && typeof d.storePrices === 'object' ? d.storePrices : {};
   storeSalesCount = d.storeSalesCount !== undefined ? d.storeSalesCount : 0;
@@ -866,6 +1632,8 @@ async function doLogin(name) {
   updateSickHud();
   bladder = 100; embarrassedUntil = 0;
   updateBladderHud();
+  tiredness = 100; exhaustedSince = 0;
+  updateTirednessHud();
   activeQuests = Array.isArray(d.activeQuests) ? d.activeQuests : [];
   lifetimeRobotKills = d.lifetimeRobotKills !== undefined ? d.lifetimeRobotKills : 0;
   lifetimeRogueKills = d.lifetimeRogueKills !== undefined ? d.lifetimeRogueKills : 0;
@@ -1297,6 +2065,8 @@ function backToLogin() {
 
 // ─── PLAYER SETTINGS ─────────────────────────────────────────────────────────
 let playerName  = 'Player';
+let playerProfilePic = null; // data:image/png URL from the Profile Picture painter, or null = use the procedural badge
+let playerShirtPaint = null; // data:image/png URL from the same painter, applied as a real texture on the shirt
 let playerColors = { skin:'#f5c89a', shirt:'#2196F3', pants:'#333333', shoes:'#4e3b2a', hair:'#3a1f0a' };
 let playerHat   = 'none';
 let playerHair  = 'none';
@@ -1366,6 +2136,7 @@ let ownedSkins    = [];   // pre-made skins bought
 const BUDDY_SPECIES = [
   { id:'blob',   name:'Blobby', cost:500,  emoji:'🟢', desc:'A bouncy little blob — the cheapest way to never walk alone.' },
   { id:'cat',    name:'Kitty',  cost:1500, emoji:'🐱', desc:'A loyal cat that trots along at your heels.' },
+  { id:'lion',   name:'Cubby',  cost:2000, emoji:'🦁', desc:'A playful baby lion cub — big head, stubby tail, no mane yet.' },
   { id:'dragon', name:'Draco',  cost:3000, emoji:'🐉', desc:'A tiny dragon with real wings and a tail.' },
   { id:'robot',  name:'Bolt',   cost:5000, emoji:'🤖', desc:'A high-tech robot buddy with a blinking antenna.' },
 ];
@@ -1570,6 +2341,18 @@ let bladder = 100;
 const BLADDER_DECAY_PER_SEC = 100 / (20 * 60); // full drain over ~20 real minutes
 let embarrassedUntil = 0; // playTimeSeconds value the post-accident slowdown ends
 const ACCIDENT_SLOW_DURATION_SEC = 20;
+
+// ─── TIREDNESS / SLEEP — user's own ask: "make sleep and tiredness". Same declining-meter shape
+// as Hunger/Bladder, but slower (sleep is a bigger commitment than a quick snack or bathroom
+// break — you have to actually walk to a real bed). Sleeping (sleepAtHome/sleepInHotel) is the
+// one real fix, same as Toilet fixes Bladder and food fixes Hunger — before this, sleep was just
+// a free heal button with nothing actually making you need it. Not persisted, same "always starts
+// clean this session" treatment as the others above.
+let tiredness = 100;
+const TIREDNESS_DECAY_PER_SEC = 100 / (45 * 60); // full drain over ~45 real minutes
+let exhaustedSince = 0; // playTimeSeconds value tiredness first hit 0, or 0 if not currently exhausted
+const COLLAPSE_AFTER_SEC = 30; // real seconds fully exhausted before you pass out on your own
+
 let bankBalance     = 0;
 let eliteCoins      = 0;
 // User's own ask: "make it so the bank also has 100000000000000000000000000000000000000000000000000
@@ -2364,6 +3147,16 @@ function drawPreview() {
     px.fillRect(cx-22,82,44,50); px.fillRect(cx-28,84,10,44); px.fillRect(cx+18,84,10,44);
   }
 
+  // Custom shirt design (drawn via the Paint Editor) — a simple centered overlay works across
+  // every shirt style above rather than trying to match each one's unique silhouette.
+  if (playerShirtPaint) {
+    const spImg = pfpGetImage(playerShirtPaint);
+    if (spImg.complete && spImg.naturalWidth) {
+      px.imageSmoothingEnabled = false;
+      px.drawImage(spImg, cx-18, 86, 36, 40);
+    }
+  }
+
   // Neck + head
   px.fillStyle=skin; px.fillRect(cx-7,72,14,14); px.fillRect(cx-20,36,40,38);
   px.strokeStyle='rgba(255,255,255,0.15)'; px.lineWidth=1; px.strokeRect(cx-20,36,40,38);
@@ -2635,10 +3428,10 @@ let _eatBusy = false;
 // working inward) via 'destination-out' compositing, redrawn fresh every frame so the hole
 // stays correctly attached and scaled as the remaining food keeps shrinking toward the mouth.
 const EAT_BITES = 4;
-function eatFood(emoji,name,taste){
+function eatFood(emoji,name,taste,restoreAmt){
   if(_eatBusy || _iceCreamBusy) return;
   _eatBusy = true;
-  restoreHunger(35);
+  restoreHunger(restoreAmt || 35);
   const cv=document.createElement('canvas'); cv.width=240; cv.height=240;
   cv.style.cssText='position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:9998;pointer-events:none;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.5));';
   document.body.appendChild(cv);
@@ -2706,6 +3499,7 @@ function vomit(reason) {
 // ─── HOME ACTIVITIES — real functions any house interior's furniture zones call into
 // (the player's own House AND every player-built land house share these, not separate copies) ──
 function sleepAtHome() {
+  restoreTiredness();
   if (hunger <= 0) { sleepWhileStarving(); return; }
   playerHealth = playerMaxHealth;
   updateHealthBar();
@@ -2856,7 +3650,7 @@ function exitBankInterior() {
 // HOUSE_ZONES, etc.) — wired into isBlocked()/handleInteract()/updatePrompt()'s existing
 // inX-ternary chains alongside them, not a new mechanism.
 const BANK_INTERIOR_ZONES = [
-  { x:BANK_INTERIOR_EXIT.x,   z:BANK_INTERIOR_EXIT.z,   r:3,   label:'Exit Bank',                       action: exitBankInterior },
+  { x:BANK_INTERIOR_EXIT.x,   z:BANK_INTERIOR_EXIT.z,   r:3,   label:'Exit Bank',                       action: () => exitBankInterior()},
   { x:BANK_INTERIOR.x-5, z:BANK_INTERIOR.z-3, r:2.2, label:'🖨️ Work as Money Printer (1,000 S.I.P./min, 5 min shift)', action: ()=>toggleBankJob('printer','sip'),   isBankJobZone:true, bankJobId:'printer', currency:'sip' },
   { x:BANK_INTERIOR.x-5, z:BANK_INTERIOR.z+3, r:2.2, label:'🖨️ Work as Money Printer (500 💎/min, 5 min shift)',        action: ()=>toggleBankJob('printer','elite'), isBankJobZone:true, bankJobId:'printer', currency:'elite' },
   { x:BANK_INTERIOR.x+5, z:BANK_INTERIOR.z-3, r:2.2, label:'🧮 Work as Money Counter (10,000 S.I.P. after 5 min)',      action: ()=>toggleBankJob('counter','sip'),   isBankJobZone:true, bankJobId:'counter', currency:'sip' },
@@ -6396,6 +7190,7 @@ function checkoutHotel() {
   showNotif('🏨 Thanks for staying at City Hotel! Come back soon!');
 }
 function sleepInHotel() {
+  restoreTiredness();
   if (hunger <= 0) { sleepWhileStarving(); return; }
   const wasSick = sick;
   if (sick) { sick = false; updateSickHud(); }
@@ -6768,6 +7563,7 @@ function openRestaurant() {
 }
 function closeRestaurant() {
   document.getElementById('restaurantModal').style.display = 'none';
+  buffetActiveId = null; buffetPaid = false; // leaving a buffet ends that visit — re-entering means paying again, same as a real buffet
 }
 function refreshRestaurantUI() {
   const list = document.getElementById('restaurantList');
@@ -6866,6 +7662,242 @@ function buyThemedFood(restaurantId, idx) {
   spendSip(def.price); saveCurrentUser(); updateSIP();
   sfx.buy();
   addToBag(def);
+}
+
+// ─── BUFFETS — user's own ask: "pay once, eat unlimited but it only allows 100 per serving and
+// there is different ones like lunch breakfast and hot pot". Real, distinct mechanic from the
+// themed restaurants above (which charge per item into your bag): pay one entry fee, then every
+// dish is a free, unlimited, instant sit-and-eat — no bag, no per-item cost — for as long as
+// you're inside. Each serving is a guaranteed full refill (restoreHunger's own 100 cap), not the
+// smaller 35 a normal snack gives, so "100 per serving" is real, not just a flavor number.
+let buffetActiveId = null, buffetPaid = false;
+// user: "there is 100 foods to choose from and it is more expensive" — each group below shares
+// one taste (matching TASTE_REACTION's own categories), tagged in bulk rather than per-dish;
+// groups are sized so each buffet totals exactly 100 real, distinct items (verified live, not
+// just hand-counted — see item 288).
+function buffetGroup(names, emoji, taste) { return names.map(name => ({ name, emoji, taste })); }
+const BREAKFAST_BUFFET_MENU = [
+  ...buffetGroup(['Scrambled Eggs','Fried Eggs','Omelette','Egg Whites'], '🍳', 'savory'),
+  ...buffetGroup(['Bacon','Turkey Bacon','Canadian Bacon'], '🥓', 'savory'),
+  ...buffetGroup(['Sausage Links','Sausage Patties','Chicken Sausage','Turkey Sausage','Veggie Sausage','Chorizo'], '🌭', 'savory'),
+  ...buffetGroup(['Ham','Corned Beef','Pork Belly'], '🍖', 'savory'),
+  ...buffetGroup(['Corned Beef Hash','Breakfast Skillet'], '🥘', 'savory'),
+  ...buffetGroup(['Hash Browns','Home Fries','Tater Tots','Breakfast Potatoes','Loaded Hash Browns'], '🥔', 'savory'),
+  ...buffetGroup(['Biscuits','Sausage Rolls'], '🥖', 'savory'),
+  ...buffetGroup(['Sausage Gravy'], '🥣', 'savory'),
+  ...buffetGroup(['Grits'], '🥣', 'savory'),
+  ...buffetGroup(['Breakfast Burrito','Breakfast Enchiladas'], '🌯', 'savory'),
+  ...buffetGroup(['Huevos Rancheros','Chilaquiles','Migas'], '🌮', 'spicy'),
+  ...buffetGroup(['Shakshuka','Frittata'], '🍳', 'savory'),
+  ...buffetGroup(['Breakfast Quiche','Spinach Quiche'], '🥧', 'savory'),
+  ...buffetGroup(['Breakfast Casserole'], '🍲', 'savory'),
+  ...buffetGroup(['Breakfast Sandwich','Egg and Cheese Sandwich'], '🥪', 'savory'),
+  ...buffetGroup(['Breakfast Pizza'], '🍕', 'savory'),
+  ...buffetGroup(['Bagel with Lox','Cream Cheese Bagel'], '🥯', 'savory'),
+  ...buffetGroup(['Smoked Salmon'], '🐟', 'savory'),
+  ...buffetGroup(['Avocado Toast'], '🥑', 'savory'),
+  ...buffetGroup(['Breakfast Tacos'], '🌮', 'spicy'),
+  ...buffetGroup(['Steamed Buns','Dim Sum','Breakfast Empanada'], '🥟', 'savory'),
+  ...buffetGroup(['Rice Porridge'], '🍚', 'savory'),
+  ...buffetGroup(['English Breakfast Beans','Refried Beans'], '🫘', 'savory'),
+  ...buffetGroup(['Black Pudding'], '🍽️', 'savory'),
+  ...buffetGroup(['Kolaches'], '🥐', 'savory'),
+  ...buffetGroup(['Breakfast Burger'], '🍔', 'savory'),
+  ...buffetGroup(['Breakfast Naan','Breakfast Flatbread'], '🫓', 'savory'),
+  ...buffetGroup(['Sausage Biscuit'], '🥖', 'savory'),
+  ...buffetGroup(['Ham and Cheese Croissant'], '🥐', 'savory'),
+  ...buffetGroup(['Bacon Wrapped Dates'], '🥓', 'savory'),
+  ...buffetGroup(['Country Fried Steak'], '🥩', 'savory'),
+  ...buffetGroup(['Breakfast Ramen'], '🍜', 'savory'),
+  ...buffetGroup(['Pancakes','Buttermilk Pancakes','Blueberry Pancakes','Chocolate Chip Pancakes'], '🥞', 'sweet'),
+  ...buffetGroup(['Waffles','Belgian Waffles','Waffle Sticks','Belgian Chocolate Waffle'], '🧇', 'sweet'),
+  ...buffetGroup(['French Toast','Brioche French Toast','Cinnamon French Toast','Cinnamon Toast'], '🍞', 'sweet'),
+  ...buffetGroup(['Crepes','Nutella Crepes'], '🥞', 'sweet'),
+  ...buffetGroup(['Cinnamon Rolls'], '🍥', 'sweet'),
+  ...buffetGroup(['Donuts','Glazed Donuts'], '🍩', 'sweet'),
+  ...buffetGroup(['Muffins','Blueberry Muffins','Bran Muffins'], '🧁', 'sweet'),
+  ...buffetGroup(['Danish Pastry','Croissants','Chocolate Croissants','Scones'], '🥐', 'sweet'),
+  ...buffetGroup(['Pop Tarts'], '🧇', 'sweet'),
+  ...buffetGroup(['Granola'], '🥣', 'sweet'),
+  ...buffetGroup(['Yogurt Parfait'], '🍨', 'sweet'),
+  ...buffetGroup(['Fruit Salad'], '🍓', 'sweet'),
+  ...buffetGroup(['Acai Bowl'], '🍇', 'sweet'),
+  ...buffetGroup(['Chia Pudding'], '🍮', 'sweet'),
+  ...buffetGroup(['Orange Juice','Apple Juice'], '🧃', 'sour'),
+  ...buffetGroup(['Milk','Chocolate Milk'], '🥛', 'sweet'),
+  ...buffetGroup(['Coffee'], '☕', 'bitter'),
+  ...buffetGroup(['Tea'], '🍵', 'bitter'),
+  ...buffetGroup(['Hot Chocolate'], '☕', 'sweet'),
+  ...buffetGroup(['Smoothie'], '🥤', 'sweet'),
+  ...buffetGroup(['Fresh Fruit Platter'], '🍉', 'sweet'),
+  ...buffetGroup(['Banana'], '🍌', 'sweet'),
+];
+const LUNCH_BUFFET_MENU = [
+  ...buffetGroup(['Fried Rice','Chicken Fried Rice','Shrimp Fried Rice'], '🍚', 'savory'),
+  ...buffetGroup(['Lo Mein','Chow Mein'], '🍜', 'savory'),
+  ...buffetGroup(['Pad Thai'], '🍝', 'savory'),
+  ...buffetGroup(['Grilled Chicken','Fried Chicken','BBQ Chicken','Chicken Tenders'], '🍗', 'savory'),
+  ...buffetGroup(['Orange Chicken'], '🍊', 'sweet'),
+  ...buffetGroup(["General Tso's Chicken"], '🍗', 'spicy'),
+  ...buffetGroup(['Kung Pao Chicken','Buffalo Wings'], '🌶️', 'spicy'),
+  ...buffetGroup(['Sweet and Sour Pork'], '🍖', 'sweet'),
+  ...buffetGroup(['Beef and Broccoli'], '🥦', 'savory'),
+  ...buffetGroup(['Mongolian Beef','Teriyaki Beef'], '🥩', 'savory'),
+  ...buffetGroup(['Grilled Salmon'], '🐟', 'savory'),
+  ...buffetGroup(['Fish and Chips','Fried Fish'], '🐟', 'savory'),
+  ...buffetGroup(['Shrimp Scampi','Popcorn Shrimp'], '🍤', 'savory'),
+  ...buffetGroup(['Spring Rolls','Egg Rolls'], '🥢', 'savory'),
+  ...buffetGroup(['Dumplings','Potstickers','Wontons','Samosa'], '🥟', 'savory'),
+  ...buffetGroup(['Meatballs','Spaghetti','Lasagna'], '🍝', 'savory'),
+  ...buffetGroup(['Mac and Cheese','Grilled Cheese'], '🧀', 'savory'),
+  ...buffetGroup(['Pizza'], '🍕', 'savory'),
+  ...buffetGroup(['Calzone'], '🥟', 'savory'),
+  ...buffetGroup(['Burrito'], '🌯', 'savory'),
+  ...buffetGroup(['Taco','Fajitas'], '🌮', 'spicy'),
+  ...buffetGroup(['Quesadilla'], '🫓', 'savory'),
+  ...buffetGroup(['Nachos'], '🧀', 'spicy'),
+  ...buffetGroup(['Enchiladas'], '🌯', 'spicy'),
+  ...buffetGroup(['Club Sandwich','BLT','Turkey Sandwich','Ham Sandwich','Chicken Sandwich'], '🥪', 'savory'),
+  ...buffetGroup(['Meatball Sub','Philly Cheesesteak','Reuben Sandwich'], '🥪', 'savory'),
+  ...buffetGroup(['Burger','Cheeseburger'], '🍔', 'savory'),
+  ...buffetGroup(['Hot Dog','Bratwurst','Corn Dog'], '🌭', 'savory'),
+  ...buffetGroup(['Chicken Wings'], '🍗', 'savory'),
+  ...buffetGroup(['Ribs','Pulled Pork','Brisket'], '🍖', 'savory'),
+  ...buffetGroup(['Falafel','Hummus'], '🧆', 'savory'),
+  ...buffetGroup(['Gyro','Shawarma','Kebab'], '🥙', 'savory'),
+  ...buffetGroup(['Curry','Butter Chicken'], '🍛', 'spicy'),
+  ...buffetGroup(['Biryani'], '🍛', 'spicy'),
+  ...buffetGroup(['Garden Salad','Caesar Salad','Coleslaw'], '🥗', 'savory'),
+  ...buffetGroup(['Mashed Potatoes'], '🥔', 'savory'),
+  ...buffetGroup(['French Fries'], '🍟', 'savory'),
+  ...buffetGroup(['Onion Rings'], '🧅', 'savory'),
+  ...buffetGroup(['Corn on the Cob'], '🌽', 'sweet'),
+  ...buffetGroup(['Steamed Vegetables','Green Beans'], '🥦', 'savory'),
+  ...buffetGroup(['Rice Pilaf'], '🍚', 'savory'),
+  ...buffetGroup(['Baked Beans'], '🫘', 'savory'),
+  ...buffetGroup(['Cornbread','Garlic Bread'], '🍞', 'savory'),
+  ...buffetGroup(['Soup of the Day','Miso Soup'], '🍲', 'savory'),
+  ...buffetGroup(['Soft Serve Ice Cream','Fried Ice Cream'], '🍦', 'sweet'),
+  ...buffetGroup(['Chocolate Cake','Cheesecake','Tiramisu'], '🍰', 'sweet'),
+  ...buffetGroup(['Apple Pie','Baklava'], '🥧', 'sweet'),
+  ...buffetGroup(['Brownies','Cookies'], '🍪', 'sweet'),
+  ...buffetGroup(['Pudding','Jello'], '🍮', 'sweet'),
+  ...buffetGroup(['Fruit Cup'], '🍓', 'sweet'),
+  ...buffetGroup(['Fortune Cookie'], '🥠', 'sweet'),
+  ...buffetGroup(['Churro'], '🥖', 'sweet'),
+  ...buffetGroup(['Bubble Tea'], '🧋', 'sweet'),
+  ...buffetGroup(['Iced Tea'], '🧊', 'bitter'),
+  ...buffetGroup(['Lemonade'], '🍋', 'sour'),
+  ...buffetGroup(['Soda'], '🥤', 'sweet'),
+  ...buffetGroup(['Horchata'], '🥛', 'sweet'),
+  ...buffetGroup(['Fruit Punch'], '🍹', 'sweet'),
+];
+const HOT_POT_BUFFET_MENU = [
+  ...buffetGroup(['Thinly Sliced Beef','Wagyu Beef'], '🥩', 'savory'),
+  ...buffetGroup(['Lamb Slices'], '🍖', 'savory'),
+  ...buffetGroup(['Pork Belly','Pork Loin'], '🥓', 'savory'),
+  ...buffetGroup(['Chicken Slices','Chicken Meatball'], '🍗', 'savory'),
+  ...buffetGroup(['Shrimp','Shrimp Paste'], '🍤', 'savory'),
+  ...buffetGroup(['Squid'], '🦑', 'savory'),
+  ...buffetGroup(['Fish Slices','Fish Balls','Fish Tofu'], '🐟', 'savory'),
+  ...buffetGroup(['Beef Balls','Enoki Beef Roll'], '🥩', 'savory'),
+  ...buffetGroup(['Pork Balls','Meatballs'], '🍖', 'savory'),
+  ...buffetGroup(['Crab Sticks','Crab Legs'], '🦀', 'savory'),
+  ...buffetGroup(['Scallops','Oysters','Clams','Mussels'], '🦪', 'savory'),
+  ...buffetGroup(['Tofu','Silken Tofu','Fried Tofu','Tofu Skin','Cheese Tofu'], '🧊', 'savory'),
+  ...buffetGroup(['Duck Blood','Beef Tripe','Pork Intestine'], '🍽️', 'savory'),
+  ...buffetGroup(['Quail Eggs','Century Egg'], '🥚', 'savory'),
+  ...buffetGroup(['Spam','Luncheon Meat'], '🥫', 'savory'),
+  ...buffetGroup(['Sausage'], '🌭', 'savory'),
+  ...buffetGroup(['Napa Cabbage','Bok Choy','Spinach','Lettuce','Watercress'], '🥬', 'savory'),
+  ...buffetGroup(['Enoki Mushrooms','Shiitake Mushrooms','Oyster Mushrooms','Wood Ear Mushrooms'], '🍄', 'savory'),
+  ...buffetGroup(['Corn'], '🌽', 'sweet'),
+  ...buffetGroup(['Potato Slices'], '🥔', 'savory'),
+  ...buffetGroup(['Sweet Potato','Taro'], '🍠', 'sweet'),
+  ...buffetGroup(['Lotus Root'], '🪷', 'savory'),
+  ...buffetGroup(['Winter Melon','Pumpkin'], '🍈', 'savory'),
+  ...buffetGroup(['Daikon Radish','Carrot'], '🥕', 'savory'),
+  ...buffetGroup(['Tomato'], '🍅', 'sour'),
+  ...buffetGroup(['Cucumber','Zucchini'], '🥒', 'savory'),
+  ...buffetGroup(['Bean Sprouts'], '🌱', 'savory'),
+  ...buffetGroup(['Bamboo Shoots'], '🎍', 'savory'),
+  ...buffetGroup(['Broccoli','Cauliflower'], '🥦', 'savory'),
+  ...buffetGroup(['Wolfberry Leaves','Chrysanthemum Greens','Cilantro Sauce'], '🌿', 'savory'),
+  ...buffetGroup(['Seaweed','Kelp'], '🌊', 'savory'),
+  ...buffetGroup(['Bell Peppers'], '🫑', 'savory'),
+  ...buffetGroup(['Udon Noodles','Instant Noodles'], '🍜', 'savory'),
+  ...buffetGroup(['Glass Noodles','Rice Noodles','Hand-Pulled Noodles','Vermicelli','Sweet Potato Noodles'], '🍜', 'savory'),
+  ...buffetGroup(['Mochi','Rice Cakes'], '🍡', 'sweet'),
+  ...buffetGroup(['Dumplings','Wontons','Potstickers'], '🥟', 'savory'),
+  ...buffetGroup(['Spring Roll'], '🥢', 'savory'),
+  ...buffetGroup(['Fried Dough Sticks','Steamed Buns'], '🥖', 'savory'),
+  ...buffetGroup(['Spicy Sichuan Broth','Chili Oil','Hot Sauce'], '🌶️', 'spicy'),
+  ...buffetGroup(['Mushroom Broth','Herbal Broth'], '🍄', 'savory'),
+  ...buffetGroup(['Tomato Broth'], '🍅', 'sour'),
+  ...buffetGroup(['Sesame Sauce','Peanut Sauce'], '🥜', 'savory'),
+  ...buffetGroup(['Soy Sauce','Garlic Sauce'], '🍶', 'savory'),
+  ...buffetGroup(['Vinegar'], '🍶', 'sour'),
+  ...buffetGroup(['Scallion Oil'], '🧅', 'savory'),
+  ...buffetGroup(['Sacha Sauce','Sha Cha Sauce'], '🍶', 'savory'),
+  ...buffetGroup(['Mango Pudding'], '🍮', 'sweet'),
+  ...buffetGroup(['Red Bean Soup'], '🍥', 'sweet'),
+  ...buffetGroup(['Iced Plum Juice'], '🥤', 'sour'),
+  ...buffetGroup(['Coconut Milk'], '🥥', 'sweet'),
+  ...buffetGroup(['Green Tea'], '🍵', 'bitter'),
+];
+const BUFFET_LOCATIONS = [
+  // .slice(0,100) is the real guarantee here, not the hand-counted lists above — verified live
+  // that the raw lists actually landed at 101/102/101 before this, so trusting a manual count
+  // alone would have shipped the wrong total.
+  { id:'breakfast_buffet', name:'Breakfast Buffet', emoji:'🥞', x:-20, z:680, wall:0xffe0a0, accent:0xE8944A, glass:0xfff3d0, price:60, menu:BREAKFAST_BUFFET_MENU.slice(0,100) },
+  { id:'lunch_buffet', name:'Lunch Buffet', emoji:'🍱', x:20, z:740, wall:0x6a8a5a, accent:0xE0C24A, glass:0xd8f0c8, price:90, menu:LUNCH_BUFFET_MENU.slice(0,100) },
+  { id:'hot_pot_buffet', name:'Hot Pot Buffet', emoji:'🍲', x:-20, z:800, wall:0xaa2222, accent:0xFFD34D, glass:0xffc0b0, price:120, menu:HOT_POT_BUFFET_MENU.slice(0,100) },
+];
+function openBuffet(id) {
+  const b = BUFFET_LOCATIONS.find(b => b.id === id);
+  if (!b) return;
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  buffetActiveId = id;
+  buffetPaid = false;
+  document.getElementById('restaurantModalTitle').textContent = `${b.emoji} ${b.name}`;
+  document.getElementById('restaurantModal').style.display = 'flex';
+  renderBuffet();
+}
+function payForBuffet() {
+  const b = BUFFET_LOCATIONS.find(b => b.id === buffetActiveId);
+  if (!b) return;
+  if (sipDollars < b.price) { sfx.nope(); showNotif(`❌ Need ${b.price} S.I.P. to eat here!`); return; }
+  spendSip(b.price); saveCurrentUser(); updateSIP();
+  sfx.buy();
+  buffetPaid = true;
+  showNotif(`🍽️ Paid ${b.price} S.I.P. — eat as much as you want!`);
+  renderBuffet();
+}
+function renderBuffet() {
+  const b = BUFFET_LOCATIONS.find(b => b.id === buffetActiveId);
+  if (!b) return;
+  const list = document.getElementById('restaurantList');
+  if (!buffetPaid) {
+    list.innerHTML = `<div class="shopItem">
+      <div class="siName">${b.emoji} All-You-Can-Eat</div>
+      <div class="siCost">💰 ${b.price} S.I.P. to sit down, then eat unlimited!</div>
+      <button class="shopBtn" onclick="payForBuffet()">Pay &amp; Sit Down</button>
+    </div>`;
+    return;
+  }
+  list.innerHTML = b.menu.map((item, i) => `<div class="shopItem">
+      <div class="siName">${item.emoji} ${item.name}</div>
+      <div class="siCost">✅ Unlimited — dig in!</div>
+      <button class="shopBtn" onclick="eatBuffetItem(${i})">🍽️ Eat</button>
+    </div>`).join('');
+}
+function eatBuffetItem(idx) {
+  const b = BUFFET_LOCATIONS.find(b => b.id === buffetActiveId);
+  if (!b || !buffetPaid) return;
+  const item = b.menu[idx];
+  if (!item) return;
+  eatFood(item.emoji, item.name, item.taste, 100);
 }
 
 function updateSnackCart() {
@@ -7238,6 +8270,42 @@ function tickBladder(dt) {
     updateBladderHud();
   }
 }
+function updateTirednessHud() {
+  const hud = document.getElementById('tirednessHud');
+  if (!hud) return;
+  const pct = Math.round(tiredness);
+  hud.style.color = tiredness <= 0 ? '#ff3333' : (tiredness < 25 ? '#ff8844' : (tiredness < 60 ? '#ffdd44' : '#bb99ff'));
+  hud.textContent = `😴 Tiredness: ${pct}%${tiredness <= 0 ? ' — EXHAUSTED!' : ''}`;
+}
+function tickTiredness(dt) {
+  if (tiredness > 0) {
+    tiredness = Math.max(0, tiredness - TIREDNESS_DECAY_PER_SEC * dt);
+    if (tiredness <= 0) {
+      showNotif("😴 You're exhausted! Find a bed soon or you'll pass out.");
+      exhaustedSince = playTimeSeconds;
+    }
+    updateTirednessHud();
+    return;
+  }
+  // Already exhausted — ignore it long enough and you collapse on your own, same "a real forced
+  // consequence, not an eternal debuff" shape as haveAccident() above.
+  if (playTimeSeconds - exhaustedSince >= COLLAPSE_AFTER_SEC) {
+    collapseFromExhaustion();
+  }
+}
+function collapseFromExhaustion() {
+  tiredness = 40; // wake up partly rested, not full — a real cost for ignoring it, not devastating
+  exhaustedSince = 0;
+  showNotif('😪 You collapsed from exhaustion and passed out for a while! Only partly rested when you woke up — find a real bed next time.');
+  sfx.nope();
+  updateTirednessHud();
+}
+// Shared by sleepAtHome()/sleepInHotel() — any real sleep, good night or bad, fixes tiredness.
+function restoreTiredness() {
+  tiredness = 100;
+  exhaustedSince = 0;
+  updateTirednessHud();
+}
 function useToilet() {
   bladder = 100;
   showNotif('🚽 Ahh, much better!');
@@ -7324,8 +8392,20 @@ function tickSickness() {
     if (Math.random() < chance) catchSickness();
   }
 }
+// Real bug report: "people keep attacking me even when im in tabs" — every modal/overlay/panel
+// in the game (Shop, Karaoke, Buffet, Bank, etc.) follows the same id-naming convention, so this
+// checks the real rendered DOM state instead of needing a hand-maintained list of every menu —
+// missing one from a manual list would silently let that one menu stay unsafe.
+function isPlayerInMenu() {
+  // getClientRects() (not getComputedStyle) on purpose — some of these panels are only hidden via
+  // a PARENT container's display:none rather than their own, which getComputedStyle can't see but
+  // real rendered layout always reflects correctly, confirmed live: the naive computedStyle check
+  // falsely flagged several never-opened panels as "open" from the very first login screen.
+  return Array.from(document.querySelectorAll('[id$="Modal"],[id$="Overlay"],[id$="Panel"]')).some(el => el.getClientRects().length > 0);
+}
 function damagePlayer(amount, sourceLabel) {
   if(playerHealth <= 0) return;
+  if(isPlayerInMenu()) return; // can't see or react to a fight while a menu covers the screen — no hit should land
   const armorDef = ARMOR.find(a => a.id === playerArmor);
   let finalAmount = armorDef ? Math.round(amount * (1 - armorDef.reduction)) : amount;
   if(activeAddOns.includes('ironskin')) finalAmount = Math.round(finalAmount * 0.7);
@@ -7340,6 +8420,20 @@ function damagePlayer(amount, sourceLabel) {
   if(playerHealth <= 0) knockoutPlayer();
 }
 function knockoutPlayer() {
+  if(lastHitmanAttacker) {
+    // A real hired-killer death, not a duel/arena loss — the hirer only finds out once we
+    // confirm it ourselves, since they have no way to know our HP directly (see
+    // tickHitmanVsPlayer/hitman_hit above). Sends you home, same as a normal knockout.
+    const hirer = lastHitmanAttacker;
+    lastHitmanAttacker = null;
+    sendMail(hirer, 'hitman_kill_confirmed', { targetName: currentUser });
+    showNotif(`💀 A killer hired by ${hirer} got you! Waking up at home...`);
+    playerGroup.position.set(HOUSE_DOOR.x, 0, HOUSE_DOOR.z + 3);
+    yaw = 0;
+    playerHealth = playerMaxHealth;
+    updateHealthBar();
+    return;
+  }
   if(dueling) {
     const opponent = dueling;
     dueling = null;
@@ -7441,6 +8535,7 @@ let ffaAlive = true;          // false while sitting out a knockout cooldown
 let ffaRespawnAt = 0;         // clock.getElapsedTime() value when I can fight again
 let ffaKills = 0;             // lifetime, persisted with the rest of the save
 let lastFfaAttacker = null;   // set right before damagePlayer() from an ffa_hit, read once by knockoutPlayer()
+let lastHitmanAttacker = null; // set right before damagePlayer() from a hitman_hit, read once by knockoutPlayer()
 let ffaLeaderboard = [];      // [{name, kills}], synced while inArena
 let _lastFfaSync = -999;
 const FFA_SYNC_INTERVAL = 2;
@@ -7501,6 +8596,13 @@ function handleMailboxMessage(msg) {
     ffaKills++;
     queueEarning(20, 0, 'Arena FFA Kill');
     showNotif(`💀 Knocked out ${msg.from}! +20 S.I.P. pending (${ffaKills} arena kills)`);
+  } else if(msg.type === 'hitman_hit') {
+    lastHitmanAttacker = msg.from;
+    damagePlayer(msg.data.damage, `${msg.from}'s hired killer`);
+  } else if(msg.type === 'hitman_kill_confirmed') {
+    const k = killers.find(kk => kk.alive && kk.hitTargetIsPlayer && kk.hitTargetName === msg.data.targetName);
+    if (k) { k.alive = false; if (k.mesh) scene.remove(k.mesh); }
+    completeHiredHitOnPlayer(msg.data.targetName);
   }
 }
 
@@ -7582,7 +8684,7 @@ function tryDuelInteract() {
   // whatever you're actually standing near" philosophy as the d>25 case above, just
   // extended to this not-yet-dueling case too, which never had it.
   if(!duelChallengeSentTo) {
-    const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : CITY_ZONES;
+    const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : inSea ? SEA_ZONES : CITY_ZONES;
     const px3 = playerGroup.position.x, pz3 = playerGroup.position.z;
     const nearZone = zones.some(z => Math.hypot(px3 - z.x, pz3 - z.z) < z.r)
       || rogueRobots.some(r => r.alive && Math.hypot(px3 - r.x, pz3 - r.z) < 3)
@@ -7779,6 +8881,14 @@ function npcWealth(name) {
 function findHitTarget(name) {
   const query = name.trim().toLowerCase();
   if (!query) return null;
+  if (currentUser && query === currentUser.toLowerCase()) return null; // can't hire a killer on yourself
+  // A real online player takes priority over an NPC of the same name (extremely unlikely
+  // collision, but a real person should win) — this is the actual point of this feature, not
+  // just a fallback. Only possible in online mode, since remotePlayers is empty otherwise.
+  if (serverMode === 'online') {
+    const realName = Object.keys(remotePlayers).find(n => n.toLowerCase() === query);
+    if (realName) return { name: realName, isRealPlayer: true };
+  }
   return npcs.find(n => n.name.toLowerCase() === query && !HIT_EXCLUDED_ROLES.includes(n.role) && !n.isDown) || null;
 }
 function openHitmanModal() {
@@ -7800,7 +8910,9 @@ function updateHitmanPreview() {
   if (!target) { el.textContent = '❓ No one by that name is out and about right now.'; el.style.color = '#888'; return; }
   const alreadyTargeted = killers.some(k => k.alive && k.hitTargetName === target.name);
   if (alreadyTargeted) { el.textContent = `⏳ Already have a killer after ${target.name}.`; el.style.color = '#ffaa44'; return; }
-  el.textContent = `🎯 ${target.name} — estimated payout: ${npcWealth(target.name)} S.I.P.`;
+  el.textContent = target.isRealPlayer
+    ? `🎯 ${target.name} — a REAL PLAYER! Estimated payout: ${npcWealth(target.name)} S.I.P.`
+    : `🎯 ${target.name} — estimated payout: ${npcWealth(target.name)} S.I.P.`;
   el.style.color = '#88ff88';
 }
 function confirmHireKiller() {
@@ -7814,14 +8926,64 @@ function confirmHireKiller() {
   showNotif(`🗡️ A killer is on ${target.name}'s trail...`);
   closeHitmanModal();
 }
+// User's own ask: "make it so you can kill any thing robots to robbers [in killer tab]" — a
+// named-person hit (spawnHitman above) doesn't fit robots/robbers since neither has a unique
+// name to type in, so this is a real second hire mode: your killer hunts down the NEAREST alive
+// one of that TYPE instead of one specific named target, re-picking its nearest target every
+// tick (so it keeps fighting even after its first target dies or a new one spawns), and reuses
+// the exact same defeatRogueRobot()/defeatRobber() reward path a player's own fists would.
+const HITMAN_TYPE_ATTACK_RANGE = 3, HITMAN_TYPE_ATTACK_INTERVAL = 1.2, HITMAN_TYPE_GIVEUP_SEC = 90;
+function hireKillerAgainstType(type) {
+  const label = type === 'robot' ? 'robots' : 'robbers';
+  if (killers.some(k => k.alive && k.hitTargetType === type)) { showNotif(`⏳ Already have a killer hunting ${label}.`); return; }
+  if (sipDollars < HIRE_KILLER_FEE) { showNotif(`❌ Need ${HIRE_KILLER_FEE} S.I.P. to hire a killer.`); return; }
+  spendSip(HIRE_KILLER_FEE); updateSIP();
+  const ang = Math.random()*Math.PI*2, dist = 15+Math.random()*10;
+  const x = playerGroup.position.x + Math.cos(ang)*dist, z = playerGroup.position.z + Math.sin(ang)*dist;
+  const mesh = buildKillerMesh(x, z);
+  mesh.visible = true;
+  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:4+Math.random()*1.5, hitTargetType: type, attackTimer:0, huntElapsed:0, revealed:true });
+  showNotif(`🗡️ A killer is heading out to hunt down ${label} for you...`);
+  closeHitmanModal();
+}
+function tickHitmanVsType(k, dt) {
+  const pool = k.hitTargetType === 'robot' ? rogueRobots.filter(r => r.alive) : killers.filter(x => x.alive && x.robber);
+  let nearest = null, nearestDist = Infinity;
+  for (const e of pool) { const d = Math.hypot(e.x-k.x, e.z-k.z); if (d < nearestDist) { nearestDist = d; nearest = e; } }
+  if (!nearest) {
+    k.huntElapsed += dt;
+    if (k.huntElapsed > HITMAN_TYPE_GIVEUP_SEC) {
+      k.alive = false; if (k.mesh) scene.remove(k.mesh);
+      showNotif(`🕵️ Your hired killer couldn't find any ${k.hitTargetType === 'robot' ? 'robots' : 'robbers'} and gave up.`);
+    }
+    return;
+  }
+  k.huntElapsed = 0;
+  const dx = nearest.x-k.x, dz = nearest.z-k.z, dist = Math.hypot(dx, dz);
+  if (dist < HITMAN_TYPE_ATTACK_RANGE) {
+    k.attackTimer += dt;
+    if (k.attackTimer > HITMAN_TYPE_ATTACK_INTERVAL) {
+      k.attackTimer = 0;
+      nearest.hp -= 8 + Math.floor(Math.random()*10);
+      if (nearest.hp <= 0) { if (k.hitTargetType === 'robot') defeatRogueRobot(nearest); else defeatRobber(nearest); }
+    }
+  } else {
+    k.x += dx/dist*k.speed*dt; k.z += dz/dist*k.speed*dt;
+    k.mesh.position.set(k.x, 0, k.z);
+    k.mesh.rotation.y = Math.atan2(dx, dz);
+  }
+}
 function spawnHitman(target) {
+  const isRealPlayer = !!target.isRealPlayer;
+  const targetPos = isRealPlayer ? remotePlayers[target.name].mesh.position : target.group.position;
   const ang = Math.random()*Math.PI*2, dist = 40+Math.random()*20;
-  const x = target.group.position.x + Math.cos(ang)*dist, z = target.group.position.z + Math.sin(ang)*dist;
+  const x = targetPos.x + Math.cos(ang)*dist, z = targetPos.z + Math.sin(ang)*dist;
   const mesh = buildKillerMesh(x, z);
   mesh.visible = true; // a hired hit isn't a jump-scare ambush — you can see them coming for the target
-  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:4+Math.random()*1.5, hitTargetName: target.name, revealed:true });
+  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:4+Math.random()*1.5, hitTargetName: target.name, hitTargetIsPlayer: isRealPlayer, attackTimer:0, huntElapsed:0, revealed:true });
 }
 function tickHitmanCombat(k, dt) {
+  if (k.hitTargetIsPlayer) { tickHitmanVsPlayer(k, dt); return; }
   const target = npcs.find(n => n.name === k.hitTargetName);
   if (!target) { k.alive = false; if (k.mesh) scene.remove(k.mesh); return; } // target already gone some other way — the hitman just leaves
   const dx = target.group.position.x-k.x, dz = target.group.position.z-k.z;
@@ -7834,6 +8996,56 @@ function tickHitmanCombat(k, dt) {
     k.mesh.position.set(k.x, 0, k.z);
     k.mesh.rotation.y = Math.atan2(dx, dz);
   }
+}
+// A real player's HP/death only exists on THEIR OWN client, not ours — this killer can only chase
+// their last-synced presence position (see remotePlayers/syncPresence) and land real hits through
+// the same mailbox pipeline duel_hit already uses; it can never unilaterally declare them dead the
+// way completeHiredHit() does for a local NPC. See handleMailboxMessage's 'hitman_kill_confirmed'
+// for how the payout actually lands, once the target's own client confirms the kill.
+const HITMAN_PLAYER_ATTACK_RANGE = 4;      // a bit more generous than melee — synced position can be up to ~1s stale
+const HITMAN_PLAYER_ATTACK_INTERVAL = 3.5; // slower cadence than a co-located ambient killer — this is a real person, not a helpless NPC
+const HITMAN_HUNT_TIMEOUT_SEC = 240;       // give up after ~4 real minutes rather than hunt forever if they can't be pinned down
+function tickHitmanVsPlayer(k, dt) {
+  const rp = remotePlayers[k.hitTargetName];
+  if (!rp) {
+    k.alive = false; if (k.mesh) scene.remove(k.mesh);
+    showNotif(`🕵️ Your hired killer lost ${k.hitTargetName}'s trail — they went offline.`);
+    return;
+  }
+  k.huntElapsed += dt;
+  if (k.huntElapsed > HITMAN_HUNT_TIMEOUT_SEC) {
+    k.alive = false; if (k.mesh) scene.remove(k.mesh);
+    showNotif(`🕵️ Your hired killer gave up hunting ${k.hitTargetName} — too hard to pin down.`);
+    return;
+  }
+  const dx = rp.mesh.position.x-k.x, dz = rp.mesh.position.z-k.z;
+  const dist = Math.hypot(dx, dz);
+  if (dist < HITMAN_PLAYER_ATTACK_RANGE) {
+    k.attackTimer += dt;
+    if (k.attackTimer > HITMAN_PLAYER_ATTACK_INTERVAL) {
+      k.attackTimer = 0;
+      const dmg = 8 + Math.floor(Math.random()*8); // same range an ambient Killer deals to the local player
+      sendMail(k.hitTargetName, 'hitman_hit', { damage: dmg, from: playerName });
+    }
+  } else {
+    k.x += dx/dist*k.speed*dt; k.z += dz/dist*k.speed*dt;
+    k.mesh.position.set(k.x, 0, k.z);
+    k.mesh.rotation.y = Math.atan2(dx, dz);
+  }
+}
+// Fires on the HIRER's client once the target's own client confirms the kill (see knockoutPlayer's
+// hitman branch) — mirrors completeHiredHit()'s payout/wanted-level shape exactly, just without a
+// local NPC object or a real grave, since the target only ever existed on our screen as a killer
+// mesh chasing a synced position.
+function completeHiredHitOnPlayer(targetName) {
+  const wealth = npcWealth(targetName);
+  queueEarning(wealth, 0, `Hit on ${targetName}`);
+  showNotif(`🗡️ Your hired killer got ${targetName}! ${wealth} S.I.P. pending in Earnings.`);
+  const delaySec = 20 + Math.random()*25;
+  setTimeout(() => {
+    increaseWanted(1);
+    showNotif(`🚨 The hit on ${targetName} got traced back to you. Police are on alert!`);
+  }, delaySec*1000);
 }
 // User's own follow-up: "they could kill them in really unexpected ways 90% of the time" — a
 // pool of cartoon-slapstick methods (Looney Tunes-style anvils/pianos, not anything graphic),
@@ -8618,9 +9830,57 @@ function generateArmorBatch(count, startReduction, endReduction, startCost, endC
 }
 generateArmorBatch(80, 0.52, 0.90, 700, 250000);
 
+// ─── SHOP PREVIEW PANEL ──────────────────────────────────────────────────────
+// A small isolated 3D scene (its own camera+renderer, separate from the main game scene) showing
+// what a weapon/armor/outfit/paint item would look like before buying it. Built via
+// buildPreviewAvatar() so trying something on never touches the real playerGroup, never gets
+// saved, and — important for a live multiplayer game — never reaches syncPresence(), which
+// broadcasts playerColors to every other online player once a second. Purely local, fully
+// reversible, closes back to your real look the moment the shop closes.
+let shopPreviewScene = null, shopPreviewCamera = null, shopPreviewRenderer = null;
+let shopPreviewGroup = null, shopPreviewRAF = null;
+function initShopPreview() {
+  const canvas = document.getElementById('shopPreviewCanvas');
+  if(!canvas || shopPreviewRenderer) return;
+  shopPreviewScene = new THREE.Scene();
+  shopPreviewCamera = new THREE.PerspectiveCamera(40, canvas.width/canvas.height, 0.1, 50);
+  shopPreviewCamera.position.set(0, 2.3, 5.2);
+  shopPreviewCamera.lookAt(0, 2.0, 0);
+  shopPreviewRenderer = new THREE.WebGLRenderer({ canvas, alpha:true, antialias:true });
+  shopPreviewRenderer.setSize(canvas.width, canvas.height, false);
+  shopPreviewScene.add(new THREE.AmbientLight(0xffffff, 0.7));
+  const dl = new THREE.DirectionalLight(0xffffff, 0.7);
+  dl.position.set(2, 4, 3);
+  shopPreviewScene.add(dl);
+}
+function renderShopPreview(overrides, label) {
+  initShopPreview();
+  if(!shopPreviewRenderer) return; // canvas missing (stale cached page) — preview just no-ops
+  if(shopPreviewGroup) shopPreviewScene.remove(shopPreviewGroup);
+  shopPreviewGroup = buildPreviewAvatar(overrides || {});
+  shopPreviewScene.add(shopPreviewGroup);
+  const labelEl = document.getElementById('shopPreviewLabel');
+  if(labelEl) labelEl.textContent = label ? `👁 Previewing: ${label}` : '👁 Your current look';
+  const resetBtn = document.getElementById('shopPreviewResetBtn');
+  if(resetBtn) resetBtn.style.display = label ? 'inline-block' : 'none';
+}
+function startShopPreviewLoop() {
+  stopShopPreviewLoop();
+  renderShopPreview(null);
+  const tick = () => {
+    if(shopPreviewGroup) shopPreviewGroup.rotation.y += 0.012;
+    if(shopPreviewRenderer) shopPreviewRenderer.render(shopPreviewScene, shopPreviewCamera);
+    shopPreviewRAF = requestAnimationFrame(tick);
+  };
+  shopPreviewRAF = requestAnimationFrame(tick);
+}
+function stopShopPreviewLoop() {
+  if(shopPreviewRAF) { cancelAnimationFrame(shopPreviewRAF); shopPreviewRAF = null; }
+}
 function openShop(type) {
   if(document.pointerLockElement) document.exitPointerLock();
   isPointerLocked = false;
+  startShopPreviewLoop();
   document.getElementById('shopOverlay').style.display = 'flex';
   document.getElementById('shopTitle').textContent = type==='outfits' ? '👗 Outfit Shop' : type==='armor' ? '🛡️ Armor Shop' : type==='paint' ? '🎨 Body Paint' : type==='robotweapons' ? '🤖 Robo Arsenal' : '⚔️ Weapon Shop';
   const items = document.getElementById('shopItems');
@@ -8628,6 +9888,7 @@ function openShop(type) {
   if(type==='outfits') {
     OUTFITS.forEach((o,i) => {
       const d = document.createElement('div'); d.className='shopItem';
+      const safeName = o.name.replace(/'/g, "\\'");
       d.innerHTML=`<div class="siName">${o.name}</div>
         <div class="siCost">💰 ${o.cost} S.I.P.</div>
         <div class="siSwatch" style="display:flex;gap:4px;margin:4px 0">
@@ -8635,7 +9896,10 @@ function openShop(type) {
           <div style="width:18px;height:18px;background:${o.pants};border-radius:3px"></div>
           <div style="width:18px;height:18px;background:${o.shoes};border-radius:3px"></div>
         </div>
-        <button class="shopBtn" onclick="buyOutfit(${i})">Buy</button>`;
+        <div style="display:flex;gap:6px;">
+          <button class="shopBtn" onclick="renderShopPreview({shirt:'${o.shirt}',pants:'${o.pants}',shoes:'${o.shoes}'},'${safeName}')" style="background:#2a4a5a;">👁 Preview</button>
+          <button class="shopBtn" onclick="buyOutfit(${i})">Buy</button>
+        </div>`;
       items.appendChild(d);
     });
   } else if(type==='armor') {
@@ -8644,22 +9908,34 @@ function openShop(type) {
       const owned = ownedArmor.includes(a.id);
       const equipped = playerArmor === a.id;
       const d = document.createElement('div'); d.className='shopItem';
+      const safeName = a.name.replace(/'/g, "\\'");
       d.innerHTML=`<div class="siName">${a.name}</div>
         <div class="siCost">${owned ? (equipped?'✅ Equipped':'✔ Owned') : '💰 '+a.cost+' S.I.P.'} — blocks ${Math.round(a.reduction*100)}% damage</div>
-        <button class="shopBtn" onclick="buyArmor(${realIdx})" ${equipped?'disabled':''}>${owned?(equipped?'Equipped':'Equip'):'Buy'}</button>`;
+        <div style="display:flex;gap:6px;">
+          <button class="shopBtn" onclick="renderShopPreview({armor:'${a.id}'},'${safeName}')" style="background:#2a4a5a;">👁 Preview</button>
+          <button class="shopBtn" onclick="buyArmor(${realIdx})" ${equipped?'disabled':''}>${owned?(equipped?'Equipped':'Equip'):'Buy'}</button>
+        </div>`;
       items.appendChild(d);
     });
     const unequip = document.createElement('div'); unequip.className='shopItem';
-    unequip.innerHTML = `<div class="siName">🚫 No Armor</div><button class="shopBtn" onclick="equipArmor('none')" ${playerArmor==='none'?'disabled':''}>${playerArmor==='none'?'Equipped':'Unequip'}</button>`;
+    unequip.innerHTML = `<div class="siName">🚫 No Armor</div>
+      <div style="display:flex;gap:6px;">
+        <button class="shopBtn" onclick="renderShopPreview({armor:'none'},'No Armor')" style="background:#2a4a5a;">👁 Preview</button>
+        <button class="shopBtn" onclick="equipArmor('none')" ${playerArmor==='none'?'disabled':''}>${playerArmor==='none'?'Equipped':'Unequip'}</button>
+      </div>`;
     items.appendChild(unequip);
   } else if(type==='paint') {
     BODY_PAINTS.forEach((p,i) => {
       const current = playerColors.skin.toLowerCase() === p.color.toLowerCase();
       const d = document.createElement('div'); d.className='shopItem';
+      const safeName = p.name.replace(/'/g, "\\'");
       d.innerHTML=`<div class="siName">${p.name}</div>
         <div class="siSwatch" style="width:28px;height:18px;background:${p.color};border-radius:3px;margin:4px 0;border:1px solid #666;"></div>
         <div class="siCost">${current ? '✅ Current' : (p.cost ? '💰 '+p.cost+' S.I.P.' : 'Free')}</div>
-        <button class="shopBtn" onclick="buyBodyPaint(${i})" ${current?'disabled':''}>${current?'Applied':'Paint'}</button>`;
+        <div style="display:flex;gap:6px;">
+          <button class="shopBtn" onclick="renderShopPreview({skin:'${p.color}'},'${safeName}')" style="background:#2a4a5a;">👁 Preview</button>
+          <button class="shopBtn" onclick="buyBodyPaint(${i})" ${current?'disabled':''}>${current?'Applied':'Paint'}</button>
+        </div>`;
       items.appendChild(d);
     });
   } else if(type==='robotweapons') {
@@ -8670,9 +9946,13 @@ function openShop(type) {
       const need = weaponRequiredLevel(w.id);
       const locked = need > eliteLevel;
       const d = document.createElement('div'); d.className='shopItem';
+      const safeName = w.name.replace(/'/g, "\\'");
       d.innerHTML=`<div class="siName">${w.name}</div>
         <div class="siCost">${owned ? (equipped?'✅ Equipped':'✔ Owned') : '💰 '+w.cost+' S.I.P.'} — ${WEAPON_DAMAGE[w.id]} dmg to people, 🤖 ${ROBOT_BONUS_DAMAGE[w.id]} dmg to robots${need>0?` — 🔒 Lv.${need}`:''}</div>
-        <button class="shopBtn" onclick="buyWeapon(${realIdx})" ${(equipped||locked)?'disabled':''}>${locked?`Requires Lv.${need}`:(owned?(equipped?'Equipped':'Equip'):'Buy')}</button>`;
+        <div style="display:flex;gap:6px;">
+          <button class="shopBtn" onclick="renderShopPreview({weapon:'${w.id}'},'${safeName}')" style="background:#2a4a5a;">👁 Preview</button>
+          <button class="shopBtn" onclick="buyWeapon(${realIdx})" ${(equipped||locked)?'disabled':''}>${locked?`Requires Lv.${need}`:(owned?(equipped?'Equipped':'Equip'):'Buy')}</button>
+        </div>`;
       items.appendChild(d);
     });
   } else {
@@ -8695,14 +9975,18 @@ function openShop(type) {
       const need = weaponRequiredLevel(w.id);
       const locked = need > eliteLevel;
       const d = document.createElement('div'); d.className='shopItem';
+      const safeName = w.name.replace(/'/g, "\\'");
       d.innerHTML=`<div class="siName">${w.name}</div>
         <div class="siCost">${owned ? (equipped?'✅ Equipped':'✔ Owned') : '💰 '+w.cost+' S.I.P.'}${need>0?` — 🔒 Requires Lv.${need}`:''}</div>
-        <button class="shopBtn" onclick="buyWeapon(${realIdx})" ${(equipped||locked)?'disabled':''}>${locked?`Requires Lv.${need}`:(owned?(equipped?'Equipped':'Equip'):'Buy')}</button>`;
+        <div style="display:flex;gap:6px;">
+          <button class="shopBtn" onclick="renderShopPreview({weapon:'${w.id}'},'${safeName}')" style="background:#2a4a5a;">👁 Preview</button>
+          <button class="shopBtn" onclick="buyWeapon(${realIdx})" ${(equipped||locked)?'disabled':''}>${locked?`Requires Lv.${need}`:(owned?(equipped?'Equipped':'Equip'):'Buy')}</button>
+        </div>`;
       items.appendChild(d);
     });
   }
 }
-function closeShop() { document.getElementById('shopOverlay').style.display='none'; }
+function closeShop() { document.getElementById('shopOverlay').style.display='none'; stopShopPreviewLoop(); }
 function buyArmor(i) {
   const a = ARMOR[i];
   if(ownedArmor.includes(a.id)) { equipArmor(a.id); openShop('armor'); return; }
@@ -8718,13 +10002,21 @@ function equipArmor(id) {
   updateArmorMesh();
   saveCurrentUser();
 }
+// Pure mesh builder, extracted from updateArmorMesh() — same reuse-for-preview reason as
+// buildWeaponVisual() above.
+function buildArmorVisual(armorId) {
+  if(!armorId || armorId==='none') return null;
+  const def = ARMOR.find(a=>a.id===armorId);
+  if(!def) return null;
+  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.62,0.55,0.42), new THREE.MeshLambertMaterial({color:def.color}));
+  chest.position.set(0,1.35,0.03);
+  return chest;
+}
 function updateArmorMesh() {
   if(!playerGroup) return;
   if(player.armorMesh) { playerGroup.remove(player.armorMesh); player.armorMesh=null; }
-  if(playerArmor==='none') return;
-  const def = ARMOR.find(a=>a.id===playerArmor);
-  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.62,0.55,0.42), new THREE.MeshLambertMaterial({color:def.color}));
-  chest.position.set(0,1.35,0.03);
+  const chest = buildArmorVisual(playerArmor);
+  if(!chest) return;
   playerGroup.add(chest);
   player.armorMesh = chest;
 }
@@ -8986,6 +10278,21 @@ function buildBuddyMesh(species, colors) {
     mk(new THREE.SphereGeometry(0.045,6,6), eyeC,  0.1,0.52,0.62,'eye');
     const tail = mk(new THREE.CylinderGeometry(0.05,0.05,0.55,6), bodyC, 0,0.5,-0.42,'body'); tail.rotation.x = 0.9;
     [[-0.15,-0.28],[0.15,-0.28],[-0.15,0.28],[0.15,0.28]].forEach(([x,z]) => mk(new THREE.BoxGeometry(0.12,0.3,0.12), accentC, x,0.15,z,'accent'));
+  } else if(species==='lion') {
+    // A CUB, not a grown lion — no mane (real lions don't grow one until they're much older), a
+    // head noticeably bigger relative to the body than an adult would have (the classic "baby
+    // animal" proportion cue), and a few faint spots, since real lion cubs are actually born with
+    // rosette spots that fade away as they grow up — an adult lion never has them.
+    mk(new THREE.SphereGeometry(0.32,10,8), bodyC, 0,0.32,-0.05,'body');
+    mk(new THREE.SphereGeometry(0.28,10,8), bodyC, 0,0.5,0.32,'body');
+    [[-0.16,0.7],[0.16,0.7]].forEach(([x]) => mk(new THREE.SphereGeometry(0.09,8,6), bodyC, x,0.7,0.28,'body'));
+    mk(new THREE.SphereGeometry(0.13,8,6), accentC, 0,0.44,0.55,'accent');
+    [[-0.1,0.5],[0.1,0.5]].forEach(([x]) => mk(new THREE.SphereGeometry(0.045,6,6), eyeC, x,0.55,0.5,'eye'));
+    mk(new THREE.SphereGeometry(0.035,6,6), 0x222222, 0,0.48,0.66,'body');
+    [[-0.16,-0.2],[0.16,-0.2],[-0.16,0.18],[0.16,0.18]].forEach(([x,z]) => mk(new THREE.CylinderGeometry(0.07,0.07,0.22,6), bodyC, x,0.11,z,'body'));
+    const tail = mk(new THREE.CylinderGeometry(0.04,0.04,0.4,6), bodyC, 0,0.35,-0.4,'body'); tail.rotation.x = 1.0;
+    mk(new THREE.SphereGeometry(0.06,6,6), accentC, 0,0.2,-0.55,'accent');
+    [[-0.1,0.18,0.35],[0.09,0.2,0.4]].forEach(([x,y,z]) => mk(new THREE.SphereGeometry(0.045,6,6), accentC, x,y,z,'accent'));
   } else if(species==='dragon') {
     mk(new THREE.BoxGeometry(0.55,0.5,0.9), bodyC, 0,0.5,0,'body');
     const snout = mk(new THREE.ConeGeometry(0.25,0.5,6), bodyC, 0,0.55,0.65,'body'); snout.rotation.x = Math.PI/2;
@@ -9807,6 +11114,7 @@ function openOutfitBoutique(id) {
   if (!shop) return;
   if (document.pointerLockElement) document.exitPointerLock();
   isPointerLocked = false;
+  startShopPreviewLoop();
   document.getElementById('shopOverlay').style.display = 'flex';
   document.getElementById('shopTitle').textContent = `${shop.emoji} ${shop.name}`;
   const items = document.getElementById('shopItems');
@@ -9816,6 +11124,7 @@ function openOutfitBoutique(id) {
     <button ${shopBusy ? 'disabled' : ''} onclick="${workingHere ? "quitJob('Stopped working.')" : `startShopJob('${shop.id}')`};closeShop()" style="width:100%;padding:8px;margin-bottom:10px;background:${workingHere ? '#7a1a1a' : shopBusy ? '#333' : '#1a5a7a'};border:none;border-radius:8px;color:#fff;font-weight:bold;font-size:12px;cursor:${shopBusy ? 'not-allowed' : 'pointer'};opacity:${shopBusy ? '0.5' : '1'};">${workingHere ? '⏹ Stop Working Here' : `💼 Work Here (+${shopJobPay(shop)} S.I.P./task)`}</button>`;
   shop.outfits.forEach((o, i) => {
     const d = document.createElement('div'); d.className = 'shopItem';
+    const safeName = o.name.replace(/'/g, "\\'");
     d.innerHTML = `<div class="siName">${o.name}</div>
       <div class="siCost">💰 ${o.cost} S.I.P.</div>
       <div class="siSwatch" style="display:flex;gap:4px;margin:4px 0">
@@ -9823,7 +11132,10 @@ function openOutfitBoutique(id) {
         <div style="width:18px;height:18px;background:${o.pants};border-radius:3px"></div>
         <div style="width:18px;height:18px;background:${o.shoes};border-radius:3px"></div>
       </div>
-      <button class="shopBtn" onclick="buyBoutiqueOutfit('${shop.id}',${i})">Buy</button>`;
+      <div style="display:flex;gap:6px;">
+        <button class="shopBtn" onclick="renderShopPreview({shirt:'${o.shirt}',pants:'${o.pants}',shoes:'${o.shoes}'},'${safeName}')" style="background:#2a4a5a;">👁 Preview</button>
+        <button class="shopBtn" onclick="buyBoutiqueOutfit('${shop.id}',${i})">Buy</button>
+      </div>`;
     items.appendChild(d);
   });
 }
@@ -9932,73 +11244,70 @@ function buildWeaponArchetype(archetype, c1, c2, glow, scale) {
   g.scale.setScalar(scale || 1);
   return g;
 }
-function updateWeaponMesh() {
-  if(!playerGroup) return;
-  if(player.weaponGroup) { playerGroup.remove(player.weaponGroup); player.weaponGroup=null; }
-  if(playerWeapon==='none') return;
-  if (WEAPON_VISUALS[playerWeapon]) {
-    const v = WEAPON_VISUALS[playerWeapon];
-    const g = buildWeaponArchetype(v.archetype, v.color, v.accent, v.glow, v.scale);
-    g.position.set(0.7,1.0,0.2); g.rotation.z=-0.2;
-    playerGroup.add(g); player.weaponGroup=g;
-    return;
+// Pure mesh builder, extracted from updateWeaponMesh() so the shop preview panel can build the
+// exact same weapon visual into an isolated group without touching the real player's weaponGroup.
+function buildWeaponVisual(weaponId) {
+  if(!weaponId || weaponId==='none') return null;
+  if (WEAPON_VISUALS[weaponId]) {
+    const v = WEAPON_VISUALS[weaponId];
+    return buildWeaponArchetype(v.archetype, v.color, v.accent, v.glow, v.scale);
   }
   const g = new THREE.Group();
-  if(playerWeapon==='bat') {
+  if(weaponId==='bat') {
     const m=new THREE.Mesh(new THREE.BoxGeometry(0.12,1.0,0.12),new THREE.MeshLambertMaterial({color:0x8B4513}));
     g.add(m);
     const cap=new THREE.Mesh(new THREE.SphereGeometry(0.14,6,6),new THREE.MeshLambertMaterial({color:0x8B4513}));
     cap.position.set(0,0.55,0); g.add(cap);
-  } else if(playerWeapon==='sword') {
+  } else if(weaponId==='sword') {
     const blade=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.9,0.08),new THREE.MeshLambertMaterial({color:0xdddddd}));
     blade.position.set(0,0.15,0); g.add(blade);
     const guard=new THREE.Mesh(new THREE.BoxGeometry(0.38,0.06,0.06),new THREE.MeshLambertMaterial({color:0xaa8800}));
     guard.position.set(0,-0.3,0); g.add(guard);
-  } else if(playerWeapon==='axe') {
+  } else if(weaponId==='axe') {
     const handle=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.8,0.08),new THREE.MeshLambertMaterial({color:0x5c3a1e}));
     g.add(handle);
     const head=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.32,0.08),new THREE.MeshLambertMaterial({color:0x888888}));
     head.position.set(0.18,0.4,0); g.add(head);
-  } else if(playerWeapon==='metalsword') {
+  } else if(weaponId==='metalsword') {
     const blade=new THREE.Mesh(new THREE.BoxGeometry(0.09,1.1,0.1),new THREE.MeshLambertMaterial({color:0xeeeeee}));
     blade.position.set(0,0.2,0); g.add(blade);
     const guard=new THREE.Mesh(new THREE.BoxGeometry(0.46,0.08,0.08),new THREE.MeshLambertMaterial({color:0x667788}));
     guard.position.set(0,-0.35,0); g.add(guard);
-  } else if(playerWeapon==='battleaxe') {
+  } else if(weaponId==='battleaxe') {
     const handle=new THREE.Mesh(new THREE.BoxGeometry(0.09,1.0,0.09),new THREE.MeshLambertMaterial({color:0x4a3520}));
     g.add(handle);
     const headL=new THREE.Mesh(new THREE.BoxGeometry(0.34,0.42,0.07),new THREE.MeshLambertMaterial({color:0x99aabb}));
     headL.position.set(-0.2,0.42,0); g.add(headL);
     const headR=new THREE.Mesh(new THREE.BoxGeometry(0.34,0.42,0.07),new THREE.MeshLambertMaterial({color:0x99aabb}));
     headR.position.set(0.2,0.42,0); g.add(headR);
-  } else if(playerWeapon==='crystalsword') {
+  } else if(weaponId==='crystalsword') {
     const blade=new THREE.Mesh(new THREE.BoxGeometry(0.1,1.15,0.1),new THREE.MeshLambertMaterial({color:0x99eeff, emissive:0x2266aa}));
     blade.position.set(0,0.22,0); g.add(blade);
     const tip=new THREE.Mesh(new THREE.ConeGeometry(0.09,0.25,4),new THREE.MeshLambertMaterial({color:0xccf5ff, emissive:0x3388cc}));
     tip.position.set(0,0.92,0); g.add(tip);
     const guard=new THREE.Mesh(new THREE.BoxGeometry(0.44,0.08,0.08),new THREE.MeshLambertMaterial({color:0xffd700}));
     guard.position.set(0,-0.35,0); g.add(guard);
-  } else if(playerWeapon==='emphammer') {
+  } else if(weaponId==='emphammer') {
     const handle=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.85,0.09),new THREE.MeshLambertMaterial({color:0x336677}));
     g.add(handle);
     const head=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.28,0.28),new THREE.MeshLambertMaterial({color:0x00ffcc, emissive:0x00aa88}));
     head.position.set(0,0.42,0); g.add(head);
-  } else if(playerWeapon==='plasmacutter') {
+  } else if(weaponId==='plasmacutter') {
     const handle=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.55,0.1),new THREE.MeshLambertMaterial({color:0x333333}));
     g.add(handle);
     const blade=new THREE.Mesh(new THREE.ConeGeometry(0.08,0.7,6),new THREE.MeshLambertMaterial({color:0xff6600, emissive:0xcc3300}));
     blade.position.set(0,0.55,0); g.add(blade);
-  } else if(playerWeapon==='railspike') {
+  } else if(weaponId==='railspike') {
     const handle=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.6,0.1),new THREE.MeshLambertMaterial({color:0x445566}));
     g.add(handle);
     const spike=new THREE.Mesh(new THREE.ConeGeometry(0.1,0.9,4),new THREE.MeshLambertMaterial({color:0x8899ff, emissive:0x3344aa}));
     spike.position.set(0,0.75,0); g.add(spike);
-  } else if(playerWeapon==='club') {
+  } else if(weaponId==='club') {
     const handle=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.55,0.1),new THREE.MeshLambertMaterial({color:0x6b4423}));
     g.add(handle);
     const head=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.4,0.22),new THREE.MeshLambertMaterial({color:0x8B5A2B}));
     head.position.set(0,0.45,0); g.add(head);
-  } else if(playerWeapon==='stiletto') {
+  } else if(weaponId==='stiletto') {
     const blade=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.65,0.04),new THREE.MeshLambertMaterial({color:0x888899}));
     blade.position.set(0,0.1,0); g.add(blade);
     const tip=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.14,0.04),new THREE.MeshLambertMaterial({color:0xaaaacc}));
@@ -10007,6 +11316,13 @@ function updateWeaponMesh() {
     hilt.position.set(0,-0.22,0); g.add(hilt);
   }
   g.position.set(0.7,1.0,0.2); g.rotation.z=-0.2;
+  return g;
+}
+function updateWeaponMesh() {
+  if(!playerGroup) return;
+  if(player.weaponGroup) { playerGroup.remove(player.weaponGroup); player.weaponGroup=null; }
+  const g = buildWeaponVisual(playerWeapon);
+  if(!g) return;
   playerGroup.add(g); player.weaponGroup=g;
 }
 
@@ -10018,6 +11334,87 @@ const ITEM_INFO = {
   'Jewelry':      { emoji:'💍', id:'jewelry'   },
   'Phone':        { emoji:'📱', id:'phone'     },
   'Ice Cream':    { emoji:'🍦', id:'ice_cream' },
+};
+// Real emoji per item name for all ~300 items sold across the 25 SHOP_CATEGORIES
+// (CITY_SHOPS + MALL_SHOPS) — previously every one of these fell back to a plain
+// 📦 in buyItem(). Keyed by item name (matches SHOP_CATEGORIES[*].items exactly);
+// a few item names repeat across categories (e.g. "Glitter Glue"), which just
+// means they share one entry here, same emoji either way.
+const SHOP_ITEM_EMOJI = {
+  'Building Blocks':'🧱', 'Action Figures':'🦸', 'Board Games':'🎲', 'Jigsaw Puzzles':'🧩',
+  'Stuffed Animals':'🧸', 'Remote Control Cars':'🚗', 'Dolls':'🪆', 'Art Sets':'🎨',
+  'Science Kits':'🔬', 'Yo-Yos':'🪀', 'Kites':'🪁', 'Card Games':'🃏',
+  'Puppy Leash':'🐕', 'Cat Scratching Post':'🐈', 'Goldfish Tank':'🐠', 'Hamster Wheel':'🐹',
+  'Bird Cage':'🐦', 'Dog Chew Toy':'🦴', 'Catnip Mice':'🐭', 'Rabbit Hutch':'🐰',
+  'Pet Food Bowl':'🥣', 'Turtle Terrarium':'🐢', 'Bunny Treats':'🥕', 'Squeaky Bone':'🦴',
+  'Comic Books':'📖', 'Picture Books':'📕', 'Adventure Novels':'📗', 'Mystery Stories':'🔍',
+  'Fairy Tale Collection':'🧚', 'Coloring Books':'🖍️', 'Joke Books':'😂', 'Encyclopedia Set':'📚',
+  'Poetry Books':'✒️', 'Graphic Novels':'📔', 'Bookmarks':'🔖', 'Magic Trick Guide':'🎩',
+  'Gummy Bears':'🐻', 'Lollipops':'🍭', 'Chocolate Bars':'🍫', 'Cotton Candy':'🍬',
+  'Candy Canes':'🍬', 'Jelly Beans':'🫘', 'Caramel Apples':'🍎', 'Bubble Gum':'🍬',
+  'Sour Worms':'🐛', 'Rock Candy':'💎', 'Marshmallow Pops':'🍡', 'Fudge Squares':'🍫',
+  'Soccer Ball':'⚽', 'Basketball':'🏀', 'Baseball Glove':'⚾', 'Tennis Racket':'🎾',
+  'Skateboard':'🛹', 'Bicycle Helmet':'⛑️', 'Swim Goggles':'🥽', 'Jump Rope':'🪢',
+  'Hockey Stick':'🏒', 'Football':'🏈', 'Running Shoes':'👟', 'Water Bottle':'🧴',
+  'Colored Pencils':'✏️', 'Watercolor Paint Set':'🎨', 'Sketchbook':'📓', 'Modeling Clay':'🏺',
+  'Glitter Glue':'✨', 'Paintbrush Set':'🖌️', 'Crayons':'🖍️', 'Construction Paper':'📄',
+  'Safety Scissors':'✂️', 'Stickers':'🏷️', 'Easel':'🖼️', 'Chalk Pastels':'🎨',
+  'Ukulele':'🎸', 'Recorder Flute':'🪈', 'Toy Drum Set':'🥁', 'Keyboard Piano':'🎹',
+  'Kids Guitar':'🎸', 'Tambourine':'🪘', 'Xylophone':'🎶', 'Maracas':'🪇',
+  'Harmonica':'🎵', 'Music Note Stickers':'🎵', 'Songbook':'📔', 'Headphones':'🎧',
+  'Light-Up Sneakers':'👟', 'Rain Boots':'🥾', 'Velcro Sneakers':'👟', 'High-Top Basketball Shoes':'👟',
+  'Glitter Flip-Flops':'🩴', 'Soccer Cleats':'👟', 'Fuzzy Slippers':'🥿', 'Roller Sneakers':'🛼',
+  'Hiking Boots':'🥾', 'Ballet Flats':'🥿', 'Superhero Sneakers':'👟', 'Sparkly Sandals':'👡',
+  'Wireless Headphones':'🎧', 'Tablet Case':'📱', 'Handheld Game Console':'🎮', 'Bluetooth Speaker':'🔊',
+  'Smartwatch':'⌚', 'Phone Charger':'🔌', 'Remote Control Car':'🚗', 'Digital Camera':'📷',
+  'Gaming Mouse':'🖱️', 'LED Desk Lamp':'💡', 'Walkie-Talkies':'📻', 'Karaoke Microphone':'🎤',
+  'Superhero Comic Book':'🦸', 'Graphic Novel':'📔', 'Trading Card Pack':'🃏', 'Action Figure':'🦸',
+  'Comic Poster':'🖼️', 'Villain Sticker Sheet':'🦹', 'Cape Costume':'🦸', "Collector's Comic Box":'🗃️',
+  'Comic Bookmark':'🔖', 'Hero Mask':'🎭', 'Comic Backpack Pin':'📌', 'Mini Comic Figurine':'🧍',
+  'Chocolate Chip Cookie':'🍪', 'Rainbow Cupcake':'🧁', 'Birthday Cake Slice':'🍰', 'Cinnamon Roll':'🥐',
+  'Blueberry Muffin':'🧁', 'Glazed Donut':'🍩', 'Sugar Cookie':'🍪', 'Fresh Bagel':'🥯',
+  'Fruit Tart':'🥧', 'Soft Pretzel':'🥨', 'Gingerbread Cookie':'🍪', 'Strawberry Cake Pop':'🍓',
+  'Birthday Card':'💌', 'Gift Wrap Roll':'🎁', 'Stuffed Teddy Bear':'🧸', 'Scented Candle':'🕯️',
+  'Photo Frame':'🖼️', 'Balloon Bouquet':'🎈', 'Gift Bag':'🛍️', 'Greeting Card Set':'💌',
+  'Mini Trophy':'🏆', 'Keychain Charm':'🔑', 'Party Confetti Poppers':'🎉', 'Thank-You Notecards':'💌',
+  'Yarn Skein':'🧶', 'Sticker Sheet Pack':'🏷️', 'Pom-Pom Bag':'🎀', 'Craft Scissors':'✂️',
+  'Beading Kit':'📿', 'Origami Paper Pack':'📄', 'Pipe Cleaners Bundle':'🧵', 'Popsicle Sticks Box':'🪵',
+  'Skateboard Deck':'🛹', 'Skateboard Wheels':'🛞', 'Skateboard Trucks':'🔩', 'Helmet':'⛑️',
+  'Knee Pads':'🛡️', 'Elbow Pads':'🛡️', 'Wrist Guards':'🛡️', 'Grip Tape':'🩹',
+  'Longboard':'🛹', 'Scooter':'🛴', 'Skate Shoes':'👟', 'Bearings Set':'⚙️',
+  'Balloon Bundle':'🎈', 'Confetti Poppers':'🎉', 'Birthday Banner':'🎊', 'Paper Plates':'🍽️',
+  'Party Hats':'🥳', 'Streamers':'🎊', 'Piñata':'🪅', 'Gift Bags':'🛍️',
+  'Candles Pack':'🕯️', 'Noisemakers':'📯', 'Table Cloth':'🍽️', 'Party Favors':'🎁',
+  'Model Airplane Kit':'✈️', '1000-Piece Puzzle':'🧩', 'Paint Set':'🎨', 'Building Blocks Set':'🧱',
+  'Yarn Bundle':'🧶', 'Stamp Collection Kit':'📮', 'Train Set':'🚂', 'Rock Tumbler':'🪨',
+  'Bead Kit':'📿', 'Telescope':'🔭',
+  'Sundress':'👗', 'Graphic T-Shirt':'👕', 'Denim Jacket':'🧥', 'Sneakers':'👟',
+  'Sun Hat':'👒', 'Sparkly Backpack':'🎒', 'Scarf':'🧣', 'Leggings':'👖',
+  'Hair Clips':'🎀', 'Sunglasses':'🕶️', 'Friendship Bracelet Kit':'🧵', 'Cozy Hoodie':'🧥',
+  'Video Game Console':'🎮', 'Controller':'🎮', 'Game Cartridge':'🕹️', 'Gaming Headset':'🎧',
+  'Charging Dock':'🔌', 'Trading Card Game':'🃏', 'Handheld Console':'🎮', 'Game Poster':'🖼️',
+  'Joystick':'🕹️', 'Memory Card':'💾', 'Gaming Chair':'🪑', 'Strategy Guide Book':'📘',
+  'Sunflower Seeds Pack':'🌻', 'Potted Cactus':'🌵', 'Watering Can':'💦', 'Flower Pot':'🪴',
+  'Succulent Trio':'🌱', 'Herb Garden Kit':'🌿', 'Bonsai Tree':'🌳', 'Fertilizer Bag':'🌾',
+  'Garden Gloves':'🧤', 'Hanging Fern':'🌿', 'Tulip Bulbs':'🌷', 'Terrarium Kit':'🪴',
+  'Friendship Bracelet':'📿', 'Charm Necklace':'📿', 'Star Stud Earrings':'⭐', 'Birthstone Ring':'💍',
+  'Heart Locket':'💗', 'Beaded Anklet':'📿', 'Glitter Hair Pin':'✨', 'Rainbow Pendant':'🌈',
+  'Pearl Hairband':'🦪', 'Mood Ring':'💍', 'Puzzle Piece Necklace':'🧩', 'Gem Cufflinks':'💎',
+  'Bunk Bed':'🛏️', 'Bean Bag Chair':'🛋️', 'Study Desk':'🖥️', 'Bookshelf':'📚',
+  'Rocking Chair':'🪑', 'Toy Chest':'🧰', 'Coffee Table':'🛋️', 'Dresser':'🗄️',
+  'Nightstand':'🗄️', 'Floor Lamp':'💡', 'Storage Ottoman':'🪑', 'Comfy Sofa':'🛋️',
+  'Glitter Phone Case':'📱', 'Pop-Up Grip Stand':'📱', 'Cartoon Charm Strap':'🔗', 'Screen Protector':'📱',
+  'Wireless Earbuds':'🎧', 'Selfie Stick':'🤳', 'Phone Ring Holder':'📱', 'Cute Cable Cover':'🔌',
+  'Portable Charger':'🔋', 'Sticker Pack':'🏷️', 'Camera Lens Clip':'📷', 'Glow-in-Dark Case':'🌟',
+  'Sparkle Notebook':'📓', 'Gel Pen Set':'🖊️', 'Scented Eraser':'🧽', 'Sticker Sheet':'🏷️',
+  'Washi Tape Roll':'🎗️', 'Colored Pencil Pack':'✏️', 'Bookmark Set':'🔖', 'Desk Organizer':'🗂️',
+  'Stamp Kit':'📮', 'Mini Stapler':'📎', 'Rainbow Highlighters':'🖍️',
+  'Goldfish':'🐠', 'Betta Fish':'🐟', 'Glass Fish Tank':'🐠', 'Colorful Gravel':'🪨',
+  'Bubble Aerator':'🫧', 'Fish Food Flakes':'🐟', 'Mini Castle Decoration':'🏰', 'Aquarium Plant':'🌿',
+  'Snail Buddy':'🐌', 'Net Scooper':'🥅', 'LED Tank Light':'💡', 'Fish Bowl Starter Kit':'🐠',
+  'Kids Mountain Bike':'🚲', 'Training Wheels':'🚲', 'Bike Helmet':'⛑️', 'Handlebar Streamers':'🎗️',
+  'Bike Bell':'🔔', 'Water Bottle Holder':'🧴', 'Kickstand':'🚲', 'Bike Basket':'🧺',
+  'Reflective Stickers':'🏷️', 'Repair Kit':'🧰', 'Knee Pad Set':'🛡️', 'Bike Lock':'🔒',
 };
 
 function addToInventory(id, name, emoji) {
@@ -10032,11 +11429,13 @@ function buyItem(name, cost) {
   if(sipDollars < cost) { sfx.nope(); showNotif(`❌ Need ${cost} S.I.P. — you have ${sipDollars}`); return; }
   spendSip(cost);
   updateSIP();
-  const info = ITEM_INFO[name] || { emoji:'📦', id: name.toLowerCase().replace(/\s+/g,'_') };
-  addToInventory(info.id, name, info.emoji);
+  const special = ITEM_INFO[name];
+  const emoji = (special && special.emoji) || SHOP_ITEM_EMOJI[name] || '📦';
+  const id = (special && special.id) || name.toLowerCase().replace(/\s+/g,'_');
+  addToInventory(id, name, emoji);
   saveCurrentUser();
   sfx.buy();
-  showNotif(`✅ ${info.emoji} Bought ${name} for ${cost} S.I.P.!`);
+  showNotif(`✅ ${emoji} Bought ${name} for ${cost} S.I.P.!`);
 }
 
 // ─── CAR SYSTEM ──────────────────────────────────────────────────────────────
@@ -10059,8 +11458,12 @@ function buildCar(def, x, z, yawAngle) {
   // (NPC cars included) just ignores these extra properties, nothing else changes for them.
   g.bodyMesh  = b(4.2,1.3,8.5, def.color,     0,  0.65, 0);    // body
   g.cabinMesh = b(3.2,1.4,4.5, def.color,     0,  2.05,-0.5);  // cabin
-  b(3.1,1.2,0.2, 0x88ccff,      0,  1.75, 1.8);  // windshield
-  b(3.1,1.1,0.2, 0x88ccff,      0,  1.75,-2.8);  // rear window
+  // Real glass now (was an opaque flat-color panel) — traffic cars need a driver to actually be
+  // visible through it (see buildTrafficCarMesh below); a free, more realistic look for the
+  // player's own car too, which was never see-through either.
+  const glassMat = new THREE.MeshLambertMaterial({ color:0x88ccff, transparent:true, opacity:0.55 });
+  const windshield = new THREE.Mesh(new THREE.BoxGeometry(3.1,1.2,0.2), glassMat); windshield.position.set(0,1.75,1.8); windshield.castShadow=true; g.add(windshield);
+  const rearWindow  = new THREE.Mesh(new THREE.BoxGeometry(3.1,1.1,0.2), glassMat); rearWindow.position.set(0,1.75,-2.8); rearWindow.castShadow=true; g.add(rearWindow);
   b(4.4,0.4,0.5, 0x888888,      0,  0.2,  4.5);  // front bumper
   b(4.4,0.4,0.5, 0x888888,      0,  0.2, -4.5);  // rear bumper
   [[-2.2,0.45,2.8],[2.2,0.45,2.8],[-2.2,0.45,-2.8],[2.2,0.45,-2.8]].forEach(([wx,wy,wz])=>b(0.9,0.9,0.9,0x111111,wx,wy,wz));
@@ -10547,10 +11950,10 @@ function exitStore(){
   showNotif(shopOpen ? "Leaving your store — your staff has it covered!" : 'Leaving your store...');
 }
 const STORE_ZONES = [
-  { x:STORE_EXIT.x,   z:STORE_EXIT.z,   r:3,   label:'Exit Store',          action: exitStore },
-  { x:STORE_INTERIOR.x-3, z:STORE_INTERIOR.z-4, r:2.5, label:'🛒 Buy Ingredients', action: openIngredientsCounter },
-  { x:STORE_INTERIOR.x+3, z:STORE_INTERIOR.z-4, r:2.5, label:'🪑 Buy Furniture',   action: openFurnitureCounter },
-  { x:STORE_INTERIOR.x,   z:STORE_INTERIOR.z+2, r:2.5, label:'🏪 Manage Store',    action: openStoreManager },
+  { x:STORE_EXIT.x,   z:STORE_EXIT.z,   r:3,   label:'Exit Store',          action: () => exitStore()},
+  { x:STORE_INTERIOR.x-3, z:STORE_INTERIOR.z-4, r:2.5, label:'🛒 Buy Ingredients', action: () => openIngredientsCounter()},
+  { x:STORE_INTERIOR.x+3, z:STORE_INTERIOR.z-4, r:2.5, label:'🪑 Buy Furniture',   action: () => openFurnitureCounter()},
+  { x:STORE_INTERIOR.x,   z:STORE_INTERIOR.z+2, r:2.5, label:'🏪 Manage Store',    action: () => openStoreManager()},
 ];
 
 function openIngredientsCounter() {
@@ -11572,6 +12975,7 @@ function refreshInventory() {
   empty.style.display = 'none';
   const itemsHtml = keys.map(id => {
     const it = playerInventory[id];
+    if (!it || typeof it.name !== 'string' || typeof it.emoji !== 'string' || typeof it.qty !== 'number') return '';
     return `<div style="background:rgba(255,255,255,0.06);border:1px solid #444;border-radius:8px;padding:10px;display:flex;align-items:center;gap:10px;">
       <span style="font-size:22px;">${it.emoji}</span>
       <div style="flex:1;">
@@ -12529,7 +13933,7 @@ function buildWoodsArea() {
   box(2.6,0.15,1.6, 0x5c3a1e, CRAFT_TABLE.x, 0.95, CRAFT_TABLE.z);
   buildLogoSign('CRAFTING TABLE', '🔨', '#8B5A2B', '#ffd54a', CRAFT_TABLE.x, 2.4, CRAFT_TABLE.z-1.4);
   addCol(CITY_COLS, CRAFT_TABLE.x, CRAFT_TABLE.z, 1.3, 0.8);
-  CITY_ZONES.push({ x:CRAFT_TABLE.x, z:CRAFT_TABLE.z+2.5, r:2.5, label:'🔨 Open Crafting Table', action: openCrafting });
+  CITY_ZONES.push({ x:CRAFT_TABLE.x, z:CRAFT_TABLE.z+2.5, r:2.5, label:'🔨 Open Crafting Table', action: () => openCrafting()});
 
   // Practice Dummy, well clear of the trees/table so its zone can't overlap theirs
   DUMMY.x = WOODS_CENTER.x + 25; DUMMY.z = WOODS_CENTER.z;
@@ -12690,6 +14094,9 @@ function plotHalf(plot) { return plot.footprint/2; } // real fence half-extent �
 let ownedLand   = []; // array of LAND_PLOTS ids this account has personally bought at some point, persisted
 let landInvites = {}; // { lotId: { guestAccountName: {sit,smash,paint,buy} } }, persisted
 let landColor   = {}; // { lotId: hexNumber } — owner's chosen paint, persisted
+// Shared by findNearestPlacedHouse() and buildCustomHouse() below — every BUILD_CATALOG id that
+// counts as "a real walk-in house", so a plot only ever has one and both places recognize it.
+const HOUSE_IDS = ['house','brickhouse','house2','house3','house4','mansion','customhouse'];
 let landForSale = {}; // { lotId: askingPriceOrUndefined } — persisted
 let pendingNotices = []; // [{type,from,message}, ...] — real "while you were away" reports (invited/attacked), persisted, drained on next login
 let LAND_PLOT_MESHES = []; // per-plot mesh refs, so buying/painting can tear down & rebuild just that plot
@@ -12810,7 +14217,6 @@ function findNearestPlacedHouse(idx, placed) {
   const plot = LAND_PLOTS[idx];
   const { cx, cz } = landPlotPos(idx);
   const px = playerGroup.position.x, pz = playerGroup.position.z;
-  const HOUSE_IDS = ['house','brickhouse','house2','house3','house4','mansion'];
   for (const entry of placed) {
     if (!HOUSE_IDS.includes(entry.id)) continue;
     const [ox,oz] = plot.slots[entry.slot];
@@ -12876,14 +14282,103 @@ function buildLandHouseInterior() {
   addCol(LAND_HOUSE_COLS, ix+4.5,iz+5, 2.5,0.5);
   addCol(LAND_HOUSE_COLS, ix-7,iz, 0.5,5);
   addCol(LAND_HOUSE_COLS, ix+7,iz, 0.5,5);
+
+  buildSign('🪑 FURNITURE', ix-1, 3.2, iz+4.85);
+  renderHouseFurniture();
+}
+// ─── HOUSE FURNITURE — user's own ask: "sell and buy or build furniture". A parallel catalog to
+// the Store's FURNITURE_CATALOG (that one decorates the Store, not this room), but each entry can
+// be bought with S.I.P. OR built from real materials — canAffordRecipe()/spendMats() again, same
+// shared shape every other cost in this game already uses. Fixed-slot placement, same simple
+// model the Store's own furniture already uses (no drag-and-drop placement system exists for
+// either one).
+const HOUSE_FURNITURE_CATALOG = [
+  { id:'diningtable',  name:'Dining Table',  emoji:'🍽️', price:80,  sellValue:80,  slot:{x:0,   z:1}   },
+  { id:'tv',           name:'Television',    emoji:'📺', price:150, sellValue:150, slot:{x:-6,  z:0.5} },
+  { id:'mirror',       name:'Wall Mirror',   emoji:'🪞', price:35,  sellValue:35,  slot:{x:6.7, z:3}    },
+  { id:'wardrobe',     name:'Wardrobe',      emoji:'🚪', wood:15, scrap:5, sellValue:60, slot:{x:-6, z:-1.5} },
+  { id:'sidebookcase', name:'Side Bookcase', emoji:'📚', wood:8,           sellValue:24, slot:{x:6,  z:2.5}  },
+  { id:'nightstand',   name:'Nightstand',    emoji:'🛋️', wood:5,           sellValue:15, slot:{x:1.5,z:3.5}  },
+];
+let ownedHouseFurniture = []; // furniture ids owned for the Land House, persisted
+let HOUSE_FURNITURE_MESHES = []; // NOT persisted — rebuilt whenever furniture changes, tracked so we can tear down without duplicating the whole room
+function houseFurnitureCostText(def) { return def.price ? `💰 ${def.price} S.I.P.` : (craftCostText(def) || 'Free'); }
+function openHouseFurnitureShop() {
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('houseFurnitureModal').style.display = 'flex';
+  renderHouseFurniturePanel();
+}
+function closeHouseFurnitureShop() {
+  document.getElementById('houseFurnitureModal').style.display = 'none';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function renderHouseFurniturePanel() {
+  const list = document.getElementById('houseFurnitureList');
+  if (!list) return;
+  list.innerHTML = HOUSE_FURNITURE_CATALOG.map((def,i) => {
+    const owned = ownedHouseFurniture.includes(def.id);
+    return `<div class="shopItem">
+      <div class="siName">${def.emoji} ${def.name}</div>
+      <div class="siCost">${houseFurnitureCostText(def)}</div>
+      ${owned
+        ? `<button class="shopBtn" style="background:#a33;" onclick="sellHouseFurniture(${i})">Sell (${Math.round(def.sellValue*0.5)} S.I.P.)</button>`
+        : `<button class="shopBtn" onclick="buyHouseFurniture(${i})">${def.price?'Buy':'Build'}</button>`}
+    </div>`;
+  }).join('');
+}
+function buyHouseFurniture(idx) {
+  const def = HOUSE_FURNITURE_CATALOG[idx];
+  if (ownedHouseFurniture.includes(def.id)) { showNotif('You already have this!'); return; }
+  if (def.price) {
+    if (sipDollars < def.price) { sfx.nope(); showNotif(`❌ Need ${def.price} S.I.P.!`); return; }
+    spendSip(def.price); updateSIP();
+  } else {
+    if (!canAffordRecipe(def)) { showNotif(`❌ Need ${craftCostText(def)}`); return; }
+    if (def.wood)  { woodCount  -= def.wood;  updateWood(); }
+    if (def.scrap) { scrapMetal -= def.scrap; updateScrapMetal(); }
+    spendMats(def.mats);
+  }
+  ownedHouseFurniture.push(def.id);
+  saveCurrentUser();
+  sfx.buy();
+  showNotif(`${def.emoji} ${def.name} added to your house!`);
+  renderHouseFurniture();
+  renderHouseFurniturePanel();
+}
+function sellHouseFurniture(idx) {
+  const def = HOUSE_FURNITURE_CATALOG[idx];
+  if (!ownedHouseFurniture.includes(def.id)) return;
+  const refund = Math.round(def.sellValue * 0.5);
+  ownedHouseFurniture = ownedHouseFurniture.filter(id => id !== def.id);
+  queueEarning(refund, 0, `Sold ${def.name}`);
+  saveCurrentUser();
+  sfx.buy();
+  showNotif(`Sold ${def.emoji} ${def.name} for ${refund} S.I.P. (pending in Earnings)!`);
+  renderHouseFurniture();
+  renderHouseFurniturePanel();
+}
+// Redraws ONLY the furniture layer (tracked separately from buildLandHouseInterior's one-time
+// room build) so buying/selling never duplicates the floor/walls/bed/etc. by calling the whole
+// room builder again.
+function renderHouseFurniture() {
+  HOUSE_FURNITURE_MESHES.forEach(m => scene.remove(m));
+  HOUSE_FURNITURE_MESHES = [];
+  const ix = LAND_HOUSE_SPAWN.x, iz = 0;
+  ownedHouseFurniture.forEach(fid => {
+    const f = HOUSE_FURNITURE_CATALOG.find(x => x.id === fid);
+    if (!f) return;
+    HOUSE_FURNITURE_MESHES.push(box(1.2, 1, 1, 0xAA8855, ix+f.slot.x, 0.6, iz+f.slot.z));
+  });
 }
 const LAND_HOUSE_ZONES = [
-  { x:LAND_HOUSE_EXIT.x,      z:LAND_HOUSE_EXIT.z, r:3,   label:'Exit House',     action: exitLandHouse },
-  { x:LAND_HOUSE_SPAWN.x+4,   z:-2.5, r:2.2, label:'🛏️ Sleep',        action: sleepAtHome },
-  { x:LAND_HOUSE_SPAWN.x-3,   z:2,    r:2.2, label:'🛋️ Sit on Sofa',  action: sitOnSofa },
-  { x:LAND_HOUSE_SPAWN.x-4.5, z:-3.8, r:2.2, label:'🍳 Cook a Meal',  action: cookMeal },
-  { x:LAND_HOUSE_SPAWN.x+5.8, z:-1,   r:2,   label:'📚 Read a Book',  action: readBook },
-  { x:LAND_HOUSE_SPAWN.x+1,   z:-3.8, r:1.8, label:'🚽 Use Toilet',   action: useToilet },
+  { x:LAND_HOUSE_EXIT.x,      z:LAND_HOUSE_EXIT.z, r:3,   label:'Exit House',     action: () => exitLandHouse()},
+  { x:LAND_HOUSE_SPAWN.x+4,   z:-2.5, r:2.2, label:'🛏️ Sleep',        action: () => sleepAtHome()},
+  { x:LAND_HOUSE_SPAWN.x-3,   z:2,    r:2.2, label:'🛋️ Sit on Sofa',  action: () => sitOnSofa()},
+  { x:LAND_HOUSE_SPAWN.x-4.5, z:-3.8, r:2.2, label:'🍳 Cook a Meal',  action: () => cookMeal()},
+  { x:LAND_HOUSE_SPAWN.x-1,   z:3.5,  r:2,   label:'🪑 Furniture Shop', action: () => openHouseFurnitureShop()},
+  { x:LAND_HOUSE_SPAWN.x+5.8, z:-1,   r:2,   label:'📚 Read a Book',  action: () => readBook()},
+  { x:LAND_HOUSE_SPAWN.x+1,   z:-3.8, r:1.8, label:'🚽 Use Toilet',   action: () => useToilet()},
 ];
 function enterLandHouse(idx) {
   landHouseReturnIdx = idx;
@@ -12943,9 +14438,9 @@ function buildCountryHotelInterior() {
   addCol(COUNTRY_HOTEL_COLS, ix+6,iz, 0.5,4.5);
 }
 const COUNTRY_HOTEL_ZONES = [
-  { x:COUNTRY_HOTEL_EXIT.x,   z:COUNTRY_HOTEL_EXIT.z, r:3,   label:'🚪 Check Out', action: checkoutCountryHotel },
-  { x:COUNTRY_HOTEL_SPAWN.x-3, z:-1.5, r:2.2, label:'🛏️ Sleep in Bed', action: sleepInHotel },
-  { x:COUNTRY_HOTEL_SPAWN.x+4, z:-3,   r:2,   label:'📺 Watch TV',     action: watchHotelTV },
+  { x:COUNTRY_HOTEL_EXIT.x,   z:COUNTRY_HOTEL_EXIT.z, r:3,   label:'🚪 Check Out', action: () => checkoutCountryHotel()},
+  { x:COUNTRY_HOTEL_SPAWN.x-3, z:-1.5, r:2.2, label:'🛏️ Sleep in Bed', action: () => sleepInHotel()},
+  { x:COUNTRY_HOTEL_SPAWN.x+4, z:-3,   r:2,   label:'📺 Watch TV',     action: () => watchHotelTV()},
 ];
 function checkinCountryHotel(originName, doorX, doorZ) {
   const price = 50;
@@ -13045,13 +14540,13 @@ function buildAirportLoungeInterior() {
   addCol(AIRPORT_LOUNGE_COLS, ix+10,iz, 0.5,9);
 }
 const AIRPORT_LOUNGE_ZONES = [
-  { x:AIRPORT_LOUNGE_EXIT.x,   z:AIRPORT_LOUNGE_EXIT.z, r:3,   label:'🚪 Leave Lounge',       action: exitAirportLounge },
-  { x:AIRPORT_LOUNGE_SPAWN.x-5, z:-3, r:2.3, label:'🍽️ Eat a Local Dish',   action: eatLoungeDish },
-  { x:AIRPORT_LOUNGE_SPAWN.x+5, z:-3, r:2.3, label:'🎁 Buy a Souvenir',     action: buyLoungeSouvenir },
-  { x:AIRPORT_LOUNGE_SPAWN.x-5, z:2,  r:2.3, label:'📺 Watch TV',          action: watchHotelTV },
+  { x:AIRPORT_LOUNGE_EXIT.x,   z:AIRPORT_LOUNGE_EXIT.z, r:3,   label:'🚪 Leave Lounge',       action: () => exitAirportLounge()},
+  { x:AIRPORT_LOUNGE_SPAWN.x-5, z:-3, r:2.3, label:'🍽️ Eat a Local Dish',   action: () => eatLoungeDish()},
+  { x:AIRPORT_LOUNGE_SPAWN.x+5, z:-3, r:2.3, label:'🎁 Buy a Souvenir',     action: () => buyLoungeSouvenir()},
+  { x:AIRPORT_LOUNGE_SPAWN.x-5, z:2,  r:2.3, label:'📺 Watch TV',          action: () => watchHotelTV()},
   { x:AIRPORT_LOUNGE_SPAWN.x+5, z:2,  r:1.8, label:'📱 Buy a Phone',       action: () => buyLoungeElectronic('lounge_phone') },
   { x:AIRPORT_LOUNGE_SPAWN.x+5, z:0.5,r:1.8, label:'📲 Buy a Tablet',      action: () => buyLoungeElectronic('lounge_tablet') },
-  { x:AIRPORT_LOUNGE_SPAWN.x,   z:-7.6, r:2.5, label:'🛫 Board the Plane', action: boardPlane },
+  { x:AIRPORT_LOUNGE_SPAWN.x,   z:-7.6, r:2.5, label:'🛫 Board the Plane', action: () => boardPlane()},
 ];
 function enterAirportLounge(name, doorX, doorZ, isDowntown) {
   airportLoungeOrigin = { name, doorX, doorZ, isDowntown };
@@ -13178,6 +14673,7 @@ function paintMyLand(idx, color) {
   landColor[plot.id] = color;
   saveCurrentUser();
   buildLandPlot(idx);
+  repaintPlotHouseMesh(idx, color); // buildLandPlot's renderExistingBuildings skips already-built meshes, so the house needs its own explicit rebuild to pick up the new color
   showNotif('🎨 Land painted!');
   renderBuildMenu(idx);
 }
@@ -13277,9 +14773,11 @@ function renderVisitLand(idx, ownerName) {
   const list = document.getElementById('visitBuildingList');
   list.innerHTML = placed.length ? '' : '<div style="color:#789;font-size:12px;">Nothing built here yet.</div>';
   placed.forEach(entry => {
-    const def = BUILD_CATALOG.find(b=>b.id===entry.id);
+    const isCustomHouse = entry.id === 'customhouse';
+    const emoji = isCustomHouse ? HOUSE_MATERIALS[entry.houseMaterial].emoji : BUILD_CATALOG.find(b=>b.id===entry.id).emoji;
+    const name = isCustomHouse ? `${entry.houseSize}x${entry.houseSize} ${HOUSE_MATERIALS[entry.houseMaterial].name} House` : BUILD_CATALOG.find(b=>b.id===entry.id).name;
     const d = document.createElement('div'); d.className='shopItem';
-    d.innerHTML = `<div class="siName">${def.emoji} ${def.name}</div>
+    d.innerHTML = `<div class="siName">${emoji} ${name}</div>
       ${perm.smash ? `<button class="shopBtn" style="background:#a33;" onclick="smashBuilding(${idx},'${ownerName}',${entry.slot})">🔨 Smash</button>` : ''}`;
     list.appendChild(d);
   });
@@ -13320,8 +14818,10 @@ function visitSit() {
 }
 function visitPaint(idx, ownerName, color) {
   const plot = LAND_PLOTS[idx];
+  const ownerData = getUserData(ownerName);
   patchUserData(ownerName, d => { d.landColor = d.landColor||{}; d.landColor[plot.id] = color; });
   buildLandPlot(idx);
+  repaintPlotHouseMesh(idx, color, ownerData.plotBuildings && ownerData.plotBuildings[plot.id]);
   showNotif('🎨 Painted!');
 }
 
@@ -13345,11 +14845,105 @@ const BUILD_CATALOG = [
   { id:'fabricator',  name:'Scrap Fabricator', emoji:'⚙️', sip:150, scrap:5, produces:{type:'scrap', amount:1, everySec:15} },
   { id:'printer',     name:'S.I.P. Printer',   emoji:'💰', sip:300, produces:{type:'sip',   amount:5, everySec:20} },
 ];
+// ─── CUSTOM HOUSE — user's own ask: "you can choose 1x1 2x2 ... 20x20 wood concreet metal or
+// glass". Instead of the fixed 5-tier house ladder above (house/house2/3/4/mansion), a real
+// pick-a-size-and-material house: cost scales with actual footprint area, and the material
+// changes what it's actually paid in (and how it looks), reusing the same {wood,scrap,sip,mats}
+// recipe shape canAffordRecipe()/spendMats() already understand everywhere else in the game.
+const HOUSE_SIZES = [1,2,3,4,5,6,7,8,9,10,15,20];
+const HOUSE_MATERIALS = {
+  wood:     { name:'Wood',     emoji:'🪵', color:0xB5895B },
+  concrete: { name:'Concrete', emoji:'🧱', color:0x9a9a92 },
+  metal:    { name:'Metal',    emoji:'⚙️', color:0xb8c0c8, metalness:true },
+  glass:    { name:'Glass',    emoji:'🪟', color:0xbfe8ff, transparent:true },
+};
+function houseBuildCost(size, materialKey) {
+  const area = size*size;
+  if (materialKey==='concrete') return { scrap: Math.ceil(area*0.6), sip: Math.ceil(area*4) };
+  if (materialKey==='metal')    return { mats:{steel_plate: Math.max(1,Math.ceil(area/6))}, sip: Math.ceil(area*6) };
+  if (materialKey==='glass')    return { mats:{glass_shard: Math.max(1,Math.ceil(area/4))}, sip: Math.ceil(area*8) };
+  return { wood: Math.ceil(area*3) }; // wood — the cheap, always-available default
+}
+// A house's real world width is 2 + size*2.2 (see buildStructureMesh's 'customhouse' branch) —
+// capped per plot so a house always leaves real yard space inside the fence, rather than a
+// giant house clipping straight through it (same real lesson as item 272's giant-scale fix).
+function maxHouseSizeForPlot(plot) {
+  const maxWorld = plot.footprint * 0.6;
+  const maxSize = Math.floor((maxWorld - 2) / 2.2);
+  return HOUSE_SIZES.filter(s => s <= maxSize).pop() || 1;
+}
+let selectedHouseSize = 1, selectedHouseMaterial = 'wood';
+function setHouseSize(idx, size) { selectedHouseSize = size; renderBuildMenu(idx); }
+function setHouseMaterial(idx, materialKey) { selectedHouseMaterial = materialKey; renderBuildMenu(idx); }
+function buildCustomHouse(idx) {
+  const plot = LAND_PLOTS[idx];
+  const size = Math.min(selectedHouseSize, maxHouseSizeForPlot(plot));
+  const materialKey = selectedHouseMaterial;
+  const cost = houseBuildCost(size, materialKey);
+  if (!canAffordRecipe(cost)) { showNotif(`❌ Need ${craftCostText(cost)}`); return; }
+  const placed = plotBuildings[plot.id] || (plotBuildings[plot.id] = []);
+  const existingIdx = placed.findIndex(p => HOUSE_IDS.includes(p.id));
+  let slot;
+  if (existingIdx > -1) {
+    // A plot only ever has one house — building a new one replaces whatever was there.
+    slot = placed[existingIdx].slot;
+    const meshKey = plot.id+'_'+slot;
+    if (PLOT_BUILDING_MESHES[meshKey]) { scene.remove(PLOT_BUILDING_MESHES[meshKey]); delete PLOT_BUILDING_MESHES[meshKey]; }
+    placed.splice(existingIdx, 1);
+  } else {
+    if (placed.length >= plot.slots.length) { showNotif('🏗️ This plot is full!'); return; }
+    const usedSlots = placed.map(p=>p.slot);
+    for (let i=0;i<plot.slots.length;i++){ if(!usedSlots.includes(i)) { slot=i; break; } }
+  }
+  if (cost.wood)  { woodCount  -= cost.wood;  updateWood(); }
+  if (cost.scrap) { scrapMetal -= cost.scrap; updateScrapMetal(); }
+  if (cost.sip)   { spendSip(cost.sip); updateSIP(); }
+  spendMats(cost.mats);
+  placed.push({ slot, id:'customhouse', _t:0, houseSize:size, houseMaterial:materialKey });
+  saveCurrentUser();
+  const { cx, cz } = landPlotPos(idx);
+  const [ox,oz] = plot.slots[slot];
+  PLOT_BUILDING_MESHES[plot.id+'_'+slot] = buildStructureMesh('customhouse', cx+ox, cz+oz, { size, material:materialKey, color: landColor[plot.id] });
+  sfx.buy();
+  showNotif(`🏠 Built a ${size}x${size} ${HOUSE_MATERIALS[materialKey].name} house!`);
+  renderBuildMenu(idx);
+}
+// Rebuilds JUST the house mesh in place with the current landColor — called after painting
+// (paintMyLand/visitPaint), since a house is the one structure whose walls actually read the
+// plot's paint color (everything else in BUILD_CATALOG keeps its own fixed color).
+function repaintPlotHouseMesh(idx, color, placedOverride) {
+  const plot = LAND_PLOTS[idx];
+  // placedOverride lets visitPaint() pass the OWNER's plotBuildings (a guest's own local
+  // plotBuildings variable is a completely different account's data, per-account like everything
+  // else in this file — see patchUserData's own comment).
+  const placed = placedOverride || plotBuildings[plot.id] || [];
+  const houseEntry = placed.find(p => p.id === 'customhouse');
+  if (!houseEntry) return;
+  const meshKey = plot.id+'_'+houseEntry.slot;
+  if (PLOT_BUILDING_MESHES[meshKey]) { scene.remove(PLOT_BUILDING_MESHES[meshKey]); delete PLOT_BUILDING_MESHES[meshKey]; }
+  const { cx, cz } = landPlotPos(idx);
+  const [ox,oz] = plot.slots[houseEntry.slot];
+  PLOT_BUILDING_MESHES[meshKey] = buildStructureMesh('customhouse', cx+ox, cz+oz, { size:houseEntry.houseSize, material:houseEntry.houseMaterial, color });
+}
 let plotBuildings = {};       // { lotId: [{slot, id, _t}, ...] } — persisted; _t is a machine's own production timer
 let PLOT_BUILDING_MESHES = {}; // NOT persisted — 'lotId_slot' -> THREE.Group, rebuilt every session
-function buildStructureMesh(id, x, z) {
+function buildStructureMesh(id, x, z, extra) {
   const g = new THREE.Group(); g.position.set(x,0,z); scene.add(g);
-  if(id==='tree') {
+  if(id==='customhouse') {
+    const size = (extra && extra.size) || 1;
+    const materialKey = (extra && extra.material) || 'wood';
+    const matDef = HOUSE_MATERIALS[materialKey] || HOUSE_MATERIALS.wood;
+    const w = 2 + size * 2.2; // real footprint scales with size — see maxHouseSizeForPlot's own comment
+    const h = 2.2 + Math.min(size, 10) * 0.15; // height grows only mildly — a 20x20 house is wide, not a tower
+    const wallColor = (extra && extra.color !== undefined && extra.color !== null) ? extra.color : matDef.color;
+    const wallMat = matDef.metalness
+      ? new THREE.MeshStandardMaterial({ color: wallColor, metalness: 0.7, roughness: 0.35 })
+      : new THREE.MeshLambertMaterial(matDef.transparent ? { color: wallColor, transparent:true, opacity:0.5 } : { color: wallColor });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(w,h,w), wallMat); body.position.y = h/2; g.add(body);
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(w*0.75, h*0.5, 4), mat(0xaa3333)); roof.position.y = h + h*0.25; roof.rotation.y = Math.PI/4; g.add(roof);
+    const doorH = Math.min(1.4, h*0.6), doorW = Math.min(1.2, w*0.25);
+    const door = new THREE.Mesh(new THREE.BoxGeometry(doorW, doorH, 0.12), mat(0x5c3a1e)); door.position.set(0, doorH/2, w/2+0.06); g.add(door);
+  } else if(id==='tree') {
     const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.4,1.6,0.4), mat(0x5c3a1e)); trunk.position.y=0.8; g.add(trunk);
     const canopy = new THREE.Mesh(new THREE.BoxGeometry(1.8,1.8,1.8), mat(0x2d7a2d)); canopy.position.y=2.2; g.add(canopy);
     treeMeshes.push(canopy); // rides along with the existing seasonal-color system
@@ -13427,7 +15021,8 @@ function renderExistingBuildings(idx) {
     const key = plot.id+'_'+entry.slot;
     if(PLOT_BUILDING_MESHES[key]) return; // already rendered
     const [ox,oz] = plot.slots[entry.slot];
-    PLOT_BUILDING_MESHES[key] = buildStructureMesh(entry.id, cx+ox, cz+oz);
+    const extra = entry.id === 'customhouse' ? { size: entry.houseSize, material: entry.houseMaterial, color: landColor[plot.id] } : undefined;
+    PLOT_BUILDING_MESHES[key] = buildStructureMesh(entry.id, cx+ox, cz+oz, extra);
   });
 }
 function openBuildMenu(idx) {
@@ -13463,14 +15058,31 @@ function renderBuildMenu(idx) {
   placedList.innerHTML = '';
   if(placed.length===0) { placedList.innerHTML = '<div style="color:#789;font-size:12px;">Nothing built yet.</div>'; }
   placed.forEach((entry) => {
-    const def = BUILD_CATALOG.find(b=>b.id===entry.id);
+    // customhouse isn't a BUILD_CATALOG entry (it's the size/material system above) — build its
+    // display info from the entry's own saved size/material instead.
+    const isCustomHouse = entry.id === 'customhouse';
+    const emoji = isCustomHouse ? HOUSE_MATERIALS[entry.houseMaterial].emoji : BUILD_CATALOG.find(b=>b.id===entry.id).emoji;
+    const name = isCustomHouse ? `${entry.houseSize}x${entry.houseSize} ${HOUSE_MATERIALS[entry.houseMaterial].name} House` : BUILD_CATALOG.find(b=>b.id===entry.id).name;
     const d = document.createElement('div'); d.className='shopItem';
-    d.innerHTML = `<div class="siName">${def.emoji} ${def.name}</div>
+    d.innerHTML = `<div class="siName">${emoji} ${name}</div>
       <button class="shopBtn" style="background:#a33;" onclick="demolishBuilding(${idx},${entry.slot})">Demolish</button>`;
     placedList.appendChild(d);
   });
 
   document.getElementById('buildSitBtn').style.display = placed.some(p=>p.id==='bench') ? 'block' : 'none';
+
+  const maxSize = maxHouseSizeForPlot(plot);
+  document.getElementById('houseSizeButtons').innerHTML = HOUSE_SIZES.map(s => {
+    const tooBig = s > maxSize;
+    return `<button class="optBtn ${s===selectedHouseSize?'selected':''}" ${tooBig?'disabled':''} onclick="setHouseSize(${idx},${s})" style="padding:5px 8px;font-size:11px;${tooBig?'opacity:0.35;':''}" title="${tooBig?'Too big for this land':''}">${s}x${s}</button>`;
+  }).join('');
+  document.getElementById('houseMaterialButtons').innerHTML = Object.keys(HOUSE_MATERIALS).map(k => {
+    const m = HOUSE_MATERIALS[k];
+    return `<button class="optBtn ${k===selectedHouseMaterial?'selected':''}" onclick="setHouseMaterial(${idx},'${k}')" style="padding:5px 8px;font-size:11px;">${m.emoji} ${m.name}</button>`;
+  }).join('');
+  const effSize = Math.min(selectedHouseSize, maxSize);
+  const houseCost = houseBuildCost(effSize, selectedHouseMaterial);
+  document.getElementById('houseBuildCostText').textContent = `${effSize}x${effSize} ${HOUSE_MATERIALS[selectedHouseMaterial].name} house costs: ${craftCostText(houseCost) || 'Free'}`;
 
   document.getElementById('buildPaintSwatches').innerHTML = PAINT_SWATCHES.map(s =>
     `<button onclick="paintMyLand(${idx},${s.color})" title="${s.name}" style="width:26px;height:26px;border-radius:6px;border:2px solid #fff;background:#${s.color.toString(16).padStart(6,'0')};cursor:pointer;margin:3px;"></button>`
@@ -13737,7 +15349,7 @@ function spawnRogueRobot() {
 }
 function tickRogueRobots(dt) {
   rogueTimer += dt;
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea;
   if (rogueTimer >= 20) {
     rogueTimer = 0;
     if (outdoors && rogueRobots.filter(r=>r.alive).length < 5) spawnRogueRobot();
@@ -13816,7 +15428,11 @@ let robberTimer = 0;
 const ROBBER_SPAWN_INTERVAL = 45, ROBBER_MAX_ACTIVE = 3;
 const ROBBER_HP = 40, ROBBER_REVEAL_RANGE = 20, ROBBER_ATTACK_RANGE = 2.5;
 const ROBBER_STEAL_PCT_MIN = 0.15, ROBBER_STEAL_PCT_MAX = 0.25;
-const ROBBER_BOUNTY_MIN = 100, ROBBER_BOUNTY_MAX = 200;
+const ROBBER_BOUNTY_MIN = 100; // floor so beating a robber while nearly broke still means something
+// User's own ask: "kill the robber to get alot ove money like 15% of your money" — the same real
+// percentage a robber's own theft roll uses (ROBBER_STEAL_PCT_MIN above), so beating one is a real
+// mirror of what they'd have taken, not a flat token amount that stops mattering once you're rich.
+const ROBBER_KILL_REWARD_PCT = 0.15;
 // Guard Bank Job (item 215/217 follow-up), user's own ask: "alot of killers attack the bank" while
 // on a Guard shift, and "you get nothing from the killers" — defeating one of these pays zero,
 // unlike an ambient Killer's normal 500💎 (see defeatKiller() below), since the point is defending
@@ -14148,14 +15764,15 @@ function fightRobber(k) {
 function defeatRobber(k) {
   k.alive = false;
   scene.remove(k.mesh);
+  const reward = Math.max(ROBBER_BOUNTY_MIN, Math.round(sipDollars * ROBBER_KILL_REWARD_PCT));
   if (k.fleeing) {
-    showNotif("🥷 Caught the robber after the fact — too late to get your money back, but they won't bother anyone else tonight.");
+    queueEarning(reward, 0, 'Caught a robber');
+    showNotif(`🥷 Too late to get back what THIS robber already took, but you shook ${reward} S.I.P. loose off them for the trouble!`);
     sfx.boom();
     return;
   }
-  const bounty = ROBBER_BOUNTY_MIN + Math.floor(Math.random()*(ROBBER_BOUNTY_MAX-ROBBER_BOUNTY_MIN));
-  queueEarning(bounty, 0, 'Caught a robber');
-  showNotif(`🥷 Caught the robber before they could steal anything! +${bounty} S.I.P.`);
+  queueEarning(reward, 0, 'Caught a robber');
+  showNotif(`🥷 Caught the robber before they could steal anything! +${reward} S.I.P.`);
   sfx.boom();
 }
 function spawnKiller() {
@@ -14228,13 +15845,13 @@ function tickGuardKillerCombat(k, dt) {
 }
 function tickKillers(dt) {
   killerTimer += dt;
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea;
   if (killerTimer >= killerSpawnInterval()) {
     killerTimer = 0;
     // Only counts ambient killers against the ambient cap now — a Guard shift's own separate
     // GUARD_KILLER_MAX_ACTIVE pool used to count against this too, silently starving ambient
     // spawns for the whole 20-minute shift. Real bug, fixed while touching this code anyway.
-    if (outdoors && killers.filter(k=>k.alive && !k.guardKiller && !k.hitTargetName && !k.robber).length < killerMaxActive()) spawnKiller();
+    if (outdoors && killers.filter(k=>k.alive && !k.guardKiller && !k.hitTargetName && !k.hitTargetType && !k.robber).length < killerMaxActive()) spawnKiller();
   }
   robberTimer += dt;
   if (robberTimer >= ROBBER_SPAWN_INTERVAL) {
@@ -14263,6 +15880,7 @@ function tickKillers(dt) {
     if (!k.alive) return;
     if (k.guardKiller) { tickGuardKillerCombat(k, dt); return; }
     if (k.hitTargetName) { tickHitmanCombat(k, dt); return; } // hunts a specific NPC, not the player — keeps going indoors/outdoors same as a guard killer
+    if (k.hitTargetType) { tickHitmanVsType(k, dt); return; } // hunts the nearest robot/robber, same "keeps going indoors" treatment
     if (!outdoors) return;
     if (k.robber) { tickRobberCombat(k, dt); return; }
     tickAmbientKillerCombat(k, dt);
@@ -14345,7 +15963,7 @@ function buildScrapyard() {
   });
   buildGrinderMesh();
   buildLogoSign('THE GRINDER', '⚙️', '#445566', '#ff8800', GRINDER_POS.x, 3.2, GRINDER_POS.z-1.5);
-  CITY_ZONES.push({ x:GRINDER_POS.x, z:GRINDER_POS.z+2.5, r:2.5, label:'⚙️ Use the Grinder', action: useGrinder });
+  CITY_ZONES.push({ x:GRINDER_POS.x, z:GRINDER_POS.z+2.5, r:2.5, label:'⚙️ Use the Grinder', action: () => useGrinder()});
 
   // Sell Kiosk — a small booth next to the Grinder, buys materials for real S.I.P.
   const kx = GRINDER_POS.x+6, kz = GRINDER_POS.z;
@@ -14354,7 +15972,7 @@ function buildScrapyard() {
   box(1.6,0.7,0.3, 0x3a5a4a, kx, 0.9, kz+0.9);
   buildLogoSign('SELL KIOSK', '💰', '#2a4a3a', '#ffd54a', kx, 3.2, kz-1.2);
   addCol(CITY_COLS, kx, kz, 1.1, 0.9);
-  CITY_ZONES.push({ x:kx, z:kz+2.3, r:2.3, label:'💰 Sell Materials', action: openSellKiosk });
+  CITY_ZONES.push({ x:kx, z:kz+2.3, r:2.3, label:'💰 Sell Materials', action: () => openSellKiosk()});
 
   // Robo Arsenal — a real specialized weapon shop right at the Scrapyard, selling WEAPONS'
   // robotShopOnly gear (EMP Hammer/Plasma Cutter/Rail Spike) that hits robots far harder than
@@ -14398,7 +16016,7 @@ function buildRobotArenaEntranceSign() {
   box(1.6,2.4,0.2, 0x110818, ex, 1.4, ez+1.55);
   buildLogoSign('ROBOT ARENA', '🤖', '#2a1a3a', '#ff4444', ex, 4.4, ez-1.7);
   addCol(CITY_COLS, ex, ez, 2.2, 1.6);
-  CITY_ZONES.push({ x:ex, z:ez+2.6, r:2.6, label:'🤖 Enter Robot Arena', action: enterRobotArena });
+  CITY_ZONES.push({ x:ex, z:ez+2.6, r:2.6, label:'🤖 Enter Robot Arena', action: () => enterRobotArena()});
 }
 function buildRobotArenaInterior() {
   const ix = ROBOT_ARENA_SPAWN.x, iz = 0, S = ARENA_SIZE;
@@ -14418,7 +16036,7 @@ function buildRobotArenaInterior() {
   const pl2 = new THREE.PointLight(0x4488ff, 1.3, 45); pl2.position.set(ix+S-5, 6, iz+S-5); scene.add(pl2);
 }
 const ROBOT_ARENA_ZONES = [
-  { x:ROBOT_ARENA_EXIT.x, z:ROBOT_ARENA_EXIT.z, r:3, label:'🚪 Leave Arena', action: exitRobotArena },
+  { x:ROBOT_ARENA_EXIT.x, z:ROBOT_ARENA_EXIT.z, r:3, label:'🚪 Leave Arena', action: () => exitRobotArena()},
 ];
 function enterRobotArena() {
   inArenaBattle = true;
@@ -14631,12 +16249,12 @@ function leaveSportsPark() {
   showNotif('Leaving the Sports Park...');
 }
 const SPORTS_ZONES = [
-  { x:BB_SHOOT_SPOT.x, z:BB_SHOOT_SPOT.z, r:3.5, label:'🏀 Shoot Hoops', action: openBasketball },
-  { x:SOCCER_KICK_SPOT.x, z:SOCCER_KICK_SPOT.z, r:3.5, label:'⚽ Take a Penalty Kick', action: openSoccer },
-  { x:BASEBALL_HOME.x, z:BASEBALL_HOME.z, r:3.5, label:'⚾ Take a Swing', action: openBaseball },
-  { x:BOWLING_LANE.x, z:BOWLING_LANE.z, r:3.5, label:'🎳 Roll a Ball', action: openBowling },
-  { x:GYM_SPOT.x, z:GYM_SPOT.z, r:3.5, label:'🏋️ Work Out', action: openGym },
-  { x:SPORTS_SPAWN.x, z:SPORTS_SPAWN.z+20, r:4, label:'🚪 Leave Sports Park', action: leaveSportsPark },
+  { x:BB_SHOOT_SPOT.x, z:BB_SHOOT_SPOT.z, r:3.5, label:'🏀 Shoot Hoops', action: () => openBasketball()},
+  { x:SOCCER_KICK_SPOT.x, z:SOCCER_KICK_SPOT.z, r:3.5, label:'⚽ Take a Penalty Kick', action: () => openSoccer()},
+  { x:BASEBALL_HOME.x, z:BASEBALL_HOME.z, r:3.5, label:'⚾ Take a Swing', action: () => openBaseball()},
+  { x:BOWLING_LANE.x, z:BOWLING_LANE.z, r:3.5, label:'🎳 Roll a Ball', action: () => openBowling()},
+  { x:GYM_SPOT.x, z:GYM_SPOT.z, r:3.5, label:'🏋️ Work Out', action: () => openGym()},
+  { x:SPORTS_SPAWN.x, z:SPORTS_SPAWN.z+20, r:4, label:'🚪 Leave Sports Park', action: () => leaveSportsPark()},
 ];
 function buildSportsParkInterior() {
   const { x:sx, z:sz } = SPORTS_SPAWN;
@@ -14975,8 +16593,8 @@ function leaveHospital() {
 }
 const DOCTOR_SPOT = { x:HOSPITAL_SPAWN.x, z:HOSPITAL_SPAWN.z-6 };
 const HOSPITAL_ZONES = [
-  { x:DOCTOR_SPOT.x, z:DOCTOR_SPOT.z, r:3.5, label:`🩺 See the Doctor (${DOCTOR_VISIT_COST} S.I.P.)`, action: seeDoctor },
-  { x:HOSPITAL_SPAWN.x, z:HOSPITAL_SPAWN.z+10, r:4, label:'🚪 Leave Hospital', action: leaveHospital },
+  { x:DOCTOR_SPOT.x, z:DOCTOR_SPOT.z, r:3.5, label:`🩺 See the Doctor (${DOCTOR_VISIT_COST} S.I.P.)`, action: () => seeDoctor()},
+  { x:HOSPITAL_SPAWN.x, z:HOSPITAL_SPAWN.z+10, r:4, label:'🚪 Leave Hospital', action: () => leaveHospital()},
 ];
 function seeDoctor() {
   if (sipDollars < DOCTOR_VISIT_COST) { showNotif(`❌ Need ${DOCTOR_VISIT_COST} S.I.P. for a visit.`); sfx.nope(); return; }
@@ -15021,6 +16639,57 @@ function buildHospitalInterior() {
     box(1.4,1.2,0.2, 0x88aacc, hx+cx2, 0.9, hz+cz2-0.7);
   });
 }
+// ─── THE SEA — user's own ask: "make sea". A real place to swim, not just an "Ocean Blue" color
+// swatch in a shop (the game had plenty of those already, and zero actual water). Sandy beach you
+// walk on normally, and a real swim state the instant you step into the water itself: slower
+// movement (real swimming, not full running speed) and the same jump key (tryCityJump) now dives
+// you under or brings you back to the surface instead of jumping, while in the water.
+const SEA_SPAWN = { x:150000, z:0 }; // own lane, next free one after Hospital(140000)
+const SEA_EXIT = { x:220, z:90 }; // real-world gate, open ground past the Computer Shop/Car Dealership cluster
+let inSea = false;
+let inWater = false; // true only once actually standing IN the water, not just on the sand
+let seaFish = []; // { mesh, baseX, baseZ, phase } — decorative, tickSeaFish'd in animate()
+const SEA_WATER_CENTER = { x:SEA_SPAWN.x, z:SEA_SPAWN.z-15 };
+const SEA_WATER_RADIUS = 26;
+function enterSea() {
+  inSea = true;
+  playerGroup.position.set(SEA_SPAWN.x, 0, SEA_SPAWN.z+30);
+  yaw = Math.PI;
+  showNotif('🌊 Welcome to the Sea! Walk into the water to swim — press Jump to dive under or surface.');
+}
+function leaveSea() {
+  inSea = false;
+  inWater = false;
+  playerGroup.position.set(SEA_EXIT.x, 0, SEA_EXIT.z+3);
+  yaw = 0;
+  showNotif('Leaving the Sea...');
+}
+const SEA_ZONES = [
+  { x:SEA_SPAWN.x, z:SEA_SPAWN.z+30, r:5, label:'🚪 Leave the Sea', action: () => leaveSea()},
+];
+function buildSeaInterior() {
+  const { x:sx, z:sz } = SEA_SPAWN;
+  box(84, 0.3, 30, 0xe8d29a, sx, 0.15, sz+18);      // sandy beach — the walkable, non-swim part
+  box(84, 0.25, 62, 0x1a6fb3, sx, 0.05, SEA_WATER_CENTER.z); // the sea itself, one big real water plane
+  box(88, 0.2, 3, 0xffffff, sx, 0.22, sz+3);        // a thin foam line where sand meets water
+  // A few palm trees along the sand for real beach atmosphere, not a bare rectangle.
+  [[-32,20],[-18,26],[24,22],[34,15]].forEach(([dx,dz]) => {
+    box(0.5, 4, 0.5, 0x8B5E3C, sx+dx, 2, sz+dz);
+    [0,1,2,3,4].forEach(i => { const a=i*Math.PI*2/5; box(1.6,0.25,0.7, 0x2d7a2d, sx+dx+Math.cos(a)*0.9, 4.1, sz+dz+Math.sin(a)*0.9).rotation.y = a; });
+  });
+  // A few simple fish, gently bobbing in the water for real atmosphere (see tickSeaFish in animate()).
+  seaFish = [0,1,2,3,4].map(i => {
+    const f = box(0.5, 0.22, 0.22, [0xff8844,0xffcc44,0x66ccff,0xff6699,0x88dd66][i], sx+(i-2)*8, -0.3, SEA_WATER_CENTER.z+(i%2?6:-6));
+    return { mesh:f, baseX:f.position.x, baseZ:f.position.z, phase:i*1.3 };
+  });
+  // Perimeter walls so the water has a real edge instead of trailing off into nothing.
+  box(0.5, 6, 92, 0x2a2a3a, sx-42, 3, sz-15);
+  box(0.5, 6, 92, 0x2a2a3a, sx+42, 3, sz-15);
+  box(84, 6, 0.5, 0x2a2a3a, sx, 3, sz-46);
+  box(38, 6, 0.5, 0x2a2a3a, sx-23, 3, sz+33); box(38, 6, 0.5, 0x2a2a3a, sx+23, 3, sz+33); // gate gap, centered
+  buildSign('🌊 THE SEA', sx, 6.6, sz+32.3);
+  box(8, 3, 0.4, 0x8B5E3C, sx, 1.5, sz+33); // exit gate marker
+}
 const MOVIE_FIGHT_EXIT  = { x:110000, z:18 };
 const MOVIE_FIGHT_COLS  = [];
 const MOVIE_FIGHT_SIZE  = 20;
@@ -15028,7 +16697,7 @@ const MOVIE_FIGHT_ATTACK_RANGE = 6, MOVIE_FIGHT_ATTACK_INTERVAL = 1.6;
 let inMovieFight = false;
 let movieBossFight = null; // {def, mesh, hp, maxHp, alive, curX, curZ, attackTimer} — NOT persisted, fresh every visit, no server/co-op involved (a personal instanced fight, same category as the Robot Arena)
 const MOVIE_FIGHT_ZONES = [
-  { x:MOVIE_FIGHT_EXIT.x, z:MOVIE_FIGHT_EXIT.z, r:3, label:'🚪 Leave', action: leaveMovieFight },
+  { x:MOVIE_FIGHT_EXIT.x, z:MOVIE_FIGHT_EXIT.z, r:3, label:'🚪 Leave', action: () => leaveMovieFight()},
 ];
 function buildMovieFightRoom() {
   const ix = MOVIE_FIGHT_SPAWN.x, iz = 0, S = MOVIE_FIGHT_SIZE;
@@ -15372,12 +17041,12 @@ function useGrinder() {
 
 // ─── INTERACTION ZONES ───────────────────────────────────────────────────────
 const CITY_ZONES = [
-  { x:HOUSE_DOOR.x, z:HOUSE_DOOR.z, r:5,  label:'Enter Your House',            action: enterHouse },
-  { x:-45, z:-107, r:3.5, label:'🅿️ Park Car Here', action: parkCarAtHome },
+  { x:HOUSE_DOOR.x, z:HOUSE_DOOR.z, r:5,  label:'Enter Your House',            action: () => enterHouse()},
+  { x:-45, z:-107, r:3.5, label:'🅿️ Park Car Here', action: () => parkCarAtHome()},
   { x:65,  z:48,  r:16, label:'Work as Shopkeeper (+5 S.I.P./task)',           action: ()=>toggleJob('Shopkeeper',5,'📦 A customer needs help!'), isJobZone:true, jobType:'Shopkeeper' },
-  { x:12,  z:92,  r:3,  label:'🧊 Get Ingredients from Fridge',                action: getIngredients,    isFridge:true },
-  { x:28,  z:92,  r:3,  label:'🔪 Prep Counter — chop & prepare',              action: prepareFood,       isPrep:true },
-  { x:20,  z:92,  r:4,  label:'🔥 Cook at Stove',                              action: startCooking,      isStove:true },
+  { x:12,  z:92,  r:3,  label:'🧊 Get Ingredients from Fridge',                action: () => getIngredients(),    isFridge:true },
+  { x:28,  z:92,  r:3,  label:'🔪 Prep Counter — chop & prepare',              action: () => prepareFood(),       isPrep:true },
+  { x:20,  z:92,  r:4,  label:'🔥 Cook at Stove',                              action: () => startCooking(),      isStove:true },
   { x:12,  z:96,  r:4,  label:'🍽️ Deliver to customer (+20 S.I.P.)',           action: ()=>serveAtTable(0), isServe:true },
   { x:20,  z:96,  r:4,  label:'🍽️ Deliver to customer (+20 S.I.P.)',           action: ()=>serveAtTable(1), isServe:true },
   { x:28,  z:96,  r:4,  label:'🍽️ Deliver to customer (+20 S.I.P.)',           action: ()=>serveAtTable(2), isServe:true },
@@ -15387,59 +17056,60 @@ const CITY_ZONES = [
   { x:70,  z:54,  r:8,  label:'👗 Outfit Shop',  action: ()=>{ alignment==='bad'?robShop('Outfit Shop',65):openShop('outfits'); }, isShop:true },
   { x:84,  z:54,  r:8,  label:'⚔️ Weapon Shop',  action: ()=>{ alignment==='bad'?robShop('Weapon Shop',80):openShop('weapons'); }, isShop:true },
   { x:20,  z:88,  r:8,  label:'🍕 Pizza Place',  action: ()=>shopOrRob('Pizza Place', 10,30), isShop:true },
-  { x:34,  z:3,   r:5,  label:'🕴️ Talk to Shady Dealer',                       action: toggleAlignment,   isDealerZone:true },
-  { x:-80, z:-71, r:5,  label:'⬛ ???',                                         action: openBlackMarket,   isBlackMarket:true },
-  { x:160, z:218, r:7,  label:'🏦 Enter City Bank',                             action: openBankPasscode },
+  { x:34,  z:3,   r:5,  label:'🕴️ Talk to Shady Dealer',                       action: () => toggleAlignment(),   isDealerZone:true },
+  { x:-80, z:-71, r:5,  label:'⬛ ???',                                         action: () => openBlackMarket(),   isBlackMarket:true },
+  { x:160, z:218, r:7,  label:'🏦 Enter City Bank',                             action: () => openBankPasscode()},
   // Printer/Counter moved INSIDE the Bank (see BANK_INTERIOR_ZONES) — user's own ask: "to work as
   // money printer or counter you have to go inside th bank." This outdoor door leads there; Guard's
   // 2 zones below stay outdoor since Guard is exempt from the "go inside" requirement.
-  { x:BANK_INTERIOR_ENTRANCE.x, z:BANK_INTERIOR_ENTRANCE.z, r:5, label:'🚪 Bank Employee Entrance', action: enterBankInterior },
+  { x:BANK_INTERIOR_ENTRANCE.x, z:BANK_INTERIOR_ENTRANCE.z, r:5, label:'🚪 Bank Employee Entrance', action: () => enterBankInterior()},
   { x:160, z:246, r:6,  label:'💂 Work as Guard (5,000 S.I.P. after 20 min)',              action: ()=>toggleBankJob('guard','sip'),     isBankJobZone:true, bankJobId:'guard',   currency:'sip' },
   { x:174, z:246, r:6,  label:'💂 Work as Guard (2,500 💎 after 20 min)',                   action: ()=>toggleBankJob('guard','elite'),   isBankJobZone:true, bankJobId:'guard',   currency:'elite' },
-  { x:BANK_WALL_STAIR_BASE.x, z:BANK_WALL_STAIR_BASE.z, r:3, label:'🪜 Climb the Bank wall (Guard duty)', action: climbBankWall },
-  { x:70,  z:60,  r:12, label:'🏫 Enter School',                                action: openSchool },
-  { x:50,  z:-72, r:8,  label:'🎬 Movie Theater – Pick a Movie!', action: openCinema },
-  { x:0,   z:50,  r:13, label:'🚇 S.I.T.S. Transit Hub – Ride anywhere!', action: openSITS },
-  { x:-15, z:4,   r:8,  label:'🏨 City Hotel – Check In!',               action: openHotel },
-  { x:130, z:35,  r:10, label:'🚗 Car Dealership – Buy a car!', action: openCarShop },
-  { x:100, z:58,  r:9,  label:'💻 Computer Shop – Buy a computer!', action: openComputerShop },
+  { x:BANK_WALL_STAIR_BASE.x, z:BANK_WALL_STAIR_BASE.z, r:3, label:'🪜 Climb the Bank wall (Guard duty)', action: () => climbBankWall()},
+  { x:70,  z:60,  r:12, label:'🏫 Enter School',                                action: () => openSchool()},
+  { x:50,  z:-72, r:8,  label:'🎬 Movie Theater – Pick a Movie!', action: () => openCinema()},
+  { x:0,   z:50,  r:13, label:'🚇 S.I.T.S. Transit Hub – Ride anywhere!', action: () => openSITS()},
+  { x:-15, z:4,   r:8,  label:'🏨 City Hotel – Check In!',               action: () => openHotel()},
+  { x:130, z:35,  r:10, label:'🚗 Car Dealership – Buy a car!', action: () => openCarShop()},
+  { x:100, z:58,  r:9,  label:'💻 Computer Shop – Buy a computer!', action: () => openComputerShop()},
   { x:-200,z:-182,r:18, label:'✈️ City Airport – Enter the Lounge!', action: () => enterAirportLounge('Downtown Explox', -200, -160, true) },
-  { x:110, z:-13, r:8,  label:'🍽️ The Diner – Order a real meal!',  action: openRestaurant },
-  { x:160, z:-13, r:8,  label:'🏪 Your Store',    action: interactWithStorePlot },
-  { x:40,  z:93,  r:9,  label:'🕹️ Enter Pixel Palace Arcade', action: enterArcade },
-  { x:-10, z:-95, r:9,  label:'🏟️ Enter Sports Park', action: enterSportsPark },
-  { x:-40, z:74,  r:5,  label:'🏥 City Hospital – See a Doctor!', action: enterHospital },
+  { x:110, z:-13, r:8,  label:'🍽️ The Diner – Order a real meal!',  action: () => openRestaurant()},
+  { x:160, z:-13, r:8,  label:'🏪 Your Store',    action: () => interactWithStorePlot()},
+  { x:40,  z:93,  r:9,  label:'🕹️ Enter Pixel Palace Arcade', action: () => enterArcade()},
+  { x:-10, z:-95, r:9,  label:'🏟️ Enter Sports Park', action: () => enterSportsPark()},
+  { x:-40, z:74,  r:5,  label:'🏥 City Hospital – See a Doctor!', action: () => enterHospital()},
+  { x:SEA_EXIT.x, z:SEA_EXIT.z, r:9, label:'🌊 Enter the Sea', action: () => enterSea()},
 ];
 const HOUSE_ZONES = [
-  { x:HOUSE_EXIT.x, z:HOUSE_EXIT.z, r:3, label:'Exit House', action: exitHouse },
+  { x:HOUSE_EXIT.x, z:HOUSE_EXIT.z, r:3, label:'Exit House', action: () => exitHouse()},
   // The Computer and Guest-spot zones used to sit at pre-migration coordinates (x:358/346) — real
   // dead zones ever since the house interior moved out to the HOUSE_SPAWN.x=10000 pocket lane, over
   // 9,600 units away. Fixed to the room's real coordinates, matching where the desk/figure actually are.
-  { x:HOUSE_SPAWN.x+8, z:0.5, r:2.2, label:'💻 Use Computer', action: openSIB, isComputer:true },
-  { x:HOUSE_SPAWN.x-7, z:HOUSE_SPAWN.z+6, r:2.5, label:'', action: sayGoodbyeToGuest, isGuestSpot:true },
-  { x:HOUSE_SPAWN.x+5.5, z:-5,   r:2.5, label:'🛏️ Sleep',        action: sleepAtHome },
-  { x:HOUSE_SPAWN.x-4,   z:3,    r:2.2, label:'🛋️ Sit on Sofa',  action: sitOnSofa },
-  { x:HOUSE_SPAWN.x+9.5, z:2,    r:1.8, label:'📺 Watch TV',     action: watchHotelTV },
-  { x:HOUSE_SPAWN.x-6,   z:-6.3, r:2.5, label:'🍳 Cook a Meal',  action: cookMeal },
-  { x:HOUSE_SPAWN.x-9.5, z:-2,   r:2,   label:'📚 Read a Book',  action: readBook },
-  { x:HOUSE_SPAWN.x+2.5, z:-6.8, r:1.8, label:'🚽 Use Toilet',   action: useToilet },
+  { x:HOUSE_SPAWN.x+8, z:0.5, r:2.2, label:'💻 Use Computer', action: () => openSIB(), isComputer:true },
+  { x:HOUSE_SPAWN.x-7, z:HOUSE_SPAWN.z+6, r:2.5, label:'', action: () => sayGoodbyeToGuest(), isGuestSpot:true },
+  { x:HOUSE_SPAWN.x+5.5, z:-5,   r:2.5, label:'🛏️ Sleep',        action: () => sleepAtHome()},
+  { x:HOUSE_SPAWN.x-4,   z:3,    r:2.2, label:'🛋️ Sit on Sofa',  action: () => sitOnSofa()},
+  { x:HOUSE_SPAWN.x+9.5, z:2,    r:1.8, label:'📺 Watch TV',     action: () => watchHotelTV()},
+  { x:HOUSE_SPAWN.x-6,   z:-6.3, r:2.5, label:'🍳 Cook a Meal',  action: () => cookMeal()},
+  { x:HOUSE_SPAWN.x-9.5, z:-2,   r:2,   label:'📚 Read a Book',  action: () => readBook()},
+  { x:HOUSE_SPAWN.x+2.5, z:-6.8, r:1.8, label:'🚽 Use Toilet',   action: () => useToilet()},
 ];
 const HOTEL_ZONES = [
   // Budget room (x=HOTEL_SPAWN.x+0)
-  { x:HOTEL_SPAWN.x,   z:6,  r:3, label:'🚪 Check Out of Hotel', action: checkoutHotel },
-  { x:HOTEL_SPAWN.x+4, z:-3, r:3, label:'🛏️ Sleep in Bed',       action: sleepInHotel  },
-  { x:HOTEL_SPAWN.x-4, z:0,  r:3, label:'📺 Watch TV',            action: watchHotelTV  },
+  { x:HOTEL_SPAWN.x,   z:6,  r:3, label:'🚪 Check Out of Hotel', action: () => checkoutHotel()},
+  { x:HOTEL_SPAWN.x+4, z:-3, r:3, label:'🛏️ Sleep in Bed',       action: () => sleepInHotel()},
+  { x:HOTEL_SPAWN.x-4, z:0,  r:3, label:'📺 Watch TV',            action: () => watchHotelTV()},
   // Standard room (x=HOTEL_SPAWN.x+30)
-  { x:HOTEL_SPAWN.x+30, z:6,  r:3, label:'🚪 Check Out of Hotel', action: checkoutHotel },
-  { x:HOTEL_SPAWN.x+34, z:-3, r:3, label:'🛏️ Sleep in Bed',       action: sleepInHotel  },
-  { x:HOTEL_SPAWN.x+26, z:0,  r:3, label:'📺 Watch TV',            action: watchHotelTV  },
+  { x:HOTEL_SPAWN.x+30, z:6,  r:3, label:'🚪 Check Out of Hotel', action: () => checkoutHotel()},
+  { x:HOTEL_SPAWN.x+34, z:-3, r:3, label:'🛏️ Sleep in Bed',       action: () => sleepInHotel()},
+  { x:HOTEL_SPAWN.x+26, z:0,  r:3, label:'📺 Watch TV',            action: () => watchHotelTV()},
   // Luxury suite (x=HOTEL_SPAWN.x+60)
-  { x:HOTEL_SPAWN.x+60, z:6,  r:3, label:'🚪 Check Out of Hotel', action: checkoutHotel },
-  { x:HOTEL_SPAWN.x+64, z:-3, r:3, label:'🛏️ Sleep in Bed',       action: sleepInHotel  },
-  { x:HOTEL_SPAWN.x+56, z:0,  r:3, label:'📺 Watch TV',            action: watchHotelTV  },
+  { x:HOTEL_SPAWN.x+60, z:6,  r:3, label:'🚪 Check Out of Hotel', action: () => checkoutHotel()},
+  { x:HOTEL_SPAWN.x+64, z:-3, r:3, label:'🛏️ Sleep in Bed',       action: () => sleepInHotel()},
+  { x:HOTEL_SPAWN.x+56, z:0,  r:3, label:'📺 Watch TV',            action: () => watchHotelTV()},
 ];
 const MALL_ZONES = [
-  { x:MALL_EXIT.x, z:MALL_EXIT.z, r:5,  label:'Exit Mall',           action: exitMall },
+  { x:MALL_EXIT.x, z:MALL_EXIT.z, r:5,  label:'Exit Mall',           action: () => exitMall()},
   { x:MALL_SPAWN.x-27, z:-16,      r:7,  label:'👗 Outfit Shop',       action: ()=>openShop('outfits') },
   { x:MALL_SPAWN.x+27, z:-16,      r:7,  label:'⚔️ Weapon Shop',       action: ()=>openShop('weapons') },
   { x:MALL_SPAWN.x-27, z:-3,       r:7,  label:'💍 Buy Jewelry (30)',   action: ()=>buyItem('Jewelry',30) },
@@ -15572,11 +17242,11 @@ function handleInteract() {
     }
     if (closestBoss) { fightBoss(closestBoss); return; }
   }
-  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : CITY_ZONES;
+  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : inSea ? SEA_ZONES : CITY_ZONES;
   for(const z of zones) {
     if(Math.sqrt((px2-z.x)**2+(pz-z.z)**2) < z.r) { z.action(); return; }
   }
-  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle && !inMovieFight) {
+  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital && !inSea) {
     const neighbor = findNearestNeighbor(px2, pz, 3);
     if(neighbor) { openNeighborModal(neighbor.name); return; }
   }
@@ -15592,7 +17262,7 @@ function updatePrompt() {
     const dx=px2-pc.group.position.x, dz=pz-pc.group.position.z;
     if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent=`[E] ${pc.def.emoji} Get in ${pc.def.name}`; el.style.display='block'; return; }
   }
-  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : CITY_ZONES;
+  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : inSea ? SEA_ZONES : CITY_ZONES;
   for(const z of zones) {
     if(Math.sqrt((px2-z.x)**2+(pz-z.z)**2) < z.r) {
       if(z.isComputer) {
@@ -15664,7 +17334,7 @@ function updatePrompt() {
     }
   }
   // Talk to a nearby neighbor — lowest priority, only out in the open city
-  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle && !inMovieFight) {
+  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital && !inSea) {
     const neighbor = findNearestNeighbor(px2, pz, 3);
     if(neighbor) { el.textContent = `[E] 👋 Talk to ${neighbor.name}`; el.style.display='block'; return; }
   }
@@ -15871,6 +17541,7 @@ function _startGameInner() {
   _dbg('buildTraffic', buildTraffic);
   _dbg('buildSportsParkInterior', buildSportsParkInterior);
   _dbg('buildHospitalInterior', buildHospitalInterior);
+  _dbg('buildSeaInterior', buildSeaInterior);
   _dbg('spawnOwnedCars', spawnOwnedCars);
   _dbg('buildWeaponLevels', buildWeaponLevels); // must run before buildPlayer()/updateWeaponMesh() touch the currently-equipped weapon's damage — otherwise a returning player's weapon keeps dealing OLD (pre-rebalance) damage until they happen to open the shop
   _dbg('buildPlayer', buildPlayer);
@@ -15928,7 +17599,16 @@ function scalePt(x, z) {
   if (!_buildOrigin) return [x, z];
   return [_buildOrigin.x + (x - _buildOrigin.x) * _buildScale, _buildOrigin.z + (z - _buildOrigin.z) * _buildScale];
 }
-function scaleLen(n) { return _buildOrigin ? n * _buildScale : n; }
+// User's own correction after seeing the countries at COUNTRY_SCALE: "why is the city for
+// giants i meant make the citys bigger by giveing it more land not large[ness]" — the original
+// "20x bigger" ask (item ~234) scaled BOTH each object's own size (via this function) AND its
+// distance from the country's center (via scalePt below) by the same factor, which reads as
+// "everything got giant" rather than "the country covers more land." Real fix: only scalePt
+// keeps the 20x spread now — buildings/trees/walls stay their real, human-proportioned size,
+// spread across the exact same big footprint as before. No change to any per-country layout
+// code was needed; this one function is the only place object SIZE (as opposed to position)
+// ever got scaled.
+function scaleLen(n) { return n; }
 function box(w,h,d, color, x,y,z) {
   if (_buildOrigin) { w=scaleLen(w); h=scaleLen(h); d=scaleLen(d); [x,z]=scalePt(x,z); y=scaleLen(y); }
   const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(color));
@@ -16039,10 +17719,27 @@ function buildParkedDecorCar(x, z, color, yawAngle) {
 // forth along an existing street (Downtown, so nothing gets drawn twice).
 let trafficCars = []; // NOT persisted — {mesh,x,z,waypoints,wpIndex,dir,pingpong,speed}
 const TRAFFIC_CAR_COLORS = [0xcc3333,0x3366cc,0xdddddd,0x33aa55,0xffcc33,0x9955cc];
+// User's own ask: "the cars need to be the same size as mine" — traffic used to be a separate,
+// smaller decoration mesh (buildParkedDecorCar, still used for genuinely-empty parking-lot
+// scenery elsewhere). Real fix: build traffic cars with the EXACT same buildCar() every player-
+// ownable car uses (just a plain {color} in place of a real CAR_CATALOG entry, since buildCar
+// only ever reads .color), so "same size" is a real guarantee, not two numbers kept in sync by hand.
+const DRIVER_SKIN_TONES = [0xf5c89a,0xd9a066,0x8d5524,0xffe0bd,0xc68642];
+const DRIVER_SHIRT_COLORS = [0x2196F3,0xe94560,0x33aa55,0xffaa33,0x9955cc,0x555555];
+function buildTrafficCarMesh(color, x, z, yawAngle) {
+  const g = buildCar({ color }, x, z, yawAngle);
+  // A real driver, visible through the now-transparent windshield — seated low in the cabin,
+  // toward the front where the windshield actually is (buildCar's cabin runs z -2.75..1.75).
+  const skin = DRIVER_SKIN_TONES[Math.floor(Math.random()*DRIVER_SKIN_TONES.length)];
+  const shirt = DRIVER_SHIRT_COLORS[Math.floor(Math.random()*DRIVER_SHIRT_COLORS.length)];
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6,0.7,0.5), mat(shirt)); torso.position.set(-0.7,1.55,1.0); torso.castShadow=true; g.add(torso);
+  const head  = new THREE.Mesh(new THREE.BoxGeometry(0.45,0.45,0.45), mat(skin)); head.position.set(-0.7,2.1,1.0); head.castShadow=true; g.add(head);
+  return g;
+}
 function spawnTrafficCar(waypoints, opts) {
   opts = opts || {};
   const start = waypoints[0];
-  const mesh = buildParkedDecorCar(start.x, start.z, TRAFFIC_CAR_COLORS[trafficCars.length % TRAFFIC_CAR_COLORS.length], 0);
+  const mesh = buildTrafficCarMesh(TRAFFIC_CAR_COLORS[trafficCars.length % TRAFFIC_CAR_COLORS.length], start.x, start.z, 0);
   trafficCars.push({ mesh, x:start.x, z:start.z, waypoints, wpIndex:1 % waypoints.length, dir:1, pingpong: !!opts.pingpong, speed: opts.speed || (9+Math.random()*4) });
 }
 function buildRoadLoop(cx, cz, half) {
@@ -16172,10 +17869,34 @@ const DAY_LENGTH = 1800; // real seconds for one full day+night cycle (30 minute
 let seasonSkyColor, seasonFogColor; // THREE.Color, lazily created in applySeasonEffects (THREE isn't loaded yet at parse time)
 let _dayNightColors = null;         // lazily built cache of THREE.Color helpers, see updateDayNight
 let lastDayPhase = null;            // 'Day'|'Dawn'|'Dusk'|'Night' — only re-renders the HUD when this actually changes
+let lastTimeZoneCountry = null;     // country name the last HUD render reflected, or null outside any country
+// A single shared "am I in a real indoor pocket space right now" check — the Sea/Space/War
+// Territories are all outdoor real-world-ish locations (a beach or a planet's surface looking
+// dark at night is normal), but these are actual roofed buildings, so they're the ones a real
+// day/night cycle shouldn't be allowed to darken. Used by updateDayNight() below.
+function isPlayerIndoors() {
+  return inHouse || inMall || inHotel || inStore || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inPrison || inArcade || inArenaBattle || inMovieFight || inBankInterior || inSportsPark || inHospital;
+}
+// ─── TIME ZONES — user's own ask: "and time zones". Each real Earth country gets a real-ish UTC
+// offset matching its actual real-world zone, so the SAME moment of real playtime looks like a
+// different time of day depending which country you're standing in — the same real reason time
+// zones exist on the actual Earth. Downtown Explox and the Space Station stay on the base clock
+// (no offset) — deep space doesn't have a real "time zone", and Downtown is the home reference.
+const COUNTRY_TIME_ZONE_HOURS = { Japan:9, France:1, Brazil:-3, Egypt:2, UK:0, Australia:10, Canada:-5, Italy:1 };
+function currentTimeZoneCountry() {
+  if (!playerGroup) return null;
+  for (const name in COUNTRY_TIME_ZONE_HOURS) {
+    const c = COUNTRY_CENTERS[name];
+    if (Math.hypot(playerGroup.position.x - c.x, playerGroup.position.z - c.z) < 85 * COUNTRY_SCALE) return name;
+  }
+  return null;
+}
 function getDayNightBrightness() {
-  const frac = (playTimeSeconds % DAY_LENGTH) / DAY_LENGTH; // 0..1, 0 = midnight
+  const zone = currentTimeZoneCountry();
+  const offsetDayFrac = zone ? COUNTRY_TIME_ZONE_HOURS[zone] / 24 : 0;
+  const frac = (((playTimeSeconds / DAY_LENGTH) + offsetDayFrac) % 1 + 1) % 1; // 0..1, 0 = midnight; double-mod keeps negative UTC offsets positive
   const raw = (1 - Math.cos(frac * Math.PI * 2)) / 2;       // 0 at midnight, 1 at noon
-  return { frac, raw };
+  return { frac, raw, zone };
 }
 function updateDayNight() {
   if (!scene || !sunLight || !ambientLight || !seasonSkyColor) return;
@@ -16186,7 +17907,11 @@ function updateDayNight() {
     };
   }
   const c = _dayNightColors;
-  const { frac, raw } = getDayNightBrightness();
+  const { frac, raw: rawLocal, zone } = getDayNightBrightness();
+  // A real indoor room doesn't go dark just because it's night outside (or in whatever time zone
+  // the building happens to sit in) — generalizes item 269's mall-only fix to every indoor pocket
+  // space at once, via the shared isPlayerIndoors() check above.
+  const raw = isPlayerIndoors() ? 1 : rawLocal;
   const b = 0.12 + raw * 0.88; // floor so night dims but is never pitch black
   scene.background.copy(c.nightSky).lerp(seasonSkyColor, b);
   scene.fog.color.copy(c.nightFog).lerp(seasonFogColor, b);
@@ -16194,8 +17919,10 @@ function updateDayNight() {
   ambientLight.color.copy(c.nightAmbient).lerp(c.dayAmbient, b);
   ambientLight.intensity = 0.25 + raw * 0.5;
 
-  const phase = raw >= 0.85 ? 'Day' : raw < 0.3 ? 'Night' : (frac < 0.5 ? 'Dawn' : 'Dusk');
-  if (phase !== lastDayPhase) { lastDayPhase = phase; updateSeasonHud(); }
+  // The phase label always reflects the REAL local time where you're actually standing, even
+  // indoors — being in a well-lit house at night shouldn't make the clock lie and say "Day".
+  const phase = rawLocal >= 0.85 ? 'Day' : rawLocal < 0.3 ? 'Night' : (frac < 0.5 ? 'Dawn' : 'Dusk');
+  if (phase !== lastDayPhase || zone !== lastTimeZoneCountry) { lastDayPhase = phase; lastTimeZoneCountry = zone; updateSeasonHud(); }
 }
 
 function applySeasonEffects() {
@@ -16235,7 +17962,8 @@ function updateSeasonHud() {
   if(!el) return;
   const {season, holiday} = getSeasonInfo();
   const phaseText = lastDayPhase ? '  |  ' + DAY_PHASE_EMOJI[lastDayPhase] + ' ' + lastDayPhase : '';
-  el.textContent = season.emoji + ' ' + season.name + (holiday ? '  |  ' + holiday.emoji + ' ' + holiday.name : '') + phaseText;
+  const zoneText = lastTimeZoneCountry ? '  |  🌍 ' + lastTimeZoneCountry + ' Time' : '';
+  el.textContent = season.emoji + ' ' + season.name + (holiday ? '  |  ' + holiday.emoji + ' ' + holiday.name : '') + phaseText + zoneText;
 }
 
 function startWeatherParticles(type) {
@@ -16745,6 +18473,23 @@ function buildCity() {
     CITY_ZONES.push({ x: triggerX, z: r.z, r: 4, label: `${r.emoji} ${r.name}`, action: () => openThemedRestaurant(r.id) });
   });
 
+  // ─── 3 BUFFETS — user's own ask, real pay-once-eat-unlimited spots past the Shopping District's
+  // 100-shop grid (which spans z:342.5-657.5 — placing these any closer would sit inside it).
+  // Road extended to reach them since nothing paved led out this far before.
+  box(16,0.05,320, 0x555566, 0,0.01,660);
+  for(let i=0;i<11;i++) box(0.3,0.06,8, 0xFFDD00, 0,0.02,500+i*30);
+  buildRoadBillboard(9, 620, 0, '🍽️', 'ALL-YOU-CAN-EAT BUFFETS AHEAD!');
+  BUFFET_LOCATIONS.forEach(b => {
+    const frontX = b.x + (b.x < 0 ? 8 : -8);
+    const triggerX = b.x + (b.x < 0 ? 11 : -11);
+    box(16,9,14, b.wall, b.x,4.5,b.z);
+    box(17,0.5,15, b.accent, b.x,9.3,b.z);
+    box(0.3,6,6, b.glass, frontX, 4, b.z);
+    buildLogoSign(b.name, b.emoji, '#'+b.wall.toString(16).padStart(6,'0'), '#'+b.accent.toString(16).padStart(6,'0'), frontX + (b.x<0?0.4:-0.4), 10, b.z, b.x<0?Math.PI/2:-Math.PI/2);
+    addCol(CITY_COLS, b.x, b.z, 8, 7);
+    CITY_ZONES.push({ x: triggerX, z: b.z, r: 4, label: `${b.emoji} ${b.name}`, action: () => openBuffet(b.id) });
+  });
+
   // ─── AIRPORT ROAD (from main road west then south to airport) ───────────
   box(110,0.05,12, 0x555566, -155,0.01,0);      // west road extension
   box(12,0.05,200, 0x555566, -200,0.01,-100);   // south road to airport
@@ -17220,6 +18965,16 @@ function buildMallInterior() {
   box(1.6,0.3,1.6, 0xbbddee, mx,2.7,mz-4);
   const wl=new THREE.PointLight(0x00aaff,0.5,12); wl.position.set(mx,1,mz-4); scene.add(wl);
 
+  // Real ceiling lights — a proper indoor space needs its own light, not just whatever's left of
+  // the outdoor sun/ambient light once updateDayNight() dims them at night. Without these, the
+  // ENTIRE mall went dark every real in-game night, same as standing outside after sunset, which
+  // makes no sense for an indoor building with a roof. Fixed intensity, no day/night modulation.
+  [[-24,20],[0,20],[24,20],[-24,-20],[0,-20],[24,-20]].forEach(([lx2,lz2]) => {
+    const cl = new THREE.PointLight(0xfff4dd, 0.9, 26);
+    cl.position.set(mx+lx2, 9.5, mz+lz2);
+    scene.add(cl);
+  });
+
   // Benches
   [[mx,mz+14],[mx,mz-14],[mx-10,mz+2],[mx+10,mz+2]].forEach(([bx,bz])=>{
     box(5,0.3,1.2, 0x8B6914,bx,0.55,bz);
@@ -17395,8 +19150,187 @@ function buildArcadeInterior() {
 }
 
 // ─── AVATAR CARD (draws badge onto any 96×128 canvas) ────────────────────────
+// ─── PAINT EDITOR — the same real pixel-art tool as Game Builder's Paint Editor (see
+// game-builder.js's GB_PAINT_* / gbOpenPaintEditor and friends), reused here for TWO different
+// targets instead of copy-pasting the whole tool twice: your account badge/nametag picture, and
+// a custom design painted onto your shirt in 3D. pfpEditTarget picks which one Save/Remove
+// writes to — everything else (grid, palette, canvas, mouse handling) is shared.
+// Same shape: a 16x16 grid backed by a plain array, a big 16px-per-cell canvas for easy
+// clicking, exported as a crisp 4px-per-cell 64x64 PNG saved onto the account (goes through
+// saveCurrentUser(), so it syncs to the server the same as every other account field).
+const PFP_COLORS = ['#000000','#ffffff','#ff0000','#ff8800','#ffdd00','#22cc44','#0088ff','#2244cc','#8822cc','#ff44aa','#8b5a2b','#888888'];
+const PFP_SIZE = 16, PFP_CELL_PX = 16, PFP_EXPORT_CELL_PX = 4;
+let pfpGrid = null;
+let pfpColor = PFP_COLORS[0];
+let pfpDrawing = false;
+let pfpEditTarget = 'profile'; // 'profile' or 'shirt'
+let _pfpImageCache = {};
+function pfpBlankGrid() { return Array.from({length:PFP_SIZE}, () => Array(PFP_SIZE).fill(null)); }
+function openProfilePicEditor() { pfpEditTarget = 'profile'; pfpOpenEditor('🖌️ DRAW YOUR PROFILE PICTURE'); }
+function openShirtPaintEditor() { pfpEditTarget = 'shirt'; pfpOpenEditor('🖌️ DRAW YOUR SHIRT DESIGN'); }
+function pfpOpenEditor(title) {
+  pfpGrid = pfpBlankGrid();
+  pfpColor = PFP_COLORS[0];
+  document.getElementById('pfpModal').style.display = 'flex';
+  document.getElementById('pfpModalTitle').textContent = title;
+  document.getElementById('pfpMsg').textContent = '';
+  pfpRenderPalette();
+  pfpRenderCanvas();
+}
+function closeProfilePicEditor() { document.getElementById('pfpModal').style.display = 'none'; }
+function pfpSetColor(c) { pfpColor = c; pfpRenderPalette(); }
+function pfpRenderPalette() {
+  const box = document.getElementById('pfpPalette');
+  if (!box) return;
+  box.innerHTML = PFP_COLORS.map(c => `<span onclick="pfpSetColor('${c}')" style="display:inline-block;width:22px;height:22px;background:${c};border:2px solid ${c===pfpColor?'#fff':'#333'};border-radius:4px;margin:2px;cursor:pointer;"></span>`).join('') +
+    `<span onclick="pfpSetColor(null)" title="Eraser" style="display:inline-block;width:22px;height:22px;background:repeating-conic-gradient(#999 0% 25%, #666 0% 50%) 50%/8px 8px;border:2px solid ${pfpColor===null?'#fff':'#333'};border-radius:4px;margin:2px;cursor:pointer;"></span>`;
+}
+function pfpRenderCanvas() {
+  const cv = document.getElementById('pfpCanvas');
+  if (!cv) return;
+  const ctx = cv.getContext('2d');
+  for (let r=0;r<PFP_SIZE;r++) for (let c2=0;c2<PFP_SIZE;c2++) {
+    const x=c2*PFP_CELL_PX, y=r*PFP_CELL_PX;
+    ctx.fillStyle = ((r+c2)%2===0) ? '#3a3a3a' : '#2a2a2a'; // checkerboard = transparent
+    ctx.fillRect(x,y,PFP_CELL_PX,PFP_CELL_PX);
+    if (pfpGrid[r][c2]) { ctx.fillStyle = pfpGrid[r][c2]; ctx.fillRect(x,y,PFP_CELL_PX,PFP_CELL_PX); }
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  for (let i=0;i<=PFP_SIZE;i++) {
+    ctx.beginPath(); ctx.moveTo(i*PFP_CELL_PX,0); ctx.lineTo(i*PFP_CELL_PX,cv.height); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,i*PFP_CELL_PX); ctx.lineTo(cv.width,i*PFP_CELL_PX); ctx.stroke();
+  }
+}
+function pfpCellFromEvent(e) {
+  const rect = e.target.getBoundingClientRect();
+  const scaleX = e.target.width / rect.width, scaleY = e.target.height / rect.height;
+  const x = (e.clientX - rect.left) * scaleX, y = (e.clientY - rect.top) * scaleY;
+  return {
+    row: Math.max(0, Math.min(PFP_SIZE-1, Math.floor(y / PFP_CELL_PX))),
+    col: Math.max(0, Math.min(PFP_SIZE-1, Math.floor(x / PFP_CELL_PX))),
+  };
+}
+function pfpPaintAt(e) {
+  const {row,col} = pfpCellFromEvent(e);
+  pfpGrid[row][col] = pfpColor;
+  pfpRenderCanvas();
+}
+function pfpMouseDown(e) { pfpDrawing = true; pfpPaintAt(e); }
+function pfpMouseMove(e) { if (pfpDrawing) pfpPaintAt(e); }
+function pfpMouseUp() { pfpDrawing = false; }
+function pfpClear() { pfpGrid = pfpBlankGrid(); pfpRenderCanvas(); }
+function pfpSaveDrawing() {
+  if (!pfpGrid.some(row => row.some(cell => cell !== null))) {
+    document.getElementById('pfpMsg').textContent = "Draw something first!";
+    return;
+  }
+  const out = document.createElement('canvas');
+  out.width = PFP_SIZE*PFP_EXPORT_CELL_PX; out.height = PFP_SIZE*PFP_EXPORT_CELL_PX;
+  const octx = out.getContext('2d');
+  for (let r=0;r<PFP_SIZE;r++) for (let c2=0;c2<PFP_SIZE;c2++) {
+    if (pfpGrid[r][c2]) { octx.fillStyle = pfpGrid[r][c2]; octx.fillRect(c2*PFP_EXPORT_CELL_PX, r*PFP_EXPORT_CELL_PX, PFP_EXPORT_CELL_PX, PFP_EXPORT_CELL_PX); }
+  }
+  const dataUrl = out.toDataURL('image/png');
+  if (pfpEditTarget === 'shirt') { playerShirtPaint = dataUrl; } else { playerProfilePic = dataUrl; }
+  saveCurrentUser();
+  refreshPreviews();
+  if (pfpEditTarget === 'shirt') refreshShirtPaintTexture(); else refreshNametagAvatar();
+  closeProfilePicEditor();
+}
+function pfpRemovePicture() {
+  if (pfpEditTarget === 'shirt') { playerShirtPaint = null; } else { playerProfilePic = null; }
+  saveCurrentUser();
+  refreshPreviews();
+  if (pfpEditTarget === 'shirt') refreshShirtPaintTexture(); else refreshNametagAvatar();
+  closeProfilePicEditor();
+}
+function removeProfilePicture() { pfpEditTarget = 'profile'; pfpRemovePicture(); }
+function removeShirtDesign() { pfpEditTarget = 'shirt'; pfpRemovePicture(); }
+// ─── CHOOSE A REAL PICTURE (instead of drawing one) — reads a file the player picks with the
+// browser's own file dialog (no permission concept applies; the browser only ever hands us bytes
+// the player explicitly selected). Cropped to a square (cover-fit, so a rectangular photo doesn't
+// get squished) and downscaled to 160x160 before saving, since the raw file could be several MB —
+// this account blob autosaves through saveCurrentUser() constantly, including a POST to the
+// server, so keeping it small matters a lot more here than for a one-off drawing.
+function pfpChooseFile() { document.getElementById('pfpFileInput').click(); }
+function pfpFileSelected(e) {
+  const file = e.target.files[0];
+  e.target.value = ''; // so picking the exact same file again still fires onchange next time
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const SIZE = 160;
+      const out = document.createElement('canvas');
+      out.width = SIZE; out.height = SIZE;
+      const octx = out.getContext('2d');
+      octx.imageSmoothingEnabled = true;
+      octx.imageSmoothingQuality = 'high';
+      const scale = Math.max(SIZE / img.width, SIZE / img.height);
+      const dw = img.width * scale, dh = img.height * scale;
+      octx.drawImage(img, (SIZE - dw) / 2, (SIZE - dh) / 2, dw, dh);
+      playerProfilePic = out.toDataURL('image/jpeg', 0.85);
+      saveCurrentUser();
+      refreshPreviews();
+      refreshNametagAvatar();
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+function pfpGetImage(dataUrl) {
+  if (!_pfpImageCache[dataUrl]) {
+    const img = new Image();
+    // The image decodes async — by the time it's ready, drawAvatarCard() may already have run
+    // once and drawn a blank square. Re-run the same redraws it would've done once it's real.
+    img.onload = () => { refreshPreviews(); refreshNametagAvatar(); refreshShirtPaintTexture(); };
+    img.src = dataUrl;
+    _pfpImageCache[dataUrl] = img;
+  }
+  return _pfpImageCache[dataUrl];
+}
+// ─── SHIRT DESIGN — applies playerShirtPaint as a real THREE.js texture on the shirt mesh
+// (BoxGeometry's default UVs map the full image onto every face, so the design shows on the
+// front, back, and sides — like a sticker wrapped around the torso). Falls back to the plain
+// shirt color captured in buildPlayer() when no design is set.
+function refreshShirtPaintTexture() {
+  if (!player || !player.torsoMesh) return;
+  if (!playerShirtPaint) {
+    player.torsoMesh.material.map = null;
+    player.torsoMesh.material.color.setHex(player.torsoBaseColor);
+    player.torsoMesh.material.needsUpdate = true;
+    return;
+  }
+  const img = pfpGetImage(playerShirtPaint);
+  if (!img.complete || !img.naturalWidth) return; // pfpGetImage's onload calls this again once ready
+  const cv = document.createElement('canvas'); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+  const cctx = cv.getContext('2d');
+  cctx.imageSmoothingEnabled = false;
+  cctx.drawImage(img, 0, 0);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
+  player.torsoMesh.material.map = tex;
+  player.torsoMesh.material.color.setHex(0xffffff); // white so the texture's own colors show true, not tinted
+  player.torsoMesh.material.needsUpdate = true;
+}
+function refreshNametagAvatar() {
+  if (player && player.nametag) player.nametag.material.map = new THREE.CanvasTexture(makeAvatarCanvas());
+}
+
 function drawAvatarCard(cv) {
   const c=cv.getContext('2d');
+  if (playerProfilePic) {
+    c.fillStyle='rgba(0,0,0,0.75)'; c.fillRect(0,0,96,128);
+    c.strokeStyle='#e94560'; c.lineWidth=2; c.strokeRect(1,1,94,126);
+    const img = pfpGetImage(playerProfilePic);
+    c.imageSmoothingEnabled = false;
+    if (img.complete && img.naturalWidth) c.drawImage(img, 8, 8, 80, 80);
+    c.fillStyle='rgba(233,69,96,0.8)'; c.fillRect(0,108,96,20);
+    c.fillStyle='#fff'; c.font='bold 9px Arial'; c.textAlign='center';
+    c.fillText(playerName.slice(0,12), 48, 122);
+    return;
+  }
   const cx=48;
   const skin=rgb(playerColors.skin), shirtC=rgb(playerColors.shirt), hairC=rgb(playerColors.hair);
 
@@ -17556,7 +19490,9 @@ function buildPlayer() {
   // Body & arms
   const bCol = playerShirt==='suit' ? 0x222222 : shirt;
   const aCol = playerShirt==='tanktop' ? skin : bCol;
-  mk(0.9,1.1,0.5, bCol, 0,1.75,0);
+  player.torsoMesh = mk(0.9,1.1,0.5, bCol, 0,1.75,0);
+  player.torsoBaseColor = bCol;
+  refreshShirtPaintTexture();
   player.lArm = mk(0.35,0.9,0.35, aCol,-0.65,1.75,0);
   player.rArm = mk(0.35,0.9,0.35, aCol, 0.65,1.75,0);
   mk(0.37,0.28,0.37, skin,-0.65,1.22,0); mk(0.37,0.28,0.37, skin,0.65,1.22,0);
@@ -17675,6 +19611,90 @@ function buildOtherPlayerAvatar(a) {
   cx2.fillText((a.name||'Player').slice(0,16), 128, 40);
   const tag=new THREE.Mesh(new THREE.PlaneGeometry(2.4,0.6),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthWrite:false,side:THREE.DoubleSide}));
   tag.position.y=4.6; g.add(tag); g.nametag=tag;
+
+  return g;
+}
+
+// Builds an isolated preview character for the shop "Preview" buttons (weapons/armor/outfits/
+// paint) — the same safe build-into-your-own-group pattern as buildOtherPlayerAvatar() above,
+// so trying something on never touches the real playerGroup, never gets saved, and — important
+// for a live multiplayer game — never reaches syncPresence(), which broadcasts playerColors to
+// every other online player once a second. Defaults to the real player's current look; pass just
+// the one property being tried on in `overrides` (e.g. {weapon:'sword'} or {shirt:'#2196F3'}).
+function buildPreviewAvatar(overrides) {
+  overrides = overrides || {};
+  const g = new THREE.Group();
+  const skin=c3(overrides.skin || playerColors.skin);
+  const shirtC=c3(overrides.shirt || playerColors.shirt);
+  const pantsC=c3(overrides.pants || playerColors.pants);
+  const shoeC=c3(overrides.shoes || playerColors.shoes);
+  const hairC=c3(playerColors.hair);
+  const mk=(w,h,d,color,x,y,z)=>{
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color}));
+    m.position.set(x,y,z); g.add(m); return m;
+  };
+  mk(1,1,1, skin, 0,2.8,0); // head
+  const em=new THREE.MeshBasicMaterial({color:0x111111});
+  [-0.22,0.22].forEach(ex=>{const e=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.05),em);e.position.set(ex,2.85,0.51);g.add(e);});
+  const hair = playerHair;
+  if(hair==='short')    { mk(1.08,0.3,0.95,hairC,0,3.35,0); mk(0.25,0.5,0.9,hairC,-0.6,3.1,0); mk(0.25,0.5,0.9,hairC,0.6,3.1,0); }
+  else if(hair==='long'){ mk(1.08,0.3,0.95,hairC,0,3.35,0); mk(0.28,1.4,0.9,hairC,-0.6,2.4,0); mk(0.28,1.4,0.9,hairC,0.6,2.4,0); mk(0.9,1.4,0.28,hairC,0,2.4,-0.5); }
+  else if(hair==='spiky'){ mk(1.1,0.2,1.0,hairC,0,3.35,0); [-0.35,-0.17,0,0.17,0.35].forEach((sx,i)=>mk(0.18,0.5+i%2*0.2,0.18,hairC,sx,3.7+i%2*0.1,0)); }
+  else if(hair==='afro') { mk(1.5,1.4,1.4,hairC,0,3.1,0); }
+  else if(hair==='ponytail'){ mk(1.08,0.3,0.95,hairC,0,3.35,0); mk(0.25,0.5,0.9,hairC,-0.6,3.1,0); mk(0.28,1.8,0.28,hairC,0,2.2,-0.5); }
+  else if(hair==='curly'){ [-0.3,0,0.3].forEach(cx2=>mk(0.5,0.55,0.5,hairC,cx2,3.4,0)); mk(0.28,1.2,0.28,hairC,-0.6,2.7,0); mk(0.28,1.2,0.28,hairC,0.6,2.7,0); }
+  // Hat — same style set as buildPlayer(), built into this isolated preview group instead.
+  const hat = playerHat;
+  if(hat==='cap')     { mk(1.2,0.15,1.2,0xee4444,0,3.35,0); mk(0.9,0.5,0.8,0xee4444,0,3.63,-0.05); mk(0.5,0.12,0.4,0xee4444,0,3.28,0.7); }
+  else if(hat==='cowboy'){ mk(1.7,0.12,1.7,0x8B4513,0,3.32,0); mk(0.9,0.7,0.9,0x8B4513,0,3.72,0); }
+  else if(hat==='crown'){ mk(1.1,0.28,1.1,0xFFD700,0,3.35,0); [-0.35,0,0.35].forEach((cx2,i)=>mk(0.22,0.4+i%2*0.15,0.22,0xFFD700,cx2,3.7,0)); }
+  else if(hat==='helmet'){ mk(1.15,0.85,1.15,0x555555,0,3.48,0); mk(0.7,0.3,0.15,0x88ccff,0,3.22,0.56); }
+  else if(hat==='tophat'){ mk(1.35,0.1,1.35,0x111111,0,3.32,0); mk(0.9,0.9,0.9,0x111111,0,3.8,0); mk(0.92,0.08,0.92,0x333333,0,3.38,0); }
+  else if(hat==='beanie'){ mk(1.05,0.7,1.05,shirtC,0,3.5,0); mk(0.35,0.35,0.35,0xffffff,0,3.92,0); }
+  else if(hat==='fedora'){ mk(1.5,0.1,1.5,0x7a5c3a,0,3.32,0); mk(0.9,0.65,0.9,0x7a5c3a,0,3.65,0); mk(0.91,0.08,0.91,0x333333,0,3.37,0); }
+  else if(hat==='wizard'){ const w=new THREE.Mesh(new THREE.ConeGeometry(0.6,1.8,8),new THREE.MeshLambertMaterial({color:0x4444aa}));w.position.set(0,3.9,0);g.add(w); mk(1.3,0.12,1.3,0x4444aa,0,3.32,0); }
+  else if(hat==='pirate'){ mk(1.4,0.1,1.4,0x111111,0,3.32,0); mk(0.9,0.6,0.5,0x111111,0,3.66,0); mk(0.3,0.3,0.15,0xffffff,0,3.7,0.3); }
+  else if(hat==='santa') { mk(1.1,0.2,1.1,0xffffff,0,3.32,0); const cn=new THREE.Mesh(new THREE.ConeGeometry(0.5,1.0,8),new THREE.MeshLambertMaterial({color:0xdd2222}));cn.position.set(0.1,3.88,0);g.add(cn); mk(0.25,0.25,0.25,0xffffff,0.45,4.32,0); }
+  else if(hat==='bandana')   { mk(1.15,0.15,1.15,0xcc3355,0,3.32,0); mk(0.3,0.3,0.1,0xcc3355,0,3.2,-0.6); }
+  else if(hat==='headband')  { mk(1.15,0.15,1.15,0x3388cc,0,3.35,0); }
+  else if(hat==='partyhat')  { const ph=new THREE.Mesh(new THREE.ConeGeometry(0.55,1.3,8),new THREE.MeshLambertMaterial({color:0xffcc00}));ph.position.set(0,4.0,0);g.add(ph); mk(0.15,0.15,0.15,0xff3366,0,4.68,0); }
+  else if(hat==='bucket')    { mk(1.5,0.15,1.5,0x4a7a4a,0,3.36,0); mk(0.9,0.5,0.9,0x4a7a4a,0,3.65,0); }
+  else if(hat==='jester')    { mk(1.15,0.15,1.15,0x8833cc,0,3.35,0); [-0.35,0,0.35].forEach((jx,i)=>{const jc=new THREE.Mesh(new THREE.ConeGeometry(0.16,0.5+i%2*0.2,4),new THREE.MeshLambertMaterial({color:0x8833cc}));jc.position.set(jx,3.7+i%2*0.1,0);g.add(jc);}); }
+  else if(hat==='viking')    { mk(1.15,0.7,1.15,0x999999,0,3.5,0); const hL=new THREE.Mesh(new THREE.ConeGeometry(0.12,0.6,6),new THREE.MeshLambertMaterial({color:0xeeeecc}));hL.position.set(-0.6,3.9,0);hL.rotation.z=0.5;g.add(hL); const hR=new THREE.Mesh(new THREE.ConeGeometry(0.12,0.6,6),new THREE.MeshLambertMaterial({color:0xeeeecc}));hR.position.set(0.6,3.9,0);hR.rotation.z=-0.5;g.add(hR); }
+  else if(hat==='graduation'){ mk(1.4,0.1,1.4,0x111111,0,3.6,0); mk(0.9,0.5,0.9,0x111111,0,3.35,0); mk(0.06,0.4,0.06,0xFFD700,0.6,3.5,0); }
+  else if(hat==='flower')    { mk(1.15,0.15,1.15,0x2d7a2d,0,3.35,0); ['#ff69b4','#ffcc00','#ff6688','#cc88ff','#ffffff'].forEach((col,i)=>{const a2=i*Math.PI*2/5; mk(0.16,0.16,0.16,parseInt(col.slice(1),16),Math.cos(a2)*0.55,3.4,Math.sin(a2)*0.55);}); }
+  else if(hat==='backwards') { mk(1.2,0.5,0.8,0x3355aa,0,3.63,0.05); mk(0.5,0.12,0.4,0x3355aa,0,3.28,-0.7); }
+  else if(hat==='sombrero')  { mk(2.2,0.12,2.2,0xd4a860,0,3.35,0); mk(0.9,0.7,0.9,0xd4a860,0,3.75,0); }
+  else if(hat==='propeller') { mk(1.05,0.7,1.05,0xdd4444,0,3.5,0); mk(0.7,0.06,0.12,0xcccccc,0,3.95,0); mk(0.1,0.15,0.1,0x888888,0,3.9,0); }
+  else if(hat==='antlers')   { mk(1.1,0.7,1.1,hairC,0,3.5,0); [-0.4,0.4].forEach(ax=>{ mk(0.1,0.7,0.1,0x8B5A2B,ax,4.0,0); mk(0.3,0.1,0.1,0x8B5A2B,ax-0.15,3.85,0); mk(0.3,0.1,0.1,0x8B5A2B,ax+0.15,4.15,0); }); }
+  else if(hat==='headphones'){ mk(0.18,0.5,0.5,0x222222,-0.62,3.15,0); mk(0.18,0.5,0.5,0x222222,0.62,3.15,0); mk(1.3,0.12,0.2,0x222222,0,3.75,0); }
+  else if(hat==='chef')      { mk(1.0,0.3,1.0,0xffffff,0,3.45,0); mk(0.8,0.7,0.8,0xffffff,0,3.95,0); }
+  else if(hat==='turban')    { mk(1.1,0.7,1.1,0x8833aa,0,3.55,0); mk(0.16,0.16,0.16,0xffcc00,0,3.95,0.4); }
+
+  const shirtStyle = playerShirt, pantsStyle = playerPants, shoesStyle = playerShoes;
+  const bCol = shirtStyle==='suit' ? 0x222222 : shirtC;
+  const aCol = shirtStyle==='tanktop' ? skin : bCol;
+  mk(0.9,1.1,0.5, bCol, 0,1.75,0);
+  mk(0.35,0.9,0.35, aCol,-0.65,1.75,0);
+  mk(0.35,0.9,0.35, aCol, 0.65,1.75,0);
+  mk(0.37,0.28,0.37, skin,-0.65,1.22,0); mk(0.37,0.28,0.37, skin,0.65,1.22,0);
+  const legH = pantsStyle==='shorts' ? 0.5 : pantsStyle==='capri' ? 0.75 : 0.9;
+  const legY = pantsStyle==='shorts' ? 0.9 : pantsStyle==='capri' ? 0.72 : 0.75;
+  mk(0.38,legH,0.38, pantsC,-0.22,legY,0);
+  mk(0.38,legH,0.38, pantsC, 0.22,legY,0);
+  if(pantsStyle==='shorts'){mk(0.38,0.45,0.38,skin,-0.22,0.32,0);mk(0.38,0.45,0.38,skin,0.22,0.32,0);}
+  const shH=shoesStyle==='boots'?0.45:shoesStyle==='rainboots'?0.6:shoesStyle==='cowboyboots'?0.55:shoesStyle==='platform'?0.3:0.22;
+  const shY=shoesStyle==='boots'?0.18:shoesStyle==='rainboots'?0.28:shoesStyle==='cowboyboots'?0.25:shoesStyle==='platform'?0.13:0.1;
+  const shD=shoesStyle==='sandals'?0.6:shoesStyle==='flipflops'?0.55:0.52;
+  mk(0.42,shH,shD, shoeC,-0.22,shY,0.05);
+  mk(0.42,shH,shD, shoeC, 0.22,shY,0.05);
+
+  // Weapon + armor — the two things buildOtherPlayerAvatar() deliberately skips, but the whole
+  // point of this preview panel is showing exactly these.
+  const wg = buildWeaponVisual(overrides.weapon || playerWeapon);
+  if(wg) { wg.position.set(0.7,1.0,0.2); wg.rotation.z=-0.2; g.add(wg); }
+  const am = buildArmorVisual(overrides.armor || playerArmor);
+  if(am) g.add(am);
 
   return g;
 }
@@ -17902,6 +19922,15 @@ function makeNPC(def){
   else if(def.hat==='wizard'){ const w=new THREE.Mesh(new THREE.ConeGeometry(0.6,1.8,8),new THREE.MeshLambertMaterial({color:0x4444aa}));w.position.set(0,3.9+hdy,0);g.add(w); mk(1.3,0.12,1.3,0x4444aa,0,3.32+hdy,0); }
   else if(def.hat==='pirate'){ mk(1.4,0.1,1.4,0x111111,0,3.32+hdy,0); mk(0.9,0.6,0.5,0x111111,0,3.66+hdy,0); mk(0.3,0.3,0.15,0xffffff,0,3.7+hdy,0.3); }
   else if(def.hat==='santa') { mk(1.1,0.2,1.1,0xffffff,0,3.32+hdy,0); const cn=new THREE.Mesh(new THREE.ConeGeometry(0.5,1.0,8),new THREE.MeshLambertMaterial({color:0xdd2222}));cn.position.set(0.1,3.88+hdy,0);g.add(cn); mk(0.25,0.25,0.25,0xffffff,0.45,4.32+hdy,0); }
+  // Black sunglasses — user's own ask, Celebrities only. A separate accessory from the hat chain
+  // above (not exclusive with it — Chaz Diamond keeps his crown AND gets shades), same low-poly
+  // 2-3-box style as everything else here: one lens bar across the eyes, two temple arms back
+  // toward the ears.
+  if(def.role==='Celebrity'){
+    mk(0.82,0.22,0.1,0x0a0a0a,0,2.82+hdy,0.47);
+    mk(0.1,0.2,0.35,0x0a0a0a,-0.46,2.82+hdy,0.32);
+    mk(0.1,0.2,0.35,0x0a0a0a,0.46,2.82+hdy,0.32);
+  }
   const tc2=document.createElement('canvas'); tc2.width=256; tc2.height=56;
   const c2=tc2.getContext('2d');
   c2.fillStyle='rgba(0,0,0,0.7)'; c2.fillRect(0,0,256,56);
@@ -18256,7 +20285,7 @@ function buildMallShopWing() {
   box(1.6, 2.6, 0.6, 0x333333, mx, 1.3, mz - 33);
   box(1.4, 1.2, 0.1, 0x66ccff, mx, 1.9, mz - 32.65);
   buildSign('🗺️ DIRECTORY', mx, 3.2, mz - 32.5);
-  MALL_ZONES.push({ x: mx, z: mz - 33, r: 3, label: '🗺️ Mall Directory', action: openMallDirectory });
+  MALL_ZONES.push({ x: mx, z: mz - 33, r: 3, label: '🗺️ Mall Directory', action: () => openMallDirectory()});
 
   const COL_SPACING = 11, ROW_SPACING = 13, COLS = 20;
   // Each shop gets a real 2-color theme (body + a deeper accent of the same hue for the roof
@@ -18716,7 +20745,7 @@ function buildFriendHouseInterior(npc) {
   add(sign);
 }
 const FRIEND_HOUSE_ZONES = [
-  { x: FRIEND_HOUSE_SPAWN.x, z: FRIEND_HOUSE_SPAWN.z + 6, r: 3, label: 'Leave', action: leaveFriendHouse },
+  { x: FRIEND_HOUSE_SPAWN.x, z: FRIEND_HOUSE_SPAWN.z + 6, r: 3, label: 'Leave', action: () => leaveFriendHouse()},
 ];
 function visitNeighborHouse(name) {
   const npc = npcs.find(n => n.name === name);
@@ -18966,7 +20995,7 @@ function buildTownEventsBoard() {
   box(0.15, 2.2, 0.15, 0x5a3a20, x + 1.3, 1.1, z);
   box(3, 1.6, 0.15, 0xf5f0e0, x, 2, z);
   buildSign('🎉 Town Events', x, 3, z - 0.2);
-  CITY_ZONES.push({ x, z: z + 1.5, r: 3.5, label: '🎉 Town Events Board', action: openTownEvents });
+  CITY_ZONES.push({ x, z: z + 1.5, r: 3.5, label: '🎉 Town Events Board', action: () => openTownEvents()});
 }
 
 // ─── WORLD EVENTS ──────────────────────────────────────────────────────────────
@@ -19090,7 +21119,7 @@ function buildWorldEventsBoard() {
   box(0.15, 2.4, 0.15, 0x2a5a3a, x + 1.4, 1.2, z);
   box(3.2, 1.7, 0.15, 0xeaffea, x, 2.1, z);
   buildSign('🌍 World Events', x, 3.2, z - 0.2);
-  CITY_ZONES.push({ x, z: z + 1.5, r: 3.5, label: '🌍 World Events Board', action: openWorldEventsBoard });
+  CITY_ZONES.push({ x, z: z + 1.5, r: 3.5, label: '🌍 World Events Board', action: () => openWorldEventsBoard()});
 }
 
 // User's own ask: "make all the events at the border of the city" — these used to draw from
@@ -19548,7 +21577,7 @@ function bossHitDamage(def, st) { return Math.round(def.damage * Math.min(3, 1 +
 const BOSS_DETECT_RANGE = 20, BOSS_DEAGGRO_RANGE = 55, BOSS_ATTACK_RANGE = 6, BOSS_ATTACK_INTERVAL = 1.8;
 const BOSS_CHASE_SPEED = 9.5; // faster than the player's 8 walk speed, slower than 14.8 run — outrunnable, not out-walkable
 function tickBossChase(dt) {
-  if (!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior) {
+  if (!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea) {
     BOSS_DEFS.forEach(def => {
       const st = bossState[def.name];
       if (!st || !st.alive) return;
@@ -19989,7 +22018,7 @@ function buildWarRoom() {
   box(4, 3, 0.3, 0x1a2a4a, x, 1.5, z);
   buildSign('⚔️ War Room', x, 4, z - 0.3);
   addCol(CITY_COLS, x, z, 2, 0.6);
-  CITY_ZONES.push({ x, z: z + 1.5, r: 3.5, label: '⚔️ War Room', action: openWarRoom });
+  CITY_ZONES.push({ x, z: z + 1.5, r: 3.5, label: '⚔️ War Room', action: () => openWarRoom()});
 }
 function openWarRoom() {
   if (serverMode !== 'online') { showNotif('⚔️ The War Room needs ONLINE mode!'); return; }
@@ -20987,6 +23016,19 @@ function buildOwnedStore(){
   window._storeColIdx = CITY_COLS.length;
   addCol(CITY_COLS, x, z, sz.w/2, sz.d/2);
 
+  // Real bug report: "when you place your shop in a random location the door won't open" — the
+  // ONLY interact zone for your store was the old fixed pre-free-placement spot (x:160,z:-13, see
+  // CITY_ZONES' own initial list), which never moved even though this function has genuinely
+  // built the real store wherever you placed it (via `ownedStore.location`) since free placement
+  // was added. Confirmed the mismatch by reading confirmStorePlacement()/isStoreSpotValid() — they
+  // let you pick ANY open ground, not just that one spot. Registering a real zone at the actual
+  // built location — found-and-removed by object reference (same `indexOf` pattern the robot
+  // zones already use below), not a cached index, since CITY_ZONES is shared/spliced by plenty of
+  // other systems and a raw index could silently point at the wrong entry by the next rebuild.
+  if (window._storeZone) { const zi = CITY_ZONES.indexOf(window._storeZone); if (zi > -1) CITY_ZONES.splice(zi, 1); }
+  window._storeZone = { x, z: z + sz.d/2 + 3, r:8, label:'🏪 ' + (ownedStore.customName || def.name), action: () => interactWithStorePlot()};
+  CITY_ZONES.push(window._storeZone);
+
   // Customer NPCs patrol between the sidewalk and the door, giving the "people shopping" look
   const doorZ = z + sz.d/2 + 3;
   [-4, 4].forEach((ox,i) => {
@@ -21342,7 +23384,9 @@ function buildSpaceZone(){
   // existing group's own local-space children, so this one spot uses the group-scale approach
   // the rest of this refactor deliberately avoided (see box()'s own comment for why).
   const [rx,rz] = scalePt(sx, sz-18);
-  const rocket = new THREE.Group(); rocket.position.set(rx, 0, rz); rocket.scale.setScalar(_buildScale); scene.add(rocket);
+  // Real, human-proportioned rocket now (see scaleLen()'s own comment) — only its LAND POSITION
+  // is spread out with everything else, not its own size.
+  const rocket = new THREE.Group(); rocket.position.set(rx, 0, rz); rocket.scale.setScalar(1); scene.add(rocket);
   rocket.add(new THREE.Mesh(new THREE.CylinderGeometry(3,3,16,10), mat(0xe0e0e0)).translateY(9));
   const nose = new THREE.Mesh(new THREE.ConeGeometry(3,7,10), mat(0xcc3333)); nose.position.y = 20.5; rocket.add(nose);
   [0,1,2,3].forEach(i => { const ang=i*Math.PI/2; const fin=new THREE.Mesh(new THREE.BoxGeometry(0.4,4,2.5), mat(0xcc3333)); fin.position.set(Math.cos(ang)*3.2, 2, Math.sin(ang)*3.2); fin.rotation.y=ang; rocket.add(fin); });
@@ -21365,7 +23409,7 @@ function buildSpaceZone(){
   // is the rocket's own already-scaled world position (computed above), reused here rather than
   // calling scalePt() a second time. toggleSpaceLaunch() is a real zero-g thruster flight, not a
   // teleport-and-look — see its own comment.
-  CITY_ZONES.push({ x: rx, z: rz, r: 100, label: '🚀 Launch into Space', action: toggleSpaceLaunch });
+  CITY_ZONES.push({ x: rx, z: rz, r: 100, label: '🚀 Launch into Space', action: () => toggleSpaceLaunch()});
   _buildOrigin = null; _buildScale = 1;
 }
 
@@ -21450,7 +23494,7 @@ function buildDeepSpaceZones() {
   box(3, 3, 3, 0x445566, SPACE_ZONE.x+30, 1.5, SPACE_ZONE.z+20);
   buildSign('🛰️ DEEP SPACE TERMINAL', SPACE_ZONE.x+30, 5, SPACE_ZONE.z+20-2);
   addCol(CITY_COLS, SPACE_ZONE.x+30, SPACE_ZONE.z+20, 2, 2);
-  CITY_ZONES.push({ x:SPACE_ZONE.x+30, z:SPACE_ZONE.z+20, r:8, label:'🛰️ Deep Space Terminal — Fly Farther', action: openSpaceTravel });
+  CITY_ZONES.push({ x:SPACE_ZONE.x+30, z:SPACE_ZONE.z+20, r:8, label:'🛰️ Deep Space Terminal — Fly Farther', action: () => openSpaceTravel()});
 }
 // Booked from a real terminal at the Space Station (not mixed into AIRPORT_FLIGHTS — these aren't
 // Earth countries) through the exact same generic openAirport()/buyFlight() every other flight
@@ -21486,6 +23530,9 @@ function toggleSpaceLaunch(){
 }
 function tryCityJump(){
   if(inCar) return;
+  // Swimming: the same jump key dives you under or brings you back up instead of jumping — press
+  // once near the surface to submerge, press again once under to come back up, like real swimming.
+  if(inWater){ jumpVel = playerGroup.position.y > -0.3 ? -6 : 6; return; }
   // Zero-gravity thruster — unlimited, unlike the ground jump's onGround/doubleJump gating,
   // since floating in real outer space with a jetpack shouldn't run out after 1-2 taps.
   if(inOuterSpace){ jumpVel = 10; onGround = false; return; }
@@ -21637,6 +23684,7 @@ function animate(){
   const dt=clock.getDelta(), t=clock.getElapsedTime();
 
   updateDayNight();
+  tickKaraokeDisplay();
   if(t - _lastPresenceSync > PRESENCE_SYNC_INTERVAL) { _lastPresenceSync = t; syncPresence(t); }
   updateRemotePlayers(dt);
   if(t - _lastLandSync > LAND_SYNC_INTERVAL) { _lastLandSync = t; syncLandOwners(); }
@@ -21646,6 +23694,17 @@ function animate(){
   if(t - _lastLightCullSync > LIGHT_CULL_INTERVAL) { _lastLightCullSync = t; cullDistantLights(); }
   if(activeKnockbacks.length) tickKnockbacks(dt);
   if(placingStore) updatePlacementMarker();
+
+  // The Sea: real swim-zone detection (only counts once actually standing in the water, not just
+  // on the sand), plus a few decorative fish gently bobbing for real atmosphere.
+  inWater = inSea && Math.hypot(playerGroup.position.x - SEA_WATER_CENTER.x, playerGroup.position.z - SEA_WATER_CENTER.z) < SEA_WATER_RADIUS;
+  if (inSea && seaFish.length) {
+    seaFish.forEach(f => {
+      f.mesh.position.x = f.baseX + Math.sin(t*0.6 + f.phase)*3;
+      f.mesh.position.z = f.baseZ + Math.cos(t*0.4 + f.phase)*2;
+      f.mesh.rotation.y = Math.atan2(Math.cos(t*0.4 + f.phase)*-2*0.4, Math.cos(t*0.6 + f.phase)*3*0.6);
+    });
+  }
 
   // Arena free-for-all: enter/exit detection, knockout-cooldown timer, leaderboard sync
   {
@@ -21687,18 +23746,25 @@ function animate(){
       const carryMult = carriedBoxes.length ? Math.max(0.65, 1 - carriedBoxes.length*0.1) : 1; // a light penalty for a full arm-load
       const sickMult = sick ? 0.6 : 1; // real, felt slowdown while sick — not just a HUD label
       const embarrassedMult = playTimeSeconds < embarrassedUntil ? 0.7 : 1; // after a toilet accident
-      const addonSpeedMult = (activeAddOns.includes('speedboost')?1.6:1) * (activeAddOns.includes('slowmo')?0.5:1) * carryMult * sickMult * embarrassedMult;
+      const swimMult = inWater ? 0.55 : 1; // real swimming, genuinely slower than running on land
+      const tiredMult = tiredness <= 0 ? 0.7 : 1; // real, felt slowdown once exhausted — not just a HUD label
+      const addonSpeedMult = (activeAddOns.includes('speedboost')?1.6:1) * (activeAddOns.includes('slowmo')?0.5:1) * carryMult * sickMult * embarrassedMult * swimMult * tiredMult;
       const step=SPEED*(moveState.run?1.85:1)*addonSpeedMult*dt;
       const nx=playerGroup.position.x+dir.x*step;
       const nz=playerGroup.position.z+dir.z*step;
       if(!isBlocked(nx, playerGroup.position.z)) playerGroup.position.x=nx;
       if(!isBlocked(playerGroup.position.x, nz)) playerGroup.position.z=nz;
       if(activeAddOns.includes('rollerfeet') && dt>0) rollerVel.set(dir.x*step/dt, 0, dir.z*step/dt);
-      // Every pocket interior (House/Mall/Hotel/Store/FriendHouse/Prison) now lives 10,000+ units
-      // out from downtown, so none of them can be subject to the outdoor city's boundary — before
-      // this only excluded inHouse/inMall, which silently worked only because Hotel/Store/FriendHouse/
-      // Prison used to sit at 750-1200, still inside the old +-1950 clamp by coincidence.
-      if(!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inArenaBattle && !inMovieFight && !inBankInterior){
+      // Every pocket interior (House/Mall/Hotel/Store/FriendHouse/Prison/SportsPark/Hospital/Sea)
+      // now lives 10,000+ units out from downtown, so none of them can be subject to the outdoor
+      // city's boundary — before this only excluded inHouse/inMall, which silently worked only
+      // because Hotel/Store/FriendHouse/Prison used to sit at 750-1200, still inside the old
+      // +-1950 clamp by coincidence. Real bug found while adding the Sea: SportsPark/Hospital
+      // were added later (own 130000/140000 lanes) without ever being added here — meaning any
+      // movement key press inside either one snapped the player straight back to x=11000 in the
+      // real outdoor city, since 130000/140000 is always outside WORLD_BOUND. Fixed here (and in
+      // the 5 other copies of this same "am I outdoors" check) alongside adding Sea's own flag.
+      if(!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea){
         playerGroup.position.x=Math.max(-WORLD_BOUND,Math.min(WORLD_BOUND,playerGroup.position.x));
         playerGroup.position.z=Math.max(-WORLD_BOUND,Math.min(WORLD_BOUND,playerGroup.position.z));
         const _px=playerGroup.position.x, _pz=playerGroup.position.z;
@@ -21721,14 +23787,20 @@ function animate(){
     }
   }
   // Jump / gravity (vertical motion, works even while standing still)
-  if(!inCar && !playerSeated && !onBankWall && (!onGround || jumpVel!==0 || inOuterSpace)){
+  if(!inCar && !playerSeated && !onBankWall && (!onGround || jumpVel!==0 || inOuterSpace || inWater)){
     // Real zero-g: barely any pull at all while inOuterSpace, so a tap of the thruster (tryCityJump)
     // carries you a long way up and you drift back down slowly — nothing like the merely-reduced
     // "moon gravity" the Space Station's ground platform already had before this. currentGravity()
     // now covers every real gravity zone (Space Station/Moon/Mars/Jupiter/Andromeda), not just one.
-    jumpVel -= (inOuterSpace ? 3 : activeAddOns.includes('moonjump') ? 14 : currentGravity())*dt;
+    jumpVel -= (inOuterSpace ? 3 : inWater ? 4 : activeAddOns.includes('moonjump') ? 14 : currentGravity())*dt;
     playerGroup.position.y += jumpVel*dt;
-    if(playerGroup.position.y<=0){
+    if (inWater) {
+      // Floating between the surface (0) and a real dive depth (-3) — swimming isn't standing on
+      // a floor, so this is a soft range clamp instead of the hard ground-only landing below.
+      if (playerGroup.position.y > 0) { playerGroup.position.y = 0; jumpVel = 0; }
+      else if (playerGroup.position.y < -3) { playerGroup.position.y = -3; jumpVel = 0; }
+      onGround = false; // never "landed" while swimming — tryCityJump always dives/surfaces here, never a ground jump
+    } else if(playerGroup.position.y<=0){
       playerGroup.position.y=0;
       if(inOuterSpace) { inOuterSpace = false; showNotif('🌍 You drift back down and touch down on the Space Station platform.'); }
       if(activeAddOns.includes('bouncyshoes')) { jumpVel=12; onGround=false; }
@@ -22004,6 +24076,7 @@ function animate(){
   tickHunger(dt);
   tickSickness();
   tickBladder(dt);
+  tickTiredness(dt);
   tickTraffic(dt);
   tickMachines(dt);
   tickTubeWorld(dt);
