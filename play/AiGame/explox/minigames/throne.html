@@ -74,14 +74,7 @@
     #startBtn { padding:14px 56px; font-size:20px; font-weight:bold; border:none; border-radius:10px; background:#FFD700; color:#111; cursor:pointer; letter-spacing:2px; }
     #startBtn:hover { background:#ffd000; }
 
-    #enemyDesignScreen { background:rgba(20,0,0,0.9); }
-    .enemyOptCard { width:130px; background:rgba(255,255,255,0.05); border:2px solid #444; border-radius:12px; padding:12px 8px; text-align:center; cursor:pointer; transition:border-color 0.15s, background 0.15s; }
-    .enemyOptCard:hover { border-color:#ff8888; }
-    .enemyOptCard.enemyOptSelected { border-color:#ff4444; background:rgba(255,68,68,0.15); box-shadow:0 0 12px rgba(255,68,68,0.35); }
-    .enemyOptIcon { font-size:26px; }
-    .enemyOptLabel { font-size:12px; font-weight:bold; color:#fff; margin:6px 0 3px; }
-    .enemyOptDesc { font-size:9px; color:#aaa; line-height:1.3; }
-    .enemyOptMult { font-size:10px; color:#ff8888; margin-top:4px; font-weight:bold; }
+    #enemyDesignScreen { background:rgba(20,0,0,0.9); justify-content:flex-start; }
     #enemyDesignBtn { padding:14px 56px; font-size:18px; font-weight:bold; border:none; border-radius:10px; background:#ff4444; color:#fff; cursor:pointer; letter-spacing:2px; }
     #enemyDesignBtn:hover { background:#ff2222; }
 
@@ -185,19 +178,24 @@
 </div>
 
 <!-- DESIGN YOUR ENEMY — user's own ask: "make it so you get to desighn your enmemy in capture
-     the throne but the hp and weapon predickts s the reward". Pick how tough the enemy army's
-     HP is and how dangerous their weapon is BEFORE the fight — both choices multiply together
-     into a real Victory Reward (paid out in real S.I.P. to the main game save every time you
-     capture the throne), shown live as you pick, so a harder self-chosen enemy always means a
-     bigger real payout, not just a harder fight. -->
-<div class="overlay" id="enemyDesignScreen" style="display:none;">
-  <h1 style="font-size:38px;color:#ff6666;letter-spacing:3px;text-shadow:0 0 16px #ff4444;">👹 DESIGN YOUR ENEMY</h1>
-  <h2 style="font-size:16px;color:#ffaaaa;margin:8px 0 22px;">Tougher enemies pay off bigger — you choose the risk.</h2>
-  <div style="color:#ccc;font-size:13px;font-weight:bold;letter-spacing:2px;margin-bottom:8px;">ENEMY HP</div>
-  <div id="enemyHpGrid" style="display:flex;gap:10px;margin-bottom:22px;"></div>
-  <div style="color:#ccc;font-size:13px;font-weight:bold;letter-spacing:2px;margin-bottom:8px;">ENEMY WEAPON</div>
-  <div id="enemyWeaponGrid" style="display:flex;gap:10px;margin-bottom:26px;"></div>
-  <div style="background:rgba(255,215,0,0.1);border:2px solid #FFD700;border-radius:12px;padding:14px 34px;text-align:center;margin-bottom:24px;">
+     the throne but the hp and weapon predickts s the reward", then two real follow-ups: "you
+     choose with slider" (HP is a slider now, not 4 fixed cards) and "weapon is any weapon in
+     game" (the weapon picker is the real 100-weapon WEAPONS array below — the exact same list/
+     same .dmg stat the Armory sells you, not a separate made-up 4-option list). Both choices
+     multiply together into a real Victory Reward (paid out in real S.I.P. to the main game save
+     every time you capture the throne), shown live as you adjust either one. -->
+<div class="overlay" id="enemyDesignScreen" style="display:none;padding:20px 0;overflow-y:auto;">
+  <h1 style="font-size:34px;color:#ff6666;letter-spacing:3px;text-shadow:0 0 16px #ff4444;">👹 DESIGN YOUR ENEMY</h1>
+  <h2 style="font-size:15px;color:#ffaaaa;margin:6px 0 18px;">Tougher enemies pay off bigger — you choose the risk.</h2>
+  <div style="color:#ccc;font-size:13px;font-weight:bold;letter-spacing:2px;margin-bottom:10px;">ENEMY HP</div>
+  <input type="range" id="enemyHpSlider" min="25" max="400" step="5" value="100" oninput="onEnemyHpSliderInput()" style="width:min(90vw,380px);accent-color:#ff4444;">
+  <div id="enemyHpSliderLabel" style="color:#ff8888;font-size:14px;font-weight:bold;margin:6px 0 22px;">⚖️ 1.00× HP — Normal</div>
+
+  <div style="color:#ccc;font-size:13px;font-weight:bold;letter-spacing:2px;margin-bottom:8px;">ENEMY WEAPON — ANY WEAPON IN THE GAME</div>
+  <div id="enemyWeaponPreview" style="color:#ff8888;font-size:13px;font-weight:bold;margin-bottom:8px;">⚡ Laser Sword — 1.0× DMG</div>
+  <div class="armGrid" id="enemyWeaponGrid" style="width:min(94vw,600px);max-height:280px;"></div>
+
+  <div style="background:rgba(255,215,0,0.1);border:2px solid #FFD700;border-radius:12px;padding:14px 34px;text-align:center;margin:22px 0 24px;">
     <div style="color:#aaa;font-size:11px;letter-spacing:2px;">VICTORY REWARD — PER THRONE CAPTURED</div>
     <div id="enemyRewardPreview" style="color:#FFD700;font-size:28px;font-weight:bold;margin-top:4px;">💰 15 S.I.P.</div>
   </div>
@@ -273,52 +271,51 @@ const CAPTURE_TIME=20;
 const TIER_NAMES=['The Grasslands','The Forest Keep','The Dark Citadel','The Final Fortress'];
 
 // ── DESIGN YOUR ENEMY — user's own ask: "make it so you get to desighn your enmemy in capture
-// the throne but the hp and weapon predickts s the reward". Both choices are real multipliers
+// the throne but the hp and weapon predickts s the reward", then two real follow-ups: "you
+// choose with slider" and "weapon is any weapon in game". Both choices are real multipliers
 // applied to every RED (enemy) soldier makeSoldier() creates below (never allies) — HP scales
 // hp/maxHp, weapon scales dmg — and together they set a real Victory Reward paid out in actual
 // S.I.P. to the main game's own save (localStorage 'explox_user_<name>'), every single time the
 // throne is captured (every level, not just the final one) — see grantVictoryReward() below.
-const ENEMY_HP_PRESETS = [
-  { id:'weak',   icon:'😌', label:'Weak',   mult:0.5,  desc:'Half HP. Easy fight.' },
-  { id:'normal', icon:'⚖️', label:'Normal', mult:1.0,  desc:'Standard HP.' },
-  { id:'tough',  icon:'💪', label:'Tough',  mult:1.75, desc:'Way more HP. A real grind.' },
-  { id:'brutal', icon:'💀', label:'Brutal', mult:2.75, desc:'Nearly 3× HP. Brutal endurance.' },
-];
-const ENEMY_WEAPON_PRESETS = [
-  { id:'dagger', icon:'🗡️', label:'Dagger', dmgMult:0.7,  desc:'Weak hits. Safer for you.' },
-  { id:'sword',  icon:'⚔️', label:'Sword',  dmgMult:1.0,  desc:'Standard damage.' },
-  { id:'axe',    icon:'🪓', label:'Axe',    dmgMult:1.35, desc:'Heavier hits.' },
-  { id:'hammer', icon:'🔨', label:'Hammer', dmgMult:1.8,  desc:'Devastating damage. Real risk.' },
-];
-let enemyHpPresetId = 'normal', enemyWeaponPresetId = 'sword';
-function enemyHpPreset()     { return ENEMY_HP_PRESETS.find(p=>p.id===enemyHpPresetId); }
-function enemyWeaponPreset() { return ENEMY_WEAPON_PRESETS.find(p=>p.id===enemyWeaponPresetId); }
-// Base reward is deliberately small (15 S.I.P. at Normal/Sword, level 1) — the whole point is
-// that YOUR OWN choice of HP × weapon is what makes it grow, same spirit as a real wager: choose
-// Brutal+Hammer (2.75×1.8≈5×) for a real ~5× payout, or Weak+Dagger for a safe, small one. Scales
-// a little further with level too, since later levels are already a harder fight on their own.
+// The weapon picker reuses the REAL WEAPONS array (defined further down this file, the exact
+// same 100-weapon list/dmg stat the Armory itself sells) — genuinely "any weapon in the game",
+// not a separate small made-up list.
+let enemyHpMult = 1.0, enemyWeaponId = 'laser_sword';
+function enemyWeapon() { return WEAPONS.find(w=>w.id===enemyWeaponId) || WEAPONS[0]; }
+function hpTierLabel(mult) {
+  if (mult < 0.5)  return '😌 Very Weak';
+  if (mult < 0.9)  return '🙂 Weak';
+  if (mult < 1.3)  return '⚖️ Normal';
+  if (mult < 2.0)  return '💪 Tough';
+  if (mult < 3.0)  return '😰 Very Tough';
+  return '💀 Brutal';
+}
+// Base reward is deliberately small (15 S.I.P. at 1.0× HP / Laser Sword's 1.0× dmg, level 1) —
+// the whole point is that YOUR OWN choice of HP × weapon is what makes it grow, same spirit as a
+// real wager. WEAPONS' dmg spans 0.8 (Slingshot) to 10.0 (the strongest endgame weapon), and the
+// slider spans 0.25×-4.00×, so the achievable range is genuinely wide. Scales a little further
+// with level too, since later levels are already a harder fight on their own.
 function computeVictoryReward() {
-  const difficultyMult = enemyHpPreset().mult * enemyWeaponPreset().dmgMult;
+  const difficultyMult = enemyHpMult * enemyWeapon().dmg;
   return Math.round(15 * difficultyMult * (1 + (level-1)*0.12));
 }
-function selectEnemyHp(id)     { enemyHpPresetId = id;     renderEnemyDesignScreen(); }
-function selectEnemyWeapon(id) { enemyWeaponPresetId = id; renderEnemyDesignScreen(); }
+function onEnemyHpSliderInput() {
+  enemyHpMult = document.getElementById('enemyHpSlider').value / 100;
+  document.getElementById('enemyHpSliderLabel').textContent = `${hpTierLabel(enemyHpMult)} — ${enemyHpMult.toFixed(2)}× HP`;
+  document.getElementById('enemyRewardPreview').textContent = `💰 ${computeVictoryReward()} S.I.P.`;
+}
+function selectEnemyWeapon(id) { enemyWeaponId = id; renderEnemyDesignScreen(); }
 function renderEnemyDesignScreen() {
-  const hpGrid = document.getElementById('enemyHpGrid');
-  hpGrid.innerHTML = ENEMY_HP_PRESETS.map(p => `
-    <div class="enemyOptCard${p.id===enemyHpPresetId?' enemyOptSelected':''}" onclick="selectEnemyHp('${p.id}')">
-      <div class="enemyOptIcon">${p.icon}</div>
-      <div class="enemyOptLabel">${p.label}</div>
-      <div class="enemyOptDesc">${p.desc}</div>
-      <div class="enemyOptMult">${p.mult}× HP</div>
-    </div>`).join('');
+  document.getElementById('enemyHpSlider').value = Math.round(enemyHpMult*100);
+  document.getElementById('enemyHpSliderLabel').textContent = `${hpTierLabel(enemyHpMult)} — ${enemyHpMult.toFixed(2)}× HP`;
+  const w = enemyWeapon();
+  document.getElementById('enemyWeaponPreview').textContent = `${w.icon} ${w.name} — ${w.dmg.toFixed(1)}× DMG`;
   const wGrid = document.getElementById('enemyWeaponGrid');
-  wGrid.innerHTML = ENEMY_WEAPON_PRESETS.map(p => `
-    <div class="enemyOptCard${p.id===enemyWeaponPresetId?' enemyOptSelected':''}" onclick="selectEnemyWeapon('${p.id}')">
-      <div class="enemyOptIcon">${p.icon}</div>
-      <div class="enemyOptLabel">${p.label}</div>
-      <div class="enemyOptDesc">${p.desc}</div>
-      <div class="enemyOptMult">${p.dmgMult}× DMG</div>
+  wGrid.innerHTML = WEAPONS.map(wp => `
+    <div class="armCard${wp.id===enemyWeaponId?' arm-equipped':''}" onclick="selectEnemyWeapon('${wp.id}')">
+      <div class="armIcon">${wp.icon}</div>
+      <div class="armName">${wp.name}</div>
+      <div class="armLvl">${wp.dmg.toFixed(1)}× DMG</div>
     </div>`).join('');
   document.getElementById('enemyRewardPreview').textContent = `💰 ${computeVictoryReward()} S.I.P.`;
 }
@@ -587,8 +584,8 @@ function makeSoldier(team, pos, type){
   const diff=1+(level-1)*0.16;
   // Design Your Enemy multipliers apply ONLY to the red (enemy) team, never blue allies — your
   // own chosen HP/weapon toughens the army you're fighting, not the one fighting beside you.
-  const hpMult  = isBlue ? 1 : enemyHpPreset().mult;
-  const dmgMult = isBlue ? 1 : enemyWeaponPreset().dmgMult;
+  const hpMult  = isBlue ? 1 : enemyHpMult;
+  const dmgMult = isBlue ? 1 : enemyWeapon().dmg;
   const maxHP=Math.round((type==='heavy'?160:type==='archer'?45:75)*diff*hpMult);
   return {
     group:g, team, type,
@@ -1254,6 +1251,7 @@ function savePlayerData(){
 // ── ARMORY UI ─────────────────────────────────────────────────────────────────
 function openWeaponShop(){
   document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('enemyDesignScreen').style.display = 'none';
   const pd = loadPlayerData();
   playerLevel = pd.level; playerXP = pd.xp; shopSip = pd.sip;
   ownedWeaponIds = pd.ownedWeapons; equippedWeaponId = pd.equippedWeapon;
