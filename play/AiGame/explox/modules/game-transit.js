@@ -527,6 +527,106 @@ function _drawSITSMap() {
   ctx.fillText('S.I.T.S. NETWORK MAP', 8, 16);
 }
 
+// ─── CAB — user's own ask: "make a cab tab on the right 10 options some are for multiple
+// peaple". A call-it-from-anywhere premium alternative to S.I.T.S. above (which needs walking to
+// the Transit Hub and only runs its 5 fixed routes): the same 10 real city spots S.I.T.S. already
+// uses as stops, but a direct door-to-door fare from wherever you're standing right now, via a
+// persistent side tab like Quests/Contracts instead of a walk-to zone. 4 of the 10 are real GROUP
+// RIDES — you can bring along up to 3 befriended neighbors (the same `friends` array
+// befriendNeighbor() in game-district.js builds) for a real per-seat fare, and they really show up
+// standing next to you at the destination via buildResidentFigure(), the same figure the House
+// Guest system already uses for "someone's really here", not just a notification.
+const CAB_DESTINATIONS = [
+  { name:'City Bank',        x:160, z:210,  emoji:'🏦', fare:12, group:false },
+  { name:'Your House',       x:-30, z:-107, emoji:'🏠', fare:6,  group:false },
+  { name:'Shady Dealer',     x:34,  z:3,    emoji:'🕴️', fare:8,  group:false },
+  { name:'Shopping Street',  x:60,  z:50,   emoji:'🛍️', fare:10, group:true  },
+  { name:'Pizza Restaurant', x:20,  z:80,   emoji:'🍕', fare:9,  group:true  },
+  { name:'City Mall',        x:80,  z:-20,  emoji:'🏬', fare:10, group:true  },
+  { name:'Police Station',   x:-70, z:10,   emoji:'🚔', fare:7,  group:false },
+  { name:'Transit Hub',      x:0,   z:50,   emoji:'🚇', fare:6,  group:false },
+  { name:'Black Market',     x:-80, z:-71,  emoji:'⚫', fare:14, group:false },
+  { name:'Movie Theater',    x:50,  z:-85,  emoji:'🎬', fare:11, group:true  },
+];
+const CAB_FRIEND_FARE = 5; // extra S.I.P. per friend brought along — group rides only
+const CAB_MAX_FRIENDS = 3;
+let cabSelectedFriends = {}; // destination name -> Set of friend names currently picked
+let cabCompanionMeshes = []; // "came along" figures standing at your last cab dropoff
+
+function toggleCabPanel() {
+  const panel = document.getElementById('cabPanel');
+  if (panel.style.display === 'none') {
+    if (document.pointerLockElement) document.exitPointerLock();
+    isPointerLocked = false;
+    renderCabPanel();
+    panel.style.display = 'flex';
+    document.getElementById('cabTab').style.display = 'none';
+  } else { closeCabPanel(); }
+}
+function closeCabPanel() {
+  document.getElementById('cabPanel').style.display = 'none';
+  document.getElementById('cabTab').style.display = 'block';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function toggleCabFriend(destName, friendName) {
+  if (!cabSelectedFriends[destName]) cabSelectedFriends[destName] = new Set();
+  const set = cabSelectedFriends[destName];
+  if (set.has(friendName)) set.delete(friendName);
+  else if (set.size < CAB_MAX_FRIENDS) set.add(friendName);
+  renderCabPanel();
+}
+function renderCabPanel() {
+  const list = document.getElementById('cabList');
+  list.innerHTML = CAB_DESTINATIONS.map(d => {
+    const picked = d.group ? (cabSelectedFriends[d.name] || new Set()) : new Set();
+    const total = d.fare + picked.size * CAB_FRIEND_FARE;
+    const canAfford = sipDollars >= total;
+    let friendPickerHtml = '';
+    if (d.group) {
+      if (friends.length === 0) {
+        friendPickerHtml = `<div style="color:#666;font-size:9px;margin:6px 0;">Make a friend first to bring one along!</div>`;
+      } else {
+        friendPickerHtml = `<div style="display:flex;flex-wrap:wrap;gap:4px;margin:6px 0;">${friends.map(f => {
+          const isOn = picked.has(f);
+          const safeF = f.replace(/'/g, "\\'");
+          return `<button onclick="toggleCabFriend('${d.name}','${safeF}')" style="padding:4px 8px;border-radius:6px;font-size:9px;cursor:pointer;border:1px solid ${isOn?'#ffcc00':'#333'};background:${isOn?'#ffcc0033':'#111'};color:${isOn?'#ffcc00':'#999'};">${isOn?'✓ ':''}${f}</button>`;
+        }).join('')}</div>`;
+      }
+    }
+    return `<div style="background:rgba(255,255,255,0.05);border:2px solid #333;border-radius:10px;padding:10px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="color:#fff;font-size:12px;font-weight:bold;">${d.emoji} ${d.name}</div>
+        ${d.group ? `<span style="color:#ffcc00;font-size:8px;font-weight:bold;background:#ffcc0022;padding:2px 6px;border-radius:8px;">GROUP RIDE</span>` : ''}
+      </div>
+      ${friendPickerHtml}
+      <button onclick="takeCab('${d.name}')" ${canAfford?'':'disabled'} style="width:100%;margin-top:6px;padding:7px;background:${canAfford?'#2a7a2a':'#333'};border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:bold;cursor:${canAfford?'pointer':'not-allowed'};">🚕 Go — ${total} S.I.P.${picked.size?` (${picked.size} friend${picked.size===1?'':'s'})`:''}</button>
+    </div>`;
+  }).join('');
+}
+function takeCab(destName) {
+  const d = CAB_DESTINATIONS.find(x => x.name === destName);
+  if (!d) return;
+  const picked = d.group ? Array.from(cabSelectedFriends[destName] || []) : [];
+  const total = d.fare + picked.length * CAB_FRIEND_FARE;
+  if (sipDollars < total) { showNotif(`❌ Need ${total} S.I.P. for this ride!`); return; }
+  spendSip(total); saveCurrentUser(); updateSIP();
+  closeCabPanel();
+  cabCompanionMeshes.forEach(m => scene.remove(m));
+  cabCompanionMeshes = [];
+  playerGroup.position.set(d.x, 0, d.z);
+  yaw = 0;
+  picked.forEach((name, i) => {
+    const npc = npcs.find(n => n.name === name);
+    if (!npc) return;
+    const ang = (i / Math.max(1, picked.length)) * Math.PI * 2;
+    cabCompanionMeshes.push(...buildResidentFigure(d.x + Math.cos(ang)*2.5, d.z + Math.sin(ang)*2.5, npc));
+  });
+  cabSelectedFriends[destName] = new Set();
+  showNotif(picked.length ? `🚕 Arrived at ${d.emoji} ${d.name} with ${picked.join(', ')}!` : `🚕 Arrived at ${d.emoji} ${d.name}!`);
+  sfx.earn();
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+
 let cinemaState = {movie:null,snacks:[],phase:null,sceneIndex:0,sceneTimer:null,animFrame:null,trailerIndex:0,sceneStart:0};
 
 function openCinema() {

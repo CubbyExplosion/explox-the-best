@@ -1282,6 +1282,24 @@
     <button onclick="closeContractsPanel()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:10px;">✕ Close</button>
   </div>
 
+  <!-- CAB TAB — user's own ask: "make a cab tab on the right 10 options some are for multiple
+       peaple". Always visible (unlike Contracts, this isn't alignment-gated) — call a cab from
+       anywhere, no walking to the Transit Hub like S.I.T.S. needs. Next free right-side slot
+       after Contracts' +616. -->
+  <div id="cabTab" style="position:fixed;top:calc(50% + 696px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
+    <button onclick="toggleCabPanel()" style="display:block;background:linear-gradient(180deg,#1a1a0a,#2a2a1a);border:2px solid #ffcc00;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
+      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🚕</span>CAB
+    </button>
+  </div>
+
+  <!-- CAB PANEL -->
+  <div id="cabPanel" style="display:none;position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#1a1608,#241e0a);border:2px solid #ffcc00;border-right:none;border-radius:14px 0 0 14px;padding:14px 12px;width:290px;pointer-events:auto;max-height:85vh;overflow:hidden;flex-direction:column;">
+    <div style="color:#ffcc00;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:4px;">🚕 CALL A CAB</div>
+    <p style="color:#555;font-size:9px;text-align:center;margin-bottom:8px;letter-spacing:1px;">DIRECT RIDES, ANYWHERE TO ANYWHERE</p>
+    <div id="cabList" style="overflow-y:auto;flex:1;padding-right:4px;"></div>
+    <button onclick="closeCabPanel()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:10px;">✕ Close</button>
+  </div>
+
   <!-- GAME BUILDER MODAL — a real Scratch-style block editor: click blocks together, no typing
        code, multiple sprites, sounds, backgrounds, variables, and a live Run button that actually
        plays the result right there on a canvas. Logic lives entirely in game-builder.js. -->
