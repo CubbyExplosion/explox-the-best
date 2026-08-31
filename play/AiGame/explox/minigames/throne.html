@@ -763,15 +763,19 @@ function spawnWave(w){
 
   const tier=levelTier(level);
   const wb=w-1; // wave bonus (0-4)
+  // "i don't seee" — real fix: tanks were only wired into Tier 2+ (level 11+), so a normal fresh
+  // playthrough starting at level 1 would never see one for ~50 waves. Tanks now appear from
+  // Tier 0 wave 3 onward (level 1 itself!) in small numbers, scaling up through the later tiers —
+  // genuinely visible right away, not just "eventually, if you grind that far."
   const tierCfgs=[
-    // Tier 0: Grasslands (levels 1-5) — normals only early, archers later
-    [[{type:'normal',n:4}],[{type:'normal',n:5},{type:'archer',n:1}],[{type:'normal',n:5},{type:'archer',n:2}],[{type:'normal',n:6},{type:'archer',n:2}],[{type:'normal',n:6},{type:'archer',n:3}]],
-    // Tier 1: Forest Keep (levels 6-10) — heavies introduced
-    [[{type:'normal',n:7},{type:'archer',n:2}],[{type:'normal',n:7},{type:'archer',n:3},{type:'heavy',n:1}],[{type:'normal',n:8},{type:'archer',n:3},{type:'heavy',n:2}],[{type:'normal',n:8},{type:'archer',n:4},{type:'heavy',n:3}],[{type:'normal',n:9},{type:'archer',n:4},{type:'heavy',n:3}]],
-    // Tier 2: Dark Citadel (levels 11-15) — big armies, TANKS introduced ("you and enemy haver tank")
-    [[{type:'normal',n:9},{type:'archer',n:4},{type:'heavy',n:2}],[{type:'normal',n:10},{type:'archer',n:4},{type:'heavy',n:3}],[{type:'normal',n:10},{type:'archer',n:5},{type:'heavy',n:4},{type:'tank',n:1}],[{type:'normal',n:11},{type:'archer',n:5},{type:'heavy',n:4},{type:'tank',n:1}],[{type:'normal',n:12},{type:'archer',n:6},{type:'heavy',n:5},{type:'tank',n:2}]],
+    // Tier 0: Grasslands (levels 1-5) — normals only early, archers later, a real tank from wave 3
+    [[{type:'normal',n:4}],[{type:'normal',n:5},{type:'archer',n:1}],[{type:'normal',n:5},{type:'archer',n:2},{type:'tank',n:1}],[{type:'normal',n:6},{type:'archer',n:2},{type:'tank',n:1}],[{type:'normal',n:6},{type:'archer',n:3},{type:'tank',n:1}]],
+    // Tier 1: Forest Keep (levels 6-10) — heavies introduced, tanks more common
+    [[{type:'normal',n:7},{type:'archer',n:2},{type:'tank',n:1}],[{type:'normal',n:7},{type:'archer',n:3},{type:'heavy',n:1},{type:'tank',n:1}],[{type:'normal',n:8},{type:'archer',n:3},{type:'heavy',n:2},{type:'tank',n:2}],[{type:'normal',n:8},{type:'archer',n:4},{type:'heavy',n:3},{type:'tank',n:2}],[{type:'normal',n:9},{type:'archer',n:4},{type:'heavy',n:3},{type:'tank',n:2}]],
+    // Tier 2: Dark Citadel (levels 11-15) — big armies
+    [[{type:'normal',n:9},{type:'archer',n:4},{type:'heavy',n:2},{type:'tank',n:2}],[{type:'normal',n:10},{type:'archer',n:4},{type:'heavy',n:3},{type:'tank',n:2}],[{type:'normal',n:10},{type:'archer',n:5},{type:'heavy',n:4},{type:'tank',n:3}],[{type:'normal',n:11},{type:'archer',n:5},{type:'heavy',n:4},{type:'tank',n:3}],[{type:'normal',n:12},{type:'archer',n:6},{type:'heavy',n:5},{type:'tank',n:3}]],
     // Tier 3: Final Fortress (levels 16-20) — maximum chaos
-    [[{type:'normal',n:12},{type:'archer',n:6},{type:'heavy',n:4},{type:'tank',n:2}],[{type:'normal',n:13},{type:'archer',n:6},{type:'heavy',n:5},{type:'tank',n:2}],[{type:'normal',n:14},{type:'archer',n:7},{type:'heavy',n:5},{type:'tank',n:3}],[{type:'normal',n:14},{type:'archer',n:7},{type:'heavy',n:6},{type:'tank',n:3}],[{type:'normal',n:15},{type:'archer',n:8},{type:'heavy',n:7},{type:'tank',n:4}]],
+    [[{type:'normal',n:12},{type:'archer',n:6},{type:'heavy',n:4},{type:'tank',n:3}],[{type:'normal',n:13},{type:'archer',n:6},{type:'heavy',n:5},{type:'tank',n:3}],[{type:'normal',n:14},{type:'archer',n:7},{type:'heavy',n:5},{type:'tank',n:4}],[{type:'normal',n:14},{type:'archer',n:7},{type:'heavy',n:6},{type:'tank',n:4}],[{type:'normal',n:15},{type:'archer',n:8},{type:'heavy',n:7},{type:'tank',n:5}]],
   ];
   const cfg=tierCfgs[tier][wb];
   cfg.forEach(({type,n})=>{
@@ -791,9 +795,10 @@ function spawnWave(w){
   for(let i=0;i<allyN;i++){
     const x=(Math.random()-0.5)*42;
     const z=52+(Math.random()-0.5)*8;
-    // Ally tanks show up from level 11 on, matching the enemy side's own tier-2 introduction —
-    // "you and enemy haver tank" means both armies genuinely field them, not just one side.
-    const t=(level>=11&&Math.random()<0.08)?'tank':Math.random()<0.25?'archer':Math.random()<0.15?'heavy':'normal';
+    // Ally tanks — real fix for "i don't seee": these used to be gated to level 11+, same as the
+    // enemy side, which meant a fresh playthrough never saw one for a very long time. Now rolls
+    // from level 1, matching the enemy tierCfgs' own wave-3+ start.
+    const t=Math.random()<0.08?'tank':Math.random()<0.25?'archer':Math.random()<0.15?'heavy':'normal';
     allies.push(makeSoldier('blue',[x,0,z],t));
   }
 
