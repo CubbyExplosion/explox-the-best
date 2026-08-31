@@ -339,6 +339,7 @@ function backToLogin() {
   saveCurrentUser();
   currentUser = null;
   clearRemotePlayers();
+  clearRemoteKillers();
   document.getElementById('customScreen').style.display = 'none';
   document.getElementById('loginScreen').style.display  = 'flex';
   loadLoginScreen();

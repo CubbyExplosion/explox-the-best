@@ -569,6 +569,35 @@ let remotePlayers = {};
 let _lastPresenceSync = -999;
 const PRESENCE_SYNC_INTERVAL = 1; // seconds
 
+// User's own ask: "if i an fighting a killer you can see that" — real-time visibility into what
+// OTHER online players are currently fighting, piggybacked on the same free-form /api/presence
+// POST every other field above already uses (server stores whatever's sent, no schema — see
+// server.js). "owner:id" -> {mesh, targetX, targetZ, owner, killerId}. Deliberately a SEPARATE
+// map from the local `killers` array (game-land.js) — these are pure visual echoes, never pushed
+// into `killers`, so none of your own combat code (fightKiller/swingSword/tickKillers) can ever
+// touch, damage, or be damaged by someone else's fight. Namespaced by owner name because each
+// client's own ROBOT_ID_SEQ starts at 0, so two different players' first killer would otherwise
+// both be "killer0" and collide.
+let remoteKillers = {};
+// Thin wrapper around the real buildKillerMesh()/buildRobberMesh() (game-land.js) — reuses the
+// exact same models real killers/robbers use, then swaps the "▓▓ UNKNOWN ▓▓" nametag (correct
+// for YOUR OWN killers, where the game deliberately hides who/what it is) for a real "fighting
+// {name}" label, since here the whole point is showing whose fight this is.
+function buildRemoteKillerMesh(x, z, isRobber, ownerName) {
+  const g = isRobber ? buildRobberMesh(x, z) : buildKillerMesh(x, z);
+  const oldTag = g.children.find(c => c.geometry && c.geometry.type === 'PlaneGeometry');
+  if (oldTag) g.remove(oldTag);
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64;
+  const cx2 = cv.getContext('2d');
+  cx2.fillStyle = 'rgba(0,0,0,0.7)'; cx2.fillRect(0,16,256,32);
+  cx2.fillStyle = '#ffaa00'; cx2.font = 'bold 18px Arial'; cx2.textAlign = 'center';
+  cx2.fillText(`⚔️ fighting ${ownerName}`, 128, 38);
+  const tag = new THREE.Mesh(new THREE.PlaneGeometry(2.4,0.6), new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+  tag.position.y = 4.5; g.add(tag);
+  g.visible = true; // real killers start hidden until revealed; a synced one is only ever sent once already revealed
+  return g;
+}
+
 // Every PointLight added anywhere in the city (there are 270+ once everything is
 // built — one per lamp post, shop sign, car, etc.) stays permanently active in
 // the scene, and three.js compiles ONE shared lit-material shader sized for
@@ -619,6 +648,12 @@ async function syncPresence(t) {
     const driving = !!(inCar && activeCar);
     const posSrc = driving ? activeCar.group.position : playerGroup.position;
     const yawSrc = driving ? carYaw : yaw;
+    // "if i an fighting a killer you can see that" — only ever the REVEALED, ALIVE ones (an
+    // unrevealed killer is still hidden from you, so it stays hidden from everyone else too),
+    // and only the plain-data fields (never `.mesh` — a live THREE object can't go over JSON).
+    const visibleKillers = (typeof killers !== 'undefined' ? killers : [])
+      .filter(k => k.alive && k.revealed)
+      .map(k => ({ id:k.id, x:k.x, z:k.z, robber:!!k.robber }));
     const body = {
       name: currentUser,
       x: posSrc.x, y: posSrc.y, z: posSrc.z,
@@ -626,7 +661,8 @@ async function syncPresence(t) {
       inCar: driving, carId: driving ? activeCar.def.id : null,
       hat: playerHat, hair: playerHair, shirt: playerShirt, pants: playerPants, shoes: playerShoes,
       skin: playerColors.skin, shirtColor: playerColors.shirt, pantsColor: playerColors.pants,
-      shoesColor: playerColors.shoes, hairColor: playerColors.hair
+      shoesColor: playerColors.shoes, hairColor: playerColors.hair,
+      killers: visibleKillers
     };
     fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/presence', {
       method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
@@ -636,6 +672,7 @@ async function syncPresence(t) {
     if(!r.ok) return;
     const others = await r.json();
     const seen = new Set();
+    const seenKillers = new Set();
     others.forEach(o => {
       seen.add(o.name);
       const wantCar = !!o.inCar;
@@ -654,9 +691,25 @@ async function syncPresence(t) {
         }
         rp.targetX = o.x; rp.targetY = o.y; rp.targetZ = o.z; rp.targetYaw = o.yaw||0;
       }
+      (o.killers || []).forEach(k => {
+        const key = o.name + ':' + k.id;
+        seenKillers.add(key);
+        let rk = remoteKillers[key];
+        if(!rk) {
+          const mesh = buildRemoteKillerMesh(k.x, k.z, !!k.robber, o.name);
+          remoteKillers[key] = { mesh, targetX:k.x, targetZ:k.z, owner:o.name };
+        } else {
+          rk.targetX = k.x; rk.targetZ = k.z;
+        }
+      });
     });
     Object.keys(remotePlayers).forEach(name => {
       if(!seen.has(name)) { scene.remove(remotePlayers[name].mesh); delete remotePlayers[name]; }
+    });
+    // A remote killer disappears the instant its owner stops reporting it — defeated, fled,
+    // or the owner went offline (in which case they also vanish from `seen` above, same beat).
+    Object.keys(remoteKillers).forEach(key => {
+      if(!seenKillers.has(key)) { scene.remove(remoteKillers[key].mesh); delete remoteKillers[key]; }
     });
   } catch(e) { /* a dropped sync just means they'll look stale for a beat - not worth surfacing */ }
 }
@@ -676,6 +729,17 @@ function updateRemotePlayers(dt) {
 function clearRemotePlayers() {
   Object.values(remotePlayers).forEach(rp => scene.remove(rp.mesh));
   remotePlayers = {};
+}
+
+function updateRemoteKillers(dt) {
+  Object.values(remoteKillers).forEach(rk => {
+    rk.mesh.position.x += (rk.targetX - rk.mesh.position.x) * Math.min(1, dt*6);
+    rk.mesh.position.z += (rk.targetZ - rk.mesh.position.z) * Math.min(1, dt*6);
+  });
+}
+function clearRemoteKillers() {
+  Object.values(remoteKillers).forEach(rk => scene.remove(rk.mesh));
+  remoteKillers = {};
 }
 
 // ─── PRESIDENTS — user's own ask: "make presidents", one per country. Same rule as the
