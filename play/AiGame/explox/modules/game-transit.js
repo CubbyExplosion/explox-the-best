@@ -572,8 +572,16 @@ function getCabDestinations() {
 }
 const CAB_FRIEND_FARE = 5; // extra S.I.P. per friend brought along
 const CAB_MAX_FRIENDS = 3;
-const CAB_SPEED = 60; // world units/sec a cab "drives" — sets how long a real trip there takes
-function cabRideDuration(dist) { return Math.max(2000, Math.min(20000, (dist / CAB_SPEED) * 1000)); }
+// User's own follow-up: "if i drive it will take that long" — not an arbitrary made-up speed,
+// the REAL speed of the actual 🚕 Gold Cab in CAR_CATALOG (game-vehicles.js). Read lazily (not a
+// top-level const) since game-vehicles.js loads AFTER this file — same load-order rule as
+// getCabDestinations() below. If Gold Cab's own speed ever gets rebalanced, cab ride timing
+// follows automatically instead of silently drifting out of sync with it.
+function cabDriveSpeed() {
+  const cab = CAR_CATALOG.find(c => c.id === 'gold_cab');
+  return cab ? cab.speed : 24;
+}
+function cabRideDuration(dist) { return Math.max(2500, Math.min(60000, (dist / cabDriveSpeed()) * 1000)); }
 let cabSelectedFriends = {}; // destination name -> Set of friend names currently picked
 let cabCompanionMeshes = []; // "came along" figures standing at your last cab dropoff
 // The full-screen cabRideOverlay physically blocks clicking a new ride mid-drive in real play,
@@ -642,41 +650,39 @@ function takeCab(destName) {
   closeCabPanel();
   startCabRide(d, picked);
 }
+// User's own follow-up: "make it show the stuff you wouldev saw if you were drivintg" — a fake
+// 2D canvas of generic buildings wasn't the real city. `inCabRide` (below) tells the main
+// animate() loop (game-controls.js, "Camera" section) to stop doing its normal follow-the-player
+// camera work for the duration of the ride, so THIS code can fly the real game camera through the
+// real scene instead — actual buildings, NPCs, robots, other players, whatever is really there —
+// same renderer/scene the whole game already uses, just a different camera path. playerGroup
+// itself doesn't move until arrival (same as the existing bus/flight rides), so nothing about
+// combat/physics/other systems needs to know a ride is happening.
+let inCabRide = false;
 function startCabRide(dest, pickedFriends) {
   const myToken = ++cabRideToken; // stale draw()/timeout calls from an earlier ride check this and bail
   const overlay = document.getElementById('cabRideOverlay');
   overlay.style.display = 'block';
   document.getElementById('cabRideDest').textContent = `${dest.emoji} ${dest.name}`;
   const DURATION = cabRideDuration(dest.dist);
-  const canvas = document.getElementById('cabRideCanvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = canvas.offsetWidth || 700;
-  canvas.height = canvas.offsetHeight || 400;
+  if (document.pointerLockElement) document.exitPointerLock();
+  inCabRide = true;
 
-  // Deterministic scrolling buildings — no Math.random in the draw loop, so no flicker.
-  const BLD_COUNT = 30, BLD_GAP = 140;
-  const bldgs = Array.from({ length: BLD_COUNT }, (_, i) => {
-    const s = i * 137.508;
-    return { x: i * BLD_GAP + (s * 0.4321 % 1) * 60, w: 30 + (s * 0.31 % 1) * 50, h: 60 + (s * 0.53 % 1) * 140, hue: 40 + (s * 0.21 % 1) * 20 };
-  });
-  const TOTAL_W = BLD_COUNT * BLD_GAP;
+  const startX = playerGroup.position.x, startZ = playerGroup.position.z;
+  const dx = dest.x - startX, dz = dest.z - startZ;
+  const pathLen = Math.hypot(dx, dz) || 1;
+  const dirX = dx / pathLen, dirZ = dz / pathLen; // unit vector — camera always looks this far ahead, never AT its own position (which would look degenerate right as you arrive)
   const t0 = performance.now();
   let animId = null;
 
   function draw() {
-    if (myToken !== cabRideToken) return; // a newer ride took over — this loop stops touching shared DOM
-    const W = canvas.width, H = canvas.height;
+    if (myToken !== cabRideToken) return; // a newer ride took over — this loop stops touching shared state
     const elapsed = performance.now() - t0;
     const prog = Math.min(elapsed / DURATION, 1);
-    ctx.fillStyle = '#0f0d05'; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#1a1608'; ctx.fillRect(0, H * 0.6, W, H * 0.4);
-    const camX = prog * TOTAL_W * 0.7;
-    bldgs.forEach(b => {
-      const bx = ((b.x - camX) % TOTAL_W + TOTAL_W) % TOTAL_W;
-      if (bx < W + b.w) { ctx.fillStyle = `hsl(${b.hue},30%,15%)`; ctx.fillRect(bx, H * 0.6 - b.h, b.w, b.h); }
-    });
-    ctx.strokeStyle = '#443311'; ctx.lineWidth = 3; ctx.setLineDash([20, 15]);
-    ctx.beginPath(); ctx.moveTo(0, H * 0.8); ctx.lineTo(W, H * 0.8); ctx.stroke(); ctx.setLineDash([]);
+
+    const camX = startX + dx * prog, camZ = startZ + dz * prog;
+    camera.position.set(camX, 5, camZ);
+    camera.lookAt(camX + dirX * 10, 3, camZ + dirZ * 10);
 
     document.getElementById('cabRideProgressBar').style.width = (prog * 100) + '%';
     const secsLeft = Math.max(0, Math.ceil((DURATION - elapsed) / 1000));
@@ -689,6 +695,7 @@ function startCabRide(dest, pickedFriends) {
   setTimeout(() => { if (myToken === cabRideToken && overlay.style.display !== 'none') { cancelAnimationFrame(animId); finishCabRide(dest, pickedFriends); } }, DURATION + 4000); // real safety net, same pattern startFlightAnim() uses
 }
 function finishCabRide(dest, pickedFriends) {
+  inCabRide = false;
   document.getElementById('cabRideOverlay').style.display = 'none';
   cabCompanionMeshes.forEach(m => scene.remove(m));
   cabCompanionMeshes = [];

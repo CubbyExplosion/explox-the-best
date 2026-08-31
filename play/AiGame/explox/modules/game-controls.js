@@ -438,16 +438,32 @@ function animate(){
   if(player.nametag) player.nametag.lookAt(camera.position);
 
   // Buddy — lags a step behind the player toward a spot just behind-and-beside them, so it
-  // reads as "following", not glued to the player's back like a backpack.
+  // reads as "following", not glued to the player's back like a backpack. UNLESS a robber is
+  // nearby and revealed — then it breaks off and actually chases the robber instead (see
+  // BUDDY_ROBBER_CHASE_RADIUS/nearestRevealedRobber, game-world.js), catching up faster than the
+  // normal follow speed so it visibly reads as going after something, not just drifting.
   if(buddyGroup) {
-    const targetX = playerGroup.position.x - Math.sin(yaw)*1.6 - Math.cos(yaw)*0.9;
-    const targetZ = playerGroup.position.z - Math.cos(yaw)*1.6 + Math.sin(yaw)*0.9;
-    const followLerp = Math.min(1, dt*3);
+    const chaseRobber = nearestRevealedRobber(playerGroup.position.x, playerGroup.position.z, BUDDY_ROBBER_CHASE_RADIUS);
+    let targetX, targetZ, followLerp, faceYaw;
+    if (chaseRobber) {
+      const dx = chaseRobber.x - buddyGroup.position.x, dz = chaseRobber.z - buddyGroup.position.z;
+      const d = Math.hypot(dx, dz) || 1;
+      const standoff = Math.min(d, 1.2); // stop just short, don't stand on top of it
+      targetX = chaseRobber.x - (dx/d)*standoff;
+      targetZ = chaseRobber.z - (dz/d)*standoff;
+      followLerp = Math.min(1, dt*6);
+      faceYaw = Math.atan2(dx, dz);
+    } else {
+      targetX = playerGroup.position.x - Math.sin(yaw)*1.6 - Math.cos(yaw)*0.9;
+      targetZ = playerGroup.position.z - Math.cos(yaw)*1.6 + Math.sin(yaw)*0.9;
+      followLerp = Math.min(1, dt*3);
+      faceYaw = yaw;
+    }
     const buddyMoved = Math.hypot(targetX-buddyGroup.position.x, targetZ-buddyGroup.position.z) > 0.05;
     buddyGroup.position.x += (targetX - buddyGroup.position.x) * followLerp;
     buddyGroup.position.z += (targetZ - buddyGroup.position.z) * followLerp;
     buddyGroup.position.y = playerGroup.position.y + Math.sin(t*4)*0.06;
-    buddyGroup.rotation.y += (yaw - buddyGroup.rotation.y) * followLerp;
+    buddyGroup.rotation.y += (faceYaw - buddyGroup.rotation.y) * followLerp;
     buddyGroup.scale.setScalar(activeAddOns.includes('petxl') ? 1.6 : activeAddOns.includes('petmini') ? 0.6 : 1);
     if(activeAddOns.includes('petrainbow') && buddyMeshes) {
       const phue = (t*80) % 360;
@@ -470,8 +486,12 @@ function animate(){
     familyKidGroup.rotation.y += (yaw - familyKidGroup.rotation.y) * followLerp;
   }
 
-  // Camera
-  if(inCar&&activeCar){
+  // Camera — skipped entirely while a Cab ride is flying its own camera path through the real
+  // scene (game-transit.js, startCabRide()); this per-frame follow logic would otherwise fight it
+  // every single frame and win, since it runs unconditionally after that.
+  if(inCabRide){
+    // no-op — startCabRide()'s own draw() loop owns camera.position/lookAt for the ride's duration
+  } else if(inCar&&activeCar){
     const camX=activeCar.group.position.x-Math.sin(carYaw)*18;
     const camY=activeCar.group.position.y+9;
     const camZ=activeCar.group.position.z-Math.cos(carYaw)*18;
@@ -573,6 +593,7 @@ function animate(){
   tickCoinBots(dt);
   tickPoliceHelpers(dt);
   tickCompanionAssist(dt);
+  tickEvilAllies(dt);
   billTimerTick(dt);
   tickBillsOverdue();
   tickCarImpactDebris(dt);
