@@ -925,10 +925,13 @@ function gbRenderPaintCanvas() {
     ctx.beginPath(); ctx.moveTo(0,i*GB_PAINT_CELL_PX); ctx.lineTo(cv.width,i*GB_PAINT_CELL_PX); ctx.stroke();
   }
 }
+// Same real-touch-coordinate fix as pfpCellFromEvent (game-character.js) — reads e.touches[0] /
+// e.changedTouches[0] when this fires from a touch event, falls back to the event itself for mouse.
 function gbPaintCellFromEvent(e) {
   const rect = e.target.getBoundingClientRect();
   const scaleX = e.target.width / rect.width, scaleY = e.target.height / rect.height;
-  const x = (e.clientX - rect.left) * scaleX, y = (e.clientY - rect.top) * scaleY;
+  const point = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+  const x = (point.clientX - rect.left) * scaleX, y = (point.clientY - rect.top) * scaleY;
   return {
     row: Math.max(0, Math.min(GB_PAINT_SIZE-1, Math.floor(y / GB_PAINT_CELL_PX))),
     col: Math.max(0, Math.min(GB_PAINT_SIZE-1, Math.floor(x / GB_PAINT_CELL_PX))),

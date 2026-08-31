@@ -50,10 +50,15 @@ function pfpRenderCanvas() {
     ctx.beginPath(); ctx.moveTo(0,i*PFP_CELL_PX); ctx.lineTo(cv.width,i*PFP_CELL_PX); ctx.stroke();
   }
 }
+// Reads clientX/Y from a real touch point when this fires from a touch event (touchstart/move
+// carry it on e.touches[0], touchend only on e.changedTouches[0]) — falls back to the event
+// itself for a plain mouse event. Same function serves both input types, so mouse and touch can
+// never compute the cell differently.
 function pfpCellFromEvent(e) {
   const rect = e.target.getBoundingClientRect();
   const scaleX = e.target.width / rect.width, scaleY = e.target.height / rect.height;
-  const x = (e.clientX - rect.left) * scaleX, y = (e.clientY - rect.top) * scaleY;
+  const point = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+  const x = (point.clientX - rect.left) * scaleX, y = (point.clientY - rect.top) * scaleY;
   return {
     row: Math.max(0, Math.min(PFP_SIZE-1, Math.floor(y / PFP_CELL_PX))),
     col: Math.max(0, Math.min(PFP_SIZE-1, Math.floor(x / PFP_CELL_PX))),
@@ -64,6 +69,9 @@ function pfpPaintAt(e) {
   pfpGrid[row][col] = pfpColor;
   pfpRenderCanvas();
 }
+// pfpMouseDown/Move/Up double as the touch handlers too (see pfpCanvas's ontouchstart/move/end in
+// EXPLOX.html) — touch-action:none on the canvas already stops the page from scrolling/zooming
+// under a draw gesture, so all that's needed here is reading real touch coordinates, above.
 function pfpMouseDown(e) { pfpDrawing = true; pfpPaintAt(e); }
 function pfpMouseMove(e) { if (pfpDrawing) pfpPaintAt(e); }
 function pfpMouseUp() { pfpDrawing = false; }

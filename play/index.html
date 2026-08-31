@@ -628,7 +628,8 @@
   <div style="background:linear-gradient(135deg,#0a1a10,#0f2418);border:2px solid #44dd88;border-radius:16px;padding:16px;text-align:center;">
     <div id="pfpModalTitle" style="color:#44dd88;font-size:14px;font-weight:bold;letter-spacing:2px;margin-bottom:10px;">🖌️ DRAW YOUR PROFILE PICTURE</div>
     <canvas id="pfpCanvas" width="256" height="256" style="border-radius:6px;cursor:crosshair;touch-action:none;"
-      onmousedown="pfpMouseDown(event)" onmousemove="pfpMouseMove(event)" onmouseup="pfpMouseUp()" onmouseleave="pfpMouseUp()"></canvas>
+      onmousedown="pfpMouseDown(event)" onmousemove="pfpMouseMove(event)" onmouseup="pfpMouseUp()" onmouseleave="pfpMouseUp()"
+      ontouchstart="event.preventDefault();pfpMouseDown(event)" ontouchmove="event.preventDefault();pfpMouseMove(event)" ontouchend="pfpMouseUp()" ontouchcancel="pfpMouseUp()"></canvas>
     <div id="pfpPalette" style="margin:10px 0;"></div>
     <div id="pfpMsg" style="color:#ff8844;font-size:11px;min-height:14px;margin-bottom:4px;"></div>
     <div style="display:flex;gap:8px;">
@@ -1321,7 +1322,8 @@
     <div style="background:linear-gradient(135deg,#0a1a10,#0f2418);border:2px solid #44dd88;border-radius:16px;padding:16px;text-align:center;">
       <div style="color:#44dd88;font-size:14px;font-weight:bold;letter-spacing:2px;margin-bottom:10px;">🖌️ DRAW A NEW COSTUME</div>
       <canvas id="gbPaintCanvas" width="256" height="256" style="border-radius:6px;cursor:crosshair;touch-action:none;"
-        onmousedown="gbPaintMouseDown(event)" onmousemove="gbPaintMouseMove(event)" onmouseup="gbPaintMouseUp()" onmouseleave="gbPaintMouseUp()"></canvas>
+        onmousedown="gbPaintMouseDown(event)" onmousemove="gbPaintMouseMove(event)" onmouseup="gbPaintMouseUp()" onmouseleave="gbPaintMouseUp()"
+        ontouchstart="event.preventDefault();gbPaintMouseDown(event)" ontouchmove="event.preventDefault();gbPaintMouseMove(event)" ontouchend="gbPaintMouseUp()" ontouchcancel="gbPaintMouseUp()"></canvas>
       <div id="gbPaintPalette" style="margin:10px 0;"></div>
       <div style="display:flex;gap:8px;">
         <button onclick="gbClearPaint()" style="flex:1;padding:8px;background:#5a5a2a;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;">🧹 Clear</button>
