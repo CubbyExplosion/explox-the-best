@@ -1327,9 +1327,17 @@ async function setServerMode(mode) {
     }
     EXPLOX_ONLINE_URL = typed;
     localStorage.setItem('explox_server_url', EXPLOX_ONLINE_URL);
-    showServerMsg('🔄 Checking server...');
+    // A real bug, not a rare edge case: the free-tier host (Render) puts the server to sleep
+    // after a period of no traffic, and the FIRST request after that has to wait for it to wake
+    // back up — which can take 30-50+ seconds. The old 4-second timeout treated that completely
+    // normal wake-up delay as "the server is off," so ANY player visiting after a quiet stretch
+    // got a false "server is off" message and had no way to actually get Online. A real sleeping
+    // server and a real broken one look identical to a short timeout — the fix is giving it
+    // enough time to actually answer, with an honest "waking up" message so a 30+ second wait
+    // doesn't look frozen.
+    showServerMsg('🔄 Checking server (can take up to a minute if it was asleep)...');
     let up = false;
-    try { up = (await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/health', {}, 4000)).ok; } catch(e) {}
+    try { up = (await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/health', {}, 45000)).ok; } catch(e) {}
     if(!up) {
       showServerMsg('😴 Sorry, the server is currently off. Please come again later or play Offline!');
       return;

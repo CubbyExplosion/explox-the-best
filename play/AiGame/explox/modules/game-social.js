@@ -1130,6 +1130,8 @@ function tryDuelInteract() {
     triggerSwing();
     sfx.hit();
     sendMail(dueling, 'duel_hit', { damage: dmg });
+    startKnockback(playerGroup.position.x, playerGroup.position.z, rp.mesh.position.x, rp.mesh.position.z,
+      (x, z) => { rp.mesh.position.x = x; rp.mesh.position.z = z; });
     showNotif(`⚔️ Hit ${dueling} for ${dmg}!`);
     return true;
   }
@@ -1166,13 +1168,13 @@ function tryFfaInteract() {
     showNotif(`⏳ Respawning in ${Math.max(0, Math.ceil(ffaRespawnAt - clock.getElapsedTime()))}s...`);
     return true;
   }
-  let target = null, targetDist = 8;
+  let target = null, targetDist = 8, targetRp = null;
   Object.keys(remotePlayers).forEach(name => {
     const rp = remotePlayers[name];
     const dToArena = Math.hypot(rp.mesh.position.x - ARENA_CENTER.x, rp.mesh.position.z - ARENA_CENTER.z);
     if(dToArena > ARENA_RADIUS) return; // not actually in the arena right now
     const d = Math.hypot(playerGroup.position.x - rp.mesh.position.x, playerGroup.position.z - rp.mesh.position.z);
-    if(d < targetDist) { targetDist = d; target = name; }
+    if(d < targetDist) { targetDist = d; target = name; targetRp = rp; }
   });
   // Real bug found live: this used to unconditionally return true here, so standing in the
   // arena while a World Event (e.g. Pirate Raiders) happened to have a fightable NPC in real
@@ -1187,6 +1189,8 @@ function tryFfaInteract() {
   triggerSwing();
   sfx.hit();
   sendMail(target, 'ffa_hit', { damage: dmg });
+  startKnockback(playerGroup.position.x, playerGroup.position.z, targetRp.mesh.position.x, targetRp.mesh.position.z,
+    (x, z) => { targetRp.mesh.position.x = x; targetRp.mesh.position.z = z; });
   showNotif(`⚔️ Hit ${target} for ${dmg}!`);
   return true;
 }

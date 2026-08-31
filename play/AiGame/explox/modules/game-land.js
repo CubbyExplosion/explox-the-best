@@ -1227,6 +1227,8 @@ function fightRobot(robot) {
   robot.hp -= dmg;
   triggerSwing();
   sfx.clang();
+  startKnockback(playerGroup.position.x, playerGroup.position.z, robot.x, robot.z,
+    (x, z) => { robot.x = x; robot.z = z; robot.mesh.position.set(x, 0, z); });
 
   if(robot.hp > 0) {
     const backDmg = Math.round((6 + Math.random()*8) * robot.powerMult);

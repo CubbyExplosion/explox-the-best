@@ -170,22 +170,23 @@ function refreshNametagAvatar() {
 function drawAvatarCard(cv) {
   const c=cv.getContext('2d');
   if (playerProfilePic) {
-    c.fillStyle='rgba(0,0,0,0.75)'; c.fillRect(0,0,96,128);
-    c.strokeStyle='#e94560'; c.lineWidth=2; c.strokeRect(1,1,94,126);
+    c.fillStyle='rgba(0,0,0,0.75)'; c.fillRect(0,0,96,152);
+    c.strokeStyle='#e94560'; c.lineWidth=2; c.strokeRect(1,1,94,150);
     const img = pfpGetImage(playerProfilePic);
     c.imageSmoothingEnabled = false;
     if (img.complete && img.naturalWidth) c.drawImage(img, 8, 8, 80, 80);
-    c.fillStyle='rgba(233,69,96,0.8)'; c.fillRect(0,108,96,20);
+    c.fillStyle='rgba(233,69,96,0.8)'; c.fillRect(0,132,96,20);
     c.fillStyle='#fff'; c.font='bold 9px Arial'; c.textAlign='center';
-    c.fillText(playerName.slice(0,12), 48, 122);
+    c.fillText(playerName.slice(0,12), 48, 146);
     return;
   }
   const cx=48;
   const skin=rgb(playerColors.skin), shirtC=rgb(playerColors.shirt), hairC=rgb(playerColors.hair);
+  const pantsC=rgb(playerColors.pants), shoeC=rgb(playerColors.shoes);
 
   // Background card
-  c.fillStyle='rgba(0,0,0,0.75)'; c.fillRect(0,0,96,128);
-  c.strokeStyle='#e94560'; c.lineWidth=2; c.strokeRect(1,1,94,126);
+  c.fillStyle='rgba(0,0,0,0.75)'; c.fillRect(0,0,96,152);
+  c.strokeStyle='#e94560'; c.lineWidth=2; c.strokeRect(1,1,94,150);
 
   // Shirt & arms
   c.fillStyle=playerShirt==='suit'?'#222':shirtC;
@@ -262,14 +263,21 @@ function drawAvatarCard(cv) {
   else if(playerHat==='chef')      { c.fillStyle='#ffffff'; c.fillRect(cx-12,18,24,7); c.beginPath(); c.ellipse(cx,9,14,11,0,0,Math.PI*2); c.fill(); }
   else if(playerHat==='turban')    { c.fillStyle='#8833aa'; c.beginPath(); c.ellipse(cx,14,15,12,0,0,Math.PI*2); c.fill(); c.fillStyle='#ffcc00'; c.beginPath(); c.arc(cx,7,3,0,Math.PI*2); c.fill(); }
 
+  // Pants & shoes — real match to the character's actual customization, not just the shirt/hair
+  // colors this card already used. Drawn in the space freed by growing the card 24px taller
+  // (128->152) rather than shrinking the existing head/hat/shirt layout, so none of the 25 hat
+  // branches or 15 shirt-accent branches above needed their hand-tuned coordinates touched.
+  c.fillStyle=pantsC; c.fillRect(cx-18,116,36,10);
+  c.fillStyle=shoeC;  c.fillRect(cx-18,126,36,6);
+
   // Name + gold bar at bottom
-  c.fillStyle='rgba(233,69,96,0.8)'; c.fillRect(0,108,96,20);
+  c.fillStyle='rgba(233,69,96,0.8)'; c.fillRect(0,132,96,20);
   c.fillStyle='#fff'; c.font='bold 9px Arial'; c.textAlign='center';
-  c.fillText(playerName.slice(0,12), cx, 122);
+  c.fillText(playerName.slice(0,12), cx, 146);
 }
 
 function makeAvatarCanvas() {
-  const cv=document.createElement('canvas'); cv.width=96; cv.height=128;
+  const cv=document.createElement('canvas'); cv.width=96; cv.height=152;
   drawAvatarCard(cv); return cv;
 }
 
@@ -408,7 +416,7 @@ function buildPlayer() {
   updateArmorMesh();
 
   // Avatar picture nametag
-  const tag=new THREE.Mesh(new THREE.PlaneGeometry(1.05,1.4),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(makeAvatarCanvas()),transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+  const tag=new THREE.Mesh(new THREE.PlaneGeometry(1.05,1.6625),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(makeAvatarCanvas()),transparent:true,depthWrite:false,side:THREE.DoubleSide}));
   tag.position.y=4.8; playerGroup.add(tag); player.nametag=tag;
 
   playerGroup.position.set(0,0,15);

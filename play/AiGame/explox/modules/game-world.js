@@ -281,6 +281,8 @@ function fightWorldEventNpc(npc, ev) {
   const dmg = getRobotDamage();
   npc.hp -= dmg;
   triggerSwing(); sfx.clang();
+  startKnockback(playerGroup.position.x, playerGroup.position.z, npc.x, npc.z,
+    (x, z) => { npc.x = x; npc.z = z; npc.mesh.position.set(x, 0, z); });
   if (npc.hp > 0) {
     showNotif(`${ev.data.emoji} Hit for ${dmg}! (${npc.hp} HP left)`);
     // Invasion Attempt's invaders fight back through their own active tick (tickInvasionCombat)
@@ -1196,6 +1198,8 @@ function fightWarNpc(npc, terr) {
   const dmg = getRobotDamage();
   npc.hp -= dmg;
   triggerSwing(); sfx.clang();
+  startKnockback(playerGroup.position.x, playerGroup.position.z, npc.x, npc.z,
+    (x, z) => { npc.x = x; npc.z = z; npc.mesh.position.set(x, 0, z); });
   lifetimeWarHits++;
   if (npc.hp > 0) {
     showNotif(`🪖 Hit for ${dmg}! (${npc.hp} HP left)`);

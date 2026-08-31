@@ -19,6 +19,22 @@
       #controls { display:none; }
       #mobileControls { display:block; }
     }
+    /* Arcade cabinet touch controls — same "hidden unless coarse pointer" rule as #mobileControls
+       above, for the 5 minigames that were keyboard-only. .arcadeDpad lays 4 buttons in a cross;
+       .arcadeRow is a plain left-to-right row for games that don't need up/down. */
+    .arcadeTouch { display:none; margin:14px auto 0; }
+    @media (pointer: coarse) {
+      .arcadeTouch { display:inline-grid; }
+    }
+    .arcadeBtn {
+      width:52px; height:52px; border-radius:12px; background:rgba(255,255,255,0.12);
+      border:2px solid rgba(255,255,255,0.35); color:#fff; font-size:20px; font-weight:bold;
+      display:flex; align-items:center; justify-content:center; cursor:pointer; user-select:none;
+      touch-action:none;
+    }
+    .arcadeBtn:active { background:rgba(255,255,255,0.3); }
+    .arcadeDpad { grid-template-columns:56px 56px 56px; grid-template-rows:56px 56px 56px; gap:4px; justify-content:center; }
+    .arcadeRow { grid-auto-flow:column; gap:10px; justify-content:center; }
     #joyBase {
       position:fixed; left:20px; bottom:96px; width:92px; height:92px; border-radius:50%;
       background:rgba(255,255,255,0.12); border:2px solid rgba(255,255,255,0.35);
@@ -454,7 +470,7 @@
       <p>Your character</p>
       <div style="margin-top:12px; border-top:1px solid #e94560; padding-top:10px;">
         <p style="color:#e94560;font-size:10px;letter-spacing:2px;font-weight:bold;margin-bottom:6px;">YOUR BADGE</p>
-        <canvas id="avatarPreview" width="96" height="128" style="border-radius:6px;"></canvas>
+        <canvas id="avatarPreview" width="96" height="152" style="border-radius:6px;"></canvas>
       </div>
       <p style="color:#FFD700;margin-top:8px;font-size:13px;font-weight:bold;">💰 <span id="customSip">0</span> S.I.P.</p>
       <p id="customMsg" style="font-size:11px;min-height:14px;margin-top:3px;transition:opacity 0.3s;"></p>
@@ -762,6 +778,12 @@
     <h2 style="color:#ff2e9c;margin-bottom:6px;">👻 Maze Chase</h2>
     <div style="font-size:13px;margin-bottom:8px;color:#9ab;">Pellets left: <b id="mazePelletsLeft" style="color:#ffd54a;">0</b> — Move with WASD or Arrow Keys</div>
     <canvas id="mazeCanvas" style="border:2px solid #444;background:#0a0a1a;"></canvas>
+    <div class="arcadeTouch arcadeDpad">
+      <button class="arcadeBtn" style="grid-column:2;grid-row:1;" onclick="mazeMove(0,-1)" ontouchstart="event.preventDefault();mazeMove(0,-1)">⬆️</button>
+      <button class="arcadeBtn" style="grid-column:1;grid-row:2;" onclick="mazeMove(-1,0)" ontouchstart="event.preventDefault();mazeMove(-1,0)">⬅️</button>
+      <button class="arcadeBtn" style="grid-column:3;grid-row:2;" onclick="mazeMove(1,0)" ontouchstart="event.preventDefault();mazeMove(1,0)">➡️</button>
+      <button class="arcadeBtn" style="grid-column:2;grid-row:3;" onclick="mazeMove(0,1)" ontouchstart="event.preventDefault();mazeMove(0,1)">⬇️</button>
+    </div>
     <div id="mazeResult" style="min-height:20px;color:#ffd54a;font-size:13px;margin:10px 0;"></div>
     <button onclick="startMaze()" style="background:#ff2e9c;border:none;color:#fff;padding:10px 22px;border-radius:20px;cursor:pointer;font-weight:bold;font-size:13px;margin-right:8px;">🔁 Retry</button>
     <button onclick="closeArcade()" style="background:none;border:1px solid #666;color:#aaa;padding:10px 22px;border-radius:20px;cursor:pointer;font-size:13px;">← Leave</button>
@@ -797,6 +819,12 @@
     <h2 style="color:#4dff88;margin-bottom:6px;">🐍 Snake</h2>
     <div style="font-size:13px;margin-bottom:8px;color:#9ab;">Eaten: <b id="snakeScore" style="color:#ffd54a;">0</b> — Move with WASD or Arrow Keys</div>
     <canvas id="snakeCanvas" style="border:2px solid #444;background:#0a0a1a;"></canvas>
+    <div class="arcadeTouch arcadeDpad">
+      <button class="arcadeBtn" style="grid-column:2;grid-row:1;" onclick="snakeSetDir(0,-1)" ontouchstart="event.preventDefault();snakeSetDir(0,-1)">⬆️</button>
+      <button class="arcadeBtn" style="grid-column:1;grid-row:2;" onclick="snakeSetDir(-1,0)" ontouchstart="event.preventDefault();snakeSetDir(-1,0)">⬅️</button>
+      <button class="arcadeBtn" style="grid-column:3;grid-row:2;" onclick="snakeSetDir(1,0)" ontouchstart="event.preventDefault();snakeSetDir(1,0)">➡️</button>
+      <button class="arcadeBtn" style="grid-column:2;grid-row:3;" onclick="snakeSetDir(0,1)" ontouchstart="event.preventDefault();snakeSetDir(0,1)">⬇️</button>
+    </div>
     <div id="snakeResult" style="min-height:20px;color:#ffd54a;font-size:13px;margin:10px 0;"></div>
     <button onclick="startSnake()" style="background:#4dff88;border:none;color:#001;padding:10px 22px;border-radius:20px;cursor:pointer;font-weight:bold;font-size:13px;margin-right:8px;">🔁 Retry</button>
     <button onclick="closeArcade()" style="background:none;border:1px solid #666;color:#aaa;padding:10px 22px;border-radius:20px;cursor:pointer;font-size:13px;">← Leave</button>
@@ -807,6 +835,14 @@
     <h2 style="color:#ffa64d;margin-bottom:6px;">🧱 Brick Breaker</h2>
     <div style="font-size:13px;margin-bottom:8px;color:#9ab;">Broken: <b id="breakoutBroken" style="color:#ffd54a;">0</b> — Move with A/D or Arrow Keys</div>
     <canvas id="breakoutCanvas" style="border:2px solid #444;background:#0a0a1a;"></canvas>
+    <div class="arcadeTouch arcadeRow">
+      <button class="arcadeBtn"
+        onmousedown="arcadeState.brkKeys.left=true" onmouseup="arcadeState.brkKeys.left=false" onmouseleave="arcadeState.brkKeys.left=false"
+        ontouchstart="event.preventDefault();arcadeState.brkKeys.left=true" ontouchend="arcadeState.brkKeys.left=false" ontouchcancel="arcadeState.brkKeys.left=false">⬅️</button>
+      <button class="arcadeBtn"
+        onmousedown="arcadeState.brkKeys.right=true" onmouseup="arcadeState.brkKeys.right=false" onmouseleave="arcadeState.brkKeys.right=false"
+        ontouchstart="event.preventDefault();arcadeState.brkKeys.right=true" ontouchend="arcadeState.brkKeys.right=false" ontouchcancel="arcadeState.brkKeys.right=false">➡️</button>
+    </div>
     <div id="breakoutResult" style="min-height:20px;color:#ffd54a;font-size:13px;margin:10px 0;"></div>
     <button onclick="startBreakout()" style="background:#ffa64d;border:none;color:#001;padding:10px 22px;border-radius:20px;cursor:pointer;font-weight:bold;font-size:13px;margin-right:8px;">🔁 Retry</button>
     <button onclick="closeArcade()" style="background:none;border:1px solid #666;color:#aaa;padding:10px 22px;border-radius:20px;cursor:pointer;font-size:13px;">← Leave</button>
@@ -826,6 +862,12 @@
     <h2 style="color:#c04dff;margin-bottom:6px;">🧩 Tetris</h2>
     <div style="font-size:13px;margin-bottom:8px;color:#9ab;">Lines: <b id="tetrisLines" style="color:#ffd54a;">0</b> — ←/→ move, ↑ or X rotate, ↓ drop</div>
     <canvas id="tetrisCanvas" style="border:2px solid #444;background:#0a0a1a;"></canvas>
+    <div class="arcadeTouch arcadeDpad">
+      <button class="arcadeBtn" style="grid-column:2;grid-row:1;" onclick="tetMove('rotate')" ontouchstart="event.preventDefault();tetMove('rotate')">🔄</button>
+      <button class="arcadeBtn" style="grid-column:1;grid-row:2;" onclick="tetMove('left')" ontouchstart="event.preventDefault();tetMove('left')">⬅️</button>
+      <button class="arcadeBtn" style="grid-column:3;grid-row:2;" onclick="tetMove('right')" ontouchstart="event.preventDefault();tetMove('right')">➡️</button>
+      <button class="arcadeBtn" style="grid-column:2;grid-row:3;" onclick="tetDrop()" ontouchstart="event.preventDefault();tetDrop()">⬇️</button>
+    </div>
     <div id="tetrisResult" style="min-height:20px;color:#ffd54a;font-size:13px;margin:10px 0;"></div>
     <button onclick="startTetris()" style="background:#c04dff;border:none;color:#fff;padding:10px 22px;border-radius:20px;cursor:pointer;font-weight:bold;font-size:13px;margin-right:8px;">🔁 Retry</button>
     <button onclick="closeArcade()" style="background:none;border:1px solid #666;color:#aaa;padding:10px 22px;border-radius:20px;cursor:pointer;font-size:13px;">← Leave</button>
@@ -836,6 +878,11 @@
     <h2 id="clawTitle" style="color:#ff69b4;margin-bottom:6px;">🧸 Claw Machine</h2>
     <div style="font-size:12px;margin-bottom:8px;color:#9ab;max-width:340px;margin-left:auto;margin-right:auto;">←/→ move the claw, ↓ or Space to drop — 8 S.I.P. per try. Rarer prizes are harder to grab!</div>
     <canvas id="clawCanvas" style="border:2px solid #444;background:#0a0a1a;"></canvas>
+    <div class="arcadeTouch arcadeRow">
+      <button class="arcadeBtn" onclick="clawMoveLeft()" ontouchstart="event.preventDefault();clawMoveLeft()">⬅️</button>
+      <button class="arcadeBtn" onclick="clawDrop()" ontouchstart="event.preventDefault();clawDrop()">⬇️</button>
+      <button class="arcadeBtn" onclick="clawMoveRight()" ontouchstart="event.preventDefault();clawMoveRight()">➡️</button>
+    </div>
     <div id="clawResult" style="min-height:20px;color:#ffd54a;font-size:13px;margin:10px 0;max-width:340px;margin-left:auto;margin-right:auto;"></div>
     <button onclick="closeArcade()" style="background:none;border:1px solid #666;color:#aaa;padding:10px 22px;border-radius:20px;cursor:pointer;font-size:13px;">← Leave Machine</button>
   </div>

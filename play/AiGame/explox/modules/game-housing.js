@@ -275,7 +275,6 @@ function startMaze() {
   drawMaze();
 }
 function mazeKeydown(e) {
-  if(arcadeState.mazeOver) return;
   let dx=0, dy=0;
   if(e.code==='ArrowUp'||e.code==='KeyW') dy=-1;
   else if(e.code==='ArrowDown'||e.code==='KeyS') dy=1;
@@ -283,6 +282,12 @@ function mazeKeydown(e) {
   else if(e.code==='ArrowRight'||e.code==='KeyD') dx=1;
   else return;
   e.preventDefault();
+  mazeMove(dx, dy);
+}
+// Shared by the keyboard handler above and the on-screen touch D-pad (EXPLOX.html) — kept as one
+// function so both control paths can never drift apart.
+function mazeMove(dx, dy) {
+  if(arcadeState.mazeOver) return;
   const p = arcadeState.mazePlayer;
   const nx = p.x+dx, ny = p.y+dy;
   if(arcadeState.mazeGrid[ny] && arcadeState.mazeGrid[ny][nx] !== '#') {
@@ -521,13 +526,20 @@ function snakePlaceFood() {
   arcadeState.snakeFood = {x:fx,y:fy};
 }
 function snakeKeydown(e) {
-  const d = arcadeState.snakeDir;
-  if((e.code==='ArrowUp'||e.code==='KeyW') && d.y===0) arcadeState.snakeNextDir = {x:0,y:-1};
-  else if((e.code==='ArrowDown'||e.code==='KeyS') && d.y===0) arcadeState.snakeNextDir = {x:0,y:1};
-  else if((e.code==='ArrowLeft'||e.code==='KeyA') && d.x===0) arcadeState.snakeNextDir = {x:-1,y:0};
-  else if((e.code==='ArrowRight'||e.code==='KeyD') && d.x===0) arcadeState.snakeNextDir = {x:1,y:0};
+  if(e.code==='ArrowUp'||e.code==='KeyW') snakeSetDir(0,-1);
+  else if(e.code==='ArrowDown'||e.code==='KeyS') snakeSetDir(0,1);
+  else if(e.code==='ArrowLeft'||e.code==='KeyA') snakeSetDir(-1,0);
+  else if(e.code==='ArrowRight'||e.code==='KeyD') snakeSetDir(1,0);
   else return;
   e.preventDefault();
+}
+// Shared by the keyboard handler above and the on-screen touch D-pad (EXPLOX.html).
+function snakeSetDir(dx, dy) {
+  const d = arcadeState.snakeDir;
+  if(dy===-1 && d.y===0) arcadeState.snakeNextDir = {x:0,y:-1};
+  else if(dy===1 && d.y===0) arcadeState.snakeNextDir = {x:0,y:1};
+  else if(dx===-1 && d.x===0) arcadeState.snakeNextDir = {x:-1,y:0};
+  else if(dx===1 && d.x===0) arcadeState.snakeNextDir = {x:1,y:0};
 }
 function snakeTick() {
   if(arcadeState.snakeOver) return;
@@ -756,13 +768,21 @@ function tetSpawnPiece() {
 }
 function tetKeydown(e) {
   if(arcadeState.tetOver) return;
-  const p = arcadeState.tetPiece;
-  if(e.code==='ArrowLeft') { const np={type:p.type,rot:p.rot,x:p.x-1,y:p.y}; if(!tetCollides(np)) arcadeState.tetPiece=np; }
-  else if(e.code==='ArrowRight') { const np={type:p.type,rot:p.rot,x:p.x+1,y:p.y}; if(!tetCollides(np)) arcadeState.tetPiece=np; }
+  if(e.code==='ArrowLeft') tetMove('left');
+  else if(e.code==='ArrowRight') tetMove('right');
   else if(e.code==='ArrowDown') { tetDrop(); return; }
-  else if(e.code==='ArrowUp'||e.code==='KeyX') { const np={type:p.type,rot:(p.rot+1)%4,x:p.x,y:p.y}; if(!tetCollides(np)) arcadeState.tetPiece=np; }
+  else if(e.code==='ArrowUp'||e.code==='KeyX') tetMove('rotate');
   else return;
   e.preventDefault();
+}
+// Shared by the keyboard handler above and the on-screen touch buttons (EXPLOX.html). The 4th
+// touch button (drop) just calls tetDrop() directly — it was already a standalone function.
+function tetMove(action) {
+  if(arcadeState.tetOver) return;
+  const p = arcadeState.tetPiece;
+  if(action==='left') { const np={type:p.type,rot:p.rot,x:p.x-1,y:p.y}; if(!tetCollides(np)) arcadeState.tetPiece=np; }
+  else if(action==='right') { const np={type:p.type,rot:p.rot,x:p.x+1,y:p.y}; if(!tetCollides(np)) arcadeState.tetPiece=np; }
+  else if(action==='rotate') { const np={type:p.type,rot:(p.rot+1)%4,x:p.x,y:p.y}; if(!tetCollides(np)) arcadeState.tetPiece=np; }
   drawTetris();
 }
 function tetDrop() {
@@ -816,8 +836,9 @@ function tetGameOver() {
   document.removeEventListener('keydown', tetKeydown);
   const reward = arcadeState.tetLines * 15;
   queueEarning(reward, 0, 'Tetris');
-  document.getElementById('tetrisResult').textContent = `Game over! Cleared ${arcadeState.tetLines} lines — +${reward} S.I.P.`;
-  showNotif(`🧩 Tetris: ${arcadeState.tetLines} lines (+${reward} S.I.P.)`);
+  const lineWord = arcadeState.tetLines === 1 ? 'line' : 'lines';
+  document.getElementById('tetrisResult').textContent = `Game over! Cleared ${arcadeState.tetLines} ${lineWord} — +${reward} S.I.P.`;
+  showNotif(`🧩 Tetris: ${arcadeState.tetLines} ${lineWord} (+${reward} S.I.P.)`);
 }
 function stopTetris() {
   clearInterval(arcadeState.tetTimer);
@@ -859,10 +880,14 @@ function openClaw(id) {
 }
 function clawKeydown(e) {
   if(clawState.dropping) return;
-  if(e.code==='ArrowLeft')  { clawState.clawX = Math.max(0, clawState.clawX-1); drawClaw(); }
-  else if(e.code==='ArrowRight') { clawState.clawX = Math.min(CLAW_SLOTS-1, clawState.clawX+1); drawClaw(); }
+  if(e.code==='ArrowLeft')  clawMoveLeft();
+  else if(e.code==='ArrowRight') clawMoveRight();
   else if(e.code==='ArrowDown'||e.code==='Space') { e.preventDefault(); clawDrop(); }
 }
+// Shared by the keyboard handler above and the on-screen touch buttons (EXPLOX.html). The 3rd
+// touch button (drop) just calls clawDrop() directly — it was already a standalone function.
+function clawMoveLeft()  { if(clawState.dropping) return; clawState.clawX = Math.max(0, clawState.clawX-1); drawClaw(); }
+function clawMoveRight() { if(clawState.dropping) return; clawState.clawX = Math.min(CLAW_SLOTS-1, clawState.clawX+1); drawClaw(); }
 function clawDrop() {
   if(clawState.dropping) return;
   if(clawState.prizes.every(p=>!p)) return; // machine already empty
