@@ -219,6 +219,7 @@ function animate(){
   tickWrath(dt);
   tickSatanEvent(dt);
   tickDivineClash();
+  tickSatanDeathParticles(dt);
   tickChurchWorshippers();
 
   // Movement with collision

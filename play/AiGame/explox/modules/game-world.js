@@ -733,14 +733,15 @@ function tickSatanEvent(dt) {
 // matches what you just watched happen instead of coming out of nowhere.
 const CLASH_DURATION_MS = 6000;
 const CLASH_POS = new THREE.Vector3(-40, 34, 20); // above the real Church building (game-buildings.js)
+const GOD_COLOR = 0xFFEE00, SATAN_COLOR = 0x8800ff; // "god yellow power" / "satan purple power"
 let divineClash = null; // {startTime, outcome, lightMesh, darkMesh, glow}
 function startDivineClash(outcome) {
   if (divineClash) { scene.remove(divineClash.lightMesh); scene.remove(divineClash.darkMesh); scene.remove(divineClash.glow); }
-  const lightMesh = new THREE.Mesh(new THREE.ConeGeometry(2.2,16,8), new THREE.MeshBasicMaterial({color:0xFFD700, transparent:true, opacity:0.8}));
+  const lightMesh = new THREE.Mesh(new THREE.ConeGeometry(2.2,16,8), new THREE.MeshBasicMaterial({color:GOD_COLOR, transparent:true, opacity:0.8}));
   lightMesh.rotation.z = Math.PI/2; lightMesh.position.copy(CLASH_POS).add(new THREE.Vector3(-7,0,0)); scene.add(lightMesh);
-  const darkMesh = new THREE.Mesh(new THREE.ConeGeometry(2.2,16,8), new THREE.MeshBasicMaterial({color:0x220022, transparent:true, opacity:0.8}));
+  const darkMesh = new THREE.Mesh(new THREE.ConeGeometry(2.2,16,8), new THREE.MeshBasicMaterial({color:SATAN_COLOR, transparent:true, opacity:0.8}));
   darkMesh.rotation.z = -Math.PI/2; darkMesh.position.copy(CLASH_POS).add(new THREE.Vector3(7,0,0)); scene.add(darkMesh);
-  const glow = new THREE.PointLight(outcome==='god' ? 0xFFD700 : 0x880000, 3, 60);
+  const glow = new THREE.PointLight(outcome==='god' ? GOD_COLOR : SATAN_COLOR, 3, 60);
   glow.position.copy(CLASH_POS); scene.add(glow);
   divineClash = { startTime: Date.now(), outcome, lightMesh, darkMesh, glow };
   showNotif('⚡ Light and shadow clash in the sky above the Church...');
@@ -757,7 +758,53 @@ function tickDivineClash() {
     scene.remove(divineClash.lightMesh); scene.remove(divineClash.darkMesh); scene.remove(divineClash.glow);
     const outcome = divineClash.outcome;
     divineClash = null;
-    showNotif(outcome==='god' ? '✨ The light held. The world stays safe... for now.' : '🔥 Satan has struck down the light — the world is in bad hands for a while...');
+    if (outcome === 'god') {
+      triggerSatanDeathExplosion();
+      showNotif('✨ The light held. Satan is struck down!');
+    } else {
+      showNotif('🔥 Satan has struck down the light — the world is in bad hands for a while...');
+    }
+  }
+}
+
+// "if satan dies he explodes in black consuming the whole world colapsing in a red sky" — a real
+// sequence, not just flavor text: the WHOLE sky (not just a screen overlay) is forced black for
+// SATAN_DEATH_EXPLOSION_MS (see the updateDayNight() override in game-zones.js), a real particle
+// burst rips outward from the clash point, and the existing #hitFlash overlay gets a slow black
+// fade for the "consuming" beat — then it all "collapses" back into the ordinary red safe-period
+// sky (safePeriodEndsAt is still active) once the explosion timer runs out.
+const SATAN_DEATH_EXPLOSION_MS = 1800;
+let satanDeathExplosionUntil = 0;
+let satanDeathParticles = [];
+function triggerSatanDeathExplosion() {
+  satanDeathExplosionUntil = Date.now() + SATAN_DEATH_EXPLOSION_MS;
+  for (let i=0; i<24; i++) {
+    const p = new THREE.Mesh(new THREE.SphereGeometry(0.5+Math.random()*0.7,6,6), new THREE.MeshBasicMaterial({color:0x0a0015, transparent:true, opacity:0.95}));
+    p.position.copy(CLASH_POS);
+    scene.add(p);
+    const dir = new THREE.Vector3((Math.random()-0.5)*2, Math.random()*0.6-0.2, (Math.random()-0.5)*2).normalize();
+    satanDeathParticles.push({ mesh:p, vel: dir.multiplyScalar(10+Math.random()*14), life: 2.2, maxLife: 2.2 });
+  }
+  const flash = document.getElementById('hitFlash');
+  if (flash) {
+    const origBg = flash.style.background, origTransition = flash.style.transition;
+    flash.style.background = 'rgba(0,0,0,0.92)';
+    flash.style.transition = 'opacity 1.4s';
+    flash.style.opacity = '1';
+    setTimeout(() => {
+      flash.style.opacity = '0';
+      setTimeout(() => { flash.style.background = origBg; flash.style.transition = origTransition; }, 1450);
+    }, 500);
+  }
+}
+function tickSatanDeathParticles(dt) {
+  for (let i=satanDeathParticles.length-1; i>=0; i--) {
+    const p = satanDeathParticles[i];
+    p.life -= dt;
+    p.mesh.position.addScaledVector(p.vel, dt);
+    p.mesh.material.opacity = Math.max(0, p.life/p.maxLife);
+    p.mesh.scale.multiplyScalar(1 + dt*0.6);
+    if (p.life <= 0) { scene.remove(p.mesh); satanDeathParticles.splice(i,1); }
   }
 }
 

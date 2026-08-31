@@ -874,9 +874,12 @@ function updateDayNight() {
   // there's always something to see that says "you're still living in the aftermath." "More black
   // sun" (Satan won this round) overrides even that, on top.
   const now = Date.now();
-  if (wrathActive || now < safePeriodEndsAt || now < satanBadUntil) {
+  // "he explodes in black consuming the whole world colapsing in a red sky" — the death-explosion
+  // black beats even the Satan-won black, since it's the more recent/dramatic event; either way it
+  // "collapses" back into the ordinary red once its own short timer runs out (see the fallthrough).
+  if (wrathActive || now < safePeriodEndsAt || now < satanBadUntil || now < satanDeathExplosionUntil) {
     if (!_judgmentColor) _judgmentColor = new THREE.Color();
-    _judgmentColor.set(now < satanBadUntil ? 0x050505 : 0x660000);
+    _judgmentColor.set((now < satanBadUntil || now < satanDeathExplosionUntil) ? 0x050505 : 0x660000);
     scene.background.copy(_judgmentColor);
     scene.fog.color.copy(_judgmentColor);
     sunLight.intensity = 0.15;
