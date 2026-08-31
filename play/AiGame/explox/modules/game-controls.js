@@ -486,11 +486,11 @@ function animate(){
     familyKidGroup.rotation.y += (yaw - familyKidGroup.rotation.y) * followLerp;
   }
 
-  // Camera — skipped entirely while a Cab ride is flying its own camera path through the real
-  // scene (game-transit.js, startCabRide()); this per-frame follow logic would otherwise fight it
-  // every single frame and win, since it runs unconditionally after that.
-  if(inCabRide){
-    // no-op — startCabRide()'s own draw() loop owns camera.position/lookAt for the ride's duration
+  // Camera — skipped entirely while a Cab ride or a flight is flying its own camera path through
+  // the real scene (game-transit.js, startCabRide()/startFlightAnim()); this per-frame follow
+  // logic would otherwise fight it every single frame and win, since it runs unconditionally after.
+  if(inCabRide || inFlightRide){
+    // no-op — the ride's own draw() loop owns camera.position/lookAt for its duration
   } else if(inCar&&activeCar){
     const camX=activeCar.group.position.x-Math.sin(carYaw)*18;
     const camY=activeCar.group.position.y+9;

@@ -95,7 +95,24 @@ function toggleFlightScreen() {
   const btn = document.getElementById('flightScreenBtn');
   if (btn) btn.textContent = flightShowingScreen ? '🪟 Window View' : '📺 Watch Show';
 }
+// User's own ask: "make air planes accually show us flying not just a prtend illistration" —
+// same real fix as the Cab ride (game-transit.js above): `inFlightRide` tells the main animate()
+// loop's camera-follow logic to stand down, so this code flies the REAL camera through the REAL
+// 3D world instead, climbed up to real cruising altitude, arcing down for landing — actual
+// terrain/countries/city passing below instead of a fake 2D sky-and-clouds canvas. The window
+// canvas still exists, but now ONLY for the "📺 Watch Show" cartoon entertainment mode (genuinely
+// fake, in-universe TV — that one's SUPPOSED to be a drawn scene) — it's hidden the rest of the
+// time so the transparent overlay lets the real flythrough show through underneath.
+let inFlightRide = false;
+// Same guard as cabRideToken (game-transit.js above) — the full-screen flightOverlay already
+// blocks booking a second flight mid-flight in real play, but this still protects against a
+// stale draw()/timeout from an earlier flight completing late and stomping the current one's
+// arrival (found this exact stomping while testing — a leftover queued frame from a call made
+// directly via console, bypassing the normal one-flight-at-a-time UI flow, overwrote a real
+// second flight's landing spot with the first flight's destination instead).
+let flightRideToken = 0;
 function startFlightAnim(dest, bringCar, meal) {
+  const myToken = ++flightRideToken;
   const overlay = document.getElementById('flightOverlay');
   overlay.style.display = 'block';
   document.getElementById('flightDestName').textContent = `${dest.emoji} ${dest.name}`;
@@ -119,13 +136,17 @@ function startFlightAnim(dest, bringCar, meal) {
   const ctx = canvas.getContext('2d');
   canvas.width = canvas.offsetWidth || 700;
   canvas.height = canvas.offsetHeight || 280;
+  canvas.style.display = 'none'; // only shown while actually watching the seatback show
 
-  // Deterministic clouds — no Math.random() so no flicker
-  const clouds = Array.from({length:22}, (_,i) => {
-    const s = i * 137.508;
-    return { x: i*190+(s*0.4321%1)*100, y: 15+(s*0.3333%1)*90, r: 28+(s*0.2222%1)*45 };
-  });
-  const TOTAL_W = 22 * 190;
+  if (document.pointerLockElement) document.exitPointerLock();
+  inFlightRide = true;
+
+  const startX = playerGroup.position.x, startZ = playerGroup.position.z;
+  const dx = dest.x - startX, dz = dest.z - startZ;
+  const pathLen = Math.hypot(dx, dz) || 1;
+  const dirX = dx / pathLen, dirZ = dz / pathLen;
+  const CRUISE_ALT = 220; // real height above the world at the midpoint of the flight
+
   // was a flat 12000 for every flight — user's own ask for the deep-space destinations ("farther
   // longer and more expensive") made a real per-flight duration worth doing everywhere, not just
   // space: dest.duration is set on SPACE_FLIGHTS entries, undefined on the regular AIRPORT_FLIGHTS
@@ -135,47 +156,24 @@ function startFlightAnim(dest, bringCar, meal) {
   let animId = null;
 
   function draw() {
-    const W = canvas.width, H = canvas.height;
+    if (myToken !== flightRideToken) return; // a newer flight took over — this loop stops touching shared state
     const elapsed = performance.now() - t0;
     const prog = Math.min(elapsed / DURATION, 1);
 
     if (flightShowingScreen) {
       // In-flight entertainment — the real same SCENE_LIBRARY draw functions Cinema/ExploxTube use
-      SCENE_LIBRARY[flightSceneKey](ctx, W, H, elapsed/1000);
+      canvas.style.display = 'block';
+      SCENE_LIBRARY[flightSceneKey](ctx, canvas.width, canvas.height, elapsed/1000);
     } else {
-      const camX = prog * TOTAL_W * 0.55;
-
-      // Sky gradient
-      const skyG = ctx.createLinearGradient(0,0,0,H);
-      skyG.addColorStop(0, `hsl(${210+prog*20},70%,${55-prog*15}%)`);
-      skyG.addColorStop(0.7, `hsl(${200+prog*30},60%,${45-prog*15}%)`);
-      skyG.addColorStop(1, `hsl(${190+prog*40},50%,${35-prog*10}%)`);
-      ctx.fillStyle = skyG; ctx.fillRect(0,0,W,H);
-
-      // Tiny ground strip far below
-      ctx.fillStyle = '#1a3a0a'; ctx.fillRect(0, H*0.85, W, H*0.15);
-      ctx.fillStyle = '#0d1f05'; ctx.fillRect(0, H*0.88, W, H*0.04);
-
-      // Scrolling clouds
-      clouds.forEach(c => {
-        const cx = ((c.x - camX) % TOTAL_W + TOTAL_W) % TOTAL_W;
-        if(cx > W + c.r*2) return;
-        ctx.fillStyle = `rgba(255,255,255,${0.72+prog*0.1})`;
-        ctx.beginPath();
-        ctx.arc(cx,           c.y,          c.r*0.75, 0, Math.PI*2);
-        ctx.arc(cx+c.r*0.55,  c.y-c.r*0.25, c.r*0.55, 0, Math.PI*2);
-        ctx.arc(cx-c.r*0.45,  c.y+c.r*0.1,  c.r*0.45, 0, Math.PI*2);
-        ctx.fill();
-      });
-
-      // Wing visible through window
-      ctx.fillStyle = '#b8ccdd';
-      ctx.beginPath();
-      ctx.moveTo(W*0.22, H*0.83); ctx.lineTo(W*0.78, H*0.79);
-      ctx.lineTo(W*0.82, H); ctx.lineTo(W*0.18, H); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#7a8fa0';
-      ctx.fillRect(W*0.54, H*0.81, W*0.13, H*0.04);
-      ctx.fillRect(W*0.56, H*0.79, W*0.09, H*0.025);
+      // Real flythrough: climbs from the ground at takeoff (sin(0)=0), up to CRUISE_ALT at the
+      // midpoint, back down to the ground on approach (sin(π)=0) — a genuine climb/cruise/descend
+      // arc, not a flat line. Looking forward-and-down along the flight path the whole time is
+      // what actually makes it read as "flying over the world" instead of just floating sideways.
+      canvas.style.display = 'none';
+      const alt = CRUISE_ALT * Math.sin(prog * Math.PI);
+      const camX = startX + dx * prog, camY = 8 + alt, camZ = startZ + dz * prog;
+      camera.position.set(camX, camY, camZ);
+      camera.lookAt(camX + dirX * 40, camY - 35, camZ + dirZ * 40);
     }
 
     // Flight progress bar
@@ -196,29 +194,35 @@ function startFlightAnim(dest, bringCar, meal) {
     if(prog < 1) {
       animId = requestAnimationFrame(draw);
     } else {
-      setTimeout(() => {
-        overlay.style.display = 'none';
-        playerGroup.position.set(dest.x, 0, dest.z);
-        yaw = Math.PI;
-        // Snap camera instantly — skip lerp by setting position directly
-        const snapX = dest.x - Math.sin(yaw) * 9;
-        const snapZ = dest.z - Math.cos(yaw) * 9;
-        camera.position.set(snapX, 4, snapZ);
-        if (bringCar) {
-          carLocation = dest.name;
-          saveCurrentUser();
-          spawnOwnedCars();
-          showNotif(`✈️ Welcome to ${dest.name}! Your car came with you — look for it parked nearby!`);
-        } else {
-          showNotif(`✈️ Welcome to ${dest.name}! Enjoy your visit!`);
-        }
-        if(renderer && renderer.domElement) renderer.domElement.requestPointerLock();
-      }, 400);
+      setTimeout(() => { if (myToken === flightRideToken) finishFlightAnim(dest, bringCar); }, 400);
     }
   }
 
   animId = requestAnimationFrame(draw);
-  setTimeout(() => { if(overlay.style.display!=='none'){ cancelAnimationFrame(animId); overlay.style.display='none'; } }, DURATION + 4500); // real safety net, kept comfortably past DURATION so it never fires during a normal flight
+  // Real safety net, kept comfortably past DURATION so it never fires during a normal flight — but
+  // if it DOES fire (a real tab going fully inactive long enough to starve requestAnimationFrame,
+  // e.g. backgrounded/minimized), it now actually finishes the trip instead of just closing the
+  // overlay and leaving you stranded back where you took off, with your fare already spent.
+  setTimeout(() => { if(myToken === flightRideToken && overlay.style.display!=='none'){ cancelAnimationFrame(animId); finishFlightAnim(dest, bringCar); } }, DURATION + 4500);
+}
+function finishFlightAnim(dest, bringCar) {
+  inFlightRide = false;
+  document.getElementById('flightOverlay').style.display = 'none';
+  playerGroup.position.set(dest.x, 0, dest.z);
+  yaw = Math.PI;
+  // Snap camera instantly — skip lerp by setting position directly
+  const snapX = dest.x - Math.sin(yaw) * 9;
+  const snapZ = dest.z - Math.cos(yaw) * 9;
+  camera.position.set(snapX, 4, snapZ);
+  if (bringCar) {
+    carLocation = dest.name;
+    saveCurrentUser();
+    spawnOwnedCars();
+    showNotif(`✈️ Welcome to ${dest.name}! Your car came with you — look for it parked nearby!`);
+  } else {
+    showNotif(`✈️ Welcome to ${dest.name}! Enjoy your visit!`);
+  }
+  if(renderer && renderer.domElement) renderer.domElement.requestPointerLock();
 }
 function bookRoom(type) {
   const prices = { budget:40, standard:80, luxury:200 };

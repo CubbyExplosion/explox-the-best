@@ -719,13 +719,18 @@
   </div>
 </div>
 
-<!-- FLIGHT OVERLAY -->
-<div id="flightOverlay" style="display:none;position:fixed;inset:0;z-index:3000;font-family:Arial,sans-serif;background:#030810;overflow:hidden;">
+<!-- FLIGHT OVERLAY — user's own ask: "make air planes accually show us flying not just a prtend
+     illistration". No opaque background here on purpose: startFlightAnim() (game-transit.js) now
+     flies the REAL camera up to real cruising altitude through the REAL 3D world, so the
+     transparent middle lets the live game canvas show through like a real window — the
+     flightWindowCanvas below is only ever shown (and only ever drawn into) while "📺 Watch Show"
+     is on, since THAT'S the one part that's genuinely supposed to be a fake in-universe cartoon. -->
+<div id="flightOverlay" style="display:none;position:fixed;inset:0;z-index:3000;font-family:Arial,sans-serif;">
   <div style="position:absolute;top:0;left:0;right:0;height:48px;background:#060f1e;display:flex;align-items:center;justify-content:center;border-bottom:2px solid #1a2a4a;">
     <span style="font-size:15px;color:#88ccff;font-weight:bold;letter-spacing:4px;">✈️ NOW FLYING</span>
   </div>
   <div style="position:absolute;top:52px;left:5%;width:90%;height:50%;">
-    <canvas id="flightWindowCanvas" style="width:100%;height:100%;border:4px solid #1a2a4a;border-radius:6px;"></canvas>
+    <canvas id="flightWindowCanvas" style="display:none;width:100%;height:100%;border:4px solid #1a2a4a;border-radius:6px;background:#030810;"></canvas>
     <button id="flightScreenBtn" onclick="toggleFlightScreen()" style="position:absolute;top:10px;right:10px;padding:6px 12px;background:#0a1830dd;border:1px solid #2a4a7a;color:#88ccff;border-radius:6px;font-size:11px;cursor:pointer;font-family:Arial,sans-serif;">📺 Watch Show</button>
     <button id="flightSnackBtn" onclick="serveFlightMeal()" disabled style="position:absolute;bottom:10px;left:10px;padding:6px 12px;background:#0a1830aa;border:1px solid #334455;color:#556677;border-radius:6px;font-size:11px;cursor:not-allowed;font-family:Arial,sans-serif;">🍽️ Meal cart coming...</button>
   </div>
