@@ -177,6 +177,7 @@
     <div><b>Left Click / F</b> — Use weapon</div>
     <div><b>1 2 3</b> — Switch weapons</div>
     <div><b>Goal</b> — Stand on the gold throne for 20 seconds!</div>
+    <div><b>Allies</b> — rush to defend the throne and speed up your capture!</div>
   </div>
   <button id="startBtn" onclick="openEnemyDesignScreen()">⚔️ CHARGE!</button>
 </div>
@@ -303,7 +304,7 @@ let scene, camera, renderer, clock;
 let playerGroup, playerSword;
 let yaw=0, pitch=0.15, isLocked=false;
 let moveState={w:false,a:false,s:false,d:false};
-let playerHP=100, score=0;
+let playerHP=100, score=0, alliesAtThrone=0;
 let swordCD=0, blasterCD=0, scatterCD=0, swordSwing=0;
 let enemies=[], allies=[], projectiles=[], particles=[];
 let captureProgress=0, gameState='start', wave=1, level=1, waveTimer=0, nextWaveQueued=false;
@@ -495,6 +496,10 @@ function updateTeammates(dt) {
 function levelTier(l){ return Math.min(Math.floor((l-1)/5),3); }
 const THRONE_POS=new THREE.Vector3(0,0.5,0);
 const THRONE_R=6;
+// "make it so allies help me fight too and capture the tghrone" — how close a foe has to be to
+// the throne before living allies anywhere on the map drop what they're doing and rush to
+// intercept it, instead of always chasing whichever enemy happens to be nearest to themselves.
+const ALLY_RALLY_R=24;
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function mat(c){ return new THREE.MeshLambertMaterial({color:c}); }
@@ -913,9 +918,16 @@ function tickSoldier(s,dt,foes,t){
     s.group.children.forEach(ch=>{ if(ch.material&&ch.material.color&&ch.material!==glow()) ch.material.color.setHex(c); });
   }
 
-  // Find nearest foe
+  // Find nearest foe — blue allies rally to defend the throne: if any living foe is already
+  // within ALLY_RALLY_R of it, every ally on the map targets the nearest OF THOSE first, instead
+  // of wherever the global-nearest foe happens to be. That's what actually gets your army to show
+  // up and fight next to you at the point that matters, rather than off in a separate skirmish
+  // wherever they spawned. Falls back to plain nearest-to-self when nothing's threatening the
+  // throne yet (early in a wave) — enemies keep their original always-nearest behavior.
   let nearFoe=null, nearDist=9999;
-  foes.forEach(f=>{ if(f.hp<=0) return; const dx=f.group.position.x-s.group.position.x,dz=f.group.position.z-s.group.position.z,d=Math.sqrt(dx*dx+dz*dz); if(d<nearDist){nearDist=d;nearFoe=f;} });
+  const rallyPool = s.team==='blue' ? foes.filter(f=>f.hp>0 && f.group.position.distanceTo(THRONE_POS)<ALLY_RALLY_R) : null;
+  const searchIn = (rallyPool && rallyPool.length) ? rallyPool : foes;
+  searchIn.forEach(f=>{ if(f.hp<=0) return; const dx=f.group.position.x-s.group.position.x,dz=f.group.position.z-s.group.position.z,d=Math.sqrt(dx*dx+dz*dz); if(d<nearDist){nearDist=d;nearFoe=f;} });
   if(!nearFoe) return;
 
   const dx=nearFoe.group.position.x-s.group.position.x;
@@ -961,7 +973,7 @@ function updateHUD(){
   document.getElementById('healthFill').style.width=Math.max(0,playerHP)+'%';
   const pct=Math.floor(captureProgress/CAPTURE_TIME*100);
   document.getElementById('captureFill').style.width=pct+'%';
-  document.getElementById('captureLabel').textContent='🏆 CAPTURE — '+pct+'%';
+  document.getElementById('captureLabel').textContent='🏆 CAPTURE — '+pct+'%'+(alliesAtThrone>0?' (+'+alliesAtThrone+(alliesAtThrone===1?' ally':' allies')+' helping!)':'');
 }
 function flashHit(){ const f=document.getElementById('hitFlash'); f.style.background='rgba(255,0,0,0.4)'; setTimeout(()=>f.style.background='rgba(255,0,0,0)',100); }
 
@@ -1151,10 +1163,16 @@ function animate(){
   }
 
   // ── CAPTURE ───────────────────────────────────────────────────────────────
+  // Allies who reach the throne (see the rally logic in tickSoldier above) now genuinely help
+  // capture it, not just fight elsewhere: each one standing there with you speeds up the capture
+  // and blunts how hard a contesting enemy can drain it — a real team effort, capped so it can
+  // never make capture instant or un-drainable outright.
   const onThrone=playerGroup.position.distanceTo(THRONE_POS)<THRONE_R;
+  alliesAtThrone=allies.filter(a=>a.hp>0&&a.group.position.distanceTo(THRONE_POS)<THRONE_R).length;
   const enemyOnThrone=enemies.some(e=>e.hp>0&&e.group.position.distanceTo(THRONE_POS)<THRONE_R+2);
-  if(onThrone&&!enemyOnThrone) captureProgress=Math.min(CAPTURE_TIME,captureProgress+dt);
-  else if(enemyOnThrone)        captureProgress=Math.max(0,captureProgress-dt*1.5);
+  const allyAssist=Math.min(alliesAtThrone,4);
+  if(onThrone&&!enemyOnThrone) captureProgress=Math.min(CAPTURE_TIME,captureProgress+dt*(1+allyAssist*0.15));
+  else if(enemyOnThrone)        captureProgress=Math.max(0,captureProgress-dt*1.5/(1+allyAssist*0.25));
 
   // ── WIN / LOSE ─────────────────────────────────────────────────────────────
   if(captureProgress>=CAPTURE_TIME&&gameState==='playing'){
