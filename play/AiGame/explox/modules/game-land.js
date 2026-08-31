@@ -1231,9 +1231,11 @@ function fightRobot(robot) {
     (x, z) => { robot.x = x; robot.z = z; robot.mesh.position.set(x, 0, z); });
 
   if(robot.hp > 0) {
-    const backDmg = Math.round((6 + Math.random()*8) * robot.powerMult);
     showNotif(`🤖 Hit ${robot.type.name} for ${dmg}! (${robot.hp} HP left)`);
-    damagePlayer(backDmg, robot.type.name);
+    if (!isEvilImmune()) {
+      const backDmg = Math.round((6 + Math.random()*8) * robot.powerMult);
+      damagePlayer(backDmg, robot.type.name);
+    }
     return;
   }
   defeatRobot(robot);
@@ -1300,7 +1302,10 @@ function tickRogueRobots(dt) {
     const dist = Math.hypot(dx,dz);
     if (dist < 2.5) {
       r.attackTimer += dt;
-      if (r.attackTimer > 1.5) { r.attackTimer = 0; damagePlayer(Math.round((6+Math.floor(Math.random()*8))*r.powerMult), r.type.name+' (Rogue)'); }
+      if (r.attackTimer > 1.5) {
+        r.attackTimer = 0;
+        if (!isEvilImmune()) damagePlayer(Math.round((6+Math.floor(Math.random()*8))*r.powerMult), r.type.name+' (Rogue)');
+      }
     } else {
       // Always closes the real distance now — spawning at the nearest real spawner (above) means
       // it's never absurdly far away, so the old 250-unit chase cap was just cutting the "walks to
@@ -1660,7 +1665,15 @@ function spawnRobber() {
   const z = Math.max(-WORLD_BOUND, Math.min(WORLD_BOUND, playerGroup.position.z+Math.sin(ang)*dist));
   const mesh = buildRobberMesh(x, z);
   mesh.visible = false;
+  if (Date.now() < satanBadUntil) demonizeMesh(mesh);
   killers.push({ id:'robber'+ROBOT_ID_SEQ++, x, z, hp:ROBBER_HP, maxHp:ROBBER_HP, mesh, alive:true, speed:4+Math.random()*1.5, revealed:false, robber:true, fleeing:false });
+}
+// "5x bad entites" — Satan won this round, so newly-spawned Killers/Robbers get a demonic
+// recolor (dark red/black + a red glow) instead of their normal look. Purely visual — same
+// hp/dmg/AI as always, just a real reason for "demons" to actually look different on-screen.
+function demonizeMesh(mesh) {
+  mesh.traverse(o => { if (o.isMesh && o.material && o.material.color && (!o.geometry || o.geometry.type !== 'PlaneGeometry')) o.material.color.setHex(0x220000); });
+  const glow = new THREE.PointLight(0xff0000, 1.5, 8); glow.position.y = 3; mesh.add(glow);
 }
 function robMoney(k) {
   const stolen = Math.round(sipDollars * (ROBBER_STEAL_PCT_MIN + Math.random()*(ROBBER_STEAL_PCT_MAX-ROBBER_STEAL_PCT_MIN)));
@@ -1682,7 +1695,7 @@ function tickRobberCombat(k, dt) {
   const dx = playerGroup.position.x-k.x, dz = playerGroup.position.z-k.z, dist = Math.hypot(dx,dz);
   if (!k.revealed && dist <= ROBBER_REVEAL_RANGE) { k.revealed = true; k.mesh.visible = true; }
   if (dist < ROBBER_ATTACK_RANGE) {
-    robMoney(k);
+    if (!isEvilImmune()) robMoney(k);
   } else {
     k.x += dx/dist*k.speed*dt; k.z += dz/dist*k.speed*dt;
     k.mesh.position.set(k.x, 0, k.z);
@@ -1703,7 +1716,9 @@ function fightRobber(k) {
 function defeatRobber(k) {
   k.alive = false;
   scene.remove(k.mesh);
-  const reward = Math.max(ROBBER_BOUNTY_MIN, Math.round(sipDollars * ROBBER_KILL_REWARD_PCT));
+  totalKills++; checkWrathTrigger();
+  const badLuck = Date.now() < satanBadUntil;
+  const reward = Math.round(Math.max(ROBBER_BOUNTY_MIN, Math.round(sipDollars * ROBBER_KILL_REWARD_PCT)) * (badLuck ? 0.5 : 1));
   if (k.fleeing) {
     queueEarning(reward, 0, 'Caught a robber');
     showNotif(`🥷 Too late to get back what THIS robber already took, but you shook ${reward} S.I.P. loose off them for the trouble!`);
@@ -1726,6 +1741,7 @@ function spawnKiller() {
   // every future hit landed on the SAME tick, turning "two independent threats" into a scripted
   // double-hit combo. Each killer now gets its own randomized cadence so they drift apart instead.
   const atkInterval = KILLER_ATTACK_INTERVAL * (0.8 + Math.random()*0.5);
+  if (Date.now() < satanBadUntil) demonizeMesh(mesh); // "more demons" — Satan won this round, so what spawns looks the part
   killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval, revealed:false });
 }
 // Combat for an ambient Killer — always targets the player. Unchanged behavior from before this
@@ -1736,7 +1752,10 @@ function tickAmbientKillerCombat(k, dt) {
   if (!k.revealed && dist <= KILLER_REVEAL_RANGE) { k.revealed = true; k.mesh.visible = true; sfx.tense(); }
   if (dist < KILLER_ATTACK_RANGE) {
     k.attackTimer += dt;
-    if (k.attackTimer > k.atkInterval) { k.attackTimer = 0; damagePlayer(8+Math.floor(Math.random()*8), "a Killer's dagger"); }
+    if (k.attackTimer > k.atkInterval) {
+      k.attackTimer = 0;
+      if (!isEvilImmune()) damagePlayer(8+Math.floor(Math.random()*8), "a Killer's dagger");
+    }
   } else {
     k.x += dx/dist*k.speed*dt; k.z += dz/dist*k.speed*dt;
     k.mesh.position.set(k.x, 0, k.z);
@@ -1782,20 +1801,30 @@ function tickGuardKillerCombat(k, dt) {
     k.mesh.rotation.y = Math.atan2(dx, dz);
   }
 }
+// "get rid of all evil entities for 2 days" / "5x bad entites" — one real multiplier both halves
+// of the church/Wrath aftermath share: 0 while the cleansing period is blocking all evil, 5 if
+// Satan won this round (also demonizeMesh()'d, above), otherwise the normal rate.
+function evilSpawnMultiplier() {
+  const now = Date.now();
+  if (now < satanBadUntil) return 5;
+  if (now < safePeriodEndsAt) return 0;
+  return 1;
+}
 function tickKillers(dt) {
   killerTimer += dt;
   const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea;
-  if (killerTimer >= killerSpawnInterval()) {
+  const evilMult = evilSpawnMultiplier();
+  if (killerTimer >= killerSpawnInterval() / Math.max(1,evilMult)) {
     killerTimer = 0;
     // Only counts ambient killers against the ambient cap now — a Guard shift's own separate
     // GUARD_KILLER_MAX_ACTIVE pool used to count against this too, silently starving ambient
     // spawns for the whole 20-minute shift. Real bug, fixed while touching this code anyway.
-    if (outdoors && killers.filter(k=>k.alive && !k.guardKiller && !k.hitTargetName && !k.hitTargetType && !k.robber).length < killerMaxActive()) spawnKiller();
+    if (outdoors && evilMult>0 && killers.filter(k=>k.alive && !k.guardKiller && !k.hitTargetName && !k.hitTargetType && !k.robber).length < killerMaxActive()*evilMult) spawnKiller();
   }
   robberTimer += dt;
-  if (robberTimer >= ROBBER_SPAWN_INTERVAL) {
+  if (robberTimer >= ROBBER_SPAWN_INTERVAL / Math.max(1,evilMult)) {
     robberTimer = 0;
-    if (outdoors && killers.filter(k=>k.alive && k.robber).length < ROBBER_MAX_ACTIVE) spawnRobber();
+    if (outdoors && evilMult>0 && killers.filter(k=>k.alive && k.robber).length < ROBBER_MAX_ACTIVE*evilMult) spawnRobber();
   }
   const onGuardShift = activeBankJob && activeBankJob.job.id === 'guard';
   if (onGuardShift) {
@@ -1871,9 +1900,12 @@ function defeatKiller(killer) {
     return;
   }
   killerDefeats++;
-  queueEarning(0, KILLER_REWARD_ELITE, 'Killer');
+  totalKills++; checkWrathTrigger();
+  const badLuck = Date.now() < satanBadUntil;
+  const reward = badLuck ? Math.max(1, Math.round(KILLER_REWARD_ELITE*0.5)) : KILLER_REWARD_ELITE;
+  queueEarning(0, reward, 'Killer');
   sfx.boom();
-  showNotif(`💀 Defeated the killer! +${KILLER_REWARD_ELITE} 💎`);
+  showNotif(`💀 Defeated the killer! +${reward} 💎${badLuck ? ' (bad luck is cutting your rewards right now...)' : ''}`);
 }
 
 // ── The Grinder — turns real robot wreckage into Scrap Metal + the robot's real materials ──
@@ -2068,9 +2100,11 @@ function tickArenaRobots(dt) {
       robot.attackTimer += dt;
       if (robot.attackTimer >= ARENA_ROBOT_ATTACK_INTERVAL) {
         robot.attackTimer = 0;
-        const dmg = Math.round((6 + Math.random()*8) * robot.powerMult);
-        damagePlayer(dmg, robot.type.name + ' (Arena)');
-        showNotif(`⚔️ ${robot.type.name} attacks!`);
+        if (!isEvilImmune()) {
+          const dmg = Math.round((6 + Math.random()*8) * robot.powerMult);
+          damagePlayer(dmg, robot.type.name + ' (Arena)');
+          showNotif(`⚔️ ${robot.type.name} attacks!`);
+        }
       }
     }
   });

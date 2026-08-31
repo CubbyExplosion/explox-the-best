@@ -388,6 +388,16 @@
   </div>
 </div>
 
+<div id="churchModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#1a1608,#241f0e);border:2px solid #d4af37;border-radius:16px;padding:26px;width:320px;text-align:center;">
+    <div style="font-size:38px;margin-bottom:6px;">⛪</div>
+    <h2 style="color:#FFD700;font-size:18px;letter-spacing:3px;margin-bottom:16px;">CHURCH</h2>
+    <div id="churchBox" style="text-align:left;margin-bottom:16px;"></div>
+    <button onclick="prayAtChurch()" style="width:100%;padding:10px;margin-bottom:8px;background:#FFD700;border:none;border-radius:8px;color:#111;cursor:pointer;font-size:13px;font-weight:bold;">🙏 Pray</button>
+    <button onclick="closeChurch()" style="width:100%;padding:9px;background:none;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">✖ Leave Church</button>
+  </div>
+</div>
+
 <!-- STOCK MARKET MODAL -->
 <div id="stockMarketModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
   <div style="background:linear-gradient(135deg,#04121c,#08202e);border:2px solid #2277aa;border-radius:16px;padding:26px;width:340px;max-height:80vh;overflow-y:auto;">

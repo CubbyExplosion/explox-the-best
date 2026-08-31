@@ -216,6 +216,8 @@ function animate(){
   tickBossChase(dt);
   tickMovieBossFight(dt);
   tickArenaRobots(dt);
+  tickWrath(dt);
+  tickSatanEvent(dt);
 
   // Movement with collision
   let moving=false;

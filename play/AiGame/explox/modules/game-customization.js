@@ -189,6 +189,19 @@ let lifetimeCitizensDefeated = 0; // defeatNPC() non-cop/non-president kills (ga
 let lifetimeCopsDefeated    = 0; // defeatNPC() Officer kills (game-social.js)
 let totalContractsCompleted = 0; // Crime Contracts claimed — mirrors totalQuestsCompleted
 
+// ─── CHURCH / DIVINE JUDGMENT — user's own ask: "make god god of Abraham" then, clarified across
+// several follow-ups, a moral-consequence system for real killing (Killers/Robbers/Hire a Killer —
+// NOT minigame kills like Capture the Throne, Arena, or Scrapyard/War robots, which are their own
+// fictional combat systems). God is never something you fight — only the one judging. See
+// triggerWrath()/tickWrath() (game-world.js) and the CHURCH zone (game-zones.js).
+let totalKills          = 0; // real Killer/Robber/Hire-a-Killer kills — see checkWrathTrigger()
+let wrathTriggerCount    = 0; // how many times Wrath has been sent after you — each one hits harder
+let wrathActive          = false; // NOT persisted — a mid-chase reload just ends the chase, doesn't erase the kill count that caused it
+let churchLastPrayed     = 0; // Date.now() ms of the last prayer — see PRAY_COOLDOWN_MS
+let safePeriodEndsAt     = 0; // Date.now() ms — while now < this, no new Killers/Robbers spawn (the "everyone bows" cleansing after Wrath)
+let satanBadUntil        = 0; // Date.now() ms — while now < this, Satan has WON this round: 5x evil spawns, black sky, bad luck
+let satanCheckTimer      = 0; // NOT persisted — real-seconds accumulator, see tickSatanEvent()
+
 // ─── RECORDS — user's own ask: "records like most diamonds, sip and more". peakSip/peakElite
 // track the highest balance ever actually held (updated in updateSIP()/updateElite(), the same
 // choke point every S.I.P./Elite Coin change already flows through) — NOT current balance, which

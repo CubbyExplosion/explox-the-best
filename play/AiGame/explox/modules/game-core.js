@@ -1227,6 +1227,7 @@ function saveCurrentUser() {
     eliteLevel: eliteLevel, activeQuests: activeQuests,
     lifetimeRobotKills: lifetimeRobotKills, lifetimeRogueKills: lifetimeRogueKills, lifetimeWarHits: lifetimeWarHits,
     killerDefeats: killerDefeats, pendingEarnings: pendingEarnings,
+    totalKills: totalKills, wrathTriggerCount: wrathTriggerCount, churchLastPrayed: churchLastPrayed, safePeriodEndsAt: safePeriodEndsAt,
     peakSip: peakSip, peakElite: peakElite, totalQuestsCompleted: totalQuestsCompleted, totalBossesDefeated: totalBossesDefeated,
     activeContracts: activeContracts, lifetimeShopsRobbed: lifetimeShopsRobbed,
     lifetimeCitizensDefeated: lifetimeCitizensDefeated, lifetimeCopsDefeated: lifetimeCopsDefeated,
@@ -1650,6 +1651,11 @@ async function doLogin(name) {
   lifetimeRogueKills = d.lifetimeRogueKills !== undefined ? d.lifetimeRogueKills : 0;
   lifetimeWarHits    = d.lifetimeWarHits !== undefined ? d.lifetimeWarHits : 0;
   killerDefeats      = d.killerDefeats !== undefined ? d.killerDefeats : 0;
+  totalKills         = d.totalKills !== undefined ? d.totalKills : 0;
+  wrathTriggerCount  = d.wrathTriggerCount !== undefined ? d.wrathTriggerCount : 0;
+  churchLastPrayed   = d.churchLastPrayed !== undefined ? d.churchLastPrayed : 0;
+  safePeriodEndsAt   = d.safePeriodEndsAt !== undefined ? d.safePeriodEndsAt : 0;
+  wrathActive = false; satanBadUntil = 0; satanCheckTimer = 0; // a fresh login always starts with no mid-chase/mid-bad-window state
   // max()'d against the account's real current balance so an account that already had money
   // before this feature existed shows a correct record immediately, not a jarring 0.
   peakSip  = Math.max(d.peakSip !== undefined ? d.peakSip : 0, sipDollars);

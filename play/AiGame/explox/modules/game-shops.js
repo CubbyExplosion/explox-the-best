@@ -1112,6 +1112,45 @@ function renameChild() {
   saveCurrentUser();
 }
 
+// ─── CHURCH — "make god god of Abraham" clarified across several follow-ups to a real building
+// you can walk into and pray in (small blessing, real cooldown — see PRAY_COOLDOWN_MS). This is
+// the one place in the game explicitly ABOUT God, not against Him — the Wrath/Satan punishment
+// system (game-world.js) is the consequence side of the same theme, and never makes God the
+// target of anything.
+const PRAY_COOLDOWN_MS = 3600000; // 1 real hour between prayers
+const PRAY_SIP_REWARD = 25;
+function openChurch() {
+  if(document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('churchModal').style.display = 'flex';
+  refreshChurchUI();
+}
+function closeChurch() {
+  document.getElementById('churchModal').style.display = 'none';
+  if(renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function refreshChurchUI() {
+  const box = document.getElementById('churchBox');
+  const remainMs = PRAY_COOLDOWN_MS - (Date.now() - churchLastPrayed);
+  if (remainMs > 0) {
+    const mins = Math.ceil(remainMs/60000);
+    box.innerHTML = `<div style="color:#aaa;font-size:13px;">🙏 You already prayed recently. Come back in ${mins} minute${mins===1?'':'s'}.</div>`;
+  } else {
+    box.innerHTML = `<div style="color:#ddd;font-size:13px;">A quiet, peaceful place. Take a moment to pray.</div>`;
+  }
+}
+function prayAtChurch() {
+  if (Date.now() - churchLastPrayed < PRAY_COOLDOWN_MS) { refreshChurchUI(); return; }
+  churchLastPrayed = Date.now();
+  playerHealth = playerMaxHealth;
+  updateHealthBar();
+  queueEarning(PRAY_SIP_REWARD, 0, 'Prayer at Church');
+  showNotif(`🙏 You feel at peace. Fully healed, +${PRAY_SIP_REWARD} S.I.P. pending in Earnings.`);
+  sfx.coin();
+  saveCurrentUser();
+  refreshChurchUI();
+}
+
 // ─── SCHOOL — enroll your adopted child, grows a little faster + earns a S.I.P. bonus when they graduate ─
 function openSchool() {
   if(document.pointerLockElement) document.exitPointerLock();

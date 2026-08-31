@@ -202,6 +202,16 @@ function buildCity() {
   box(0.3,10,0.3, 0x666,58,5,50); box(4,0.2,0.1, 0x4488dd,60,9.5,50);
   addCol(CITY_COLS,70,60, 19,12);
 
+  // CHURCH — "make god god of Abraham" clarified to "a church you can walk into", real building
+  // + a real Pray action inside (openChurch()/prayAtChurch(), game-shops.js), not a decoration.
+  box(20,12,20, 0xf0ece0,-40,6,20); box(20,1,20, 0xd8d0c0,-40,12.5,20);
+  box(6,10,6, 0xe8e0d0,-40,10,10);
+  box(1,7,1, 0x9a8a6a,-40,18.5,10);
+  box(2.4,0.35,0.35, 0xFFD700,-40,21.5,10); box(0.35,2.4,0.35, 0xFFD700,-40,21.5,10);
+  box(8,10,4, 0x6a4a2a,-40,6,9.2); buildSign('⛪ CHURCH',-40,15,9);
+  box(16,0.2,10, 0xaa7744,-40,0.1,26);
+  addCol(CITY_COLS,-40,20, 10,10);
+
   // STREET LIGHTS
   [[12,12],[12,-12],[-12,12],[-12,-12],[30,12],[30,-12],[-30,12],[-30,-12],[50,12],[50,-12],[-50,12],[-50,-12]].forEach(([lx,lz])=>{
     box(0.3,7,0.3, 0x444,lx,3.5,lz); box(2,0.3,0.3, 0x444,lx+0.8,7,lz);

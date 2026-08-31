@@ -46,6 +46,7 @@ const CITY_ZONES = [
   { x:-10, z:-95, r:9,  label:'🏟️ Enter Sports Park', action: () => enterSportsPark()},
   { x:-40, z:74,  r:5,  label:'🏥 City Hospital – See a Doctor!', action: () => enterHospital()},
   { x:SEA_EXIT.x, z:SEA_EXIT.z, r:9, label:'🌊 Enter the Sea', action: () => enterSea()},
+  { x:-40, z:20,  r:10, label:'⛪ Enter Church', action: () => openChurch()},
 ];
 const HOUSE_ZONES = [
   { x:HOUSE_EXIT.x, z:HOUSE_EXIT.z, r:3, label:'Exit House', action: () => exitHouse()},
@@ -835,6 +836,7 @@ function getSeasonInfo() {
 const DAY_LENGTH = 1800; // real seconds for one full day+night cycle (30 minutes)
 let seasonSkyColor, seasonFogColor; // THREE.Color, lazily created in applySeasonEffects (THREE isn't loaded yet at parse time)
 let _dayNightColors = null;         // lazily built cache of THREE.Color helpers, see updateDayNight
+let _judgmentColor = null;          // lazily built cache for the Wrath/Satan sky override, see updateDayNight
 let lastDayPhase = null;            // 'Day'|'Dawn'|'Dusk'|'Night' — only re-renders the HUD when this actually changes
 let lastTimeZoneCountry = null;     // country name the last HUD render reflected, or null outside any country
 // A single shared "am I in a real indoor pocket space right now" check — the Sea/Space/War
@@ -867,6 +869,18 @@ function getDayNightBrightness() {
 }
 function updateDayNight() {
   if (!scene || !sunLight || !ambientLight || !seasonSkyColor) return;
+  // "sun or moon turns red" (Wrath is chasing you) / "more black sun" (Satan won this round) —
+  // both override the normal day/night blend entirely rather than fighting it every frame.
+  if (wrathActive || Date.now() < satanBadUntil) {
+    if (!_judgmentColor) _judgmentColor = new THREE.Color();
+    _judgmentColor.set(wrathActive ? 0x660000 : 0x050505);
+    scene.background.copy(_judgmentColor);
+    scene.fog.color.copy(_judgmentColor);
+    sunLight.intensity = 0.15;
+    ambientLight.color.copy(_judgmentColor);
+    ambientLight.intensity = 0.3;
+    return;
+  }
   if (!_dayNightColors) {
     _dayNightColors = {
       nightSky: new THREE.Color(0x0a1030), nightFog: new THREE.Color(0x0a1020),

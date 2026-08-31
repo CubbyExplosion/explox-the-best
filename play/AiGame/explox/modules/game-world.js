@@ -623,6 +623,109 @@ function resetAllBossAggro() {
     if (bm) { bm.mesh.position.set(def.x, 0, def.z); if (bm.light) bm.light.position.set(def.x, 8, def.z); }
   });
 }
+
+// ─── WRATH — the real consequence for crossing 100 real kills (Killers/Robbers/Hire a Killer —
+// see totalKills++ at each of those call sites). Unlike a Boss, Wrath has no BOSS_DEAGGRO_RANGE
+// and can't be fought back — it's a punishment to survive, not a fight to win. "and attacks
+// untill you die" — the chase only ever ends in knockoutPlayer(), never by outrunning it. God is
+// only ever the one judging here, never the one being fought — see checkWrathTrigger().
+const WRATH_KILL_THRESHOLD = 100;
+const WRATH_BASE_DMG = 20, WRATH_SPEED = 10.5, WRATH_ATTACK_RANGE = 3, WRATH_ATTACK_INTERVAL = 1.2;
+const WRATH_SIP_PENALTY = 10000, WRATH_ELITE_PENALTY = 100000;
+let wrath = null; // {mesh, curX, curZ, attackTimer}
+function checkWrathTrigger() {
+  // "gets worse the more you kill" — re-triggerable every further WRATH_KILL_THRESHOLD kills,
+  // each one hitting harder (see the dmg scaling in tickWrath below).
+  if (totalKills >= WRATH_KILL_THRESHOLD * (wrathTriggerCount + 1)) triggerWrath();
+}
+function triggerWrath() {
+  if (wrathActive || !playerGroup) return;
+  wrathActive = true; wrathTriggerCount++;
+  showNotif('🩸 The sky turns blood red... something terrible has come for you.');
+  const ang = Math.random()*Math.PI*2, dist = 30;
+  const x = playerGroup.position.x + Math.cos(ang)*dist, z = playerGroup.position.z + Math.sin(ang)*dist;
+  wrath = { mesh: buildWrathMesh(x,z), curX:x, curZ:z, attackTimer:0 };
+}
+function tickWrath(dt) {
+  if (!wrathActive || !wrath || !playerGroup) return;
+  // Same "can't reach you through a wall/interior" gate every other outdoor threat already uses.
+  if (inHouse || inMall || inHotel || inStore || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inPrison || inArcade || inCar || inArenaBattle || inMovieFight || inBankInterior || inSportsPark || inHospital || inSea) return;
+  const dx = playerGroup.position.x-wrath.curX, dz = playerGroup.position.z-wrath.curZ, dist = Math.hypot(dx,dz);
+  if (dist > WRATH_ATTACK_RANGE) {
+    wrath.attackTimer = 0;
+    wrath.curX += dx/dist*WRATH_SPEED*dt; wrath.curZ += dz/dist*WRATH_SPEED*dt;
+    wrath.mesh.rotation.y = Math.atan2(dx,dz);
+  } else {
+    wrath.attackTimer += dt;
+    if (wrath.attackTimer >= WRATH_ATTACK_INTERVAL) {
+      wrath.attackTimer = 0;
+      damagePlayer(WRATH_BASE_DMG + (wrathTriggerCount-1)*5, 'a shadow of judgment');
+      // That hit may have just killed the player — knockoutPlayer() already called
+      // endWrathAfterDeath() synchronously inside damagePlayer() above, tearing wrath down
+      // (wrath is now null). Bail out before touching it below.
+      if (!wrathActive) return;
+    }
+  }
+  wrath.mesh.position.set(wrath.curX, 0, wrath.curZ);
+}
+// Called from knockoutPlayer() — the punishment lands, then "everyone will bow and will get rid
+// of all evil entities for 2 days": every Killer/Robber alive right now is gone, and none spawn
+// again until safePeriodEndsAt (see evilSpawnMultiplier() in game-land.js).
+function endWrathAfterDeath() {
+  wrathActive = false;
+  if (wrath) { scene.remove(wrath.mesh); wrath = null; }
+  // "and if he wins the world in bad hand" — this IS that price: real, clamped so it can't go
+  // negative on an account that already can't afford it.
+  const lostSip = Math.min(sipDollars, WRATH_SIP_PENALTY);
+  const lostElite = Math.min(eliteCoins, WRATH_ELITE_PENALTY);
+  sipDollars -= lostSip; eliteCoins -= lostElite;
+  updateSIP(); updateElite();
+  killers.forEach(k => { if (k.mesh) scene.remove(k.mesh); });
+  killers.length = 0;
+  safePeriodEndsAt = Date.now() + 2*DAY_LENGTH*1000; // "for 2 days" — 2 real in-game days
+  satanBadUntil = 0; satanCheckTimer = 0;
+  showNotif(`⚡ Struck down for your sins — lost ${lostSip.toLocaleString()} S.I.P. and ${lostElite.toLocaleString()} 💎.`);
+  setTimeout(() => showNotif('🙏 The world bows — every Killer and Robber is gone, and none will return for 2 days...'), 2200);
+}
+function buildWrathMesh(x, z) {
+  const g = new THREE.Group(); g.position.set(x,0,z); scene.add(g);
+  const darkMat = new THREE.MeshBasicMaterial({color:0x0a0005});
+  const eyeMat = new THREE.MeshBasicMaterial({color:0xff0000});
+  const robe = new THREE.Mesh(new THREE.ConeGeometry(1.3,3.4,8), darkMat); robe.position.y=1.9; g.add(robe);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.55,8,8), darkMat); head.position.y=3.9; g.add(head);
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.09,6,6), eyeMat); eyeL.position.set(-0.2,3.95,0.45); g.add(eyeL);
+  const eyeR = eyeL.clone(); eyeR.position.x=0.2; g.add(eyeR);
+  const pl = new THREE.PointLight(0xff2222, 2.5, 14); pl.position.y=3; g.add(pl);
+  [-1,1].forEach(side => {
+    const wing = new THREE.Mesh(new THREE.ConeGeometry(0.5,2.2,4), darkMat);
+    wing.position.set(side*1.1,2.4,-0.3); wing.rotation.z = side*0.9; wing.rotation.x = 0.3; g.add(wing);
+  });
+  return g;
+}
+
+// ─── SATAN — during the cleansing period, sometimes "satan attack god nnot us" — never the
+// player directly. Most rounds God holds; if Satan wins this round, "the world in bad hand": 5x
+// Killers/Robbers (as real demons — see demonizeMesh() in game-land.js), a black sky, and worse
+// rewards from beating them (see the badLuck checks in defeatKiller/defeatRobber), until it passes.
+const SATAN_CHECK_INTERVAL = 300;  // real seconds between rolls, only while the cleansing period is active
+const SATAN_ATTACK_CHANCE  = 0.20; // "20 present of this time" Satan attacks at all, per roll
+const SATAN_WIN_CHANCE     = 0.25; // of those attacks, how often Satan actually wins
+const SATAN_BAD_DURATION   = 600;  // real seconds the bad outcome lasts if Satan wins
+function tickSatanEvent(dt) {
+  const now = Date.now();
+  if (now >= safePeriodEndsAt) return; // no cleansing period active right now — nothing for Satan to attack
+  if (now < satanBadUntil) return; // already mid-bad-window — let it run its course
+  satanCheckTimer += dt;
+  if (satanCheckTimer < SATAN_CHECK_INTERVAL) return;
+  satanCheckTimer = 0;
+  if (Math.random() >= SATAN_ATTACK_CHANCE) return; // no attack this round
+  if (Math.random() < SATAN_WIN_CHANCE) {
+    satanBadUntil = now + SATAN_BAD_DURATION*1000;
+    showNotif('🔥 Satan has struck down the light — the world is in bad hands for a while...');
+  } else {
+    showNotif('⚔️ Satan attacked, but the light held. The world stays safe... for now.');
+  }
+}
 // One hand-built silhouette per boss — deliberately NOT reusing buildRobotMesh()'s shapes (a
 // boss used to just be a 3.2x-scaled Tank/Spider/Elite/Drone/Guard Bot, same geometry as the
 // small rogue robots you fight everywhere else). Each shape here is something no regular robot
@@ -868,6 +971,22 @@ const BUDDY_ATTACK_INTERVAL = 2.4, KID_ATTACK_INTERVAL = 2.8;
 const BUDDY_DAMAGE_MULT = 0.4, KID_DAMAGE_MULT = 0.3; // a real assist, not a full second fighter
 let buddyAttackTimer = 0, kidAttackTimer = 0; // NOT persisted — just pacing, like every other attackTimer in the file
 
+// User's own ask: "make pets chase robbers" — a real visible chase, not just a bonus hit fired
+// from wherever Buddy happens to be standing. Deliberately includes a k.fleeing robber (one that
+// already stole from the player and is running off) — that's the single most fitting moment for
+// this: the robber grabbed your money and ran, and your pet goes after it. Scoped to Buddy only
+// (not the adopted kid) — chasing down a real threat isn't something to hand a child companion.
+const BUDDY_ROBBER_CHASE_RADIUS = 14;
+function nearestRevealedRobber(px, pz, maxDist) {
+  let best = null, bestDist = maxDist;
+  for (const k of killers) {
+    if (!k.alive || !k.revealed || !k.robber) continue;
+    const d = Math.hypot(px-k.x, pz-k.z);
+    if (d < bestDist) { bestDist = d; best = k; }
+  }
+  return best;
+}
+
 // Finds whatever the player is actively fighting right now, in the same priority order
 // handleInteract() itself checks: an active duel > Arena FFA > a killer/boss/rogue robot in
 // range. Read-only — doesn't consume/trigger anything, just tells the companions where to swing.
@@ -892,8 +1011,18 @@ function getCompanionCombatTarget() {
     if (target) return { type:'ffa', name: target };
   }
   if (!inHouse && !inMall && !inArcade && !inStore) {
-    let closestKiller = null, closestKillerDist = 3.5;
-    for (const k of killers) { if (!k.alive || !k.revealed) continue; const d = Math.hypot(px-k.x, pz-k.z); if (d < closestKillerDist) { closestKillerDist = d; closestKiller = k; } }
+    let closestKiller = null, closestKillerDist = Infinity;
+    for (const k of killers) {
+      if (!k.alive || !k.revealed) continue;
+      const d = Math.hypot(px-k.x, pz-k.z);
+      // A robber Buddy is actively chasing (see BUDDY_ROBBER_CHASE_RADIUS) may by now be well
+      // ahead of the player — also count it in range if BUDDY has actually caught up to it, even
+      // if the player hasn't, so a chase that lands doesn't just stand there not attacking.
+      const dFromBuddy = (k.robber && buddyOwned && buddyGroup) ? Math.hypot(buddyGroup.position.x-k.x, buddyGroup.position.z-k.z) : Infinity;
+      if (d >= 3.5 && dFromBuddy >= 3.5) continue;
+      const effectiveDist = Math.min(d, dFromBuddy);
+      if (effectiveDist < closestKillerDist) { closestKillerDist = effectiveDist; closestKiller = k; }
+    }
     if (closestKiller) return { type:'killer', ref: closestKiller };
     let closestBoss = null, closestBossDist = 6;
     // st.curX/curZ (a live chase position) may not exist on every deployment yet — fall back
@@ -968,9 +1097,13 @@ function landCompanionHit(target, mult, label) {
     const dmg = Math.max(1, Math.round(getWeaponDamage() * mult));
     k.hp -= dmg;
     sfx.clang();
-    if (k.hp > 0) { showNotif(`${label} hits the killer for ${dmg}! (${k.hp}/${k.maxHp} HP left)`); return; }
+    // Robbers live in the same `killers` array as hired killers (tagged k.robber), but they're a
+    // real different kind of kill with their own reward (defeatRobber's bounty S.I.P.) and message
+    // — dispatching every companion-assisted kill here through defeatKiller() regardless would have
+    // silently paid Elite currency and shown "Defeated the killer!" for a robber kill instead.
+    if (k.hp > 0) { showNotif(`${label} hits the ${k.robber ? 'robber' : 'killer'} for ${dmg}! (${k.hp}/${k.maxHp} HP left)`); return; }
     showNotif(`${label} lands the final hit!`);
-    defeatKiller(k);
+    if (k.robber) defeatRobber(k); else defeatKiller(k);
   } else if (target.type === 'boss') {
     const dmg = Math.max(1, Math.round(getWeaponDamage() * mult));
     companionHitBoss(target.ref, dmg, label);

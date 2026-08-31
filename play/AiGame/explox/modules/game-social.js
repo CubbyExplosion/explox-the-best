@@ -876,6 +876,7 @@ function damagePlayer(amount, sourceLabel) {
   if(playerHealth <= 0) knockoutPlayer();
 }
 function knockoutPlayer() {
+  if(wrathActive) endWrathAfterDeath(); // "attacks until you die" — the chase always ends here, never by outrunning it
   if(lastHitmanAttacker) {
     // A real hired-killer death, not a duel/arena loss — the hirer only finds out once we
     // confirm it ourselves, since they have no way to know our HP directly (see
@@ -1510,6 +1511,7 @@ function tickHitmanVsPlayer(k, dt) {
 // local NPC object or a real grave, since the target only ever existed on our screen as a killer
 // mesh chasing a synced position.
 function completeHiredHitOnPlayer(targetName) {
+  totalKills++; checkWrathTrigger();
   const wealth = npcWealth(targetName);
   queueEarning(wealth, 0, `Hit on ${targetName}`);
   showNotif(`🗡️ Your hired killer got ${targetName}! ${wealth} S.I.P. pending in Earnings.`);
@@ -1550,6 +1552,7 @@ function hitFlavorText(name) {
   return `The hit on ${name} is done.`;
 }
 function completeHiredHit(target) {
+  totalKills++; checkWrathTrigger();
   const wealth = npcWealth(target.name);
   const x = target.group.position.x, z = target.group.position.z;
   scene.remove(target.group);
