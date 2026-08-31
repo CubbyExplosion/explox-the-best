@@ -417,7 +417,11 @@ function grantVictoryReward() {
 // Same standalone-page pattern as geodash.html's live race — identity/server come
 // from the SAME localStorage the main game already writes (same-origin), and both
 // players just see each other's real position/HP/wave, each still fighting their
-// own independent enemies (no shared enemy state - that's real scope, not done here).
+// own independent enemies (no shared enemy state - genuinely separate battles/waves/level
+// progress per player, that's still real scope, not done here). "you can fight your freind" DID
+// add real PvP on top of this, though — see sendThroneHit()/pollThroneHits() further down: your
+// own weapon can damage a teammate ghost, delivered through the same real mailbox the main game
+// already uses for gifts, and applied on THEIR client the next time they poll it.
 const COOP_USER   = localStorage.getItem('explox_current_user') || '';
 const COOP_ONLINE = localStorage.getItem('explox_mode') === 'online';
 const COOP_SERVER = localStorage.getItem('explox_server_url') || '';
@@ -493,6 +497,33 @@ function updateTeammates(dt) {
     tm.hbM.lookAt(camera.position);
   });
 }
+
+// "you can fight your freind" — real PvP against whoever's ghost you see next to you. Neither
+// player's own client is authoritative over the OTHER player's HP (each only ever writes their
+// own playerHP), so a hit doesn't touch anything locally beyond visual feedback — it's dropped in
+// the target's real mailbox (same consume-once inbox the main game already uses for gifts/events)
+// and applied on their own client the next time they poll it, same eventually-consistent feel as
+// every other real-time thing in this file (co-op ghosts, presence).
+function sendThroneHit(toName, dmg) {
+  if(!COOP_ONLINE || !COOP_USER || !COOP_SERVER) return;
+  coopFetch(COOP_SERVER + '/api/mailbox', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ to: toName, from: COOP_USER, type:'throneHit', data:{ dmg } })
+  }).catch(()=>{});
+}
+function pollThroneHits() {
+  if(!COOP_ONLINE || !COOP_USER || !COOP_SERVER) return;
+  coopFetch(COOP_SERVER + '/api/mailbox?for=' + encodeURIComponent(COOP_USER))
+    .then(r => r.ok ? r.json() : null)
+    .then(msgs => {
+      if(!msgs) return;
+      msgs.filter(m => m.type==='throneHit').forEach(m => {
+        playerHP -= (m.data && m.data.dmg) || 0;
+        flashHit();
+        boom(playerGroup.position.clone().add(new THREE.Vector3(0,1.5,0)), 0xff2266);
+      });
+    }).catch(()=>{});
+}
 function levelTier(l){ return Math.min(Math.floor((l-1)/5),3); }
 const THRONE_POS=new THREE.Vector3(0,0.5,0);
 const THRONE_R=6;
@@ -500,6 +531,11 @@ const THRONE_R=6;
 // the throne before living allies anywhere on the map drop what they're doing and rush to
 // intercept it, instead of always chasing whichever enemy happens to be nearest to themselves.
 const ALLY_RALLY_R=24;
+// "make the enemies smarter too" — once the player gets this close to a given enemy, that enemy
+// targets the player specifically instead of whichever ally happens to be nearest to it, so
+// getting close to fight actually draws real danger rather than enemies staying distracted by
+// whichever ally they first noticed.
+const ENEMY_AGGRO_PLAYER_R=20;
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function mat(c){ return new THREE.MeshLambertMaterial({color:c}); }
@@ -847,6 +883,17 @@ function swingSword(){
       if(Math.abs(diff)<1.0){ e.hp-=45*mult; e.hitFlash=0.12; boom(e.group.position,0x44aaff); score+=2; }
     }
   });
+  // "you can fight your freind" — same swing, same range/angle check, but against a real
+  // teammate ghost instead of an AI enemy. See sendThroneHit() for why nothing local gets
+  // touched beyond a visual boom — the real damage lands on THEIR client, not ours.
+  Object.entries(teammates).forEach(([name,tm])=>{
+    const dx=tm.group.position.x-playerGroup.position.x;
+    const dz=tm.group.position.z-playerGroup.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<4.5){
+      const diff=normAngle(Math.atan2(dx,dz)-yaw);
+      if(Math.abs(diff)<1.0){ sendThroneHit(name,45*mult); boom(tm.group.position,0xff2266); }
+    }
+  });
 }
 
 function shootBlaster(){
@@ -926,7 +973,18 @@ function tickSoldier(s,dt,foes,t){
   // throne yet (early in a wave) — enemies keep their original always-nearest behavior.
   let nearFoe=null, nearDist=9999;
   const rallyPool = s.team==='blue' ? foes.filter(f=>f.hp>0 && f.group.position.distanceTo(THRONE_POS)<ALLY_RALLY_R) : null;
-  const searchIn = (rallyPool && rallyPool.length) ? rallyPool : foes;
+  let searchIn = (rallyPool && rallyPool.length) ? rallyPool : foes;
+  // "make the enemies smarter too" — a red soldier that's within aggro range of the player drops
+  // whatever ally it was chasing and comes for the player specifically, same spirit as the ally
+  // rally above but from the other side: once you're close enough to be the real threat, enemies
+  // actually treat you like one instead of getting stuck on nearby allies.
+  if(s.team==='red'){
+    const playerFoe=foes.find(f=>f.isPlayer);
+    if(playerFoe&&playerFoe.hp>0){
+      const pdx=playerFoe.group.position.x-s.group.position.x, pdz=playerFoe.group.position.z-s.group.position.z;
+      if(Math.sqrt(pdx*pdx+pdz*pdz)<ENEMY_AGGRO_PLAYER_R) searchIn=[playerFoe];
+    }
+  }
   searchIn.forEach(f=>{ if(f.hp<=0) return; const dx=f.group.position.x-s.group.position.x,dz=f.group.position.z-s.group.position.z,d=Math.sqrt(dx*dx+dz*dz); if(d<nearDist){nearDist=d;nearFoe=f;} });
   if(!nearFoe) return;
 
@@ -940,6 +998,9 @@ function tickSoldier(s,dt,foes,t){
       if(s.shootTimer<=0){ s.shootTimer=s.atkRate+Math.random()*0.5; allyFire(s,nearFoe); }
     }
     if(nearDist>10){ s.group.position.x+=dx/nearDist*s.speed*dt; s.group.position.z+=dz/nearDist*s.speed*dt; }
+    // Smarter ranged AI: back off when something closes to melee range on them instead of
+    // standing frozen and eating hits at point-blank — keeps them at their own effective range.
+    else if(nearDist<6){ s.group.position.x-=dx/nearDist*s.speed*dt; s.group.position.z-=dz/nearDist*s.speed*dt; }
   } else {
     if(nearDist>1.8){ s.group.position.x+=dx/nearDist*s.speed*dt; s.group.position.z+=dz/nearDist*s.speed*dt; }
     else {
@@ -1065,7 +1126,7 @@ function animate(){
   const dt=Math.min(clock.getDelta(),0.05);
   const t=clock.getElapsedTime();
 
-  if(Date.now() - _lastCombatSync > 1000) { _lastCombatSync = Date.now(); syncCombat(); }
+  if(Date.now() - _lastCombatSync > 1000) { _lastCombatSync = Date.now(); syncCombat(); pollThroneHits(); }
   updateTeammates(dt);
 
   swordCD=Math.max(0,swordCD-dt);
@@ -1113,7 +1174,7 @@ function animate(){
       if(e.atkTimer<=0){ e.atkTimer=e.atkRate; playerHP-=e.dmg; flashHit(); }
     }
     // Move/fight toward allies or player
-    const allFoes=allies.concat([{group:{position:playerGroup.position.clone()},hp:playerHP,maxHp:100}]);
+    const allFoes=allies.concat([{group:{position:playerGroup.position.clone()},hp:playerHP,maxHp:100,isPlayer:true}]);
     tickSoldier(e,dt,allFoes,t);
   }
 
@@ -1136,6 +1197,16 @@ function animate(){
           enemies[j].hp-=p.dmg; enemies[j].hitFlash=0.12;
           if(p.team==='player') score+=3;
           boom(p.mesh.position,0x44aaff); scene.remove(p.mesh); projectiles.splice(i,1); hit=true; break;
+        }
+      }
+      // Ranged PvP — only the player's OWN shots can hit a friend (an ally's projectile shouldn't
+      // suddenly be able to damage a real other player), same sendThroneHit() path as the sword.
+      if(!hit&&p.team==='player'){
+        for(const [name,tm] of Object.entries(teammates)){
+          if(p.mesh.position.distanceTo(tm.group.position.clone().add(new THREE.Vector3(0,1.5,0)))<1.3){
+            sendThroneHit(name,p.dmg);
+            boom(p.mesh.position,0xff2266); scene.remove(p.mesh); projectiles.splice(i,1); hit=true; break;
+          }
         }
       }
     } else {
@@ -1165,12 +1236,13 @@ function animate(){
   // ── CAPTURE ───────────────────────────────────────────────────────────────
   // Allies who reach the throne (see the rally logic in tickSoldier above) now genuinely help
   // capture it, not just fight elsewhere: each one standing there with you speeds up the capture
-  // and blunts how hard a contesting enemy can drain it — a real team effort, capped so it can
-  // never make capture instant or un-drainable outright.
+  // and blunts how hard a contesting enemy can drain it — a real team effort. "can I have more
+  // than 4 allies help at the throne" — no cap: every living ally standing there counts, so a
+  // bigger paid-for army (Customize Your Army's Army Size upgrade) is a real, uncapped advantage.
   const onThrone=playerGroup.position.distanceTo(THRONE_POS)<THRONE_R;
   alliesAtThrone=allies.filter(a=>a.hp>0&&a.group.position.distanceTo(THRONE_POS)<THRONE_R).length;
   const enemyOnThrone=enemies.some(e=>e.hp>0&&e.group.position.distanceTo(THRONE_POS)<THRONE_R+2);
-  const allyAssist=Math.min(alliesAtThrone,4);
+  const allyAssist=alliesAtThrone;
   if(onThrone&&!enemyOnThrone) captureProgress=Math.min(CAPTURE_TIME,captureProgress+dt*(1+allyAssist*0.15));
   else if(enemyOnThrone)        captureProgress=Math.max(0,captureProgress-dt*1.5/(1+allyAssist*0.25));
 
