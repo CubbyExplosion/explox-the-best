@@ -618,39 +618,57 @@ function addPlayerHat(){
 }
 
 // ── SOLDIERS ─────────────────────────────────────────────────────────────────
+// User's own ask: "make it so you and enemy haver tank" — a real 5th unit type, genuinely
+// distinct from the humanoid soldiers (a real boxy hull/treads/turret/cannon build, not just a
+// stat tweak on the same body), fielded by BOTH teams — see the tierCfgs tank entries (enemy,
+// introduced tier 2+) and the ally random-roll tank chance (level 11+) further down this file.
 function makeSoldier(team, pos, type){
   const isBlue=team==='blue';
   const bodyCol  = isBlue?0x2244cc:0xcc2222;
   const helmCol  = isBlue?0x112299:0x991111;
   const visorCol = isBlue?0x44aaff:0xff4444;
-  const scale    = type==='heavy'?1.3:type==='archer'?0.88:1.0;
+  const isTank   = type==='tank';
+  const scale    = isTank?1.5:type==='heavy'?1.3:type==='archer'?0.88:1.0;
 
   const g=new THREE.Group();
   function mk(w,h,d,c,x,y,z){
     const m=new THREE.Mesh(new THREE.BoxGeometry(w*scale,h*scale,d*scale),mat(c));
     m.position.set(x,y,z); m.castShadow=true; g.add(m); return m;
   }
-  mk(0.9,0.9,0.9, 0xf5c89a, 0,2.7*scale,0);
-  mk(0.85,1.0,0.5, bodyCol, 0,1.7*scale,0);
-  mk(0.3,0.85,0.3, bodyCol,-0.6*scale,1.7*scale,0);
-  mk(0.3,0.85,0.3, bodyCol, 0.6*scale,1.7*scale,0);
-  mk(0.35,0.85,0.35, bodyCol,-0.22*scale,0.75*scale,0);
-  mk(0.35,0.85,0.35, bodyCol, 0.22*scale,0.75*scale,0);
-  mk(1.0,0.75,1.0, helmCol, 0,3.35*scale,0);
 
-  const visor=new THREE.Mesh(new THREE.BoxGeometry(0.55*scale,0.2*scale,0.1),glow(visorCol));
-  visor.position.set(0,3.15*scale,0.52*scale); g.add(visor);
+  if(isTank){
+    const treadCol=0x1a1a1a;
+    mk(0.35,0.55,2.3, treadCol, -0.85,0.5,0);   // left tread
+    mk(0.35,0.55,2.3, treadCol,  0.85,0.5,0);   // right tread
+    mk(1.6,0.7,2.2, bodyCol, 0,0.8,0);          // hull
+    mk(0.9,0.5,0.9, helmCol, 0,1.4,0.1);        // turret
+    const barrel=new THREE.Mesh(new THREE.BoxGeometry(0.16*scale,0.16*scale,1.5*scale),mat(0x333333));
+    barrel.position.set(0,1.4*scale,-1.0*scale); barrel.castShadow=true; g.add(barrel);
+    const eye=new THREE.Mesh(new THREE.BoxGeometry(0.3*scale,0.16*scale,0.1),glow(visorCol));
+    eye.position.set(0,1.55*scale,0.6*scale); g.add(eye);
+  } else {
+    mk(0.9,0.9,0.9, 0xf5c89a, 0,2.7*scale,0);
+    mk(0.85,1.0,0.5, bodyCol, 0,1.7*scale,0);
+    mk(0.3,0.85,0.3, bodyCol,-0.6*scale,1.7*scale,0);
+    mk(0.3,0.85,0.3, bodyCol, 0.6*scale,1.7*scale,0);
+    mk(0.35,0.85,0.35, bodyCol,-0.22*scale,0.75*scale,0);
+    mk(0.35,0.85,0.35, bodyCol, 0.22*scale,0.75*scale,0);
+    mk(1.0,0.75,1.0, helmCol, 0,3.35*scale,0);
 
-  // Weapon visual
-  const swordCol=isBlue?0x44aaff:0xff4422;
-  const blade=new THREE.Mesh(new THREE.BoxGeometry(0.08*scale,0.08*scale,1.4*scale),glow(swordCol));
-  blade.position.set(0.65*scale,1.6*scale,-0.5*scale); g.add(blade);
+    const visor=new THREE.Mesh(new THREE.BoxGeometry(0.55*scale,0.2*scale,0.1),glow(visorCol));
+    visor.position.set(0,3.15*scale,0.52*scale); g.add(visor);
+
+    // Weapon visual
+    const swordCol=isBlue?0x44aaff:0xff4422;
+    const blade=new THREE.Mesh(new THREE.BoxGeometry(0.08*scale,0.08*scale,1.4*scale),glow(swordCol));
+    blade.position.set(0.65*scale,1.6*scale,-0.5*scale); g.add(blade);
+  }
 
   // HP bar canvas
   const hbCv=document.createElement('canvas'); hbCv.width=64; hbCv.height=10;
   const hbCtx=hbCv.getContext('2d');
   const hbM=new THREE.Mesh(new THREE.PlaneGeometry(1.5,0.22),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(hbCv),transparent:true,side:THREE.DoubleSide}));
-  hbM.position.y=4.5*scale; g.add(hbM);
+  hbM.position.y=(isTank?2.6:4.5)*scale; g.add(hbM);
 
   g.position.set(...pos);
   scene.add(g);
@@ -660,14 +678,14 @@ function makeSoldier(team, pos, type){
   // (armyHpMaxLevel/armyWeapon) apply to blue allies — each side only ever reads its own values.
   const hpMult  = isBlue ? sliderToMult(armyHpMaxLevel, ARMY_HP_SLIDER_MAX_MULT) : enemyHpMult;
   const dmgMult = isBlue ? armyWeapon().dmg : enemyWeapon().dmg;
-  const maxHP=Math.round((type==='heavy'?160:type==='archer'?45:75)*diff*hpMult);
+  const maxHP=Math.round((isTank?300:type==='heavy'?160:type==='archer'?45:75)*diff*hpMult);
   return {
     group:g, team, type,
     hp:maxHP, maxHp:maxHP,
-    dmg:   Math.round((type==='heavy'?22:type==='archer'?12:14)*diff*dmgMult),
-    speed: (type==='heavy'?2.5:type==='archer'?3.2:4.8)*(1+(level-1)*0.07),
-    range: type==='archer'?22:2.5,
-    atkRate:type==='heavy'?1.5:type==='archer'?2.2:0.9,
+    dmg:   Math.round((isTank?30:type==='heavy'?22:type==='archer'?12:14)*diff*dmgMult),
+    speed: (isTank?1.6:type==='heavy'?2.5:type==='archer'?3.2:4.8)*(1+(level-1)*0.07),
+    range: isTank?16:type==='archer'?22:2.5,
+    atkRate:isTank?3.0:type==='heavy'?1.5:type==='archer'?2.2:0.9,
     atkTimer:0.5+Math.random(), scale,
     hbM, hbCv, hbCtx, hitFlash:0,
     shootTimer:1+Math.random()*1.5
@@ -750,10 +768,10 @@ function spawnWave(w){
     [[{type:'normal',n:4}],[{type:'normal',n:5},{type:'archer',n:1}],[{type:'normal',n:5},{type:'archer',n:2}],[{type:'normal',n:6},{type:'archer',n:2}],[{type:'normal',n:6},{type:'archer',n:3}]],
     // Tier 1: Forest Keep (levels 6-10) — heavies introduced
     [[{type:'normal',n:7},{type:'archer',n:2}],[{type:'normal',n:7},{type:'archer',n:3},{type:'heavy',n:1}],[{type:'normal',n:8},{type:'archer',n:3},{type:'heavy',n:2}],[{type:'normal',n:8},{type:'archer',n:4},{type:'heavy',n:3}],[{type:'normal',n:9},{type:'archer',n:4},{type:'heavy',n:3}]],
-    // Tier 2: Dark Citadel (levels 11-15) — big armies
-    [[{type:'normal',n:9},{type:'archer',n:4},{type:'heavy',n:2}],[{type:'normal',n:10},{type:'archer',n:4},{type:'heavy',n:3}],[{type:'normal',n:10},{type:'archer',n:5},{type:'heavy',n:4}],[{type:'normal',n:11},{type:'archer',n:5},{type:'heavy',n:4}],[{type:'normal',n:12},{type:'archer',n:6},{type:'heavy',n:5}]],
+    // Tier 2: Dark Citadel (levels 11-15) — big armies, TANKS introduced ("you and enemy haver tank")
+    [[{type:'normal',n:9},{type:'archer',n:4},{type:'heavy',n:2}],[{type:'normal',n:10},{type:'archer',n:4},{type:'heavy',n:3}],[{type:'normal',n:10},{type:'archer',n:5},{type:'heavy',n:4},{type:'tank',n:1}],[{type:'normal',n:11},{type:'archer',n:5},{type:'heavy',n:4},{type:'tank',n:1}],[{type:'normal',n:12},{type:'archer',n:6},{type:'heavy',n:5},{type:'tank',n:2}]],
     // Tier 3: Final Fortress (levels 16-20) — maximum chaos
-    [[{type:'normal',n:12},{type:'archer',n:6},{type:'heavy',n:4}],[{type:'normal',n:13},{type:'archer',n:6},{type:'heavy',n:5}],[{type:'normal',n:14},{type:'archer',n:7},{type:'heavy',n:5}],[{type:'normal',n:14},{type:'archer',n:7},{type:'heavy',n:6}],[{type:'normal',n:15},{type:'archer',n:8},{type:'heavy',n:7}]],
+    [[{type:'normal',n:12},{type:'archer',n:6},{type:'heavy',n:4},{type:'tank',n:2}],[{type:'normal',n:13},{type:'archer',n:6},{type:'heavy',n:5},{type:'tank',n:2}],[{type:'normal',n:14},{type:'archer',n:7},{type:'heavy',n:5},{type:'tank',n:3}],[{type:'normal',n:14},{type:'archer',n:7},{type:'heavy',n:6},{type:'tank',n:3}],[{type:'normal',n:15},{type:'archer',n:8},{type:'heavy',n:7},{type:'tank',n:4}]],
   ];
   const cfg=tierCfgs[tier][wb];
   cfg.forEach(({type,n})=>{
@@ -773,7 +791,9 @@ function spawnWave(w){
   for(let i=0;i<allyN;i++){
     const x=(Math.random()-0.5)*42;
     const z=52+(Math.random()-0.5)*8;
-    const t=Math.random()<0.25?'archer':Math.random()<0.15?'heavy':'normal';
+    // Ally tanks show up from level 11 on, matching the enemy side's own tier-2 introduction —
+    // "you and enemy haver tank" means both armies genuinely field them, not just one side.
+    const t=(level>=11&&Math.random()<0.08)?'tank':Math.random()<0.25?'archer':Math.random()<0.15?'heavy':'normal';
     allies.push(makeSoldier('blue',[x,0,z],t));
   }
 
@@ -846,8 +866,8 @@ function useWeapon(){
   else if(currentWeapon.type==='spread') fireScatter();
 }
 
-function spawnProj(pos,vel,dmg,team,color){
-  const pm=new THREE.Mesh(new THREE.SphereGeometry(0.22,8,8),glow(color));
+function spawnProj(pos,vel,dmg,team,color,size=0.22){
+  const pm=new THREE.Mesh(new THREE.SphereGeometry(size,8,8),glow(color));
   pm.position.copy(pos); scene.add(pm);
   const pl=new THREE.PointLight(color,2,6); pm.add(pl);
   projectiles.push({mesh:pm,vel,dmg,team,life:3.5});
@@ -858,10 +878,13 @@ function allyFire(s,target){
   const dz=target.group.position.z-s.group.position.z;
   const d=Math.sqrt(dx*dx+dz*dz);
   const col=s.team==='blue'?0x44aaff:0xff4422;
+  // Tank cannon shells are real, visibly bigger, slower projectiles than an archer's arrow —
+  // matches the tank's own much bigger per-hit damage and slower atkRate.
+  const isTank=s.type==='tank';
   spawnProj(
-    s.group.position.clone().add(new THREE.Vector3(0,2.5*s.scale,0)),
-    new THREE.Vector3(dx/d,0,dz/d).multiplyScalar(14),
-    s.dmg, s.team, col
+    s.group.position.clone().add(new THREE.Vector3(0,(isTank?1.4:2.5)*s.scale,0)),
+    new THREE.Vector3(dx/d,0,dz/d).multiplyScalar(isTank?10:14),
+    s.dmg, s.team, col, isTank?0.4:0.22
   );
 }
 
@@ -894,7 +917,7 @@ function tickSoldier(s,dt,foes,t){
   const dz=nearFoe.group.position.z-s.group.position.z;
   s.group.rotation.y=Math.atan2(dx,dz);
 
-  if(s.type==='archer'){
+  if(s.type==='archer'||s.type==='tank'){
     if(nearDist>8&&nearDist<s.range){
       s.shootTimer-=dt;
       if(s.shootTimer<=0){ s.shootTimer=s.atkRate+Math.random()*0.5; allyFire(s,nearFoe); }
@@ -908,10 +931,12 @@ function tickSoldier(s,dt,foes,t){
     }
   }
 
-  // Walk bob
-  const bob=Math.sin(t*5+s.group.id)*0.28;
-  if(s.group.children[4]) s.group.children[4].rotation.x=-bob;
-  if(s.group.children[5]) s.group.children[5].rotation.x= bob;
+  // Walk bob — tanks glide on treads, no legs to animate
+  if(s.type!=='tank'){
+    const bob=Math.sin(t*5+s.group.id)*0.28;
+    if(s.group.children[4]) s.group.children[4].rotation.x=-bob;
+    if(s.group.children[5]) s.group.children[5].rotation.x= bob;
+  }
 
   // HP bar
   s.hbCtx.clearRect(0,0,64,10);
@@ -1058,7 +1083,10 @@ function animate(){
   // ── ENEMIES tick ──────────────────────────────────────────────────────────
   for(let i=enemies.length-1;i>=0;i--){
     const e=enemies[i];
-    if(e.hp<=0){ boom(e.group.position,0xff4422); scene.remove(e.group); score+=10; gainXP(e.kind==='heavy'?12:e.kind==='archer'?8:5); enemies.splice(i,1); continue; }
+    // Real pre-existing bug fixed in passing: this checked e.kind, a property makeSoldier() never
+    // actually sets (it returns .type) — heavy/archer kills always silently fell through to the
+    // 5 XP default. Fixed to read the real field, and gave the new tank type its own (highest) value.
+    if(e.hp<=0){ boom(e.group.position,0xff4422); scene.remove(e.group); score+=10; gainXP(e.type==='tank'?18:e.type==='heavy'?12:e.type==='archer'?8:5); enemies.splice(i,1); continue; }
 
     // Also hit player directly if close
     const dpx=playerGroup.position.x-e.group.position.x;
