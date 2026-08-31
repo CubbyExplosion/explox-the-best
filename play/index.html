@@ -92,7 +92,9 @@
     #notification { position:fixed; top:42%; left:50%; transform:translate(-50%,-50%); color:#FFD700; font-size:22px; font-weight:bold; text-shadow:2px 2px 5px #000; pointer-events:none; opacity:0; transition:opacity 0.4s; white-space:nowrap; z-index:5000; }
 
     /* ── MINI GAMES TAB ── */
-    #miniGamesTab { position:fixed; top:50%; right:0; transform:translateY(-50%); z-index:20; pointer-events:auto; }
+    /* No longer position:fixed here — it's a flex child of #rightTabStack now (see the stack
+       comment near #hud), same real-bug fix as every other side tab. */
+    #miniGamesTab { pointer-events:auto; }
     #miniGamesBtn {
       display:block; background:linear-gradient(180deg,#1a1a2e,#0f3460);
       border:2px solid #e94560; border-right:none;
@@ -941,6 +943,100 @@
 <div id="_dbgFrames" style="position:fixed;top:130px;left:10px;color:lime;font-size:11px;z-index:9999;pointer-events:none;background:rgba(0,0,0,0.6);padding:3px 7px;border-radius:4px;">Frames: 0</div>
 <div id="hitFlash"></div>
 <div id="hud" style="display:none">
+<!-- RIGHT/LEFT TAB STACKS — real fix for a real bug found live: each tab used to be its
+     own position:fixed element at a hand-picked "top:calc(50% + Npx)" offset from screen center,
+     which only ever grew downward — as more tabs got added (Records, Builder, Contracts, Cab),
+     the stack eventually ran past the bottom of any normal browser window/phone screen with no
+     way to reach the later ones ("the cab tab is not showing"). A real flex column that scrolls
+     if it overflows fixes this permanently — every tab stays reachable no matter how many more
+     get added later, instead of quietly falling off the bottom of someone's real screen. -->
+<div id="rightTabStack" style="position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:20;display:flex;flex-direction:column;gap:3px;max-height:94vh;overflow-y:auto;overflow-x:hidden;pointer-events:auto;">
+    <div id="miniGamesTab">
+    <a id="miniGamesBtn" onclick="openMgPanel()" href="#">
+      <span class="icon">🎮</span>MINI GAMES
+    </a>
+  </div>
+    <div id="inventoryTab">
+    <button onclick="toggleInventory()" style="display:block;background:linear-gradient(180deg,#1a2e1a,#0f4020);border:2px solid #FFD700;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
+      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🎒</span>BAG
+    </button>
+  </div>
+    <div id="questsTab">
+    <button onclick="toggleQuestsPanel()" style="display:block;background:linear-gradient(180deg,#1a0a2a,#2a0a4a);border:2px solid #cc66ff;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
+      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">📜</span>QUESTS
+    </button>
+  </div>
+    <div id="earningsTab">
+    <button onclick="toggleEarningsPanel()" style="display:block;position:relative;background:linear-gradient(180deg,#1a2a0a,#2a4a0a);border:2px solid #88ff44;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
+      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">💰</span>EARNINGS
+      <span id="earningsCount" style="display:none;position:absolute;top:-6px;left:-6px;transform:rotate(180deg);background:#FFD700;color:#000;font-size:10px;font-weight:bold;border-radius:50%;width:18px;height:18px;line-height:18px;text-align:center;writing-mode:horizontal-tb;"></span>
+      <span id="earningsBadge" style="display:none;position:absolute;bottom:-6px;left:-6px;transform:rotate(180deg);background:#ff2222;color:#fff;font-size:12px;font-weight:bold;border-radius:50%;width:20px;height:20px;line-height:20px;text-align:center;writing-mode:horizontal-tb;box-shadow:0 0 8px #ff2222;">!</span>
+    </button>
+  </div>
+    <div id="testLabTab">
+    <button onclick="toggleTestLabPanel()" style="display:block;background:linear-gradient(180deg,#2a1400,#4a2800);border:2px solid #ff8833;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
+      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🛠️</span>TEST LAB
+    </button>
+  </div>
+    <div id="recordsTab">
+    <button onclick="toggleRecordsPanel()" style="display:block;background:linear-gradient(180deg,#1a0a2a,#2a1a4a);border:2px solid #bb66ff;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
+      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🏆</span>RECORDS
+    </button>
+  </div>
+    <div id="gbTab">
+    <button onclick="toggleGameBuilderPanel()" style="display:block;background:linear-gradient(180deg,#0a2a1a,#1a4a2a);border:2px solid #44dd88;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
+      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🧩</span>BUILDER
+    </button>
+  </div>
+    <div id="contractsTab" style="display:none;">
+    <button onclick="toggleContractsPanel()" style="display:block;background:linear-gradient(180deg,#2a0a0a,#4a1a1a);border:2px solid #ff4444;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
+      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🕴️</span>CONTRACTS
+    </button>
+  </div>
+    <div id="cabTab">
+    <button onclick="toggleCabPanel()" style="display:block;background:linear-gradient(180deg,#1a1a0a,#2a2a1a);border:2px solid #ffcc00;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
+      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🚕</span>CAB
+    </button>
+  </div>
+  </div>
+<div id="leftTabStack" style="position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:20;display:flex;flex-direction:column;gap:3px;max-height:94vh;overflow-y:auto;overflow-x:hidden;pointer-events:auto;">
+    <div id="saiTab">
+    <button onclick="toggleSAI()" style="display:block;background:linear-gradient(180deg,#0a2a0a,#0a4a1a);border:2px solid #00ff88;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🤖</span>SAI
+    </button>
+  </div>
+    <div id="musicTabBtn">
+    <button onclick="openMusicPanel()" style="display:block;background:linear-gradient(180deg,#2a0a2a,#4a0a4a);border:2px solid #cc44ff;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🎵</span>MUSIC
+    </button>
+  </div>
+    <div id="addOnsTab">
+    <button onclick="toggleAddOnsPanel()" style="display:block;background:linear-gradient(180deg,#2a1a0a,#4a2a0a);border:2px solid #ff9944;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🧩</span>ADD ONS
+    </button>
+  </div>
+    <div id="guideTab">
+    <button onclick="openGuide()" style="display:block;background:linear-gradient(180deg,#0a1a2a,#0a2a4a);border:2px solid #44ccff;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">❓</span>HELP
+    </button>
+  </div>
+    <div id="jobsTab">
+    <button onclick="toggleJobsPanel()" style="display:block;background:linear-gradient(180deg,#0a1a2a,#0a3a4a);border:2px solid #44ddff;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">💼</span>JOB
+    </button>
+  </div>
+    <div id="currencyShopTab">
+    <button onclick="toggleCurrencyShopPanel()" style="display:block;background:linear-gradient(180deg,#2a1a00,#4a3800);border:2px solid #FFD700;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🛍️</span>SHOP
+    </button>
+  </div>
+    <div id="hireKillerTab">
+    <button onclick="openHitmanModal()" style="display:block;background:linear-gradient(180deg,#2a0a0a,#4a0e0e);border:2px solid #cc3333;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🗡️</span>KILLER
+    </button>
+  </div>
+  </div>
+
   <div id="gameName">EXPLOX</div>
   <div id="crosshair">+</div>
   <div id="location">City Center</div>
@@ -1012,11 +1108,7 @@
   <div id="seasonHud" onclick="openCalendar()" style="position:fixed;top:240px;right:14px;color:#fff;font-size:12px;background:rgba(0,0,0,0.5);padding:7px 12px;border-radius:8px;cursor:pointer;pointer-events:auto;white-space:nowrap;"></div>
 
   <!-- SAI TAB -->
-  <div id="saiTab" style="position:fixed;top:calc(50% + 110px);left:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
-    <button onclick="toggleSAI()" style="display:block;background:linear-gradient(180deg,#0a2a0a,#0a4a1a);border:2px solid #00ff88;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
-      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🤖</span>SAI
-    </button>
-  </div>
+  
 
   <!-- SAI PANEL -->
   <div id="saiPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#050f08,#071a0f);border:2px solid #00ff88;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:340px;pointer-events:auto;max-height:85vh;overflow:hidden;">
@@ -1069,11 +1161,7 @@
   </div>
 
   <!-- MUSIC TAB -->
-  <div id="musicTabBtn" style="position:fixed;top:calc(50% + 170px);left:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
-    <button onclick="openMusicPanel()" style="display:block;background:linear-gradient(180deg,#2a0a2a,#4a0a4a);border:2px solid #cc44ff;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
-      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🎵</span>MUSIC
-    </button>
-  </div>
+  
 
   <!-- MUSIC PANEL -->
   <div id="musicPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#0f0a1a,#1a0a2a);border:2px solid #cc44ff;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:245px;pointer-events:auto;max-height:85vh;overflow:hidden;">
@@ -1137,11 +1225,7 @@
   </div>
 
   <!-- ADD ONS TAB -->
-  <div id="addOnsTab" style="position:fixed;top:calc(50% + 243px);left:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
-    <button onclick="toggleAddOnsPanel()" style="display:block;background:linear-gradient(180deg,#2a1a0a,#4a2a0a);border:2px solid #ff9944;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
-      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🧩</span>ADD ONS
-    </button>
-  </div>
+  
 
   <!-- ADD ONS PANEL -->
   <div id="addOnsPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#1a0f05,#2a1505);border:2px solid #ff9944;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:270px;pointer-events:auto;max-height:85vh;overflow:hidden;">
@@ -1155,11 +1239,7 @@
        Ons/Help overlap each other there on real mobile screens, a pre-existing spacing bug
        this tab would have made worse by piling on) and clear of the right side's own
        Mini Games (+0) and Bag (+100) tabs too, measured for real on a real mobile viewport. -->
-  <div id="questsTab" style="position:fixed;top:calc(50% + 183px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
-    <button onclick="toggleQuestsPanel()" style="display:block;background:linear-gradient(180deg,#1a0a2a,#2a0a4a);border:2px solid #cc66ff;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
-      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">📜</span>QUESTS
-    </button>
-  </div>
+  
 
   <!-- QUESTS PANEL -->
   <div id="questsPanel" style="display:none;position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#0f0518,#1a0828);border:2px solid #cc66ff;border-right:none;border-radius:14px 0 0 14px;padding:14px 12px;width:290px;pointer-events:auto;max-height:85vh;overflow:hidden;flex-direction:column;">
@@ -1178,13 +1258,7 @@
   <!-- EARNINGS TAB — every S.I.P./Elite Coin reward in the game gets queued here instead of
        landing in your wallet instantly; click an earning to actually collect it. The red "!"
        badge lights up once anything's sat uncollected for 30+ real minutes. -->
-  <div id="earningsTab" style="position:fixed;top:calc(50% + 286px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
-    <button onclick="toggleEarningsPanel()" style="display:block;position:relative;background:linear-gradient(180deg,#1a2a0a,#2a4a0a);border:2px solid #88ff44;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
-      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">💰</span>EARNINGS
-      <span id="earningsCount" style="display:none;position:absolute;top:-6px;left:-6px;transform:rotate(180deg);background:#FFD700;color:#000;font-size:10px;font-weight:bold;border-radius:50%;width:18px;height:18px;line-height:18px;text-align:center;writing-mode:horizontal-tb;"></span>
-      <span id="earningsBadge" style="display:none;position:absolute;bottom:-6px;left:-6px;transform:rotate(180deg);background:#ff2222;color:#fff;font-size:12px;font-weight:bold;border-radius:50%;width:20px;height:20px;line-height:20px;text-align:center;writing-mode:horizontal-tb;box-shadow:0 0 8px #ff2222;">!</span>
-    </button>
-  </div>
+  
 
   <!-- EARNINGS PANEL -->
   <div id="earningsPanel" style="display:none;position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#0f1a05,#182a08);border:2px solid #88ff44;border-right:none;border-radius:14px 0 0 14px;padding:14px 12px;width:290px;pointer-events:auto;max-height:85vh;overflow:hidden;flex-direction:column;">
@@ -1200,11 +1274,7 @@
        physical zones (Scrapyard-style walk-up interaction still works too, this is just a
        second way in) — see renderJobsPanel() in game.js. Moved to the left side (was crowding
        off the bottom of the right-side stack) — next free slot after Guide's +322. -->
-  <div id="jobsTab" style="position:fixed;top:calc(50% + 402px);left:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
-    <button onclick="toggleJobsPanel()" style="display:block;background:linear-gradient(180deg,#0a1a2a,#0a3a4a);border:2px solid #44ddff;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
-      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">💼</span>JOB
-    </button>
-  </div>
+  
 
   <!-- JOB PANEL -->
   <div id="jobsPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#050f18,#082838);border:2px solid #44ddff;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:290px;pointer-events:auto;max-height:85vh;overflow:hidden;flex-direction:column;">
@@ -1216,20 +1286,12 @@
 
   <!-- CURRENCY SHOP TAB — user's own ask: a shop to buy S.I.P./diamond packages up to a bundled
        VIP Package. Moved to the left side, next free slot after Job's +402. -->
-  <div id="currencyShopTab" style="position:fixed;top:calc(50% + 482px);left:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
-    <button onclick="toggleCurrencyShopPanel()" style="display:block;background:linear-gradient(180deg,#2a1a00,#4a3800);border:2px solid #FFD700;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
-      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🛍️</span>SHOP
-    </button>
-  </div>
+  
 
   <!-- HIRE A KILLER TAB — was buried inside Add Ons -> Crime, user asked for its own tab so it's
        one click instead of two. Opens hitmanModal directly (same as the Add Ons entry already
        did), no separate panel of its own. Left side, next free slot after Shop's +482. -->
-  <div id="hireKillerTab" style="position:fixed;top:calc(50% + 562px);left:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
-    <button onclick="openHitmanModal()" style="display:block;background:linear-gradient(180deg,#2a0a0a,#4a0e0e);border:2px solid #cc3333;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
-      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🗡️</span>KILLER
-    </button>
-  </div>
+  
 
   <!-- CURRENCY SHOP PANEL -->
   <div id="currencyShopPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#1a1400,#241d00);border:2px solid #FFD700;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:290px;pointer-events:auto;max-height:85vh;overflow:hidden;flex-direction:column;">
@@ -1241,11 +1303,7 @@
 
   <!-- TEST LAB TAB — private spot to test-play new mini-game files before they're real. Moved
        back to the right side to balance the two tab stacks, next free slot after Earnings' +286. -->
-  <div id="testLabTab" style="position:fixed;top:calc(50% + 379px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
-    <button onclick="toggleTestLabPanel()" style="display:block;background:linear-gradient(180deg,#2a1400,#4a2800);border:2px solid #ff8833;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
-      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🛠️</span>TEST LAB
-    </button>
-  </div>
+  
 
   <!-- TEST LAB PANEL -->
   <div id="testLabPanel" style="display:none;position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#1a0f00,#241400);border:2px solid #ff8833;border-right:none;border-radius:14px 0 0 14px;padding:14px 12px;width:290px;pointer-events:auto;max-height:85vh;overflow:hidden;flex-direction:column;">
@@ -1257,11 +1315,7 @@
 
   <!-- RECORDS TAB — user's own ask: "records like most diamonds, sip and more". Moved back to
        the right side to balance the two tab stacks, next free slot after Test Lab's +379. -->
-  <div id="recordsTab" style="position:fixed;top:calc(50% + 456px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
-    <button onclick="toggleRecordsPanel()" style="display:block;background:linear-gradient(180deg,#1a0a2a,#2a1a4a);border:2px solid #bb66ff;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
-      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🏆</span>RECORDS
-    </button>
-  </div>
+  
 
   <!-- RECORDS PANEL -->
   <div id="recordsPanel" style="display:none;position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#120a1a,#1c1128);border:2px solid #bb66ff;border-right:none;border-radius:14px 0 0 14px;padding:14px 12px;width:290px;pointer-events:auto;max-height:85vh;overflow:hidden;flex-direction:column;">
@@ -1274,21 +1328,13 @@
   <!-- GAME BUILDER TAB — user's own ask: "make something like scratch incase they have no coding
        experience for explox mini games". Moved back to the right side to balance the two tab
        stacks, next free slot after Records' +456. -->
-  <div id="gbTab" style="position:fixed;top:calc(50% + 536px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
-    <button onclick="toggleGameBuilderPanel()" style="display:block;background:linear-gradient(180deg,#0a2a1a,#1a4a2a);border:2px solid #44dd88;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
-      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🧩</span>BUILDER
-    </button>
-  </div>
+  
 
   <!-- CRIME CONTRACTS TAB — user's own ask: "the black market is there hq u can go theree once
        bad and they might ask to do crime stealing killing m0re". Hidden until alignment==='bad'
        (toggled alongside alignmentHud in toggleAlignment()/showCustomScreen()), next free right-side
        slot after Builder's +536. -->
-  <div id="contractsTab" style="display:none;position:fixed;top:calc(50% + 616px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
-    <button onclick="toggleContractsPanel()" style="display:block;background:linear-gradient(180deg,#2a0a0a,#4a1a1a);border:2px solid #ff4444;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
-      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🕴️</span>CONTRACTS
-    </button>
-  </div>
+  
 
   <!-- CRIME CONTRACTS PANEL -->
   <div id="contractsPanel" style="display:none;position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#180808,#280f0f);border:2px solid #ff4444;border-right:none;border-radius:14px 0 0 14px;padding:14px 12px;width:290px;pointer-events:auto;max-height:85vh;overflow:hidden;flex-direction:column;">
@@ -1303,11 +1349,7 @@
        peaple". Always visible (unlike Contracts, this isn't alignment-gated) — call a cab from
        anywhere, no walking to the Transit Hub like S.I.T.S. needs. Next free right-side slot
        after Contracts' +616. -->
-  <div id="cabTab" style="position:fixed;top:calc(50% + 696px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
-    <button onclick="toggleCabPanel()" style="display:block;background:linear-gradient(180deg,#1a1a0a,#2a2a1a);border:2px solid #ffcc00;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
-      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🚕</span>CAB
-    </button>
-  </div>
+  
 
   <!-- CAB PANEL -->
   <div id="cabPanel" style="display:none;position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#1a1608,#241e0a);border:2px solid #ffcc00;border-right:none;border-radius:14px 0 0 14px;padding:14px 12px;width:290px;pointer-events:auto;max-height:85vh;overflow:hidden;flex-direction:column;">
@@ -1502,11 +1544,7 @@
   </div>
 
   <!-- HELP/GUIDE TAB — always available so a returning or confused player can reopen the guide -->
-  <div id="guideTab" style="position:fixed;top:calc(50% + 322px);left:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
-    <button onclick="openGuide()" style="display:block;background:linear-gradient(180deg,#0a1a2a,#0a2a4a);border:2px solid #44ccff;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
-      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">❓</span>HELP
-    </button>
-  </div>
+  
 
   <!-- GUIDE MODAL — a real "how to play" walkthrough, shown automatically the first time a new
        account enters the world, reopenable anytime from the HELP tab above -->
@@ -1525,11 +1563,7 @@
   </div>
 
   <!-- INVENTORY TAB -->
-  <div id="inventoryTab" style="position:fixed;top:calc(50% + 98px);right:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
-    <button onclick="toggleInventory()" style="display:block;background:linear-gradient(180deg,#1a2e1a,#0f4020);border:2px solid #FFD700;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
-      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🎒</span>BAG
-    </button>
-  </div>
+  
 
   <!-- INVENTORY PANEL -->
   <div id="inventoryPanel" style="display:none;position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#1a2e1a,#0f4020);border:2px solid #FFD700;border-right:none;border-radius:14px 0 0 14px;padding:16px 14px;width:230px;pointer-events:auto;max-height:70vh;overflow-y:auto;">
@@ -1540,11 +1574,7 @@
   </div>
 
   <!-- MINI GAMES TAB -->
-  <div id="miniGamesTab">
-    <a id="miniGamesBtn" onclick="openMgPanel()" href="#">
-      <span class="icon">🎮</span>MINI GAMES
-    </a>
-  </div>
+  
 
   <!-- MINI GAMES PANEL -->
   <div id="miniGamesPanel">
