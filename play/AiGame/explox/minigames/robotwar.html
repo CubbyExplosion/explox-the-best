@@ -1,0 +1,1682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Explox — Robot War</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#000; overflow:hidden; font-family:Arial,sans-serif; }
+    canvas { display:block; }
+
+    /* HUD */
+    #hud { position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:10; }
+
+    #topBar { position:fixed; top:10px; left:50%; transform:translateX(-50%); display:flex; gap:12px; align-items:center; flex-wrap:wrap; justify-content:center; max-width:96vw; }
+    .pill { background:rgba(0,0,0,0.6); border-radius:20px; padding:6px 14px; color:#fff; font-size:12px; font-weight:bold; border:1px solid rgba(255,255,255,0.2); white-space:nowrap; }
+    #armyPill  { border-color:#4488ff; color:#88bbff; }
+    #enemyPill { border-color:#ff4444; color:#ff8888; }
+    #scorePill { border-color:#FFD700; color:#FFD700; }
+    #stagePill { border-color:#ff8800; color:#ffaa44; }
+
+    #healthBar { position:fixed; bottom:44px; left:50%; transform:translateX(-50%); width:280px; }
+    #healthLabel { color:#fff; font-size:12px; margin-bottom:3px; text-align:center; letter-spacing:1px; }
+    #healthTrack { background:rgba(0,0,0,0.5); border:1px solid #ff4444; border-radius:6px; height:14px; }
+    #healthFill  { background:linear-gradient(90deg,#ff2200,#ff6600); height:100%; border-radius:6px; width:100%; transition:width 0.1s; }
+
+    #bossHealthBar { position:fixed; top:56px; left:50%; transform:translateX(-50%); width:min(90vw,460px); display:none; }
+    #bossLabel { color:#ff6666; font-size:14px; font-weight:bold; text-align:center; letter-spacing:2px; margin-bottom:3px; text-shadow:0 0 8px #ff0000; }
+    #bossTrack { background:rgba(0,0,0,0.6); border:2px solid #ff2222; border-radius:6px; height:16px; }
+    #bossFill  { background:linear-gradient(90deg,#8800ff,#ff2222); height:100%; border-radius:5px; width:100%; transition:width 0.15s; }
+
+    #crosshair { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); color:#fff; font-size:16px; text-shadow:1px 1px 3px #000; }
+    #stageAnn { position:fixed; top:42%; left:50%; transform:translate(-50%,-50%); color:#ff8800; font-size:28px; font-weight:bold; text-shadow:2px 2px 8px #000; opacity:0; transition:opacity 0.4s; letter-spacing:2px; text-align:center; max-width:90vw; }
+    #controls { position:fixed; bottom:12px; left:14px; color:#ddd; font-size:11px; background:rgba(0,0,0,0.45); padding:6px 12px; border-radius:8px; }
+
+    /* Touch controls — hidden by default, shown only on touch-primary devices */
+    #mobileControls { display:none; }
+    @media (pointer: coarse) { #controls { display:none; } #mobileControls { display:block; } }
+    #joyBase {
+      position:fixed; left:20px; bottom:26px; width:92px; height:92px; border-radius:50%;
+      background:rgba(255,255,255,0.12); border:2px solid rgba(255,255,255,0.35);
+      touch-action:none; z-index:25; pointer-events:auto;
+    }
+    #joyStick {
+      position:absolute; left:50%; top:50%; width:40px; height:40px; margin-left:-20px; margin-top:-20px;
+      border-radius:50%; background:rgba(255,255,255,0.5); border:2px solid rgba(255,255,255,0.75);
+      pointer-events:none;
+    }
+    #mobileAttackBtn {
+      position:fixed; right:20px; bottom:36px; width:70px; height:70px; border-radius:50%;
+      background:rgba(255,120,0,0.55); border:2px solid #ff7800;
+      color:#fff; font-weight:bold; font-size:26px; display:flex; align-items:center; justify-content:center;
+      z-index:25; touch-action:none; user-select:none; pointer-events:auto;
+    }
+
+    #hitFlash { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,0,0,0); pointer-events:none; transition:background 0.08s; }
+
+    /* Screens */
+    .overlay { position:fixed; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:50; }
+    #startScreen { background:rgba(0,0,0,0.88); }
+    #startScreen h1 { font-size:46px; color:#ff8800; letter-spacing:5px; text-shadow:0 0 20px #ff5500; }
+    #startScreen h2 { font-size:17px; color:#88bbff; margin:10px 0 24px; text-align:center; max-width:90vw; }
+    .ctrl-list { color:#ccc; font-size:14px; line-height:2.1; margin-bottom:22px; text-align:left; }
+    .ctrl-list b { color:#ff8800; }
+    #startBtn { padding:14px 56px; font-size:20px; font-weight:bold; border:none; border-radius:10px; background:#ff8800; color:#111; cursor:pointer; letter-spacing:2px; }
+    #startBtn:hover { background:#ff9900; }
+    .smallBtn { margin-top:10px; padding:7px 22px; background:transparent; border:1px solid #555; border-radius:8px; color:#888; cursor:pointer; font-size:13px; }
+
+    /* Overworld Map — 5 Kingdoms + Your Castle, laid out spatially across a real 500x500
+       world-unit space (5x the ~100x100 battle arena). See KINGDOM_POS/CASTLE_POS/scalePt(). */
+    #overworldScreen { background:rgba(3,4,10,0.97); padding:16px; }
+    #overworldScreen h1 { font-size:26px; color:#ff8800; letter-spacing:3px; margin-bottom:4px; }
+    #overworldSub { color:#aaa; font-size:12px; margin-bottom:12px; }
+    #mapViewport { width:min(94vw,700px); height:60vh; max-height:520px; overflow:auto; border:2px solid #332211; border-radius:12px; background:#05070c; position:relative; }
+    #mapWorld { position:relative; width:600px; height:600px; background:radial-gradient(circle at 40% 60%,#141b2e 0%,#05070c 70%); }
+    .mapTerrain { position:absolute; top:0; left:0; width:600px; height:600px; pointer-events:none; }
+    .mapRoad { position:absolute; height:4px; background:repeating-linear-gradient(90deg,#5a4a30 0 10px,#241a0d 10px 20px); transform-origin:0 50%; opacity:0.65; }
+    .mapNode { position:absolute; width:110px; margin-left:-55px; margin-top:-40px; text-align:center; cursor:pointer; user-select:none; }
+    .mapNode.locked { cursor:not-allowed; }
+    .mapNodeIcon { width:68px; height:68px; margin:0 auto; border-radius:50%; background:rgba(15,15,22,0.9); border:3px solid #555; display:flex; align-items:center; justify-content:center; font-size:28px; box-shadow:0 0 14px rgba(0,0,0,0.6); }
+    .mapKingdom.locked .mapNodeIcon { filter:grayscale(1) brightness(0.45); }
+    .mapCastle .mapNodeIcon { border-color:#FFD700; background:rgba(50,38,0,0.75); }
+    .mapNodeLabel { font-size:10px; font-weight:bold; margin-top:5px; line-height:1.2; }
+    .mapNodeSub { font-size:9px; color:#889; margin-top:1px; }
+
+    /* Castle */
+    #castleScreen { background:rgba(10,6,20,0.97); padding:18px 22px; max-height:100vh; overflow-y:auto; }
+    #castleScreen h1 { font-size:28px; color:#ff8800; letter-spacing:3px; margin-bottom:4px; }
+    #castleSub { color:#aaa; font-size:12px; max-width:90vw; text-align:center; }
+    #castlePreview { margin:10px 0; }
+    #castleStats { color:#ccc; font-size:13px; line-height:1.9; margin-bottom:14px; }
+    #castleUpgradeBtn { padding:11px 30px; font-size:15px; font-weight:bold; border:none; border-radius:10px; background:#ff8800; color:#111; cursor:pointer; margin-bottom:6px; }
+
+    /* Level select */
+    #levelSelectScreen { background:rgba(5,5,15,0.96); padding:20px 16px; overflow-y:auto; justify-content:flex-start; }
+    #levelSelectScreen h1 { font-size:28px; color:#ff8800; letter-spacing:3px; margin:6px 0 4px; }
+    #levelSelectSub { color:#aaa; font-size:12px; margin-bottom:14px; }
+    .sectionRow { width:min(96vw,760px); margin-bottom:16px; }
+    .sectionTitle { font-size:12px; font-weight:bold; letter-spacing:1px; margin:6px 0; }
+    .stageGrid { display:grid; grid-template-columns:repeat(10,1fr); gap:6px; }
+    .stageCard { aspect-ratio:1; background:rgba(255,255,255,0.06); border:2px solid #333; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold; color:#fff; cursor:pointer; }
+    .stageCard.locked { opacity:0.28; cursor:not-allowed; }
+    .stageCard.done { border-color:#44ff88; }
+    .stageCard.boss { border-color:#ff2222; background:rgba(255,0,0,0.14); }
+    .stageCard:hover:not(.locked) { border-color:#ff8800; }
+
+    /* Shop */
+    #shopScreen { background:rgba(5,5,20,0.97); padding:18px 22px; max-height:100vh; overflow-y:auto; }
+    #shopScreen h1 { font-size:28px; color:#ff8800; letter-spacing:3px; margin-bottom:4px; }
+    #shopSubtitle { color:#aaa; font-size:13px; margin-bottom:12px; }
+    #shopHeader { display:flex; justify-content:space-between; align-items:flex-start; gap:20px; margin-bottom:12px; flex-wrap:wrap; width:min(94vw,700px); }
+    #shopSipAmt2 { font-size:16px; color:#FFD700; font-weight:bold; }
+    #shopLvlDisplay { font-size:14px; color:#88aaff; font-weight:bold; }
+    #shopXpWrap { background:#222; border-radius:6px; height:8px; width:180px; margin:4px 0 2px; }
+    #shopXpFill { background:linear-gradient(90deg,#4466ff,#88aaff); border-radius:6px; height:8px; transition:width 0.4s; }
+    #shopXpInfo { font-size:10px; color:#8892aa; }
+    .upgradeGrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; width:min(94vw,700px); }
+    .upCard { background:rgba(255,255,255,0.05); border:2px solid #333; border-radius:12px; padding:12px; text-align:center; }
+    .upIcon { font-size:26px; }
+    .upName { font-size:13px; font-weight:bold; color:#fff; margin:4px 0 2px; }
+    .upLvl { font-size:11px; color:#88aaff; margin-bottom:4px; }
+    .upDesc { font-size:10px; color:#888; margin-bottom:8px; min-height:26px; }
+    .upBtn { padding:7px 14px; border:none; border-radius:8px; background:#ff8800; color:#111; font-weight:bold; font-size:11px; cursor:pointer; }
+    .upBtn:disabled { opacity:0.4; cursor:not-allowed; }
+    .upBtn.maxed { background:#44ff88; }
+    #shopMsg { font-size:13px; min-height:18px; margin:8px 0; color:#ff8888; }
+    #goFightBtn { margin-top:6px; padding:12px 46px; font-size:17px; font-weight:bold; border:none; border-radius:10px; background:#ff8800; color:#111; cursor:pointer; letter-spacing:2px; }
+    #goFightBtn:hover { background:#ff9900; }
+
+    #levelCompleteScreen { background:rgba(10,0,30,0.93); display:none; }
+    #levelCompleteScreen h1 { font-size:44px; color:#aa44ff; letter-spacing:3px; text-shadow:0 0 20px #aa44ff; }
+    #levelCompleteScreen h2 { font-size:19px; color:#cc88ff; margin:10px 0 6px; text-align:center; max-width:90vw; }
+    #levelCompleteScreen p  { color:#ccbbff; font-size:15px; margin:6px 0; }
+    #continueBtn { margin-top:18px; padding:13px 46px; font-size:17px; font-weight:bold; border:none; border-radius:10px; background:#aa44ff; color:#fff; cursor:pointer; letter-spacing:2px; }
+    #continueBtn:hover { background:#8822dd; }
+
+    #wonScreen  { background:rgba(0,20,0,0.93); display:none; }
+    #wonScreen h1  { font-size:48px; color:#FFD700; letter-spacing:4px; text-align:center; }
+    #wonScreen p   { color:#aaffaa; font-size:18px; margin:10px 0; text-align:center; max-width:90vw; }
+    #lostScreen { background:rgba(30,0,0,0.9); display:none; }
+    #lostScreen h1 { font-size:48px; color:#ff4444; letter-spacing:4px; }
+    #lostScreen p  { color:#ffaaaa; font-size:18px; margin:10px 0; }
+    .restartBtn { margin-top:14px; padding:12px 40px; font-size:15px; font-weight:bold; border:none; border-radius:10px; cursor:pointer; letter-spacing:1px; }
+  </style>
+</head>
+<body>
+
+<div id="hud" style="display:none">
+  <div id="topBar">
+    <div class="pill" id="armyPill">🔵 Army: <span id="armyCount">0/10</span></div>
+    <div class="pill" id="stagePill">🤖 <span id="stageLabel">Section 1 · Level 1/100</span></div>
+    <div class="pill" id="scorePill">⭐ <span id="score">0</span></div>
+    <div class="pill" id="enemyPill">Enemies: <span id="enemyCount">0</span> 🔴</div>
+    <div class="pill" id="vehiclePill" style="display:none;pointer-events:auto;cursor:pointer;border-color:#44ff88;color:#88ffaa;" onclick="toggleMount()">🚗 No vehicle equipped</div>
+  </div>
+  <div id="bossHealthBar">
+    <div id="bossLabel">👑 BOSS</div>
+    <div id="bossTrack"><div id="bossFill"></div></div>
+  </div>
+  <div id="healthBar">
+    <div id="healthLabel">❤️ HEALTH</div>
+    <div id="healthTrack"><div id="healthFill"></div></div>
+  </div>
+  <div id="crosshair">+</div>
+  <div id="stageAnn"></div>
+  <div id="hitFlash"></div>
+  <div id="controls">WASD Move · Mouse Look · Click/F = Attack · ESC exit</div>
+</div>
+
+<div id="mobileControls">
+  <div id="joyBase"><div id="joyStick"></div></div>
+  <div id="mobileAttackBtn">⚔️</div>
+</div>
+
+<div class="overlay" id="startScreen">
+  <h1>🤖 ROBOT WAR 🤖</h1>
+  <h2>100 levels. 5 robot factions. Command your army and smash every one of them.</h2>
+  <div class="ctrl-list">
+    <div><b>WASD</b> — Move</div>
+    <div><b>Mouse</b> — Look / aim</div>
+    <div><b>Left Click / F</b> — Attack</div>
+    <div><b>Goal</b> — Destroy every enemy robot (or the boss) to win the level!</div>
+    <div><b>Army</b> — your robot squad fights alongside you — upgrade it in the Robot Bay</div>
+  </div>
+  <button id="startBtn" onclick="openOverworldMap()">⚔️ DEPLOY</button>
+</div>
+
+<!-- OVERWORLD MAP — 5 real Kingdoms (one per faction/section) laid out spatially across a real
+     500x500 world-unit space (5x the ~100x100 battle arena), plus the player's own Castle.
+     Kingdom positions are actual (x,z) coordinates in KINGDOM_POS, converted to on-screen pixels
+     by scalePt() — the map genuinely covers more space and needs real scrolling to see all of it,
+     not just a cosmetically resized list. Locked kingdoms (per the same real robotWarUnlockedStage
+     progress used everywhere else) show grayed/fogged and aren't clickable; unlocked ones open
+     their own 20-level list via openKingdom(). -->
+<div class="overlay" id="overworldScreen" style="display:none;">
+  <h1>🗺️ OVERWORLD</h1>
+  <div id="overworldSub">5 Kingdoms to conquer · Your Castle awaits — scroll the map to explore</div>
+  <div id="mapViewport"><div id="mapWorld"></div></div>
+  <button class="smallBtn" onclick="document.getElementById('overworldScreen').style.display='none'; document.getElementById('startScreen').style.display='flex';">← Back</button>
+</div>
+
+<!-- YOUR CASTLE — a real home base on the Overworld Map, built up with real S.I.P. (adapted from
+     the main Explox game's houseBuildCost/HOUSE_SIZES/HOUSE_MATERIALS pattern in game-land.js:
+     size tiers x material choice, cost scales with footprint area) — reskinned as a fortress, not
+     a literal copy. A bigger/better castle grants REAL gameplay bonuses (Army Cap + Defense —
+     see castleArmyCapBonus()/castleDefenseBonus()), not just a different look. -->
+<div class="overlay" id="castleScreen" style="display:none;padding:18px;overflow-y:auto;">
+  <h1>🏰 YOUR CASTLE</h1>
+  <div id="castleSub">Build it up with real S.I.P. for a real Army Cap and Defense bonus.</div>
+  <div style="font-size:16px;color:#FFD700;font-weight:bold;margin:10px 0;">💰 <span id="castleSipAmt">0</span> S.I.P.</div>
+  <div id="castlePreview"></div>
+  <div id="castleStats"></div>
+  <button id="castleUpgradeBtn" onclick="upgradeCastle()">Upgrade</button>
+  <div style="color:#ff8800;font-size:13px;font-weight:bold;letter-spacing:2px;margin:16px 0 8px;">MATERIALS</div>
+  <div class="upgradeGrid" id="castleMaterials"></div>
+  <div id="castleMsg" style="font-size:13px;min-height:18px;margin:8px 0;"></div>
+  <button class="smallBtn" onclick="document.getElementById('castleScreen').style.display='none'; openOverworldMap();">← Back to Map</button>
+</div>
+
+<!-- KINGDOM LEVEL SELECT — each Kingdom holds that section's real 20 levels. Sequential unlock:
+     beating level N unlocks N+1 (see handleStageVictory()); everything up to your current
+     unlockedStage stays freely replayable (no free-select past the frontier), matching the
+     user's exact spec. -->
+<div class="overlay" id="levelSelectScreen" style="display:none;">
+  <h1 id="levelSelectTitle">📋 SELECT LEVEL</h1>
+  <div id="levelSelectSub">Unlocked through Level <span id="unlockedLabel">1</span> of 100</div>
+  <div id="stageRows" style="width:min(96vw,760px);"></div>
+  <button class="smallBtn" onclick="document.getElementById('levelSelectScreen').style.display='none'; openOverworldMap();">← Back to Map</button>
+</div>
+
+<!-- ROBOT BAY — the real shop between levels. Spends real d.sip (shared with the main Explox
+     save via localStorage 'explox_user_<name>') on 5 persisted upgrades: Army HP, Army Damage,
+     Army Size Cap, Your Weapon, Your Armor — plus a real Garage where the player buys/equips
+     vehicles (see VEHICLES, buyVehicle()/equipVehicle(), mount/dismount via toggleMount()).
+     See loadRW()/saveRW()/buyUpgrade()/buyArmyCap(). -->
+<div class="overlay" id="shopScreen" style="display:none;align-items:flex-start;padding-top:18px;">
+  <h1>🛠️ ROBOT BAY</h1>
+  <div id="shopSubtitle">Preparing for <span id="shopStageLabel">Level 1</span></div>
+  <div id="shopHeader">
+    <div>💰 <span id="shopSipAmt2">0</span> S.I.P.</div>
+    <div>
+      <div id="shopLvlDisplay">🎖️ Commander Level <span id="shopLvlNum">1</span></div>
+      <div id="shopXpWrap"><div id="shopXpFill" style="width:0%"></div></div>
+      <div id="shopXpInfo">0 / 100 XP</div>
+    </div>
+  </div>
+  <div class="upgradeGrid" id="upgradeGrid"></div>
+  <div id="garageHeading" style="width:min(94vw,700px);text-align:left;color:#ff8800;font-size:15px;font-weight:bold;letter-spacing:2px;margin:14px 0 8px;">🚗 GARAGE — Vehicles</div>
+  <div class="upgradeGrid" id="garageGrid"></div>
+  <div id="shopMsg"></div>
+  <button id="goFightBtn" onclick="beginStage()">⚔️ FIGHT!</button>
+  <button class="smallBtn" onclick="document.getElementById('shopScreen').style.display='none'; openKingdom(sectionOf(currentStage));">← Level Select</button>
+</div>
+
+<div class="overlay" id="levelCompleteScreen">
+  <h1>✅ LEVEL COMPLETE!</h1>
+  <h2 id="lcSubtitle">Level cleared!</h2>
+  <p>Score: <span id="lcScore">0</span></p>
+  <p style="color:#FFD700;font-weight:bold;">💰 Reward: +<span id="lcReward">0</span> S.I.P.</p>
+  <button id="continueBtn" onclick="continueAfterLevel()">➡️ CONTINUE</button>
+</div>
+
+<div class="overlay" id="wonScreen">
+  <h1>🏆 ROBOT WAR CHAMPION!</h1>
+  <p>You defeated The Overlord and conquered all 100 levels!</p>
+  <p>Final Score: <span id="finalScore">0</span></p>
+  <button class="restartBtn" style="background:#FFD700;color:#111" onclick="location.reload()">PLAY AGAIN</button>
+</div>
+
+<div class="overlay" id="lostScreen">
+  <h1>💥 SYSTEM DOWN</h1>
+  <p>Your army was overwhelmed...</p>
+  <p>Score: <span id="lostScoreText">0</span></p>
+  <button class="restartBtn" style="background:#ff4444;color:#fff" onclick="retryStage()">🔁 RETRY LEVEL</button>
+  <button class="restartBtn smallBtn" style="background:transparent;border:1px solid #555;color:#ccc" onclick="backToLevelSelectFromLost()">📋 LEVEL SELECT</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// ROBOT WAR — army-vs-army robot battle campaign. Three.js r128 (cdnjs, same
+// as throne.html). No frameworks, no build step — one self-contained file.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── THREE.JS HELPERS ─────────────────────────────────────────────────────────
+function mat(c){ return new THREE.MeshLambertMaterial({color:c}); }
+function glow(c){ return new THREE.MeshBasicMaterial({color:c}); }
+function normAngle(a){ while(a>Math.PI)a-=Math.PI*2; while(a<-Math.PI)a+=Math.PI*2; return a; }
+
+// ── CORE STATE ────────────────────────────────────────────────────────────────
+let scene, camera, renderer, clock;
+let playerGroup, playerBlade;
+let yaw=0, pitch=0.15, isLocked=false;
+let moveState={w:false,a:false,s:false,d:false};
+let playerHP=100, playerMaxHP=100, score=0;
+let bladeCD=0, bladeSwing=0;
+let enemies=[], allies=[], projectiles=[], particles=[];
+let gameState='start'; // start | playing | levelcomplete | won | lost
+let currentStage=1;
+let boss=null;
+let sceneReady=false;
+let mountedVehicle=null, vehicleMesh=null; // currently-ridden VEHICLES entry (or null) + its live mesh
+
+const TOTAL_STAGES=100, SECTION_SIZE=20;
+const PLAYER_SPEED=8.5;
+const ARENA_HALF=47; // arena is ~100x100 world units — see buildArena()
+
+// ── SECTION THEMES — 5 sections of 20 levels, each a distinct robot faction.
+// Reskinned by real color (not just a label) in makeRobot() below, plus a
+// unique named boss for the section's level-20/40/60/80/100 fight.
+const SECTION_THEMES=[
+  { name:'Scrapyard Scavengers', body:0x8a5a34, dark:0x5c3b20, glow:0xffaa44, bossName:'The Scrap King' },
+  { name:'Factory Line Drones',  body:0xd4b800, dark:0x1a1a1a, glow:0xfff066, bossName:'Foreman Prime' },
+  { name:'Iron Legion',          body:0x54622f, dark:0x3a3a3a, glow:0x88ff88, bossName:'Iron Colonel' },
+  { name:'Chrome Sentinels',     body:0xc8ccd0, dark:0x6a7078, glow:0x44ccff, bossName:'Sentinel Alpha' },
+  { name:'Overlord Mechs',       body:0x2a0808, dark:0x120202, glow:0xff2222, bossName:'The Overlord' },
+];
+const ALLY_THEME={ body:0x2244cc, dark:0x112299, glow:0x44aaff }; // your own Guardian Bots — consistent all game
+
+function sectionOf(stage){ return Math.floor((stage-1)/SECTION_SIZE); }          // 0-4
+function stageInSection(stage){ return ((stage-1)%SECTION_SIZE)+1; }             // 1-20
+function isBossStage(stage){ return stage%SECTION_SIZE===0; }
+function sectionThemeFor(stage){ return SECTION_THEMES[sectionOf(stage)]; }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DIFFICULTY FORMULA — 100 levels, 5 sections of 20. Every stat below is a
+// pure function of the stage number — nothing is hand-authored per level.
+//   • Within a section, difficulty ramps up SMOOTHLY as stageInSection climbs
+//     from 1 to 20 (the "t" term below, 0→1).
+//   • Crossing into a new section applies a STEP multiplier on top of a fresh
+//     ramp, so difficulty doesn't reset all the way back to section-1 levels —
+//     it eases off its section-end peak a bit, then climbs again. That's the
+//     "reset/step up a bit at each new section" behavior the spec asked for.
+//   • Boss stages (20/40/60/80/100) don't use these formulas — see
+//     bossStatsFor() below, which spawns one big per-section unit instead of
+//     a regular wave.
+// ═══════════════════════════════════════════════════════════════════════════
+function enemyCountFor(stage){
+  const section=sectionOf(stage), t=(stageInSection(stage)-1)/19;
+  const base=15+section*4;                       // steps up 15→19→23→27→31 per section
+  return Math.min(45, base+Math.round(t*10));     // ramps +10 across each section
+}
+function hpMultFor(stage){
+  const section=sectionOf(stage), t=(stageInSection(stage)-1)/19;
+  const sectionBase=1+section*0.5;                // steps 1.0→1.5→2.0→2.5→3.0
+  return sectionBase*(1+t*0.6);                   // ramps up to 1.6x within the section
+}
+function dmgMultFor(stage){
+  const section=sectionOf(stage), t=(stageInSection(stage)-1)/19;
+  const sectionBase=1+section*0.4;                // steps 1.0→1.4→1.8→2.2→2.6
+  return sectionBase*(1+t*0.5);
+}
+function speedMultFor(stage){
+  const section=sectionOf(stage), t=(stageInSection(stage)-1)/19;
+  return 1+section*0.06+t*0.10;                   // gentle — keeps late levels playable
+}
+function bossStatsFor(stage){
+  const idx=stage/SECTION_SIZE-1; // 0-4, which section's boss this is
+  return { hp:900+idx*700, dmg:26+idx*10, speed:3.0+idx*0.3 };
+}
+function computeStageReward(stage){
+  const base=8+Math.floor(stage*1.6);
+  const bonus=isBossStage(stage)?base*4:0; // boss fights pay out a big real S.I.P. bonus
+  return base+bonus;
+}
+
+// ── PLAYER / ARMY UPGRADES — persisted on the real player save, see loadRW() ──
+let sip=0, unlockedStage=1, playerLevel=1, playerXP=0;
+let armyHpLevel=0, armyDmgLevel=0, armyCap=10, weaponLevel=0, armorLevel=0;
+
+function armyHpMult(){ return 1+armyHpLevel*0.08; }
+function armyDmgMult(){ return 1+armyDmgLevel*0.08; }
+function weaponMult(){ return 1+weaponLevel*0.08; }
+function armorMult(){ return 1+armorLevel*0.08; }
+function armyCapMaxAllowed(){ return Math.min(50, 10+playerLevel+castleArmyCapBonus()); } // grows with Commander Level AND your Castle
+
+const UPGRADES=[
+  { key:'armyHpLevel',  icon:'❤️', name:'Army HP',     desc:"Boosts your robot squad's max health.",   base:16, max:20 },
+  { key:'armyDmgLevel', icon:'⚔️', name:'Army Damage', desc:"Boosts your robot squad's attack power.", base:16, max:20 },
+  { key:'weaponLevel',  icon:'🗡️', name:'Your Weapon', desc:'Boosts your own attack damage.',          base:20, max:20 },
+  { key:'armorLevel',   icon:'🛡️', name:'Your Armor',  desc:'Boosts your own max health.',             base:18, max:20 },
+];
+function upgradeCost(base, nextLevel){ return Math.round(base*Math.pow(nextLevel,1.45)); }
+function armyCapCost(){ const idx=armyCap-10+1; return Math.round(30*Math.pow(idx,1.3)); }
+function upgradeLevelVar(key){
+  if(key==='armyHpLevel') return armyHpLevel;
+  if(key==='armyDmgLevel') return armyDmgLevel;
+  if(key==='weaponLevel') return weaponLevel;
+  return armorLevel;
+}
+function setUpgradeLevelVar(key,v){
+  if(key==='armyHpLevel') armyHpLevel=v;
+  else if(key==='armyDmgLevel') armyDmgLevel=v;
+  else if(key==='weaponLevel') weaponLevel=v;
+  else armorLevel=v;
+}
+
+// ── GARAGE / VEHICLES — 3 distinct rides, real stat tradeoffs (not cosmetic swaps). Speed always
+// changes movement; each vehicle also carries exactly one standout perk — a damage-flavored
+// mounted attack (ram/smash) or a defensive perk (incoming damage reduction) — so all three play
+// differently, not just look different. See attack()'s mountedVehicle dispatch and the incoming-
+// damage-reduction reads in animate()/bossSlam() for where these actually apply.
+let ownedVehicles=[], equippedVehicle='';
+const VEHICLES=[
+  { id:'bike', icon:'🏍️', name:'Scrap Racer',
+    desc:'Fast scavenger bike. Ram enemies down, then outrun whatever is left.',
+    cost:220, speedMult:1.6, attackType:'ram', ramDmg:20, ramCD:0.28, ramRange:5.5, dmgReduction:0 },
+  { id:'tank', icon:'🚜', name:'Siege Hauler',
+    desc:'Slow armored hover-tank with a splash-damage siege cannon. Cuts incoming damage way down.',
+    cost:480, speedMult:0.65, attackType:'cannon', cannonDmg:150, cannonCD:1.1, cannonSplash:6, dmgReduction:0.35 },
+  { id:'mech', icon:'🤖', name:'Titan Frame',
+    desc:'Balanced mech walker. Devastating smash attack, best raw damage in the Garage.',
+    cost:650, speedMult:1.0, attackType:'smash', smashDmg:80, smashCD:0.9, smashRange:5.0, dmgReduction:0 },
+];
+// ── CASTLE — adapted from the main Explox game's houseBuildCost/HOUSE_SIZES/HOUSE_MATERIALS
+// pattern (see explox/modules/game-land.js): pick a size tier and a material, cost scales with
+// footprint (size*size) and material. Reskinned as a fortress (walls/towers/keep) instead of a
+// house, and paid in pure S.I.P. since Robot War doesn't touch the main game's wood/scrap/mats
+// inventory. Unlike the house, a bigger/better castle grants REAL gameplay bonuses — see
+// castleArmyCapBonus()/castleDefenseBonus() — not just a different look.
+const CASTLE_MAX_SIZE=8;
+const CASTLE_MATERIALS={
+  wood:  { name:'Wood Palisade',    emoji:'🪵', unlockSize:0, costMult:1.0,  capBonusMult:1.0, defenseMult:1.0 },
+  stone: { name:'Stone Wall',       emoji:'🧱', unlockSize:2, costMult:1.25, capBonusMult:1.2, defenseMult:1.15 },
+  steel: { name:'Reinforced Steel', emoji:'⚙️', unlockSize:4, costMult:1.6,  capBonusMult:1.4, defenseMult:1.3 },
+  alloy: { name:'Fortified Alloy',  emoji:'🔷', unlockSize:6, costMult:2.1,  capBonusMult:1.6, defenseMult:1.5 },
+};
+let castleSize=0, castleMaterial='wood';
+function castleMat(){ return CASTLE_MATERIALS[castleMaterial]||CASTLE_MATERIALS.wood; }
+// Real Army Cap bonus — adds straight onto armyCapMaxAllowed()'s ceiling, on top of Commander Level.
+function castleArmyCapBonus(){ return castleSize<=0 ? 0 : Math.round(castleSize*castleMat().capBonusMult*1.2); }
+// Real Defense bonus — a second incoming-damage multiplier that stacks with a mounted vehicle's
+// own dmgReduction (see incomingPlayerDmgMult()). Capped at 30% from the castle alone.
+function castleDefenseBonus(){ return castleSize<=0 ? 0 : Math.min(0.30, castleSize*castleMat().defenseMult*0.018); }
+function castleBuildCost(size, materialKey){
+  const m=CASTLE_MATERIALS[materialKey]||CASTLE_MATERIALS.wood;
+  return Math.round(20*size*size*m.costMult); // real footprint-area cost, same shape as houseBuildCost()
+}
+function castleUpgradeCost(){ return castleBuildCost(castleSize+1, castleMaterial); }
+
+function incomingPlayerDmgMult(){
+  const vehicleMult=mountedVehicle ? (1-mountedVehicle.dmgReduction) : 1;
+  const castleMult=1-castleDefenseBonus();
+  return vehicleMult*castleMult;
+}
+
+function xpToNext(lv){ return 50+lv*30; }
+function gainXP(amount){
+  playerXP+=amount;
+  while(playerXP>=xpToNext(playerLevel) && playerLevel<60){
+    playerXP-=xpToNext(playerLevel);
+    playerLevel++;
+    showAnn('🎉 Commander Level Up! Level '+playerLevel+'!');
+  }
+  saveRW();
+}
+
+// ── REAL S.I.P. INTEGRATION — same pattern as throne.html's armory. S.I.P. is
+// shared with the main Explox game via localStorage. If nobody's logged in we
+// degrade gracefully: SIP reads as 0 and nothing can be bought, but the level
+// itself is still fully playable (progress just won't persist across reload).
+function loadRW(){
+  const user=localStorage.getItem('explox_current_user');
+  const blank={ sip:0, unlockedStage:1, playerLevel:1, playerXP:0,
+                armyHpLevel:0, armyDmgLevel:0, armyCap:10, weaponLevel:0, armorLevel:0,
+                ownedVehicles:[], equippedVehicle:'', castleSize:0, castleMaterial:'wood' };
+  if(!user) return blank;
+  const d=JSON.parse(localStorage.getItem('explox_user_'+user)||'{}');
+  return {
+    sip: d.sip||0,
+    unlockedStage: d.robotWarUnlockedStage||1,
+    playerLevel: d.robotWarPlayerLevel||1,
+    playerXP: d.robotWarPlayerXP||0,
+    armyHpLevel: d.robotWarArmyHpLevel||0,
+    armyDmgLevel: d.robotWarArmyDmgLevel||0,
+    armyCap: d.robotWarArmyCap||10,
+    weaponLevel: d.robotWarWeaponLevel||0,
+    armorLevel: d.robotWarArmorLevel||0,
+    ownedVehicles: d.robotWarOwnedVehicles||[],
+    equippedVehicle: d.robotWarEquippedVehicle||'',
+    castleSize: d.robotWarCastleSize||0,
+    castleMaterial: d.robotWarCastleMaterial||'wood',
+  };
+}
+function saveRW(){
+  const user=localStorage.getItem('explox_current_user');
+  if(!user) return; // guest mode — nothing to persist to
+  const d=JSON.parse(localStorage.getItem('explox_user_'+user)||'{}');
+  d.sip=sip;
+  d.robotWarUnlockedStage=unlockedStage;
+  d.robotWarPlayerLevel=playerLevel;
+  d.robotWarPlayerXP=playerXP;
+  d.robotWarArmyHpLevel=armyHpLevel;
+  d.robotWarArmyDmgLevel=armyDmgLevel;
+  d.robotWarArmyCap=armyCap;
+  d.robotWarWeaponLevel=weaponLevel;
+  d.robotWarArmorLevel=armorLevel;
+  d.robotWarOwnedVehicles=ownedVehicles;
+  d.robotWarEquippedVehicle=equippedVehicle;
+  d.robotWarCastleSize=castleSize;
+  d.robotWarCastleMaterial=castleMaterial;
+  localStorage.setItem('explox_user_'+user, JSON.stringify(d));
+}
+// Re-sync from the real save whenever a logged-in player opens a menu screen (in case they
+// earned/spent S.I.P. elsewhere). Guest sessions keep whatever progress is already in memory
+// instead of getting reset back to the blank defaults every time a screen opens.
+function refreshFromSave(){
+  const user=localStorage.getItem('explox_current_user');
+  if(!user) return;
+  const d=loadRW();
+  sip=d.sip; unlockedStage=d.unlockedStage; playerLevel=d.playerLevel; playerXP=d.playerXP;
+  armyHpLevel=d.armyHpLevel; armyDmgLevel=d.armyDmgLevel; armyCap=d.armyCap;
+  weaponLevel=d.weaponLevel; armorLevel=d.armorLevel;
+  ownedVehicles=d.ownedVehicles; equippedVehicle=d.equippedVehicle;
+  castleSize=d.castleSize; castleMaterial=d.castleMaterial;
+}
+
+// ── OVERWORLD MAP — 5 Kingdoms + Your Castle, laid out across a real 500x500 world-unit space
+// (5x the ~100x100 battle arena — see ARENA_HALF). KINGDOM_POS/CASTLE_POS are actual coordinates
+// in that space; scalePt() converts them to on-screen pixels inside a scrollable/pannable
+// #mapViewport, so the map genuinely covers more space and requires real travel (scrolling) to
+// see all of it on most screens — not just a cosmetically resized list.
+const MAP_SCALE=1.15; // px per world unit — 500 world units → 575px, fits the 600px #mapWorld
+const KINGDOM_POS=[
+  {x:70, y:430},  // Scrapyard Scavengers
+  {x:170,y:290},  // Factory Line Drones
+  {x:300,y:150},  // Iron Legion
+  {x:430,y:230},  // Chrome Sentinels
+  {x:470,y:410},  // Overlord Mechs
+];
+const CASTLE_POS={x:230,y:530};
+function scalePt(p){ return { x:p.x*MAP_SCALE, y:p.y*MAP_SCALE }; }
+
+// ── OVERWORLD TERRAIN — pure visual/atmospheric layer: hills, a winding river, and forest/scrub
+// patches drawn as a static SVG under the roads/nodes (see renderOverworldMap() prepending this
+// to the html string, so it paints first/underneath — roads, nodes, locks and scroll behavior are
+// all untouched). Colors are pulled from each nearby Kingdom's own real SECTION_THEMES palette,
+// so the ground itself reads distinctly per region: rusty/barren near the Scavengers, hazy/
+// industrial near the Factory, rugged olive near the Iron Legion, icy/clean near the Sentinels,
+// scorched near the Overlord — with a lush green patch around the player's own Castle.
+function hillPath(cx,cy,w,h){ return 'M'+(cx-w/2)+','+cy+' Q'+cx+','+(cy-h)+' '+(cx+w/2)+','+cy+' Z'; }
+function terrainTree(x,y,s,trunk,leaf){
+  return '<g transform="translate('+x+','+y+') scale('+(s||1)+')">'
+    +'<rect x="-1.4" y="0" width="2.8" height="7" fill="'+trunk+'"/>'
+    +'<circle cx="0" cy="-6" r="6.5" fill="'+leaf+'"/></g>';
+}
+function terrainBlob(cx,cy,rx,ry,color,op,rot){
+  return '<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+rx+'" ry="'+ry+'" fill="'+color+'" opacity="'+(op!=null?op:0.3)+'" transform="rotate('+(rot||0)+' '+cx+' '+cy+')"/>';
+}
+function buildTerrainSVG(){
+  const hex=function(c){ return '#'+c.toString(16).padStart(6,'0'); };
+  const t=SECTION_THEMES;
+  let s='<svg class="mapTerrain" viewBox="0 0 600 600">';
+
+  // River — winds from the northern hills down past the middle kingdoms toward the Castle
+  const riverD='M420,-10 C460,80 380,140 330,170 C260,210 240,270 300,320 C360,370 260,380 220,420 C170,470 230,500 190,540 C150,580 90,560 40,610';
+  s+='<path d="'+riverD+'" fill="none" stroke="#0d2a3a" stroke-width="16" opacity="0.35" stroke-linecap="round"/>';
+  s+='<path d="'+riverD+'" fill="none" stroke="#2f7ea8" stroke-width="7" opacity="0.7" stroke-linecap="round"/>';
+  s+='<path d="'+riverD+'" fill="none" stroke="#a8dcf0" stroke-width="2" opacity="0.4" stroke-dasharray="3 7" stroke-linecap="round"/>';
+
+  // Scrapyard Scavengers corner — rusty, barren, cracked earth, sparse dead scrub
+  s+=terrainBlob(65,475,95,55,hex(t[0].dark),0.4,-12);
+  s+=terrainBlob(150,505,60,32,hex(t[0].body),0.22,10);
+  s+=terrainBlob(25,415,55,28,hex(t[0].dark),0.3,22);
+  s+=terrainTree(18,450,0.55,'#3a2a18',hex(t[0].dark));
+  s+=terrainTree(140,478,0.5,'#3a2a18',hex(t[0].dark));
+
+  // Factory Line Drones — industrial haze drifting over barren yellowed ground
+  s+=terrainBlob(150,300,70,40,hex(t[1].dark),0.32,5);
+  s+='<ellipse cx="235" cy="300" rx="62" ry="24" fill="#9a9a80" opacity="0.2"/>';
+  s+='<ellipse cx="150" cy="270" rx="40" ry="16" fill="#9a9a80" opacity="0.15"/>';
+
+  // Iron Legion — rugged olive hill range, a dark military-green treeline at its foot
+  s+='<path d="'+hillPath(300,225,150,62)+'" fill="'+hex(t[2].dark)+'" opacity="0.42"/>';
+  s+='<path d="'+hillPath(375,215,110,46)+'" fill="'+hex(t[2].body)+'" opacity="0.3"/>';
+  s+='<path d="'+hillPath(250,195,95,40)+'" fill="'+hex(t[2].dark)+'" opacity="0.32"/>';
+  [[280,255],[305,262],[330,250],[260,270]].forEach(function(p){ s+=terrainTree(p[0],p[1],0.6,'#2a2a1a',hex(t[2].dark)); });
+
+  // Chrome Sentinels — colder, cleaner icy hills with frost specks
+  s+='<path d="'+hillPath(500,215,125,58)+'" fill="#8fb8cc" opacity="0.3"/>';
+  s+='<path d="'+hillPath(455,195,85,36)+'" fill="#d8f0fa" opacity="0.25"/>';
+  [[470,205],[510,195],[490,225]].forEach(function(p){ s+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="2.5" fill="#e8fbff" opacity="0.65"/>'; });
+
+  // Overlord Mechs — dark scorched ground with a faint red glow, blackened dead trees
+  s+=terrainBlob(525,445,95,50,'#1a0505',0.48,10);
+  s+=terrainBlob(565,505,60,32,hex(t[4].glow),0.14,-8);
+  s+=terrainTree(500,485,0.5,'#150707','#2a0a0a');
+  s+=terrainTree(565,465,0.45,'#150707','#2a0a0a');
+
+  // Castle grounds — lush green home turf, a friendly contrast to the wilds around it
+  s+=terrainBlob(230,565,115,48,'#1e3a1a',0.4,0);
+  [[195,555],[230,560],[260,550],[210,575]].forEach(function(p){ s+=terrainTree(p[0],p[1],0.6,'#3a2a18','#2f6b2f'); });
+
+  s+='</svg>';
+  return s;
+}
+function roadStyle(x1,y1,x2,y2){
+  const dx=x2-x1, dy=y2-y1;
+  const len=Math.sqrt(dx*dx+dy*dy);
+  const angle=Math.atan2(dy,dx)*180/Math.PI;
+  return 'left:'+x1+'px;top:'+y1+'px;width:'+len+'px;transform:rotate('+angle+'deg);';
+}
+function openOverworldMap(){
+  document.getElementById('startScreen').style.display='none';
+  document.getElementById('levelSelectScreen').style.display='none';
+  document.getElementById('shopScreen').style.display='none';
+  document.getElementById('castleScreen').style.display='none';
+  document.getElementById('hud').style.display='none';
+  refreshFromSave();
+  renderOverworldMap();
+  document.getElementById('overworldScreen').style.display='flex';
+}
+function renderOverworldMap(){
+  let html=buildTerrainSVG(); // painted first so it sits underneath every road/node
+  const pts=[CASTLE_POS].concat(KINGDOM_POS).map(scalePt);
+  for(let i=0;i<pts.length-1;i++){
+    html+='<div class="mapRoad" style="'+roadStyle(pts[i].x,pts[i].y,pts[i+1].x,pts[i+1].y)+'"></div>';
+  }
+  const cp=scalePt(CASTLE_POS);
+  html+='<div class="mapNode mapCastle" style="left:'+cp.x+'px;top:'+cp.y+'px;" onclick="openCastleScreen()">'
+    +'<div class="mapNodeIcon">🏰</div>'
+    +'<div class="mapNodeLabel" style="color:#FFD700;">Your Castle'+(castleSize>0?(' · Lv'+castleSize):'')+'</div>'
+    +'<div class="mapNodeSub">Build &amp; upgrade</div></div>';
+  SECTION_THEMES.forEach(function(theme,i){
+    const pos=scalePt(KINGDOM_POS[i]);
+    const firstStage=i*20+1, lastStage=i*20+20;
+    const unlocked=unlockedStage>=firstStage;
+    const cleared=unlockedStage>lastStage;
+    const glowHex='#'+theme.glow.toString(16).padStart(6,'0');
+    const icon=unlocked?(cleared?'👑':'⚔️'):'🔒';
+    html+='<div class="mapNode mapKingdom'+(unlocked?'':' locked')+'" style="left:'+pos.x+'px;top:'+pos.y+'px;" '+(unlocked?('onclick="openKingdom('+i+')"'):'')+'>'
+      +'<div class="mapNodeIcon" style="border-color:'+(unlocked?glowHex:'#333')+';">'+icon+'</div>'
+      +'<div class="mapNodeLabel" style="color:'+(unlocked?glowHex:'#666')+';">'+theme.name+'</div>'
+      +'<div class="mapNodeSub">'+(unlocked?('Levels '+firstStage+'–'+lastStage):'Locked')+'</div></div>';
+  });
+  document.getElementById('mapWorld').innerHTML=html;
+}
+
+// ── KINGDOMS (LEVEL SELECT, PER-KINGDOM) — each of the 5 Kingdoms holds that section's real 20
+// levels. Sequential unlock is unchanged: beating level N unlocks N+1 (see handleStageVictory());
+// everything up to your current unlockedStage stays freely replayable within its Kingdom (no
+// free-select past the frontier, and no entering a Kingdom that isn't unlocked yet on the map).
+let currentKingdomSection=0;
+function openKingdom(sectionIdx){
+  currentKingdomSection=sectionIdx;
+  document.getElementById('overworldScreen').style.display='none';
+  document.getElementById('castleScreen').style.display='none';
+  document.getElementById('startScreen').style.display='none';
+  document.getElementById('shopScreen').style.display='none';
+  document.getElementById('hud').style.display='none';
+  refreshFromSave();
+  renderLevelSelect();
+  document.getElementById('levelSelectScreen').style.display='flex';
+}
+function renderLevelSelect(){
+  const sec=currentKingdomSection;
+  const theme=SECTION_THEMES[sec];
+  document.getElementById('levelSelectTitle').textContent='📋 '+theme.name.toUpperCase();
+  document.getElementById('unlockedLabel').textContent=unlockedStage;
+  const wrap=document.getElementById('stageRows');
+  wrap.innerHTML='';
+  const row=document.createElement('div');
+  row.className='sectionRow';
+  const title=document.createElement('div');
+  title.className='sectionTitle';
+  title.style.color='#'+theme.glow.toString(16).padStart(6,'0');
+  title.textContent='Levels '+(sec*20+1)+'–'+(sec*20+20)+' · Boss: '+theme.bossName;
+  row.appendChild(title);
+  const grid=document.createElement('div');
+  grid.className='stageGrid';
+  for(let i=1;i<=20;i++){
+    const stage=sec*20+i;
+    const locked=stage>unlockedStage;
+    const done=stage<unlockedStage;
+    const isBoss=stage%20===0;
+    const card=document.createElement('div');
+    card.className='stageCard'+(locked?' locked':'')+(isBoss?' boss':'')+(done?' done':'');
+    card.textContent=isBoss?('👑'+stage):(''+stage);
+    if(!locked) card.onclick=(function(st){ return function(){ selectStage(st); }; })(stage);
+    grid.appendChild(card);
+  }
+  row.appendChild(grid);
+  wrap.appendChild(row);
+}
+function selectStage(stage){
+  currentStage=stage;
+  document.getElementById('levelSelectScreen').style.display='none';
+  openShop();
+}
+
+// ── ROBOT BAY (SHOP) ────────────────────────────────────────────────────────
+function openShop(){
+  document.getElementById('overworldScreen').style.display='none';
+  document.getElementById('castleScreen').style.display='none';
+  document.getElementById('levelSelectScreen').style.display='none';
+  refreshFromSave();
+  renderShop();
+  renderGarage();
+  document.getElementById('shopScreen').style.display='flex';
+}
+function renderShop(){
+  document.getElementById('shopSipAmt2').textContent=sip;
+  const theme=sectionThemeFor(currentStage);
+  document.getElementById('shopStageLabel').textContent='Level '+currentStage+(isBossStage(currentStage)?(' — BOSS: '+theme.bossName):('  ('+theme.name+')'));
+  document.getElementById('shopLvlNum').textContent=playerLevel;
+  const need=xpToNext(playerLevel);
+  const pct=playerLevel>=60?100:Math.floor(playerXP/need*100);
+  document.getElementById('shopXpFill').style.width=pct+'%';
+  document.getElementById('shopXpInfo').textContent=playerLevel>=60?'MAX LEVEL':(playerXP+' / '+need+' XP');
+
+  let html='';
+  UPGRADES.forEach(function(u){
+    const lvl=upgradeLevelVar(u.key);
+    const maxed=lvl>=u.max;
+    const cost=maxed?0:upgradeCost(u.base,lvl+1);
+    const afford=!maxed && sip>=cost;
+    html+='<div class="upCard"><div class="upIcon">'+u.icon+'</div>'
+      +'<div class="upName">'+u.name+'</div>'
+      +'<div class="upLvl">Level '+lvl+' / '+u.max+'</div>'
+      +'<div class="upDesc">'+u.desc+'</div>'
+      +'<button class="upBtn'+(maxed?' maxed':'')+'" '+((maxed||!afford)?'disabled':'')+' onclick="buyUpgrade(\''+u.key+'\')">'
+      +(maxed?'✓ MAXED':('⬆️ '+cost+' 💰'))+'</button></div>';
+  });
+  const capMax=armyCapMaxAllowed();
+  const capMaxed=armyCap>=capMax;
+  const capCost=capMaxed?0:armyCapCost();
+  const capAfford=!capMaxed && sip>=capCost;
+  html+='<div class="upCard"><div class="upIcon">👥</div>'
+    +'<div class="upName">Army Size Cap</div>'
+    +'<div class="upLvl">'+armyCap+' robots (cap '+capMax+')</div>'
+    +'<div class="upDesc">Field more robots at once. The cap itself rises as your Commander Level rises.</div>'
+    +'<button class="upBtn'+(capMaxed?' maxed':'')+'" '+((capMaxed||!capAfford)?'disabled':'')+' onclick="buyArmyCap()">'
+    +(capMaxed?'✓ AT LEVEL CAP':('⬆️ '+capCost+' 💰'))+'</button></div>';
+  document.getElementById('upgradeGrid').innerHTML=html;
+}
+function showShopMsg(txt,col){
+  col=col||'#ff8888';
+  const el=document.getElementById('shopMsg');
+  el.style.color=col; el.textContent=txt;
+  setTimeout(function(){ if(el.textContent===txt) el.textContent=''; }, 2200);
+}
+function buyUpgrade(key){
+  const cfg=UPGRADES.find(function(u){ return u.key===key; });
+  const lvl=upgradeLevelVar(key);
+  if(lvl>=cfg.max) return;
+  const cost=upgradeCost(cfg.base, lvl+1);
+  if(sip<cost){ showShopMsg('❌ Need '+cost+' S.I.P. for this upgrade!'); return; }
+  sip-=cost;
+  setUpgradeLevelVar(key, lvl+1);
+  saveRW();
+  showShopMsg('✅ '+cfg.name+' upgraded to level '+(lvl+1)+'!', '#66ff88');
+  renderShop();
+}
+function buyArmyCap(){
+  const maxAllowed=armyCapMaxAllowed();
+  if(armyCap>=maxAllowed){ showShopMsg('❌ Reach a higher Commander Level to raise the cap further!'); return; }
+  const cost=armyCapCost();
+  if(sip<cost){ showShopMsg('❌ Need '+cost+' S.I.P. for this upgrade!'); return; }
+  sip-=cost;
+  armyCap++;
+  saveRW();
+  showShopMsg('✅ Army size cap increased to '+armyCap+'!', '#66ff88');
+  renderShop();
+}
+
+// ── GARAGE (VEHICLES) ──────────────────────────────────────────────────────────
+function vehicleStatLine(v){
+  let s='⚡ '+v.speedMult.toFixed(2)+'x Speed';
+  if(v.attackType==='ram') s+=' · ⚔️ Ram '+v.ramDmg+' dmg';
+  else if(v.attackType==='cannon') s+=' · 💥 Cannon '+v.cannonDmg+' dmg (splash)';
+  else if(v.attackType==='smash') s+=' · 🔨 Smash '+v.smashDmg+' dmg';
+  if(v.dmgReduction>0) s+=' · 🛡️ -'+Math.round(v.dmgReduction*100)+'% dmg taken';
+  return s;
+}
+function renderGarage(){
+  let html='';
+  VEHICLES.forEach(function(v){
+    const owned=ownedVehicles.indexOf(v.id)!==-1;
+    const equipped=equippedVehicle===v.id;
+    const afford=sip>=v.cost;
+    let btnLabel, disabled, onclick;
+    if(equipped){ btnLabel='✓ EQUIPPED'; disabled=true; onclick=''; }
+    else if(owned){ btnLabel='EQUIP'; disabled=false; onclick="equipVehicle('"+v.id+"')"; }
+    else { btnLabel='BUY '+v.cost+' 💰'; disabled=!afford; onclick="buyVehicle('"+v.id+"')"; }
+    html+='<div class="upCard"><div class="upIcon">'+v.icon+'</div>'
+      +'<div class="upName">'+v.name+'</div>'
+      +'<div class="upLvl">'+vehicleStatLine(v)+'</div>'
+      +'<div class="upDesc">'+v.desc+'</div>'
+      +'<button class="upBtn'+(equipped?' maxed':'')+'" '+(disabled?'disabled':'')+' onclick="'+onclick+'">'+btnLabel+'</button></div>';
+  });
+  document.getElementById('garageGrid').innerHTML=html;
+}
+function buyVehicle(id){
+  const v=VEHICLES.find(function(x){ return x.id===id; });
+  if(!v || ownedVehicles.indexOf(id)!==-1) return;
+  if(sip<v.cost){ showShopMsg('❌ Need '+v.cost+' S.I.P. for the '+v.name+'!'); return; }
+  sip-=v.cost;
+  ownedVehicles.push(id);
+  equippedVehicle=id;
+  saveRW();
+  showShopMsg('✅ Purchased and equipped the '+v.name+'!', '#66ff88');
+  renderShop();
+  renderGarage();
+  updateVehicleBtn();
+}
+function equipVehicle(id){
+  if(ownedVehicles.indexOf(id)===-1) return;
+  equippedVehicle=id;
+  saveRW();
+  const v=VEHICLES.find(function(x){ return x.id===id; });
+  showShopMsg('✅ Equipped the '+(v?v.name:'vehicle')+'!', '#66ff88');
+  renderGarage();
+  updateVehicleBtn();
+}
+
+// ── CASTLE UI ──────────────────────────────────────────────────────────────────
+function showCastleMsg(txt,col){
+  col=col||'#ff8888';
+  const el=document.getElementById('castleMsg');
+  el.style.color=col; el.textContent=txt;
+  setTimeout(function(){ if(el.textContent===txt) el.textContent=''; }, 2200);
+}
+function renderCastleScreen(){
+  document.getElementById('castleSipAmt').textContent=sip;
+  const m=castleMat();
+  const capBonus=castleArmyCapBonus(), defBonus=castleDefenseBonus();
+  document.getElementById('castlePreview').innerHTML = castleSize>0
+    ? ('<div style="font-size:44px;">🏰</div><div style="font-size:20px;letter-spacing:3px;margin-top:4px;">'+'🗼'.repeat(castleSize)+'</div>')
+    : '<div style="font-size:44px;opacity:0.4;">🏚️</div><div style="color:#888;font-size:12px;margin-top:4px;">Nothing built yet</div>';
+  document.getElementById('castleStats').innerHTML =
+    '<div>Size: '+castleSize+' / '+CASTLE_MAX_SIZE+' · Material: '+m.emoji+' '+m.name+'</div>'
+    +'<div style="color:#88ffaa;">👥 Army Cap Bonus: +'+capBonus+'</div>'
+    +'<div style="color:#88ccff;">🛡️ Defense Bonus: -'+Math.round(defBonus*100)+'% incoming damage</div>';
+  const btn=document.getElementById('castleUpgradeBtn');
+  if(castleSize>=CASTLE_MAX_SIZE){
+    btn.textContent='✓ MAX SIZE'; btn.disabled=true;
+  } else {
+    const cost=castleUpgradeCost();
+    const afford=sip>=cost;
+    btn.textContent='⬆️ Upgrade to Size '+(castleSize+1)+' — '+cost+' 💰';
+    btn.disabled=!afford;
+  }
+  btn.style.opacity=btn.disabled?'0.4':'1'; btn.style.cursor=btn.disabled?'not-allowed':'pointer';
+  document.getElementById('castleMaterials').innerHTML = Object.keys(CASTLE_MATERIALS).map(function(k){
+    const mm=CASTLE_MATERIALS[k];
+    const unlocked=castleSize>=mm.unlockSize;
+    const active=castleMaterial===k;
+    return '<div class="upCard"><div class="upIcon" style="'+(unlocked?'':'opacity:0.3;')+'">'+mm.emoji+'</div>'
+      +'<div class="upName" style="'+(unlocked?'':'opacity:0.4;')+'">'+mm.name+'</div>'
+      +'<div class="upLvl">'+(unlocked?(active?'✓ Active':'Available'):('Unlocks at size '+mm.unlockSize))+'</div>'
+      +'<button class="upBtn'+(active?' maxed':'')+'" '+((!unlocked||active)?'disabled':'')+' onclick="selectCastleMaterial(\''+k+'\')">'+(active?'✓ ACTIVE':'USE')+'</button></div>';
+  }).join('');
+}
+function selectCastleMaterial(key){
+  const m=CASTLE_MATERIALS[key];
+  if(!m || castleSize<m.unlockSize || castleMaterial===key) return;
+  castleMaterial=key;
+  saveRW();
+  showCastleMsg('✅ Now building with '+m.name+'!', '#66ff88');
+  renderCastleScreen();
+}
+function upgradeCastle(){
+  if(castleSize>=CASTLE_MAX_SIZE){ showCastleMsg('❌ Your castle is already at maximum size!'); return; }
+  const cost=castleUpgradeCost();
+  if(sip<cost){ showCastleMsg('❌ Need '+cost+' S.I.P. to upgrade your castle!'); return; }
+  sip-=cost;
+  castleSize++;
+  saveRW();
+  showCastleMsg('✅ Castle upgraded to size '+castleSize+'!', '#66ff88');
+  renderCastleScreen();
+}
+function openCastleScreen(){
+  document.getElementById('overworldScreen').style.display='none';
+  refreshFromSave();
+  renderCastleScreen();
+  document.getElementById('castleScreen').style.display='flex';
+}
+
+// ── STAGE FLOW ────────────────────────────────────────────────────────────────
+function beginStage(){
+  document.getElementById('shopScreen').style.display='none';
+  document.getElementById('levelSelectScreen').style.display='none';
+  document.getElementById('startScreen').style.display='none';
+  document.getElementById('levelCompleteScreen').style.display='none';
+  document.getElementById('lostScreen').style.display='none';
+  document.getElementById('overworldScreen').style.display='none';
+  document.getElementById('castleScreen').style.display='none';
+  document.getElementById('hud').style.display='block';
+  playerMaxHP=Math.round(100*armorMult());
+  playerHP=playerMaxHP;
+  score=0;
+  gameState='playing';
+  if(!sceneReady){
+    sceneReady=true;
+    initScene();
+  } else {
+    startStageEntities();
+  }
+}
+function continueAfterLevel(){
+  document.getElementById('levelCompleteScreen').style.display='none';
+  if(currentStage<TOTAL_STAGES) currentStage++;
+  openShop();
+}
+function retryStage(){
+  document.getElementById('lostScreen').style.display='none';
+  beginStage();
+}
+function backToLevelSelectFromLost(){
+  document.getElementById('lostScreen').style.display='none';
+  document.getElementById('hud').style.display='none';
+  openKingdom(sectionOf(currentStage));
+}
+function handleStageVictory(){
+  gameState='levelcomplete';
+  const reward=computeStageReward(currentStage);
+  sip+=reward;
+  const wasFrontier=currentStage===unlockedStage;
+  if(wasFrontier && unlockedStage<TOTAL_STAGES) unlockedStage++;
+  saveRW();
+  const theme=sectionThemeFor(currentStage);
+  document.getElementById('lcSubtitle').textContent = isBossStage(currentStage)
+    ? ('Boss defeated — '+theme.bossName+' falls!')
+    : ('Level '+currentStage+' of 100 cleared!');
+  document.getElementById('lcScore').textContent=score;
+  document.getElementById('lcReward').textContent=reward;
+  if(currentStage>=TOTAL_STAGES){
+    document.getElementById('finalScore').textContent=score;
+    document.getElementById('wonScreen').style.display='flex';
+  } else {
+    document.getElementById('levelCompleteScreen').style.display='flex';
+  }
+}
+function handleStageDefeat(){
+  gameState='lost';
+  document.getElementById('lostScreen').style.display='flex';
+  document.getElementById('lostScoreText').textContent=score;
+}
+
+// ── SCENE / ARENA ─────────────────────────────────────────────────────────────
+function initScene(){
+  clock=new THREE.Clock();
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x1a1410);
+  scene.fog=new THREE.Fog(0x1a1410,60,160);
+
+  camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,300);
+  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.shadowMap.enabled=true;
+  document.body.appendChild(renderer.domElement);
+
+  const sun=new THREE.DirectionalLight(0xffe8cc,1.5);
+  sun.position.set(40,70,30); sun.castShadow=true; scene.add(sun);
+  scene.add(new THREE.AmbientLight(0x9099aa,0.9));
+
+  buildArena();
+  buildPlayer();
+  startStageEntities();
+  setupControls();
+  animate();
+}
+
+function buildArena(){
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(100,100), mat(0x2a2420));
+  ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+
+  const gridLines=new THREE.Mesh(new THREE.PlaneGeometry(100,100), new THREE.MeshBasicMaterial({color:0x554433,wireframe:true,transparent:true,opacity:0.12}));
+  gridLines.rotation.x=-Math.PI/2; gridLines.position.y=0.02; scene.add(gridLines);
+
+  const junkPos=[[-24,0,-14],[24,0,-14],[-30,0,4],[30,0,4],[-18,0,18],[18,0,18],[-12,0,-28],[12,0,-28],[-38,0,-4],[38,0,-4]];
+  junkPos.forEach(function(p){
+    const w=2+Math.random()*2, h=1.5+Math.random()*2, d=2+Math.random()*2;
+    const crate=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(0x554433));
+    crate.position.set(p[0],h/2,p[2]); crate.rotation.y=Math.random()*Math.PI; crate.castShadow=true; scene.add(crate);
+  });
+
+  for(let i=-42;i<=42;i+=12){
+    const postA=new THREE.Mesh(new THREE.BoxGeometry(0.5,2.4,0.5), mat(0x333333));
+    postA.position.set(i,1.2,-49); scene.add(postA);
+    const lightA=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.3,0.3), glow(0xff6600));
+    lightA.position.set(i,2.4,-49); scene.add(lightA);
+    const postB=new THREE.Mesh(new THREE.BoxGeometry(0.5,2.4,0.5), mat(0x333333));
+    postB.position.set(i,1.2,49); scene.add(postB);
+    const lightB=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.3,0.3), glow(0x4488ff));
+    lightB.position.set(i,2.4,49); scene.add(lightB);
+    const postC=new THREE.Mesh(new THREE.BoxGeometry(0.5,2.4,0.5), mat(0x333333));
+    postC.position.set(-49,1.2,i); scene.add(postC);
+    const postD=new THREE.Mesh(new THREE.BoxGeometry(0.5,2.4,0.5), mat(0x333333));
+    postD.position.set(49,1.2,i); scene.add(postD);
+  }
+}
+
+// ── PLAYER — reuses the exact same customization localStorage keys throne.html reads, so the
+// commander looks like the player's real Explox character (skin/shirt/pants/shoes/hair/hat).
+function buildPlayer(){
+  playerGroup=new THREE.Group();
+  function hexC(key,fb){ return parseInt((localStorage.getItem(key)||fb).replace('#',''),16); }
+  const skinC=hexC('explox_skin','#f5c89a');
+  const shirtC=hexC('explox_shirt','#2196F3');
+  const pantsC=hexC('explox_pants','#333333');
+  const shoesC=hexC('explox_shoes','#4e3b2a');
+  const hairC=hexC('explox_hairColor','#3a1f0a');
+  const hair=localStorage.getItem('explox_hair')||'none';
+
+  function mk(w,h,d,c,x,y,z){
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(c));
+    m.position.set(x,y,z); m.castShadow=true; playerGroup.add(m);
+  }
+  mk(1,1,1, skinC, 0,2.8,0);
+  mk(0.9,1.1,0.5, shirtC, 0,1.75,0);
+  mk(0.35,0.9,0.35, shirtC,-0.65,1.75,0);
+  mk(0.35,0.9,0.35, shirtC, 0.65,1.75,0);
+  mk(0.38,0.9,0.38, pantsC,-0.22,0.75,0);
+  mk(0.38,0.9,0.38, pantsC, 0.22,0.75,0);
+  mk(0.42,0.22,0.42, shoesC,-0.22,0.2,0);
+  mk(0.42,0.22,0.42, shoesC, 0.22,0.2,0);
+
+  if(hair==='short'){ mk(1.02,0.26,1.02, hairC, 0,3.32,0); }
+  else if(hair==='long'){ mk(1.02,0.26,1.02, hairC, 0,3.32,0); mk(0.3,1.1,0.3, hairC,-0.52,2.5,0); mk(0.3,1.1,0.3, hairC, 0.52,2.5,0); }
+  else if(hair==='spiky'){ mk(1.02,0.22,0.95, hairC, 0,3.32,0); [-0.3,0,0.3].forEach(function(cx){ mk(0.2,0.5,0.2,hairC,cx,3.56,0); }); }
+  else if(hair==='afro'){ mk(1.35,0.95,1.35, hairC, 0,3.52,0); }
+  else if(hair==='ponytail'){ mk(1.02,0.26,1.02, hairC, 0,3.32,0); mk(0.28,1.2,0.28, hairC, 0,2.8,-0.44); }
+  else if(hair==='curly'){ [-0.3,0,0.3].forEach(function(cx){ mk(0.5,0.52,0.5,hairC,cx,3.42,0); }); }
+
+  addPlayerHat();
+
+  const bg=new THREE.Group();
+  const handle=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.4), mat(0x444444));
+  handle.position.z=0.2; bg.add(handle);
+  const blade=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.08,1.7), glow(0xff8800));
+  blade.position.z=-0.65; bg.add(blade);
+  const bl=new THREE.PointLight(0xff8800,1.5,5); bl.position.z=-0.65; bg.add(bl);
+  bg.position.set(0.7,1.5,-0.3);
+  playerGroup.add(bg);
+  playerBlade=bg;
+
+  playerGroup.position.set(0,0,40);
+  scene.add(playerGroup);
+}
+function addPlayerHat(){
+  const hat=localStorage.getItem('explox_hat')||'none';
+  const shirtHex=localStorage.getItem('explox_shirt')||'#2196F3';
+  const shirt=parseInt(shirtHex.replace('#',''),16);
+  function mk(w,h,d,c,x,y,z){
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(c));
+    m.position.set(x,y,z); m.castShadow=true; playerGroup.add(m);
+  }
+  function glowMk(w,h,d,c,x,y,z){
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), glow(c));
+    m.position.set(x,y,z); playerGroup.add(m);
+  }
+  if(hat==='none'){
+    mk(1.1,0.85,1.1, 0x334477, 0,3.5,0);
+    glowMk(0.7,0.25,0.12, 0x44aaff, 0,3.25,0.57);
+  }
+  else if(hat==='cap'){ mk(1.2,0.15,1.2,0xee4444,0,3.35,0); mk(0.9,0.5,0.8,0xee4444,0,3.63,-0.05); mk(0.5,0.12,0.4,0xee4444,0,3.28,0.7); }
+  else if(hat==='cowboy'){ mk(1.7,0.12,1.7,0x8B4513,0,3.32,0); mk(0.9,0.7,0.9,0x8B4513,0,3.72,0); }
+  else if(hat==='crown'){ mk(1.1,0.28,1.1,0xFFD700,0,3.35,0); [-0.35,0,0.35].forEach(function(cx,i){ mk(0.22,0.4+i%2*0.15,0.22,0xFFD700,cx,3.7,0); }); }
+  else if(hat==='helmet'){ mk(1.15,0.85,1.15,0x555555,0,3.48,0); glowMk(0.7,0.3,0.15,0x88ccff,0,3.22,0.56); }
+  else if(hat==='tophat'){ mk(1.35,0.1,1.35,0x111111,0,3.32,0); mk(0.9,0.9,0.9,0x111111,0,3.8,0); mk(0.92,0.08,0.92,0x333333,0,3.38,0); }
+  else if(hat==='beanie'){ mk(1.05,0.7,1.05,shirt,0,3.5,0); mk(0.35,0.35,0.35,0xffffff,0,3.92,0); }
+  else if(hat==='fedora'){ mk(1.5,0.1,1.5,0x7a5c3a,0,3.32,0); mk(0.9,0.65,0.9,0x7a5c3a,0,3.65,0); mk(0.91,0.08,0.91,0x333333,0,3.37,0); }
+  else if(hat==='wizard'){ const c=new THREE.Mesh(new THREE.ConeGeometry(0.6,1.8,8), mat(0x4444aa)); c.position.set(0,3.9,0); playerGroup.add(c); mk(1.3,0.12,1.3,0x4444aa,0,3.32,0); }
+  else if(hat==='pirate'){ mk(1.4,0.1,1.4,0x111111,0,3.32,0); mk(0.9,0.6,0.5,0x111111,0,3.66,0); mk(0.3,0.3,0.15,0xffffff,0,3.7,0.3); }
+  else if(hat==='santa'){ mk(1.1,0.2,1.1,0xffffff,0,3.32,0); const c=new THREE.Mesh(new THREE.ConeGeometry(0.5,1.0,8), mat(0xdd2222)); c.position.set(0.1,3.88,0); playerGroup.add(c); mk(0.25,0.25,0.25,0xffffff,0.45,4.32,0); }
+}
+
+// ── ROBOTS — one builder for both enemy factions (reskinned per section) and the player's own
+// Guardian Bots (ALLY_THEME, unchanged all game). robotClass is 'grunt' (melee), 'blaster'
+// (ranged) or 'boss' (bigger, extra shoulder cannons, its own slam attack — see tickRobot()).
+function makeRobot(team, pos, cfg){
+  const theme=cfg.theme;
+  const robotClass=cfg.robotClass;
+  const isBoss=robotClass==='boss';
+  const s=cfg.scale||1.0;
+  const bodyCol=theme.body, darkCol=theme.dark, glowCol=theme.glow;
+  const g=new THREE.Group();
+  function box(w,h,d,c,x,y,z){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(c)); m.position.set(x,y,z); m.castShadow=true; g.add(m); return m; }
+  function beam(w,h,d,c,x,y,z){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),glow(c)); m.position.set(x,y,z); g.add(m); return m; }
+
+  box(0.34*s,0.9*s,0.34*s, darkCol, -0.26*s,0.45*s,0);
+  box(0.34*s,0.9*s,0.34*s, darkCol,  0.26*s,0.45*s,0);
+  box(0.42*s,0.18*s,0.55*s, darkCol, -0.26*s,0.09*s,0.05*s);
+  box(0.42*s,0.18*s,0.55*s, darkCol,  0.26*s,0.09*s,0.05*s);
+  box(1.0*s,1.05*s,0.62*s, bodyCol, 0,1.45*s,0);
+  beam(0.3*s,0.3*s,0.08, glowCol, 0,1.5*s,0.33*s);
+  box(0.4*s,0.4*s,0.4*s, darkCol, -0.62*s,1.85*s,0);
+  box(0.4*s,0.4*s,0.4*s, darkCol,  0.62*s,1.85*s,0);
+  box(0.28*s,0.75*s,0.28*s, bodyCol, -0.62*s,1.15*s,0);
+  box(0.28*s,0.75*s,0.28*s, bodyCol,  0.62*s,1.15*s,0);
+  box(0.55*s,0.5*s,0.5*s, darkCol, 0,2.35*s,0);
+  beam(0.4*s,0.12*s,0.08, glowCol, 0,2.35*s,0.28*s);
+  box(0.06*s,0.35*s,0.06*s, darkCol, 0,2.85*s,0);
+  beam(0.1*s,0.1*s,0.1*s, glowCol, 0,3.05*s,0);
+
+  if(robotClass==='blaster'){
+    box(0.14*s,0.14*s,0.9*s, 0x333333, 0.62*s,1.15*s,-0.55*s);
+  } else {
+    beam(0.08*s,0.08*s,1.1*s, glowCol, 0.62*s,1.15*s,-0.6*s);
+  }
+
+  if(isBoss){
+    box(0.5*s,0.5*s,0.9*s, darkCol, -0.9*s,1.9*s,-0.3*s);
+    box(0.5*s,0.5*s,0.9*s, darkCol,  0.9*s,1.9*s,-0.3*s);
+    beam(0.7*s,0.15*s,0.15*s, glowCol, 0,2.95*s,0.1*s);
+  }
+
+  const hbCv=document.createElement('canvas'); hbCv.width=isBoss?200:64; hbCv.height=isBoss?24:10;
+  const hbCtx=hbCv.getContext('2d');
+  const hbTex=new THREE.CanvasTexture(hbCv);
+  const hbM=new THREE.Mesh(new THREE.PlaneGeometry(isBoss?3.4:1.5, isBoss?0.5:0.22), new THREE.MeshBasicMaterial({map:hbTex,transparent:true,side:THREE.DoubleSide}));
+  hbM.position.y=3.3*s;
+  g.add(hbM);
+
+  g.position.set(pos[0],pos[1],pos[2]);
+  scene.add(g);
+
+  return {
+    group:g, team, robotClass, theme, scale:s,
+    hp:cfg.hp, maxHp:cfg.hp, dmg:cfg.dmg, speed:cfg.speed,
+    range:cfg.range, atkRate:cfg.atkRate, atkTimer:0.4+Math.random(),
+    hbM, hbCv, hbCtx, hbTex, hitFlash:0, shootTimer:0.6+Math.random()*1.2,
+    slamTimer:2+Math.random()
+  };
+}
+
+function clearStageEntities(){
+  [].concat(enemies,allies,projectiles,particles).forEach(function(o){
+    if(o.group) scene.remove(o.group);
+    if(o.mesh) scene.remove(o.mesh);
+  });
+  enemies=[]; allies=[]; projectiles=[]; particles=[]; boss=null;
+}
+
+function spawnStageEnemies(stage){
+  const section=sectionOf(stage);
+  const theme=SECTION_THEMES[section];
+  if(isBossStage(stage)){
+    const b=bossStatsFor(stage);
+    const robot=makeRobot('red',[0,0,-32],{
+      theme:theme, robotClass:'boss', scale:2.6,
+      hp:b.hp, dmg:b.dmg, speed:b.speed, atkRate:1.6, range:3.2
+    });
+    robot.maxHp=robot.hp; robot.name=theme.bossName;
+    enemies.push(robot);
+    boss=robot;
+    document.getElementById('bossHealthBar').style.display='block';
+    document.getElementById('bossLabel').textContent='👑 '+theme.bossName;
+  } else {
+    document.getElementById('bossHealthBar').style.display='none';
+    const count=enemyCountFor(stage);
+    const hpM=hpMultFor(stage), dmgM=dmgMultFor(stage), spdM=speedMultFor(stage);
+    for(let i=0;i<count;i++){
+      const isBlaster=Math.random()<0.32;
+      const x=(Math.random()-0.5)*70;
+      const z=-35+(Math.random()-0.5)*16;
+      const baseHp=isBlaster?42:62, baseDmg=isBlaster?9:14, baseSpeed=isBlaster?3.0:3.8;
+      const robot=makeRobot('red',[x,0,z],{
+        theme:theme, robotClass:isBlaster?'blaster':'grunt', scale:1.0,
+        hp:Math.round(baseHp*hpM), dmg:Math.round(baseDmg*dmgM), speed:baseSpeed*spdM,
+        atkRate:isBlaster?2.0:0.95, range:isBlaster?20:2.4
+      });
+      robot.maxHp=robot.hp;
+      enemies.push(robot);
+    }
+  }
+}
+function spawnAllies(){
+  const n=Math.min(armyCap,50);
+  const hpM=armyHpMult(), dmgM=armyDmgMult();
+  for(let i=0;i<n;i++){
+    const x=(Math.random()-0.5)*50;
+    const z=35+(Math.random()-0.5)*16;
+    const isBlaster=Math.random()<0.3;
+    const baseHp=isBlaster?55:85, baseDmg=isBlaster?11:17;
+    const robot=makeRobot('blue',[x,0,z],{
+      theme:ALLY_THEME, robotClass:isBlaster?'blaster':'grunt', scale:1.0,
+      hp:Math.round(baseHp*hpM), dmg:Math.round(baseDmg*dmgM), speed:isBlaster?3.2:4.0,
+      atkRate:isBlaster?1.9:0.9, range:isBlaster?18:2.4
+    });
+    robot.maxHp=robot.hp;
+    allies.push(robot);
+  }
+}
+function startStageEntities(){
+  clearStageEntities();
+  if(playerGroup) playerGroup.position.set(0,0,40);
+  yaw=0; pitch=0.15;
+  mountedVehicle=null;
+  updateVehicleVisual();
+  spawnStageEnemies(currentStage);
+  spawnAllies();
+  const theme=sectionThemeFor(currentStage);
+  showAnn(theme.name.toUpperCase()+' — LEVEL '+currentStage+(isBossStage(currentStage)?' — BOSS!':''));
+  updateHUD();
+}
+
+// ── COMBAT ────────────────────────────────────────────────────────────────────
+function spawnProj(pos,vel,dmg,team,color,size,splash){
+  size=size||0.22;
+  const pm=new THREE.Mesh(new THREE.SphereGeometry(size,8,8),glow(color));
+  pm.position.copy(pos); scene.add(pm);
+  const pl=new THREE.PointLight(color,2,6); pm.add(pl);
+  projectiles.push({mesh:pm,vel:vel,dmg:dmg,team:team,life:3.5,splash:splash||0});
+}
+function boom(pos,color){
+  for(let i=0;i<7;i++){
+    const p=new THREE.Mesh(new THREE.BoxGeometry(0.15,0.15,0.15),glow(color));
+    p.position.copy(pos).add(new THREE.Vector3((Math.random()-0.5)*0.5,1,(Math.random()-0.5)*0.5));
+    scene.add(p);
+    particles.push({mesh:p,vel:new THREE.Vector3((Math.random()-0.5)*5,2+Math.random()*4,(Math.random()-0.5)*5),life:0.45});
+  }
+}
+function attack(){
+  if(mountedVehicle){
+    if(mountedVehicle.attackType==='ram') ramAttack();
+    else if(mountedVehicle.attackType==='cannon') cannonAttack();
+    else if(mountedVehicle.attackType==='smash') smashAttack();
+    return;
+  }
+  if(bladeCD>0) return;
+  bladeCD=0.4; bladeSwing=0.4;
+  const dmg=Math.round(38*weaponMult());
+  enemies.forEach(function(e){
+    if(e.hp<=0) return;
+    const dx=e.group.position.x-playerGroup.position.x;
+    const dz=e.group.position.z-playerGroup.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<4.5){
+      const diff=normAngle(Math.atan2(dx,dz)-yaw);
+      if(Math.abs(diff)<1.0){ e.hp-=dmg; e.hitFlash=0.12; boom(e.group.position,0xff8800); score+=2; }
+    }
+  });
+}
+// ── VEHICLE ATTACKS — each mounted vehicle fully replaces the player's blade swing with its own
+// distinct attack while ridden (not a reskin of the same swing): the bike ram has longer reach and
+// a faster cooldown than the base blade, the tank cannon is a real projectile (reuses spawnProj()/
+// the existing projectile-collision code, same as any ranged robot), and the mech smash hits
+// harder and slower than everything else. All three still scale with weaponMult().
+function ramAttack(){
+  if(bladeCD>0) return;
+  const v=mountedVehicle;
+  bladeCD=v.ramCD; bladeSwing=v.ramCD;
+  const dmg=Math.round(v.ramDmg*weaponMult());
+  enemies.forEach(function(e){
+    if(e.hp<=0) return;
+    const dx=e.group.position.x-playerGroup.position.x;
+    const dz=e.group.position.z-playerGroup.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<v.ramRange){
+      const diff=normAngle(Math.atan2(dx,dz)-yaw);
+      if(Math.abs(diff)<1.1){ e.hp-=dmg; e.hitFlash=0.12; boom(e.group.position,0xffaa00); score+=2; }
+    }
+  });
+}
+function cannonAttack(){
+  if(bladeCD>0) return;
+  const v=mountedVehicle;
+  bladeCD=v.cannonCD; bladeSwing=0.3;
+  const dmg=Math.round(v.cannonDmg*weaponMult());
+  const vel=new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw)).multiplyScalar(34);
+  spawnProj(playerGroup.position.clone().add(new THREE.Vector3(0,1.6,0)), vel, dmg, 'player', 0xffee44, 0.35, v.cannonSplash);
+}
+function smashAttack(){
+  if(bladeCD>0) return;
+  const v=mountedVehicle;
+  bladeCD=v.smashCD; bladeSwing=v.smashCD;
+  const dmg=Math.round(v.smashDmg*weaponMult());
+  enemies.forEach(function(e){
+    if(e.hp<=0) return;
+    const dx=e.group.position.x-playerGroup.position.x;
+    const dz=e.group.position.z-playerGroup.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<v.smashRange){
+      const diff=normAngle(Math.atan2(dx,dz)-yaw);
+      if(Math.abs(diff)<1.0){ e.hp-=dmg; e.hitFlash=0.12; boom(e.group.position,0x44ccff); score+=2; }
+    }
+  });
+}
+
+// ── MOUNT / DISMOUNT — a real toggle (V key or the vehiclePill HUD button, clickable on both
+// desktop and touch since it isn't gated behind @media pointer:coarse), usable any time gameState
+// is 'playing'. Mounting swaps in the vehicle's own speed/attack/damage-reduction for as long as
+// you're riding; dismounting instantly restores the normal on-foot player.
+function toggleMount(){
+  if(gameState!=='playing') return;
+  if(mountedVehicle) dismountVehicle();
+  else mountVehicleNow();
+}
+function mountVehicleNow(){
+  if(!equippedVehicle){ showAnn('🚫 No vehicle equipped — visit the Garage!'); return; }
+  const v=VEHICLES.find(function(x){ return x.id===equippedVehicle; });
+  if(!v) return;
+  mountedVehicle=v;
+  updateVehicleVisual();
+  updateVehicleBtn();
+  showAnn(v.icon+' Mounted the '+v.name+'!');
+}
+function dismountVehicle(){
+  const wasVehicle=mountedVehicle;
+  mountedVehicle=null;
+  updateVehicleVisual();
+  updateVehicleBtn();
+  if(wasVehicle) showAnn('Dismounted the '+wasVehicle.name+'.');
+}
+function updateVehicleBtn(){
+  const pill=document.getElementById('vehiclePill');
+  if(!pill) return;
+  if(ownedVehicles.length===0){ pill.style.display='none'; return; }
+  pill.style.display='inline-block';
+  if(mountedVehicle){
+    pill.textContent=mountedVehicle.icon+' Dismount ('+mountedVehicle.name+') — V';
+  } else if(equippedVehicle){
+    const v=VEHICLES.find(function(x){ return x.id===equippedVehicle; });
+    pill.textContent=(v?v.icon:'🚗')+' Mount '+(v?v.name:'Vehicle')+' — V';
+  } else {
+    pill.textContent='🚗 No vehicle equipped';
+  }
+}
+// Attaches/removes a real ridden vehicle mesh as a child of playerGroup (so it moves/turns with
+// the player automatically, no per-frame position syncing needed) and hides the on-foot energy
+// blade prop while mounted, since a rider brandishing both looks wrong.
+function updateVehicleVisual(){
+  if(vehicleMesh && playerGroup){ playerGroup.remove(vehicleMesh); vehicleMesh=null; }
+  if(playerBlade) playerBlade.visible=!mountedVehicle;
+  if(mountedVehicle && playerGroup){
+    vehicleMesh=buildVehicleMesh(mountedVehicle.id);
+    playerGroup.add(vehicleMesh);
+  }
+}
+function buildVehicleMesh(id){
+  const g=new THREE.Group();
+  function box(w,h,d,c,x,y,z){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(c)); m.position.set(x,y,z); m.castShadow=true; g.add(m); return m; }
+  if(id==='bike'){
+    const accent=0xff8800;
+    box(0.3,0.3,1.6, 0x333333, 0,0.55,0.1);
+    box(0.5,0.15,0.6, 0x222222, 0,0.85,0.5);
+    const wheelF=new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.35,0.22,12), mat(0x1a1a1a));
+    wheelF.rotation.z=Math.PI/2; wheelF.position.set(0,0.35,-0.7); wheelF.castShadow=true; g.add(wheelF);
+    const wheelB=wheelF.clone(); wheelB.position.set(0,0.35,0.9); g.add(wheelB);
+    box(0.2,0.2,0.15, accent, 0,0.6,-0.85);
+  } else if(id==='tank'){
+    const accent=0xffcc00;
+    box(1.6,0.5,2.2, 0x333322, 0,0.4,0.1);
+    box(1.7,0.15,2.3, 0x1a1a1a, 0,0.15,0.1);
+    box(0.3,0.3,0.3, accent, -0.7,0.15,-0.9);
+    box(0.3,0.3,0.3, accent,  0.7,0.15,-0.9);
+    box(0.3,0.3,0.3, accent, -0.7,0.15, 0.9);
+    box(0.3,0.3,0.3, accent,  0.7,0.15, 0.9);
+    box(0.3,0.3,1.4, 0x333333, 0,0.75,-0.9);
+  } else if(id==='mech'){
+    const accent=0x44ccff;
+    box(0.5,1.3,0.5, 0x888c92, -0.5,0.65,0);
+    box(0.5,1.3,0.5, 0x888c92,  0.5,0.65,0);
+    box(1.4,0.4,1.0, 0x6a7078, 0,1.35,0);
+    box(1.6,0.3,0.2, accent, 0,1.5,0.55);
+  }
+  return g;
+}
+function robotFire(s,target){
+  const dx=target.group.position.x-s.group.position.x;
+  const dz=target.group.position.z-s.group.position.z;
+  const d=Math.sqrt(dx*dx+dz*dz)||1;
+  const col=s.team==='blue'?0x44aaff:s.theme.glow;
+  spawnProj(
+    s.group.position.clone().add(new THREE.Vector3(0,1.6*s.scale,0)),
+    new THREE.Vector3(dx/d,0,dz/d).multiplyScalar(15),
+    s.dmg, s.team, col, 0.22
+  );
+}
+// Boss "own attack pattern" — periodic AOE slam on top of its normal melee, distinct from every
+// regular grunt/blaster. Applies real damage directly to allies[] and the real playerHP (not the
+// throwaway per-frame foe copy tickRobot uses for targeting), so it always actually lands.
+function bossSlam(s){
+  const R=9;
+  boom(s.group.position,0xff2222);
+  for(let i=0;i<16;i++){
+    const ang=(i/16)*Math.PI*2;
+    const p=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.3,0.3), glow(0xff4400));
+    p.position.copy(s.group.position).add(new THREE.Vector3(Math.cos(ang)*2,1,Math.sin(ang)*2));
+    scene.add(p);
+    particles.push({mesh:p,vel:new THREE.Vector3(Math.cos(ang)*9,3,Math.sin(ang)*9),life:0.5});
+  }
+  allies.forEach(function(a){
+    if(a.hp<=0) return;
+    if(a.group.position.distanceTo(s.group.position)<R){ a.hp-=Math.round(s.dmg*1.4); a.hitFlash=0.15; }
+  });
+  if(playerGroup && playerGroup.position.distanceTo(s.group.position)<R){
+    playerHP-=Math.round(s.dmg*1.4*incomingPlayerDmgMult());
+    flashHit();
+  }
+}
+
+const ENEMY_AGGRO_PLAYER_R=22;
+function tickRobot(s,dt,foes,t){
+  if(s.hp<=0) return;
+
+  if(s.hitFlash>0){
+    s.hitFlash-=dt;
+    const c=s.hitFlash>0?0xffffff:s.theme.body;
+    s.group.children.forEach(function(ch){ if(ch.material && ch.material.isMeshLambertMaterial) ch.material.color.setHex(c); });
+  }
+
+  let nearFoe=null, nearDist=9999;
+  let searchIn=foes;
+  if(s.team==='red'){
+    const playerFoe=foes.find(function(f){ return f.isPlayer; });
+    if(playerFoe && playerFoe.hp>0){
+      const pdx=playerFoe.group.position.x-s.group.position.x, pdz=playerFoe.group.position.z-s.group.position.z;
+      if(Math.sqrt(pdx*pdx+pdz*pdz)<ENEMY_AGGRO_PLAYER_R) searchIn=[playerFoe];
+    }
+  }
+  searchIn.forEach(function(f){
+    if(f.hp<=0) return;
+    const dx=f.group.position.x-s.group.position.x, dz=f.group.position.z-s.group.position.z, d=Math.sqrt(dx*dx+dz*dz);
+    if(d<nearDist){ nearDist=d; nearFoe=f; }
+  });
+  if(!nearFoe) return;
+
+  const dx=nearFoe.group.position.x-s.group.position.x;
+  const dz=nearFoe.group.position.z-s.group.position.z;
+  s.group.rotation.y=Math.atan2(dx,dz);
+
+  if(s.robotClass==='blaster'){
+    if(nearDist<s.range && nearDist>7){
+      s.shootTimer-=dt;
+      if(s.shootTimer<=0){ s.shootTimer=s.atkRate+Math.random()*0.4; robotFire(s,nearFoe); }
+    }
+    if(nearDist>9){ s.group.position.x+=dx/nearDist*s.speed*dt; s.group.position.z+=dz/nearDist*s.speed*dt; }
+    else if(nearDist<5){ s.group.position.x-=dx/nearDist*s.speed*dt; s.group.position.z-=dz/nearDist*s.speed*dt; }
+  } else {
+    if(nearDist>1.9){ s.group.position.x+=dx/nearDist*s.speed*dt; s.group.position.z+=dz/nearDist*s.speed*dt; }
+    else {
+      s.atkTimer-=dt;
+      if(s.atkTimer<=0){ s.atkTimer=s.atkRate; nearFoe.hp-=s.dmg; nearFoe.hitFlash=0.12; boom(nearFoe.group.position, s.team==='blue'?0x4488ff:0xff4422); }
+    }
+  }
+
+  if(s.robotClass==='boss'){
+    s.slamTimer-=dt;
+    if(s.slamTimer<=0 && nearDist<16){
+      s.slamTimer=4.2+Math.random();
+      bossSlam(s);
+    }
+  }
+
+  s.group.position.x=Math.max(-ARENA_HALF,Math.min(ARENA_HALF,s.group.position.x));
+  s.group.position.z=Math.max(-ARENA_HALF,Math.min(ARENA_HALF,s.group.position.z));
+
+  const cv=s.hbCv, ctx=s.hbCtx;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='#222'; ctx.fillRect(0,0,cv.width,cv.height);
+  const pct=Math.max(0,s.hp/s.maxHp);
+  ctx.fillStyle=pct>0.5?'#44ff44':pct>0.25?'#ffaa00':'#ff2200';
+  ctx.fillRect(0,0,cv.width*pct,cv.height);
+  if(s.robotClass==='boss'){
+    ctx.fillStyle='#fff'; ctx.font='bold 14px Arial'; ctx.textAlign='center';
+    ctx.fillText(s.name||'BOSS', cv.width/2, cv.height-6);
+  }
+  s.hbTex.needsUpdate=true;
+  s.hbM.lookAt(camera.position);
+}
+
+// ── CONTROLS ─────────────────────────────────────────────────────────────────
+function setupControls(){
+  document.addEventListener('keydown', function(e){
+    if(e.code==='KeyW') moveState.w=true;
+    if(e.code==='KeyS') moveState.s=true;
+    if(e.code==='KeyA') moveState.a=true;
+    if(e.code==='KeyD') moveState.d=true;
+    if(e.code==='KeyF') attack();
+    if(e.code==='KeyV') toggleMount();
+  });
+  document.addEventListener('keyup', function(e){
+    if(e.code==='KeyW') moveState.w=false;
+    if(e.code==='KeyS') moveState.s=false;
+    if(e.code==='KeyA') moveState.a=false;
+    if(e.code==='KeyD') moveState.d=false;
+  });
+  document.addEventListener('mousemove', function(e){
+    if(!isLocked) return;
+    yaw-=e.movementX*0.0022; pitch-=e.movementY*0.002; pitch=Math.max(-0.5,Math.min(0.8,pitch));
+  });
+  document.addEventListener('mousedown', function(e){
+    if(!isLocked){ renderer.domElement.requestPointerLock(); return; }
+    if(e.button===0||e.button===2) attack();
+  });
+  document.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+  document.addEventListener('pointerlockchange', function(){ isLocked=document.pointerLockElement===renderer.domElement; });
+  window.addEventListener('resize', function(){ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+  setupTouchControls();
+}
+
+// ─── TOUCH CONTROLS — same pattern as throne.html: one touch drags the on-screen joystick
+// (sets the same moveState.* flags WASD sets), a second touch drags to look around, and tapping
+// the attack button calls attack() directly.
+function setupTouchControls(){
+  const joyBase=document.getElementById('joyBase');
+  const joyStick=document.getElementById('joyStick');
+  const attackBtn=document.getElementById('mobileAttackBtn');
+  if(!joyBase) return;
+  let joyTouchId=null, joyCenterX=0, joyCenterY=0;
+  let lookTouchId=null, lookLastX=0, lookLastY=0;
+  function updateJoy(cx,cy){
+    const r=45;
+    const dx=cx-joyCenterX, dy=cy-joyCenterY;
+    const dist=Math.min(Math.sqrt(dx*dx+dy*dy), r);
+    const angle=Math.atan2(dy,dx);
+    const sx=Math.cos(angle)*dist, sy=Math.sin(angle)*dist;
+    joyStick.style.transform='translate('+sx+'px,'+sy+'px)';
+    const nx=sx/r, ny=sy/r, th=0.3;
+    moveState.w=ny<-th; moveState.s=ny>th; moveState.a=nx<-th; moveState.d=nx>th;
+  }
+  function resetJoy(){ moveState.w=moveState.a=moveState.s=moveState.d=false; joyStick.style.transform='translate(0px,0px)'; }
+  joyBase.addEventListener('touchstart', function(e){
+    e.preventDefault();
+    const tch=e.changedTouches[0]; joyTouchId=tch.identifier;
+    const r=joyBase.getBoundingClientRect(); joyCenterX=r.left+r.width/2; joyCenterY=r.top+r.height/2;
+    updateJoy(tch.clientX,tch.clientY);
+  }, {passive:false});
+  document.addEventListener('touchmove', function(e){
+    for(const tch of e.changedTouches){
+      if(tch.identifier===joyTouchId) updateJoy(tch.clientX,tch.clientY);
+      if(tch.identifier===lookTouchId){
+        const dx=tch.clientX-lookLastX, dy=tch.clientY-lookLastY;
+        yaw-=dx*0.0044; pitch-=dy*0.004; pitch=Math.max(-0.5,Math.min(0.8,pitch));
+        lookLastX=tch.clientX; lookLastY=tch.clientY;
+      }
+    }
+  }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    for(const tch of e.changedTouches){
+      if(tch.identifier===joyTouchId){ joyTouchId=null; resetJoy(); }
+      if(tch.identifier===lookTouchId) lookTouchId=null;
+    }
+  });
+  renderer.domElement.addEventListener('touchstart', function(e){
+    for(const tch of e.changedTouches){
+      if(tch.identifier===joyTouchId) continue;
+      if(lookTouchId===null){ lookTouchId=tch.identifier; lookLastX=tch.clientX; lookLastY=tch.clientY; }
+    }
+  }, {passive:true});
+  if(attackBtn){
+    attackBtn.addEventListener('touchstart', function(e){ e.preventDefault(); attack(); });
+  }
+}
+
+// ── HUD helpers ───────────────────────────────────────────────────────────────
+function updateHUD(){
+  document.getElementById('armyCount').textContent=allies.filter(function(a){ return a.hp>0; }).length+'/'+armyCap;
+  document.getElementById('enemyCount').textContent=enemies.filter(function(e){ return e.hp>0; }).length;
+  document.getElementById('score').textContent=score;
+  document.getElementById('stageLabel').textContent='Section '+(sectionOf(currentStage)+1)+' · Level '+currentStage+'/100';
+  document.getElementById('healthFill').style.width=Math.max(0,playerHP/playerMaxHP*100)+'%';
+  if(boss && boss.hp>0){
+    document.getElementById('bossHealthBar').style.display='block';
+    document.getElementById('bossFill').style.width=Math.max(0,boss.hp/boss.maxHp*100)+'%';
+  }
+  updateVehicleBtn();
+}
+function flashHit(){ const f=document.getElementById('hitFlash'); f.style.background='rgba(255,0,0,0.4)'; setTimeout(function(){ f.style.background='rgba(255,0,0,0)'; },100); }
+function showAnn(msg){
+  const el=document.getElementById('stageAnn');
+  el.textContent=msg; el.style.opacity=1;
+  setTimeout(function(){ el.style.opacity=0; }, 2200);
+}
+
+// ── GAME LOOP ─────────────────────────────────────────────────────────────────
+function animate(){
+  requestAnimationFrame(animate);
+  if(gameState!=='playing'){ if(renderer) renderer.render(scene,camera); return; }
+  const dt=Math.min(clock.getDelta(),0.05);
+  const t=clock.getElapsedTime();
+
+  bladeCD=Math.max(0,bladeCD-dt);
+  bladeSwing=Math.max(0,bladeSwing-dt);
+  if(playerBlade) playerBlade.rotation.x = bladeSwing>0 ? -Math.sin((0.4-bladeSwing)/0.4*Math.PI)*1.5 : 0;
+
+  const fwd=new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw));
+  const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+  const dir=new THREE.Vector3();
+  if(moveState.w) dir.add(fwd); if(moveState.s) dir.sub(fwd);
+  if(moveState.d) dir.add(right); if(moveState.a) dir.sub(right);
+  const curPlayerSpeed=PLAYER_SPEED*(mountedVehicle?mountedVehicle.speedMult:1);
+  if(dir.length()>0){ dir.normalize(); playerGroup.position.addScaledVector(dir, curPlayerSpeed*dt); }
+  playerGroup.position.x=Math.max(-ARENA_HALF,Math.min(ARENA_HALF,playerGroup.position.x));
+  playerGroup.position.z=Math.max(-ARENA_HALF,Math.min(ARENA_HALF,playerGroup.position.z));
+
+  camera.position.set(
+    playerGroup.position.x-Math.sin(yaw)*7,
+    playerGroup.position.y+3.5+pitch*5,
+    playerGroup.position.z-Math.cos(yaw)*7
+  );
+  camera.lookAt(playerGroup.position.x, playerGroup.position.y+1.8, playerGroup.position.z);
+
+  const playerFoe={ group:{position:playerGroup.position.clone()}, hp:playerHP, maxHp:playerMaxHP, isPlayer:true };
+  const allFoes=allies.concat([playerFoe]);
+
+  for(let i=enemies.length-1;i>=0;i--){
+    const e=enemies[i];
+    if(e.hp<=0){
+      boom(e.group.position,0xff4422); scene.remove(e.group);
+      score+=e.robotClass==='boss'?200:10;
+      gainXP(e.robotClass==='boss'?60:(e.robotClass==='blaster'?8:5));
+      if(boss===e) boss=null;
+      enemies.splice(i,1);
+      continue;
+    }
+    const dpx=playerGroup.position.x-e.group.position.x;
+    const dpz=playerGroup.position.z-e.group.position.z;
+    if(Math.sqrt(dpx*dpx+dpz*dpz)<2.1){
+      e.atkTimer-=dt;
+      if(e.atkTimer<=0){ e.atkTimer=e.atkRate; playerHP-=Math.round(e.dmg*incomingPlayerDmgMult()); flashHit(); }
+    }
+    tickRobot(e,dt,allFoes,t);
+  }
+
+  for(let i=allies.length-1;i>=0;i--){
+    const a=allies[i];
+    if(a.hp<=0){ scene.remove(a.group); allies.splice(i,1); continue; }
+    tickRobot(a,dt,enemies,t);
+  }
+
+  for(let i=projectiles.length-1;i>=0;i--){
+    const p=projectiles[i];
+    p.life-=dt; p.mesh.position.addScaledVector(p.vel,dt);
+    if(p.life<=0){ scene.remove(p.mesh); projectiles.splice(i,1); continue; }
+    let hit=false;
+    if(p.team==='player'||p.team==='blue'){
+      for(let j=enemies.length-1;j>=0;j--){
+        if(p.mesh.position.distanceTo(enemies[j].group.position.clone().add(new THREE.Vector3(0,1.5,0)))<1.3){
+          if(p.splash>0){
+            // Tank shell — real splash damage: every living enemy within the blast radius takes
+            // the full hit, not just whatever the shell directly touched (the real signature of
+            // tank damage vs. a rifle shot). Same radius-check shape as bossSlam()'s AOE.
+            const impactPos=p.mesh.position.clone();
+            enemies.forEach(function(en){
+              if(en.hp<=0) return;
+              if(en.group.position.distanceTo(impactPos)<p.splash){ en.hp-=p.dmg; en.hitFlash=0.12; }
+            });
+            boom(impactPos,0xff8800); boom(impactPos,0xffcc00);
+          } else {
+            enemies[j].hp-=p.dmg; enemies[j].hitFlash=0.12;
+            boom(p.mesh.position,0x44aaff);
+          }
+          if(p.team==='player') score+=3;
+          scene.remove(p.mesh); projectiles.splice(i,1); hit=true; break;
+        }
+      }
+    } else {
+      if(p.mesh.position.distanceTo(playerGroup.position.clone().add(new THREE.Vector3(0,1.5,0)))<1.2){
+        playerHP-=Math.round(p.dmg*incomingPlayerDmgMult()); flashHit(); boom(p.mesh.position,0xff4422);
+        scene.remove(p.mesh); projectiles.splice(i,1); hit=true;
+      }
+      if(!hit){
+        for(let j=allies.length-1;j>=0;j--){
+          if(p.mesh.position.distanceTo(allies[j].group.position.clone().add(new THREE.Vector3(0,1.5*allies[j].scale,0)))<1.2){
+            allies[j].hp-=p.dmg; allies[j].hitFlash=0.12; boom(p.mesh.position,0xff4422);
+            scene.remove(p.mesh); projectiles.splice(i,1); break;
+          }
+        }
+      }
+    }
+  }
+
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i]; p.life-=dt;
+    p.mesh.position.addScaledVector(p.vel,dt); p.vel.y-=14*dt;
+    p.mesh.material.transparent=true; p.mesh.material.opacity=Math.max(0,p.life*2.2);
+    if(p.life<=0){ scene.remove(p.mesh); particles.splice(i,1); }
+  }
+
+  if(enemies.length===0 && gameState==='playing'){
+    handleStageVictory();
+  }
+  if(playerHP<=0 && gameState==='playing'){
+    handleStageDefeat();
+  }
+
+  updateHUD();
+  renderer.render(scene,camera);
+}
+</script>
+</body>
+</html>

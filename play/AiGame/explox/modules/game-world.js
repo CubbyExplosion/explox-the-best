@@ -122,6 +122,190 @@ function buildWorldEventsBoard() {
   CITY_ZONES.push({ x, z: z + 1.5, r: 3.5, label: '🌍 World Events Board', action: () => openWorldEventsBoard()});
 }
 
+// ─── EVENT OF THE DAY — user's own ask: "make a event of the day," clarified to "a brand new kind
+// of daily bonus" (NOT tied to the World Events list above). A real once-per-REAL-CALENDAR-DAY
+// claim (unlike everything else in this file, which measures time in Explox days off
+// playTimeSeconds — this one is meant to feel like an actual daily login bonus, so it resets at
+// real midnight, same idea as todayDateString() below being real Date-based on purpose). Every
+// player sees the SAME event on the same real day (a deterministic day-of-year pick, not random
+// per-player) so it reads as "today's real thing," the way a real daily event would. Every reward
+// is a plain instant queueEarning() grant — no buffs/timers/new tracking, on purpose, to keep this
+// a small, low-risk feature rather than a whole new economy layer.
+const EVENTS_OF_THE_DAY = [
+  { id:'lucky-day',        name:'Lucky Day',            emoji:'🎉', desc:'Explox is feeling generous today.', sip:300, elite:0 },
+  { id:'gem-rain',         name:'Gem Rain',              emoji:'💎', desc:'Elite Coins are raining from the sky.', sip:0, elite:40 },
+  { id:'mystery-gift',     name:'Mystery Gift',          emoji:'🎁', desc:'Someone left a gift at your door.', sip:200, elite:15 },
+  { id:'stroke-of-luck',   name:'Stroke of Luck',        emoji:'🌟', desc:'A shooting star grants a wish.', sip:500, elite:0 },
+  { id:'four-leaf-clover', name:'Four Leaf Clover',      emoji:'🍀', desc:'You found a lucky clover today.', sip:250, elite:20 },
+  { id:'champions-blessing', name:"Champion's Blessing", emoji:'🏆', desc:'A champion shares their winnings.', sip:0, elite:60 },
+  { id:'party-time',       name:'Party Time',            emoji:'🎈', desc:'The whole city is celebrating.', sip:400, elite:0 },
+  { id:'shooting-star',    name:'Shooting Star Wish',    emoji:'⭐', desc:'Make a wish — it comes true.', sip:350, elite:10 },
+  { id:'rainbow-blessing', name:'Rainbow Blessing',      emoji:'🌈', desc:'A rainbow arcs right over your house.', sip:450, elite:0 },
+  { id:'hot-streak',       name:'Hot Streak',            emoji:'🔥', desc:"You're on a roll today.", sip:150, elite:30 },
+];
+function todayDateString() {
+  return new Date().toISOString().slice(0,10); // real calendar date, e.g. "2026-09-04" — NOT playTimeSeconds-based, on purpose (see section comment above)
+}
+function todaysEvent() {
+  const d = new Date();
+  const start = new Date(d.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((d - start) / 86400000);
+  return EVENTS_OF_THE_DAY[dayOfYear % EVENTS_OF_THE_DAY.length];
+}
+// User's own follow-up: "make a tab in the tab daily events called rewards a daily one eack
+// geting better and better" — a real, SEPARATE consecutive-day login streak, distinct from the
+// event above (that one's the same for everyone and never grows; this one is personal and
+// escalates the longer you keep coming back). Missing a real day resets it to Day 1 — that's the
+// actual "streak" part; a login bonus that can't be broken isn't a streak, it's just a napkin.
+const DAILY_STREAK_BASE_SIP = 100, DAILY_STREAK_SIP_STEP = 50, DAILY_STREAK_ELITE_PER_3_DAYS = 5;
+// "it shows 20 days at the end it gives you a random reward" — real user correction: the ramp now
+// caps at Day 20 (not 30), and from Day 20 on, every claim is a genuine mystery — see
+// rollMysteryReward() below, resolved fresh at claim time, not a fixed number you could look up in
+// advance the way Days 1-19 still are.
+const DAILY_STREAK_MAX_DAY = 20;
+const DAILY_STREAK_MYSTERY_SIP_MIN = 900, DAILY_STREAK_MYSTERY_SIP_MAX = 1600;
+const DAILY_STREAK_MYSTERY_ELITE_MIN = 0, DAILY_STREAK_MYSTERY_ELITE_MAX = 25;
+let lastStreakRewardShown = null; // {sip,elite} — NOT persisted, just so the "already claimed today" line can show the REAL number a mystery roll just gave, instead of re-rolling or hiding it after a reload
+// "one path cost 5 dollars but disabeled and has 2x better", then corrected: "no i meant 5 usd" —
+// a second, PREMIUM claim path shown right alongside the free one: same day-by-day escalation,
+// doubled, with a REAL $5.00 USD price shown. Deliberately kept as display-only and permanently
+// disabled — this game has no real payment processor wired up anywhere, and handling actual money
+// (a real charge, a card, a purchase) is outside what I'm ever allowed to do myself; the button
+// below is inert on purpose, not a placeholder waiting to be finished. If real purchases are ever
+// wanted here, that needs a real payment integration decision made explicitly, not a $5 label.
+const DAILY_STREAK_PREMIUM_USD = '$5.00', DAILY_STREAK_PREMIUM_MULT = 2;
+// Returns a real {sip,elite} for Days 1-19 (the predictable ramp) — or `null` for Day 20+, meaning
+// "this one's a mystery, don't show a number for it, roll it for real at claim time" (see
+// rollMysteryReward() and claimDailyStreak() below). Callers MUST check for null.
+function dailyStreakRewardFor(day) {
+  if (day >= DAILY_STREAK_MAX_DAY) return null;
+  return { sip: DAILY_STREAK_BASE_SIP + (day-1)*DAILY_STREAK_SIP_STEP, elite: Math.floor(day/3)*DAILY_STREAK_ELITE_PER_3_DAYS };
+}
+function rollMysteryReward() {
+  return {
+    sip: DAILY_STREAK_MYSTERY_SIP_MIN + Math.floor(Math.random()*(DAILY_STREAK_MYSTERY_SIP_MAX-DAILY_STREAK_MYSTERY_SIP_MIN+1)),
+    elite: DAILY_STREAK_MYSTERY_ELITE_MIN + Math.floor(Math.random()*(DAILY_STREAK_MYSTERY_ELITE_MAX-DAILY_STREAK_MYSTERY_ELITE_MIN+1)),
+  };
+}
+// User's own ask: "the day is 12 hours make it like that for dai;ly rewards" — Daily Rewards now
+// gates on a real 12-hour cooldown instead of the real calendar date, so it's claimable twice in
+// a 24-hour day instead of once. lastStreakClaimDate keeps its field name (already wired through
+// save/load, game-core.js) but now holds a real timestamp (Date.now()) instead of a date string —
+// Number(oldDateString) is NaN, and NaN || 0 is 0, so an existing account's old-format value
+// naturally reads as "never claimed under the new system" instead of crashing or getting stuck.
+const DAILY_STREAK_COOLDOWN_MS = 12 * 60 * 60 * 1000; // 12 hours
+function lastStreakClaimMs() { return Number(lastStreakClaimDate) || 0; }
+function dailyStreakMsSinceLastClaim() { return Date.now() - lastStreakClaimMs(); }
+function dailyStreakReadyInHours() { return Math.ceil(Math.max(0, DAILY_STREAK_COOLDOWN_MS - dailyStreakMsSinceLastClaim()) / 3600000); }
+// Small shared row of pill buttons so the modal can hold two real sections (the shared Event of
+// the Day above, and this personal Streak) without needing a second modal element — reuses the
+// exact same #neighborModal every other simple popup in this file already reuses.
+function eventOfDayTabsHtml(active) {
+  const tabBtn = (id, label, view) => `<button onclick="openEventOfDay('${view}')" style="flex:1;padding:7px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;font-size:11px;${active===view?'background:#ff66aa;color:#111;':'background:#3a2030;color:#ddd;'}">${label}</button>`;
+  return `<div style="display:flex;gap:6px;margin-bottom:14px;">${tabBtn('event','🎁 Today\'s Event','event')}${tabBtn('rewards','📈 Rewards','rewards')}</div>`;
+}
+function openEventOfDay(view) {
+  view = view === 'rewards' ? 'rewards' : 'event';
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('neighborModal').style.display = 'flex';
+  if (view === 'rewards') { renderDailyRewardsView(); return; }
+  const ev = todaysEvent();
+  const claimedToday = lastEventOfDayClaim === todayDateString();
+  document.getElementById('neighborModalTitle').textContent = `${ev.emoji} ${ev.name}`;
+  let html = eventOfDayTabsHtml('event');
+  html += `<div style="text-align:center;color:#ddd;font-size:13px;margin-bottom:14px;">${ev.desc}</div>
+    <div style="text-align:center;color:#FFD700;font-weight:bold;font-size:15px;margin-bottom:14px;">
+      ${ev.sip ? `💰 ${ev.sip.toLocaleString()} S.I.P.` : ''}${ev.sip && ev.elite ? ' + ' : ''}${ev.elite ? `💎 ${ev.elite.toLocaleString()} Elite` : ''}
+    </div>`;
+  if (claimedToday) {
+    html += `<div style="text-align:center;color:#888;font-size:12px;">✅ Already claimed today — come back tomorrow for a new one!</div>`;
+  } else {
+    html += `<button onclick="claimEventOfDay()" style="width:100%;padding:9px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;color:#111;background:#FFD700;">🎁 Claim Today's Bonus</button>`;
+  }
+  // The tab's own "special map you play in" — user's own ask. A real fight (reuses the Robot
+  // Arena, startTodaysChallenge()/finishArenaBattle(), game-land.js), separate from the passive
+  // claim above: its own once-per-real-day gate, its own random robot count, its own surprise bonus.
+  const battleClaimedToday = lastEventBattleClaim === todayDateString();
+  html += `<div style="text-align:center;color:#ddd;font-size:12px;margin:14px 0 8px;">⚔️ Or fight for a surprise bonus:</div>`;
+  if (battleClaimedToday) {
+    html += `<div style="text-align:center;color:#888;font-size:12px;">✅ Already fought today's challenge — come back tomorrow!</div>`;
+  } else {
+    html += `<button onclick="startTodaysChallenge()" style="width:100%;padding:9px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;color:#fff;background:#aa2244;">⚔️ Play Today's Challenge</button>`;
+  }
+  document.getElementById('neighborModalBody').innerHTML = html;
+}
+// Formats one reward for display — real numbers for Days 1-19, a real "Mystery" label (no number
+// shown, on purpose) for Day 20+, since dailyStreakRewardFor() returns null for those on purpose.
+function fmtStreakReward(r) {
+  if (!r) return '🎁 Mystery Reward!';
+  return `💰 ${r.sip.toLocaleString()} S.I.P.${r.elite ? ` + 💎 ${r.elite.toLocaleString()} Elite` : ''}`;
+}
+function renderDailyRewardsView() {
+  const msSinceLastClaim = dailyStreakMsSinceLastClaim();
+  const claimedToday = msSinceLastClaim < DAILY_STREAK_COOLDOWN_MS;
+  // What day the NEXT claim would land on — Day 1 if never claimed or the 24-hour grace window
+  // was missed, otherwise one past wherever the streak already is.
+  const nextDay = claimedToday ? dailyStreakCount : (msSinceLastClaim < DAILY_STREAK_COOLDOWN_MS*2 ? dailyStreakCount + 1 : 1);
+  document.getElementById('neighborModalTitle').textContent = '📈 Daily Rewards';
+  let html = eventOfDayTabsHtml('rewards');
+  html += `<div style="text-align:center;color:#ddd;font-size:13px;margin-bottom:6px;">Come back every 12 hours — the reward keeps getting better! Day ${DAILY_STREAK_MAX_DAY}+ is a real mystery.</div>`;
+  html += `<div style="text-align:center;color:#ff9944;font-weight:bold;font-size:16px;margin-bottom:10px;">🔥 Streak: Day ${claimedToday ? dailyStreakCount : Math.max(0,nextDay-1)}</div>`;
+  if (claimedToday) {
+    html += `<div style="text-align:center;color:#FFD700;font-weight:bold;font-size:14px;margin-bottom:10px;">Claimed: ${fmtStreakReward(lastStreakRewardShown)}</div>`;
+    html += `<div style="text-align:center;color:#888;font-size:12px;">✅ Already claimed — come back in ${dailyStreakReadyInHours()}h for Day ${dailyStreakCount+1}!</div>`;
+  } else {
+    html += `<div style="text-align:center;color:#FFD700;font-weight:bold;font-size:14px;margin-bottom:10px;">Day ${nextDay} reward: ${fmtStreakReward(dailyStreakRewardFor(nextDay))}</div>`;
+    html += `<button onclick="claimDailyStreak()" style="width:100%;padding:9px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;color:#111;background:#ff66aa;">📈 Claim Day ${nextDay}</button>`;
+  }
+  // "it shows 20 days" — the full ramp, Day 1 through Day 20, not just the next few — scrollable so
+  // the modal itself doesn't have to grow to fit 20 real rows.
+  html += `<div style="margin-top:12px;font-size:11px;color:#888;max-height:180px;overflow-y:auto;">`;
+  for (let i = 1; i <= DAILY_STREAK_MAX_DAY; i++) {
+    const isCurrent = i === nextDay;
+    html += `<div style="display:flex;justify-content:space-between;padding:3px 4px;border-top:1px solid #3a2030;${isCurrent?'background:#3a2030;border-radius:4px;':''}">
+      <span style="${isCurrent?'color:#ff66aa;font-weight:bold;':''}">Day ${i}${i>=DAILY_STREAK_MAX_DAY?'+':''}</span><span style="color:#ccc;">${fmtStreakReward(dailyStreakRewardFor(i))}</span>
+    </div>`;
+  }
+  html += `</div>`;
+  // Premium path — real $5.00 USD label, DOUBLE the free reward, permanently disabled (see the
+  // constant's own comment above for why this stays a preview, never a real charge).
+  const nextR = dailyStreakRewardFor(nextDay);
+  const premiumLabel = nextR ? `💰 ${(nextR.sip*DAILY_STREAK_PREMIUM_MULT).toLocaleString()} S.I.P.${nextR.elite?` + 💎 ${(nextR.elite*DAILY_STREAK_PREMIUM_MULT).toLocaleString()} Elite`:''} (2× the free reward)` : '🎁 Mystery Reward! (2× the free reward)';
+  html += `<div style="margin-top:16px;padding:10px;border-radius:10px;border:1px dashed #886;background:#241a0a;">
+    <div style="text-align:center;color:#FFD700;font-weight:bold;font-size:12px;margin-bottom:4px;">⭐ Premium Path — ${DAILY_STREAK_PREMIUM_USD}</div>
+    <div style="text-align:center;color:#ccc;font-size:11px;margin-bottom:8px;">Day ${nextDay} reward: ${premiumLabel}</div>
+    <button disabled style="width:100%;padding:8px;border-radius:8px;border:none;font-weight:bold;color:#888;background:#3a3a3a;cursor:not-allowed;">🔒 Coming Soon</button>
+  </div>`;
+  document.getElementById('neighborModalBody').innerHTML = html;
+}
+function claimEventOfDay() {
+  const today = todayDateString();
+  if (lastEventOfDayClaim === today) { showNotif('🎁 Already claimed today\'s bonus — come back tomorrow!'); return; }
+  const ev = todaysEvent();
+  lastEventOfDayClaim = today;
+  saveCurrentUser();
+  queueEarning(ev.sip, ev.elite, `Event of the Day: ${ev.name}`);
+  showNotif(`${ev.emoji} ${ev.name} claimed!`);
+  openEventOfDay('event'); // refresh the modal to show the now-claimed state
+}
+function claimDailyStreak() {
+  const msSinceLastClaim = dailyStreakMsSinceLastClaim();
+  if (msSinceLastClaim < DAILY_STREAK_COOLDOWN_MS) { showNotif(`📈 Already claimed — come back in ${dailyStreakReadyInHours()}h!`); return; }
+  dailyStreakCount = (msSinceLastClaim < DAILY_STREAK_COOLDOWN_MS*2) ? dailyStreakCount + 1 : 1;
+  lastStreakClaimDate = Date.now();
+  saveCurrentUser();
+  // Day 20+ is a real mystery roll, resolved right here at claim time — dailyStreakRewardFor()
+  // returns null for these on purpose, so there was never a number to leak in the preview above.
+  const r = dailyStreakRewardFor(dailyStreakCount) || rollMysteryReward();
+  lastStreakRewardShown = r;
+  queueEarning(r.sip, r.elite, `Daily Streak Day ${dailyStreakCount}`);
+  showNotif(dailyStreakCount >= DAILY_STREAK_MAX_DAY
+    ? `🎁 Mystery reward! Day ${dailyStreakCount}: ${r.sip.toLocaleString()} S.I.P.${r.elite?` + ${r.elite.toLocaleString()} 💎`:''}`
+    : `📈 Day ${dailyStreakCount} streak reward claimed!`);
+  openEventOfDay('rewards'); // refresh to show the now-claimed state
+}
+
 // User's own ask: "make all the events at the border of the city" — these used to draw from
 // LOC_ZONES (the same skip-filtered list as hostGrandOpening), so a random pick could land
 // literally anywhere from City Hall in the heart of downtown to a War Territory country a
@@ -579,7 +763,7 @@ function bossHitDamage(def, st) { return Math.round(def.damage * Math.min(3, 1 +
 const BOSS_DETECT_RANGE = 20, BOSS_DEAGGRO_RANGE = 55, BOSS_ATTACK_RANGE = 6, BOSS_ATTACK_INTERVAL = 1.8;
 const BOSS_CHASE_SPEED = 9.5; // faster than the player's 8 walk speed, slower than 14.8 run — outrunnable, not out-walkable
 function tickBossChase(dt) {
-  if (!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea) {
+  if (!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inVisitStore) {
     BOSS_DEFS.forEach(def => {
       const st = bossState[def.name];
       if (!st || !st.alive) return;
@@ -649,7 +833,7 @@ function triggerWrath() {
 function tickWrath(dt) {
   if (!wrathActive || !wrath || !playerGroup) return;
   // Same "can't reach you through a wall/interior" gate every other outdoor threat already uses.
-  if (inHouse || inMall || inHotel || inStore || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inPrison || inArcade || inCar || inArenaBattle || inMovieFight || inBankInterior || inSportsPark || inHospital || inSea) return;
+  if (inHouse || inMall || inHotel || inStore || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inPrison || inArcade || inCar || inArenaBattle || inMovieFight || inBankInterior || inSportsPark || inHospital || inSea || inVisitStore) return;
   const dx = playerGroup.position.x-wrath.curX, dz = playerGroup.position.z-wrath.curZ, dist = Math.hypot(dx,dz);
   if (dist > WRATH_ATTACK_RANGE) {
     wrath.attackTimer = 0;
@@ -683,7 +867,10 @@ function endWrathAfterDeath() {
   killers.forEach(k => { if (k.mesh) scene.remove(k.mesh); });
   killers.length = 0;
   safePeriodEndsAt = Date.now() + 2*DAY_LENGTH*1000; // "for 2 days" — 2 real in-game days
-  satanBadUntil = 0; satanCheckTimer = 0;
+  // Wrath's own cleansing (killers.length=0 just above already tore down every Demon mesh too)
+  // supersedes an in-progress Satan's Reign rather than leaving it running alongside the fresh
+  // cleansing period — same instant reset the old satanBadUntil=0 did here.
+  satanReignActive = false; satanReignProgress = 0; satanCheckTimer = 0;
   showNotif(`⚡ Struck down for your sins — lost ${lostSip.toLocaleString()} S.I.P. and ${lostElite.toLocaleString()} 💎.`);
   setTimeout(() => showNotif('🙏 The world bows — every Killer and Robber is gone, and none will return for 2 days...'), 2200);
 }
@@ -703,28 +890,339 @@ function buildWrathMesh(x, z) {
   return g;
 }
 
+// ─── DIVINE JUDGMENT — the one-time capstone above Wrath. Wrath (above) re-fires forever, every
+// WRATH_KILL_THRESHOLD kills, and is survivable, ongoing punishment; this is a single ONE-TIME
+// sentence at a symbolic, almost-unreachable total kill count — a deliberate capstone for extreme,
+// sustained evil play that no normal player will ever realistically reach. Same "God only ever
+// judges, never fights" boundary as Wrath above: no combat, no boss, nothing to click on or hit —
+// a decree, carried out through Hell (below) rather than a fight. Deliberately recoverable: the
+// player keeps everything they BUILT (house, land, store, car) and can rebuild S.I.P./Elite
+// Coins/carried items from zero afterward — this must never soft-lock the account. The full arc is
+// crime → judgment → sentence (Hell) → redemption (Heaven or Earth, same reward either way).
+// divineJudgmentServed/divineSentenceStartedAt/divineRedemptionGranted (game-customization.js) are
+// all persisted, so every stage of this can only ever happen once, ever, per account.
+const DIVINE_JUDGMENT_KILL_THRESHOLD = 1000000;
+// The immediate physical placement — real and harsh, but deliberately SHORT (see HELL_SENTENCE_DAYS
+// below for the real weight of this sentence). Unlike ordinary Prison, Hell has no dig-escape (see
+// buildHellInterior()'s own comment) — there's nothing to dig through — so this has to stay short
+// enough on its own to never read as a soft-lock: 10 minutes of being physically somewhere harsh,
+// same "sent somewhere harsh" beat the original ask wanted, then released to keep playing while the
+// REAL sentence below quietly keeps counting in the background.
+const HELL_CONFINEMENT_SECONDS = 600;
+const DIVINE_JUDGMENT_BEAM_MS = 4200; // how long the light-beam visual plays before the sentence actually lands
+let divineJudgmentBeam = null; // {startTime, group, glow} — NOT persisted, a one-shot visual like divineClash above
+// Called from the same totalKills++ call sites as checkWrathTrigger(), right alongside it.
+function checkDivineJudgment() {
+  if (!divineJudgmentServed && totalKills >= DIVINE_JUDGMENT_KILL_THRESHOLD) triggerDivineJudgment();
+}
+function triggerDivineJudgment() {
+  if (divineJudgmentServed || !playerGroup) return;
+  // Set FIRST, before anything below can run — the instant this decree is decided, it can never
+  // be decided again, even if something below this line somehow throws.
+  divineJudgmentServed = true;
+  spawnDivineJudgmentBeam(playerGroup.position.x, playerGroup.position.z);
+  showNotif('⚡ The sky itself falls silent. A column of pure light descends — this is not Wrath. This is judgment.');
+  setTimeout(() => showNotif('⚖️ One million lives taken by your hand. God does not fight you — He decides, and it is decided: everything you carry is forfeit.'), 2400);
+  setTimeout(executeDivineJudgment, DIVINE_JUDGMENT_BEAM_MS);
+}
+// A single vertical column of light at the player's own position — deliberately NOT the two-sided
+// push-clash startDivineClash() uses (that's God vs Satan; this is God alone, deciding), but the
+// exact same GOD_COLOR/light-beam visual language. Reused as-is for the redemption moment too (see
+// triggerDivineRedemption() below) — the narrative bookend to this same beam.
+function spawnDivineJudgmentBeam(x, z) {
+  if (divineJudgmentBeam) scene.remove(divineJudgmentBeam.group);
+  const group = new THREE.Group(); group.position.set(x, 0, z); scene.add(group);
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 4, 50, 16, 1, true),
+    new THREE.MeshBasicMaterial({ color: GOD_COLOR, transparent: true, opacity: 0.55, side: THREE.DoubleSide }));
+  beam.position.y = 25; group.add(beam);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(3, 4.5, 24), new THREE.MeshBasicMaterial({ color: GOD_COLOR, transparent: true, opacity: 0.85, side: THREE.DoubleSide }));
+  ring.rotation.x = -Math.PI/2; ring.position.y = 0.05; group.add(ring);
+  const glow = new THREE.PointLight(GOD_COLOR, 4, 45); glow.position.y = 6; group.add(glow);
+  divineJudgmentBeam = { startTime: Date.now(), group, glow };
+}
+function tickDivineJudgmentBeam() {
+  if (!divineJudgmentBeam) return;
+  const elapsed = Date.now() - divineJudgmentBeam.startTime;
+  divineJudgmentBeam.glow.intensity = 4 + Math.sin(elapsed/120) * 1.5;
+  if (elapsed >= DIVINE_JUDGMENT_BEAM_MS) {
+    scene.remove(divineJudgmentBeam.group);
+    divineJudgmentBeam = null;
+  }
+}
+// The sentence itself — full wipe of liquid currency + carried items (deliberately NOT the
+// player's house/land/store/car: those were BUILT, not carried, and stay untouched — see the
+// section comment above), then sent to Hell (below) for HELL_CONFINEMENT_SECONDS.
+// ownedWeapons/ownedArmor/ownedItems/ownedSkins (permanent shop unlocks, game-economy.js) are left
+// alone for the same reason as the house/land/store/car — those are owned wardrobe, not carried
+// loot. divineSentenceStartedAt anchors the REAL sentence length (HELL_SENTENCE_DAYS, tracked in
+// playTimeSeconds so it survives reloads/relogins correctly — see tickDivineRedemption() below).
+function executeDivineJudgment() {
+  sipDollars = 0; eliteCoins = 0;
+  updateSIP(); updateElite();
+  playerInventory = {};
+  playerBag.length = 0; updateBagHud();
+  wantedLevel = 0; updateWantedHud(); // the decree supersedes whatever earthly charge was pending
+  inPrison = true; inDivineSentence = true; // reuses Prison's exact mechanism (outdoor-exclusion, HUD, release-on-timeout) — see buildHellInterior()'s comment for why the LOCATION/visuals are still its own real place, not a Prison reskin
+  prisonTimeLeft = HELL_CONFINEMENT_SECONDS;
+  prisonEscapeProgress = 0; prisonDigCooldown = 0; prisonWorkoutCooldown = 0;
+  playerGroup.position.set(HELL_SPAWN.x, 0, HELL_SPAWN.z);
+  yaw = Math.PI;
+  divineSentenceStartedAt = playTimeSeconds;
+  showNotif('🔥 You are cast down into Hell. Every S.I.P., every Elite Coin, every item you carried: gone. What you BUILT — your house, your land, your store — still stands untouched. There is no digging out of this. Serve your time, then rebuild.');
+  saveCurrentUser();
+}
+// ─── HELL — the real, physical "sent somewhere harsh" from the judgment above. Its own 10,000-unit
+// pocket-space lane (same spacing scheme every other interior already uses — School(160000) was the
+// last one taken, so this is the next free lane), and its own real fire/brimstone/dark visual
+// identity — deliberately NOT a Prison reskin in name only (a real ask from the builder): obsidian
+// floor, glowing lava cracks, ringed fire pillars, oppressive red light. Mechanically it still
+// reuses Prison's exact machinery (inPrison/prisonTimeLeft/tickPrison — see executeDivineJudgment()
+// above and the inDivineSentence branch in tickPrison(), game-alignment.js) rather than duplicating
+// the outdoor-exclusion/HUD/release plumbing across a dozen files for a second flag. The one real
+// mechanical difference: no PRISON_ZONES-equivalent here, so digEscape() can never be reached from
+// here — Hell has no loose brick to dig at. That's fine precisely because HELL_CONFINEMENT_SECONDS
+// is short; see that constant's own comment for why this can never become a soft-lock.
+const HELL_SPAWN = { x:170000, z:0 }; // own lane, next free one after School(160000)
+function buildHellInterior() {
+  const hx = HELL_SPAWN.x, hz = HELL_SPAWN.z;
+  box(30, 0.4, 30, 0x0d0505, hx, 0.2, hz);   // obsidian floor
+  box(30, 0.3, 30, 0x1a0805, hx, 6, hz);     // low, oppressive ceiling
+  box(30, 6, 0.4, 0x1a0505, hx, 3, hz-15); box(30, 6, 0.4, 0x1a0505, hx, 3, hz+15);
+  box(0.4, 6, 30, 0x1a0505, hx-15, 3, hz);  box(0.4, 6, 30, 0x1a0505, hx+15, 3, hz);
+  // Glowing lava cracks across the floor — real emissive strips, not just a flat color.
+  const lavaMat = new THREE.MeshBasicMaterial({ color: 0xff3300 });
+  [[-8,-8,10,1],[6,3,1,14],[-3,9,14,1],[9,-6,1,10]].forEach(([dx,dz,w,d]) => {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(w,0.05,d), lavaMat);
+    strip.position.set(hx+dx, 0.42, hz+dz); scene.add(strip);
+  });
+  // Ringed fire pillars — real cone flames on short obsidian plinths, each with its own flicker-red light.
+  const flameMat = new THREE.MeshBasicMaterial({ color: 0xff5500 });
+  [[-12,-12],[12,-12],[-12,12],[12,12],[0,-13],[0,13]].forEach(([dx,dz]) => {
+    box(1, 1, 1, 0x1a0805, hx+dx, 0.5, hz+dz);
+    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.7,2.6,6), flameMat);
+    flame.position.set(hx+dx, 2.3, hz+dz); scene.add(flame);
+    const light = new THREE.PointLight(0xff4400, 1.3, 14); light.position.set(hx+dx, 2, hz+dz); scene.add(light);
+  });
+  const ambientGlow = new THREE.PointLight(0xdd2200, 1.8, 40); ambientGlow.position.set(hx, 4, hz); scene.add(ambientGlow); // overall oppressive red ambient glow, centered on the chamber
+  buildSign('🔥 HELL', hx, 6.3, hz+14.5);
+}
+
+// ─── REDEMPTION — the payoff/bookend to the whole judgment arc: crime → judgment → Hell →
+// redemption. HELL_SENTENCE_DAYS is a real "Explox year"-style clock (see EXPLOX_YEAR_DAYS in
+// minigames/olympicsparkour.html, the other place this game already measures time this way),
+// tracked in playTimeSeconds (real seconds actually PLAYED, game-customization.js) against
+// DAY_LENGTH (game-zones.js, 1800 real sec/day) so it's real played time, not wall-clock time, and
+// survives reloads/relogins correctly (divineSentenceStartedAt is a persisted playTimeSeconds
+// snapshot, not a running timer that would reset on reload). Olympics Parkour's own comment already
+// worked this exact math out once: a literal 365-day year came to ~182 real hours between openings
+// — too long even for a RECURRING gate, so that one was shortened to 30 days. 365 would be far too
+// long here too for a one-time sentence a real kid should actually live to see the end of, so this
+// uses 50 days (~25 real hours of played time) instead — real and serious, but genuinely reachable,
+// same lesson Olympics Parkour already learned, applied here on its own terms rather than reused
+// wholesale (this is a one-time capstone payoff, not a recurring gate, so the exact number doesn't
+// have to match).
+const HELL_SENTENCE_DAYS = 50;
+const HELL_SENTENCE_SECONDS = HELL_SENTENCE_DAYS * DAY_LENGTH; // 50*1800 = 90,000 real seconds of actual played time (DAY_LENGTH is defined in game-zones.js, which loads before this file — see currentSpaceZone()'s own comment on that same forward-reference pattern)
+const DIVINE_REDEMPTION_SIP_REWARD = 1000000000;
+const DIVINE_REDEMPTION_ELITE_REWARD = 100000;
+let divineRedemptionModalOpen = false; // NOT persisted — just guards against re-triggering the beam/notif/modal every single frame while the choice is still pending
+// Checked every frame (see the main loop, game-controls.js) — deliberately NOT gated on inPrison/
+// inDivineSentence, since the player is very likely back out living normal life again (Hell's own
+// confinement is only HELL_CONFINEMENT_SECONDS long, see executeDivineJudgment()) by the time the
+// real 50-day mark actually arrives. Redemption finds them wherever they happen to be.
+function tickDivineRedemption() {
+  if (!divineJudgmentServed || divineRedemptionGranted || divineRedemptionModalOpen || !playerGroup) return;
+  if (playTimeSeconds - divineSentenceStartedAt >= HELL_SENTENCE_SECONDS) triggerDivineRedemption();
+}
+function triggerDivineRedemption() {
+  if (divineRedemptionGranted || divineRedemptionModalOpen || !playerGroup) return;
+  divineRedemptionModalOpen = true;
+  spawnDivineJudgmentBeam(playerGroup.position.x, playerGroup.position.z); // same GOD_COLOR beam as the judgment itself — the real narrative bookend to it
+  showNotif('✨ The years of your sentence are complete. The light returns — not to judge you this time, but to ask.');
+  setTimeout(openDivineRedemptionModal, 2400);
+}
+// Reuses the shared neighborModal element (game-district.js's openNeighborModal already uses the
+// same #neighborModal/#neighborModalTitle/#neighborModalBody, e.g. openPrisonNpcModal in
+// game-alignment.js) rather than adding a whole new modal to the HTML — this is a real, deliberate
+// forced choice (both options pay out, so there's no wrong answer, but it should read as a real
+// decision, not a dismissible popup), so the modal's own built-in "✕ Close" button is hidden while
+// this content is showing and restored the moment a choice is made.
+function openDivineRedemptionModal() {
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  const closeBtn = document.querySelector('#neighborModal > div > button');
+  if (closeBtn) closeBtn.style.display = 'none';
+  document.getElementById('neighborModalTitle').textContent = '✨ Redemption';
+  document.getElementById('neighborModalBody').innerHTML = `
+    <p style="color:#ddd;font-size:13px;line-height:1.6;">Your sentence is served. One million lives can never be given back, but the weight of it no longer has to be carried alone. God offers you a real choice now — not a punishment. Not a test. Just a door.</p>
+    <div style="display:flex;gap:10px;margin-top:14px;">
+      <button class="shopBtn" style="flex:1;background:linear-gradient(135deg,#ffee88,#ffcc44);color:#332200;" onclick="chooseDivineRedemption('heaven')">🕊️ Go to Heaven</button>
+      <button class="shopBtn" style="flex:1;" onclick="chooseDivineRedemption('earth')">🌍 Stay on Earth</button>
+    </div>`;
+  document.getElementById('neighborModal').style.display = 'flex';
+}
+// Both choices pay the exact same reward — the choice is about WHERE the player ends up, never
+// about which answer is "correct." Guarded on divineRedemptionGranted so a stray double-click on
+// either button can't double-pay.
+function chooseDivineRedemption(choice) {
+  if (divineRedemptionGranted) return;
+  divineRedemptionGranted = true;
+  // Defensive only — in every real playthrough HELL_CONFINEMENT_SECONDS (10 min) has long since
+  // ended and released the player well before HELL_SENTENCE_SECONDS (~25 real hours) ever elapses,
+  // so this can't actually still be true here. Cheap to clear anyway so a still-true inPrison can
+  // never fight tickPrison()'s own release logic for control of the player's position afterward.
+  inPrison = false; inDivineSentence = false;
+  sipDollars += DIVINE_REDEMPTION_SIP_REWARD;
+  eliteCoins += DIVINE_REDEMPTION_ELITE_REWARD;
+  updateSIP(); updateElite();
+  const closeBtn = document.querySelector('#neighborModal > div > button');
+  if (closeBtn) closeBtn.style.display = ''; // restore normal behavior for every OTHER use of this shared modal
+  divineRedemptionModalOpen = false;
+  if (choice === 'heaven') {
+    enterHeaven();
+    showNotif(`🕊️ You are welcomed into Heaven. +${DIVINE_REDEMPTION_SIP_REWARD.toLocaleString()} S.I.P., +${DIVINE_REDEMPTION_ELITE_REWARD.toLocaleString()} 💎`);
+  } else {
+    playerGroup.position.set(-70, 0, 26); yaw = Math.PI; // exact same "just outside the station" release coordinate Prison's own release (tickPrison, game-alignment.js) already uses
+    showNotif(`🌍 You choose to stay, and rebuild. +${DIVINE_REDEMPTION_SIP_REWARD.toLocaleString()} S.I.P., +${DIVINE_REDEMPTION_ELITE_REWARD.toLocaleString()} 💎`);
+  }
+  closeNeighborModal();
+  saveCurrentUser();
+}
+// ─── HEAVEN — the "Go to Heaven" destination, built the exact same way Moon/Mars/Jupiter/Andromeda
+// already are (a real GRAVITY_ZONES entry + its own SPACE_ZONE_SKY sky/fog override in
+// updateDayNight(), game-zones.js — see GRAVITY_ZONES below and its own comment for why that's
+// enough plumbing on its own), just with its own bespoke paradise look instead of
+// buildPlanetZone()'s crater formula (craters don't fit the aesthetic, so this is its own builder).
+// Placed well clear of every other GRAVITY_ZONES entry and every COUNTRY_CENTERS ring.
+const HEAVEN_ZONE = { name:'Heaven', x:5500, z:-9800, r:120, gravity:22 }; // gentle, floaty gravity — a paradise feel, between Andromeda's true zero-g and Earth's normal 34
+function buildHeavenZone() {
+  const { x:px, z:pz } = HEAVEN_ZONE;
+  box(110, 0.6, 110, 0xfff6dd, px, 0.3, pz); // pale gold-white marble platform
+  const cloudMat = new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.85 });
+  [[-25,-20,4],[18,-12,5],[-8,22,4.5],[30,18,3.5],[-30,10,4],[10,-28,4]].forEach(([dx,dz,s]) => {
+    const cloud = new THREE.Mesh(new THREE.SphereGeometry(s,10,10), cloudMat);
+    cloud.position.set(px+dx, 1.2, pz+dz); scene.add(cloud);
+  });
+  // Real landmark — 4 golden pillars framing a soft column of light at the platform's center.
+  [[-6,0],[6,0],[0,-6],[0,6]].forEach(([dx,dz]) => box(1, 8, 1, 0xffe9a8, px+dx, 4, pz+dz));
+  const pillarGlow = new THREE.Mesh(new THREE.CylinderGeometry(0.4,2,20,12,1,true),
+    new THREE.MeshBasicMaterial({ color: GOD_COLOR, transparent: true, opacity: 0.35, side: THREE.DoubleSide }));
+  pillarGlow.position.set(px, 10, pz); scene.add(pillarGlow);
+  const lamp = new THREE.PointLight(GOD_COLOR, 3, 80); lamp.position.set(px, 12, pz); scene.add(lamp);
+  buildSign('🕊️ HEAVEN', px, 26, pz+24);
+  addCol(CITY_COLS, px, pz, 10, 10);
+  // Real way back — same "walk into a zone, press E" pattern the Space Station's own "🚀 Launch
+  // into Space" zone already uses (CITY_ZONES is the default zones list, active here since Heaven
+  // has no dedicated inHeaven flag of its own — same as Moon/Mars/etc, see GRAVITY_ZONES' comment).
+  CITY_ZONES.push({ x: px, z: pz+40, r: 10, label: '🌍 Return to Earth', action: () => returnFromHeaven() });
+}
+function enterHeaven() {
+  playerGroup.position.set(HEAVEN_ZONE.x, 0, HEAVEN_ZONE.z);
+  yaw = 0;
+}
+function returnFromHeaven() {
+  playerGroup.position.set(-70, 0, 26); yaw = Math.PI; // same known-safe release coordinate used throughout this whole arc
+  showNotif('🌍 Back on Earth.');
+}
+// User's own ask: "add a sighn saying do u want to go to heaven it appears once 5 min" — a
+// periodic real in-page popup (native confirm() is unreliable in this game's embeds — see
+// deleteConfirmModal, game-core.js — so this follows the same real-modal pattern), offering the
+// same Heaven this account can already reach through Divine Judgment. Skips the ask while the
+// player is already standing in Heaven (currentSpaceZone(), further down this file).
+function maybeShowHeavenInvite() {
+  if (!currentUser) return;
+  const z = currentSpaceZone();
+  if (z && z.name === 'Heaven') return;
+  document.getElementById('heavenInviteModal').style.display = 'flex';
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+}
+function declineHeavenInvite() {
+  document.getElementById('heavenInviteModal').style.display = 'none';
+}
+function acceptHeavenInvite() {
+  document.getElementById('heavenInviteModal').style.display = 'none';
+  enterHeaven();
+  showNotif('🕊️ Welcome to Heaven. Look for the "🌍 Return to Earth" sign whenever you want to leave.');
+}
+
 // ─── SATAN — during the cleansing period, sometimes "satan attack god nnot us" — never the
 // player directly. Most rounds God holds; if Satan wins this round, "the world in bad hand": 5x
 // Killers/Robbers (as real demons — see demonizeMesh() in game-land.js), a black sky, and worse
-// rewards from beating them (see the badLuck checks in defeatKiller/defeatRobber), until it passes.
-const SATAN_CHECK_INTERVAL = 300;  // real seconds between rolls, only while the cleansing period is active
+// rewards from beating them (see the badLuck checks in defeatKiller/defeatRobber) — a real
+// takeover now, not just a timer. It lasts AT LEAST SATAN_REIGN_MIN_DURATION, and after that keeps
+// going until players actually push back (see satanReignProgress below) or the backstop hits.
+const SATAN_CHECK_INTERVAL = 300;  // real seconds between rolls, only while the cleansing period is active and Satan hasn't already won
 const SATAN_ATTACK_CHANCE  = 0.20; // "20 present of this time" Satan attacks at all, per roll
 const SATAN_WIN_CHANCE     = 0.25; // of those attacks, how often Satan actually wins
-const SATAN_BAD_DURATION   = 600;  // real seconds the bad outcome lasts if Satan wins
+const SATAN_REIGN_MIN_DURATION = 600; // real seconds the reign lasts AT LEAST, even if players somehow push back instantly — same 10 minutes the old fixed timer used, now a floor instead of the whole story
+// How much satanReignProgress it takes to end the reign once the minimum duration has passed.
+// Real math behind this number: Demons cap at DEMON_MAX_ACTIVE=3 active at once and refill every
+// DEMON_SPAWN_INTERVAL=40s (game-land.js), each worth +1 on defeat; a Church prayer is worth +2 but
+// is hard-capped by PRAY_COOLDOWN_MS (1 real hour), so it's a nice boost, never the main strategy.
+// A player who's actually fighting can realistically clear a revealed Demon in well under the ~40s
+// refill window, so a single kid playing alone can plausibly land a kill every 30-60s once demons
+// are up — call it roughly one every 45s sustained. 12 lands that solo grind at around 9 real
+// minutes of active fighting on top of the 10-minute floor: a real push, not an instant win, but
+// still finishable in one sitting by one kid — and resolves proportionally faster with more players
+// in the shared world helping out.
+const SATAN_REIGN_GOAL = 12;
+// Safety backstop — if nobody pushes back at all (nobody online, or everyone avoids it), the reign
+// still ends on its own after this many real HOURS so the world doesn't stay broken forever. A few
+// hours is generous slack for "not playing right now" while staying nowhere near "forever."
+const SATAN_REIGN_BACKSTOP_HOURS = 4;
 function tickSatanEvent(dt) {
   const now = Date.now();
+  if (satanReignActive) {
+    // Satan already won this round — ending is now player-action-driven (defeatDemon() in
+    // game-land.js and prayAtChurch() in game-shops.js both feed satanReignProgress), not a random
+    // re-roll. Just check whether it's time to end; no re-rolling while a reign is already active.
+    const minDurationDone = now - satanReignStartedAt >= SATAN_REIGN_MIN_DURATION*1000;
+    const backstopHit = now - satanReignStartedAt >= SATAN_REIGN_BACKSTOP_HOURS*3600*1000;
+    if (backstopHit || (minDurationDone && satanReignProgress >= SATAN_REIGN_GOAL)) endSatanReign();
+    return;
+  }
   if (now >= safePeriodEndsAt) return; // no cleansing period active right now — nothing for Satan to attack
-  if (now < satanBadUntil) return; // already mid-bad-window — let it run its course
   satanCheckTimer += dt;
   if (satanCheckTimer < SATAN_CHECK_INTERVAL) return;
   satanCheckTimer = 0;
   if (Math.random() >= SATAN_ATTACK_CHANCE) return; // no attack this round
   if (Math.random() < SATAN_WIN_CHANCE) {
-    satanBadUntil = now + SATAN_BAD_DURATION*1000;
+    satanReignActive = true;
+    satanReignStartedAt = now;
+    satanReignProgress = 0;
     startDivineClash('satan');
   } else {
     startDivineClash('god');
   }
+}
+// Ends Satan's Reign the same way whether it ended via real player progress or the safety
+// backstop: the real "God reclaims the world" clash (startDivineClash's outcome==='god' branch in
+// tickDivineClash() below already plays the right animation/cleanup), then clear the reign state
+// and any Demons still standing so none linger into the ordinary world.
+function endSatanReign() {
+  satanReignActive = false;
+  satanReignProgress = 0;
+  startDivineClash('god');
+  clearDemons();
+  // Hand the shared jobHud element back cleanly, same courtesy tickPrison() (game-alignment.js)
+  // already extends when IT releases — otherwise the last progress text would linger forever.
+  if (!activeJob && !activeBankJob && !inPrison) {
+    const hud = document.getElementById('jobHud');
+    if (hud) { hud.textContent = '💼 No Job'; hud.style.color = '#fff'; }
+  }
+}
+// Live jobHud feedback while the reign is active — same "hijack the shared #jobHud element"
+// pattern tickPrison() (game-alignment.js) already uses, but lower priority: it only shows when
+// nothing more specific already owns the HUD (no active regular/bank job, not in Prison), so it
+// never fights tickJob()/tickBankJob()'s own live text. Prison still wins over it (tickPrison()
+// runs right after this in the main loop, game-controls.js) since you can't fight Demons or pray
+// from a cell anyway.
+function tickSatanReignHud() {
+  if (!satanReignActive || activeJob || activeBankJob || inPrison) return;
+  const hud = document.getElementById('jobHud');
+  hud.textContent = `😈 Satan's Reign: ${Math.min(satanReignProgress, SATAN_REIGN_GOAL)}/${SATAN_REIGN_GOAL} pushed back`;
+  hud.style.color = '#ff2222';
 }
 // "you can see him fight" — an abstract light-vs-shadow clash over the Church, never a literal
 // God/Satan character to hit or click on (that would cross the same line as fighting God
@@ -761,8 +1259,12 @@ function tickDivineClash() {
     if (outcome === 'god') {
       triggerSatanDeathExplosion();
       showNotif('✨ The light held. Satan is struck down!');
+      const msg = godBlessing(); // create — repairs Satan's last hit, or blesses a free decoration
+      if (msg) setTimeout(() => showNotif(msg), 2200);
     } else {
       showNotif('🔥 Satan has struck down the light — the world is in bad hands for a while...');
+      const msg = satanDestroyBuild(); // destroy — smashes one real placed building somewhere
+      if (msg) setTimeout(() => showNotif(msg), 2200);
     }
   }
 }
@@ -808,6 +1310,106 @@ function tickSatanDeathParticles(dt) {
   }
 }
 
+// ─── SATAN BOSS — user's own ask: "make it so the devil is a boss you can try to kill every 500
+// explox days." This is deliberately DIFFERENT from the abstract light-vs-shadow clash above —
+// God is never a combat target (see tickDivineClash()'s own comment), but the established rule
+// has ALWAYS drawn Satan on the other side of that same line: "Satan is the one who rebels,
+// attacks, and loses" (game-library.js's "The First War"), and he already narratively "dies" in
+// the clash outcome above — this just makes that a real, player-fought encounter instead of an
+// automatic cutscene, on a long, rare, deliberate cooldown befitting a final-boss-tier fight.
+// The reward is framed as GRANTED BY GOD for striking Satan down, never loot Satan drops himself —
+// keeping God in the only role he's ever in here: the one who blesses, never the one who fights.
+const SATAN_BOSS_COOLDOWN_DAYS = 500;
+const SATAN_BOSS_COOLDOWN_SECONDS = SATAN_BOSS_COOLDOWN_DAYS * DAY_LENGTH; // 500*1800 = 900,000 real seconds of actual played time (DAY_LENGTH defined in game-zones.js, same forward-reference pattern as HELL_SENTENCE_SECONDS above)
+const SATAN_BOSS_HP = 100000, SATAN_BOSS_DMG = 100;
+const SATAN_BOSS_ATTACK_RANGE = 3, SATAN_BOSS_ATTACK_INTERVAL = 1.4, SATAN_BOSS_SPEED = 6.5;
+const SATAN_BOSS_SIP_REWARD = 100000, SATAN_BOSS_ELITE_REWARD = 50000;
+const SATAN_BOSS_CHALLENGE_COST = 5; // real S.I.P. toll to accept the challenge — see challengeSatan()
+// "make him a giant [interrupted] — actual a normal size, he can fly, summon demons and killers":
+// user's own real-time correction, so this stays close to a Demon's own scale (see SATAN_SCALE in
+// buildSatanBossMesh below) rather than towering — the threat is what he DOES (flight + summoning
+// real reinforcements mid-fight), not raw size. SATAN_FLY_HEIGHT/BOB drive a real hover+bob instead
+// of walking on the ground; SATAN_SUMMON_* caps how many real Demons/Killers he can have out at once
+// so a long 100k-HP fight doesn't spiral into an unbounded swarm.
+const SATAN_FLY_HEIGHT = 2.4, SATAN_FLY_BOB = 0.4;
+const SATAN_SUMMON_INTERVAL = 18, SATAN_SUMMON_MAX = 4;
+function satanBossSecondsRemaining() {
+  return Math.max(0, SATAN_BOSS_COOLDOWN_SECONDS - (playTimeSeconds - lastSatanBossFightAt));
+}
+function satanBossReady() {
+  return satanBossSecondsRemaining() <= 0;
+}
+// A real mesh built from scratch, not a reskinned Demon — reads as the same silhouette language
+// (dark robed body, horns, a glow) DEMON_DEFS' own buildDemonMesh() (game-land.js) already
+// established, just more elaborate: real wings (borrowing the same wing-cone idea buildWrathMesh()
+// uses), bigger horns, a brighter glow, and its own deep red-black color instead of a Demon's
+// near-black-purple. Deliberately kept close to NORMAL/Demon size (SATAN_SCALE below), not a
+// giant — the user explicitly corrected "make him a giant" to "actual a normal size" mid-message.
+const SATAN_SCALE = 0.55;
+function buildSatanBossMesh(x, z) {
+  const g = new THREE.Group(); g.position.set(x, SATAN_FLY_HEIGHT, z); g.scale.setScalar(SATAN_SCALE);
+  const dark = 0x120008; // near-black with a deep red cast — distinct from a Demon's purple-black
+  const mk = (w,h,d,color,px,py,pz) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color})); m.position.set(px,py,pz); m.castShadow = true; g.add(m); return m; };
+  mk(2.2,2.2,2.2, dark, 0,6.6,0); // head, ~2x a Demon's
+  const eyeMat = new THREE.MeshBasicMaterial({color:0xff2222}); // real fire-red eyes, not a Demon's purple — Satan himself, not one of his troops
+  [-0.5,0.5].forEach(ex => { const e = new THREE.Mesh(new THREE.BoxGeometry(0.32,0.32,0.1), eyeMat); e.position.set(ex,6.7,1.15); g.add(e); });
+  mk(2.0,2.6,1.1, dark, 0,4.2,0); // torso
+  mk(0.75,2.1,0.75, dark,-1.5,4.2,0); mk(0.75,2.1,0.75, dark,1.5,4.2,0); // arms
+  mk(0.85,2.1,0.85, dark,-0.55,1.8,0); mk(0.85,2.1,0.85, dark,0.55,1.8,0); // legs
+  mk(0.95,0.5,1.15, dark,-0.55,0.25,0.12); mk(0.95,0.5,1.15, dark,0.55,0.25,0.12); // feet
+  // Big curved horns, a full size class past a Demon's.
+  [-1,1].forEach(side => {
+    const horn = mk(0.26,1.3,0.26, 0x0a0004, side*0.75,8.1,0);
+    horn.rotation.z = side*0.4;
+  });
+  // Real wings — same "dark cone pair" shape buildWrathMesh() (above) uses for its judgment
+  // figure, scaled up into something that reads as a fallen angel's wings on a boss this size.
+  [-1,1].forEach(side => {
+    const wing = new THREE.Mesh(new THREE.ConeGeometry(1.3,5.6,4), new THREE.MeshBasicMaterial({color:0x1a0006, transparent:true, opacity:0.92}));
+    wing.position.set(side*2.4,5.4,-1.0); wing.rotation.z = side*1.15; wing.rotation.x = 0.35; g.add(wing);
+  });
+  // PointLight.distance is a raw world-space value, NOT affected by the group's own SATAN_SCALE
+  // transform above — sized down to match on purpose, so the glow doesn't read as oversized on a
+  // now-normal-sized body.
+  const glow = new THREE.PointLight(0xff2222, 4, 16); glow.position.y = 6; g.add(glow); // still visibly brighter/wider than a Demon's modest 12-range purple glow
+  const cv = document.createElement('canvas'); cv.width = 320; cv.height = 72;
+  const cx2 = cv.getContext('2d');
+  cx2.fillStyle = 'rgba(20,0,5,0.85)'; cx2.fillRect(0,18,320,36);
+  cx2.fillStyle = '#ff5555'; cx2.font = 'bold 28px monospace'; cx2.textAlign = 'center';
+  cx2.fillText('😈 Satan', 160, 44);
+  const tag = new THREE.Mesh(new THREE.PlaneGeometry(3.4,0.85), new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+  tag.position.y = 9.4; g.add(tag);
+  scene.add(g);
+  return g;
+}
+// The "Challenge Satan" zone action (game-zones.js) calls this. Spawns him visible right next to
+// the player, same "no waiting on a random roll" convenience adminSpawnDemonNearPlayer() (game-
+// land.js) already established for testing Demons — except this is the real, intended way any
+// player reaches this fight, not an admin-only shortcut, since it's already gated hard by the
+// 500-day cooldown.
+function challengeSatan() {
+  if (!satanBossReady()) {
+    const days = Math.ceil(satanBossSecondsRemaining() / DAY_LENGTH);
+    showNotif(`😈 Satan is not ready to be challenged again — ${days.toLocaleString()} Explox day${days===1?'':'s'} left.`);
+    return;
+  }
+  if (killers.some(k => k.alive && k.satanBoss)) { showNotif('😈 Satan is already here — finish this fight first.'); return; }
+  // "cost 5 to try to kill satan" — a small, real up-front toll (same shape as Hire a Killer's own
+  // flat S.I.P. cost), just enough that the challenge is a real choice, not the actual difficulty
+  // of the fight itself (that's the 100k HP and the 500-day cooldown's job).
+  if (sipDollars < SATAN_BOSS_CHALLENGE_COST) { showNotif(`😈 Need ${SATAN_BOSS_CHALLENGE_COST} S.I.P. to challenge Satan.`); return; }
+  spendSip(SATAN_BOSS_CHALLENGE_COST);
+  lastSatanBossFightAt = playTimeSeconds; // the cooldown starts the moment you accept the challenge, same "starts at judgment, not completion" timing Divine Judgment's own Hell sentence uses
+  saveCurrentUser();
+  const angle = Math.random()*Math.PI*2, dist = 6;
+  const x = playerGroup.position.x + Math.cos(angle)*dist, z = playerGroup.position.z + Math.sin(angle)*dist;
+  const mesh = buildSatanBossMesh(x, z);
+  mesh.visible = true;
+  killers.push({ id:'satanBoss'+ROBOT_ID_SEQ++, x, z, hp:SATAN_BOSS_HP, maxHp:SATAN_BOSS_HP, mesh, alive:true, speed:SATAN_BOSS_SPEED, attackTimer:0, atkInterval:SATAN_BOSS_ATTACK_INTERVAL, revealed:true, satanBoss:true });
+  sfx.tense();
+  showNotif('😈 "Five hundred days, and you finally show up. Let\'s finish this." — SATAN');
+}
+
 // "more people go there in the safe period" — real extra NPCs (the same makeNPC()/patrol system
 // every other NPC in the city already uses, not a decorative stand-in), drawn to the Church while
 // it's a safe/blessed time. Tracked separately from the permanent NPC_DEFS roster so they can be
@@ -845,6 +1447,167 @@ function clearChurchWorshippers() {
   });
   churchWorshippers = [];
 }
+
+// ─── SPIES — ambient watchers, and the real payoff behind them: a real running tally of where the
+// player actually spends their time (see FAVORITE SPOT TRACKING below), and a real one-time
+// ambush once that pattern is learned. Builder's own words: Spies are ambient/atmospheric
+// watchers, but "they attack you once they found ur fav spot to hang and go there."
+//
+// The ambient watchers reuse the exact same makeNPC()/patrol system every other temporary NPC in
+// this game already uses — spawnChurchWorshippers just above is the closest precedent (spawn into
+// the shared npcs[] array, own tracking array for clean removal). Pushing into npcs[] means the
+// existing per-frame NPC-movement tick in game-controls.js already handles their nametag
+// billboard for free, and since each Spy's own patrol is a single point at its spawn spot, that
+// same shared tick never actually walks them anywhere on its own (arrived-dist<0.5 the instant
+// they spawn, so it just idles) — it only takes over once THIS system deliberately retargets a
+// Spy's patrol below. The two genuinely new behaviors layered on top, in tickSpies(): facing the
+// player while idle (rotation only — never touches position, so it can never fight the shared
+// patrol tick), and reacting once noticed — either retargeting the Spy's own patrol to a point
+// away from the player, so the SAME shared tick does the actual walking-off (arm-swing animation
+// included, no hand-rolled movement here), or an instant "caught looking" vanish if the player
+// walks right up on one.
+const SPY_DEFS = [
+  {name:'Agent Vale', skin:0xd4a374, shirt:0x4a4235, pants:0x2b2620, hair:'short',    hairColor:0x1a1108, hat:'sunglasses'},
+  {name:'Agent Rook', skin:0xc79066, shirt:0x453f33, pants:0x28241c, hair:'short',    hairColor:0x2a1c10, hat:'sunglasses'},
+  {name:'Agent Wren', skin:0xf0c8a0, shirt:0x4a4235, pants:0x2b2620, hair:'ponytail', hairColor:0x1a1108, hat:'sunglasses'},
+];
+let spies = [];      // NOT persisted — purely ambient, same category as churchWorshippers
+let spyTimer = 0;    // NOT persisted — real-seconds accumulator, same category as killerTimer (game-land.js)
+const SPY_MAX_ACTIVE = 1;   // never more than one watching at once — a sighting, not a stakeout
+const SPY_APPEAR_MIN = 50, SPY_APPEAR_MAX = 100; // real seconds between ambient appearances
+const SPY_LIFETIME = 10;    // real seconds a Spy lingers watching before moving off on its own
+const SPY_NOTICE_RANGE = 9; // player this close: the Spy notices and starts moving off
+const SPY_VANISH_RANGE = 4; // player THIS close (walked right up): instant "caught looking" vanish instead
+const SPY_APPEAR_DIST_MIN = 15, SPY_APPEAR_DIST_MAX = 26; // spawn near the player, never on top of them
+const SPY_FLEE_MAX = 6;     // real seconds given to actually get clear before force-despawning
+let spyNextInterval = SPY_APPEAR_MIN + Math.random()*(SPY_APPEAR_MAX-SPY_APPEAR_MIN);
+function tickSpies(dt) {
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore;
+  spyTimer += dt;
+  if (outdoors && spies.length < SPY_MAX_ACTIVE && spyTimer >= spyNextInterval) {
+    spyTimer = 0;
+    spyNextInterval = SPY_APPEAR_MIN + Math.random()*(SPY_APPEAR_MAX-SPY_APPEAR_MIN);
+    spawnSpy();
+  }
+  for (let i = spies.length-1; i >= 0; i--) {
+    const s = spies[i];
+    const dx = playerGroup.position.x - s.group.position.x, dz = playerGroup.position.z - s.group.position.z;
+    const dist = Math.hypot(dx, dz);
+    if (!s.spyFleeing && dist <= SPY_VANISH_RANGE) { despawnSpy(i); continue; } // caught looking — vanishes on the spot
+    if (!s.spyFleeing) {
+      s.spyAge += dt;
+      s.group.rotation.y = Math.atan2(dx, dz); // watching the player — rotation only, see file comment above
+      if (dist <= SPY_NOTICE_RANGE || s.spyAge >= SPY_LIFETIME) {
+        const nx = dist > 0.01 ? dx/dist : 0, nz = dist > 0.01 ? dz/dist : 1;
+        s.patrol = [[ s.group.position.x - nx*22, s.group.position.z - nz*22 ]]; // retarget — the shared npcs.forEach tick (game-controls.js) does the actual walking-off from here
+        s.patrolIdx = 0; s.waitTime = 0;
+        s.spyFleeing = true; s.spyFleeTimer = 0;
+      }
+    } else {
+      s.spyFleeTimer += dt;
+      if (s.spyFleeTimer > SPY_FLEE_MAX) despawnSpy(i);
+    }
+  }
+}
+function spawnSpy() {
+  const def = SPY_DEFS[Math.floor(Math.random()*SPY_DEFS.length)];
+  const ang = Math.random()*Math.PI*2, dist = SPY_APPEAR_DIST_MIN + Math.random()*(SPY_APPEAR_DIST_MAX-SPY_APPEAR_DIST_MIN);
+  const x = playerGroup.position.x + Math.cos(ang)*dist, z = playerGroup.position.z + Math.sin(ang)*dist;
+  const npc = makeNPC({ name:def.name, role:'Spy', skin:def.skin, shirt:def.shirt, pants:def.pants, hair:def.hair, hairColor:def.hairColor, hat:def.hat, pos:[x,0,z], patrol:[[x,z]] });
+  const pdx = playerGroup.position.x-x, pdz = playerGroup.position.z-z;
+  npc.group.rotation.y = Math.atan2(pdx, pdz); // facing the player from the very first frame — never spawns with its back turned
+  npc.spyAge = 0; npc.spyFleeing = false; npc.spyFleeTimer = 0;
+  npcs.push(npc);
+  spies.push(npc);
+}
+function despawnSpy(i) {
+  const s = spies[i];
+  const ni = npcs.indexOf(s);
+  if (ni > -1) npcs.splice(ni, 1);
+  scene.remove(s.group);
+  spies.splice(i, 1);
+}
+
+// ─── FAVORITE SPOT TRACKING & AMBUSH — while the Spies are active in the world (always-on, low
+// overhead: one position sample and one bucket-increment every 30 real seconds, tied into the
+// same dt-accumulator pattern as billTimerTick/tickWeather elsewhere in this game), a real running
+// tally (spyLocationTally, game-customization.js) of real seconds spent at each of the game's real
+// named LOC_ZONES (game-zones.js) builds up. The zone the player is currently standing in is found
+// with the exact same "closest containing circle" check the location HUD label already uses
+// (game-controls.js's own `for(const z of LOC_ZONES)` loop) — reused here as
+// currentLocZoneName() instead of duplicating that logic differently.
+//
+// Threshold: 12 cumulative real minutes (720s) at one location. Sampling every 30s, that's 24
+// separate samples — spread across many separate visits, not one long sit, since it's a running
+// tally, not a streak. 10-15 real minutes was the suggested range; 12 sits in the middle: long
+// enough that it reads as "they've actually been watching a pattern form," short enough that a
+// player who really does keep coming back to one spot sees the payoff within a few real play
+// sessions instead of it feeling unreachable.
+//
+// Once discovered, tallying freezes (spyFavoriteSpot stays set, see the early-return in
+// tickFavoriteSpotTracking) until the ambush actually resolves — no second location can ever get
+// "discovered" out from under the first. The ambush itself waits for BOTH a real short delay since
+// the discovery notification (45s — long enough for the notification to actually register before
+// anything happens, short enough it still reads as "shortly after") AND the player actually being
+// back at that exact spot — chosen over a pure timer because "they staged an ambush waiting for
+// you to come back" is a stronger, more deliberate read than a random timer that could fire while
+// the player's clear across the map with no idea why. Once the ambush fires, spyNextEligibleAt is
+// set a real 12 hours out and the tally resets — a single dramatic, fightable-off ambush per
+// discovery, not a permanent camping punishment on that location (the builder's own call: repeat
+// punishment on the same spot forever would just make it unusable, which isn't fun).
+let spyTrackTimer = 0; // NOT persisted — real-seconds accumulator, same category as spyTimer/killerTimer
+const SPY_TRACK_INTERVAL = 30;                 // real seconds between position samples
+const SPY_DISCOVERY_THRESHOLD_SEC = 720;       // 12 cumulative real minutes at one location — see comment above
+const SPY_AMBUSH_MIN_DELAY_MS = 45000;         // real ms after the discovery notification before the ambush can trigger
+const SPY_AMBUSH_COOLDOWN_MS = 12*60*60*1000;  // 12 real hours before this can ever happen again
+function currentLocZoneName() {
+  const px = playerGroup.position.x, pz = playerGroup.position.z;
+  for (const z of LOC_ZONES) { if (Math.hypot(px-z.x, pz-z.z) < z.r) return z.name; }
+  return null;
+}
+function tickFavoriteSpotTracking(dt) {
+  if (spyFavoriteSpot) { tickSpyAmbushWatch(); return; } // already learned a spot — wait for its ambush to resolve, don't tally anything else meanwhile
+  if (Date.now() < spyNextEligibleAt) return; // long cooldown after the last resolved ambush
+  spyTrackTimer += dt;
+  if (spyTrackTimer < SPY_TRACK_INTERVAL) return;
+  spyTrackTimer -= SPY_TRACK_INTERVAL;
+  const zoneName = currentLocZoneName();
+  if (!zoneName) return; // open world, not at any named location — nothing to credit
+  spyLocationTally[zoneName] = (spyLocationTally[zoneName] || 0) + SPY_TRACK_INTERVAL;
+  if (spyLocationTally[zoneName] >= SPY_DISCOVERY_THRESHOLD_SEC) triggerSpyDiscovery(zoneName);
+  saveCurrentUser();
+}
+function triggerSpyDiscovery(zoneName) {
+  spyFavoriteSpot = zoneName;
+  spyDiscoveredAt = Date.now();
+  showNotif("🕵️ Someone's been watching... and they know where to find you.");
+  sfx.tense();
+  saveCurrentUser();
+}
+function tickSpyAmbushWatch() {
+  if (Date.now() - spyDiscoveredAt < SPY_AMBUSH_MIN_DELAY_MS) return;
+  const zone = LOC_ZONES.find(z => z.name === spyFavoriteSpot);
+  if (!zone) { spyFavoriteSpot = null; return; } // safety net — shouldn't happen
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore;
+  if (!outdoors) return;
+  const dist = Math.hypot(playerGroup.position.x-zone.x, playerGroup.position.z-zone.z);
+  if (dist < zone.r) triggerSpyAmbush(zone);
+}
+function triggerSpyAmbush(zone) {
+  const n = 2 + Math.floor(Math.random()*3); // 2-4 real attackers
+  for (let i=0; i<n; i++) {
+    const ang = Math.random()*Math.PI*2, dist = 4+Math.random()*7;
+    spawnSpyAmbusher(zone.x+Math.cos(ang)*dist, zone.z+Math.sin(ang)*dist);
+  }
+  showNotif(`🕵️ "Should've picked a new spot." — they found you at ${zone.name}!`);
+  sfx.alarm();
+  spyLocationTally = {}; // a fresh pattern has to be re-learned before this can ever trigger again
+  spyFavoriteSpot = null;
+  spyDiscoveredAt = 0;
+  spyNextEligibleAt = Date.now() + SPY_AMBUSH_COOLDOWN_MS;
+  saveCurrentUser();
+}
+
 // One hand-built silhouette per boss — deliberately NOT reusing buildRobotMesh()'s shapes (a
 // boss used to just be a 3.2x-scaled Tank/Spider/Elite/Drone/Guard Bot, same geometry as the
 // small rogue robots you fight everywhere else). Each shape here is something no regular robot
@@ -953,10 +1716,15 @@ function buildBosses() {
     bossMeshes[def.name] = { mesh, light };
   });
 }
+// Same real bug, same fix as chatEndpointMissing (game-social.js): some deployments of the
+// Explox server 404 on /api/bosses (route doesn't exist there), which isn't going to change
+// until the page reloads — retrying every BOSS_SYNC_INTERVAL forever just spams the console.
+let bossEndpointMissing = false;
 async function syncBosses() {
-  if (serverMode !== 'online') return;
+  if (serverMode !== 'online' || bossEndpointMissing) return;
   try {
     const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/bosses', {}, 4000);
+    if (r.status === 404) { bossEndpointMissing = true; return; }
     if (!r.ok) return;
     const data = await r.json();
     BOSS_DEFS.forEach(def => {
@@ -1079,6 +1847,358 @@ function awardBossDefeat(def) {
   saveCurrentUser();
   sfx.boom();
   showNotif(`🏆 ${def.emoji} ${def.name} DEFEATED! +${reward} S.I.P. +${def.eliteReward} 💎`);
+}
+
+// ─── MYSTERIES — real detective cases that trigger SPONTANEOUSLY, never player-picked. Builder's
+// own correction mid-build: "events happen by themselves, not your choose" — so instead of a board
+// the player browses to start a case (the original plan), a persisted real-time timer
+// (mysteryNextTriggerAt, a real Date.now() ms value, same "happens on its own schedule" idiom as
+// the Spies above (tickSpies) and School's own tickSchoolEvent(), game-shops.js) checks every tick
+// and spontaneously starts one when it's due, with a real in-the-moment notification telling the
+// player something happened and roughly where. Unlike the ambient Spies, a Mystery's progress
+// (clues collected, suspects interviewed) is real detective work and persists through
+// saveCurrentUser() same as everything else — only the ambient spawn/despawn idiom is borrowed, not
+// the "resets on reload" part.
+//
+// The exact 3 cases below — every suspect, every clue, every solution — are fixed by the
+// coordinator's own design brief and implemented faithfully, not reinvented. Only the flavor
+// wording and exactly which real LOC_ZONES-area each clue/suspect physically lives at were this
+// session's own call, and every one of those 15 spots (9 suspects+clues... actually 6 suspects + 9
+// clues... — 3 cases × (3 suspects + 3 clues) = 18 spots) was checked against every real addCol()
+// footprint in game-buildings.js/game-land.js first so nothing spawns inside a wall.
+//
+// A Detective Corkboard at the Police Station (buildDetectiveCorkboard() below) is a real place to
+// check an active case's progress and make an accusation — a passive STATUS panel, not a picker of
+// which case to start (that would put the choice back in the player's hands, which is exactly what
+// got corrected away). It shows "no case right now" when nothing's active.
+const MYSTERY_CASES = [
+  {
+    id:'vanishing-trophy', name:'The Vanishing Trophy', emoji:'🏆', locationName:'Fight Arena',
+    intro:"The Fight Arena's championship trophy is missing the night before the big match!",
+    reward: 250,
+    suspects: [
+      { id:'duke', name:'Duke Marlow', emoji:'🥊', pos:[20,0,64],
+        skin:0xd8a878, shirt:0xaa2222, pants:0x1a1a1a, hair:'spiky', hairColor:0x2a1a10,
+        alibi:'"Look, everybody keeps asking ME about that trophy. Fine — yes, I lost the championship last year, and yes, it still bugs me. But I didn\'t need to steal it to feel better about it. ...okay, maybe I walked past the Arena a few times last night. A guy\'s allowed to walk."' },
+      { id:'gus', name:'Gus', emoji:'🧹', pos:[240,0,-180],
+        skin:0xc79066, shirt:0x556b55, pants:0x3a3a3a, hair:'short', hairColor:0x888888, hat:'cap',
+        alibi:'"I\'ve had the only spare key to that display case for six years — never even had to use it, the lock\'s more for show. Last night I was mopping the locker room top to bottom, like every night. Ask around, plenty of folks walked past and saw me at it."' },
+      { id:'rina', name:'Rina Cole', emoji:'🥋', pos:[250,0,168],
+        skin:0xe0b28c, shirt:0x2244aa, pants:0x222222, hair:'ponytail', hairColor:0x1a1108,
+        alibi:'"Sure, I\'d love to see that trophy on MY shelf instead of Duke\'s — I run a real gym, he just talks a big game. But last night I was live on Channel 9\'s \'Uptown Tonight,\' being interviewed about my gym\'s grand re-opening. That\'s not exactly a secret alibi — half the city was watching."' },
+    ],
+    clues: [
+      { id:'scratched-case', emoji:'🔍', label:'Scratched Trophy Case', pos:[235,0,-195],
+        text:'The glass on the championship trophy case is scratched all around the lock, and the frame is bent outward — somebody forced this open from the outside. Whoever did this did NOT use a key.' },
+      { id:'torn-fabric', emoji:'🧵', label:'Torn Fabric on the Glass', pos:[235,0,-188],
+        text:'A small torn scrap of fabric is snagged on a jagged edge of the broken glass — thick red-and-black material, like a letterman jacket. That\'s the exact jacket Duke Marlow always wears when he\'s hanging around the Arena.' },
+      { id:'tv-witness', emoji:'📺', label:'A Witness Who Watches TV', pos:[40,0,-68],
+        text:'"You\'re asking about the trophy? Funny timing — I had the TV on last night and Rina Cole was right there on \'Uptown Tonight,\' live, the whole time the news later said the break-in happened. Whatever else she\'s up to, she wasn\'t anywhere near that Arena."' },
+    ],
+    solutionSuspectId: 'duke',
+    solutionRecap: "The forced-open case ruled out Gus (he had a key — no need to force anything), the TV interview cleared Rina, and the torn jacket fabric matched Duke Marlow exactly.",
+  },
+  {
+    id:'diner-till', name:"Who Robbed the Diner's Till?", emoji:'🍽️', locationName:'The Diner',
+    intro:"The Diner's cash till was emptied overnight — no broken locks, opened with a real key.",
+    reward: 250,
+    suspects: [
+      { id:'milo', name:'Milo Fenn', emoji:'🧺', pos:[-8,0,64],
+        skin:0xc98a5a, shirt:0x778877, pants:0x2b2620, hair:'short', hairColor:0x1a1108,
+        alibi:'"Fired. Last week. For being two minutes late, if you can believe that. ...No, I never gave the key back, if that\'s what you\'re getting at. I just — never got around to it. Doesn\'t mean I used it."' },
+      { id:'della', name:'Della', emoji:'👩‍🍳', pos:[120,0,-6],
+        skin:0xf0c8a0, shirt:0xcc6699, pants:0x333333, hair:'curly', hairColor:0x3a2a1a,
+        alibi:'"I\'ve managed the night shift for two years — of course I have a key. But last night I was home with my kids the second I locked up. Ask my neighbor, she was over half the evening helping me get them to bed."' },
+      { id:'ortiz', name:'Ortiz', emoji:'😰', pos:[10,0,-70],
+        skin:0xd4a374, shirt:0xddaa33, pants:0x445566, hair:'afro', hairColor:0x1a1108,
+        alibi:'"Me? I\'m just a regular, I eat there four nights a week! ...Why am I nervous? No reason. I don\'t even have a key. I\'ve never had a key. Why would you think I have a key?"' },
+    ],
+    // Positions checked live in a real browser against every OTHER already-existing CITY_ZONES
+    // entry (not just addCol colliders) — handleInteract()'s zone loop returns the FIRST zone
+    // whose radius contains the player, in array order, so a clue/suspect placed inside an
+    // earlier-added zone's radius (e.g. the Diner's own big r:8 "Order a real meal" zone,
+    // centered 110,-13) is silently unreachable even though its OWN radius also contains the
+    // player. Original till-key spot (110,-14) and Della's original spot (106,-11) both landed
+    // inside that r:8 circle and were caught this way; moved both clear of it (and of City Hall's
+    // own r:17 door zone, which similarly ate Ortiz's first spot at 10,-45).
+    clues: [
+      { id:'till-key', emoji:'🔑', label:'A Till Opened With a Key', pos:[100,0,-5],
+        text:"The cash till is completely empty, but the lock isn't broken and the drawer slides open smooth — this was opened with a real key, not forced. Whoever did this either has a key, or used to." },
+      { id:'milo-records', emoji:'📋', label:"The Diner's Employment Record", pos:[10,0,-16],
+        text:"A filed timecard shows Milo Fenn was let go from The Diner exactly one week ago — and under \"Keys/Equipment Returned,\" the box is still unchecked. He never turned his key back in." },
+      { id:'della-neighbor', emoji:'🏠', label:"Della's Neighbor", pos:[-28,0,-50],
+        text:'"Della? Oh, she was at my place half of last night — I watched her kids while she put together lunches for the week, then she went home and I saw her lights on till late. She never left the building, I\'d have noticed."' },
+    ],
+    solutionSuspectId: 'milo',
+    solutionRecap: "A real key ruled out Ortiz (he never had one), Della's corroborated alibi cleared her, and the Diner's own records showed Milo still had his unreturned key — plus a fresh reason to be angry about it.",
+  },
+  {
+    id:'sunset-vandal', name:'The Sunset Plains Vandal', emoji:'🎨', locationName:'Sunset Plains',
+    intro:'Someone vandalized a player-buildable plot at Sunset Plains overnight with a distinctive splash of paint.',
+    reward: 250,
+    suspects: [
+      { id:'petra', name:'Petra Voss', emoji:'🖌️', pos:[-400,0,140],
+        skin:0xefc9a0, shirt:0x9a3324, pants:0x556b2f, hair:'long', hairColor:0x883333,
+        alibi:'"That plot next to mine has been an eyesore since day one, and yes, I\'ve said so more than once. Loudly. Is that a crime? ...Look, I have OPINIONS about bad landscaping. That\'s all this is."' },
+      { id:'drifter', name:'The Drifter', emoji:'🥾', pos:[280,0,225],
+        skin:0xb08860, shirt:0x4a4235, pants:0x2b2620, hair:'short', hairColor:0x2a2a2a, hat:'fedora',
+        alibi:'"Never even been out to Sunset Plains before last week, and I sure don\'t own any paint. Folks always blame the new guy in town first — I\'ve seen it happen before."' },
+      { id:'cole', name:'Cole', emoji:'🧢', pos:[70,0,76],
+        skin:0xf5c89a, shirt:0x44aa44, pants:0x2244aa, hair:'spiky', hairColor:0x1a1108, hat:'cap',
+        alibi:'"Okay fine, my friends dared me to do SOMETHING out at Sunset Plains, and yeah I went out there. But I chickened out before I even opened the can! Check the color if you don\'t believe me — it\'s not even close to what got sprayed on that fence."' },
+    ],
+    clues: [
+      { id:'paint-trail', emoji:'🎨', label:'A Paint Trail', pos:[350,0,-25],
+        text:"The counter clerk remembers exactly who bought that unusual shade of paint recently — a vivid streak of orange-violet, not a common color at all. The receipt has Petra Voss's name on it." },
+      { id:'petra-complaints', emoji:'📌', label:'A Trail of Complaints', pos:[-410,0,125],
+        text:'The community notice board at Sunset Plains has THREE separate written complaints on file, all from Petra Voss, all about the exact same neighboring plot — going back months.' },
+      { id:'cole-paint', emoji:'🪣', label:'A Dropped Paint Can', pos:[-390,0,125],
+        text:"A half-empty paint can lies dropped near the fence — plain, common green. It doesn't match the vivid orange-violet color sprayed on the vandalized plot at all." },
+    ],
+    solutionSuspectId: 'petra',
+    solutionRecap: "The Drifter had no real connection to the plot at all, Cole's paint color didn't match the vandalism, and the paint trail plus a real history of complaints both pointed straight at Petra Voss.",
+  },
+];
+let mysteryCaseState = {};      // persisted — { [caseId]: {status:'active'|'solved'|'failed', clues:[ids], suspects:[ids]} }
+let mysteryActiveCaseId = null; // persisted — only one case active at a time
+let mysteryNextTriggerAt = 0;   // persisted — real Date.now() ms; set on login (game-core.js) and after every resolution below
+let mysteryDecor = []; // active case's world props — cleared on resolve, same category as eventDecorMeshes/worldEventDecor
+let mysteryNpcs  = []; // active case's suspect NPCs — also live in the shared npcs[] array
+let mysteryZones = []; // active case's CITY_ZONES entries — tracked so they can be spliced back out
+// 5-10 real minutes between spontaneous cases feels like "things are happening in the city" without
+// competing for attention with everything else that's already ambient (Spies every 50-100s, School
+// events, etc.) — a Mystery is a bigger, multi-location commitment, so it shouldn't show up as often
+// as a 10-second Spy sighting. A wrong accusation costs a real 15-minute wait before ANY new case
+// can turn up (not a permanent lock — same "cooldown before retry" the design brief explicitly
+// allowed for), so a wrong guess is a real setback without shutting the feature off for good.
+const MYSTERY_TRIGGER_MIN_MS = 5*60*1000, MYSTERY_TRIGGER_MAX_MS = 10*60*1000;
+const MYSTERY_RETRY_COOLDOWN_MS = 15*60*1000;
+function scheduleNextMystery(gapMs) {
+  mysteryNextTriggerAt = Date.now() + (gapMs !== undefined ? gapMs : MYSTERY_TRIGGER_MIN_MS + Math.random()*(MYSTERY_TRIGGER_MAX_MS-MYSTERY_TRIGGER_MIN_MS));
+}
+function mysteryCaseStatus(id) { return (mysteryCaseState[id] && mysteryCaseState[id].status) || 'new'; }
+// Solved cases are permanently retired (each of the 3 is a fixed one-time story — solving it twice
+// makes no narrative sense); a 'failed' case stays eligible so a wrong guess is a real setback, not
+// a lockout. Once all 3 are solved, this returns empty and tickMysteries() below simply stops firing.
+function eligibleMysteryCases() { return MYSTERY_CASES.filter(c => mysteryCaseStatus(c.id) !== 'solved'); }
+function tickMysteries(dt) {
+  if (!currentUser || mysteryActiveCaseId) return; // one case at a time — never pile a new one on an active one
+  // Same outdoors gate tickSpies() uses just above — a mystery notification popping while the
+  // player's mid-conversation in a shop interior would be a jarring interruption for no reason,
+  // since every case's own clues/suspects live outdoors in the city anyway.
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore;
+  if (!outdoors) return;
+  if (Date.now() < mysteryNextTriggerAt) return;
+  const pool = eligibleMysteryCases();
+  if (!pool.length) return;
+  triggerMysteryCase(pool[Math.floor(Math.random()*pool.length)].id);
+}
+function triggerMysteryCase(caseId) {
+  const def = MYSTERY_CASES.find(c => c.id === caseId);
+  if (!def) return;
+  mysteryActiveCaseId = caseId;
+  mysteryCaseState[caseId] = { status:'active', clues:[], suspects:[] };
+  buildMysteryCaseProps(def);
+  showNotif(`🔍 Something happened at the ${def.locationName} — ${def.name}! Head over and take a look, or check the Detective Corkboard at the Police Station.`);
+  sfx.mystery();
+  saveCurrentUser();
+}
+// Rebuilds the active case's props/NPCs after a reload — case STATE persists through
+// saveCurrentUser() same as everything else, but the actual scene objects don't, so this re-spawns
+// them once the world exists. Called from startGame()'s init chain (game-zones.js), same spot
+// buildLabNPCs()/buildTownEventsBoard() etc. already run from.
+function resumeMysteryCase() {
+  if (!mysteryActiveCaseId) return;
+  const def = MYSTERY_CASES.find(c => c.id === mysteryActiveCaseId);
+  if (!def) { mysteryActiveCaseId = null; return; } // stale/unknown id — never crash on it
+  buildMysteryCaseProps(def);
+}
+function buildMysteryClueDecor(clueId, x, z) {
+  const made = [];
+  const add = m => { made.push(m); return m; };
+  switch (clueId) {
+    case 'scratched-case':
+      add(box(1.3,1.6,1.3, 0x5a4a30, x,0.8,z));
+      add(box(1.0,0.3,1.0, 0xC8A030, x,1.65,z));
+      add(box(0.4,0.5,0.4, 0xFFD700, x,2.05,z));
+      add(box(1.5,1.8,0.1, 0xaaddee, x,1.5,z+0.7));
+      break;
+    case 'torn-fabric':
+      add(box(0.5,0.05,0.4, 0xaa2222, x,0.05,z));
+      add(box(0.4,0.05,0.35, 0x1a1a1a, x+0.15,0.06,z+0.1));
+      break;
+    case 'tv-witness':
+      add(box(1.3,0.9,0.7, 0x222222, x,1.0,z));
+      add(box(1.05,0.65,0.05, 0x3399ff, x,1.05,z+0.36));
+      break;
+    case 'till-key':
+      add(box(1.4,1.0,0.7, 0x8B5A2B, x,0.5,z));
+      add(box(0.9,0.35,0.5, 0xcccccc, x,1.08,z));
+      break;
+    case 'milo-records':
+      add(box(0.8,1.3,0.6, 0x667788, x,0.65,z));
+      add(box(0.55,0.02,0.4, 0xffffff, x,1.32,z));
+      break;
+    case 'della-neighbor':
+      add(box(0.25,1.1,0.25, 0x8B5A2B, x,0.55,z));
+      add(box(0.4,0.3,0.25, 0xcc4444, x,1.1,z));
+      break;
+    case 'paint-trail':
+      add(box(1.3,1.4,0.5, 0x8b95a0, x,0.7,z));
+      [0xaa55cc,0xff6600,0x33aadd].forEach((c,i) => add(box(0.28,0.4,0.28, c, x-0.4+i*0.4,1.55,z)));
+      break;
+    case 'petra-complaints':
+      add(box(1.7,1.3,0.12, 0x8B5A2B, x,1.2,z));
+      add(box(1.4,1.0,0.03, 0xf5f0e0, x,1.2,z+0.08));
+      break;
+    case 'cole-paint':
+      add(box(0.35,0.45,0.35, 0x2d7a2d, x,0.22,z));
+      break;
+  }
+  return made;
+}
+function buildMysteryCaseProps(def) {
+  clearMysteryCaseProps();
+  def.clues.forEach(cl => {
+    const [x,,z] = cl.pos;
+    mysteryDecor.push(...buildMysteryClueDecor(cl.id, x, z));
+    const zone = { x, z, r:2.6, label:`${cl.emoji} ${cl.label}`, action: () => collectMysteryClue(def.id, cl.id) };
+    CITY_ZONES.push(zone);
+    mysteryZones.push(zone);
+  });
+  def.suspects.forEach(sp => {
+    const [x,,z] = sp.pos;
+    const npc = makeNPC({ name:sp.name, role:'Suspect', skin:sp.skin, shirt:sp.shirt, pants:sp.pants, hair:sp.hair, hairColor:sp.hairColor, hat:sp.hat||'none', pos:sp.pos, patrol:[[x,z]] });
+    npcs.push(npc);
+    mysteryNpcs.push(npc);
+    const zone = { x, z, r:3, label:`💬 Talk to ${sp.name}`, action: () => talkToMysterySuspect(def.id, sp.id) };
+    CITY_ZONES.push(zone);
+    mysteryZones.push(zone);
+  });
+}
+function clearMysteryCaseProps() {
+  mysteryDecor.forEach(m => scene.remove(m));
+  mysteryDecor = [];
+  mysteryNpcs.forEach(npc => {
+    const ni = npcs.indexOf(npc); if (ni > -1) npcs.splice(ni, 1);
+    scene.remove(npc.group);
+  });
+  mysteryNpcs = [];
+  mysteryZones.forEach(z => { const zi = CITY_ZONES.indexOf(z); if (zi > -1) CITY_ZONES.splice(zi, 1); });
+  mysteryZones = [];
+}
+// Clue/suspect popups reuse the exact same #neighborModal DOM the Science Lab/Prison NPCs already
+// write into (openScienceNpcModal, further up this file) — one shared "name/title + a line of text"
+// modal instead of inventing a new one for every ambient dialogue source in the game.
+function collectMysteryClue(caseId, clueId) {
+  const def = MYSTERY_CASES.find(c => c.id === caseId);
+  const st = mysteryCaseState[caseId];
+  if (!def || !st || st.status !== 'active') return;
+  const cl = def.clues.find(c => c.id === clueId);
+  if (!cl) return;
+  const isNew = !st.clues.includes(clueId);
+  if (isNew) { st.clues.push(clueId); saveCurrentUser(); }
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('neighborModalTitle').textContent = `${cl.emoji} ${cl.label}`;
+  document.getElementById('neighborModalBody').innerHTML = `<p style="color:#ddd;font-size:13px;line-height:1.5;">${cl.text}</p><p style="color:#6c9;font-size:11px;margin-top:10px;">🕵️ ${isNew ? 'Logged' : 'Already logged'} in your Case File — check it at the Police Station's Detective Corkboard.</p>`;
+  document.getElementById('neighborModal').style.display = 'flex';
+}
+function talkToMysterySuspect(caseId, suspectId) {
+  const def = MYSTERY_CASES.find(c => c.id === caseId);
+  const st = mysteryCaseState[caseId];
+  if (!def || !st || st.status !== 'active') return;
+  const sp = def.suspects.find(s => s.id === suspectId);
+  if (!sp) return;
+  const isNew = !st.suspects.includes(suspectId);
+  if (isNew) { st.suspects.push(suspectId); saveCurrentUser(); }
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('neighborModalTitle').textContent = `${sp.emoji} ${sp.name}`;
+  document.getElementById('neighborModalBody').innerHTML = `<p style="color:#ddd;font-size:13px;line-height:1.5;">${sp.alibi}</p><p style="color:#6c9;font-size:11px;margin-top:10px;">🕵️ Check your Case File at the Police Station's Detective Corkboard.</p>`;
+  document.getElementById('neighborModal').style.display = 'flex';
+}
+// ─── DETECTIVE CORKBOARD — a real place to check an ACTIVE case's progress and accuse a suspect.
+// Deliberately NOT a picker of which case to start (that was the original plan; corrected away —
+// cases now trigger on their own, see tickMysteries() above). Placed just south of the Police
+// Station's own front door (door alcove at z:21.5; the building's real addCol, game-buildings.js,
+// maxes out at z:22 — this sits a clear 4 units past that, same "sign right outside the door"
+// placement buildTownEventsBoard()/buildWorldEventsBoard() already use elsewhere).
+function buildDetectiveCorkboard() {
+  const x = -70, z = 26;
+  box(0.15,2.2,0.15, 0x3a2a1a, x-1.3,1.1,z);
+  box(0.15,2.2,0.15, 0x3a2a1a, x+1.3,1.1,z);
+  box(3,1.6,0.15, 0x6a5a3a, x,2,z);
+  box(2.6,1.2,0.02, 0xf5f0e0, x,2.1,z+0.1);
+  buildSign('🕵️ Detective Corkboard', x, 3.1, z-0.2);
+  CITY_ZONES.push({ x, z:z+1.5, r:3.5, label:'🕵️ Detective Corkboard', action: () => openMysteryCaseFile() });
+}
+function openMysteryCaseFile() {
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  renderMysteryCaseFileBody(false);
+  document.getElementById('mysteryCaseModal').style.display = 'flex';
+}
+function closeMysteryCaseFile() {
+  document.getElementById('mysteryCaseModal').style.display = 'none';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function renderMysteryCaseFileBody(showAccuseList) {
+  const body = document.getElementById('mysteryCaseBody');
+  if (!body) return;
+  if (!mysteryActiveCaseId) {
+    const solvedCount = MYSTERY_CASES.filter(c => mysteryCaseStatus(c.id) === 'solved').length;
+    body.innerHTML = solvedCount >= MYSTERY_CASES.length
+      ? `<p style="color:#8f8;font-size:13px;text-align:center;">🏅 All 3 cases solved — you're a full-fledged Explox Detective!</p>`
+      : `<p style="color:#aaa;font-size:13px;text-align:center;">No active case right now. Mysteries turn up on their own around the city — keep exploring, and check back here once one does!</p>`;
+    return;
+  }
+  const def = MYSTERY_CASES.find(c => c.id === mysteryActiveCaseId);
+  const st = mysteryCaseState[mysteryActiveCaseId];
+  const clueRows = def.clues.map(cl => `<div style="color:${st.clues.includes(cl.id)?'#8f8':'#888'};font-size:12px;margin-bottom:3px;">${st.clues.includes(cl.id)?'✅':'⬜'} ${cl.emoji} ${cl.label}</div>`).join('');
+  const suspectRows = def.suspects.map(sp => `<div style="color:${st.suspects.includes(sp.id)?'#8f8':'#888'};font-size:12px;margin-bottom:3px;">${st.suspects.includes(sp.id)?'✅':'⬜'} ${sp.emoji} ${sp.name}</div>`).join('');
+  const allDone = st.clues.length >= def.clues.length && st.suspects.length >= def.suspects.length;
+  let html = `
+    <div style="color:#fff;font-size:14px;font-weight:bold;margin-bottom:4px;">${def.emoji} ${def.name}</div>
+    <div style="color:#aaa;font-size:11px;margin-bottom:10px;">${def.intro}</div>
+    <div style="color:#ccc;font-size:11px;font-weight:bold;margin-bottom:4px;">Clues (${st.clues.length}/${def.clues.length})</div>
+    ${clueRows}
+    <div style="color:#ccc;font-size:11px;font-weight:bold;margin:10px 0 4px;">Suspects Interviewed (${st.suspects.length}/${def.suspects.length})</div>
+    ${suspectRows}
+    ${!allDone ? `<div style="color:#e0a850;font-size:10px;margin-top:10px;">💡 For the best shot, gather all the clues and talk to every suspect before accusing — you CAN accuse early, but you might be guessing.</div>` : ''}
+  `;
+  if (showAccuseList) {
+    html += `<div style="color:#fff;font-size:12px;font-weight:bold;margin:12px 0 6px;">Who did it?</div>`;
+    html += def.suspects.map(sp => `<button onclick="accuseMysterySuspect('${def.id}','${sp.id}')" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;color:#fff;background:#7a2a2a;text-align:left;">${sp.emoji} ${sp.name}</button>`).join('');
+    html += `<button onclick="renderMysteryCaseFileBody(false)" style="width:100%;padding:6px;background:none;border:1px solid #555;border-radius:8px;color:#888;font-size:11px;cursor:pointer;">← Back</button>`;
+  } else {
+    html += `<button onclick="renderMysteryCaseFileBody(true)" style="width:100%;padding:9px;margin-top:6px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;color:#fff;background:#8a2a2a;">🚨 Make an Accusation</button>`;
+  }
+  body.innerHTML = html;
+}
+function accuseMysterySuspect(caseId, suspectId) {
+  const def = MYSTERY_CASES.find(c => c.id === caseId);
+  const st = mysteryCaseState[caseId];
+  if (!def || !st || st.status !== 'active' || mysteryActiveCaseId !== caseId) return;
+  const suspect = def.suspects.find(s => s.id === suspectId);
+  const solution = def.suspects.find(s => s.id === def.solutionSuspectId);
+  const correct = suspectId === def.solutionSuspectId;
+  clearMysteryCaseProps();
+  mysteryActiveCaseId = null;
+  if (correct) {
+    st.status = 'solved';
+    queueEarning(def.reward, 0, def.name);
+    showNotif(`🎉 Case Closed — ${def.name}! You correctly accused ${suspect.name}. ${def.solutionRecap} +${def.reward} S.I.P. pending in Earnings!`);
+    sfx.cheer();
+    scheduleNextMystery();
+  } else {
+    st.status = 'failed';
+    showNotif(`❌ Wrong! ${suspect.name} didn't do it — it was really ${solution.name}. ${def.solutionRecap} The trail's gone cold for now, but this case may turn up again later.`);
+    sfx.nope();
+    scheduleNextMystery(MYSTERY_RETRY_COOLDOWN_MS);
+  }
+  saveCurrentUser();
+  closeMysteryCaseFile();
 }
 
 // ─── COMPANION COMBAT — Buddy and the adopted kid land their own real hits on whatever
@@ -1216,13 +2336,14 @@ function landCompanionHit(target, mult, label) {
     const dmg = Math.max(1, Math.round(getWeaponDamage() * mult));
     k.hp -= dmg;
     sfx.clang();
-    // Robbers live in the same `killers` array as hired killers (tagged k.robber), but they're a
-    // real different kind of kill with their own reward (defeatRobber's bounty S.I.P.) and message
-    // — dispatching every companion-assisted kill here through defeatKiller() regardless would have
-    // silently paid Elite currency and shown "Defeated the killer!" for a robber kill instead.
-    if (k.hp > 0) { showNotif(`${label} hits the ${k.robber ? 'robber' : 'killer'} for ${dmg}! (${k.hp}/${k.maxHp} HP left)`); return; }
+    // Robbers and Demons live in the same `killers` array as hired killers (tagged k.robber/
+    // k.demon), but each is a real different kind of kill with its own reward/message —
+    // dispatching every companion-assisted kill here through defeatKiller() regardless would have
+    // silently paid the wrong currency and shown the wrong message for a robber or demon kill.
+    const foeLabel = k.demon ? k.demonDef.name : (k.robber ? 'the robber' : 'the killer');
+    if (k.hp > 0) { showNotif(`${label} hits ${foeLabel} for ${dmg}! (${k.hp}/${k.maxHp} HP left)`); return; }
     showNotif(`${label} lands the final hit!`);
-    if (k.robber) defeatRobber(k); else defeatKiller(k);
+    if (k.robber) defeatRobber(k); else if (k.demon) defeatDemon(k); else defeatKiller(k);
   } else if (target.type === 'boss') {
     const dmg = Math.max(1, Math.round(getWeaponDamage() * mult));
     companionHitBoss(target.ref, dmg, label);
@@ -1253,6 +2374,21 @@ function tickCompanionAssist(dt) {
       if (target) landCompanionHit(target, KID_DAMAGE_MULT, `👦 ${familyKidName}`);
     }
   }
+}
+// Bodyguards — same assist pipeline as tickCompanionAssist above, one independent attack timer per
+// hired bodyguard so a roster of 3 doesn't all land hits on the same frame. Damage scales with each
+// bodyguard's own level (bodyguardDamageMult(), game-shops.js), capped at 10.
+const BODYGUARD_ATTACK_INTERVAL = 2.0;
+function tickBodyguards(dt) {
+  if (!bodyguards.length) return;
+  const target = getCompanionCombatTarget();
+  if (!target) return;
+  bodyguards.forEach(bg => {
+    bg._attackTimer = (bg._attackTimer || 0) + dt;
+    if (bg._attackTimer < BODYGUARD_ATTACK_INTERVAL) return;
+    bg._attackTimer = 0;
+    landCompanionHit(target, bodyguardDamageMult(bg.level), `💂 ${bg.name}`);
+  });
 }
 
 let warGarrisons = {};     // territory name -> [{hp,maxHp,mesh,alive,zone,x,z,attackTimer,isTank}] — enemy soldiers + a Tank unit
@@ -2234,6 +3370,27 @@ function buildStoreLayoutExtras(g, mk, roomW, roomD) {
   g.add(openSign);
 }
 
+// Pure body-builder for a store exterior — a THREE.Group at the origin, not yet positioned or
+// added to the scene. Shared by buildOwnedStore() (this account's own store) AND
+// buildRemoteStore() (another real player's store) below, so a store looks IDENTICAL to every
+// player who walks up to it, not just its owner — same principle as renderExistingBuildings()
+// (game-land.js) reusing one building function regardless of who actually owns the plot.
+function buildStoreBodyGroup(def, sz){
+  const totalH = sz.fh * def.floors;
+  const g = new THREE.Group();
+  const mkBox=(w,h,d,color,dx,dy,dz)=>{
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color}));
+    m.position.set(dx,dy,dz); m.castShadow=true; m.receiveShadow=true; g.add(m); return m;
+  };
+  const wallColor = def.furnished ? 0xD8A657 : 0xB0B0B0;
+  mkBox(sz.w, totalH, sz.d, wallColor, 0, totalH/2, 0);              // main body
+  mkBox(sz.w+1, 0.5, sz.d+1, 0x333333, 0, totalH+0.25, 0);            // roof
+  mkBox(sz.w-2, totalH-1, 0.3, 0xAEE3FF, 0, totalH/2, sz.d/2+0.16);   // glass front
+  if(def.floors===2) mkBox(sz.w+0.4, 0.3, sz.d+0.4, 0x333333, 0, sz.fh, 0); // floor divider band
+  if(def.furnished)  mkBox(sz.w-4, 1.2, 1, 0x8B5A2B, 0, 1.2, sz.d/2-1.5);   // shelf visible through the glass
+  buildStoreFacade(g, mkBox, def, sz, totalH);
+  return { group: g, totalH };
+}
 // Builds (or rebuilds) the player's owned store at STORE_PLOT. Safe to call with no store
 // owned — it just clears whatever was there before and leaves the plot empty.
 function buildOwnedStore(){
@@ -2250,20 +3407,8 @@ function buildOwnedStore(){
   const def = STORE_CATALOG.find(s => s.id === ownedStore.id);
   const sz = STORE_SIZES[def.size];
   const {x,z} = ownedStore.location || STORE_PLOT; // older saves from before free placement fall back to the old fixed spot
-  const totalH = sz.fh * def.floors;
 
-  const g = new THREE.Group();
-  const mkBox=(w,h,d,color,dx,dy,dz)=>{
-    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color}));
-    m.position.set(dx,dy,dz); m.castShadow=true; m.receiveShadow=true; g.add(m); return m;
-  };
-  const wallColor = def.furnished ? 0xD8A657 : 0xB0B0B0;
-  mkBox(sz.w, totalH, sz.d, wallColor, 0, totalH/2, 0);              // main body
-  mkBox(sz.w+1, 0.5, sz.d+1, 0x333333, 0, totalH+0.25, 0);            // roof
-  mkBox(sz.w-2, totalH-1, 0.3, 0xAEE3FF, 0, totalH/2, sz.d/2+0.16);   // glass front
-  if(def.floors===2) mkBox(sz.w+0.4, 0.3, sz.d+0.4, 0x333333, 0, sz.fh, 0); // floor divider band
-  if(def.furnished)  mkBox(sz.w-4, 1.2, 1, 0x8B5A2B, 0, 1.2, sz.d/2-1.5);   // shelf visible through the glass
-  buildStoreFacade(g, mkBox, def, sz, totalH);
+  const { group: g, totalH } = buildStoreBodyGroup(def, sz);
   g.position.set(x,0,z);
   scene.add(g);
   storeGroup = g;
@@ -2303,14 +3448,92 @@ function buildOwnedStore(){
   updateStoreSign();
 }
 
+// ─── OTHER REAL PLAYERS' STORES — real bug (same class already fixed for Sunset Plains houses,
+// item 304, via renderExistingBuildings()/syncOtherLandOwnersData()): remoteShops (game-vehicles.js)
+// was fetched from the server the whole time, but only ever used for the overlap check in
+// isStoreSpotValid() — nothing built these in the 3D world, so a friend walking up to another
+// real player's store just saw open ground instead of their actual shop. renderRemoteStores() is
+// called every 3s from syncShops() right after remoteShops refreshes (game-vehicles.js), and is
+// idempotent — an owner whose storeId/customName/x/z haven't changed since last render is skipped
+// entirely, so re-running it on every sync tick is cheap (matches buildLandPlot()'s own "always
+// safe to re-call, cheap when nothing changed" comment).
+function remoteStoreRenderKey(info){ return info.storeId+'|'+info.customName+'|'+info.x+'|'+info.z; }
+function teardownRemoteStore(ownerName){
+  const rec = remoteStoreMeshes[ownerName];
+  if(!rec) return;
+  scene.remove(rec.group);
+  if(rec.sign) scene.remove(rec.sign);
+  rec.npcs.forEach(npc => { scene.remove(npc.group); const i = npcs.indexOf(npc); if(i>-1) npcs.splice(i,1); });
+  const ci = CITY_COLS.indexOf(rec.col); if(ci>-1) CITY_COLS.splice(ci,1);
+  const zi = CITY_ZONES.indexOf(rec.zone); if(zi>-1) CITY_ZONES.splice(zi,1);
+  delete remoteStoreMeshes[ownerName];
+}
+function buildRemoteStore(ownerName){
+  const info = remoteShops[ownerName];
+  if(!info) return;
+  const def = STORE_CATALOG.find(s => s.id === info.storeId);
+  if(!def) return; // unknown storeId (e.g. a save from a future catalog) — skip rather than crash
+  const sz = STORE_SIZES[def.size];
+  const { group: g, totalH } = buildStoreBodyGroup(def, sz);
+  g.position.set(info.x, 0, info.z);
+  scene.add(g);
+  const label = `🏪 ${info.customName || def.name} — ${ownerName}'s Store`;
+  const sign = buildSign(label, info.x, totalH+1.4, info.z+sz.d/2+0.2);
+  const col = addCol(CITY_COLS, info.x, info.z, sz.w/2, sz.d/2);
+  const zone = { x: info.x, z: info.z + sz.d/2 + 3, r:8, label, action: () => interactWithRemoteStorePlot(ownerName) };
+  CITY_ZONES.push(zone);
+  // A couple of patrolling customer NPCs, same visual treatment as your own store gets
+  const doorZ = info.z + sz.d/2 + 3;
+  const madeNPCs = [-4, 4].map((ox,i) => {
+    const npc = makeNPC({
+      name:'Shopper'+(i+1)+'_'+ownerName, role:'Customer', skin: i===0?0xe0b080:0xc07840, shirt:0x557799, pants:0x333333,
+      pos:[info.x+ox, 0, doorZ+6],
+      patrol:[[info.x+ox, doorZ+6],[info.x, doorZ],[info.x+ox, doorZ+6],[info.x-ox, doorZ+6]],
+      hair: i===0 ? 'short' : 'long', hairColor:0x2a1505,
+    });
+    npcs.push(npc);
+    return npc;
+  });
+  remoteStoreMeshes[ownerName] = { group: g, sign, col, zone, npcs: madeNPCs, key: remoteStoreRenderKey(info) };
+}
+function renderRemoteStores(){
+  const seen = new Set();
+  Object.keys(remoteShops).forEach(owner => {
+    if(!owner || owner === currentUser) return;
+    seen.add(owner);
+    const info = remoteShops[owner];
+    const key = remoteStoreRenderKey(info);
+    const existing = remoteStoreMeshes[owner];
+    if(existing && existing.key === key) return; // already rendered, nothing changed — idempotent, matches renderExistingBuildings()'s own skip
+    if(existing) teardownRemoteStore(owner);
+    buildRemoteStore(owner);
+  });
+  // Owner no longer in remoteShops (sold/moved off the server's list) — clear their old exterior
+  Object.keys(remoteStoreMeshes).forEach(owner => { if(!seen.has(owner)) teardownRemoteStore(owner); });
+}
+
 // Rebuilds the walk-in interior at STORE_INTERIOR. Room size follows the current store's
 // tier; furniture pieces are placed at their fixed slot so they never overlap.
-function buildStoreInterior(){
-  if(storeInteriorGroup){ scene.remove(storeInteriorGroup); storeInteriorGroup=null; }
-  if(!ownedStore) return;
-  const def = STORE_CATALOG.find(s => s.id === ownedStore.id);
+// Pass `owner` ({def, spawn, stockOrder, stock, furniture, staff}) to build a READ-ONLY copy of a
+// DIFFERENT real player's store instead, at their own pocket-space spawn (VISIT_STORE_SPAWN) —
+// leaves storeInteriorGroup (this account's own store) completely untouched. Omitted, everything
+// below keeps building THIS account's own store exactly as before.
+function buildStoreInterior(owner){
+  const spawn = owner ? owner.spawn : STORE_INTERIOR;
+  if(!owner){
+    if(storeInteriorGroup){ scene.remove(storeInteriorGroup); storeInteriorGroup=null; }
+    if(!ownedStore) return;
+  } else if(visitStoreInteriorGroup){
+    scene.remove(visitStoreInteriorGroup); visitStoreInteriorGroup=null;
+  }
+  const def = owner ? owner.def : STORE_CATALOG.find(s => s.id === ownedStore.id);
+  if(!def) return;
+  const stockOrder = owner ? owner.stockOrder : storeStockOrder;
+  const stock      = owner ? owner.stock      : storeStock;
+  const furniture  = owner ? owner.furniture  : ownedFurniture;
+  const staff      = owner ? owner.staff      : ownedStaff;
   const sz = STORE_SIZES[def.size];
-  const roomW = sz.w, roomD = currentRoomDepth(); // a bit deeper than the exterior footprint for walking room + shelves
+  const roomW = sz.w, roomD = currentRoomDepth(def); // a bit deeper than the exterior footprint for walking room + shelves
 
   const g = new THREE.Group();
   const mk=(w,h,d,color,dx,dy,dz)=>{
@@ -2341,16 +3564,17 @@ function buildStoreInterior(){
   mk(2, 1, 1, 0x8B5A2B, -3, 0.5, -4);  // ingredients counter
   mk(2, 1, 1, 0x557799,  3, 0.5, -4);  // furniture counter
 
-  // Ingredient shelves — one labeled shelf per type, showing what's stocked there and how many
-  getShelfSlots().forEach(slot => {
+  // Ingredient shelves — one labeled shelf per type, showing what's stocked there and how many.
+  // Owner-aware: shows THIS store's real stock (this account's own, or the visited owner's).
+  getShelfSlots(stockOrder).forEach(slot => {
     const lp = shelfLocalPos(slot, roomD);
     const ing = STORE_INGREDIENTS.find(i => i.id === slot.id);
-    const count = storeStock[slot.id] || 0;
+    const count = stock[slot.id] || 0;
     buildShelfUnit(g, lp.x, lp.z, ing, count);
   });
 
   // Owned furniture — one fixed slot per piece, so pieces never overlap regardless of order bought
-  ownedFurniture.forEach(fid => {
+  furniture.forEach(fid => {
     const f = FURNITURE_CATALOG.find(x => x.id === fid);
     if(!f) return;
     mk(1.2, 1, 1, 0xAA8855, f.slot.x, 0.6, f.slot.z);
@@ -2360,13 +3584,13 @@ function buildStoreInterior(){
 
   // Hired staff stand behind the two counters — a visible reason the shop can run without you
   const staffSpots = [{x:-3, z:-4.35}, {x:3, z:-4.35}];
-  ownedStaff.forEach((staff, i) => {
-    if(staffSpots[i]) addStaffFigure(g, mk, staffSpots[i].x, staffSpots[i].z, staff.name);
+  staff.forEach((s, i) => {
+    if(staffSpots[i]) addStaffFigure(g, mk, staffSpots[i].x, staffSpots[i].z, s.name);
   });
 
-  g.position.set(STORE_INTERIOR.x, 0, STORE_INTERIOR.z);
+  g.position.set(spawn.x, 0, spawn.z);
   scene.add(g);
-  storeInteriorGroup = g;
+  if(owner) visitStoreInteriorGroup = g; else storeInteriorGroup = g;
 }
 // A simple painted "looking outside" scene reused for every window pane
 let _windowSceneTexture = null;
@@ -2682,10 +3906,13 @@ const MARS_ZONE      = { name:'Mars',      x:-1702, z:9652,   r:120, gravity:20 
 const JUPITER_ZONE   = { name:'Jupiter',   x:-10500,z:0,      r:120, gravity:50 }; // real Jupiter gravity is HEAVIER than Earth's — a fun twist, jumping is harder here
 const ANDROMEDA_ZONE = { name:'Andromeda', x:-1980, z:-11227, r:120, gravity:3  }; // deep space — true zero-g, same value inOuterSpace uses
 // Every real gravity zone in the game, checked in the main jump/gravity tick below — replaces the
-// single hardcoded inSpaceZone check the Space Station used to own alone.
+// single hardcoded inSpaceZone check the Space Station used to own alone. The Space Station entry
+// now gets a real `name` too (the other 4 already had one, from MOON_ZONE/MARS_ZONE/etc's own
+// object literals) — currentSpaceZone() below and the sky/fog override in updateDayNight()
+// (game-zones.js) both key off this name to give each zone its own distinct look.
 const GRAVITY_ZONES = [
-  { x:SPACE_ZONE.x, z:SPACE_ZONE.z, r:SPACE_ZONE.r, gravity:14 },
-  MOON_ZONE, MARS_ZONE, JUPITER_ZONE, ANDROMEDA_ZONE,
+  { name:'Space Station', x:SPACE_ZONE.x, z:SPACE_ZONE.z, r:SPACE_ZONE.r, gravity:14 },
+  MOON_ZONE, MARS_ZONE, JUPITER_ZONE, ANDROMEDA_ZONE, HEAVEN_ZONE,
 ];
 function currentGravity() {
   if (!playerGroup) return 34;
@@ -2693,6 +3920,25 @@ function currentGravity() {
     if (Math.hypot(playerGroup.position.x-g.x, playerGroup.position.z-g.z) < g.r) return g.gravity;
   }
   return 34;
+}
+// Which of the 5 space/planet zones (if any) the player is standing in right now — same
+// GRAVITY_ZONES loop currentGravity() above already walks, just returning the matched zone object
+// itself (or null) instead of only its gravity number. "make it so it actually brings you to
+// another planet not just a weird spot of rock on earth" — this is what lets updateDayNight()
+// (game-zones.js) give each zone its own real sky/fog instead of the ordinary Earth season/weather
+// sky, and lets tickLightning()/tickRainAudio() there and the weather-particle hide check in
+// game-controls.js all agree that no Earth-side rain/snow/lightning/rain-sound should leak onto
+// another planet either. game-zones.js and game-controls.js both load BEFORE this file, but this
+// is only ever called from inside a function body at real runtime — well after every script has
+// finished loading — same forward-reference pattern documented in this folder's own README.md and
+// already relied on the other direction (this file reading wrathActive/satanReignActive, both
+// defined in game-customization.js which also loads before it).
+function currentSpaceZone() {
+  if (!playerGroup) return null;
+  for (const g of GRAVITY_ZONES) {
+    if (Math.hypot(playerGroup.position.x-g.x, playerGroup.position.z-g.z) < g.r) return g;
+  }
+  return null;
 }
 // Shared builder for all 4 — same real "platform + craters + landmark + stars + sign" shape
 // buildSpaceZone() already established, just parameterized so a genuinely different landmark per
@@ -2709,7 +3955,12 @@ function buildPlanetZone(zone, groundColor, craterColor, buildLandmark) {
     scene.add(star);
   }
   buildSign(`🪐 ${zone.name.toUpperCase()}`, px, 26, pz+24);
-  addCol(CITY_COLS, px, pz, 10, 10);
+  // Real bug found live: this used to be a 20x20 box centered on the whole landing platform
+  // (px,pz) itself — exactly where the player arrives — sealing the entire zone shut with no gap,
+  // so nobody could take a single step after landing. Every buildLandmark() callback above
+  // (lander/rover/outpost/crystals) actually sits at pz-14, not pz, so a small box hugging just
+  // that spot blocks walking through the prop without trapping the whole platform.
+  addCol(CITY_COLS, px, pz-14, 4, 4);
 }
 function buildDeepSpaceZones() {
   // MOON — grey dust, a real lander (box body + 4 angled legs), planted flag.
@@ -2766,4 +4017,167 @@ const SPACE_FLIGHTS = [
   { name:'Space Station', emoji:'🚀', desc:'Back to the Space Station', price:20, duration:8000, x:SPACE_ZONE.x, z:SPACE_ZONE.z+600 },
 ];
 function openSpaceTravel() { openAirport(SPACE_FLIGHTS); }
+
+// ─── SPACE/PLANET AMBIENT NPCs — coordinator follow-up while this same area of the code was
+// already open: "the builder also wants the space/planet zones populated with real characters —
+// astronauts and aliens, not empty platforms." Same "name + a line" treatment Prison's Rocco/Dusty
+// already get (openPrisonNpcModal, game-alignment.js) — ambient/decorative, not a quest system:
+// walk up, press E, read a line, close. ───────────────────────────────────────────────────────
+// Reuses the exact same generic #neighborModal DOM elements openPrisonNpcModal already writes
+// into (closeNeighborModal() in EXPLOX.html already closes it) — just under an honestly-named
+// wrapper since this isn't prison content, rather than a second new modal.
+function openSpaceNpcModal(emoji, name, line) {
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('neighborModalTitle').textContent = `${emoji} ${name}`;
+  document.getElementById('neighborModalBody').innerHTML = `<p style="color:#ddd;font-size:13px;line-height:1.5;">${line}</p>`;
+  document.getElementById('neighborModal').style.display = 'flex';
+}
+// Astronauts are real human NPCs — same makeNPC() (game-character.js) every other ambient
+// character in this game already goes through (see e.g. the Church worshippers, game-world.js),
+// not a new NPC system. A real two-tone spacesuit: shirt+pants both the SAME solid color (white or
+// real NASA "international orange"), rather than a half-white-half-orange split, reads more like an
+// actual suit at this game's low-poly scale. The existing 'helmet' hat option stands in for a real
+// helmet; no `hair` field is set (same as the Prison Guards' own 'helmet' look) since makeNPC()
+// renders hair AND hat independently — skipping hair is what keeps it from poking through.
+function buildAstronautNPC(name, skin, suitColor, pos, patrol) {
+  const npc = makeNPC({ name, role:'Astronaut', skin, shirt:suitColor, pants:suitColor, hat:'helmet', pos, patrol });
+  npcs.push(npc);
+  return npc;
+}
+// Aliens are NOT just a recolored astronaut — coordinator's own ask: "don't just reuse the
+// astronaut mesh recolored." This keeps the SAME first-six-children order makeNPC() builds
+// (head, torso, armL, armR, legL, legR) because the shared walk-cycle swing in game-controls.js
+// (the npcs.forEach loop under "NPC movement") reaches into each NPC's group by hard child INDEX
+// — ci===2/3 for arms, ci===4/5 for legs — to animate walking. Matching that order keeps aliens
+// walking correctly instead of swinging the wrong body part. Everything alien-only (bare glowing
+// feet, the eye band, antenna, an optional extra arm) is appended AFTER index 5, where that swing
+// code never looks, so those pieces hold perfectly still while walking — exactly like a human
+// NPC's hair/hat already do. Genuinely different from the astronaut silhouette: a taller head,
+// a slimmer body, saturated non-human skin, antenna, and a glowing single eye-band instead of a
+// human face — same low-poly box style as literally everything else in this game, not new geometry
+// tech, just different proportions/color/extras.
+function makeAlienNPC(def) {
+  const g = new THREE.Group();
+  const mk = (w,h,d,color,x,y,z) => { const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color})); m.position.set(x,y,z); m.castShadow=true; g.add(m); return m; };
+  mk(1.05,1.35,0.95, def.skin, 0,3.15,0);      // 0: head — big, tall, alien-proportioned (vs. makeNPC's 0.9x0.9x0.9)
+  mk(0.55,0.9,0.36, def.suit, 0,1.85,0);       // 1: torso — slimmer than human
+  mk(0.22,0.85,0.22, def.suit, -0.46,1.85,0);  // 2: left arm
+  mk(0.22,0.85,0.22, def.suit, 0.46,1.85,0);   // 3: right arm
+  mk(0.26,0.8,0.26, def.suit, -0.17,0.72,0);   // 4: left leg
+  mk(0.26,0.8,0.26, def.suit, 0.17,0.72,0);    // 5: right leg
+  mk(0.3,0.2,0.4, def.skin, -0.17,0.15,0.05);  // 6: bare left foot (past the swing-animated 2-5 range, safe)
+  mk(0.3,0.2,0.4, def.skin, 0.17,0.15,0.05);   // 7: bare right foot
+  const glowMat = () => new THREE.MeshBasicMaterial({color:def.glow}); // fully unshaded — same "always looks lit" trick the stars/Andromeda beacon already use
+  const eye = new THREE.Mesh(new THREE.BoxGeometry(0.7,0.18,0.08), glowMat()); eye.position.set(0,3.2,0.5); g.add(eye); // 8: glowing single eye-band, not a human face
+  mk(0.07,0.5,0.07, def.skin, -0.22,4.05,0);   // 9: left antenna stalk
+  mk(0.07,0.5,0.07, def.skin, 0.22,4.05,0);    // 10: right antenna stalk
+  const tipL = new THREE.Mesh(new THREE.SphereGeometry(0.11,6,6), glowMat()); tipL.position.set(-0.22,4.35,0); g.add(tipL); // 11: left antenna tip
+  const tipR = new THREE.Mesh(new THREE.SphereGeometry(0.11,6,6), glowMat()); tipR.position.set(0.22,4.35,0); g.add(tipR); // 12: right antenna tip
+  if (def.extraArm) { const a = mk(0.2,0.75,0.2, def.suit, 0,1.8,-0.32); a.rotation.x = 0.7; } // 13: decorative third arm, never animated
+  const tc = document.createElement('canvas'); tc.width=256; tc.height=56;
+  const cx = tc.getContext('2d');
+  cx.fillStyle='rgba(0,0,0,0.7)'; cx.fillRect(0,0,256,56);
+  cx.fillStyle='#fff'; cx.font='bold 17px Arial'; cx.textAlign='center'; cx.fillText(def.name,128,24);
+  cx.fillStyle='#ffdd55'; cx.font='12px Arial'; cx.fillText(def.role,128,44);
+  const tag = new THREE.Mesh(new THREE.PlaneGeometry(2.8,0.6), new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(tc),transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+  tag.position.y = 4.6; g.add(tag);
+  g.position.set(def.pos[0], def.pos[1], def.pos[2]); scene.add(g);
+  const npc = {group:g, tag, patrol:def.patrol, patrolIdx:0, speed:1.4+Math.random()*0.5, waitTime:0, name:def.name, role:def.role, isDown:false, seated:false, emotion:null};
+  npcs.push(npc);
+  return npc;
+}
+// Astronauts at the Space Station platform. Deliberately built OUTSIDE buildSpaceZone()'s own
+// _buildOrigin/_buildScale block — that function is left completely untouched (per "leave the
+// existing platform geometry... exactly as they are") — using the exact same plain-unscaled-
+// coordinates approach the Deep Space Terminal a few lines above already uses for the same reason,
+// so these two astronauts land at a real, predictable spot on the 110-unit platform.
+function buildSpaceZoneNPCs() {
+  const { x:sx, z:sz } = SPACE_ZONE;
+  buildAstronautNPC('Astronaut Reyes', 0xd9a875, 0xf0f0f0,
+    [sx-20,0,sz+10], [[sx-20,sz+10],[sx-14,sz+14],[sx-22,sz+4]]);
+  buildAstronautNPC('Astronaut Kwan', 0xefc9a0, 0xff6a1a,
+    [sx+16,0,sz-14], [[sx+16,sz-14],[sx+10,sz-8],[sx+18,sz-18]]);
+  CITY_ZONES.push({ x:sx-20, z:sz+10, r:3, label:'💬 Talk to Astronaut Reyes', action: () => openSpaceNpcModal('🧑‍🚀','Astronaut Reyes','"Docked here for resupply. That blue marble out there? That\'s home. The terminal\'s a short walk from here if you\'re ready to fly farther out."') });
+  CITY_ZONES.push({ x:sx+16, z:sz-14, r:3, label:'💬 Talk to Astronaut Kwan', action: () => openSpaceNpcModal('🧑‍🚀','Astronaut Kwan','"Low gravity took me a week to get used to — kept bonking my helmet on the ceiling. You\'ll get the hang of it fast."') });
+}
+// Astronauts at Moon/Mars (the more "explored" worlds), alien traders/explorers at Jupiter's
+// outpost, and native Andromedans among the crystals. Same plain-final-coordinates approach as
+// buildPlanetZone() itself — no _buildOrigin scaling is active out here (see that function's own
+// comment), so a small raw offset from each zone's center lands exactly where it looks like it
+// should, safely clear of each zone's existing lander/rover/dish/crystal landmark.
+function buildDeepSpaceNPCs() {
+  // MOON
+  buildAstronautNPC('Astronaut Chen', 0xc98a5a, 0xf0f0f0,
+    [MOON_ZONE.x-16,0,MOON_ZONE.z-6], [[MOON_ZONE.x-16,MOON_ZONE.z-6],[MOON_ZONE.x-10,MOON_ZONE.z-2],[MOON_ZONE.x-18,MOON_ZONE.z-12]]);
+  buildAstronautNPC('Astronaut Okafor', 0x8a5a34, 0xff6a1a,
+    [MOON_ZONE.x+18,0,MOON_ZONE.z-4], [[MOON_ZONE.x+18,MOON_ZONE.z-4],[MOON_ZONE.x+22,MOON_ZONE.z+2],[MOON_ZONE.x+14,MOON_ZONE.z-8]]);
+  CITY_ZONES.push({ x:MOON_ZONE.x-16, z:MOON_ZONE.z-6, r:3, label:'💬 Talk to Astronaut Chen', action: () => openSpaceNpcModal('🌕','Astronaut Chen','"Grey dust gets into everything out here. Worth it, though — one-sixth gravity means I can jump higher than I ever could back home. Try it!"') });
+  CITY_ZONES.push({ x:MOON_ZONE.x+18, z:MOON_ZONE.z-4, r:3, label:'💬 Talk to Astronaut Okafor', action: () => openSpaceNpcModal('🌕','Astronaut Okafor','"That lander\'s been sitting there since the first crew touched down. Good bones. Mind the craters — they\'re deeper than they look."') });
+
+  // MARS
+  buildAstronautNPC('Astronaut Ibrahim', 0xd9a875, 0xff6a1a,
+    [MARS_ZONE.x-16,0,MARS_ZONE.z-8], [[MARS_ZONE.x-16,MARS_ZONE.z-8],[MARS_ZONE.x-10,MARS_ZONE.z-4],[MARS_ZONE.x-18,MARS_ZONE.z-14]]);
+  buildAstronautNPC('Astronaut Volkov', 0xefc9a0, 0xf0f0f0,
+    [MARS_ZONE.x+16,0,MARS_ZONE.z-6], [[MARS_ZONE.x+16,MARS_ZONE.z-6],[MARS_ZONE.x+20,MARS_ZONE.z+2],[MARS_ZONE.x+12,MARS_ZONE.z-10]]);
+  CITY_ZONES.push({ x:MARS_ZONE.x-16, z:MARS_ZONE.z-8, r:3, label:'💬 Talk to Astronaut Ibrahim', action: () => openSpaceNpcModal('🔴','Astronaut Ibrahim','"Reddest dirt you\'ll ever see — it\'s the iron oxide, same stuff that turns old nails rusty. The rover still runs, believe it or not."') });
+  CITY_ZONES.push({ x:MARS_ZONE.x+16, z:MARS_ZONE.z-6, r:3, label:'💬 Talk to Astronaut Volkov', action: () => openSpaceNpcModal('🔴','Astronaut Volkov','"Gravity here is lighter than Earth but heavier than the Moon — took me a week to stop misjudging every step. Watch the horizon, the dust storms roll in fast."') });
+
+  // JUPITER — alien traders/explorers passing through the outpost
+  makeAlienNPC({ name:'Zhorlak', role:'Alien Trader', skin:0x5aa87a, suit:0x2a4a3a, glow:0xffcc55, extraArm:true,
+    pos:[JUPITER_ZONE.x-16,0,JUPITER_ZONE.z-6], patrol:[[JUPITER_ZONE.x-16,JUPITER_ZONE.z-6],[JUPITER_ZONE.x-10,JUPITER_ZONE.z-2],[JUPITER_ZONE.x-18,JUPITER_ZONE.z-12]] });
+  makeAlienNPC({ name:'Vynn', role:'Alien Explorer', skin:0x7a5aa8, suit:0x3a2a4a, glow:0x66ffdd, extraArm:false,
+    pos:[JUPITER_ZONE.x+16,0,JUPITER_ZONE.z-4], patrol:[[JUPITER_ZONE.x+16,JUPITER_ZONE.z-4],[JUPITER_ZONE.x+20,JUPITER_ZONE.z+2],[JUPITER_ZONE.x+12,JUPITER_ZONE.z-8]] });
+  CITY_ZONES.push({ x:JUPITER_ZONE.x-16, z:JUPITER_ZONE.z-6, r:3, label:'💬 Talk to Zhorlak', action: () => openSpaceNpcModal('🟠','Zhorlak','"Storm bands below, quiet outpost up here — good for trade, better for the view. You have anything to swap, small one?"') });
+  CITY_ZONES.push({ x:JUPITER_ZONE.x+16, z:JUPITER_ZONE.z-4, r:3, label:'💬 Talk to Vynn', action: () => openSpaceNpcModal('🟠','Vynn','"Heavier gravity than your homeworld, isn\'t it? I can tell by how you walk. Takes a few cycles to adjust."') });
+
+  // ANDROMEDA — native Andromedans among the crystals
+  makeAlienNPC({ name:'Qyren', role:'Andromedan', skin:0xcc66ff, suit:0x4a2a6a, glow:0xff66ff, extraArm:false,
+    pos:[ANDROMEDA_ZONE.x-16,0,ANDROMEDA_ZONE.z-6], patrol:[[ANDROMEDA_ZONE.x-16,ANDROMEDA_ZONE.z-6],[ANDROMEDA_ZONE.x-10,ANDROMEDA_ZONE.z-2],[ANDROMEDA_ZONE.x-18,ANDROMEDA_ZONE.z-12]] });
+  makeAlienNPC({ name:'Miilo', role:'Andromedan', skin:0x66ddcc, suit:0x2a4a4a, glow:0x66ffff, extraArm:true,
+    pos:[ANDROMEDA_ZONE.x+16,0,ANDROMEDA_ZONE.z-4], patrol:[[ANDROMEDA_ZONE.x+16,ANDROMEDA_ZONE.z-4],[ANDROMEDA_ZONE.x+20,ANDROMEDA_ZONE.z+2],[ANDROMEDA_ZONE.x+12,ANDROMEDA_ZONE.z-8]] });
+  CITY_ZONES.push({ x:ANDROMEDA_ZONE.x-16, z:ANDROMEDA_ZONE.z-6, r:3, label:'💬 Talk to Qyren', action: () => openSpaceNpcModal('💫','Qyren','"The crystals hum if you listen close — they\'ve been growing here longer than either of us has been alive. Zero gravity feels like home to me. Does it feel strange to you?"') });
+  CITY_ZONES.push({ x:ANDROMEDA_ZONE.x+16, z:ANDROMEDA_ZONE.z-4, r:3, label:'💬 Talk to Miilo', action: () => openSpaceNpcModal('💫','Miilo','"Not many travelers make it this far out. Welcome to Andromeda, small wanderer. Mind the beacon light — it pulses brighter when more visitors arrive."') });
+}
+
+// ─── SCIENCE LAB NPCs — coordinator's own ask: real Scientist characters administering real
+// "Science Tests," not just a menu screen. Same "name + a line, walk up, press E" treatment as the
+// Prison's Rocco/Dusty (openPrisonNpcModal, game-alignment.js) and the Space/Planet astronauts just
+// above (openSpaceNpcModal) — ambient/decorative, not a quest system. Reuses the exact same generic
+// #neighborModal DOM elements those already write into. The Lab building itself (steel-and-glass
+// exterior + real collision) is buildCity() in game-buildings.js; SCIENCE_LAB (its center point) and
+// the actual Science Test mechanic (openScienceLab() and friends) both live in game-land.js.
+function openScienceNpcModal(emoji, name, line) {
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('neighborModalTitle').textContent = `${emoji} ${name}`;
+  document.getElementById('neighborModalBody').innerHTML = `<p style="color:#ddd;font-size:13px;line-height:1.5;">${line}</p>`;
+  document.getElementById('neighborModal').style.display = 'flex';
+}
+// Scientists are real human NPCs via makeNPC() (game-character.js) — shirt AND pants both set to
+// the same pale lab-coat color reads as a real coat at this game's low-poly scale, same "solid
+// color reads as the intended outfit" trick buildAstronautNPC() above already uses for its suits.
+function buildScientistNPC(name, skin, coatColor, hair, hairColor, pos, patrol) {
+  const npc = makeNPC({ name, role:'Scientist', skin, shirt:coatColor, pants:coatColor, hair, hairColor, pos, patrol });
+  npcs.push(npc);
+  return npc;
+}
+// 3 Scientists standing in the open yard east of the Lab's door (SCIENCE_LAB.x+hw sits at the
+// building's own east wall — game-buildings.js's buildCity() — so every position/patrol point
+// below stays well clear of it, never inside the Lab's real collision box). One chemistry-loving,
+// one astronomy-obsessed, one biology/nature — and Dr. Greenwood's own line is the one that
+// actually invites the player to take a Science Test, tying the flavor to the real mechanic
+// instead of bolting a quiz onto an unrelated character.
+function buildLabNPCs() {
+  const { x:lx, z:lz } = SCIENCE_LAB; // game-land.js
+  buildScientistNPC('Dr. Elena Vex', 0xe0b28c, 0xf2f2ee, 'short', 0x9a3324,
+    [lx+16,0,lz-9], [[lx+16,lz-9],[lx+19,lz-11],[lx+13,lz-11]]);
+  buildScientistNPC('Dr. Milo Farrow', 0xc98a5a, 0xf2f2ee, 'curly', 0x2a2a2a,
+    [lx+16,0,lz+9], [[lx+16,lz+9],[lx+19,lz+11],[lx+13,lz+11]]);
+  buildScientistNPC('Dr. Sasha Greenwood', 0xefc9a0, 0xf2f2ee, 'ponytail', 0x3a6b3a,
+    [lx+24,0,lz], [[lx+24,lz],[lx+27,lz-3],[lx+27,lz+3]]);
+  CITY_ZONES.push({ x:lx+16, z:lz-9, r:3, label:'💬 Talk to Dr. Elena Vex', action: () => openScienceNpcModal('⚗️','Dr. Elena Vex','"Careful near my station — I\'ve got three reactions going at once. Chemistry is just cooking with better safety goggles. Ask me about the periodic table sometime, I could talk for hours."') });
+  CITY_ZONES.push({ x:lx+16, z:lz+9, r:3, label:'💬 Talk to Dr. Milo Farrow', action: () => openScienceNpcModal('🔭','Dr. Milo Farrow','"I was up on the roof again last night with the telescope — clear skies, could see clean past the rings. Someday I\'m taking that trip to Saturn myself. Until then, the stars come to me."') });
+  CITY_ZONES.push({ x:lx+24, z:lz, r:3, label:'💬 Talk to Dr. Sasha Greenwood', action: () => openScienceNpcModal('🌱','Dr. Sasha Greenwood','"I study everything that grows, crawls, or swims — best job in the world. Actually, since you\'re here: the Lab runs a real Science Test right through that door. Physics, chemistry, biology, space, earth science — walk in and give it a shot."') });
+}
 

@@ -594,9 +594,38 @@ let cabCompanionMeshes = []; // "came along" figures standing at your last cab d
 // bar — a stale loop just checks this and quietly stops instead of racing the current ride.
 let cabRideToken = 0;
 
+// Bug report: "why is the cab tab bringing me inside not outside" / "i was stuck in a building" —
+// finishCabRide() always moves you to an OUTDOOR LOC_ZONES point, but never cleared whichever
+// inHouse/inMall/inStore/... pocket-interior flag was still true if you called the cab from inside
+// somewhere, so the game kept treating you as indoors (wrong distance for the fare/ETA, wrong
+// movement/camera state) even after your coordinates moved outside. Fix: calling a cab first walks
+// you out through the real door — the same exit function (with its real side effects, like
+// exitStore() dropping carried boxes) any other "leave" trigger already uses — so the ride always
+// starts and ends in a genuinely outdoor state. Only one inXxx flag is ever true at a time.
+function exitForCabPickup() {
+  if (inHouse) exitHouse();
+  else if (inMall) exitMall();
+  else if (inHotel) checkoutHotel();
+  else if (inStore) exitStore();
+  else if (inFriendHouse) leaveFriendHouse();
+  else if (inVisitStore) exitVisitStore();
+  else if (inLandHouse) exitLandHouse();
+  else if (inCountryHotel) checkoutCountryHotel();
+  else if (inAirportLounge) exitAirportLounge();
+  else if (inArcade) leaveArcade();
+  else if (inCar) exitCar();
+  else if (inArenaBattle) exitRobotArena();
+  else if (inMovieFight) leaveMovieFight();
+  else if (inBankInterior) exitBankInterior();
+  else if (inSportsPark) leaveSportsPark();
+  else if (inHospital) leaveHospital();
+  else if (inSea) leaveSea();
+}
 function toggleCabPanel() {
   const panel = document.getElementById('cabPanel');
   if (panel.style.display === 'none') {
+    if (inPrison) { showNotif("🔒 Can't call a cab from prison — dig your way out or serve your time!"); return; }
+    exitForCabPickup();
     if (document.pointerLockElement) document.exitPointerLock();
     isPointerLocked = false;
     renderCabPanel();

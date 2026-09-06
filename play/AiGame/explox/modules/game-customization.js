@@ -110,6 +110,12 @@ let jumpsUsed = 0;       // for Double Jump — how many jumps used since last t
 let _trippyHue = 0;      // degrees, advances every frame while Trippy Vision is on
 
 let sipDollars      = 0;
+// Cash/ATM feature — real physical cash carried on the player, separate from sipDollars (which
+// is the safe, bank-tracked S.I.P. balance). The whole point of the feature: sipDollars never
+// gets touched by a knockout or a robber's steal roll, cash always can (see knockoutPlayer()'s
+// default open-city branch, game-social.js, and robMoney(), game-land.js). Moved between the two
+// only at an ATM (openATM()/atmWithdraw()/atmDeposit(), game-economy.js) or the Bank counter.
+let cash            = 0;
 let woodCount       = 0;
 let scrapMetal      = 0;
 let playerHealth    = 100;
@@ -189,6 +195,18 @@ let lifetimeCitizensDefeated = 0; // defeatNPC() non-cop/non-president kills (ga
 let lifetimeCopsDefeated    = 0; // defeatNPC() Officer kills (game-social.js)
 let totalContractsCompleted = 0; // Crime Contracts claimed — mirrors totalQuestsCompleted
 
+// ─── SPY FAVORITE-SPOT TRACKING — real persisted state behind the ambient Spy watchers
+// (game-world.js). spyLocationTally is a real running tally of real seconds spent at each real
+// LOC_ZONES (game-zones.js) location, sampled every 30 real seconds by tickFavoriteSpotTracking.
+// Once one location crosses SPY_DISCOVERY_THRESHOLD_SEC, spyFavoriteSpot freezes on that zone's
+// name and spyDiscoveredAt records the moment so the resulting ambush can wait a real short delay
+// after the discovery notification before it's allowed to trigger. spyNextEligibleAt is the long
+// real-world cooldown after an ambush resolves, before tracking/discovery can ever start again.
+let spyLocationTally  = {}; // {zoneName: totalSeconds}
+let spyFavoriteSpot   = null; // zone name, once discovered — null the rest of the time
+let spyDiscoveredAt   = 0; // Date.now() ms
+let spyNextEligibleAt = 0; // Date.now() ms
+
 // ─── CHURCH / DIVINE JUDGMENT — user's own ask: "make god god of Abraham" then, clarified across
 // several follow-ups, a moral-consequence system for real killing (Killers/Robbers/Hire a Killer —
 // NOT minigame kills like Capture the Throne, Arena, or Scrapyard/War robots, which are their own
@@ -197,9 +215,49 @@ let totalContractsCompleted = 0; // Crime Contracts claimed — mirrors totalQue
 let totalKills          = 0; // real Killer/Robber/Hire-a-Killer kills — see checkWrathTrigger()
 let wrathTriggerCount    = 0; // how many times Wrath has been sent after you — each one hits harder
 let wrathActive          = false; // NOT persisted — a mid-chase reload just ends the chase, doesn't erase the kill count that caused it
+// DIVINE JUDGMENT — the one-time capstone above Wrath. Where Wrath re-fires forever, every
+// WRATH_KILL_THRESHOLD kills, this is a single ONE-TIME sentence at a symbolic, almost-unreachable
+// total kill count — see DIVINE_JUDGMENT_KILL_THRESHOLD/checkDivineJudgment() (game-world.js).
+// Persisted so it can only ever happen once per account, ever, ACROSS reloads/relogins — unlike
+// wrathActive above, this flag must survive.
+let divineJudgmentServed = false;
+// The real, longer arc on top of judgment itself — crime → judgment → Hell → redemption. Both
+// persisted for the same "must survive reloads/relogins" reason as divineJudgmentServed above: the
+// real sentence (HELL_SENTENCE_SECONDS, game-world.js) is tracked in playTimeSeconds and can span
+// many real play sessions, and the redemption reward must only ever be grantable once, ever.
+let divineSentenceStartedAt = 0; // playTimeSeconds snapshot the moment judgment fires — see tickDivineRedemption() (game-world.js)
+let divineRedemptionGranted = false;
+// SATAN BOSS — a real, winnable fight against Satan himself, once every SATAN_BOSS_COOLDOWN_DAYS
+// (game-world.js). Stays on the right side of the game's own established rule: God is never a
+// combat target, but Satan explicitly IS ("Satan is the one who rebels, attacks, and loses" — see
+// game-library.js's "The First War"). playTimeSeconds-based, same reasoning as
+// divineSentenceStartedAt above — this has to survive reloads/relogins and can span many sessions.
+let lastSatanBossFightAt = 0; // playTimeSeconds snapshot of the last challenge — see challengeSatan() (game-world.js)
+let lastKillerSupremeFightAt = 0; // playTimeSeconds snapshot of the last time it appeared — see spawnKillerSupreme() (game-land.js)
+// EVENT OF THE DAY — a real once-per-REAL-CALENDAR-DAY claim (a genuine "YYYY-MM-DD" string, not
+// playTimeSeconds like everything else on this page) — see openEventOfDay()/claimEventOfDay()
+// (game-world.js). Empty string means never claimed.
+let lastEventOfDayClaim = '';
+// Today's Event's own "⚔️ Play Today's Challenge" button (openEventOfDay()/startTodaysChallenge(),
+// game-land.js/game-world.js) — a real once-per-REAL-CALENDAR-DAY gate, same shape as
+// lastEventOfDayClaim above, but tracked separately since fighting the challenge is a second,
+// independent way to get a bonus, not a replacement for the passive claim button.
+let lastEventBattleClaim = '';
+// Daily login streak (the "Rewards" tab inside Daily Events, game-world.js) — separate from the
+// event above: `dailyStreakCount` is which real consecutive day the player is on, `lastStreakClaimDate`
+// is the same real "YYYY-MM-DD" gate. Missing a real day resets the streak — see claimDailyStreak().
+let dailyStreakCount = 0;
+let lastStreakClaimDate = '';
 let churchLastPrayed     = 0; // Date.now() ms of the last prayer — see PRAY_COOLDOWN_MS
 let safePeriodEndsAt     = 0; // Date.now() ms — while now < this, no new Killers/Robbers spawn (the "everyone bows" cleansing after Wrath)
-let satanBadUntil        = 0; // Date.now() ms — while now < this, Satan has WON this round: 5x evil spawns, black sky, bad luck
+// SATAN'S REIGN — replaces the old fixed-timer satanBadUntil. true from the moment Satan wins a
+// clash until players actually push back (fighting Demons, praying at Church) or a real-world
+// safety backstop elapses — see tickSatanEvent()/endSatanReign() in game-world.js. This is now the
+// single source of truth every other "is the bad window on" check (evil spawn rate, black sky,
+// demon spawning, bad-luck rewards) reads.
+let satanReignActive     = false;
+let satanReignStartedAt  = 0; // Date.now() ms the current reign began — drives the minimum-duration gate and the backstop
+let satanReignProgress   = 0; // resets to 0 each time Satan wins; +1 per Demon defeated, +2 per Church prayer while active — see SATAN_REIGN_GOAL in game-world.js
 let satanCheckTimer      = 0; // NOT persisted — real-seconds accumulator, see tickSatanEvent()
 
 // ─── RECORDS — user's own ask: "records like most diamonds, sip and more". peakSip/peakElite
@@ -321,6 +379,11 @@ function renderRecordsPanel() {
 }
 const ELITE_LEVEL_THRESHOLDS = [100, 500, 1000, 1500, 2000, 3000, 4500];
 function eliteThresholdForLevel(level) { // cost in Elite Coins to go from level-1 to level
+  // Real bug found live: this loop counts up one level at a time from 8 to `level` — if `level`
+  // is Infinity (an eliteLevel of Infinity, forced in from outside the normal level-up flow,
+  // which never actually reaches it on its own), `i <= level` is true forever and the loop hangs
+  // the whole tab. Any non-finite level has an infinite cost anyway, so just say so directly.
+  if (!isFinite(level)) return Infinity;
   if (level <= ELITE_LEVEL_THRESHOLDS.length) return ELITE_LEVEL_THRESHOLDS[level - 1];
   let last = ELITE_LEVEL_THRESHOLDS[ELITE_LEVEL_THRESHOLDS.length - 1];
   let delta = last - ELITE_LEVEL_THRESHOLDS[ELITE_LEVEL_THRESHOLDS.length - 2];
@@ -356,6 +419,10 @@ function computePlayerMaxHealth() { return 100 + eliteLevel * 15; }
 function playerLevelDamageMult()  { return 1 + eliteLevel * 0.08; }
 function levelUpElite() {
   const cost = eliteThresholdForLevel(eliteLevel + 1);
+  // Same Infinity-minus-Infinity trap as levelUpEliteMax() above, reachable here too once a
+  // maxed-out account's compounding cost itself overflows to Infinity (~level 1750+) — refuse
+  // instead of ever computing `eliteCoins -= cost` with both sides Infinite.
+  if (!isFinite(cost)) { showNotif(`🏆 MAX LEVEL REACHED — Robot Level ${eliteLevel} is as far as it goes.`); return; }
   if (eliteCoins < cost) { showNotif(`❌ Need ${cost.toLocaleString()} 💎 to reach Level ${eliteLevel + 1} (you have ${Math.floor(eliteCoins)})`); return; }
   eliteCoins -= cost;
   eliteLevel++;
@@ -367,6 +434,43 @@ function levelUpElite() {
   playerHealth += playerMaxHealth - oldMax;
   updateHealthBar();
   showNotif(`🆙 Robot Level ${eliteLevel}! Robots are bigger and stronger now — but worth more too. You're stronger too: +${playerMaxHealth-oldMax} Max HP, +${Math.round((playerLevelDamageMult()-1)*100)}% damage!`);
+  sfx.buy();
+  saveCurrentUser();
+  renderQuestsPanel();
+}
+// User's own ask: "make a button in the qwests called upgrade max until u have no elite" — a
+// one-click version of spamming levelUpElite() by hand. Costs grow ~1.5x compounding per level
+// (see eliteThresholdForLevel above), so even an admin-granted near-Number.MAX_VALUE eliteCoins
+// balance only takes on the order of ~1700 loop iterations to exhaust — safe to run synchronously,
+// no risk of hanging the tab.
+// Real bug found live: once eliteCoins is legitimately Infinity (an admin account maxed out, now
+// that Infinity survives saving intact instead of corrupting to null — see explosafeStringify(),
+// game-core.js), the compounding cost eventually overflows to Infinity too, and
+// `eliteCoins -= cost` becomes `Infinity - Infinity`, which JavaScript evaluates to NaN — silently
+// turning infinite coins into broken coins. The `isFinite(cost)` guard stops the loop the moment
+// cost itself stops being a real number, before that subtraction can ever happen.
+function levelUpEliteMax() {
+  const startLevel = eliteLevel;
+  const startCoins = eliteCoins;
+  let levelsGained = 0;
+  let cost = eliteThresholdForLevel(eliteLevel + 1);
+  while (isFinite(cost) && eliteCoins >= cost) {
+    eliteCoins -= cost;
+    eliteLevel++;
+    levelsGained++;
+    cost = eliteThresholdForLevel(eliteLevel + 1);
+  }
+  if (levelsGained === 0) {
+    if (!isFinite(cost)) { showNotif(`🏆 MAX LEVEL REACHED — Robot Level ${eliteLevel} is as far as it goes.`); return; }
+    showNotif(`❌ Need ${cost.toLocaleString()} 💎 to reach Level ${eliteLevel + 1} (you have ${Math.floor(eliteCoins)})`);
+    return;
+  }
+  updateElite();
+  const oldMax = playerMaxHealth;
+  playerMaxHealth = computePlayerMaxHealth();
+  playerHealth += playerMaxHealth - oldMax;
+  updateHealthBar();
+  showNotif(`🆙 Maxed out! Robot Level ${startLevel} → ${eliteLevel} (+${levelsGained}), spent ${Math.floor(startCoins - eliteCoins).toLocaleString()} 💎! +${playerMaxHealth-oldMax} Max HP, +${Math.round((playerLevelDamageMult()-1)*100)}% damage!`);
   sfx.buy();
   saveCurrentUser();
   renderQuestsPanel();
@@ -434,14 +538,26 @@ function closeQuestsPanel() {
 }
 function renderQuestsPanel() {
   const nextCost = eliteThresholdForLevel(eliteLevel + 1);
-  document.getElementById('questsLevelLine').innerHTML =
-    `💎 Robot Level <b>${eliteLevel}</b><br>Next level: ${nextCost.toLocaleString()} 💎 (you have ${Math.floor(eliteCoins).toLocaleString()})`;
+  // A non-finite cost means the compounding formula (eliteThresholdForLevel above) has hit its
+  // own ceiling — no real "next level" exists anymore, so say that plainly instead of showing
+  // raw "∞" targets ("Need ∞ to reach Level ∞" reads like a bug, not a feature). User's own ask
+  // after seeing that wording: "don't say to reach level infinity... say max level reached."
+  const atMaxLevel = !isFinite(nextCost);
+  document.getElementById('questsLevelLine').innerHTML = atMaxLevel
+    ? `💎 Robot Level <b>${eliteLevel}</b><br>🏆 MAX LEVEL REACHED`
+    : `💎 Robot Level <b>${eliteLevel}</b><br>Next level: ${nextCost.toLocaleString()} 💎 (you have ${Math.floor(eliteCoins).toLocaleString()})`;
   const btn = document.getElementById('questsLevelUpBtn');
-  const canLevel = eliteCoins >= nextCost;
+  const canLevel = !atMaxLevel && eliteCoins >= nextCost;
   btn.disabled = !canLevel;
   btn.style.opacity = canLevel ? '1' : '0.5';
   btn.style.cursor = canLevel ? 'pointer' : 'not-allowed';
-  btn.textContent = canLevel ? `⬆️ LEVEL UP! (-${nextCost.toLocaleString()} 💎)` : `⬆️ Need ${Math.ceil(nextCost - eliteCoins).toLocaleString()} more 💎`;
+  btn.textContent = atMaxLevel ? '🏆 MAX LEVEL REACHED'
+    : canLevel ? `⬆️ LEVEL UP! (-${nextCost.toLocaleString()} 💎)` : `⬆️ Need ${Math.ceil(nextCost - eliteCoins).toLocaleString()} more 💎`;
+  const maxBtn = document.getElementById('questsUpgradeMaxBtn');
+  maxBtn.disabled = !canLevel;
+  maxBtn.style.opacity = canLevel ? '1' : '0.5';
+  maxBtn.style.cursor = canLevel ? 'pointer' : 'not-allowed';
+  if (atMaxLevel) maxBtn.textContent = '🏆 MAX LEVEL REACHED';
   const refreshBtn = document.getElementById('questsRefreshBtn');
   const canRefresh = eliteCoins >= QUEST_REFRESH_COST;
   refreshBtn.disabled = !canRefresh;
@@ -703,10 +819,18 @@ let playerInventory = {}; // { itemId: {name, emoji, qty} }
 let safeBalance     = 0;
 let safeCombo       = null;
 let safeInventory   = null; // null = not yet initialised (will be filled on first open)
+// "add a trash safe you set a passcode others can't get it but can put stuff in the same trash
+// can" — unlike the private Safe above (nobody but you can even reach it), this one anybody can
+// DEPOSIT into (no passcode needed to give), but only the owner's own passcode can open it to
+// withdraw — see openTrashModal()/trashGiveItem()/submitTrashSafeCombo() (game-economy.js).
+let trashSafeCombo  = null;
+let trashSafeSip    = 0;
+let trashSafeItems  = {}; // {id: {name, emoji, qty}}
 let playerBirthday  = '';      // stored as 'MM-DD'
 let lastBirthdayGiftDate = ''; // persisted 'YYYY-MM-DD' — so the birthday gift/party only fires once per real day, even across reloads
 let treeMeshes      = [];      // tree canopy mesh refs for seasonal color
 let groundMesh      = null;    // ground mesh ref for seasonal color
+let hillPatchMeshes = [];      // real hill/terrain patch mesh refs (game-zones.js groundHeightAt section) — the ones that share the plain ground color also ride along with seasonal color changes, see applySeasonEffects()
 let weatherParticles = [];     // snow / leaf particle meshes
 
 // Items that cost S.I.P. — free items are not listed here
@@ -724,7 +848,7 @@ const ITEM_PRICES = {
   // and stuff that is what i mean" — real new styles, not outfit color presets).
   hat_bandana:40, hat_headband:35, hat_partyhat:45, hat_bucket:55, hat_jester:75,
   hat_viking:85, hat_graduation:65, hat_flower:50, hat_backwards:40, hat_sombrero:70,
-  hat_propeller:60, hat_antlers:65, hat_headphones:70, hat_chef:55, hat_turban:60,
+  hat_propeller:60, hat_antlers:65, hat_headphones:70, hat_chef:55, hat_turban:60, hat_sunglasses:45,
   shirt_crewneck:35, shirt_vneck:40, shirt_flannel:55, shirt_polo:50, shirt_crop:45,
   shirt_turtleneck:50, shirt_buttonup:55, shirt_camo:60, shirt_graphic:45, shirt_raincoat:70,
   shirt_denim:65, shirt_tuxedo:90, shirt_sweater:55, shirt_crophoodie:60, shirt_overshirt:50,
@@ -1114,11 +1238,14 @@ function drawPreview() {
   else if(playerHat==='flower')    { px.fillStyle='#2d7a2d'; px.fillRect(cx-20,18,40,7); ['#ff69b4','#ffcc00','#ff6688','#cc88ff','#ffffff'].forEach((col,i)=>{px.fillStyle=col;px.beginPath();px.arc(cx-16+i*8,20,4,0,Math.PI*2);px.fill();}); }
   else if(playerHat==='backwards') { px.fillStyle='#3355aa'; px.fillRect(cx-16,14,32,20); px.fillRect(cx-16,30,32,6); px.fillRect(cx-6,10,12,8); }
   else if(playerHat==='sombrero')  { px.fillStyle='#d4a860'; px.fillRect(cx-38,30,76,6); px.fillRect(cx-16,10,32,22); px.fillStyle='#a8763a'; px.fillRect(cx-38,30,76,3); }
+  else if(playerHat==='sunglasses'){ px.fillStyle='#111111'; px.fillRect(cx-19,22,38,9); px.fillRect(cx-23,22,6,7); px.fillRect(cx+17,22,6,7); }
   else if(playerHat==='propeller') { px.fillStyle='#dd4444'; px.fillRect(cx-20,16,40,22); px.fillStyle='#888'; px.fillRect(cx-2,10,4,8); px.fillStyle='#ccc'; px.fillRect(cx-14,10,28,3); }
   else if(playerHat==='antlers')   { px.fillStyle=hair; px.fillRect(cx-18,16,36,18); px.fillStyle='#8B5A2B'; [-14,14].forEach(ax=>{px.fillRect(cx+ax-2,-2,4,20); px.fillRect(cx+ax-8,4,8,3); px.fillRect(cx+ax,10,8,3);}); }
   else if(playerHat==='headphones'){ px.fillStyle='#222222'; px.fillRect(cx-24,20,6,16); px.fillRect(cx+18,20,6,16); px.fillRect(cx-22,10,44,6); }
   else if(playerHat==='chef')      { px.fillStyle='#ffffff'; px.fillRect(cx-18,26,36,10); px.beginPath(); px.ellipse(cx,14,20,16,0,0,Math.PI*2); px.fill(); }
   else if(playerHat==='turban')    { px.fillStyle='#8833aa'; px.beginPath(); px.ellipse(cx,20,22,18,0,0,Math.PI*2); px.fill(); px.fillStyle='#ffcc00'; px.beginPath(); px.arc(cx,10,4,0,Math.PI*2); px.fill(); }
+  // Cat Ears — real user request (a fan playing the deployed game): "Pls add cat ears... As an hat".
+  else if(playerHat==='catears')   { px.fillStyle='#333333'; px.beginPath(); px.moveTo(cx-24,16); px.lineTo(cx-12,-8); px.lineTo(cx-2,16); px.closePath(); px.fill(); px.beginPath(); px.moveTo(cx+2,16); px.lineTo(cx+12,-8); px.lineTo(cx+24,16); px.closePath(); px.fill(); px.fillStyle='#ff88aa'; px.beginPath(); px.moveTo(cx-19,12); px.lineTo(cx-12,-2); px.lineTo(cx-6,12); px.closePath(); px.fill(); px.beginPath(); px.moveTo(cx+6,12); px.lineTo(cx+12,-2); px.lineTo(cx+19,12); px.closePath(); px.fill(); }
 
   // Nametag
   const name = document.getElementById('nameInput').value || 'Player';
@@ -1164,6 +1291,7 @@ document.getElementById('playBtn').addEventListener('click', () => {
   document.getElementById('hud').style.display = 'block';
   document.getElementById('sipAmount').textContent = sipDollars;
   document.getElementById('eliteAmount').textContent = eliteCoins;
+  document.getElementById('cashAmount').textContent = Math.floor(cash).toLocaleString();
   startGame();
 });
 

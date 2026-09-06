@@ -36,6 +36,12 @@ const SAI_LOCATIONS = [
   { label:'The Diner',       x:110,  z:-25,  color:'#ffaa55', emoji:'🍽️' },
   { label:'Your Store',      x:160,  z:-25,  color:'#D8A657', emoji:'🏪' },
   { label:'Robo Arsenal',    x:282,  z:268,  color:'#00ffcc', emoji:'🤖' },
+  { label:'Church',          x:-40,  z:20,   color:'#FFD700', emoji:'⛪' },
+  { label:'Library',         x:-75,  z:60,   color:'#c9a876', emoji:'📚' },
+  { label:'School',          x:70,   z:60,   color:'#3388cc', emoji:'🏫' },
+  { label:'Hospital',        x:-40,  z:74,   color:'#ff5566', emoji:'🏥' },
+  { label:'Sports Park',     x:-10,  z:-95,  color:'#33cc66', emoji:'🏟️' },
+  { label:'The Sea',         x:220,  z:90,   color:'#00aaff', emoji:'🌊' },
 ];
 // World-zoom markers for the SAI map — kept OUT of SAI_LOCATIONS on purpose: that array also
 // feeds buildShopperPopulation()'s wander pool, and a shopper randomly assigned "walk to Japan"
@@ -134,6 +140,27 @@ const SAI_KB = [
   // older generic entries below (particularly 'job'/'work'/'earn' at the original #5 entry, which
   // would otherwise swallow "how does war work"/"job tab"/"earnings" queries meant for one of these)
   // needs to win the race by being checked first, not by being more "correct".
+  //
+  // Batch below (Library through Tower Defense Fight) added in one real accuracy pass, cross-
+  // checked against the actual game modules — see each entry's own coordinate/mechanic for the
+  // real source. Kept ahead of the older entries for the same reason as every entry above them.
+  { keys:['library','book','bookshelf','read a book','lore'], reply:'📚 The Library is at x=-75, z=60 — walk in and pick a book off the shelf! Every book is a real, original Explox story: city origin myths, side adventures, and more, all written just for this world. New books get added over time, so check back!' },
+  { keys:['church','pray','prayer','worship','blessing'], reply:"⛪ The Church is at x=-40, z=20 — a real, peaceful building you can walk into. Type what's on your heart and pray (once per real hour): sometimes you're just healed, sometimes you're granted a real reward, and sometimes you get a genuine quest to complete!" },
+  { keys:['bible','bible stories','scripture'], reply:'📖 Click the Bible Stories button inside the Church to read all 66 real books of the Bible retold as original Explox stories, from Genesis all the way to Revelation!' },
+  { keys:["satan's reign",'satan','demon','demons','divine clash'], reply:"😈 Sometimes the world tips into a real Satan's Reign — 4 named demons (Vraxis, Ghorlak, Skreel, Malchor) start spawning around the city, tougher than an ordinary Killer. Watch the sky above the Church for a real light-vs-shadow clash, then push the darkness back: defeat demons or pray at the Church — both count toward ending the Reign!" },
+  { keys:['school','pop quiz','classroom','quiz'], reply:'🏫 Enter School at x=70, z=60 and pick "Walk in as yourself" for a real Pop Quiz! Type your real age, then answer 10 real age-matched questions (math, reading, science, social studies) — +15 S.I.P. per correct answer, once every 20 minutes. The old kid-enrollment menu is still there too, for your adopted child.' },
+  { keys:['eating competition','eating contest','buffet contest','out-eat'], reply:'🏆 At any Diner buffet, challenge a real opponent to an Eating Competition! Pay a 100 S.I.P. entry, then out-eat them in 60 real seconds — win and you pocket 250 S.I.P. (+150 more on a new personal best). Lose and you still get a small consolation payout.' },
+  { keys:['cab','taxi','call a cab'], reply:'🚕 Click the CAB tab (right side) to call a real taxi to ANY location in the city, or any of the 8 countries/Space Station! Fare scales with real distance (a flat 4 S.I.P. plus more per 1000 units, +60 S.I.P. surcharge for a country run) — bring up to 3 friends along for +5 S.I.P. each.' },
+  { keys:['trash safe'], reply:"🗑️ Click the TRASH SAFE tab (right side) — it's a real shared drop box! ANYONE can put S.I.P. or items into your Trash Safe for you, no passcode needed. But only YOUR passcode can open it back up to take things out." },
+  { keys:['global chat','chat with other players','talk to other players','dev talk','message the admin','message the developer'], reply:'💬 Click the CHAT tab (right side, ONLINE mode) to talk with every other player in the world in real time! Switch it to Dev Talk mode to send a message straight and private to the developer instead.' },
+  { keys:['weather','rain','snowstorm','thunderstorm','fog','hills','terrain'], reply:'🌦️ The weather actually changes on its own — clear skies, rain, thunderstorms with real lightning, snow, fog, or breezy leaves, all shifting over real time and matching the season. Open ground like The Park, Whispering Woods, Sunset Plains, and the land around each country now has real rolling hills too!' },
+  { keys:['hospital','doctor','sick','heal me'], reply:'🏥 City Hospital is at x=-40, z=74. See the Doctor for 80 S.I.P. to fully heal AND cure being sick — the one real fix for the Sickness system!' },
+  { keys:['sports park','basketball','soccer','baseball','bowling','gym'], reply:'🏟️ Sports Park is at x=-10, z=-95 — shoot real hoops, take a penalty kick, swing at baseball, roll a bowling ball, or hit the gym for a real workout buff, all in one place!' },
+  { keys:['sea','swim','beach','ocean'], reply:'🌊 The Sea is at x=220, z=90 — a real sandy beach with real swimmable water. Walk in to swim (you move slower, like real swimming), then press Jump to dive under or surface!' },
+  { keys:['prison','jail','arrest','escape prison','wanted level'], reply:"🔒 Get arrested and you serve real time in a real Cell Block — talk to cellmates Rocco and Dusty, work out for good behavior (-10s off your sentence), or dig at the loose brick 5 times to escape (time it between guard patrols, or you're caught and it costs you +15s)!" },
+  { keys:['robot war','robot war kingdoms','robot army'], reply:"🤖 Robot War (Mini Games panel) is a real 100-level campaign across 5 Kingdoms on an overworld map — command your army and take down every faction's boss, ending with The Overlord. Build up your own Castle for a real Army Cap + Defense bonus, and buy a rideable vehicle in the Garage (Scrap Racer bike, Siege Hauler tank, or Titan Frame mech) — a totally separate system from the main city's Car Dealership!" },
+  { keys:['survival horde','endless waves'], reply:'🧟 Survival Horde (Mini Games panel) throws endless waves at you from every direction — pick Easy, Medium, or Hard, then choose one real upgrade (12 to pick from) after every wave you clear. See how long you can last!' },
+  { keys:['tower defense','frost trap','build a turret','barricade'], reply:"🏯 Tower Defense Fight (Mini Games panel) — defend your tower across 3 lanes and 18 waves (a real boss on Wave 18)! Build Turrets or Frost Traps on the glowing pads and Barricades on the road gates, and jump into the fight yourself with a real sword." },
   { keys:['guard','siege','robber','attacker','defend the bank','bank job'], reply:"💂 Sign up as Bank Guard at x=160, z=246 (S.I.P.) or x=174, z=246 (💎). Killers attack the Bank for real during your shift — fight them off, call in 📣 Coin Bot backup (10 giant Coin Bots, 30s cooldown), and real Police officers show up too. Let the Bank's health hit 0 and the shift fails with no pay!" },
   { keys:['wall','shoot down','rooftop','snipe','bank wall'], reply:"🪜 While on Guard duty, climb the staircase on the Bank's east side (x=180, z=210) to reach the wall. Up there, press E to fire down at attackers instead of fighting in melee — press E again to climb back down once it's clear!" },
   { keys:['world event','earthquake','alien','pirate raid','crab invasion','gnome','stampede','invasion attempt'], reply:'🌍 The World Events board is at x=386, z=155. Pick from 23 shared events — everyone online sees the same one! Most (concerts, hazards, hostile factions) land at one of 8 fixed spots ringing the very edge of the city; Invasion Attempt always hits home turf at The Park (x=-10, z=-60).' },
@@ -166,7 +193,7 @@ const SAI_KB = [
   { keys:['robo arsenal','fight robot','emp hammer','plasma cutter','rail spike'], reply:'🤖 The Robo Arsenal shop is at The Scrapyard (x=282, z=268). It sells the EMP Hammer, Plasma Cutter and Rail Spike — weak against people, but they hit robots way harder than a regular sword!' },
   { keys:['safe','combo'],           reply:'🔐 Enter the bank and click "Open Safe". First time: create a combo. The safe holds secret items and mini-game weapons!' },
   { keys:['map','where'],            reply:'🗺️ Switch to the Map tab! Click any location dot to draw a navigation line on the ground to follow.' },
-  { keys:['mini game','minigame','throne','obby','parkour'], reply:'🎮 Click MINI GAMES on the right to play Capture the Throne, Obby, or Rooftop Parkour!' },
+  { keys:['mini game','minigame','throne','obby','parkour','geo dash','geodash','geometry dash','special forces'], reply:'🎮 Click MINI GAMES on the right for 8 real mini-games: Capture the Throne, Robot War, Survival Horde, Tower Defense Fight, Obby, Rooftop Parkour, SF Special Forces, and Geo Dash!' },
   { keys:['season','winter','summer','holiday','calendar'],  reply:'📅 Click the season badge (top-right) to open the calendar. Holidays and your birthday are marked!' },
   { keys:['bag','inventory','item'], reply:'🎒 Click the BAG tab on the right to see all your items. Buy things from shops and they show up here!' },
   { keys:['money','sip','cash'],     reply:'💰 Earn S.I.P. by working jobs, cooking meals, or playing mini games. Bank it for interest!' },
@@ -177,7 +204,7 @@ const SAI_KB = [
   { keys:['sits','transit','bus','train','subway','metro','ride','transport'], reply:'🚇 S.I.T.S. (Super Important Transit System) is at the city center (x=0, z=-40)! Walk in and pick a route. 5 lines: 🔴 Red (2 SIP), 🔵 Blue (3 SIP), 🟢 Green (2 SIP), 🟡 Yellow (4 SIP), 🟣 Purple (3 SIP). Click any stop to teleport there instantly! Fares go to your bank.' },
   { keys:['cinema','movie','film','theater','watch'], reply:'🎬 The Movie Theater is south-east at x=50, z=-85. Walk in to pick from 14 movies — buy a ticket, grab snacks, and watch! Ticket prices: 20–40 SIP depending on the film.' },
   { keys:['fast travel','teleport','warp','shortcut'], reply:'🚇 Use S.I.T.S. at the Transit Hub (center of city, x=0, z=-40) to fast-travel anywhere! Pick a line, click your stop, and you\'re there in seconds.' },
-  { keys:['airport','fly','flight','plane','airline','ticket'], reply:'✈️ The City Airport is southwest at x=-200, z=-200. Walk up and press E to enter! Buy a ticket (45–80 SIP) and fly to 5 destinations: Palm Beach 🌴, Mountain View 🏔️, Harbor Bay 🌊, Sky Tower District 🏙️, or Desert Sands 🏜️. Enjoy the window view!' },
+  { keys:['airport','fly','flight','plane','airline','ticket'], reply:"✈️ The City Airport is southwest at x=-200, z=-200. Walk up and press E to enter the real Airport Lounge — eat a local dish, buy a souvenir and travel electronics, THEN board! Real destinations: all 8 countries (70-100 S.I.P.) plus the Space Station (150 S.I.P.). Land and check into a real Country Hotel for 50 S.I.P.!" },
   { keys:['boss','bosses','mega-bot','storm titan','scrap king','frost colossus','sahara golem','void serpent'], reply:'⚔️ 6 bosses guard the far edges of the map — some are hundreds of units out, way past the city! Switch to the new Bosses tab (next to Map) to see each one\'s live distance and hit 🧭 Go to drop a compass beacon straight to it, no matter how far away.' },
 ];
 

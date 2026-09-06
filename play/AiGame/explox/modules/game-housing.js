@@ -979,7 +979,10 @@ function fellTree(tree) {
   tree.fallen = true;
   tree.canopy.visible = false;
   tree.trunk.scale.y = 0.15;
-  tree.trunk.position.y = tree.baseY * 0.15;
+  // tree.groundY (real hills, see groundHeightAt() in game-zones.js) is the real terrain height
+  // right under THIS tree, sampled once when the grove was built — 0 for every tree outside a
+  // hill region, so this is unchanged from before wherever the woods floor is still flat.
+  tree.trunk.position.y = tree.groundY + tree.baseY * 0.15;
   sfx.earn();
   updateWood();
   showNotif('🌳 Tree down! +3 🪵 Wood total');
@@ -989,7 +992,7 @@ function fellTree(tree) {
     tree.fallen = false; tree.hp = tree.maxHp;
     tree.canopy.visible = true;
     tree.trunk.scale.y = 1;
-    tree.trunk.position.y = tree.baseY;
+    tree.trunk.position.y = tree.groundY + tree.baseY;
     showNotif('🌱 A tree grew back in Whispering Woods!');
   }, respawnMs);
 }
@@ -1013,33 +1016,41 @@ function generateWoodsOffsets(count) {
   return candidates.slice(0, count);
 }
 function buildWoodsArea() {
-  buildLogoSign('WHISPERING WOODS', '🌲', '#2d7a2d', '#8B5A2B', WOODS_CENTER.x, 7, WOODS_CENTER.z-12);
+  // Real hills roll across the whole grove now (groundHeightAt(), game-zones.js — WOODS_HILL
+  // covers the entire 100-tree grid) — every piece below gets its own visual Y lifted to the real
+  // terrain height right where it stands, so nothing floats above or sinks into a hillside. It's
+  // exactly 0 (unchanged) for anyone loading a version of the woods that's still flat.
+  const woodsSignGY = groundHeightAt(WOODS_CENTER.x, WOODS_CENTER.z-12);
+  buildLogoSign('WHISPERING WOODS', '🌲', '#2d7a2d', '#8B5A2B', WOODS_CENTER.x, 7+woodsSignGY, WOODS_CENTER.z-12);
   const offsets = generateWoodsOffsets(100);
   offsets.forEach(([dx,dz]) => {
     const x = WOODS_CENTER.x+dx, z = WOODS_CENTER.z+dz, baseY = 2.5;
-    const trunk = box(0.7,5,0.7, 0x5c3a1e, x, baseY, z);
-    const canopy = box(4,4,4, 0x2d7a2d, x, 6.5, z);
+    const groundY = groundHeightAt(x, z);
+    const trunk = box(0.7,5,0.7, 0x5c3a1e, x, groundY+baseY, z);
+    const canopy = box(4,4,4, 0x2d7a2d, x, groundY+6.5, z);
     treeMeshes.push(canopy); // rides along with the existing seasonal-color system too
     addCol(CITY_COLS, x, z, 0.5, 0.5);
-    const tree = { x, z, baseY, hp:3, maxHp:3, fallen:false, respawnAt:0, trunk, canopy };
+    const tree = { x, z, baseY, groundY, hp:3, maxHp:3, fallen:false, respawnAt:0, trunk, canopy };
     WOOD_TREES.push(tree);
     CITY_ZONES.push({ x, z, r:2.5, label:'🌳 Chop Tree for Wood', action: () => chopTree(tree) });
   });
 
   // Crafting Table, a short walk south of the grove
-  box(2.4,0.9,1.4, 0x6b4423, CRAFT_TABLE.x, 0.45, CRAFT_TABLE.z);
-  box(2.6,0.15,1.6, 0x5c3a1e, CRAFT_TABLE.x, 0.95, CRAFT_TABLE.z);
-  buildLogoSign('CRAFTING TABLE', '🔨', '#8B5A2B', '#ffd54a', CRAFT_TABLE.x, 2.4, CRAFT_TABLE.z-1.4);
+  const craftGY = groundHeightAt(CRAFT_TABLE.x, CRAFT_TABLE.z);
+  box(2.4,0.9,1.4, 0x6b4423, CRAFT_TABLE.x, craftGY+0.45, CRAFT_TABLE.z);
+  box(2.6,0.15,1.6, 0x5c3a1e, CRAFT_TABLE.x, craftGY+0.95, CRAFT_TABLE.z);
+  buildLogoSign('CRAFTING TABLE', '🔨', '#8B5A2B', '#ffd54a', CRAFT_TABLE.x, craftGY+2.4, CRAFT_TABLE.z-1.4);
   addCol(CITY_COLS, CRAFT_TABLE.x, CRAFT_TABLE.z, 1.3, 0.8);
   CITY_ZONES.push({ x:CRAFT_TABLE.x, z:CRAFT_TABLE.z+2.5, r:2.5, label:'🔨 Open Crafting Table', action: () => openCrafting()});
 
   // Practice Dummy, well clear of the trees/table so its zone can't overlap theirs
   DUMMY.x = WOODS_CENTER.x + 25; DUMMY.z = WOODS_CENTER.z;
-  const dg = new THREE.Group(); dg.position.set(DUMMY.x, 0, DUMMY.z); scene.add(dg);
+  DUMMY.groundY = groundHeightAt(DUMMY.x, DUMMY.z); // hitDummy()'s knockdown/repair animation (below) reads this instead of a hardcoded 0
+  const dg = new THREE.Group(); dg.position.set(DUMMY.x, DUMMY.groundY, DUMMY.z); scene.add(dg);
   const dpost = new THREE.Mesh(new THREE.BoxGeometry(0.3,3,0.3), mat(0x5c3a1e)); dpost.position.set(0,1.5,0); dg.add(dpost);
   const dbody = new THREE.Mesh(new THREE.BoxGeometry(0.8,1.6,0.5), mat(0xc9a06a)); dbody.position.set(0,2.6,0); dg.add(dbody);
   DUMMY.mesh = dg;
-  buildLogoSign('TRAINING DUMMY', '🥊', '#c9a06a', '#ff4444', DUMMY.x, 4.2, DUMMY.z-1.4);
+  buildLogoSign('TRAINING DUMMY', '🥊', '#c9a06a', '#ff4444', DUMMY.x, DUMMY.groundY+4.2, DUMMY.z-1.4);
   addCol(CITY_COLS, DUMMY.x, DUMMY.z, 0.6, 0.6);
   CITY_ZONES.push({ x:DUMMY.x, z:DUMMY.z+2.5, r:2.5, label:'🥊 Punch Training Dummy', action: hitDummy });
 }
@@ -1134,7 +1145,7 @@ function craftItem(i) {
 }
 
 // ── Training Dummy — safe target to feel out weapon damage, zero risk to the player ──
-let DUMMY = { x:0, z:0, hp:100, maxHp:100, defeated:false, mesh:null };
+let DUMMY = { x:0, z:0, groundY:0, hp:100, maxHp:100, defeated:false, mesh:null };
 function hitDummy() {
   if(DUMMY.defeated) { showNotif('🪵 The dummy is down — repairing itself...'); return; }
   const dmg = getWeaponDamage();
@@ -1145,13 +1156,13 @@ function hitDummy() {
   if(DUMMY.hp <= 0) {
     DUMMY.defeated = true;
     DUMMY.mesh.rotation.z = Math.PI/2.2;
-    DUMMY.mesh.position.y = -0.8;
+    DUMMY.mesh.position.y = DUMMY.groundY - 0.8; // real hills — DUMMY.groundY is the terrain height where the dummy stands (0 unless Whispering Woods is hilly there), set once in buildWoodsArea()
     showNotif(`🥊 Dummy defeated! Final hit for ${dmg}`);
     setTimeout(() => {
       DUMMY.hp = DUMMY.maxHp;
       DUMMY.defeated = false;
       DUMMY.mesh.rotation.z = 0;
-      DUMMY.mesh.position.y = 0;
+      DUMMY.mesh.position.y = DUMMY.groundY;
       showNotif('🪵 Training dummy repaired and ready!');
     }, 8000);
   } else {

@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Explox — Survival Horde</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#000; overflow:hidden; font-family:Arial,sans-serif; }
+    canvas { display:block; }
+
+    /* HUD */
+    #hud { position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:10; }
+
+    #topBar { position:fixed; top:10px; left:50%; transform:translateX(-50%); display:flex; gap:14px; align-items:center; flex-wrap:wrap; justify-content:center; }
+    .pill { background:rgba(0,0,0,0.6); border-radius:20px; padding:6px 16px; color:#fff; font-size:13px; font-weight:bold; border:1px solid rgba(255,255,255,0.2); white-space:nowrap; }
+    #wavePill  { border-color:#ff8822; color:#ffaa55; }
+    #scorePill { border-color:#FFD700; color:#FFD700; }
+    #killPill  { border-color:#cc4444; color:#ff8888; }
+    #enemyPill { border-color:#8844cc; color:#cc99ff; }
+    #atkPill   { border-color:#44ccff; color:#88ddff; }
+    #diffPill  { border-color:#66cc66; color:#99ff99; }
+
+    #upgradesStrip { position:fixed; top:48px; left:50%; transform:translateX(-50%); display:flex; gap:6px; flex-wrap:wrap; max-width:92vw; justify-content:center; pointer-events:none; }
+    .upChip { background:rgba(0,0,0,0.6); border:1px solid #FFD700; border-radius:12px; padding:2px 9px; font-size:13px; color:#FFD700; }
+
+    #healthBar { position:fixed; bottom:44px; left:50%; transform:translateX(-50%); width:280px; }
+    #healthLabel { color:#fff; font-size:12px; margin-bottom:3px; text-align:center; letter-spacing:1px; }
+    #healthTrack { background:rgba(0,0,0,0.5); border:1px solid #ff4444; border-radius:6px; height:14px; }
+    #healthFill  { background:linear-gradient(90deg,#ff2200,#ff6600); height:100%; border-radius:6px; width:100%; transition:width 0.1s; }
+
+    #crosshair { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); color:#fff; font-size:16px; text-shadow:1px 1px 3px #000; }
+    #waveAnn { position:fixed; top:42%; left:50%; transform:translate(-50%,-50%); color:#ff8822; font-size:32px; font-weight:bold; text-shadow:2px 2px 8px #000; opacity:0; transition:opacity 0.4s; letter-spacing:3px; text-align:center; }
+    #controls { position:fixed; bottom:12px; left:14px; color:#ddd; font-size:11px; background:rgba(0,0,0,0.45); padding:6px 12px; border-radius:8px; }
+
+    /* Touch controls — hidden by default, shown only on touch-primary devices */
+    #mobileControls { display:none; }
+    @media (pointer: coarse) { #controls { display:none; } #mobileControls { display:block; } }
+    #joyBase {
+      position:fixed; left:20px; bottom:26px; width:92px; height:92px; border-radius:50%;
+      background:rgba(255,255,255,0.12); border:2px solid rgba(255,255,255,0.35);
+      touch-action:none; z-index:25; pointer-events:auto;
+    }
+    #joyStick {
+      position:absolute; left:50%; top:50%; width:40px; height:40px; margin-left:-20px; margin-top:-20px;
+      border-radius:50%; background:rgba(255,255,255,0.5); border:2px solid rgba(255,255,255,0.75);
+      pointer-events:none;
+    }
+    #mobileAttackBtn {
+      position:fixed; right:20px; bottom:36px; width:70px; height:70px; border-radius:50%;
+      background:rgba(255,102,34,0.55); border:2px solid #ff6622;
+      color:#fff; font-weight:bold; font-size:26px; display:flex; align-items:center; justify-content:center;
+      z-index:25; touch-action:none; user-select:none; pointer-events:auto;
+    }
+
+    #hitFlash { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,0,0,0); pointer-events:none; transition:background 0.08s; }
+
+    /* Screens */
+    .overlay { position:fixed; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:50; text-align:center; padding:16px; }
+    #startScreen { background:rgba(10,3,3,0.9); }
+    #startScreen h1 { font-size:48px; color:#ff6622; letter-spacing:5px; text-shadow:0 0 20px #ff4411; }
+    #startScreen h2 { font-size:18px; color:#ffaa88; margin:10px 0 18px; }
+    #bestScoreLine { color:#FFD700; font-weight:bold; font-size:16px; margin-bottom:16px; }
+    #diffPicker { display:flex; gap:10px; margin-bottom:18px; }
+    .diffBtn { padding:10px 22px; font-size:14px; font-weight:bold; border:2px solid #663322; border-radius:10px; background:rgba(255,255,255,0.06); color:#ccc; cursor:pointer; letter-spacing:1px; transition:border-color 0.15s, background 0.15s, color 0.15s; }
+    .diffBtn:hover { border-color:#ff8822; }
+    .diffBtn.active { border-color:#ff8822; background:rgba(255,136,34,0.2); color:#fff; }
+    .ctrl-list { color:#ccc; font-size:14px; line-height:2.2; margin-bottom:26px; text-align:left; }
+    .ctrl-list b { color:#ff8822; }
+    #startBtn { padding:14px 56px; font-size:20px; font-weight:bold; border:none; border-radius:10px; background:#ff6622; color:#fff; cursor:pointer; letter-spacing:2px; }
+    #startBtn:hover { background:#ff4411; }
+
+    #upgradeScreen { background:rgba(15,4,4,0.94); display:none; }
+    #upgradeScreen h1 { font-size:34px; color:#ff8822; letter-spacing:3px; text-shadow:0 0 16px #ff6622; }
+    #upgradeScreen h2 { font-size:15px; color:#ffbb88; margin:8px 0 26px; }
+    #upgradeCards { display:flex; gap:18px; flex-wrap:wrap; justify-content:center; max-width:940px; }
+    .upCard { width:230px; background:rgba(255,255,255,0.06); border:2px solid #663322; border-radius:14px; padding:18px 14px; cursor:pointer; transition:border-color 0.15s, transform 0.15s, background 0.15s; }
+    .upCard:hover { border-color:#ff8822; background:rgba(255,136,34,0.14); transform:translateY(-4px); }
+    .upIcon { font-size:38px; margin-bottom:8px; }
+    .upName { font-size:15px; font-weight:bold; color:#fff; margin-bottom:6px; }
+    .upStackTag { color:#FFD700; font-size:12px; }
+    .upDesc { font-size:12px; color:#ccc; line-height:1.4; }
+
+    #gameOverScreen { background:rgba(20,4,4,0.94); display:none; }
+    #gameOverScreen h1 { font-size:50px; color:#ff5533; letter-spacing:4px; text-shadow:0 0 16px #ff2200; }
+    #gameOverScreen p { color:#ffcccc; font-size:18px; margin:6px 0; }
+    #newBestBadge { color:#FFD700; font-weight:bold; font-size:18px; text-shadow:0 0 10px #FFD700; margin:10px 0; display:none; }
+    #noUserNote { color:#999; font-size:12px; margin-top:8px; }
+    .restartBtn { margin-top:16px; padding:12px 44px; font-size:16px; font-weight:bold; border:none; border-radius:10px; cursor:pointer; letter-spacing:2px; background:#ff5533; color:#fff; }
+    .restartBtn:hover { background:#ff2200; }
+  </style>
+</head>
+<body>
+
+<div id="hud" style="display:none">
+  <div id="topBar">
+    <div class="pill" id="wavePill">🌊 Wave <span id="waveNum">1</span></div>
+    <div class="pill" id="scorePill">⭐ <span id="score">0</span></div>
+    <div class="pill" id="killPill">💀 Kills: <span id="killCount">0</span></div>
+    <div class="pill" id="enemyPill">Enemies: <span id="enemyCount">0</span> 🧟</div>
+    <div class="pill" id="atkPill">⚔️ <span id="atkStatus">READY</span></div>
+    <div class="pill" id="diffPill">🎚️ <span id="diffPillLabel">Medium</span></div>
+  </div>
+  <div id="upgradesStrip"></div>
+  <div id="healthBar">
+    <div id="healthLabel">❤️ HEALTH</div>
+    <div id="healthTrack"><div id="healthFill"></div></div>
+  </div>
+  <div id="crosshair">+</div>
+  <div id="waveAnn"></div>
+  <div id="hitFlash"></div>
+  <div id="controls">WASD Move · Mouse Look · Click/F = Attack · ESC exit</div>
+</div>
+
+<div id="mobileControls">
+  <div id="joyBase"><div id="joyStick"></div></div>
+  <div id="mobileAttackBtn">⚔️</div>
+</div>
+
+<div class="overlay" id="startScreen">
+  <h1>🧟 SURVIVAL HORDE 🧟</h1>
+  <h2>Endless waves of enemies attack from every direction. Get stronger. Survive as long as you can.</h2>
+  <div id="diffPicker">
+    <button class="diffBtn" data-diff="easy" onclick="selectDifficulty('easy')">🟢 Easy</button>
+    <button class="diffBtn active" data-diff="medium" onclick="selectDifficulty('medium')">🟡 Medium</button>
+    <button class="diffBtn" data-diff="hard" onclick="selectDifficulty('hard')">🔴 Hard</button>
+  </div>
+  <div id="bestScoreLine">🏆 Best Score (<span id="bestScoreModeLabel">Medium</span>): <span id="bestScoreDisplay">0</span></div>
+  <div class="ctrl-list">
+    <div><b>WASD</b> — Move</div>
+    <div><b>Mouse</b> — Look / aim</div>
+    <div><b>Left Click / F</b> — Attack</div>
+    <div><b>Goal</b> — Clear each wave. Pick an upgrade. Survive the next, harder wave.</div>
+    <div><b>Reward</b> — S.I.P. is earned automatically based on how far you get, when the run ends.</div>
+  </div>
+  <button id="startBtn" onclick="startGame()">🧟 SURVIVE!</button>
+</div>
+
+<div class="overlay" id="upgradeScreen">
+  <h1>✅ WAVE <span id="upWaveNum">1</span> CLEARED!</h1>
+  <h2>Choose one upgrade before the next wave hits:</h2>
+  <div id="upgradeCards"></div>
+</div>
+
+<div class="overlay" id="gameOverScreen">
+  <h1>💀 OVERWHELMED</h1>
+  <div id="newBestBadge">🏆 NEW BEST SCORE!</div>
+  <p>Difficulty: <span id="goDifficulty">Medium</span></p>
+  <p>Score: <span id="goScore">0</span> &nbsp;·&nbsp; Best: <span id="goBest">0</span></p>
+  <p>Waves Survived: <span id="goWaves">0</span> &nbsp;·&nbsp; Kills: <span id="goKills">0</span></p>
+  <p style="color:#FFD700;font-weight:bold;">💰 Earned: +<span id="goSip">0</span> S.I.P.</p>
+  <div id="noUserNote">Sign in to Explox to save your best score and earn real S.I.P.!</div>
+  <button class="restartBtn" onclick="location.reload()">TRY AGAIN</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════════════════════
+// SURVIVAL HORDE — endless waves, roguelike upgrades, real S.I.P. economy tie-in.
+//
+// S.I.P. INTEGRATION: same pattern as throne.html. 'explox_current_user' in
+// localStorage gives the logged-in username; the user's real save object lives at
+// 'explox_user_'+user (JSON), and d.sip is their actual spendable balance shared
+// with the whole Explox game. This file only ever touches namespaced fields on that
+// save: d.sip (read+write on run end, see endRun() below) and one persisted best
+// score PER DIFFICULTY MODE — d.survivalHordeBestEasy / ...Medium / ...Hard (see
+// bestScoreField() below the DIFFICULTIES table). If nobody is logged in, everything
+// degrades to read-only/zero — see loadBestScore()/endRun() — never crashes.
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── STATE ──────────────────────────────────────────────────────────────────────
+let scene, camera, renderer, clock;
+let playerGroup, playerSword;
+let yaw=0, pitch=0.15, isLocked=false;
+let moveState={w:false,a:false,s:false,d:false};
+let swordSwing=0;
+let enemies=[], projectiles=[], particles=[];
+let gameState='start'; // start | playing | upgrade | gameover
+let waveClearing=false;
+
+const ARENA_R=40;   // player is clamped inside this radius
+const SPAWN_R=50;   // enemies spawn on a ring just outside the arena, from every angle
+const AURA_RADIUS=5.5;
+const PLAYER_BASE_SPEED=8.5;
+const BASE_ATK_DMG=32, BASE_ATK_COOLDOWN=0.45, BASE_ATK_RANGE=4.5, BASE_ATK_HALF_ANGLE=0.9;
+
+// ── PER-RUN STATE (resets every death/restart — that's the intended design) ────
+function freshRun(){
+  return {
+    hp:100, maxHp:100,
+    dmgMult:1, atkCdMult:1, moveMult:1, rangeMult:1, angleMult:1,
+    lifesteal:0, auraDps:0, dmgReduction:0, explosiveLevel:0, whirlwind:false,
+    wave:1, score:0, kills:0, atkCd:0,
+    upgradesTaken:{} // id -> stack count, for repeat-upgrade caps & the HUD strip
+  };
+}
+let run = freshRun();
+
+// ═════════════════════════════ DIFFICULTY MODES ═════════════════════════════════
+// Picked once on the start screen (see selectDifficulty()) and locked in for the
+// whole run. Each mode scales the SAME wave-scaling formula below by a real growth
+// multiplier — it does NOT just apply a flat stat bonus:
+//   hpGrowth/dmgGrowth/speedGrowth  multiply the wave scaling formula's own per-wave
+//                                    growth rates (the 0.18 / 0.13 / 0.045 terms), so
+//                                    Easy's curve is genuinely flatter and Hard's is
+//                                    genuinely steeper — not just "enemies start bigger".
+//   countGrowth                     multiplies the per-wave enemy-count ramp, so Hard
+//                                    also throws more enemies at you per wave sooner.
+//   unlocks                         the wave number each enemy TYPE becomes available —
+//                                    shifted earlier on Hard (tougher enemies sooner)
+//                                    and later on Easy (gentler early waves).
+//   sipMult                         multiplies the S.I.P. reward formula on run end
+//                                    (see computeRunReward()) — Hard pays out notably
+//                                    better per wave/score since it's objectively harder.
+// Medium is exactly the original baseline design (every growth multiplier = 1.0).
+// ══════════════════════════════════════════════════════════════════════════════
+const DIFFICULTIES = {
+  easy:   { label:'Easy',   hpGrowth:0.65, dmgGrowth:0.65, speedGrowth:0.70, countGrowth:0.75, unlocks:{runner:4, brute:7, spitter:9}, sipMult:0.70 },
+  medium: { label:'Medium', hpGrowth:1.00, dmgGrowth:1.00, speedGrowth:1.00, countGrowth:1.00, unlocks:{runner:3, brute:5, spitter:7}, sipMult:1.00 },
+  hard:   { label:'Hard',   hpGrowth:1.45, dmgGrowth:1.35, speedGrowth:1.25, countGrowth:1.30, unlocks:{runner:2, brute:4, spitter:5}, sipMult:1.60 },
+};
+let difficulty = 'medium';
+function bestScoreField(diff){ return 'survivalHordeBest' + diff.charAt(0).toUpperCase() + diff.slice(1); }
+function selectDifficulty(diff){
+  if(!DIFFICULTIES[diff]) return;
+  difficulty = diff;
+  document.querySelectorAll('.diffBtn').forEach(b=>b.classList.toggle('active', b.dataset.diff===diff));
+  document.getElementById('bestScoreModeLabel').textContent = DIFFICULTIES[diff].label;
+  document.getElementById('bestScoreDisplay').textContent = loadBestScore(diff);
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function mat(c){ return new THREE.MeshLambertMaterial({color:c}); }
+function glow(c){ return new THREE.MeshBasicMaterial({color:c}); }
+function normAngle(a){ while(a>Math.PI)a-=Math.PI*2; while(a<-Math.PI)a+=Math.PI*2; return a; }
+
+// ═════════════════════════════ WAVE SCALING FORMULA ═════════════════════════════
+// Every wave (w, starting at 1) grows enemy stats relative to each type's base:
+//   HP     × (1 + (w-1) * 0.18)            +18% per wave — compounds LINEARLY, not
+//                                            exponentially, so late waves stay hard
+//                                            but not instantly unkillable.
+//   Damage × (1 + (w-1) * 0.13)            +13% per wave.
+//   Speed  × min(1 + (w-1) * 0.045, 2.2)   +4.5% per wave, capped at 2.2× so a long
+//                                            run's enemies never out-run the player
+//                                            entirely, even with no Quick Feet picks.
+// Enemy COUNT also grows every wave: min(6 + floor(w * 2.2), 60) — capped at 60
+// concurrent enemies so a long run stays smooth instead of grinding to a halt.
+// New enemy TYPES unlock at fixed waves (runner @3, brute @5, spitter @7 on Medium),
+// and each unlocked type's pick-weight keeps climbing with wave — so later waves are
+// also more VARIED, not just bigger piles of the same grunt. Every 5th wave (5, 10,
+// 15…) additionally spawns one boss-tier enemy on top of the normal composition, as
+// a hard milestone spike. ALL of the growth rates and unlock waves below are further
+// scaled per DIFFICULTY MODE — see the DIFFICULTIES table above.
+// ══════════════════════════════════════════════════════════════════════════════
+function waveStatMult(w){
+  const cfg=DIFFICULTIES[difficulty];
+  return {
+    hp: 1+(w-1)*0.18*cfg.hpGrowth,
+    dmg: 1+(w-1)*0.13*cfg.dmgGrowth,
+    speed: Math.min(1+(w-1)*0.045*cfg.speedGrowth, 2.2)
+  };
+}
+function waveEnemyCount(w){
+  const cfg=DIFFICULTIES[difficulty];
+  return Math.min(6+Math.floor(w*2.2*cfg.countGrowth), 60);
+}
+function pickEnemyType(w){
+  const u=DIFFICULTIES[difficulty].unlocks;
+  const weights=[{type:'grunt', w:10}];
+  if(w>=u.runner)  weights.push({type:'runner',  w:Math.min(3+w*0.4, 14)});
+  if(w>=u.brute)   weights.push({type:'brute',   w:Math.min(2+w*0.3, 10)});
+  if(w>=u.spitter) weights.push({type:'spitter', w:Math.min(2+w*0.35,12)});
+  const total=weights.reduce((s,x)=>s+x.w,0);
+  let r=Math.random()*total;
+  for(const wt of weights){ if(r<wt.w) return wt.type; r-=wt.w; }
+  return 'grunt';
+}
+
+const ENEMY_BASE = {
+  grunt:   { hp:60,  dmg:10, speed:4.2, range:2.2, atkRate:0.9, scale:1.0,  scoreVal:10, color:0x3a6a3a },
+  runner:  { hp:32,  dmg:7,  speed:6.6, range:2.0, atkRate:0.7, scale:0.8,  scoreVal:8,  color:0xdd6622 },
+  brute:   { hp:150, dmg:18, speed:2.6, range:2.6, atkRate:1.4, scale:1.5,  scoreVal:22, color:0x772222 },
+  spitter: { hp:45,  dmg:9,  speed:3.4, range:20,  atkRate:2.0, scale:0.95, scoreVal:16, color:0x6a2f8f },
+  boss:    { hp:900, dmg:26, speed:2.9, range:2.8, atkRate:1.0, scale:2.6,  scoreVal:250,color:0x221111 },
+};
+
+// ═════════════════════════════ UPGRADE POOL (12 distinct picks) ═════════════════
+// Per-run only — every effect lives on the `run` object above, which is fully
+// discarded and rebuilt on death/restart (see location.reload() on the game-over
+// screen). max:0 means "repeatable forever"; max:N caps how many times that exact
+// upgrade can be offered in a single run (used for a one-time attack-shape change,
+// and to keep the two riskier picks from spiraling out of control).
+// ══════════════════════════════════════════════════════════════════════════════
+const UPGRADE_POOL = [
+  { id:'dmg',       icon:'🗡️', name:'Sharper Blade',    desc:'+25% attack damage.',                             max:0, apply(r){ r.dmgMult*=1.25; } },
+  { id:'atkspeed',  icon:'⚡', name:'Swift Strikes',     desc:'+20% attack speed (shorter cooldown).',           max:0, apply(r){ r.atkCdMult=Math.max(0.32, r.atkCdMult*0.8); } },
+  { id:'maxhp',     icon:'❤️', name:'Iron Skin',         desc:'+25 max HP, and heals you for the same amount.', max:0, apply(r){ r.maxHp+=25; r.hp=Math.min(r.maxHp, r.hp+25); } },
+  { id:'move',      icon:'👟', name:'Quick Feet',        desc:'+15% move speed.',                                max:0, apply(r){ r.moveMult*=1.15; } },
+  { id:'wide',      icon:'🌀', name:'Wide Swing',        desc:'+25% attack range and arc.',                      max:0, apply(r){ r.rangeMult*=1.25; r.angleMult=Math.min(3, r.angleMult*1.15); } },
+  { id:'vamp',      icon:'🩸', name:'Vampiric Edge',     desc:'Heal 3 HP every time you land a hit.',            max:0, apply(r){ r.lifesteal+=3; } },
+  { id:'heal',      icon:'✨', name:'Second Wind',       desc:'Instantly heal 35 HP.',                           max:0, apply(r){ r.hp=Math.min(r.maxHp, r.hp+35); } },
+  { id:'aura',      icon:'🔥', name:'Thorn Aura',        desc:'Burn nearby enemies for 8 damage per second.',    max:0, apply(r){ r.auraDps+=8; } },
+  { id:'armor',     icon:'🛡️', name:'Battle Armor',      desc:'Take 15% less damage from all sources.',          max:4, apply(r){ r.dmgReduction=1-(1-r.dmgReduction)*0.85; } },
+  { id:'explosive', icon:'💥', name:'Explosive Strikes', desc:'Chance your hits explode, damaging nearby foes.', max:3, apply(r){ r.explosiveLevel+=1; } },
+  { id:'whirlwind', icon:'🌪️', name:'Whirlwind Strikes', desc:'Your attack now hits every direction around you.', max:1, apply(r){ r.whirlwind=true; } },
+  { id:'berserk',   icon:'💢', name:'Berserker Pact',    desc:'+45% damage, but -15 max HP. High risk, high reward.', max:3, apply(r){ r.dmgMult*=1.45; r.maxHp=Math.max(20, r.maxHp-15); r.hp=Math.min(r.hp, r.maxHp); } },
+];
+
+function pickThreeUpgrades(){
+  const avail = UPGRADE_POOL.filter(u => u.max===0 || (run.upgradesTaken[u.id]||0) < u.max);
+  const pool = avail.length>=3 ? avail : UPGRADE_POOL.slice();
+  const poolCopy=pool.slice();
+  const picks=[];
+  while(picks.length<3 && poolCopy.length){
+    const idx=Math.floor(Math.random()*poolCopy.length);
+    picks.push(poolCopy.splice(idx,1)[0]);
+  }
+  return picks;
+}
+
+function renderUpgradesStrip(){
+  const el=document.getElementById('upgradesStrip');
+  el.innerHTML = Object.entries(run.upgradesTaken).map(([id,count])=>{
+    const u=UPGRADE_POOL.find(x=>x.id===id);
+    if(!u) return '';
+    return `<span class="upChip" title="${u.name}">${u.icon}${count>1?'×'+count:''}</span>`;
+  }).join('');
+}
+
+function openUpgradeScreen(){
+  gameState='upgrade';
+  document.getElementById('upWaveNum').textContent=run.wave;
+  const picks=pickThreeUpgrades();
+  document.getElementById('upgradeCards').innerHTML = picks.map(u=>{
+    const stack=run.upgradesTaken[u.id]||0;
+    return `<div class="upCard" onclick="chooseUpgrade('${u.id}')">
+      <div class="upIcon">${u.icon}</div>
+      <div class="upName">${u.name}${stack?' <span class="upStackTag">(x'+stack+' → x'+(stack+1)+')</span>':''}</div>
+      <div class="upDesc">${u.desc}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('upgradeScreen').style.display='flex';
+}
+
+function chooseUpgrade(id){
+  const u=UPGRADE_POOL.find(x=>x.id===id);
+  if(!u) return;
+  u.apply(run);
+  run.upgradesTaken[id]=(run.upgradesTaken[id]||0)+1;
+  renderUpgradesStrip();
+  document.getElementById('upgradeScreen').style.display='none';
+  gameState='playing';
+  spawnWave(run.wave+1);
+}
+
+// ── S.I.P. ECONOMY ───────────────────────────────────────────────────────────
+// Best score is tracked PER DIFFICULTY (three separate namespaced fields on the
+// save — survivalHordeBestEasy/Medium/Hard, see bestScoreField() above) so a Hard
+// run is never unfairly compared against an Easy best or vice versa.
+function loadBestScore(diff){
+  const user=localStorage.getItem('explox_current_user');
+  if(!user) return 0;
+  const d=JSON.parse(localStorage.getItem('explox_user_'+user)||'{}');
+  return d[bestScoreField(diff)]||0;
+}
+// Modest payout formula: rewards BOTH raw survival (waves cleared) and overall
+// performance (score, which already factors in kills + wave-clear bonuses), so a
+// long grindy run and a single great wave both pay off. The whole result is then
+// scaled by the difficulty's sipMult (0.7×/1.0×/1.6× — see DIFFICULTIES above), so
+// Hard genuinely pays better for the same wave count, since it's objectively harder.
+// Capped so a stacked-up, very-long Hard run can't award an absurd one-time payout.
+function computeRunReward(score, wavesCleared, diff){
+  const base = wavesCleared*4 + score*0.06;
+  return Math.min(700, Math.max(3, Math.round(base * DIFFICULTIES[diff].sipMult)));
+}
+function endRun(){
+  const wavesCleared=Math.max(0, run.wave-1);
+  const finalScore=Math.floor(run.score);
+  const sipEarned=computeRunReward(finalScore, wavesCleared, difficulty);
+  const user=localStorage.getItem('explox_current_user');
+  const field=bestScoreField(difficulty);
+  let best=finalScore, isNewBest=true;
+  if(user){
+    const d=JSON.parse(localStorage.getItem('explox_user_'+user)||'{}');
+    const oldBest=d[field]||0;
+    isNewBest = finalScore>oldBest;
+    best = Math.max(oldBest, finalScore);
+    d[field] = best;
+    d.sip = (d.sip||0) + sipEarned;
+    localStorage.setItem('explox_user_'+user, JSON.stringify(d));
+  }
+  document.getElementById('newBestBadge').style.display = (user && isNewBest) ? 'block' : 'none';
+  document.getElementById('goDifficulty').textContent = DIFFICULTIES[difficulty].label;
+  document.getElementById('goScore').textContent=finalScore;
+  document.getElementById('goBest').textContent=best;
+  document.getElementById('goWaves').textContent=wavesCleared;
+  document.getElementById('goKills').textContent=run.kills;
+  document.getElementById('goSip').textContent=user?sipEarned:0;
+  document.getElementById('noUserNote').style.display = user ? 'none' : 'block';
+  document.getElementById('gameOverScreen').style.display='flex';
+}
+
+// ── ARENA ─────────────────────────────────────────────────────────────────────
+function buildArena(){
+  const ground=new THREE.Mesh(new THREE.CircleGeometry(90,48), mat(0x3a2a20));
+  ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+
+  const ring=new THREE.Mesh(new THREE.RingGeometry(ARENA_R-0.4, ARENA_R+0.4, 48), glow(0xff6622));
+  ring.rotation.x=-Math.PI/2; ring.position.y=0.02; scene.add(ring);
+
+  // Central campfire — a landmark to fight around
+  const logs=new THREE.Mesh(new THREE.BoxGeometry(1.6,0.3,1.6), mat(0x4a2f1a));
+  logs.position.y=0.15; scene.add(logs);
+  const flame=new THREE.Mesh(new THREE.ConeGeometry(0.5,1.2,8), glow(0xff8822));
+  flame.position.y=0.9; scene.add(flame);
+  const fireLight=new THREE.PointLight(0xff8822,2.5,34); fireLight.position.y=1.6; scene.add(fireLight);
+
+  // Torches ringing the arena boundary
+  const TORCH_N=10;
+  for(let i=0;i<TORCH_N;i++){
+    const a=(i/TORCH_N)*Math.PI*2;
+    const x=Math.sin(a)*ARENA_R, z=Math.cos(a)*ARENA_R;
+    const pole=new THREE.Mesh(new THREE.BoxGeometry(0.25,3,0.25), mat(0x3a2a1a));
+    pole.position.set(x,1.5,z); pole.castShadow=true; scene.add(pole);
+    const fl=new THREE.Mesh(new THREE.ConeGeometry(0.3,0.6,6), glow(0xff6622));
+    fl.position.set(x,3.2,z); scene.add(fl);
+    const pl=new THREE.PointLight(0xff6622,1.2,15); pl.position.set(x,3.2,z); scene.add(pl);
+  }
+
+  // Scattered rocks beyond the boundary for atmosphere
+  for(let i=0;i<24;i++){
+    const a=Math.random()*Math.PI*2, r=ARENA_R+8+Math.random()*32;
+    const x=Math.sin(a)*r, z=Math.cos(a)*r;
+    const s=1.5+Math.random()*2.5, h=1+Math.random()*1.5;
+    const rock=new THREE.Mesh(new THREE.BoxGeometry(s,h,s*0.8), mat(0x554444));
+    rock.position.set(x,h/2,z); rock.rotation.y=Math.random()*Math.PI; rock.castShadow=true; scene.add(rock);
+  }
+}
+
+// ── PLAYER ─────────────────────────────────────────────────────────────────────
+function addPlayerHat(){
+  const hat=localStorage.getItem('explox_hat')||'none';
+  const shirtHex=localStorage.getItem('explox_shirt')||'#2196F3';
+  const shirt=parseInt(shirtHex.replace('#',''),16);
+  function mk(w,h,d,c,x,y,z){
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(c));
+    m.position.set(x,y,z); m.castShadow=true; playerGroup.add(m);
+  }
+  if(hat==='none'){
+    mk(1.1,0.85,1.1, 0x334477, 0,3.5,0);
+    const visor=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.25,0.12),glow(0x44aaff));
+    visor.position.set(0,3.25,0.57); playerGroup.add(visor);
+  }
+  else if(hat==='cap')    { mk(1.2,0.15,1.2,0xee4444,0,3.35,0); mk(0.9,0.5,0.8,0xee4444,0,3.63,-0.05); mk(0.5,0.12,0.4,0xee4444,0,3.28,0.7); }
+  else if(hat==='cowboy') { mk(1.7,0.12,1.7,0x8B4513,0,3.32,0); mk(0.9,0.7,0.9,0x8B4513,0,3.72,0); }
+  else if(hat==='crown')  { mk(1.1,0.28,1.1,0xFFD700,0,3.35,0); [-0.35,0,0.35].forEach((cx,i)=>mk(0.22,0.4+i%2*0.15,0.22,0xFFD700,cx,3.7,0)); }
+  else if(hat==='helmet') { mk(1.15,0.85,1.15,0x555555,0,3.48,0); mk(0.7,0.3,0.15,0x88ccff,0,3.22,0.56); }
+  else if(hat==='tophat') { mk(1.35,0.1,1.35,0x111111,0,3.32,0); mk(0.9,0.9,0.9,0x111111,0,3.8,0); mk(0.92,0.08,0.92,0x333333,0,3.38,0); }
+  else if(hat==='beanie') { mk(1.05,0.7,1.05,shirt,0,3.5,0); mk(0.35,0.35,0.35,0xffffff,0,3.92,0); }
+  else if(hat==='fedora') { mk(1.5,0.1,1.5,0x7a5c3a,0,3.32,0); mk(0.9,0.65,0.9,0x7a5c3a,0,3.65,0); mk(0.91,0.08,0.91,0x333333,0,3.37,0); }
+  else if(hat==='wizard') { const c=new THREE.Mesh(new THREE.ConeGeometry(0.6,1.8,8),mat(0x4444aa)); c.position.set(0,3.9,0); playerGroup.add(c); mk(1.3,0.12,1.3,0x4444aa,0,3.32,0); }
+  else if(hat==='pirate') { mk(1.4,0.1,1.4,0x111111,0,3.32,0); mk(0.9,0.6,0.5,0x111111,0,3.66,0); mk(0.3,0.3,0.15,0xffffff,0,3.7,0.3); }
+  else if(hat==='santa')  { mk(1.1,0.2,1.1,0xffffff,0,3.32,0); const c=new THREE.Mesh(new THREE.ConeGeometry(0.5,1.0,8),mat(0xdd2222)); c.position.set(0.1,3.88,0); playerGroup.add(c); mk(0.25,0.25,0.25,0xffffff,0.45,4.32,0); }
+}
+
+function buildPlayer(){
+  playerGroup=new THREE.Group();
+  function hexC(key,fb){ return parseInt((localStorage.getItem(key)||fb).replace('#',''),16); }
+  const skinC  = hexC('explox_skin',      '#f5c89a');
+  const shirtC = hexC('explox_shirt',     '#2196F3');
+  const pantsC = hexC('explox_pants',     '#333333');
+  const shoesC = hexC('explox_shoes',     '#4e3b2a');
+  const hairC  = hexC('explox_hairColor', '#3a1f0a');
+  const hair   = localStorage.getItem('explox_hair') || 'none';
+
+  function mk(w,h,d,c,x,y,z){
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(c));
+    m.position.set(x,y,z); m.castShadow=true; playerGroup.add(m);
+  }
+  mk(1,1,1,    skinC,  0,2.8,0);
+  mk(0.9,1.1,0.5, shirtC, 0,1.75,0);
+  mk(0.35,0.9,0.35, shirtC,-0.65,1.75,0);
+  mk(0.35,0.9,0.35, shirtC, 0.65,1.75,0);
+  mk(0.38,0.9,0.38, pantsC,-0.22,0.75,0);
+  mk(0.38,0.9,0.38, pantsC, 0.22,0.75,0);
+  mk(0.42,0.22,0.42, shoesC,-0.22,0.2,0);
+  mk(0.42,0.22,0.42, shoesC, 0.22,0.2,0);
+
+  if(hair==='short')        { mk(1.02,0.26,1.02, hairC, 0,3.32,0); }
+  else if(hair==='long')    { mk(1.02,0.26,1.02, hairC, 0,3.32,0); mk(0.3,1.1,0.3, hairC,-0.52,2.5,0); mk(0.3,1.1,0.3, hairC, 0.52,2.5,0); }
+  else if(hair==='spiky')   { mk(1.02,0.22,0.95, hairC, 0,3.32,0); [-0.3,0,0.3].forEach(cx=>mk(0.2,0.5,0.2,hairC,cx,3.56,0)); }
+  else if(hair==='afro')    { mk(1.35,0.95,1.35, hairC, 0,3.52,0); }
+  else if(hair==='ponytail'){ mk(1.02,0.26,1.02, hairC, 0,3.32,0); mk(0.28,1.2,0.28, hairC, 0,2.8,-0.44); }
+  else if(hair==='curly')   { [-0.3,0,0.3].forEach(cx=>mk(0.5,0.52,0.5,hairC,cx,3.42,0)); }
+
+  addPlayerHat();
+
+  // Fire-forged blade — this game's single weapon
+  const sg=new THREE.Group();
+  const handle=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.4),mat(0x444444));
+  handle.position.z=0.2; sg.add(handle);
+  const blade=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.07,1.8),glow(0xff8822));
+  blade.position.z=-0.7; sg.add(blade);
+  const bl=new THREE.PointLight(0xff8822,1.5,5); bl.position.z=-0.7; sg.add(bl);
+  sg.position.set(0.7,1.5,-0.3);
+  playerGroup.add(sg);
+  playerSword=sg;
+
+  playerGroup.position.set(0,0,0);
+  scene.add(playerGroup);
+}
+
+// ── ENEMIES ───────────────────────────────────────────────────────────────────
+function buildEnemyMesh(type,color,scale){
+  const g=new THREE.Group();
+  const flashParts=[];
+  const isBulky = type==='brute'||type==='boss';
+  const bodyW = isBulky?1.15:0.85, bodyD=isBulky?0.7:0.5;
+  function mk(w,h,d,c,x,y,z,flashable){
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w*scale,h*scale,d*scale),mat(c));
+    m.position.set(x,y,z); m.castShadow=true; g.add(m);
+    if(flashable) flashParts.push({mesh:m,color:c});
+    return m;
+  }
+  mk(0.9,0.9,0.9, 0x3a5a3a, 0,2.7,0, true);              // head [0]
+  mk(bodyW,1.0,bodyD, color, 0,1.7,0, true);              // torso [1]
+  mk(0.3,0.85,0.3, color,-0.55*(bodyW/0.85),1.7,0, true); // left arm [2]
+  mk(0.3,0.85,0.3, color, 0.55*(bodyW/0.85),1.7,0, true); // right arm [3]
+  mk(0.35,0.85,0.35, 0x222222,-0.22,0.75,0, false);       // left leg [4]
+  mk(0.35,0.85,0.35, 0x222222, 0.22,0.75,0, false);       // right leg [5]
+
+  const eyeColor = type==='boss'?0xff0000:0xffcc33;
+  const eyeL=new THREE.Mesh(new THREE.BoxGeometry(0.14*scale,0.14*scale,0.05),glow(eyeColor));
+  eyeL.position.set(-0.2*scale,2.75*scale,0.46*scale); g.add(eyeL);
+  const eyeR=eyeL.clone(); eyeR.position.x=0.2*scale; g.add(eyeR);
+
+  if(type==='spitter'){
+    const orb=new THREE.Mesh(new THREE.SphereGeometry(0.22*scale,8,8),glow(0xaa33ff));
+    orb.position.set(0.75*scale,1.9*scale,0); g.add(orb);
+  }
+  if(type==='boss'){
+    const crown=new THREE.Mesh(new THREE.ConeGeometry(0.5*scale,0.7*scale,6),mat(0x662222));
+    crown.position.set(0,3.6*scale,0); g.add(crown);
+  }
+
+  // HP bar canvas
+  const hbCv=document.createElement('canvas'); hbCv.width=64; hbCv.height=10;
+  const hbCtx=hbCv.getContext('2d');
+  const hbM=new THREE.Mesh(new THREE.PlaneGeometry(1.5,0.22),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(hbCv),transparent:true,side:THREE.DoubleSide}));
+  hbM.position.y=4.4*scale; g.add(hbM);
+
+  g.userData.flashParts=flashParts;
+  return { group:g, hbM, hbCv, hbCtx };
+}
+
+function makeEnemy(type,pos,mult){
+  const base=ENEMY_BASE[type];
+  const built=buildEnemyMesh(type,base.color,base.scale);
+  built.group.position.set(pos[0],pos[1],pos[2]);
+  scene.add(built.group);
+  const maxHp=Math.round(base.hp*mult.hp);
+  return {
+    group:built.group, hbM:built.hbM, hbCv:built.hbCv, hbCtx:built.hbCtx,
+    type, hp:maxHp, maxHp,
+    dmg:Math.round(base.dmg*mult.dmg), speed:base.speed*mult.speed, range:base.range, atkRate:base.atkRate,
+    atkTimer:0.3+Math.random()*0.6, shootTimer:0.5+Math.random()*0.8, scale:base.scale, scoreVal:base.scoreVal,
+    hitFlash:0
+  };
+}
+
+function spawnWave(w){
+  run.wave=w; waveClearing=false;
+  showAnn('⚔️ WAVE '+w+' INCOMING!'+(w%5===0?'\n💀 A BOSS APPROACHES':''));
+  const mult=waveStatMult(w);
+  const count=waveEnemyCount(w);
+  for(let i=0;i<count;i++){
+    const type=pickEnemyType(w);
+    const angle=(i/count)*Math.PI*2 + Math.random()*0.3;
+    const r=SPAWN_R+Math.random()*6;
+    enemies.push(makeEnemy(type,[Math.sin(angle)*r,0,Math.cos(angle)*r],mult));
+  }
+  if(w%5===0){
+    const angle=Math.random()*Math.PI*2;
+    enemies.push(makeEnemy('boss',[Math.sin(angle)*SPAWN_R,0,Math.cos(angle)*SPAWN_R],mult));
+  }
+  updateHUD();
+}
+
+// ── COMBAT ────────────────────────────────────────────────────────────────────
+function boom(pos,color){
+  for(let i=0;i<7;i++){
+    const p=new THREE.Mesh(new THREE.BoxGeometry(0.15,0.15,0.15),glow(color));
+    p.position.copy(pos).add(new THREE.Vector3((Math.random()-0.5)*0.5,1,(Math.random()-0.5)*0.5));
+    scene.add(p);
+    particles.push({mesh:p,vel:new THREE.Vector3((Math.random()-0.5)*5,2+Math.random()*4,(Math.random()-0.5)*5),life:0.45});
+  }
+}
+
+function spawnProj(pos,vel,dmg,color,size=0.2){
+  const pm=new THREE.Mesh(new THREE.SphereGeometry(size,8,8),glow(color));
+  pm.position.copy(pos); scene.add(pm);
+  const pl=new THREE.PointLight(color,2,6); pm.add(pl);
+  projectiles.push({mesh:pm,vel,dmg,life:3.5});
+}
+
+function enemyFire(e){
+  const dx=playerGroup.position.x-e.group.position.x, dz=playerGroup.position.z-e.group.position.z;
+  const d=Math.sqrt(dx*dx+dz*dz)||1;
+  spawnProj(e.group.position.clone().add(new THREE.Vector3(0,1.8*e.scale,0)), new THREE.Vector3(dx/d,0,dz/d).multiplyScalar(16), e.dmg, 0xaa33ff, 0.2);
+}
+
+function damagePlayer(rawDmg){
+  const dmg=rawDmg*(1-run.dmgReduction);
+  run.hp=Math.max(0,run.hp-dmg);
+  flashHit();
+}
+
+function explodeAt(pos,level,baseDmg){
+  const radius=3+level*1.0;
+  const splashDmg=baseDmg*(0.4+level*0.1);
+  enemies.forEach(e=>{
+    if(e.hp<=0) return;
+    if(e.group.position.distanceTo(pos)<radius){ e.hp-=splashDmg; e.hitFlash=0.12; }
+  });
+  boom(pos,0xff6622);
+}
+
+function meleeAttack(){
+  if(gameState!=='playing') return;
+  if(run.atkCd>0) return;
+  const cd=BASE_ATK_COOLDOWN*run.atkCdMult;
+  run.atkCd=cd;
+  swordSwing=Math.min(0.28,cd);
+  const range=BASE_ATK_RANGE*run.rangeMult;
+  const halfAngle=run.whirlwind ? Math.PI : BASE_ATK_HALF_ANGLE*run.angleMult;
+  const dmg=BASE_ATK_DMG*run.dmgMult;
+  enemies.forEach(e=>{
+    if(e.hp<=0) return;
+    const dx=e.group.position.x-playerGroup.position.x;
+    const dz=e.group.position.z-playerGroup.position.z;
+    const d=Math.sqrt(dx*dx+dz*dz);
+    if(d<range){
+      const diff=normAngle(Math.atan2(dx,dz)-yaw);
+      if(Math.abs(diff)<halfAngle){
+        e.hp-=dmg; e.hitFlash=0.12;
+        boom(e.group.position,0xffcc44);
+        if(run.lifesteal>0) run.hp=Math.min(run.maxHp, run.hp+run.lifesteal);
+        if(run.explosiveLevel>0 && Math.random()<0.3+run.explosiveLevel*0.08) explodeAt(e.group.position.clone(),run.explosiveLevel,dmg);
+      }
+    }
+  });
+}
+
+// ── ENEMY AI ──────────────────────────────────────────────────────────────────
+function tickEnemy(e,dt,t){
+  if(e.hp<=0) return;
+
+  if(e.hitFlash>0){
+    e.hitFlash-=dt;
+    const white=e.hitFlash>0;
+    e.group.userData.flashParts.forEach(fp=>fp.mesh.material.color.setHex(white?0xffffff:fp.color));
+  }
+
+  const dx=playerGroup.position.x-e.group.position.x;
+  const dz=playerGroup.position.z-e.group.position.z;
+  const d=Math.sqrt(dx*dx+dz*dz)||0.001;
+  e.group.rotation.y=Math.atan2(dx,dz);
+
+  if(e.type==='spitter'){
+    if(d<e.range && d>6){
+      e.shootTimer-=dt;
+      if(e.shootTimer<=0){ e.shootTimer=e.atkRate+Math.random()*0.4; enemyFire(e); }
+    }
+    if(d>e.range*0.7){ e.group.position.x+=dx/d*e.speed*dt; e.group.position.z+=dz/d*e.speed*dt; }
+    else if(d<6){ e.group.position.x-=dx/d*e.speed*dt; e.group.position.z-=dz/d*e.speed*dt; }
+  } else {
+    if(d>1.8){ e.group.position.x+=dx/d*e.speed*dt; e.group.position.z+=dz/d*e.speed*dt; }
+    else {
+      e.atkTimer-=dt;
+      if(e.atkTimer<=0){ e.atkTimer=e.atkRate; damagePlayer(e.dmg); boom(playerGroup.position.clone().add(new THREE.Vector3(0,1.5,0)),0xff4444); }
+    }
+  }
+
+  const bob=Math.sin(t*5+e.group.id)*0.28;
+  if(e.group.children[4]) e.group.children[4].rotation.x=-bob;
+  if(e.group.children[5]) e.group.children[5].rotation.x= bob;
+
+  e.hbCtx.clearRect(0,0,64,10);
+  e.hbCtx.fillStyle='#222'; e.hbCtx.fillRect(0,0,64,10);
+  const pct=e.hp/e.maxHp;
+  e.hbCtx.fillStyle=pct>0.5?'#44ff44':pct>0.25?'#ffaa00':'#ff2200';
+  e.hbCtx.fillRect(0,0,64*pct,10);
+  e.hbM.material.map.needsUpdate=true;
+  e.hbM.lookAt(camera.position);
+}
+
+// ── HUD ───────────────────────────────────────────────────────────────────────
+function updateHUD(){
+  document.getElementById('waveNum').textContent=run.wave;
+  document.getElementById('score').textContent=Math.floor(run.score);
+  document.getElementById('killCount').textContent=run.kills;
+  document.getElementById('enemyCount').textContent=enemies.filter(e=>e.hp>0).length;
+  document.getElementById('atkStatus').textContent = run.atkCd>0 ? '⏳' : 'READY';
+  document.getElementById('healthFill').style.width=Math.max(0,(run.hp/run.maxHp)*100)+'%';
+  document.getElementById('healthLabel').textContent='❤️ HEALTH '+Math.max(0,Math.ceil(run.hp))+'/'+run.maxHp;
+}
+function flashHit(){ const f=document.getElementById('hitFlash'); f.style.background='rgba(255,0,0,0.4)'; setTimeout(()=>f.style.background='rgba(255,0,0,0)',100); }
+function showAnn(msg){
+  const el=document.getElementById('waveAnn');
+  el.innerHTML=msg.split('\n').join('<br>'); el.style.opacity=1;
+  setTimeout(()=>el.style.opacity=0, 2200);
+}
+
+// ── CONTROLS ─────────────────────────────────────────────────────────────────
+function setupControls(){
+  document.addEventListener('keydown',e=>{
+    if(e.code==='KeyW') moveState.w=true;
+    if(e.code==='KeyS') moveState.s=true;
+    if(e.code==='KeyA') moveState.a=true;
+    if(e.code==='KeyD') moveState.d=true;
+    if(e.code==='KeyF') meleeAttack();
+  });
+  document.addEventListener('keyup',  e=>{ if(e.code==='KeyW')moveState.w=false;if(e.code==='KeyS')moveState.s=false;if(e.code==='KeyA')moveState.a=false;if(e.code==='KeyD')moveState.d=false; });
+  document.addEventListener('mousemove',e=>{ if(!isLocked)return; yaw-=e.movementX*0.0022; pitch-=e.movementY*0.002; pitch=Math.max(-0.5,Math.min(0.8,pitch)); });
+  document.addEventListener('mousedown',e=>{
+    if(gameState!=='playing') return;
+    if(!isLocked){ renderer.domElement.requestPointerLock(); return; }
+    if(e.button===0||e.button===2) meleeAttack();
+  });
+  document.addEventListener('contextmenu',e=>e.preventDefault());
+  document.addEventListener('pointerlockchange',()=>{ isLocked=document.pointerLockElement===renderer.domElement; });
+  window.addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+  setupTouchControls();
+}
+
+// ─── TOUCH CONTROLS ──────────────────────────────────────────────────────────
+// Same real-touch-event pattern as throne.html: one touch drags the on-screen
+// joystick (sets the same moveState.* flags WASD already sets), a second touch
+// anywhere else drags to look around, and the attack button calls meleeAttack()
+// directly since touch has no pointer-lock equivalent to gate it behind.
+function setupTouchControls(){
+  const joyBase = document.getElementById('joyBase');
+  const joyStick = document.getElementById('joyStick');
+  const attackBtn = document.getElementById('mobileAttackBtn');
+  if(!joyBase) return;
+  let joyTouchId=null, joyCenterX=0, joyCenterY=0;
+  let lookTouchId=null, lookLastX=0, lookLastY=0;
+  function updateJoy(cx,cy){
+    const r=45;
+    const dx=cx-joyCenterX, dy=cy-joyCenterY;
+    const dist=Math.min(Math.sqrt(dx*dx+dy*dy), r);
+    const angle=Math.atan2(dy,dx);
+    const sx=Math.cos(angle)*dist, sy=Math.sin(angle)*dist;
+    joyStick.style.transform=`translate(${sx}px,${sy}px)`;
+    const nx=sx/r, ny=sy/r, th=0.3;
+    moveState.w=ny<-th; moveState.s=ny>th; moveState.a=nx<-th; moveState.d=nx>th;
+  }
+  function resetJoy(){ moveState.w=moveState.a=moveState.s=moveState.d=false; joyStick.style.transform='translate(0px,0px)'; }
+  joyBase.addEventListener('touchstart', e=>{
+    e.preventDefault();
+    const tch=e.changedTouches[0]; joyTouchId=tch.identifier;
+    const r=joyBase.getBoundingClientRect(); joyCenterX=r.left+r.width/2; joyCenterY=r.top+r.height/2;
+    updateJoy(tch.clientX,tch.clientY);
+  }, {passive:false});
+  document.addEventListener('touchmove', e=>{
+    for(const tch of e.changedTouches){
+      if(tch.identifier===joyTouchId) updateJoy(tch.clientX,tch.clientY);
+      if(tch.identifier===lookTouchId){
+        const dx=tch.clientX-lookLastX, dy=tch.clientY-lookLastY;
+        yaw-=dx*0.0044; pitch-=dy*0.004; pitch=Math.max(-0.5,Math.min(0.8,pitch));
+        lookLastX=tch.clientX; lookLastY=tch.clientY;
+      }
+    }
+  }, {passive:true});
+  document.addEventListener('touchend', e=>{
+    for(const tch of e.changedTouches){
+      if(tch.identifier===joyTouchId){ joyTouchId=null; resetJoy(); }
+      if(tch.identifier===lookTouchId) lookTouchId=null;
+    }
+  });
+  renderer.domElement.addEventListener('touchstart', e=>{
+    for(const tch of e.changedTouches){
+      if(tch.identifier===joyTouchId) continue;
+      if(lookTouchId===null){ lookTouchId=tch.identifier; lookLastX=tch.clientX; lookLastY=tch.clientY; }
+    }
+  }, {passive:true});
+  if(attackBtn){
+    attackBtn.addEventListener('touchstart', e=>{ e.preventDefault(); meleeAttack(); });
+  }
+}
+
+// ── GAME LOOP ─────────────────────────────────────────────────────────────────
+function tickGameplay(dt,t){
+  run.atkCd=Math.max(0,run.atkCd-dt);
+  if(swordSwing>0) swordSwing=Math.max(0,swordSwing-dt);
+  if(playerSword) playerSword.rotation.x = swordSwing>0 ? -Math.sin((0.28-swordSwing)/0.28*Math.PI)*1.5 : 0;
+
+  // Player move
+  const fwd=new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw));
+  const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+  const dir=new THREE.Vector3();
+  if(moveState.w)dir.add(fwd); if(moveState.s)dir.sub(fwd);
+  if(moveState.d)dir.add(right); if(moveState.a)dir.sub(right);
+  if(dir.length()>0){ dir.normalize(); playerGroup.position.addScaledVector(dir, PLAYER_BASE_SPEED*run.moveMult*dt); }
+  const distC=Math.sqrt(playerGroup.position.x*playerGroup.position.x + playerGroup.position.z*playerGroup.position.z);
+  if(distC>ARENA_R){ const s=ARENA_R/distC; playerGroup.position.x*=s; playerGroup.position.z*=s; }
+
+  // Camera — third-person chase, same feel as throne.html
+  camera.position.set(
+    playerGroup.position.x-Math.sin(yaw)*7,
+    playerGroup.position.y+3.5+pitch*5,
+    playerGroup.position.z-Math.cos(yaw)*7
+  );
+  camera.lookAt(playerGroup.position.x, playerGroup.position.y+1.8, playerGroup.position.z);
+
+  // Thorn Aura — passive area damage around the player
+  if(run.auraDps>0){
+    enemies.forEach(e=>{
+      if(e.hp<=0) return;
+      if(e.group.position.distanceTo(playerGroup.position)<AURA_RADIUS) e.hp-=run.auraDps*dt;
+    });
+  }
+
+  // Enemies: tick + resolve deaths
+  for(let i=enemies.length-1;i>=0;i--){
+    const e=enemies[i];
+    if(e.hp<=0){
+      boom(e.group.position,0xff8844);
+      scene.remove(e.group);
+      run.score += e.scoreVal + Math.floor(run.wave*0.5);
+      run.kills++;
+      enemies.splice(i,1);
+      continue;
+    }
+    tickEnemy(e,dt,t);
+  }
+
+  // Enemy projectiles (spitters only — player has no ranged attack)
+  for(let i=projectiles.length-1;i>=0;i--){
+    const p=projectiles[i];
+    p.life-=dt; p.mesh.position.addScaledVector(p.vel,dt);
+    if(p.life<=0){ scene.remove(p.mesh); projectiles.splice(i,1); continue; }
+    if(p.mesh.position.distanceTo(playerGroup.position.clone().add(new THREE.Vector3(0,1.5,0)))<1.2){
+      damagePlayer(p.dmg);
+      boom(p.mesh.position,0xaa33ff);
+      scene.remove(p.mesh); projectiles.splice(i,1);
+    }
+  }
+
+  // Particles
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i]; p.life-=dt;
+    p.mesh.position.addScaledVector(p.vel,dt); p.vel.y-=14*dt;
+    p.mesh.material.transparent=true; p.mesh.material.opacity=Math.max(0,p.life*2.2);
+    if(p.life<=0){ scene.remove(p.mesh); particles.splice(i,1); }
+  }
+
+  updateHUD();
+
+  if(run.hp<=0 && gameState==='playing'){
+    gameState='gameover';
+    endRun();
+    return;
+  }
+
+  if(enemies.length===0 && !waveClearing){
+    waveClearing=true;
+    showAnn('✅ WAVE '+run.wave+' CLEARED!');
+    setTimeout(()=>{ if(gameState==='playing') openUpgradeScreen(); }, 1300);
+  }
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  if(gameState!=='playing'){ renderer.render(scene,camera); return; }
+  const dt=Math.min(clock.getDelta(),0.05);
+  const t=clock.getElapsedTime();
+  tickGameplay(dt,t);
+  renderer.render(scene,camera);
+}
+
+// ── SCENE INIT / START ─────────────────────────────────────────────────────────
+function initScene(){
+  clock=new THREE.Clock();
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x1a0f0f);
+  scene.fog=new THREE.Fog(0x2a1512,40,140);
+
+  camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,300);
+  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.shadowMap.enabled=true;
+  document.body.appendChild(renderer.domElement);
+
+  const moon=new THREE.DirectionalLight(0xffe8cc,1.3);
+  moon.position.set(-30,60,20); moon.castShadow=true; scene.add(moon);
+  scene.add(new THREE.AmbientLight(0x554466,0.8));
+
+  buildArena();
+  buildPlayer();
+  setupControls();
+  spawnWave(1);
+  animate();
+}
+
+function startGame(){
+  document.getElementById('startScreen').style.display='none';
+  document.getElementById('hud').style.display='block';
+  document.getElementById('diffPillLabel').textContent = DIFFICULTIES[difficulty].label;
+  run=freshRun();
+  gameState='playing';
+  initScene();
+}
+
+selectDifficulty('medium');
+</script>
+</body>
+</html>

@@ -19,6 +19,7 @@ function openRestaurant() {
 }
 function closeRestaurant() {
   document.getElementById('restaurantModal').style.display = 'none';
+  if (eatingCompActive) cancelEatingCompetition(); // closing mid-contest forfeits it, not leaves it silently running
   buffetActiveId = null; buffetPaid = false; // leaving a buffet ends that visit — re-entering means paying again, same as a real buffet
 }
 function refreshRestaurantUI() {
@@ -314,6 +315,7 @@ function openBuffet(id) {
   if (!b) return;
   if (document.pointerLockElement) document.exitPointerLock();
   isPointerLocked = false;
+  if (eatingCompActive) cancelEatingCompetition(); // defensive — (re)opening a buffet should never leave a stale competition timer running behind it
   buffetActiveId = id;
   buffetPaid = false;
   document.getElementById('restaurantModalTitle').textContent = `${b.emoji} ${b.name}`;
@@ -339,6 +341,11 @@ function renderBuffet() {
       <div class="siName">${b.emoji} All-You-Can-Eat</div>
       <div class="siCost">💰 ${b.price} S.I.P. to sit down, then eat unlimited!</div>
       <button class="shopBtn" onclick="payForBuffet()">Pay &amp; Sit Down</button>
+    </div>
+    <div class="shopItem">
+      <div class="siName">🏆 Eating Competition</div>
+      <div class="siCost">💰 ${EATCOMP_ENTRY_FEE} S.I.P. — race a real opponent, ${EATCOMP_DURATION_SEC}s on the clock!</div>
+      <button class="shopBtn" onclick="openEatingCompetitionPicker()">Enter Competition</button>
     </div>`;
     return;
   }
@@ -354,6 +361,171 @@ function eatBuffetItem(idx) {
   const item = b.menu[idx];
   if (!item) return;
   eatFood(item.emoji, item.name, item.taste, 100);
+}
+
+// ─── EATING COMPETITION — user's own ask: a real timed race against a real-paced NPC opponent,
+// built entirely on the buffet system above instead of a separate food list or a separate bite
+// animation. A round is the exact same real "click a real menu item -> eatFood() plays the real
+// bite animation + taste reaction" loop buffet eating already uses — just raced against a clock
+// and a simulated opponent instead of eaten at your own leisure. eatFood()'s own real _eatBusy
+// lock (EAT_BITES/dur in game-engine.js, ~1.4s per bite) is what actually paces the player here —
+// nothing below fakes or shortcuts that lockout, so a perfect player tops out around 42-43 real
+// bites in the 60s window. The Hard opponent's pace is deliberately tuned right up against that
+// real ceiling — see EATCOMP_OPPONENTS below.
+const EATCOMP_DURATION_SEC = 60;
+// Anchored to THIS game's own existing costs per the ask, not the cheap ~5-15 S.I.P. arcade games
+// (ARCADE_FEES, game-housing.js) — those are a different, throwaway tier of activity. Sits between
+// a Lunch Buffet sit-down (90) and a Hot Pot sit-down (120), a notch above a Doctor visit (80,
+// game-land.js), since this is a bigger, more premium timed event than either.
+const EATCOMP_ENTRY_FEE = 100;
+const EATCOMP_WIN_PAYOUT = 250;       // real stake back plus a real profit for actually winning
+const EATCOMP_BEST_BONUS = 150;       // stacks on top of the win payout for a new personal best
+const EATCOMP_LOSS_CONSOLATION = 20;  // a real net loss on a loss (20 - 100 entry = -80) — the entry fee has to actually sting, per the ask
+// 3 named opponents, easy to hard, for real replayability — each a different real simulated bite
+// pace (a random gap between minGap/maxGap seconds per bite, not a flat instant tick).
+const EATCOMP_OPPONENTS = [
+  { id:'lil_nibbles',   name:"Lil' Nibbles",        emoji:'🐹', tier:'Easy',   minGap:2.2, maxGap:3.4 }, // ~21 bites/60s
+  { id:'chad_chompers', name:'Chad Chompers',       emoji:'💪', tier:'Medium', minGap:1.6, maxGap:2.4 }, // ~30 bites/60s
+  { id:'tbone_tanner',  name:'"Big" T-Bone Tanner', emoji:'🦁', tier:'Hard',   minGap:1.2, maxGap:1.7 }, // ~41 bites/60s — right at a perfect player's own real max pace
+];
+let eatingCompActive = false;      // true only while the 60s clock is actually running
+let eatingCompBuffetId = null;     // which BUFFET_LOCATIONS entry (and its real 100-item menu) this round uses
+let eatingCompOpponent = null;     // the opponent def from EATCOMP_OPPONENTS, for the active round
+let eatingCompPlayerCount = 0;
+let eatingCompOpponentCount = 0;
+let eatingCompEndAt = 0;           // Date.now()-based ms timestamp — same real-clock pattern arcadeState.whackEndTime uses
+let eatingCompNextBiteAt = 0;      // Date.now()-based ms timestamp for the opponent's next bite
+let eatingCompTimerHandle = null;
+let eatingCompBests = {};          // persisted (saveCurrentUser) — {buffetId: bestPlayerCount}, shown on the picker screen
+function eatcompRandomGap(opp) { return opp.minGap + Math.random() * (opp.maxGap - opp.minGap); }
+function openEatingCompetitionPicker() {
+  const b = BUFFET_LOCATIONS.find(b => b.id === buffetActiveId);
+  if (!b) return;
+  const best = eatingCompBests[b.id] || 0;
+  const list = document.getElementById('restaurantList');
+  list.innerHTML = `<div class="shopItem" style="text-align:center;">
+      <div class="siName">🏆 ${b.emoji} ${b.name} Eating Competition</div>
+      <div class="siCost">Entry: ${EATCOMP_ENTRY_FEE} S.I.P. — ${EATCOMP_DURATION_SEC}s to out-eat your opponent!</div>
+      <div style="color:#88dd88;font-size:12px;margin-top:4px;">${best > 0 ? `🏅 Your Best: ${best} items` : 'No attempts yet — set the first record!'}</div>
+    </div>` +
+    EATCOMP_OPPONENTS.map(o => `<div class="shopItem">
+      <div class="siName">${o.emoji} ${o.name}</div>
+      <div class="siCost">Difficulty: ${o.tier}</div>
+      <button class="shopBtn" onclick="startEatingCompetition('${o.id}')">Compete!</button>
+    </div>`).join('') +
+    `<button class="shopBtn" style="background:#555;width:100%;margin-top:4px;" onclick="renderBuffet()">← Back</button>`;
+}
+function startEatingCompetition(opponentId) {
+  const b = BUFFET_LOCATIONS.find(b => b.id === buffetActiveId);
+  const opp = EATCOMP_OPPONENTS.find(o => o.id === opponentId);
+  if (!b || !opp) return;
+  if (sipDollars < EATCOMP_ENTRY_FEE) { sfx.nope(); showNotif(`❌ Need ${EATCOMP_ENTRY_FEE} S.I.P. to enter the competition!`); return; }
+  spendSip(EATCOMP_ENTRY_FEE); saveCurrentUser(); updateSIP();
+  sfx.buy();
+  eatingCompActive = true;
+  eatingCompBuffetId = b.id;
+  eatingCompOpponent = opp;
+  eatingCompPlayerCount = 0;
+  eatingCompOpponentCount = 0;
+  eatingCompEndAt = Date.now() + EATCOMP_DURATION_SEC * 1000;
+  eatingCompNextBiteAt = Date.now() + eatcompRandomGap(opp) * 1000;
+  showNotif(`🏆 Competition started vs ${opp.name} — eat as much as you can in ${EATCOMP_DURATION_SEC}s!`);
+  renderEatingCompetitionMenu();
+  const hud = document.getElementById('restaurantCompHud');
+  if (hud) hud.style.display = 'block';
+  updateEatingCompHud();
+  if (eatingCompTimerHandle) clearInterval(eatingCompTimerHandle);
+  eatingCompTimerHandle = setInterval(tickEatingCompetition, 200);
+}
+function renderEatingCompetitionMenu() {
+  const b = BUFFET_LOCATIONS.find(b => b.id === eatingCompBuffetId);
+  if (!b) return;
+  const list = document.getElementById('restaurantList');
+  list.innerHTML = b.menu.map((item, i) => `<div class="shopItem">
+      <div class="siName">${item.emoji} ${item.name}</div>
+      <button class="shopBtn" onclick="eatCompetitionItem(${i})">🍽️ Eat!</button>
+    </div>`).join('');
+}
+function eatCompetitionItem(idx) {
+  if (!eatingCompActive) return;
+  if (Date.now() >= eatingCompEndAt) return; // the tick below should already be ending it — belt and suspenders
+  if (_eatBusy || _iceCreamBusy) { showNotif('⏳ Still chewing — wait a sec!'); return; } // same real lock eatFood() itself checks — only a bite that ACTUALLY plays counts
+  const b = BUFFET_LOCATIONS.find(b => b.id === eatingCompBuffetId);
+  if (!b) return;
+  const item = b.menu[idx];
+  if (!item) return;
+  eatingCompPlayerCount++;
+  eatFood(item.emoji, item.name, item.taste, 100);
+  updateEatingCompHud();
+}
+function tickEatingCompetition() {
+  if (!eatingCompActive) { clearInterval(eatingCompTimerHandle); return; }
+  const now = Date.now();
+  // Opponent eats on their own real clock — a while loop (not if) so a slow tick/lag spike can't
+  // silently skip past multiple scheduled bites, same "the clock is the source of truth" approach
+  // the Whack-a-Mole timer (arcadeState.whackTimer, game-housing.js) already uses.
+  while (now >= eatingCompNextBiteAt && now < eatingCompEndAt) {
+    eatingCompOpponentCount++;
+    eatingCompNextBiteAt += eatcompRandomGap(eatingCompOpponent) * 1000;
+  }
+  updateEatingCompHud();
+  if (now >= eatingCompEndAt) endEatingCompetition();
+}
+function updateEatingCompHud() {
+  const hud = document.getElementById('restaurantCompHud');
+  if (!hud || !eatingCompActive) return;
+  const secLeft = Math.max(0, Math.ceil((eatingCompEndAt - Date.now()) / 1000));
+  const opp = eatingCompOpponent;
+  hud.innerHTML = `<div style="color:#ffcc44;font-size:22px;font-weight:bold;text-align:center;">⏱️ ${secLeft}s</div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:14px;">
+      <div style="color:#66ddff;">🧑 You: <b>${eatingCompPlayerCount}</b></div>
+      <div style="color:#ff8888;">${opp.emoji} ${opp.name}: <b>${eatingCompOpponentCount}</b></div>
+    </div>`;
+}
+function endEatingCompetition() {
+  eatingCompActive = false;
+  clearInterval(eatingCompTimerHandle);
+  eatingCompTimerHandle = null;
+  const hud = document.getElementById('restaurantCompHud');
+  if (hud) hud.style.display = 'none';
+  const opp = eatingCompOpponent;
+  const buffetId = eatingCompBuffetId;
+  const won = eatingCompPlayerCount > eatingCompOpponentCount; // a tie isn't a win — you have to actually out-eat them
+  const prevBest = eatingCompBests[buffetId] || 0;
+  const isNewBest = eatingCompPlayerCount > prevBest;
+  if (isNewBest) eatingCompBests[buffetId] = eatingCompPlayerCount;
+  let payout, resultLine;
+  if (won) {
+    payout = EATCOMP_WIN_PAYOUT + (isNewBest ? EATCOMP_BEST_BONUS : 0);
+    queueEarning(payout, 0, `Eating Competition win vs ${opp.name}`);
+    resultLine = `🏆 YOU WIN! ${eatingCompPlayerCount} vs ${eatingCompOpponentCount} — +${payout} S.I.P. pending in Earnings!`;
+    sfx.cheer();
+  } else {
+    payout = EATCOMP_LOSS_CONSOLATION;
+    queueEarning(payout, 0, `Eating Competition consolation vs ${opp.name}`);
+    resultLine = `😅 ${opp.name} out-ate you, ${eatingCompOpponentCount} vs ${eatingCompPlayerCount}. +${payout} S.I.P. consolation.`;
+    sfx.nope();
+  }
+  saveCurrentUser();
+  showNotif(resultLine);
+  const list = document.getElementById('restaurantList');
+  list.innerHTML = `<div class="shopItem" style="text-align:center;">
+      <div class="siName">${won ? '🏆 Victory!' : '😅 Defeat'}</div>
+      <div class="siCost">You: ${eatingCompPlayerCount} items — ${opp.name}: ${eatingCompOpponentCount} items</div>
+      ${isNewBest ? `<div style="color:#ffd700;font-size:12px;margin-top:4px;">🏅 New personal best!</div>` : ''}
+      <div style="color:${won ? '#88dd88' : '#ff8888'};font-size:13px;margin-top:6px;">+${payout} S.I.P. ${won ? '(pending in Earnings)' : 'consolation'}</div>
+    </div>
+    <button class="shopBtn" style="width:100%;margin-top:6px;" onclick="openEatingCompetitionPicker()">🔁 Compete Again</button>
+    <button class="shopBtn" style="background:#555;width:100%;margin-top:6px;" onclick="renderBuffet()">← Back to Buffet</button>`;
+}
+// Walking away mid-contest forfeits it — same real "leaving ends the visit, re-entering means
+// paying again" consequence closeRestaurant() already applies to buffetPaid below. No payout
+// either way (you didn't finish), and the entry fee already spent stays spent.
+function cancelEatingCompetition() {
+  eatingCompActive = false;
+  if (eatingCompTimerHandle) { clearInterval(eatingCompTimerHandle); eatingCompTimerHandle = null; }
+  const hud = document.getElementById('restaurantCompHud');
+  if (hud) hud.style.display = 'none';
 }
 
 function updateSnackCart() {
@@ -862,6 +1034,7 @@ function isPlayerInMenu() {
 function damagePlayer(amount, sourceLabel) {
   if(playerHealth <= 0) return;
   if(isPlayerInMenu()) return; // can't see or react to a fight while a menu covers the screen — no hit should land
+  if(adminGodMode) return; // admin cheat toggle (/godmode, game-admin.js) — gated to isAdmin() accounts only
   const armorDef = ARMOR.find(a => a.id === playerArmor);
   let finalAmount = armorDef ? Math.round(amount * (1 - armorDef.reduction)) : amount;
   if(activeAddOns.includes('ironskin')) finalAmount = Math.round(finalAmount * 0.7);
@@ -935,11 +1108,37 @@ function knockoutPlayer() {
     updateHealthBar();
     return;
   }
-  showNotif('😵 Knocked out! Waking up at home...');
-  playerGroup.position.set(HOUSE_DOOR.x, 0, HOUSE_DOOR.z + 3);
-  yaw = 0;
+  // User's own ask: "if your hp goes to 0 you go to the hospital" — a real knockout in the open
+  // city sends you to a real bed in City Hospital instead of just your own front door, same
+  // "inHospital=true, real pocket-space spawn" as walking in through the front door yourself
+  // (enterHospital() above) — you wake up as a real patient, not just teleported outside a
+  // building. The special-case branches above (job/arena/war/duel/hitman) are untouched — this
+  // only changes the ordinary "no special context" knockout.
+  showNotif('😵 Knocked out! Rushed to City Hospital...');
+  inHospital = true;
+  playerGroup.position.set(HOSPITAL_SPAWN.x, 0, HOSPITAL_SPAWN.z+10);
+  yaw = Math.PI;
   playerHealth = playerMaxHealth;
   updateHealthBar();
+  // Cash/ATM feature — real risk for carrying physical cash instead of leaving it all bank-safe:
+  // an ordinary open-city knockout (this default branch only — every special-case branch above
+  // already returned before reaching here) costs a real chunk of whatever cash you had on you.
+  // sipDollars is completely untouched — that's the entire point of the cash-vs-bank tradeoff.
+  // 30%-70% lost (steeper than a Robber's own 15%-25% steal roll, see robMoney()/game-land.js —
+  // getting fully knocked out is a much worse beat than a robber catching up to you).
+  if (cash > 0) {
+    const lostPct = 0.3 + Math.random() * 0.4; // 30%-70%
+    const lostCash = Math.round(cash * lostPct);
+    if (lostCash > 0) {
+      cash -= lostCash;
+      updateCash();
+      // Delayed like every other "second notification right after a knockout/event" call in the
+      // game (see holiday/reminder/Satan's Reign notifs elsewhere) — showNotif() shares one on-
+      // screen element, so firing this immediately would silently overwrite "Rushed to City
+      // Hospital..." above before the player ever reads it.
+      setTimeout(() => showNotif(`💸 You lost $${lostCash.toLocaleString()} in the chaos!`), 2200);
+    }
+  }
   resetAllBossAggro(); // the "die" end condition for a boss chase — it doesn't just resume hunting you the instant you wake up across the map
   if (inMovieFight) cleanupMovieFight(); // same "no orphaned interior state after a teleport-home" concern — the room/boss don't stay half-active behind you
   // Real bug found live while testing the Robot Arena's new active-attacking robots: the Arena
@@ -949,7 +1148,7 @@ function knockoutPlayer() {
   // city's. Barely reachable before (robots only ever hit back as a counter to your own swing);
   // now that they attack on their own, getting surrounded and knocked out is a real, easy way to
   // die in there, so this can no longer stay a dormant edge case.
-  if (inArenaBattle) { clearArenaRobots(); inArenaBattle = false; arenaConfiguring = false; arenaRunning = false; closeArenaConfig(); document.getElementById('arenaHud').style.display = 'none'; }
+  if (inArenaBattle) { clearArenaRobots(); inArenaBattle = false; arenaConfiguring = false; arenaRunning = false; inEventBattle = false; closeArenaConfig(); document.getElementById('arenaHud').style.display = 'none'; }
 }
 
 // ─── FIGHT ARENA — a dedicated place to duel; the duel mechanic itself works
@@ -979,6 +1178,8 @@ let duelChallengeFrom = null;  // someone challenged ME, awaiting my accept/decl
 let duelChallengeSentTo = null; // I challenged them, awaiting their response
 let _lastMailboxSync = -999;
 const MAILBOX_SYNC_INTERVAL = 1.5;
+let _lastChatSync = -999;
+const CHAT_SYNC_INTERVAL = 1.5; // same cadence as mailbox — a chat should feel live
 
 // ─── ARENA FREE-FOR-ALL ────────────────────────────────────────────────────
 // No challenge/accept — anyone physically standing in the Fight Arena can hit
@@ -1017,6 +1218,102 @@ async function syncMailbox() {
   } catch(e) { /* next sync will catch up */ }
 }
 
+// ─── GAME CHAT — "a normal chat so u can talk", real (not a bot like SAI, not command-only like
+// Admin Chat) — a real shared global chat over the new /api/chat server endpoint. Unlike
+// mailbox (a private per-recipient inbox that drains once read), this is a shared broadcast log
+// everyone online polls the same feed from, keyed by a `since` timestamp so nobody re-downloads
+// the whole history every few seconds.
+let chatLastSeenTs = 0; // resets to 0 on a fresh page load — the first sync then shows recent history, a nice side effect
+// "dev talk...direcctly to me" — a second real mode for the same panel: instead of posting to
+// the public /api/chat feed everyone sees, a Dev Talk message goes through the EXISTING private
+// mailbox system (sendMail/handleMailboxMessage) straight to every ADMIN_ACCOUNTS name, same
+// real delivery path as a direct S.I.P. gift — no new server plumbing needed for this part.
+let chatMode = 'public'; // 'public' or 'devtalk'
+function setChatMode(mode) {
+  chatMode = mode;
+  const pub = document.getElementById('chatModePublic'), dev = document.getElementById('chatModeDev');
+  pub.style.background = mode === 'public' ? '#44ccff33' : 'none';
+  pub.style.borderColor = mode === 'public' ? '#44ccff' : '#444';
+  pub.style.color = mode === 'public' ? '#44ccff' : '#888';
+  dev.style.background = mode === 'devtalk' ? '#ff884433' : 'none';
+  dev.style.borderColor = mode === 'devtalk' ? '#ff8844' : '#444';
+  dev.style.color = mode === 'devtalk' ? '#ff8844' : '#888';
+  document.getElementById('chatInput').placeholder = mode === 'devtalk' ? 'Message the developer...' : 'Say something...';
+}
+function sendChatMessage() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if(!text) return;
+  input.value = '';
+  if(serverMode !== 'online') { showNotif('💬 Chat needs ONLINE mode!'); return; }
+  if(chatMode === 'devtalk') {
+    chatAddMsg('You → Dev', text, true);
+    ADMIN_ACCOUNTS.forEach(name => sendMail(name, 'dev_talk', { text }));
+    return;
+  }
+  chatAddMsg('You', text, true); // shown instantly — don't make your own message wait on a round trip
+  fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/chat', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ from: currentUser, text })
+  }, 4000).catch(()=>{});
+}
+// Real bug found live: some deployments of the Explox server (explox-server.onrender.com
+// included) don't implement /api/chat at all — a 404, not a timeout — so this was retrying
+// forever, every CHAT_SYNC_INTERVAL, spamming the console with failed-request errors for the
+// entire session. A 404 means "this route doesn't exist here," which won't change until the
+// page reloads (unlike a transient !r.ok, which is worth still retrying), so stop asking once
+// that's confirmed instead of hammering a route that will never answer.
+let chatEndpointMissing = false;
+async function syncChatMessages() {
+  if(serverMode !== 'online' || chatEndpointMissing) return;
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/chat?since=' + chatLastSeenTs, {}, 4000);
+    if(r.status === 404) { chatEndpointMissing = true; return; }
+    if(!r.ok) return;
+    const msgs = await r.json();
+    msgs.forEach(m => {
+      chatLastSeenTs = Math.max(chatLastSeenTs, m.ts);
+      if(m.from !== currentUser) chatAddMsg(m.from, m.text, false); // your own already shown instantly in sendChatMessage()
+    });
+  } catch(e) { /* next sync will catch up */ }
+}
+// Same word-break fix as adminAddMsg() (game-admin.js) — a real bug found there ("i can't close
+// my admin tab when i do long commands", a long unbroken word stretching the panel wide enough
+// to shove the real Close button off-screen). This is even more important HERE since chat text
+// comes from OTHER real players, not just your own typed commands — one person spamming a long
+// unbroken string could otherwise break the chat panel's layout on EVERYONE's screen who sees it.
+function chatAddMsg(label, text, isMine) {
+  const box = document.getElementById('chatMessages');
+  if(!box) return;
+  const div = document.createElement('div');
+  div.style.cssText = (isMine
+    ? 'background:rgba(255,255,255,0.07);border-radius:6px;padding:6px 8px;font-size:11px;color:#ccc;text-align:right;margin-bottom:6px;'
+    : 'background:rgba(68,204,255,0.1);border-radius:6px;padding:6px 8px;font-size:11px;color:#66ddff;margin-bottom:6px;')
+    + 'max-width:100%;word-break:break-word;overflow-wrap:break-word;';
+  const name = document.createElement('b');
+  name.textContent = label; // caller passes the exact label ('You', 'You → Dev', or the sender's real name)
+  div.appendChild(name);
+  div.appendChild(document.createTextNode(': ' + text)); // createTextNode, never innerHTML — this is another real player's typed text
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+function toggleGameChat() {
+  const panel = document.getElementById('chatPanel');
+  if(panel.style.display === 'none') {
+    if(document.pointerLockElement) document.exitPointerLock();
+    isPointerLocked = false;
+    panel.style.display = 'flex';
+    document.getElementById('chatTab').style.display = 'none';
+  } else {
+    closeGameChat();
+  }
+}
+function closeGameChat() {
+  document.getElementById('chatPanel').style.display = 'none';
+  document.getElementById('chatTab').style.display = 'block';
+  if(renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+
 function handleMailboxMessage(msg) {
   if(msg.type === 'duel_challenge') {
     duelChallengeFrom = msg.from;
@@ -1049,6 +1346,37 @@ function handleMailboxMessage(msg) {
   } else if(msg.type === 'sip_gift') {
     queueEarning(msg.data.amount, 0, `Gift from ${msg.from}`);
     showNotif(`💸 ${msg.from} gave you ${msg.data.amount} S.I.P.! Thanks!`);
+  } else if(msg.type === 'trash_deposit') {
+    // Real deposit into YOUR trashSafeSip/trashSafeItems (game-economy.js) — lands whether or
+    // not your Trash Safe's passcode has even been set yet; setting one only ever gates taking
+    // things back OUT, never receiving a deposit.
+    const d = msg.data;
+    if(d.kind === 'sip') {
+      trashSafeSip += d.amount;
+      showNotif(`🗑️ ${msg.from} put ${d.amount.toLocaleString()} S.I.P. in your Trash Safe!`);
+    } else {
+      if(trashSafeItems[d.id]) trashSafeItems[d.id].qty += d.qty; else trashSafeItems[d.id] = { name: d.name, emoji: d.emoji, qty: d.qty };
+      showNotif(`🗑️ ${msg.from} put ${d.emoji} ${d.name} in your Trash Safe!`);
+    }
+    saveCurrentUser();
+  } else if(msg.type === 'dev_talk') {
+    // Only ever addressed to an ADMIN_ACCOUNTS name (see sendChatMessage()'s devtalk branch), so
+    // whoever's receiving this IS logged in as an admin account by definition — no extra isAdmin()
+    // check needed. Logged into the real adminChatMessages panel (not gated by adminUnlocked —
+    // that gate is about running commands, not about reading a message someone sent you) so it's
+    // there to review even if the panel wasn't open when it arrived, plus an immediate toast so
+    // it's never missed entirely.
+    showNotif(`📨 Dev Talk from ${msg.from}: ${msg.data.text}`);
+    adminAddMsg(`📨 ${msg.from}: ${msg.data.text}`, 'devtalk');
+  } else if(msg.type === 'prayer_gift') {
+    // "make it so you can wish for others" — someone else's GRANT roll named YOU, so whatever
+    // their prayer parsed to (see parsePrayerGrant() in game-land.js) actually lands here, on
+    // the real recipient, over the same real mailbox sip_gift already used for direct gifts.
+    const { kind, amount, prayer } = msg.data;
+    if(kind === 'wood') { woodCount += amount; updateWood(); saveCurrentUser(); }
+    else queueEarning(kind === 'elite' ? 0 : amount, kind === 'elite' ? amount : 0, `Prayer from ${msg.from}`);
+    const unit = kind === 'wood' ? '🪵 wood' : kind === 'elite' ? '💎 Elite Coins' : 'S.I.P.';
+    showNotif(`🙏 ${msg.from} prayed for you ("${prayer}") and God granted you ${amount.toLocaleString()} ${unit}!`);
   } else if(msg.type === 'ffa_kill') {
     ffaKills++;
     queueEarning(20, 0, 'Arena FFA Kill');
@@ -1145,7 +1473,7 @@ function tryDuelInteract() {
   // whatever you're actually standing near" philosophy as the d>25 case above, just
   // extended to this not-yet-dueling case too, which never had it.
   if(!duelChallengeSentTo) {
-    const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : inSea ? SEA_ZONES : CITY_ZONES;
+    const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inVisitStore ? VISIT_STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : inSea ? SEA_ZONES : CITY_ZONES;
     const px3 = playerGroup.position.x, pz3 = playerGroup.position.z;
     const nearZone = zones.some(z => Math.hypot(px3 - z.x, pz3 - z.z) < z.r)
       || rogueRobots.some(r => r.alive && Math.hypot(px3 - r.x, pz3 - r.z) < 3)
@@ -1511,7 +1839,7 @@ function tickHitmanVsPlayer(k, dt) {
 // local NPC object or a real grave, since the target only ever existed on our screen as a killer
 // mesh chasing a synced position.
 function completeHiredHitOnPlayer(targetName) {
-  totalKills++; checkWrathTrigger();
+  totalKills++; checkWrathTrigger(); checkDivineJudgment();
   const wealth = npcWealth(targetName);
   queueEarning(wealth, 0, `Hit on ${targetName}`);
   showNotif(`🗡️ Your hired killer got ${targetName}! ${wealth} S.I.P. pending in Earnings.`);
@@ -1552,7 +1880,7 @@ function hitFlavorText(name) {
   return `The hit on ${name} is done.`;
 }
 function completeHiredHit(target) {
-  totalKills++; checkWrathTrigger();
+  totalKills++; checkWrathTrigger(); checkDivineJudgment();
   const wealth = npcWealth(target.name);
   const x = target.group.position.x, z = target.group.position.z;
   scene.remove(target.group);

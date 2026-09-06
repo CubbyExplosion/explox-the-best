@@ -60,6 +60,12 @@ function buildCity() {
   addCol(CITY_COLS, 63.5,-20, 9.5,18.5); // left section
   addCol(CITY_COLS, 96.5,-20, 9.5,18.5); // right section
   addCol(CITY_COLS, 80,-37.5, 26,1);     // back wall
+  // Cash/ATM feature — right outside the Mall's own front doors (door gap x:73-87, both wall
+  // sections' addCol stop at z=-1.5), on the open plaza just south of that line, clear of the
+  // enterMall() trigger box itself (x:73-87, z:-7..-2.5, game-controls.js) — shoppers grabbing
+  // cash for the Mall's 300+ shops right before/after walking in.
+  buildATM(80, 4);
+  CITY_ZONES.push({ x:80, z:4, r:3, label:'🏧 ATM', action: () => openATM() });
 
   // Mall parking plaza — open ground west of the building (clear of City Hall at x -16..16,
   // the Gas Station at x 49-71/z -59..-41, and the mall's own west wall at x=55)
@@ -143,8 +149,13 @@ function buildCity() {
 
   // PARK
   box(54,0.2,54, 0x4a9e2a,-10,0.1,-60); box(14,0.15,10, 0x1177cc,-10,0.12,-58);
+  // Real hills (see groundHeightAt(), game-zones.js) roll through the park's southern half — these
+  // trees get lifted to the exact same terrain height right under them so none of them end up
+  // floating above or half-buried in a hillside. The pond/fountain/benches below sit in the park's
+  // hill region's own flat pockets, so they're untouched and stay exactly where they always were.
   [[-22,-72],[0,-72],[8,-50],[-28,-50],[-18,-60],[6,-65],[-5,-45],[-30,-70]].forEach(([tx,tz])=>{
-    box(1.2,8,1.2, 0x5c3a1e,tx,4,tz); treeMeshes.push(box(7,7,7, 0x2d7a2d,tx,11,tz));
+    const gy = groundHeightAt(tx,tz);
+    box(1.2,8,1.2, 0x5c3a1e,tx,4+gy,tz); treeMeshes.push(box(7,7,7, 0x2d7a2d,tx,11+gy,tz));
   });
   box(5,0.4,1, 0xaa7755,-18,0.7,-68); box(5,1.5,0.3, 0xaa7755,-18,1,-68.6);
   box(5,0.4,1, 0xaa7755,4,0.7,-52);   box(5,1.5,0.3, 0xaa7755,4,1,-52.6);
@@ -162,7 +173,80 @@ function buildCity() {
   buildSign('🏛 CITY HALL',0,24,-23);
   for(let i=-2;i<=2;i++) box(1.5,18,1.5, 0xf5efe0,i*5,9,-23);
   for(let s=0;s<3;s++) box(34-s*2,0.5,2, 0xddd0bb,0,0.5+s*0.5,-22.5+s);
-  addCol(CITY_COLS,0,-35, 16,13);
+  addCol(CITY_COLS,0,-35, 16,13, 23);
+  // Real exterior staircase up the west side, onto the flat gold roof cap — first climbable
+  // rooftop in the city (see addCol's roofY / addRoofRamp, game-engine.js).
+  for(let i=0;i<12;i++){ const t=i/11; box(1.6,0.35,2, 0xd4c8b0, -20+t*4, 0.3+t*22.7, -35); }
+  addRoofRamp(-20,-35, -16,-35, 1.2, 0,23);
+
+  // KING EXPLOX MONUMENT — user's own ask: "make a king explox statue" + the origin-of-Explox
+  // history exhibit (openExploxHistory(), game-library.js). Placed in the open plaza between
+  // downtown and City Hall's own front steps — checked clear of every nearby addCol/zone first
+  // (City Hall itself starts at z:-22, the Hotel zone at x:-15,z:-5,r:8 doesn't reach x:0).
+  box(5,0.6,5, 0xccc4b0, 0,0.3,-10);              // stone plaza base
+  box(3,3.4,3, 0x9a9488, 0,2,-10);                // pedestal
+  box(3.2,0.3,3.2, 0x847e72, 0,3.85,-10);         // pedestal cap
+  box(0.9,1.2,0.5, 0xB8860B, 0,4.6,-10);          // King's robe/torso (bronze)
+  box(0.6,0.6,0.6, 0xB8860B, 0,5.5,-10);          // King's head (bronze)
+  box(0.7,0.25,0.7, 0xFFD700, 0,5.85,-10);        // crown
+  box(0.15,1.4,0.15, 0xB8860B, 0.55,4.7,-9.9);    // scepter arm
+  box(0.12,0.5,0.12, 0xB8860B, 0.55,5.5,-9.9);    // scepter shaft
+  box(0.3,0.3,0.3, 0xFFD700, 0.55,5.85,-9.9);     // scepter orb
+  buildSign('👑 KING EXPLOX', 0,7,-10.2);
+  buildSign('📜 Press E for the History of Explox', 0,3.3,-8.2);
+  const kingLight = new THREE.PointLight(0xFFD700, 1.0, 20);
+  kingLight.position.set(0,6,-10); scene.add(kingLight);
+  addCol(CITY_COLS, 0,-10, 3,3);
+
+  // THE OFFICE, now THE MANSION — user's own ask: "the office is a house the biggest best and
+  // nobody exept mer and staff can come." Same admin-only gate as before (isAdmin(), game-admin.js
+  // — ADMIN_ACCOUNTS already covers exactly "me and staff": 'cubby explosion' + 'gurnaldst') and
+  // the same fully solid, no-interior footprint (nobody — admin included — ever walks through
+  // these walls; the whole "visit" is the exterior request-menu popup, same as the Church/Library
+  // pattern), just reskinned from a corporate tower into the single biggest, grandest HOUSE in the
+  // city — built from the same body+flat-roof-cap language as the neighborhood houses
+  // (buildHouse(), game-district.js) scaled up far past anything else with a roof on it. Same
+  // anchor coordinates as the old tower (door/recess at z=119.9, staff at z=112-115, CITY_ZONES
+  // trigger at z=113) so nothing else placed around it needs to move.
+  const MANSION_WALL = 0xf0e6c8, MANSION_ROOF = 0x7a2a2a, MANSION_TRIM = 0xd4af37;
+  box(30,20,36, MANSION_WALL, 300,10,100);              // main hall
+  box(32,2.4,38, MANSION_ROOF, 300,21.2,100);           // main roof cap
+  box(14,14,26, MANSION_WALL, 275,7,100);               // west wing
+  box(15.6,1.6,27.6, MANSION_ROOF, 275,14.8,100);       // west wing roof cap
+  box(14,14,26, MANSION_WALL, 325,7,100);               // east wing
+  box(15.6,1.6,27.6, MANSION_ROOF, 325,14.8,100);       // east wing roof cap
+  box(7,7,7, MANSION_WALL, 300,25,100);                 // cupola
+  box(7.8,0.9,7.8, MANSION_ROOF, 300,28.5,100);         // cupola cap
+  box(0.3,8,0.3, MANSION_TRIM, 300,33,100);             // flagpole
+  // Gold-trimmed windows on the main hall's front face.
+  for (let fy=0; fy<2; fy++) for (let fx=-8; fx<=8; fx+=8) {
+    box(3,3.4,0.2, 0xbfe3f7, 300+fx, 6+fy*7, 118.1);
+  }
+  [-5.5,5.5].forEach(cx => box(1,11,1, 0xffffff, 300+cx,5.5,116.5));  // entrance columns
+  box(14,1.2,6, 0xffffff, 300,11.2,116.5);              // portico canopy
+  box(12,14,2, 0x1a2038, 300,7,119.9);                  // dark entrance recess
+  box(9,10,0.3, 0x3a2416, 300,6,119);                   // grand wooden double doors
+  box(9,0.4,0.4, MANSION_TRIM, 300,11.2,119.1);         // gold lintel above the doors
+  buildSign('🏠 THE MANSION', 300,30,100);
+  buildSign('STAFF ONLY', 300,9,118.8);
+  const officeLight = new THREE.PointLight(0xffdd88, 1.4, 50);
+  officeLight.position.set(300,15,110); scene.add(officeLight);
+  // Real employee figures out front — "they work for me," not just decoration; this is who the
+  // player is narratively asking when they open the request menu at the door.
+  [[-6,112],[6,112],[0,115]].forEach(([ox,oz]) => {
+    const x = 300+ox, z = oz;
+    box(0.55,0.85,0.32, 0x223355, x,1.15,z);   // suit torso
+    box(0.4,0.4,0.4, 0xd4a070, x,1.85,z);      // head
+    box(0.5,0.75,0.3, 0x1a1a2a, x,0.55,z);     // suit legs
+  });
+  addCol(CITY_COLS, 300,100, 33,21);
+  // PRIVATE CAB — user's own ask, parked just outside The Office (your own personal fleet, at
+  // your own HQ). isAdmin() is read HERE, at world-build time — since buildCity() runs once per
+  // player's own client off THEIR OWN currentUser, every other real player's own client bakes in
+  // the "❓ UNKNOWN" text instead, genuinely never seeing the real name at all, not just a locked door.
+  box(6,0.1,10, 0x333333, 290,0.06,128);
+  buildSign(isAdmin() ? '🚕 PRIVATE CAB' : '❓ UNKNOWN', 290,4,124.5);
+  dealershipCab = { def: CAB_DEF, group: buildCabMesh(290, 128, Math.PI), carYaw: Math.PI };
 
   // APARTMENTS
   [[-40,-40],[-60,-40],[-40,-60],[-60,-60]].forEach(([ax,az])=>{
@@ -194,13 +278,69 @@ function buildCity() {
   addCol(CITY_COLS, -50, 72.7, 7, 0.4);    // front wall, left of the door gap
   addCol(CITY_COLS, -30, 72.7, 7, 0.4);    // front wall, right of the door gap
 
+  // LIBRARY — new civic building, real walk-up exterior + real modal (game-zones.js's Enter
+  // Library door zone → openLibrary(), game-library.js), same "Church" pattern, not a walk-in
+  // 3D interior. Placed on open grass just west of the Hospital: checked every addCol() footprint
+  // in this file first — nearest neighbors are the Hospital (x:-57.3..-22.7, z:47.3..72.7, this
+  // building's own addCol below stays a clear 6.7-unit gap west of it) and the Police Station
+  // (x:-85..-55, z:-2..22, no z overlap with this building's z:50..70 at all). Warm wood-and-
+  // brick look with a small reading-room cupola on the roof and glass windows flanking the door,
+  // deliberately distinct from the Church's stone-and-steeple look next door.
+  box(22,13,20, 0xB8834A,-75,6.5,60);       // main body — warm brick/wood
+  box(23,1.2,21, 0x5c3a1e,-75,13.6,60);     // dark wood roof cap
+  box(7,5,7,   0xEDE0C4,-75,16.5,60);       // reading-room cupola sitting on the roof
+  box(1,3,1,   0x5c3a1e,-75,19.5,60);       // cupola finial pole
+  box(1,1,1,   0xFFD700,-75,21.2,60);       // gold finial cap
+  box(4,10,8,  0x6a4a2a,-63.2,5,60);        // entrance canopy, facing east toward the Hospital
+  box(0.3,3,3, 0xBFE6FF,-64,8,54);          // window, north of the door
+  box(0.3,3,3, 0xBFE6FF,-64,8,66);          // window, south of the door
+  buildSign('📚 LIBRARY',-62,15,60);
+  box(10,0.2,8, 0xaa7744,-66,0.1,60);       // walkway leading up to the entrance
+  addCol(CITY_COLS,-75,60, 11,10, 14.2);
+  // Real exterior staircase up the west side, opposite the entrance canopy — climbs onto the
+  // dark wood roof cap (see addCol's roofY / addRoofRamp, game-engine.js).
+  for(let i=0;i<9;i++){ const t=i/8; box(1.4,0.3,1.6, 0x5c3a1e, -90+t*4, 0.25+t*13.95, 60); }
+  addRoofRamp(-90,60, -86,60, 1, 0,14.2);
+
+  // SCIENCE LAB — coordinator's own ask: real "Science Tests" run by real in-game Scientist
+  // characters, not just a menu. Real walk-up exterior + real modal (game-zones.js's Enter Science
+  // Lab door zone → openScienceLab(), game-land.js), same Library/Church pattern, not a walk-in 3D
+  // interior. Placed on open grass on the same west-side civic street as the Library and Police
+  // Station: checked every addCol() footprint in this file first — this spot (x:-80..-60,
+  // z:27..45) sits in the real open gap between the Police Station (x:-85..-55, z:-2..22, this
+  // building's own addCol below stays a clear 5-unit gap south of it) and the Library (x:-86..-64,
+  // z:50..70, a clear 5-unit gap north of it), with no x/z overlap against either. Steel-and-glass
+  // look with a glowing teal specimen dome on the roof, deliberately distinct from the Library's
+  // warm wood-and-brick look and the Police Station's plain blue-grey slab a bit further south.
+  const SCI = SCIENCE_LAB; // {x:-70, z:36} — game-land.js; also read by buildLabNPCs() (game-world.js)
+  box(20,12,18, 0xE3ECEF, SCI.x,6,SCI.z);           // main body — pale steel/glass
+  box(21,1,19,  0x4a6572, SCI.x,12.5,SCI.z);        // dark steel roof cap
+  box(6,2,6,    0x8fa3ad, SCI.x,14,SCI.z);          // dome pedestal on the roof
+  const labDome = new THREE.Mesh(new THREE.SphereGeometry(3.2,16,12),
+    new THREE.MeshPhongMaterial({color:0x7CFFD1, emissive:0x1f6b52, transparent:true, opacity:0.6}));
+  labDome.position.set(SCI.x,18.2,SCI.z); scene.add(labDome);              // glowing "specimen tank" dome — one real non-box shape, same spirit as the Library's cupola
+  const labDomeLight = new THREE.PointLight(0x66ffcc, 1.1, 22);
+  labDomeLight.position.set(SCI.x,18.2,SCI.z); scene.add(labDomeLight);    // makes the dome actually glow at night, not just tinted
+  box(4,10,8, 0x5f7580, SCI.x+11.5,5,SCI.z);        // entrance canopy, facing east (open yard side)
+  box(0.3,3,3, 0x8CFFE0, SCI.x+10,8,SCI.z-6);       // glowing window, north of the door
+  box(0.3,3,3, 0x8CFFE0, SCI.x+10,8,SCI.z+6);       // glowing window, south of the door
+  buildSign('🧪 SCIENCE LAB', SCI.x+13.5,15,SCI.z);
+  box(10,0.2,8, 0x9aa7ad, SCI.x+10,0.1,SCI.z);      // walkway leading up to the entrance
+  addCol(CITY_COLS, SCI.x,SCI.z, 10,9, 13);
+  // Real exterior staircase up the west side, opposite the entrance canopy.
+  for(let i=0;i<9;i++){ const t=i/8; box(1.4,0.3,1.6, 0x4a6572, SCI.x-14+t*4, 0.25+t*12.75, SCI.z); }
+  addRoofRamp(SCI.x-14,SCI.z, SCI.x-10,SCI.z, 1, 0,13);
+
   // SCHOOL
   box(36,14,22, 0xf5d080,70,7,60); box(36,1,22, 0xe8c050,70,14.5,60);
   box(10,12,4, 0x88aadd,70,6,71.2); buildSign('🏫 SCHOOL',70,16,71);
   box(16,0.2,10, 0xaa7744,82,0.1,66);
   box(0.3,4,0.3, 0x666,80,2,62); box(0.3,4,0.3, 0x666,84,2,62); box(5,0.3,0.3, 0x666,82,4,62);
   box(0.3,10,0.3, 0x666,58,5,50); box(4,0.2,0.1, 0x4488dd,60,9.5,50);
-  addCol(CITY_COLS,70,60, 19,12);
+  addCol(CITY_COLS,70,60, 19,12, 15);
+  // Real exterior staircase up the east side, clear of the flagpole (north) and entrance (south).
+  for(let i=0;i<10;i++){ const t=i/9; box(1.6,0.32,1.8, 0xe8c050, 93-t*4, 0.28+t*14.7, 60); }
+  addRoofRamp(93,60, 89,60, 1.1, 0,15);
 
   // CHURCH — "make god god of Abraham" clarified to "a church you can walk into", real building
   // + a real Pray action inside (openChurch()/prayAtChurch(), game-shops.js), not a decoration.
@@ -264,6 +404,21 @@ function buildCity() {
   box(10,1.4,0.4, 0xe8dcc0, 160,19.3,216.5);          // front parapet — the wall itself
   for(let i=-2;i<=2;i++) box(1,0.6,0.4, 0xe8dcc0, 160+i*2,20.3,216.5); // crenellations
 
+  // TRADING CENTER — new building, real walk-up exterior + real modal (openTradingCenter(),
+  // game-economy.js), same "walk up and use it" pattern as the Library/City Hall Forms Office —
+  // not a walk-in 3D interior. Opens the existing Stock Market, which used to only be reachable
+  // through the Bank menu. Placed in the Bank's own cleared finance block, a clear 20+ unit gap
+  // east of the Bank's guard staircase (which ends around x=180,z=210) so nothing overlaps.
+  box(20,16,18, 0x1a2a44, 210,8,210);                 // dark navy glass tower
+  box(21,1,19,  0x0d1626, 210,16.5,210);              // dark roof cap
+  box(10,10,2,  0x33ddaa, 210,6,219.1);               // glowing green glass front
+  box(16,2,0.3, 0x0d1626, 210,13.5,219.2);            // black ticker-band frame above the glass
+  buildSign('📈 TRADING CENTER', 210,18,219);
+  const tradeLight = new THREE.PointLight(0x33ddaa, 1.1, 26);
+  tradeLight.position.set(210,9,218); scene.add(tradeLight);
+  box(10,0.2,6, 0xaaaaaa, 210,0.1,215);               // walkway leading up to the entrance
+  addCol(CITY_COLS, 210,210, 11,10);
+
   // MOVIE THEATER — x=50, z=-85
   box(28,14,20, 0x8B1A1A, 50,7,-85);           // main building (dark red)
   box(29,1,21,  0x5a0d0d, 50,14.5,-85);         // flat roof
@@ -284,6 +439,12 @@ function buildCity() {
   const cinLight = new THREE.PointLight(0xff2244, 1.2, 30);
   cinLight.position.set(50,10,-74); scene.add(cinLight);
   addCol(CITY_COLS, 50,-85, 15,11);
+  // ACTORS ENTRANCE — real "Work as an Actor" job door (user's own ask: "add acting"), on the
+  // theater's west side, clear of the main entrance zone (x:50,z:-72,r:8) and the ticket booth
+  // (x:60,z:-70). See startActingJob()/ACTOR_PAY (game-alignment.js) and the matching CITY_ZONES
+  // entry (game-zones.js).
+  box(3,6,0.3, 0x442211, 30,3,-66.5);
+  buildSign('🎭 ACTORS ENTRANCE', 30,7,-66.3);
 
   // S.I.T.S. TRANSIT HUB — x=0, z=50 (south side, visible from spawn)
   box(36,10,18, 0x1a2a3a, 0,5,50);             // main station building
@@ -314,6 +475,14 @@ function buildCity() {
   sitsLight2.position.set(0, 4, 50); scene.add(sitsLight2);
   addCol(CITY_COLS, 0, 50, 20, 10);
 
+  // Cash/ATM feature — serves both the Shopping Street (Coffee/Toy/Outfit/Weapon shops at
+  // x:44-84,z:54) and the S.I.T.S. Transit Hub right above, both a short walk from here. Checked
+  // clear of every nearby addCol/zone first: west of the shops' own building footprints (x:35+),
+  // south of the Transit Hub's own addCol (z:40-60) and its non-collider bus-bay side meshes
+  // (x:18-26/-26..-18), and outside the Shopkeeper job zone's r16 circle (center 65,48).
+  buildATM(15, 62);
+  CITY_ZONES.push({ x:15, z:62, r:3, label:'🏧 ATM', action: () => openATM() });
+
   // CITY HOTEL — x=-15, z=-5 (visible from spawn, west of center)
   box(18,36,12, 0xEDE0C4, -15,18,-5);              // main tower (cream/beige)
   box(20,4,14,  0xD4C090, -15,2,-5);               // wider lobby base
@@ -339,6 +508,13 @@ function buildCity() {
   const hotelLight2 = new THREE.PointLight(0xffeebb, 0.6, 40);
   hotelLight2.position.set(-15,20,-5); scene.add(hotelLight2);
   addCol(CITY_COLS, -15,-5, 10,7);
+
+  // Cash/ATM feature — right by the Hotel's own lobby entrance (welcome mat at x=-15,z=4.5, glass
+  // front at z=2), just east of the building's own addCol (x max -5) so it reads as "right outside
+  // the doors" without sitting inside the hotel's collision footprint — travelers checking in/out
+  // are exactly who'd actually need a cash machine on the spot.
+  buildATM(-3, 4);
+  CITY_ZONES.push({ x:-3, z:4, r:3, label:'🏧 ATM', action: () => openATM() });
 
   // BLACK MARKET WAREHOUSE — hidden at x=-80, z=-78
   box(20,10,14, 0x1a1208, -80,5,-78);
@@ -389,6 +565,22 @@ function buildCity() {
   const carLight = new THREE.PointLight(0xffffff, 1.2, 40);
   carLight.position.set(130,10,20); scene.add(carLight);
   addCol(CITY_COLS, 130,20, 16,12);
+  // SUPER TANK — a permanent showroom fixture just past the regular parking row (which uses
+  // CAR_PARKING_SPOTS x:117-145, game-vehicles.js) so it never collides with a purchased car
+  // parked there. Its own small reinforced pad, since bare dirt past the lot's real edge (x:148)
+  // would look wrong under it. See dealershipTank/TANK_DEF/buildTankMesh (game-vehicles.js) and
+  // the extra proximity check in handleInteract()/updatePrompt() (game-zones.js) that lets you
+  // walk up and ride it exactly like any owned car.
+  box(10,0.1,10, 0x444444, 155,0.06,44);
+  buildSign('🛡️ SUPER TANK', 155,5,38);
+  dealershipTank = { def: TANK_DEF, group: buildTankMesh(155, 44, 0), carYaw: 0 };
+  // SUPER MOTORCYCLE — a second showroom pad, 15 units east of the Tank's (clear of it and the
+  // regular parking row). See dealershipMotorcycle/MOTORCYCLE_DEF/buildMotorcycleMesh
+  // (game-vehicles.js) and the matching proximity check in handleInteract()/updatePrompt()
+  // (game-zones.js).
+  box(8,0.1,8, 0x444444, 170,0.06,44);
+  buildSign('🏍️ SUPER MOTORCYCLE', 170,5,38);
+  dealershipMotorcycle = { def: MOTORCYCLE_DEF, group: buildMotorcycleMesh(170, 44, 0), carYaw: 0 };
 
   // ─── THE DINER — x=110, z=-25 ────────────────────────────────────────────────
   box(20,10,16, 0xB8452F, 110,5,-25);            // main building (warm brick red)
@@ -414,6 +606,12 @@ function buildCity() {
   dinerLight.position.set(110,7,-17); scene.add(dinerLight);
   buildSign('🍽️ THE DINER', 110,11.5,-16.9);
   addCol(CITY_COLS, 110,-25, 10,8);
+  // Cash/ATM feature — east of the Diner's own outdoor seating (umbrella tables at x=104/116,
+  // z=-13), clear of both its addCol (x max 120, z max -17) and the Diner's own CITY_ZONES entry
+  // radius (center 110,-13, r8) — a real spot to grab cash before paying for a meal along
+  // Restaurant Row, near the Car Dealership/Computer Shop cluster too.
+  buildATM(125, -13);
+  CITY_ZONES.push({ x:125, z:-13, r:3, label:'🏧 ATM', action: () => openATM() });
 
   // ─── ROAD: Downtown to Shopping District (extends the main N-S road north) ──
   // The N-S road only ran to z=150 before; the Shopping District's 100 shops at (0,500)
@@ -427,6 +625,11 @@ function buildCity() {
   for(let i=0;i<9;i++) box(0.3,0.06,8, 0xFFDD00, 15+i*38,0.02,100);
   buildSign('🏘️ THE SUBURBS', 300,2.5,106);
   box(0.3,5,0.3, 0x888888, 300,2.5,103);
+  // Cash/ATM feature — right at the Suburbs' own entrance, a few units north of the Downtown-to-
+  // Suburbs road (z:94-106) and well before the first row of houses (buildSuburbs(), game-
+  // district.js — grid starts at z=116), same "welcome mat" spot as the sign right above it.
+  buildATM(300, 110);
+  CITY_ZONES.push({ x:300, z:110, r:3, label:'🏧 ATM', action: () => openATM() });
 
   // ─── ROADSIDE BILLBOARDS — real promotional content for real in-game destinations ──
   buildRoadBillboard(9, 165, 0,        '🍽️', 'NEW RESTAURANTS THIS WAY!');
@@ -536,6 +739,20 @@ function buildCity() {
   });
   addCol(CITY_COLS, -200,-200, 26,12);
   addCol(CITY_COLS, -220,-208, 4,4);
+  // SUPER JET — a permanent showroom fixture on the open apron, clear of the baggage carts (x:
+  // -205..-195,z:-214) and both decorative parked planes (z:-242). See dealershipJet/JET_DEF/
+  // buildJetMesh (game-vehicles.js) and the matching proximity check in handleInteract()/
+  // updatePrompt() (game-zones.js) that lets you walk up and drive it exactly like the Tank.
+  buildSign('✈️ SUPER JET', -230,4.5,-224);
+  // homeX/homeZ/homeYaw — user's own ask: "make the plane land at the airport when i exit", since
+  // unlike a ground vehicle the Jet can be exited mid-flight, which would otherwise leave it
+  // floating stranded wherever you bailed out (see exitCar(), game-vehicles.js).
+  dealershipJet = { def: JET_DEF, group: buildJetMesh(-230, -220, 0), carYaw: 0, homeX: -230, homeZ: -220, homeYaw: 0 };
+  // FUTURE JET — a second Airport apron pad, 15 units west of the Super Jet's, same clear-of-
+  // everything reasoning (baggage carts at x:-205..-195, control tower's addCol at x:-224..-216,
+  // both z:-242 runway planes) — see dealershipFutureJet/FUTURE_JET_DEF/buildJetMesh (game-vehicles.js).
+  buildSign('🚀 FUTURE JET', -245,4.5,-224);
+  dealershipFutureJet = { def: FUTURE_JET_DEF, group: buildJetMesh(-245, -220, 0, FUTURE_JET_DEF.color), carYaw: 0, homeX: -245, homeZ: -220, homeYaw: 0 };
 }
 
 // ─── PLAYER HOUSE (exterior in city) ─────────────────────────────────────────
@@ -592,6 +809,94 @@ function buildPlayerHouse() {
   });
   // Collision for house body
   addCol(CITY_COLS, hx,hz, 9,7);
+}
+
+// ─── FACTORIES — real jobs you can work, user's own ask: "make factories to work at." Reuses the
+// exact generic toggleJob()/tickJob() engine every other job already runs on (game-alignment.js)
+// — each factory's job is just its own CITY_ZONES entry (game-zones.js) with its own jobType/pay/
+// taskText, same pattern as Shopkeeper/Officer. FACTORY_DEFS stays LOCAL to this file (not shared
+// with game-zones.js's CITY_ZONES array) on purpose — game-zones.js loads BEFORE this file (see
+// modules/README.md's load-order warning), so CITY_ZONES' own factory entries hardcode the same
+// x/z/pay/taskText literals directly instead of reading them from here.
+//
+// Placed together as a real "Industrial District" on open ground east of downtown — verified
+// clear of every existing addCol()/CITY_ZONES/LOC_ZONES footprint in this file and every other
+// module before picking a spot: City Bank block sits at x:100-220 z:130-290, Uptown Plaza at
+// x:250 z:150 (addCol 16x11), Suburbs spans x:252-448 z:106-254, the Fight Arena's 100x100 sand
+// floor spans x:201-299 z:-249..-151, the Sea Exit gate (x:220 z:90) has zero z-overlap with
+// anything down here, and Your Store/The Diner/Car Dealership/Computer Shop all sit west of
+// x=225. This whole district (bodies x:225-435 z:-67..-43, docks/job-zones out to z:-15) sits in
+// the real open gap between all of them — no relocation of anything else was needed.
+// `supplies` — each factory's real 5-category supply chain into the city's shop economy (see
+// game-district.js's factoryForCategory()/buildCityShops() for the visible "📦 Supplied by..."
+// signage this drives, and game-vehicles.js's tickFactorySupply() for the auto-restock hook it
+// gives a matching player-owned Store). Ids are real SHOP_CATEGORIES ids (game-district.js) —
+// picked for genuine thematic fit with what each factory actually makes, not arbitrarily:
+//  - Toy Factory → kid/hobby-adjacent shops that would realistically carry toy-factory goods.
+//  - Auto Parts Factory → wheeled/mechanical-parts shops (bike/skate literally sell parts like
+//    trucks/bearings/kickstands, Hobby Shop's RC cars/model kits are miniature vehicle builds)
+//    plus Furniture Store, which leans on the real-world "auto parts stores also stock general
+//    hardware/fasteners" angle.
+//  - Robot Parts Factory → electronics/tech-adjacent shops.
+// No id repeats across factories, so a shop category is ever supplied by at most one factory.
+const FACTORY_DEFS = [
+  { id:'toy',   name:'Toy Factory',         emoji:'🧸', x:240, z:-55,
+    wall:0x4a7fd6, roof:0xFFD700, accent:0xE83C3C, glow:0xFFD700, dock:0xB8BEC6, rib:0x2f57a8,
+    supplies:['toy_store','card_gift_shop','party_supplies_store','comic_book_shop','craft_store'] },
+  { id:'auto',  name:'Auto Parts Factory',  emoji:'🔧', x:330, z:-55,
+    wall:0x8b95a0, roof:0x3b4148, accent:0xFF6600, glow:0xFF8800, dock:0x555555, rib:0x6b7480,
+    supplies:['bike_shop','skate_shop','sports_store','hobby_shop','furniture_store'] },
+  { id:'robot', name:'Robot Parts Factory', emoji:'🤖', x:420, z:-55,
+    wall:0x2a2a33, roof:0x151519, accent:0x33FF99, glow:0x33FF99, dock:0x22222a, rib:0x18181e,
+    supplies:['electronics_store','video_game_store','phone_accessories_store','music_store','aquarium_fish_store'] },
+];
+function buildFactories() {
+  FACTORY_DEFS.forEach(f => {
+    const {x,z,wall,roof,accent,glow,dock,rib} = f;
+    // Main warehouse body + flat roof cap
+    box(30,16,24, wall, x,8,z);
+    box(31,1,25,  roof, x,16.5,z);
+    // Corrugated side-wall ribs — thin alternating strips down both long walls for a real
+    // sheet-metal warehouse look, visible from the open walking path between each factory.
+    for(let i=-4;i<=4;i++) {
+      box(0.3,14,1.6, rib, x-15.05, 8, z+i*2.2);
+      box(0.3,14,1.6, rib, x+15.05, 8, z+i*2.2);
+    }
+    // Roof-mounted smokestacks, each capped with a glowing warning light
+    [[-9,-8],[9,-8]].forEach(([dx,dz]) => {
+      box(1.8,27,1.8, 0x555555, x+dx,13.5,z+dz);
+      box(2.2,0.6,2.2, 0x333333, x+dx,27.1,z+dz);
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.4,8,8), new THREE.MeshBasicMaterial({color:glow}));
+      bulb.position.set(x+dx,27.7,z+dz); scene.add(bulb);
+      const pl = new THREE.PointLight(glow,0.8,14); pl.position.set(x+dx,27.7,z+dz); scene.add(pl);
+    });
+    // Loading dock — protrudes toward the open approach on the north face, with a real roll-up
+    // door and its own canopy roof, same "canopy" language the Hospital/Library entrances use.
+    box(14,6,10, dock, x,3,z+17);
+    box(8,5,0.3, accent, x,2.5,z+22.05);
+    box(15,0.4,10.4, 0x3a3a3a, x,6.05,z+17);
+    buildLogoSign(f.name, f.emoji, '#'+wall.toString(16).padStart(6,'0'), '#'+accent.toString(16).padStart(6,'0'), x,10,z+22.2);
+    // Theme flavor props right out front of the dock, distinct per factory
+    if (f.id === 'toy') {
+      [[-4,0xE83C3C],[0,0x44AA44],[4,0x4477CC]].forEach(([dx,c]) => {
+        box(1.4,1.4,1.4, c, x+dx,0.7,z+25);
+      });
+    } else if (f.id === 'auto') {
+      const tireMat = new THREE.MeshLambertMaterial({color:0x1a1a1a});
+      [-4,4].forEach(dx => {
+        for(let t=0;t<3;t++) {
+          const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.7,0.35,16), tireMat);
+          tire.rotation.x = Math.PI/2; tire.position.set(x+dx,0.35+t*0.4,z+25); tire.castShadow=true; scene.add(tire);
+        }
+      });
+    } else {
+      box(2,2,2, 0x444455, x,1,z+25);
+      const scrapLight = new THREE.PointLight(glow,0.9,12); scrapLight.position.set(x,2.2,z+25); scene.add(scrapLight);
+    }
+    // Collision — main body + loading dock, same two-piece pattern the Mall/Hospital use
+    addCol(CITY_COLS, x, z, 15, 12);
+    addCol(CITY_COLS, x, z+17, 7, 5);
+  });
 }
 
 // ─── BANK INTERIOR ────────────────────────────────────────────────────────────

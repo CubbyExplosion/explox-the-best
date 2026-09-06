@@ -197,6 +197,48 @@ function priceForItem(cat, itemName) {
   const [lo, hi] = CATEGORY_PRICE_RANGE[cat.id];
   return Math.round(lo + (hi - lo) * idx / (cat.items.length - 1));
 }
+
+// ─── FACTORY SUPPLY CHAIN — real ties from the 3 Factories (game-buildings.js FACTORY_DEFS,
+// which loads before this file — see modules/README.md's load-order table) into the shop
+// economy here. Two real effects, not just flavor text:
+//  1) AMBIENT layer (always on, every shop of a supplied category): a real "📦 Supplied by..."
+//     sign is built at each outdoor CITY_SHOPS storefront in buildCityShops() below. The 200
+//     indoor MALL_SHOPS also carry `catId` and are covered by openCityShopModal()'s supplier
+//     line, but skip the physical sign — a mall storefront doesn't get its own building to hang
+//     one on the way an outdoor shop does.
+//  2) MECHANICAL layer (only when it applies): tickFactorySupply() in game-vehicles.js checks a
+//     player-owned Store's STORE_CATALOG `category` against factoryForCategory() below — a match
+//     gets real free auto-restocking.
+// factoryForCategory() is the one shared lookup both layers use, so the two can never disagree
+// about which categories are actually supplied.
+function factoryForCategory(catId) {
+  return FACTORY_DEFS.find(f => f.supplies && f.supplies.includes(catId)) || null;
+}
+// A few of each supplied category's own real items (straight from that category's own `items`
+// list above, not invented) become genuine STORE_INGREDIENTS entries (game-vehicles.js — that
+// array already exists by now, game-vehicles.js loads before this file) tagged with
+// `supplyCategory`. This is what actually lets a matching owned Store stock a real Toy/Auto
+// Parts/Robot Parts item — without it, tickFactorySupply() would have nothing real to shelve,
+// since STORE_INGREDIENTS was otherwise 100% food. Runs once at load, well before any player
+// could own a store, so there's never a frame where a matching store has an empty supply pool.
+FACTORY_DEFS.forEach(factory => {
+  factory.supplies.forEach(catId => {
+    const cat = SHOP_CATEGORIES.find(c => c.id === catId);
+    if (!cat) return; // guards a typo in FACTORY_DEFS.supplies instead of crashing world-load
+    cat.items.slice(0, 3).forEach((itemName, k) => {
+      STORE_INGREDIENTS.push({
+        id: 'supply_' + catId + '_' + k,
+        baseId: 'supply_' + catId + '_' + k,
+        name: itemName,
+        emoji: cat.emoji,
+        price: priceForItem(cat, itemName),
+        taste: 'goods',
+        supplyCategory: catId,
+      });
+    });
+  });
+});
+
 // 25 categories x 4 variations each = 100 shops. Shop k in a category picks nameTemplates[k],
 // nameWords[k] (so all 4 names in a category are distinct), and a ROTATED 10-of-12 window of
 // that category's items (items[k..k+9] wrapping) so the 4 shops of one category don't all sell
@@ -213,7 +255,7 @@ function generateCityShops() {
       }
       shops.push({
         id: cat.id + '_' + k,
-        name, category: cat.category, emoji: cat.emoji,
+        name, category: cat.category, catId: cat.id, emoji: cat.emoji,
         items, ad: cat.ads[k % cat.ads.length],
       });
     }
@@ -264,6 +306,15 @@ function buildCityShops() {
     board.position.set(bbX, 3.6, bbZ - 0.08);
     scene.add(board);
 
+    // Real, visible supply-chain tie: a factory-supplied category gets a "📦 Supplied by..."
+    // plaque mounted on a post above the roof cap — clear of the roof (top at y=5.6), the front
+    // logo sign (at z-4.3) and the billboard behind (at z+5.5), so nothing overlaps.
+    const supplier = factoryForCategory(shop.catId);
+    if (supplier) {
+      box(0.15, 1.2, 0.15, 0x5a4632, x, 6.2, z);
+      buildSign(`📦 Supplied by ${supplier.emoji} ${supplier.name}`, x, 7.0, z);
+    }
+
     addCol(CITY_COLS, x, z, 4.5, 4);
     CITY_ZONES.push({ x, z: z - 4.5, r: 4, label: `${shop.emoji} ${shop.name}`, action: () => openCityShopModal(shop.id) });
   });
@@ -283,7 +334,7 @@ function generateMallShops() {
       }
       shops.push({
         id: cat.id + '_' + k,
-        name, category: cat.category, emoji: cat.emoji,
+        name, category: cat.category, catId: cat.id, emoji: cat.emoji,
         items, ad: cat.ads[k % cat.ads.length],
       });
     }
@@ -375,8 +426,10 @@ function openCityShopModal(id) {
   document.getElementById('cityShopModalTitle').textContent = `${shop.emoji} ${shop.name}`;
   const workingHere = activeJob === `${shop.emoji} ${shop.name}`;
   const shopBusy = !workingHere && (!!activeJob || !!activeBankJob);
+  const supplier = factoryForCategory(shop.catId);
   document.getElementById('cityShopModalBody').innerHTML = `
     <div style="text-align:center;color:#888;font-size:11px;margin-bottom:10px;">${shop.category}</div>
+    ${supplier ? `<div style="text-align:center;color:#8ac9ff;font-size:11px;margin-bottom:10px;">📦 Supplied by ${supplier.emoji} ${supplier.name}</div>` : ''}
     <div style="text-align:center;color:#ffd54a;font-style:italic;font-size:12px;margin-bottom:12px;">"${shop.ad}"</div>
     <button ${shopBusy ? 'disabled' : ''} onclick="${workingHere ? "quitJob('Stopped working.')" : `startShopJob('${shop.id}')`};closeCityShopModal()" style="width:100%;padding:8px;margin-bottom:12px;background:${workingHere ? '#7a1a1a' : shopBusy ? '#333' : '#1a5a7a'};border:none;border-radius:8px;color:#fff;font-weight:bold;font-size:12px;cursor:${shopBusy ? 'not-allowed' : 'pointer'};opacity:${shopBusy ? '0.5' : '1'};">${workingHere ? '⏹ Stop Working Here' : `💼 Work Here (+${shopJobPay(shop)} S.I.P./task)`}</button>
     <div style="font-size:12px;color:#ccc;margin-bottom:6px;"><b>What they sell:</b></div>

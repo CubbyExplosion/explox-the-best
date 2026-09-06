@@ -37,7 +37,7 @@ function tickEvilAllies(dt) {
     e._evilAllyTimer = (e._evilAllyTimer || 0) + dt;
     if (e._evilAllyTimer < EVIL_ALLY_INTERVAL) continue;
     e._evilAllyTimer = 0;
-    const label = e.robber ? '🥷 A robber' : (e.type ? `🤖 ${e.type.name}` : '🔪 A killer');
+    const label = e.robber ? '🥷 A robber' : e.demon ? `${e.demonDef.emoji} ${e.demonDef.name}` : e.spy ? '🕵️ A Spy' : (e.type ? `🤖 ${e.type.name}` : '🔪 A killer');
     landCompanionHit(target, EVIL_ALLY_DAMAGE_MULT, label);
   }
 }
@@ -55,6 +55,79 @@ function toggleJob(type, pay, taskText) {
   }
   renderJobsPanel();
 }
+// ACTOR — user's own ask: "add acting," followed up with "it will be a fighting movie." Starting/
+// quitting still goes through the shared toggleJob()/tickJob() engine (Shopkeeper/Officer/Factory
+// jobs all rely on that same shared plumbing, untouched) — but completing a task is NOT the
+// generic instant "press E," since a fight needs more than a heartbeat. While a task is active,
+// pressing E instead spawns/fights a real stunt double (actorFightTarget) right there; only
+// defeating it calls completeJobTask() for real pay. tickActorFight() (called from the main loop,
+// game-controls.js, right after tickJob()) keeps the job HUD's normal 4-second miss-timer from
+// ever expiring mid-fight and cleans up if the job gets quit/interrupted with a fight still live.
+const ACTOR_PAY = 18;
+let actorFightTarget = null; // {hp, maxHp, mesh} — a real, ephemeral opponent, never persisted
+function startActingJob() {
+  if (activeJob === 'Actor' && jobTaskActive) {
+    if (!actorFightTarget) spawnActorStuntFight(); else fightActorStunt();
+    return;
+  }
+  if (activeJob === 'Actor') { toggleJob('Actor', ACTOR_PAY, ''); return; } // no live task — this is the quit path
+  const m = CINEMA_MOVIES[Math.floor(Math.random()*CINEMA_MOVIES.length)];
+  toggleJob('Actor', ACTOR_PAY, `🎬 Action! Fight the stunt double in "${m.title}"!`);
+}
+function buildStuntMesh(x, z) {
+  const g = new THREE.Group();
+  function b(w,h,d,color,px,py,pz) { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(color)); m.position.set(px,py,pz); m.castShadow=true; g.add(m); return m; }
+  b(0.55,0.85,0.32, 0x556677, 0,1.15,0);   // padded stunt suit torso
+  b(0.4,0.4,0.4, 0xd4a070, 0,1.85,0);      // head
+  b(0.42,0.16,0.35, 0x222222, 0,1.95,0);   // stunt helmet
+  b(0.5,0.75,0.3, 0x333333, 0,0.55,0);     // stunt suit legs
+  g.position.set(x,0,z);
+  scene.add(g);
+  return g;
+}
+const ACTOR_STUNT_HP = 30, ACTOR_STUNT_RANGE = 3.5;
+function spawnActorStuntFight() {
+  const x = playerGroup.position.x + Math.sin(yaw)*2.5, z = playerGroup.position.z + Math.cos(yaw)*2.5;
+  actorFightTarget = { hp: ACTOR_STUNT_HP, maxHp: ACTOR_STUNT_HP, mesh: buildStuntMesh(x, z) };
+  showNotif('🎬 Stunt double is ready — walk up and press E to fight!');
+}
+function fightActorStunt() {
+  if (!actorFightTarget) return;
+  const dx = playerGroup.position.x - actorFightTarget.mesh.position.x, dz = playerGroup.position.z - actorFightTarget.mesh.position.z;
+  if (Math.hypot(dx, dz) > ACTOR_STUNT_RANGE) { showNotif('🎬 Get closer to the stunt double!'); return; }
+  actorFightTarget.hp -= getWeaponDamage();
+  sfx.clang();
+  if (actorFightTarget.hp > 0) { showNotif(`🎬 Hit! (${actorFightTarget.hp} HP left)`); return; }
+  scene.remove(actorFightTarget.mesh);
+  actorFightTarget = null;
+  showNotif('🎬 Cut! Great scene!');
+  completeJobTask();
+}
+// Keeps the shared job HUD/timer from expiring mid-fight (a real fight takes longer than the
+// normal 4-second reaction window every other job uses) and tidies up a leftover stunt double if
+// the Actor job ever ends some other way (quitting, or something else clocking you out) while one
+// is still on screen. Purely additive — tickJob() itself is completely untouched.
+function tickActorFight(dt) {
+  if (activeJob !== 'Actor' || !actorFightTarget) {
+    if (actorFightTarget) { scene.remove(actorFightTarget.mesh); actorFightTarget = null; }
+    return;
+  }
+  jobTaskTimer = 999; // self-paced — you're not racing a clock mid-fight
+  const el = document.getElementById('jobHud');
+  if (el) { el.textContent = `🎬 Fight the stunt double! [E] (${actorFightTarget.hp}/${actorFightTarget.maxHp} HP)`; el.style.color = '#ff2244'; }
+}
+// FACTORY JOBS — same reaction-task engine as Shopkeeper/Officer above (toggleJob()/tickJob()),
+// just 3 more real jobs at the Industrial District (FACTORY_DEFS/buildFactories(), game-buildings.js;
+// job zones in CITY_ZONES, game-zones.js). Kept as its own small local array (not read FROM
+// game-zones.js/game-buildings.js, nor read BY them) purely so renderJobsPanel() below — which
+// lets every job be started remotely from the Jobs tab, same as Shopkeeper/Officer/Bank Jobs — has
+// one thing to map over instead of 3 more hand-written cards; the CITY_ZONES walk-up entries carry
+// their own matching literal type/pay/taskText independently, same as Shopkeeper/Officer do.
+const FACTORY_JOBS = [
+  { type:'Toy Factory Worker',  emoji:'🧸', pay:12, taskText:'🧸 A toy needs assembling!' },
+  { type:'Auto Parts Worker',   emoji:'🔧', pay:15, taskText:'🔧 A car part needs assembling!' },
+  { type:'Robot Parts Worker',  emoji:'🤖', pay:18, taskText:'⚙️ A robot chassis needs bolting together!' },
+];
 // ─── BANK JOBS — long, low-attention shifts with a real currency choice, unlike the reaction-task
 // jobs above (Shopkeeper/Officer). User's own ask: "you can work at the bank as [Money Printer,
 // Guard, Money Counter]" with specific S.I.P.-or-diamonds numbers per shift length. Money Printer
@@ -306,19 +379,61 @@ function closeJobsPanel() {
 // still handing out free currency behind a price tag (which would make the price meaningless).
 const CURRENCY_SHOP_PACKAGES = [
   { id:'sip100',      sip:100,     elite:0,    label:'100 S.I.P.',       price:'$5'  },
+  { id:'sip500',      sip:500,     elite:0,    label:'500 S.I.P.',       price:'$8'  },
   { id:'sip1000',     sip:1000,    elite:0,    label:'1,000 S.I.P.',     price:'$10' },
   { id:'sip5000',     sip:5000,    elite:0,    label:'5,000 S.I.P.',     price:'$15' },
   { id:'sip10000',    sip:10000,   elite:0,    label:'10,000 S.I.P.',    price:'$20' },
+  { id:'sip25000',    sip:25000,   elite:0,    label:'25,000 S.I.P.',    price:'$21' },
   { id:'sip50000',    sip:50000,   elite:0,    label:'50,000 S.I.P.',    price:'$22' },
   { id:'sip100000',   sip:100000,  elite:0,    label:'100,000 S.I.P.',   price:'$25' },
   { id:'sip1000000',  sip:1000000, elite:0,    label:'1,000,000 S.I.P.', price:'$35' },
   { id:'elite100',     sip:0, elite:100,      label:'100 💎',       price:'$5'  },
+  { id:'elite500',     sip:0, elite:500,      label:'500 💎',       price:'$8'  },
   { id:'elite1000',    sip:0, elite:1000,     label:'1,000 💎',     price:'$10' },
   { id:'elite5000',    sip:0, elite:5000,     label:'5,000 💎',     price:'$15' },
+  { id:'elite25000',   sip:0, elite:25000,    label:'25,000 💎',    price:'$20' },
   { id:'elite50000',   sip:0, elite:50000,    label:'50,000 💎',    price:'$25' },
   { id:'elite100000',  sip:0, elite:100000,   label:'100,000 💎',   price:'$35' },
   { id:'elite1000000', sip:0, elite:1000000,  label:'1,000,000 💎', price:'$45' },
+  { id:'starter', sip:1000, elite:100, label:'🌱 Starter Pack', desc:'1,000 S.I.P. + 100 💎', price:'$8' },
   { id:'vip', sip:100000, elite:5000, label:'👑 VIP Package', desc:'100,000 S.I.P. + 5,000 💎', price:'$25', vip:true },
+  // VIP Discount — user's own ask: a real $5.00 listing, same permanently-disabled pattern as
+  // every other real-money entry here. sip/elite are 0 since it isn't a currency grant — it
+  // describes a real 20% discount on every OTHER package on this list, same "shown honestly, not
+  // actually appliable yet" rule as everything else (no real payment processor exists to apply a
+  // discount to in the first place).
+  { id:'vip_discount', sip:0, elite:0, label:'👑 VIP Discount', desc:'20% off every other package in this Shop.', price:'$5.00' },
+  { id:'mega', sip:2000000, elite:2000000, label:'💥 Mega Bundle', desc:'2,000,000 S.I.P. + 2,000,000 💎', price:'$60', vip:true },
+  // Super Tank — user's own correction: this real-money listing belongs in the SHOP tab itself,
+  // not the separate Car Dealership modal (TANK_DEF, game-vehicles.js). sip/elite are 0 on purpose
+  // — unlike every entry above, a real future payment for THIS one should unlock the vehicle, not
+  // credit currency, so whoever wires up real payments later must not treat it like the others.
+  { id:'super_tank', sip:0, elite:0, label:'🛡️ Super Tank', desc:'A real rideable super weapon with a cannon — parked at the Car Dealership.', price:'$10.00' },
+  // Super Armor — same real-item-behind-an-honest-inert-price-tag pattern as the Super Tank right
+  // above (SUPER_ARMOR_DEF, game-shops.js). sip/elite are 0 for the same reason: a real future
+  // payment for this one should unlock the armor, not credit currency.
+  { id:'super_armor', sip:0, elite:0, label:'⭐ Super Armor', desc:'Blocks 93% of incoming damage — the strongest armor in the game.', price:'$10.00' },
+  // Super Jet — same real-item-behind-an-honest-inert-price-tag pattern as the Tank and Armor
+  // above (JET_DEF, game-vehicles.js). Driven, not flown (user's own correction).
+  { id:'super_jet', sip:0, elite:0, label:'✈️ Super Jet', desc:'A real driveable super weapon with guns, bombs, and armor — parked at the City Airport.', price:'$15.00' },
+  // Super Motorcycle — same real-item-behind-an-honest-inert-price-tag pattern as the Tank/Armor/
+  // Jet above (MOTORCYCLE_DEF, game-vehicles.js).
+  { id:'super_motorcycle', sip:0, elite:0, label:'🏍️ Super Motorcycle', desc:'A real rideable super weapon with rockets — parked at the Car Dealership.', price:'$8.00' },
+  // Future Jet — same real-item-behind-an-honest-inert-price-tag pattern as the Tank/Armor/Jet/
+  // Motorcycle above (FUTURE_JET_DEF, game-vehicles.js), just with a S.I.P. cost stacked on top
+  // of the real $ price (user's own ask: "future 1 99 500000 sip") — the extra 500,000 S.I.P.
+  // is shown here as flavor text on the same honest, permanently-inert listing, not something
+  // this entry actually deducts (there's nowhere for a currency shop entry to charge S.I.P. from
+  // — it's a real-money purchase flow that doesn't exist yet, same as every other price here).
+  { id:'future_jet', sip:0, elite:0, label:'🚀 Future Jet', desc:'20 guns, rockets, and lasers — the strongest jet in the game. Parked at the City Airport.', price:'$1.99 + 500,000 S.I.P.' },
+  // Super Package — user's own ask: the big combo bundle, bigger than VIP/Mega above since it
+  // bundles three real items (Tank + Jet + Motorcycle, already parked and drivable in the world
+  // either way) on top of a currency grant. grantsTank/grantsJet/grantsMotorcycle flag the
+  // non-currency part for whoever wires up real payments later — same "credit currency directly,
+  // but unlock these some other real way, don't just queueEarning() them" rule super_tank/
+  // super_jet/super_motorcycle's own comments already spell out. Price bumped +$5 (user's own
+  // follow-up) after the Motorcycle was added to the bundle's contents.
+  { id:'super_package', sip:10000, elite:1000, label:'💎 Super Package', desc:'🛡️ Super Tank + ✈️ Super Jet + 🏍️ Super Motorcycle + 10,000 S.I.P. + 1,000 💎', price:'$35.00', vip:true, grantsTank:true, grantsJet:true, grantsMotorcycle:true },
 ];
 function toggleCurrencyShopPanel() {
   const panel = document.getElementById('currencyShopPanel');
@@ -504,6 +619,7 @@ function renderJobsPanel() {
 
   const shopActive = activeJob === 'Shopkeeper';
   const copActive = activeJob === 'Officer';
+  const actorActive = activeJob === 'Actor';
   let html = `
     <div style="${card(shopActive)}">
       <div style="color:#fff;font-size:12px;font-weight:bold;margin-bottom:6px;">📦 Shopkeeper — +5 S.I.P./task</div>
@@ -513,8 +629,20 @@ function renderJobsPanel() {
       <div style="color:#fff;font-size:12px;font-weight:bold;margin-bottom:6px;">🚨 Officer — +10 S.I.P./task</div>
       ${copActive ? stopBtn("quitJob('Stopped working.')", 'Stop Working') : startBtn(`toggleJob('Officer',10,'🚨 Trouble downtown — respond!')`, 'Start Working')}
     </div>
-    <div style="color:#88ccff;font-size:11px;font-weight:bold;letter-spacing:2px;text-align:center;margin:12px 0 8px;">🏦 BANK</div>
+    <div style="${card(actorActive)}">
+      <div style="color:#fff;font-size:12px;font-weight:bold;margin-bottom:6px;">🎭 Actor — +${ACTOR_PAY} S.I.P./task</div>
+      ${actorActive ? stopBtn("quitJob('Stopped working.')", 'Stop Working') : startBtn(`startActingJob()`, 'Start Working')}
+    </div>
+    <div style="color:#88ccff;font-size:11px;font-weight:bold;letter-spacing:2px;text-align:center;margin:12px 0 8px;">🏭 FACTORIES</div>
   `;
+  html += FACTORY_JOBS.map(fj => {
+    const active = activeJob === fj.type;
+    return `<div style="${card(active)}">
+      <div style="color:#fff;font-size:12px;font-weight:bold;margin-bottom:6px;">${fj.emoji} ${fj.type} — +${fj.pay} S.I.P./task</div>
+      ${active ? stopBtn("quitJob('Stopped working.')", 'Stop Working') : startBtn(`toggleJob('${fj.type}',${fj.pay},'${fj.taskText}')`, 'Start Working')}
+    </div>`;
+  }).join('');
+  html += `<div style="color:#88ccff;font-size:11px;font-weight:bold;letter-spacing:2px;text-align:center;margin:12px 0 8px;">🏦 BANK</div>`;
   html += BANK_JOBS.map(job => {
     const active = activeBankJob && activeBankJob.job.id === job.id;
     const payTxt = job.id === 'printer'
@@ -721,6 +849,11 @@ const PRISON_ZONES = [
   { x:PRISON_SPAWN.x+11, z:PRISON_SPAWN.z-1.5, r:2, label:'💬 Talk to Dusty', action: () => openPrisonNpcModal('Dusty', '😎 "Food\'s terrible, bunks are lumpy, but hey, free rent. You thinking about digging out? Wait for the guard to walk past first, rookie."') },
 ];
 let inPrison = false, prisonTimeLeft = 0, prisonEscapeProgress = 0, prisonDigCooldown = 0, prisonWorkoutCooldown = 0;
+// NOT persisted (same as inPrison above — a reload just ends the physical stay early, same
+// pre-existing behavior every ordinary arrest already has). Set alongside inPrison in
+// executeDivineJudgment() (game-world.js) so tickPrison() below can show Hell-specific HUD/release
+// text without needing an entire second copy of Prison's outdoor-exclusion/HUD/release plumbing.
+let inDivineSentence = false;
 // One 8x8 cell shell — the player's own cell (withCot) keeps its exact original furniture;
 // Rocco's and Dusty's cells reuse the same shell so the whole row of 3 lines up in the hallway.
 function buildPrisonCell(cx, cz, withCot) {
@@ -819,7 +952,7 @@ function arrest() {
   wantedLevel = 0;
   updateSIP();
   updateWantedHud();
-  inPrison = true;
+  inPrison = true; inDivineSentence = false; // an ordinary arrest is never a Hell sentence — see triggerDivineJudgment()/executeDivineJudgment() (game-world.js) for the one path that sets this true
   prisonTimeLeft = sentence;
   prisonEscapeProgress = 0; prisonDigCooldown = 0; prisonWorkoutCooldown = 0;
   playerGroup.position.set(PRISON_SPAWN.x, 0, PRISON_SPAWN.z);
@@ -832,14 +965,19 @@ function tickPrison(dt) {
   if(prisonDigCooldown > 0) prisonDigCooldown = Math.max(0, prisonDigCooldown - dt);
   if(prisonWorkoutCooldown > 0) prisonWorkoutCooldown = Math.max(0, prisonWorkoutCooldown - dt);
   const hud = document.getElementById('jobHud');
-  hud.textContent = `🔒 Serving time: ${Math.ceil(Math.max(0, prisonTimeLeft))}s`;
+  // inDivineSentence (game-world.js's executeDivineJudgment()) is the one real difference from an
+  // ordinary arrest — same countdown/release mechanism, just Hell-flavored HUD/release text.
+  hud.textContent = inDivineSentence ? `🔥 Serving your Divine Sentence: ${Math.ceil(Math.max(0, prisonTimeLeft))}s`
+                                      : `🔒 Serving time: ${Math.ceil(Math.max(0, prisonTimeLeft))}s`;
   hud.style.color = '#ff6644';
   if(prisonTimeLeft <= 0) {
     inPrison = false;
     prisonEscapeProgress = 0;
     playerGroup.position.set(-70, 0, 26); // just outside the station
     yaw = Math.PI;
-    showNotif('🔓 Released! Stay out of trouble...');
+    showNotif(inDivineSentence ? '🔥 Released from Hell — but the sentence isn\'t truly over until the years are served. Go live your life; it will find you when it\'s time.'
+                                : '🔓 Released! Stay out of trouble...');
+    inDivineSentence = false;
     hud.textContent = '💼 No Job';
     hud.style.color = '#fff';
   }

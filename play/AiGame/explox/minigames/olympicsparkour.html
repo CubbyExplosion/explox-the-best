@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Explox — Olympics Parkour</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#000; overflow:hidden; font-family:Arial,sans-serif; }
+    canvas { display:block; }
+
+    #clickMsg {
+      position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+      color:#fff; font-size:17px; background:rgba(0,0,0,0.88);
+      padding:18px 34px; border-radius:14px; text-align:center; z-index:20;
+      border:2px solid #FFD700; line-height:1.85; max-width:90vw;
+    }
+    #hud { position:fixed; inset:0; pointer-events:none; display:none; }
+    #timerBox {
+      position:fixed; top:14px; left:50%; transform:translateX(-50%);
+      font-size:26px; font-weight:bold;
+      background:rgba(0,0,0,0.7); padding:8px 26px;
+      border-radius:12px; border:2px solid #FFD700; letter-spacing:2px;
+      color:#FFD700; transition:color 0.2s, border-color 0.2s;
+    }
+    #eventBox {
+      position:fixed; top:60px; left:50%; transform:translateX(-50%);
+      font-size:13px; color:#fff; background:rgba(0,0,0,0.5);
+      padding:4px 14px; border-radius:8px; letter-spacing:2px;
+    }
+    #medalPaceBox {
+      position:fixed; top:88px; left:50%; transform:translateX(-50%);
+      font-size:12px; font-weight:bold; background:rgba(0,0,0,0.55);
+      padding:3px 12px; border-radius:8px; letter-spacing:1px;
+    }
+    #bestBox {
+      position:fixed; top:14px; right:14px;
+      color:#FFD700; font-size:13px;
+      background:rgba(0,0,0,0.6); padding:7px 14px; border-radius:10px;
+      border:1px solid #FFD70044; text-align:right; line-height:1.7;
+    }
+    #wallBox {
+      position:fixed; bottom:60px; left:50%; transform:translateX(-50%);
+      color:#00ffcc; font-size:16px; font-weight:bold;
+      background:rgba(0,255,204,0.15); padding:5px 16px; border-radius:8px;
+      opacity:0; transition:opacity 0.3s;
+    }
+    #notif {
+      position:fixed; top:32%; left:50%; transform:translate(-50%,-50%);
+      color:#FFD700; font-size:26px; font-weight:bold;
+      text-shadow:2px 2px 8px #000; opacity:0; transition:opacity 0.3s;
+      pointer-events:none; white-space:nowrap;
+    }
+    #sprintBar {
+      position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
+      width:180px; height:12px; background:rgba(255,255,255,0.12);
+      border-radius:6px; border:1px solid #FFD70044; overflow:hidden;
+    }
+    #sprintFill {
+      height:100%; width:100%; background:linear-gradient(90deg,#FFD700,#ff8800);
+      border-radius:6px; transition:width 0.05s;
+    }
+    #sprintLabel {
+      position:fixed; bottom:30px; left:50%; transform:translateX(-50%);
+      color:#FFD700; font-size:11px; letter-spacing:1px;
+    }
+    #controls {
+      position:fixed; bottom:14px; right:14px;
+      color:#aaa; font-size:11px; background:rgba(0,0,0,0.5);
+      padding:8px 12px; border-radius:8px; line-height:1.9;
+    }
+    #gateWarn {
+      position:fixed; bottom:100px; left:50%; transform:translateX(-50%);
+      font-size:14px; font-weight:bold; color:#ff5555;
+      background:rgba(0,0,0,0.5); padding:4px 14px; border-radius:8px;
+      opacity:0; transition:opacity 0.2s;
+    }
+
+    /* Touch controls */
+    #mobileControls { display:none; }
+    @media (pointer: coarse) { #controls { display:none; } #mobileControls { display:block; } }
+    #joyBase {
+      position:fixed; left:20px; bottom:26px; width:92px; height:92px; border-radius:50%;
+      background:rgba(255,255,255,0.12); border:2px solid rgba(255,255,255,0.35);
+      touch-action:none; z-index:25; pointer-events:auto;
+    }
+    #joyStick {
+      position:absolute; left:50%; top:50%; width:40px; height:40px; margin-left:-20px; margin-top:-20px;
+      border-radius:50%; background:rgba(255,255,255,0.5); border:2px solid rgba(255,255,255,0.75);
+      pointer-events:none;
+    }
+    #mobileJumpBtn, #mobileRunBtn {
+      position:fixed; border-radius:50%; background:rgba(0,0,0,0.45); border:2px solid rgba(255,255,255,0.5);
+      color:#fff; font-weight:bold; display:flex; align-items:center; justify-content:center;
+      z-index:25; touch-action:none; user-select:none; pointer-events:auto;
+    }
+    #mobileJumpBtn { right:20px; bottom:36px; width:64px; height:64px; font-size:22px; }
+    #mobileRunBtn  { right:92px; bottom:50px; width:46px; height:46px; font-size:9px; }
+    #mobileRunBtn.active { background:rgba(255,215,0,0.5); border-color:#FFD700; }
+
+    /* ── SCREENS ── */
+    .screen {
+      position:fixed; inset:0; display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      background:linear-gradient(135deg,#0a0a1a,#1a0a00);
+      color:#fff; z-index:50; text-align:center; overflow-y:auto; padding:20px 0;
+    }
+    .screen h1 { font-size:40px; letter-spacing:4px; margin-bottom:8px; text-shadow:0 0 20px currentColor; }
+    .screen h2 { font-size:15px; color:#aaa; margin-bottom:18px; max-width:560px; }
+    .bigTime { font-size:56px; font-weight:bold; color:#FFD700; text-shadow:0 0 24px #FFD700; margin:8px 0; }
+    .statLine { font-size:15px; color:#00ffcc; margin:3px 0; }
+    .bestLine { font-size:13px; color:#888; margin-top:4px; margin-bottom:16px; }
+    .medalBadge { font-size:44px; margin:6px 0; }
+
+    .screen button {
+      padding:13px 40px; font-size:15px; font-weight:bold;
+      background:linear-gradient(135deg,#FFD700,#ff8800); border:none;
+      border-radius:12px; color:#111; cursor:pointer; letter-spacing:2px;
+      box-shadow:0 0 20px #FFD70055; transition:transform 0.1s; margin:5px;
+    }
+    .screen button:hover { transform:scale(1.06); }
+    .backBtn {
+      padding:8px 24px; font-size:13px; background:transparent;
+      border:1px solid #555; border-radius:8px; color:#888; cursor:pointer;
+      box-shadow:none;
+    }
+    .backBtn:hover { border-color:#FFD700; color:#fff; }
+
+    /* hub */
+    #hubScreen h1 { color:#FFD700; }
+    #podiumBanner {
+      margin:6px 0 18px; font-size:13px; color:#ccc; background:rgba(255,255,255,0.06);
+      border:1px solid #444; border-radius:10px; padding:8px 18px; cursor:default;
+    }
+    #podiumBanner.ready { color:#FFD700; border-color:#FFD700; cursor:pointer; background:rgba(255,215,0,0.1); }
+    .evCards { display:flex; gap:16px; flex-wrap:wrap; justify-content:center; max-width:920px; margin:6px 0 20px; }
+    .evCard {
+      width:200px; padding:18px 14px; background:rgba(255,255,255,0.06);
+      border:2px solid #333; border-radius:14px; text-align:center;
+      cursor:pointer; transition:border-color 0.2s, background 0.2s;
+    }
+    .evCard:hover { border-color:#FFD700; background:rgba(255,215,0,0.1); }
+    .evCard .evIcon { font-size:34px; }
+    .evCard .evName { font-size:14px; font-weight:bold; margin:6px 0 3px; }
+    .evCard .evBlurb { font-size:10.5px; color:#999; margin-bottom:8px; line-height:1.4; min-height:28px; }
+    .evCard .evBest { font-size:12px; color:#ccc; margin-top:4px; }
+    .evCard .evMedal { font-size:26px; margin-top:4px; }
+    .evCard .evTargets { font-size:9px; color:#666; margin-top:6px; line-height:1.6; }
+
+    /* podium screen */
+    #podiumScreen { background:linear-gradient(135deg,#1a1400,#0a0a1a); display:none; }
+    #podiumScreen h1 { color:#FFD700; font-size:46px; }
+    .podiumRow { display:flex; align-items:flex-end; gap:10px; margin:20px 0; }
+    .podiumBlock { width:90px; border-radius:8px 8px 0 0; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding-top:10px; font-weight:bold; }
+    .podiumEvList { display:flex; gap:14px; flex-wrap:wrap; justify-content:center; max-width:700px; margin-bottom:16px; }
+    .podiumEvItem { background:rgba(255,255,255,0.06); border:1px solid #444; border-radius:10px; padding:10px 16px; font-size:12px; }
+    .podiumEvItem .pIcon { font-size:22px; }
+  </style>
+</head>
+<body>
+
+<div id="clickMsg" style="display:none">
+  🏅 <b id="clickMsgTitle">EVENT</b><br>
+  WASD — Move &nbsp;|&nbsp; Mouse — Look &nbsp;|&nbsp; SPACE — Jump<br>
+  <span style="color:#FFD700">SHIFT</span> — Sprint &nbsp;|&nbsp;
+  <span style="color:#FFD700">SPACE off wall</span> — Wall Jump<br>
+  <span id="clickMsgTargets" style="font-size:13px;color:#ccc"></span><br><br>
+  <span style="font-size:13px;color:#aaa">Click to start</span>
+</div>
+
+<div id="hud">
+  <div id="timerBox">⏱️ 0.00s</div>
+  <div id="eventBox">EVENT</div>
+  <div id="medalPaceBox"></div>
+  <div id="bestBox">🏆 Best: --</div>
+  <div id="wallBox">🧱 WALL JUMP!</div>
+  <div id="gateWarn">⛔ GATE CLOSED — WAIT!</div>
+  <div id="notif"></div>
+  <div id="sprintLabel">SPRINT</div>
+  <div id="sprintBar"><div id="sprintFill"></div></div>
+  <div id="controls">WASD — Move<br>SHIFT — Sprint<br>SPACE — Jump / Wall Jump<br>Mouse — Look</div>
+</div>
+
+<div id="mobileControls">
+  <div id="joyBase"><div id="joyStick"></div></div>
+  <div id="mobileRunBtn">RUN</div>
+  <div id="mobileJumpBtn">⬆</div>
+</div>
+
+<!-- HUB / EVENT SELECT -->
+<div id="hubScreen" class="screen">
+  <h1>🥇 OLYMPICS PARKOUR</h1>
+  <h2>Four real events. Real medal times. Beat your own best to earn S.I.P. — improve any event, any order, any time.</h2>
+  <div id="podiumBanner">🏆 Earn at least a Bronze in all 4 events to reach the Podium!</div>
+  <div class="evCards" id="evCards"></div>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<!-- EVENT COMPLETE -->
+<div id="completeScreen" class="screen" style="display:none">
+  <h1 id="cTitle" style="color:#FFD700">EVENT COMPLETE!</h1>
+  <h2 id="cSub">You finished Sprint Circuit</h2>
+  <div class="medalBadge" id="cMedal">🏅</div>
+  <div class="bigTime" id="cTime">0.00s</div>
+  <div class="statLine" id="cReward">💰 +0 S.I.P.</div>
+  <div class="bestLine" id="cBest"></div>
+  <button onclick="retryEvent()">🔁 Retry Event</button>
+  <button onclick="openHub()">↩ Event Select</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<!-- LOCKED — ALREADY COMPETED THIS EXPLOX YEAR -->
+<div id="lockedScreen" class="screen" style="display:none">
+  <h1 style="color:#8844ff">🔒 OLYMPICS CLOSED</h1>
+  <h2>You've already competed in this Explox Year's Olympics. The next one opens in <b id="lockedDays" style="color:#FFD700">--</b>.</h2>
+  <div class="statLine" style="color:#ccc;margin-bottom:6px;">Your standing so far:</div>
+  <div class="podiumEvList" id="lockedEvList"></div>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<!-- PODIUM CEREMONY -->
+<div id="podiumScreen" class="screen">
+  <h1>🏆 PODIUM! 🏆</h1>
+  <h2>You've medaled in all 4 Olympics Parkour events!</h2>
+  <div class="podiumRow">
+    <div class="podiumBlock" style="height:70px;background:#C0C0C0;color:#333;">🥈<br>2nd</div>
+    <div class="podiumBlock" style="height:100px;background:#FFD700;color:#442200;">🥇<br>1st</div>
+    <div class="podiumBlock" style="height:50px;background:#CD7F32;color:#fff;">🥉<br>3rd</div>
+  </div>
+  <div class="podiumEvList" id="podiumEvList"></div>
+  <div class="statLine" id="podiumBonusLine" style="font-size:18px;color:#FFD700;">💰 Bonus: +150 S.I.P.</div>
+  <button onclick="openHub()">↩ Event Select</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ─── CONSTANTS (matched to parkour.html for identical movement feel) ────────
+const GRAVITY    = -28;
+const JUMP_VEL   = 13;
+const WALL_VEL   = 11;
+const MOVE_SPD   = 7.5;
+const SPRINT_SPD = 13;
+const PLAT_THICK = 0.5;
+const P_HALF     = 0.8;
+const P_RADIUS   = 0.4;
+const WALL_H     = 14;
+
+const MEDAL_COLORS = { gold:'#FFD700', silver:'#C0C0C0', bronze:'#CD7F32', none:'#888' };
+const MEDAL_ICONS  = { gold:'🥇', silver:'🥈', bronze:'🥉', none:'🔹' };
+const REWARD = { finish:5, bronze:15, silver:30, gold:60 };
+const PODIUM_BONUS = 150;
+
+// ─── ONCE-PER-EXPLOX-YEAR GATE ───────────────────────────────────────────
+// User's own ask: the Olympics should only be open once per "Explox year" — the game's own
+// accelerated clock, not a real calendar year. DAY_LENGTH_SEC must match the real DAY_LENGTH
+// constant in game-zones.js (1800 real seconds = 1 in-game day) — if that ever changes, this
+// needs to change with it. EXPLOX_YEAR_DAYS was 365 at first, but that worked out to ~182 real
+// hours of played time between openings — too long for a kid who doesn't play every day — so
+// it's 30 in-game days (~15 real hours) instead, still a real periodic/special-feeling gate.
+const DAY_LENGTH_SEC = 1800;
+const EXPLOX_YEAR_DAYS = 30;
+const EXPLOX_YEAR_SECONDS = DAY_LENGTH_SEC * EXPLOX_YEAR_DAYS;
+function getPlayTimeSeconds(){
+  const user=localStorage.getItem('explox_current_user');
+  if(!user) return 0;
+  const d=JSON.parse(localStorage.getItem('explox_user_'+user)||'{}');
+  return d.playTimeSeconds||0;
+}
+function currentExploxYear(){ return Math.floor(getPlayTimeSeconds()/EXPLOX_YEAR_SECONDS)+1; }
+function secondsUntilNextExploxYear(){
+  const into = getPlayTimeSeconds()%EXPLOX_YEAR_SECONDS;
+  return EXPLOX_YEAR_SECONDS-into;
+}
+
+// ─── EVENT DATA ───────────────────────────────────────────────────────────
+const EVENTS = [
+
+  // ══ EVENT 1 — SPRINT CIRCUIT ═══════════════════════════════════════════
+  {
+    id:'sprint', name:'Sprint Circuit', icon:'🏃', accent:'#ff8800',
+    blurb:'Flat, fast & wide. Pure speed and clean lines.',
+    bgColor:0x101418, fogDensity:0.011,
+    neons:[{x:30,y:10,z:0,c:0xff8800,i:2},{x:70,y:10,z:0,c:0xFFD700,i:2},{x:110,y:10,z:0,c:0xff8800,i:2}],
+    thresholds:{gold:20, silver:28, bronze:40},
+    defs:[
+      { x:0,   y:0, z:0,  w:10, d:10, c:0x442200, isStart:true },
+      { x:15,  y:0, z:0,  w:7,  d:7,  c:0x553311 },
+      { x:29,  y:0, z:2,  w:6,  d:6,  c:0x442200 },
+      { x:42,  y:0, z:-2, w:6,  d:6,  c:0x553311 },
+      { x:55,  y:0, z:0,  w:6,  d:8,  c:0x663300, isCp:true, cpIdx:1 },
+      { x:68,  y:1, z:0,  w:6,  d:6,  c:0x442200 },
+      { x:81,  y:1, z:2,  w:6,  d:6,  c:0x553311 },
+      { x:94,  y:0, z:-2, w:6,  d:6,  c:0x442200 },
+      { x:107, y:0, z:0,  w:6,  d:8,  c:0x663300, isCp:true, cpIdx:2 },
+      { x:120, y:0, z:0,  w:6,  d:6,  c:0x553311 },
+      { x:134, y:0, z:0,  w:10, d:10, c:0x003300, isFinish:true },
+    ],
+  },
+
+  // ══ EVENT 2 — VERTICAL ASCENT ══════════════════════════════════════════
+  {
+    id:'vertical', name:'Vertical Ascent', icon:'🧗', accent:'#8844ff',
+    blurb:'Chain wall jumps up a real climbing tower.',
+    bgColor:0x0a0818, fogDensity:0.01,
+    neons:[{x:0,y:16,z:20,c:0x8844ff,i:2.5},{x:5,y:30,z:40,c:0x66ccff,i:2.5},{x:10,y:44,z:60,c:0x8844ff,i:2.5},{x:15,y:56,z:76,c:0xFFD700,i:2.5}],
+    thresholds:{gold:32, silver:45, bronze:65},
+    defs:[
+      { x:0,  y:0,  z:0,  w:10, d:10, c:0x221144, isStart:true },
+      { x:0,  y:0,  z:9,  w:3,  d:3,  c:0x332255 },
+      { x:0,  y:0,  z:15, w:1,  d:8,  c:0x221133, isWall:true },
+      { x:2,  y:12, z:19, w:3,  d:3,  c:0x332255 },
+      { x:2,  y:12, z:26, w:3,  d:3,  c:0x442266, isCp:true, cpIdx:1 },
+      { x:5,  y:12, z:32, w:1,  d:8,  c:0x221133, isWall:true },
+      { x:7,  y:24, z:36, w:3,  d:3,  c:0x332255 },
+      { x:7,  y:24, z:43, w:3,  d:3,  c:0x442266, isCp:true, cpIdx:2 },
+      { x:10, y:24, z:49, w:1,  d:8,  c:0x221133, isWall:true },
+      { x:12, y:36, z:53, w:3,  d:3,  c:0x332255 },
+      { x:12, y:36, z:60, w:3,  d:3,  c:0x442266, isCp:true, cpIdx:3 },
+      { x:15, y:36, z:66, w:1,  d:8,  c:0x221133, isWall:true },
+      { x:17, y:48, z:70, w:3,  d:3,  c:0x332255 },
+      { x:17, y:48, z:76, w:9,  d:9,  c:0x003300, isFinish:true },
+    ],
+  },
+
+  // ══ EVENT 3 — PRECISION GAUNTLET ═══════════════════════════════════════
+  {
+    id:'precision', name:'Precision Gauntlet', icon:'🎯', accent:'#00ffcc',
+    blurb:'Narrow platforms & moving targets. Accuracy over speed.',
+    bgColor:0x061014, fogDensity:0.013,
+    neons:[{x:31,y:8,z:0,c:0x00ffcc,i:2},{x:62,y:10,z:0,c:0xFFD700,i:2},{x:92,y:12,z:0,c:0x00ffcc,i:2}],
+    thresholds:{gold:42, silver:58, bronze:80},
+    defs:[
+      { x:0,   y:0,   z:0,  w:10,  d:10,  c:0x113322, isStart:true },
+      { x:10,  y:0,   z:0,  w:2,   d:2,   c:0x114433 },
+      { x:17,  y:0.5, z:2,  w:1.6, d:1.6, c:0x115533 },
+      { x:24,  y:1,   z:-2, w:1.6, d:1.6, c:0x114433 },
+      { x:31,  y:1,   z:0,  w:2,   d:2,   c:0x116644, isCp:true, cpIdx:1 },
+      { x:39,  y:1,   z:0,  w:1.6, d:1.6, c:0x115533, type:'moving', axis:'z', range:3,   spd:1.4, phase:0 },
+      { x:47,  y:1.5, z:0,  w:1.6, d:1.6, c:0x114433 },
+      { x:54,  y:1.5, z:3,  w:1.6, d:1.6, c:0x115533, type:'moving', axis:'x', range:2,   spd:1.8, phase:0.7 },
+      { x:62,  y:2,   z:0,  w:2,   d:2,   c:0x116644, isCp:true, cpIdx:2 },
+      { x:70,  y:2,   z:-3, w:1.4, d:1.4, c:0x114433 },
+      { x:77,  y:2,   z:0,  w:1.4, d:1.4, c:0x115533 },
+      { x:84,  y:2.5, z:3,  w:1.4, d:1.4, c:0x114433, type:'moving', axis:'z', range:2.5, spd:1.6, phase:1.2 },
+      { x:92,  y:2.5, z:0,  w:2,   d:2,   c:0x116644, isCp:true, cpIdx:3 },
+      { x:100, y:2.5, z:0,  w:1.6, d:1.6, c:0x115533 },
+      { x:108, y:2,   z:2,  w:1.6, d:1.6, c:0x114433 },
+      { x:117, y:2,   z:0,  w:9,   d:9,   c:0x003300, isFinish:true },
+    ],
+  },
+
+  // ══ EVENT 4 — OBSTACLE RUSH ════════════════════════════════════════════
+  {
+    id:'obstacle', name:'Obstacle Rush', icon:'💥', accent:'#ff4444',
+    blurb:'Swinging bars, timed gates & sliding barriers. Chaos!',
+    bgColor:0x140505, fogDensity:0.013,
+    neons:[{x:24,y:10,z:0,c:0xff4444,i:2.5},{x:58,y:10,z:0,c:0xFFD700,i:2.5},{x:88,y:10,z:0,c:0xff4444,i:2.5},{x:112,y:10,z:0,c:0xFFD700,i:2.5}],
+    thresholds:{gold:38, silver:55, bronze:80},
+    defs:[
+      { x:0,   y:0,   z:0, w:10, d:10, c:0x330000, isStart:true },
+      { x:14,  y:0,   z:0, w:6,  d:6,  c:0x440000 },
+      { x:24,  y:0,   z:0, w:8,  d:10, c:0x330000 },
+      { x:34,  y:0,   z:0, w:6,  d:6,  c:0x552200, isCp:true, cpIdx:1 },
+      { x:42,  y:0,   z:0, w:4,  d:4,  c:0x440000 },
+      { x:50,  y:0,   z:0, w:4,  d:4,  c:0x330000 },
+      { x:58,  y:0,   z:0, w:6,  d:10, c:0x440000 },
+      { x:68,  y:0,   z:0, w:6,  d:6,  c:0x552200, isCp:true, cpIdx:2 },
+      { x:78,  y:0.5, z:0, w:8,  d:10, c:0x330000 },
+      { x:88,  y:0.5, z:0, w:6,  d:6,  c:0x552200, isCp:true, cpIdx:3 },
+      { x:96,  y:0.5, z:0, w:4,  d:4,  c:0x440000 },
+      { x:104, y:0.5, z:0, w:4,  d:4,  c:0x330000 },
+      { x:112, y:0.5, z:0, w:6,  d:10, c:0x440000 },
+      { x:124, y:0.5, z:0, w:9,  d:9,  c:0x003300, isFinish:true },
+    ],
+    // Touch = respawn to last checkpoint. Sweeps side-to-side (z) at torso height.
+    pendulums:[
+      { x:24, y:1.8, baseZ:0, range:3.2, spd:2.0, phase:0,   barLen:3.0 },
+      { x:78, y:2.3, baseZ:0, range:3.5, spd:1.6, phase:2.1, barLen:3.4 },
+    ],
+    // Full-width solid door across the track. Closed = blocks all passage; open = free.
+    gates:[
+      { x:46,  y:0,   halfD:4, gateH:2.6, period:2.6, openFrac:0.42, phase:0 },
+      { x:100, y:0.5, halfD:3, gateH:2.6, period:2.0, openFrac:0.38, phase:0.5 },
+    ],
+    // Touch = respawn. Wide sliding wall — dodge to whichever side is currently clear.
+    barriers:[
+      { x:58,  y:0.2, baseZ:0, range:4.2, spd:1.3, phase:0,   halfThick:0.5, barH:2.4 },
+      { x:112, y:0.7, baseZ:0, range:4.2, spd:1.6, phase:1.5, halfThick:0.5, barH:2.4 },
+    ],
+  },
+];
+
+// ─── THREE.JS SETUP (persistent) ────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 600);
+
+const ambLight = new THREE.AmbientLight(0x334455, 1.2);
+const sunLight = new THREE.DirectionalLight(0xffeecc, 0.7);
+sunLight.castShadow = true;
+sunLight.shadow.camera.left=-30; sunLight.shadow.camera.right=200;
+sunLight.shadow.camera.top=100; sunLight.shadow.camera.bottom=-10;
+sunLight.shadow.camera.far=500;
+scene.add(ambLight, sunLight);
+
+const voidFloor = new THREE.Mesh(
+  new THREE.PlaneGeometry(800,800),
+  new THREE.MeshBasicMaterial({ color:0x020204 })
+);
+voidFloor.rotation.x = -Math.PI/2;
+voidFloor.position.y = -40;
+scene.add(voidFloor);
+
+// ─── PLAYER (persistent) ─────────────────────────────────────────────────────
+const pg = new THREE.Group();
+const pm = (w,h,d,c,x,y,z) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color:c}));
+  m.position.set(x,y,z); m.castShadow=true; pg.add(m); return m;
+};
+pm(0.8,0.8,0.8, 0xf5c89a, 0,1.4,0);
+pm(0.8,0.9,0.4, 0xFFD700, 0,0.75,0);
+pm(0.3,0.75,0.3, 0xFFD700,-0.55,0.75,0);
+pm(0.3,0.75,0.3, 0xFFD700, 0.55,0.75,0);
+const lLeg = pm(0.35,0.8,0.35, 0x222,-0.2,0.1,0);
+const rLeg = pm(0.35,0.8,0.35, 0x222, 0.2,0.1,0);
+scene.add(pg);
+
+// ─── EVENT STATE ────────────────────────────────────────────────────────────
+let currentEventIdx = 0;
+let eventMeshes  = [];
+let plats        = [];
+let movingPlats  = [];
+let pendulumObjs = [];
+let gateObjs     = [];
+let barrierObjs  = [];
+
+let timer, running, won, cpIdx;
+let velY, onGround, canJump, onWall, wallNormal;
+let sprintEnergy = 1.0;
+let wallJumpCooldown = 0;
+let yaw = -Math.PI/2, pitch = -0.15, isLocked = false;
+let notifT = 0, wallMsgT = 0;
+let t = 0;
+let onPlatIdx = -1;
+let lastRunReward = 0, lastMedal = 'none', lastIsNewBest = false;
+
+function E() { return EVENTS[currentEventIdx]; }
+
+// ─── EVENT LOAD / CLEAR ─────────────────────────────────────────────────────
+function clearEvent() {
+  eventMeshes.forEach(m => {
+    scene.remove(m);
+    if(m.geometry) m.geometry.dispose();
+    if(m.material) m.material.dispose();
+  });
+  eventMeshes = [];
+  plats = [];
+  movingPlats = [];
+  pendulumObjs = [];
+  gateObjs = [];
+  barrierObjs = [];
+}
+
+function buildEvent(idx) {
+  clearEvent();
+  currentEventIdx = idx;
+  const L = E();
+
+  scene.background = new THREE.Color(L.bgColor);
+  scene.fog = new THREE.FogExp2(L.bgColor, L.fogDensity);
+
+  L.neons.forEach(n => {
+    const light = new THREE.PointLight(n.c, n.i, 28);
+    light.position.set(n.x, n.y, n.z);
+    scene.add(light);
+    eventMeshes.push(light);
+  });
+
+  // Backdrop stadium/arena blocks (visual only)
+  const seed = idx * 211;
+  for(let i=0; i<22; i++) {
+    const s = Math.sin((seed+i)*9.7)*0.5+0.5;
+    const h = 6 + s*24;
+    const bm = new THREE.Mesh(
+      new THREE.BoxGeometry(4+s*5, h, 4+s*5),
+      new THREE.MeshLambertMaterial({ color:0x111118 })
+    );
+    const ang = (i/22)*Math.PI*2;
+    bm.position.set(
+      Math.cos(ang)*90 + Math.sin(i*1.3)*30,
+      h/2 - 40,
+      -40 - Math.abs(Math.sin(i*2.1))*60
+    );
+    scene.add(bm);
+    eventMeshes.push(bm);
+  }
+
+  // Platforms
+  L.defs.forEach(def => {
+    if(def.isWall) {
+      const wm = new THREE.Mesh(
+        new THREE.BoxGeometry(def.w, WALL_H, def.d),
+        new THREE.MeshLambertMaterial({ color: def.c })
+      );
+      wm.position.set(def.x, def.y + WALL_H/2, def.z);
+      wm.castShadow = wm.receiveShadow = true;
+      scene.add(wm); eventMeshes.push(wm);
+
+      const trim = new THREE.Mesh(
+        new THREE.BoxGeometry(def.w+0.05, 0.1, def.d+0.05),
+        new THREE.MeshBasicMaterial({ color:L.accent ? new THREE.Color(L.accent).getHex() : 0x8844ff })
+      );
+      trim.position.set(def.x, def.y + WALL_H, def.z);
+      scene.add(trim); eventMeshes.push(trim);
+
+      plats.push({ mesh:wm, def, w:def.w, d:def.d, height:WALL_H, isWall:true });
+      return;
+    }
+
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(def.w, PLAT_THICK, def.d),
+      new THREE.MeshLambertMaterial({ color: def.c })
+    );
+    mesh.position.set(def.x, def.y, def.z);
+    mesh.castShadow = mesh.receiveShadow = true;
+    scene.add(mesh); eventMeshes.push(mesh);
+
+    if(def.isCp || def.isFinish) {
+      const sc = def.isFinish ? 0xFFD700 : 0x00ffcc;
+      const strip = new THREE.Mesh(
+        new THREE.BoxGeometry(def.w, 0.08, def.d),
+        new THREE.MeshBasicMaterial({ color:sc })
+      );
+      strip.position.set(def.x, def.y + PLAT_THICK/2 + 0.04, def.z);
+      scene.add(strip); eventMeshes.push(strip);
+
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(2.2, 0.14, 8, 32),
+        new THREE.MeshBasicMaterial({ color:sc })
+      );
+      ring.position.set(def.x, def.y + 2, def.z);
+      ring.rotation.x = Math.PI/2;
+      scene.add(ring); eventMeshes.push(ring);
+    }
+
+    const platObj = {
+      mesh, def,
+      w:def.w, d:def.d,
+      bx:def.x, by:def.y, bz:def.z,
+      isWall:false,
+      type: def.type || 'static',
+      axis: def.axis || 'z',
+      range: def.range || 0,
+      spd: def.spd || 1,
+      phase: def.phase || 0,
+    };
+    plats.push(platObj);
+    if(def.type === 'moving') movingPlats.push(platObj);
+  });
+
+  // Hazards — Obstacle Rush only
+  (L.pendulums||[]).forEach(p => {
+    const pole = new THREE.Mesh(new THREE.BoxGeometry(0.25,3.2,0.25), new THREE.MeshLambertMaterial({color:0x222222}));
+    pole.position.set(p.x, p.y+1.6, p.baseZ);
+    scene.add(pole); eventMeshes.push(pole);
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.4,0.4,p.barLen), new THREE.MeshLambertMaterial({color:0xff3333}));
+    bar.castShadow = true;
+    scene.add(bar); eventMeshes.push(bar);
+    pendulumObjs.push({ def:p, mesh:bar });
+  });
+  (L.gates||[]).forEach(g => {
+    const panel = new THREE.Mesh(
+      new THREE.BoxGeometry(0.5, g.gateH, g.halfD*2),
+      new THREE.MeshLambertMaterial({ color:0xff2222 })
+    );
+    panel.position.set(g.x, g.y+g.gateH/2, 0);
+    panel.castShadow = true;
+    scene.add(panel); eventMeshes.push(panel);
+    const lamp = new THREE.PointLight(0xff2222, 1.4, 8);
+    lamp.position.set(g.x, g.y+g.gateH+0.6, 0);
+    scene.add(lamp); eventMeshes.push(lamp);
+    gateObjs.push({ def:g, mesh:panel, lamp, isOpen:false });
+  });
+  (L.barriers||[]).forEach(b => {
+    const wall = new THREE.Mesh(
+      new THREE.BoxGeometry(b.halfThick*2, b.barH, 3.2),
+      new THREE.MeshLambertMaterial({ color:0xffaa00 })
+    );
+    wall.position.set(b.x, b.y+b.barH/2, b.baseZ);
+    wall.castShadow = true;
+    scene.add(wall); eventMeshes.push(wall);
+    barrierObjs.push({ def:b, mesh:wall });
+  });
+}
+
+// ─── SPAWNS ─────────────────────────────────────────────────────────────────
+function getSpawns() {
+  return E().defs
+    .filter(d => d.isStart || d.isCp)
+    .map(d => ({ x:d.x, y:d.y+PLAT_THICK/2+P_HALF+0.05, z:d.z, ci:d.cpIdx||0 }));
+}
+
+function respawn() {
+  const spawns = getSpawns();
+  const sp = spawns.find(s=>s.ci===cpIdx) || spawns[0];
+  pg.position.set(sp.x, sp.y, sp.z);
+  velY=0; wallJumpCooldown=0; yaw=-Math.PI/2;
+}
+
+// ─── CONTROLS ───────────────────────────────────────────────────────────────
+const keys = {};
+const isTouchDevice = matchMedia('(pointer: coarse)').matches;
+document.addEventListener('keydown', e=>{ keys[e.code]=true; });
+document.addEventListener('keyup',   e=>{ keys[e.code]=false; });
+
+renderer.domElement.addEventListener('click', ()=>{
+  if(!running) return;
+  renderer.domElement.requestPointerLock();
+});
+document.addEventListener('pointerlockchange', ()=>{
+  isLocked = document.pointerLockElement===renderer.domElement;
+  document.getElementById('clickMsg').style.display = isLocked ? 'none' : (running ? 'block' : 'none');
+});
+document.addEventListener('mousemove', e=>{
+  if(!isLocked) return;
+  yaw   -= e.movementX*0.002;
+  pitch -= e.movementY*0.002;
+  pitch = Math.max(-0.55, Math.min(0.4, pitch));
+});
+window.addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ─── TOUCH CONTROLS ──────────────────────────────────────────────────────────
+(function setupTouchControls(){
+  const joyBase = document.getElementById('joyBase');
+  const joyStick = document.getElementById('joyStick');
+  const jumpBtn = document.getElementById('mobileJumpBtn');
+  const runBtn = document.getElementById('mobileRunBtn');
+  if(!joyBase) return;
+  let joyTouchId=null, joyCenterX=0, joyCenterY=0;
+  let lookTouchId=null, lookLastX=0, lookLastY=0;
+  function updateJoy(cx,cy){
+    const r=45;
+    const dx=cx-joyCenterX, dy=cy-joyCenterY;
+    const dist=Math.min(Math.sqrt(dx*dx+dy*dy), r);
+    const angle=Math.atan2(dy,dx);
+    const sx=Math.cos(angle)*dist, sy=Math.sin(angle)*dist;
+    joyStick.style.transform=`translate(${sx}px,${sy}px)`;
+    const nx=sx/r, ny=sy/r, th=0.3;
+    keys['KeyW']=ny<-th; keys['KeyS']=ny>th; keys['KeyA']=nx<-th; keys['KeyD']=nx>th;
+  }
+  function resetJoy(){ keys['KeyW']=keys['KeyA']=keys['KeyS']=keys['KeyD']=false; joyStick.style.transform='translate(0px,0px)'; }
+  joyBase.addEventListener('touchstart', e=>{
+    e.preventDefault();
+    const tch=e.changedTouches[0]; joyTouchId=tch.identifier;
+    const r=joyBase.getBoundingClientRect(); joyCenterX=r.left+r.width/2; joyCenterY=r.top+r.height/2;
+    updateJoy(tch.clientX,tch.clientY);
+  }, {passive:false});
+  document.addEventListener('touchmove', e=>{
+    for(const tch of e.changedTouches){
+      if(tch.identifier===joyTouchId) updateJoy(tch.clientX,tch.clientY);
+      if(tch.identifier===lookTouchId){
+        const dx=tch.clientX-lookLastX, dy=tch.clientY-lookLastY;
+        yaw-=dx*0.004; pitch-=dy*0.004; pitch=Math.max(-0.55,Math.min(0.4,pitch));
+        lookLastX=tch.clientX; lookLastY=tch.clientY;
+      }
+    }
+  }, {passive:true});
+  document.addEventListener('touchend', e=>{
+    for(const tch of e.changedTouches){
+      if(tch.identifier===joyTouchId){ joyTouchId=null; resetJoy(); }
+      if(tch.identifier===lookTouchId) lookTouchId=null;
+    }
+  });
+  renderer.domElement.addEventListener('touchstart', e=>{
+    for(const tch of e.changedTouches){
+      if(tch.identifier===joyTouchId) continue;
+      if(lookTouchId===null){ lookTouchId=tch.identifier; lookLastX=tch.clientX; lookLastY=tch.clientY; }
+    }
+  }, {passive:true});
+  if(jumpBtn){
+    jumpBtn.addEventListener('touchstart', e=>{ e.preventDefault(); keys['Space']=true; });
+    jumpBtn.addEventListener('touchend',   e=>{ e.preventDefault(); keys['Space']=false; });
+  }
+  if(runBtn){
+    runBtn.addEventListener('touchstart', e=>{ e.preventDefault(); keys['ShiftLeft']=true; runBtn.classList.add('active'); });
+    runBtn.addEventListener('touchend',   e=>{ e.preventDefault(); keys['ShiftLeft']=false; runBtn.classList.remove('active'); });
+  }
+})();
+
+// ─── COLLISION ──────────────────────────────────────────────────────────────
+function checkPlatformCollision() {
+  onGround=false; onWall=false; wallNormal=null; onPlatIdx=-1;
+  const feet = pg.position.y - P_HALF;
+  const px = pg.position.x, pz = pg.position.z;
+
+  for(let i=0; i<plats.length; i++) {
+    const p = plats[i];
+    const mp = p.mesh.position;
+
+    if(p.isWall) {
+      const wh = p.height;
+      const hw = p.w/2+P_RADIUS, hd = p.d/2+P_RADIUS;
+      if(px<mp.x-hw||px>mp.x+hw) continue;
+      if(pz<mp.z-hd||pz>mp.z+hd) continue;
+      const wb = mp.y - wh/2, wt = mp.y + wh/2;
+      if(pg.position.y<wb||pg.position.y>wt+P_HALF) continue;
+      if(!onGround && wallJumpCooldown<=0) {
+        onWall=true;
+        const dxL=Math.abs((mp.x-p.w/2)-px), dxR=Math.abs(px-(mp.x+p.w/2));
+        const dzF=Math.abs((mp.z-p.d/2)-pz), dzB=Math.abs(pz-(mp.z+p.d/2));
+        const mn=Math.min(dxL,dxR,dzF,dzB);
+        if(mn===dxL) wallNormal=new THREE.Vector3(-1,0,0);
+        else if(mn===dxR) wallNormal=new THREE.Vector3(1,0,0);
+        else if(mn===dzF) wallNormal=new THREE.Vector3(0,0,-1);
+        else wallNormal=new THREE.Vector3(0,0,1);
+        velY = Math.max(velY, -3);
+      }
+      continue;
+    }
+
+    const top = mp.y + PLAT_THICK/2;
+    const hw=p.w/2, hd=p.d/2;
+    if(px<mp.x-hw||px>mp.x+hw) continue;
+    if(pz<mp.z-hd||pz>mp.z+hd) continue;
+    if(feet<=top+0.2&&feet>=top-1.0&&velY<=0) {
+      pg.position.y=top+P_HALF; velY=0; onGround=true; canJump=true; onPlatIdx=i;
+      if(p.def.isCp && p.def.cpIdx>cpIdx) { cpIdx=p.def.cpIdx; showNotif('✅ Checkpoint!'); }
+      if(p.def.isFinish && !won) winEvent();
+      break;
+    }
+  }
+}
+
+// Hazard collision — pendulums/barriers respawn on touch; closed gates block passage.
+function checkHazards(prevX, prevZ) {
+  const gw = document.getElementById('gateWarn');
+  let nearClosedGate = false;
+
+  gateObjs.forEach(g => {
+    const d = g.def;
+    const cyclePos = ((t + d.phase*d.period) % d.period + d.period) % d.period;
+    const isOpen = cyclePos < d.period*d.openFrac;
+    g.isOpen = isOpen;
+    g.mesh.visible = !isOpen;
+    g.lamp.color.setHex(isOpen ? 0x22ff44 : 0xff2222);
+    if(!isOpen) {
+      const closeToX = Math.abs(pg.position.x - d.x) < 25;
+      const withinZ = Math.abs(pg.position.z) < d.halfD + P_RADIUS + 1.5;
+      if(closeToX && withinZ) nearClosedGate = true;
+      // Solid block: prevent crossing the gate plane while closed.
+      const withinGateZ = Math.abs(pg.position.z) < d.halfD + P_RADIUS;
+      const withinGateY = pg.position.y - P_HALF < d.y + d.gateH;
+      if(withinGateZ && withinGateY) {
+        const wasBefore = prevX < d.x - 0.3;
+        const wasAfter  = prevX > d.x + 0.3;
+        const nowBefore = pg.position.x < d.x - 0.3;
+        const nowAfter  = pg.position.x > d.x + 0.3;
+        if((wasBefore && !nowBefore) || (wasAfter && !nowAfter)) {
+          pg.position.x = prevX;
+        }
+      }
+    }
+  });
+  gw.style.opacity = nearClosedGate ? 1 : 0;
+
+  pendulumObjs.forEach(p => {
+    const d = p.def;
+    const off = Math.sin(t*d.spd + d.phase) * d.range;
+    const barZ = d.baseZ + off;
+    p.mesh.position.set(d.x, d.y, barZ);
+    p.mesh.rotation.x = Math.sin(t*d.spd + d.phase) * 0.35;
+    const dx = pg.position.x - d.x, dz = pg.position.z - barZ;
+    const dy = pg.position.y - d.y;
+    if(dx*dx+dz*dz < 1.4*1.4 && Math.abs(dy) < 1.4 && !won) {
+      showNotif('💥 Hit by swinging bar!');
+      respawn();
+    }
+  });
+
+  barrierObjs.forEach(b => {
+    const d = b.def;
+    const off = Math.sin(t*d.spd + d.phase) * d.range;
+    const barZ = d.baseZ + off;
+    b.mesh.position.set(d.x, d.y+d.barH/2, barZ);
+    const dx = Math.abs(pg.position.x - d.x), dz = Math.abs(pg.position.z - barZ);
+    const dy = pg.position.y - d.y;
+    if(dx < d.halfThick+P_RADIUS && dz < 1.6+P_RADIUS && dy>=-0.2 && dy<d.barH+0.5 && !won) {
+      showNotif('💥 Hit by barrier!');
+      respawn();
+    }
+  });
+}
+
+// ─── NOTIF ──────────────────────────────────────────────────────────────────
+function showNotif(txt) {
+  const el=document.getElementById('notif');
+  el.textContent=txt; el.style.opacity=1; notifT=1.6;
+}
+
+// ─── HUD ────────────────────────────────────────────────────────────────────
+function medalForTime(sec, th) {
+  if(sec<=th.gold) return 'gold';
+  if(sec<=th.silver) return 'silver';
+  if(sec<=th.bronze) return 'bronze';
+  return 'none';
+}
+
+function updateHUD() {
+  const L = E();
+  document.getElementById('timerBox').textContent = `⏱️ ${timer.toFixed(2)}s`;
+  document.getElementById('eventBox').textContent = `${L.icon} ${L.name.toUpperCase()}`;
+
+  const pace = medalForTime(timer, L.thresholds);
+  const paceBox = document.getElementById('medalPaceBox');
+  const paceLabels = { gold:'🥇 GOLD PACE', silver:'🥈 SILVER PACE', bronze:'🥉 BRONZE PACE', none:'⏳ NO MEDAL PACE' };
+  paceBox.textContent = paceLabels[pace];
+  paceBox.style.color = MEDAL_COLORS[pace];
+  document.getElementById('timerBox').style.color = MEDAL_COLORS[pace]==='#888' ? '#ff6666' : MEDAL_COLORS[pace];
+  document.getElementById('timerBox').style.borderColor = MEDAL_COLORS[pace]==='#888' ? '#ff6666' : MEDAL_COLORS[pace];
+
+  const prog = loadProgress();
+  const bestMs = prog.best[L.id];
+  if(bestMs) {
+    const bestSec = bestMs/1000;
+    const bestMedal = medalForTime(bestSec, L.thresholds);
+    document.getElementById('bestBox').innerHTML = `🏆 Best: ${bestSec.toFixed(2)}s<br>${MEDAL_ICONS[bestMedal]} ${bestMedal.toUpperCase()}`;
+  } else {
+    document.getElementById('bestBox').textContent = '🏆 Best: --';
+  }
+
+  document.getElementById('sprintFill').style.width=(sprintEnergy*100)+'%';
+  document.getElementById('wallBox').style.opacity=wallMsgT>0?1:0;
+}
+
+// ─── S.I.P. / PROGRESS ──────────────────────────────────────────────────────
+function loadProgress(){
+  const user=localStorage.getItem('explox_current_user');
+  const blank={best:{}, podium:false, lastYear:0};
+  if(user){
+    const d=JSON.parse(localStorage.getItem('explox_user_'+user)||'{}');
+    return { best:d.olympicsParkourBest||{}, podium:!!d.olympicsParkourPodium, lastYear:d.olympicsParkourLastYear||0 };
+  }
+  return JSON.parse(localStorage.getItem('olympicsParkour_progress')||'null')||blank;
+}
+function saveProgress(prog){
+  const user=localStorage.getItem('explox_current_user');
+  if(user){
+    const d=JSON.parse(localStorage.getItem('explox_user_'+user)||'{}');
+    d.olympicsParkourBest = prog.best;
+    d.olympicsParkourPodium = prog.podium;
+    d.olympicsParkourLastYear = prog.lastYear;
+    localStorage.setItem('explox_user_'+user,JSON.stringify(d));
+  } else {
+    localStorage.setItem('olympicsParkour_progress',JSON.stringify(prog));
+  }
+}
+// Open = the player hasn't completed a run yet in the CURRENT Explox year. Once they finish
+// their first event of a fresh year, lastYear catches up and it locks again until the next one.
+function isOlympicsOpen(prog){ return currentExploxYear() > (prog.lastYear||0); }
+// Real S.I.P. economy integration — reads/writes the player's actual save object directly.
+// Guests (no logged-in user) simply earn nothing; gameplay still works fully (SIP=0/read-only).
+function grantSip(amount){
+  if(amount<=0) return;
+  const user=localStorage.getItem('explox_current_user');
+  if(!user) return;
+  const d=JSON.parse(localStorage.getItem('explox_user_'+user)||'{}');
+  d.sip=(d.sip||0)+amount;
+  localStorage.setItem('explox_user_'+user,JSON.stringify(d));
+}
+
+// ─── WIN / SCREEN FLOW ──────────────────────────────────────────────────────
+function winEvent() {
+  won=true; running=false;
+  if(document.pointerLockElement) document.exitPointerLock();
+  document.getElementById('hud').style.display='none';
+
+  const L = E();
+  const prog = loadProgress();
+  const prevMs = prog.best[L.id];
+  const finishMs = Math.round(timer*1000);
+  const isNewBest = !prevMs || finishMs<prevMs;
+  const medal = medalForTime(timer, L.thresholds);
+
+  let reward = 0;
+  const wasAllMedaled = EVENTS.every(ev => {
+    const b = prog.best[ev.id];
+    return b && medalForTime(b/1000, ev.thresholds)!=='none';
+  });
+
+  if(isNewBest) {
+    prog.best[L.id] = finishMs;
+    reward = REWARD[medal] || REWARD.finish;
+    grantSip(reward);
+  }
+  // Completing any event "spends" this Explox year's Olympics — locks again until the next one.
+  prog.lastYear = currentExploxYear();
+  saveProgress(prog);
+
+  const isAllMedaledNow = EVENTS.every(ev => {
+    const b = prog.best[ev.id];
+    return b && medalForTime(b/1000, ev.thresholds)!=='none';
+  });
+
+  lastRunReward = reward; lastMedal = medal; lastIsNewBest = isNewBest;
+
+  if(!wasAllMedaled && isAllMedaledNow && !prog.podium) {
+    prog.podium = true;
+    grantSip(PODIUM_BONUS);
+    saveProgress(prog);
+    showPodiumScreen(true);
+    return;
+  }
+
+  document.getElementById('cTitle').textContent = `${L.icon} ${L.name.toUpperCase()} COMPLETE!`;
+  document.getElementById('cSub').textContent = `Finished in ${timer.toFixed(2)}s`;
+  document.getElementById('cMedal').textContent = MEDAL_ICONS[medal];
+  document.getElementById('cTime').textContent = timer.toFixed(2)+'s';
+  document.getElementById('cReward').textContent = isNewBest ? `💰 +${reward} S.I.P.` : '💰 No new best — no reward this run';
+  const prevSec = prevMs ? (prevMs/1000).toFixed(2)+'s' : '--';
+  document.getElementById('cBest').textContent = isNewBest ? '🌟 New personal best!' : 'Previous best: '+prevSec;
+  document.getElementById('completeScreen').style.display='flex';
+}
+
+function showPodiumScreen(withBonus) {
+  const prog = loadProgress();
+  const list = document.getElementById('podiumEvList');
+  list.innerHTML = EVENTS.map(ev => {
+    const b = prog.best[ev.id];
+    const medal = b ? medalForTime(b/1000, ev.thresholds) : 'none';
+    return `<div class="podiumEvItem"><div class="pIcon">${ev.icon}</div>${ev.name}<br>${MEDAL_ICONS[medal]} ${b?(b/1000).toFixed(2)+'s':'--'}</div>`;
+  }).join('');
+  document.getElementById('podiumBonusLine').style.display = withBonus ? 'block' : 'none';
+  document.getElementById('completeScreen').style.display='none';
+  document.getElementById('podiumScreen').style.display='flex';
+}
+
+function retryEvent() {
+  document.getElementById('completeScreen').style.display='none';
+  startEvent(currentEventIdx);
+}
+
+function openHub() {
+  document.getElementById('completeScreen').style.display='none';
+  document.getElementById('podiumScreen').style.display='none';
+  document.getElementById('hud').style.display='none';
+  document.getElementById('clickMsg').style.display='none';
+  running=false;
+  const prog = loadProgress();
+  if(!isOlympicsOpen(prog)) { refreshLockedScreen(prog); document.getElementById('lockedScreen').style.display='flex'; return; }
+  refreshHub();
+  document.getElementById('hubScreen').style.display='flex';
+}
+function refreshLockedScreen(prog){
+  const secs = Math.max(0, secondsUntilNextExploxYear());
+  const daysLeft = Math.ceil(secs/DAY_LENGTH_SEC);
+  document.getElementById('lockedDays').textContent = daysLeft===1 ? '1 in-game day' : (daysLeft+' in-game days');
+  const list = document.getElementById('lockedEvList');
+  list.innerHTML = EVENTS.map(ev => {
+    const b = prog.best[ev.id];
+    const medal = b ? medalForTime(b/1000, ev.thresholds) : 'none';
+    return `<div class="podiumEvItem"><div class="pIcon">${ev.icon}</div>${ev.name}<br>${MEDAL_ICONS[medal]} ${b?(b/1000).toFixed(2)+'s':'--'}</div>`;
+  }).join('');
+}
+
+function refreshHub() {
+  const prog = loadProgress();
+  const cardsEl = document.getElementById('evCards');
+  cardsEl.innerHTML = EVENTS.map((ev,i) => {
+    const b = prog.best[ev.id];
+    const medal = b ? medalForTime(b/1000, ev.thresholds) : 'none';
+    const bestTxt = b ? (b/1000).toFixed(2)+'s' : '--';
+    return `
+    <div class="evCard" style="border-color:${b?ev.accent:'#333'}" onclick="openEventIntro(${i})">
+      <div class="evIcon">${ev.icon}</div>
+      <div class="evName" style="color:${ev.accent}">${ev.name}</div>
+      <div class="evBlurb">${ev.blurb}</div>
+      <div class="evBest">Best: ${bestTxt}</div>
+      <div class="evMedal">${b?MEDAL_ICONS[medal]:'—'}</div>
+      <div class="evTargets">🥇 ${ev.thresholds.gold}s &nbsp;🥈 ${ev.thresholds.silver}s &nbsp;🥉 ${ev.thresholds.bronze}s</div>
+    </div>`;
+  }).join('');
+
+  const medaledCount = EVENTS.filter(ev => {
+    const b = prog.best[ev.id];
+    return b && medalForTime(b/1000, ev.thresholds)!=='none';
+  }).length;
+  const banner = document.getElementById('podiumBanner');
+  if(prog.podium) {
+    banner.textContent = '🏆 Podium achieved! Click to relive the ceremony.';
+    banner.classList.add('ready');
+    banner.onclick = ()=>showPodiumScreen(false);
+  } else if(medaledCount>=4) {
+    banner.textContent = '🏆 All 4 medaled — Podium unlocked next run!';
+    banner.classList.add('ready');
+    banner.onclick = null;
+  } else {
+    banner.textContent = `🏆 ${medaledCount}/4 events medaled — earn a medal in all 4 to reach the Podium!`;
+    banner.classList.remove('ready');
+    banner.onclick = null;
+  }
+}
+
+function openEventIntro(idx) {
+  currentEventIdx = idx;
+  const L = E();
+  document.getElementById('hubScreen').style.display='none';
+  document.getElementById('clickMsgTitle').textContent = `${L.icon} ${L.name.toUpperCase()}`;
+  document.getElementById('clickMsgTargets').textContent =
+    `🥇 Gold ${L.thresholds.gold}s  🥈 Silver ${L.thresholds.silver}s  🥉 Bronze ${L.thresholds.bronze}s`;
+  startEvent(idx);
+}
+
+function startEvent(idx) {
+  buildEvent(idx);
+  timer=0; running=true; won=false; cpIdx=0; velY=0; canJump=false;
+  sprintEnergy=1.0; wallJumpCooldown=0;
+  respawn();
+  document.getElementById('hud').style.display='block';
+  if(!isTouchDevice) document.getElementById('clickMsg').style.display='block';
+}
+
+// Init: show hub — or the locked screen, if this Explox year's Olympics is already used up.
+(function initHubOrLock(){
+  const prog = loadProgress();
+  if(!isOlympicsOpen(prog)) { refreshLockedScreen(prog); document.getElementById('hubScreen').style.display='none'; document.getElementById('lockedScreen').style.display='flex'; return; }
+  refreshHub();
+})();
+
+// ─── ANIMATE ────────────────────────────────────────────────────────────────
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  t += dt;
+
+  if(running) {
+    timer += dt;
+    const prevX = pg.position.x, prevZ = pg.position.z;
+
+    // Moving platforms
+    for(let i=0; i<movingPlats.length; i++) {
+      const p = movingPlats[i];
+      const ox=p.mesh.position.x, oz=p.mesh.position.z;
+      const off=Math.sin(t*p.spd+p.phase)*p.range;
+      if(p.axis==='x') p.mesh.position.x=p.bx+off;
+      if(p.axis==='z') p.mesh.position.z=p.bz+off;
+      if(onPlatIdx===i){
+        pg.position.x+=p.mesh.position.x-ox;
+        pg.position.z+=p.mesh.position.z-oz;
+      }
+    }
+
+    // Movement
+    const sprinting = keys['ShiftLeft']||keys['ShiftRight'];
+    const fwd  = new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw));
+    const right = new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+    const move  = new THREE.Vector3();
+    if(keys['KeyW']||keys['ArrowUp'])    move.add(fwd);
+    if(keys['KeyS']||keys['ArrowDown'])  move.sub(fwd);
+    if(keys['KeyA']||keys['ArrowLeft'])  move.sub(right);
+    if(keys['KeyD']||keys['ArrowRight']) move.add(right);
+    const moving = move.lengthSq()>0;
+
+    const activeSprint = sprinting && sprintEnergy>0 && moving;
+    if(activeSprint) sprintEnergy=Math.max(0,sprintEnergy-dt*0.35);
+    else if(!sprinting) sprintEnergy=Math.min(1,sprintEnergy+dt*0.25);
+
+    const spd = activeSprint ? SPRINT_SPD : MOVE_SPD;
+    if(moving){ move.normalize().multiplyScalar(spd*dt); pg.position.add(move); }
+    pg.rotation.y=yaw;
+
+    // Jump / wall jump
+    if(keys['Space']){
+      if(canJump && onGround){ velY=JUMP_VEL; onGround=false; canJump=false; }
+      else if(onWall && wallNormal && !onGround && wallJumpCooldown<=0){
+        velY=WALL_VEL;
+        pg.position.x+=wallNormal.x*1.5;
+        pg.position.z+=wallNormal.z*1.5;
+        wallJumpCooldown=0.5; onWall=false;
+        showNotif('🧱 Wall Jump!'); wallMsgT=1.0;
+      }
+    }
+
+    if(wallJumpCooldown>0) wallJumpCooldown-=dt;
+    if(wallMsgT>0) wallMsgT-=dt;
+
+    // Gravity
+    velY+=GRAVITY*dt;
+    pg.position.y+=velY*dt;
+
+    checkPlatformCollision();
+    checkHazards(prevX, prevZ);
+
+    if(pg.position.y<-8){ showNotif(`💀 Fell!`); respawn(); }
+
+    // Walk animation
+    const sw=moving?Math.sin(t*12)*0.5:0;
+    lLeg.rotation.x=-sw; rLeg.rotation.x=sw;
+
+    // Notif fade
+    notifT-=dt;
+    if(notifT<=0) document.getElementById('notif').style.opacity=0;
+
+    updateHUD();
+  }
+
+  // Checkpoint rings spin
+  scene.children.forEach(c=>{
+    if(c.isMesh && c.geometry && c.geometry.type==='TorusGeometry') c.rotation.z=t*1.8;
+  });
+
+  // Camera
+  camera.position.set(
+    pg.position.x-Math.sin(yaw)*10,
+    pg.position.y+4+pitch*5,
+    pg.position.z-Math.cos(yaw)*10
+  );
+  camera.lookAt(pg.position.x, pg.position.y+0.8, pg.position.z);
+
+  renderer.render(scene,camera);
+}
+animate();
+</script>
+</body>
+</html>

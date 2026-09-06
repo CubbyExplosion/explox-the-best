@@ -37,6 +37,10 @@ const HOUSE_IDS = ['house','brickhouse','house2','house3','house4','mansion','cu
 let landForSale = {}; // { lotId: askingPriceOrUndefined } — persisted
 let pendingNotices = []; // [{type,from,message}, ...] — real "while you were away" reports (invited/attacked), persisted, drained on next login
 let LAND_PLOT_MESHES = []; // per-plot mesh refs, so buying/painting can tear down & rebuild just that plot
+// The one thing Satan smashed most recently (see satanDestroyBuild() below), so a later God win
+// can repair that exact spot instead of just handing out an unrelated gift — not persisted
+// (resets on reload), it's just a short-lived link between two events in the same play session.
+let lastSatanDestroyed = null; // {plotId, ownerName, isMine, entry} or null
 // 5 columns x 2 rows, spaced 130 apart both ways — comfortably clears even two adjacent 100-wide
 // (half 50) plots regardless of which size lands in which slot, verified live via the same
 // bounding-box check used for items 153/154.
@@ -81,6 +85,29 @@ async function syncLandOwners() {
       LAND_PLOTS.forEach((plot, idx) => buildLandPlot(idx));
     }
   } catch(e) { /* next sync will catch up */ }
+}
+// "make it so you and your freind can see your housers" — syncLandOwners() above only pulls WHO
+// owns each plot, not what they've actually BUILT there. renderExistingBuildings() reads a
+// non-owner's data via getUserData(ownerName), which only works if that account's data is
+// already sitting in this browser's localStorage — true for another account on the SAME PC, but
+// a real friend on a different machine needs their build data actually fetched from the server
+// first. Pulls each other owner's full save (same /api/user/<name> GET doLogin() already uses)
+// into the same localStorage key getUserData() reads, then rebuilds so new/changed buildings
+// actually appear.
+let _lastLandOwnerDataSync = -999;
+const LAND_OWNER_DATA_SYNC_INTERVAL = 5; // seconds - a bit slower than land ownership itself, since this pulls a full save per owner
+async function syncOtherLandOwnersData() {
+  if(serverMode !== 'online') return;
+  const owners = getLandOwners();
+  const otherOwners = [...new Set(Object.values(owners))].filter(name => name && name !== currentUser);
+  if(!otherOwners.length) return;
+  await Promise.all(otherOwners.map(async name => {
+    try {
+      const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/user/' + encodeURIComponent(name), {}, 4000);
+      if(r.ok) localStorage.setItem('explox_user_' + name, JSON.stringify(await r.json()));
+    } catch(e) { /* next sync will catch up */ }
+  }));
+  if(LAND_PLOT_MESHES.length) LAND_PLOTS.forEach((plot, idx) => buildLandPlot(idx));
 }
 function patchUserData(name, patchFn) {
   const data = getUserData(name);
@@ -782,6 +809,13 @@ const BUILD_CATALOG = [
   { id:'fabricator',  name:'Scrap Fabricator', emoji:'⚙️', sip:150, scrap:5, produces:{type:'scrap', amount:1, everySec:15} },
   { id:'printer',     name:'S.I.P. Printer',   emoji:'💰', sip:300, produces:{type:'sip',   amount:5, everySec:20} },
 ];
+// Real "red tape for real construction" gate — City Hall's Forms Office Building Permit
+// (approvedPermits/hasPermitFor()/consumePermitFor(), game-shops.js). Only the BIG/pricier tier
+// needs one — the starter decorations (tree/flag/wall/shed/fountain/bench/basic house/producers)
+// stay exactly as frictionless as before this feature existed. Picked by the same "sip:450+" line
+// that already separates the small Small House from the 2-Story House and up in BUILD_CATALOG.
+const PERMIT_REQUIRED_BUILDING_IDS = ['house2','house3','house4','mansion'];
+const PERMIT_REQUIRED_CUSTOM_HOUSE_MIN_SIZE = 10; // a 10x10+ custom house is the same "big build" tier — HOUSE_SIZES below tops out at 20
 // ─── CUSTOM HOUSE — user's own ask: "you can choose 1x1 2x2 ... 20x20 wood concreet metal or
 // glass". Instead of the fixed 5-tier house ladder above (house/house2/3/4/mansion), a real
 // pick-a-size-and-material house: cost scales with actual footprint area, and the material
@@ -817,6 +851,11 @@ function buildCustomHouse(idx) {
   const size = Math.min(selectedHouseSize, maxHouseSizeForPlot(plot));
   const materialKey = selectedHouseMaterial;
   const cost = houseBuildCost(size, materialKey);
+  // Same real Building Permit gate as placeBuilding() above, for the custom house's own "big
+  // build" tier (PERMIT_REQUIRED_CUSTOM_HOUSE_MIN_SIZE) — checked before affordability so an
+  // approved permit is never wasted on a house the player can't actually pay for yet.
+  const needsPermit = size >= PERMIT_REQUIRED_CUSTOM_HOUSE_MIN_SIZE;
+  if (needsPermit && !hasPermitFor(plot.id)) { showNotif(`🏛️ A ${size}x${size} house needs a Building Permit for this plot first — apply at City Hall's Forms Office.`); return; }
   if (!canAffordRecipe(cost)) { showNotif(`❌ Need ${craftCostText(cost)}`); return; }
   const placed = plotBuildings[plot.id] || (plotBuildings[plot.id] = []);
   const existingIdx = placed.findIndex(p => HOUSE_IDS.includes(p.id));
@@ -837,6 +876,7 @@ function buildCustomHouse(idx) {
   if (cost.sip)   { spendSip(cost.sip); updateSIP(); }
   spendMats(cost.mats);
   placed.push({ slot, id:'customhouse', _t:0, houseSize:size, houseMaterial:materialKey });
+  if (needsPermit) consumePermitFor(plot.id); // real consequence — spent the moment this big build actually completes
   saveCurrentUser();
   const { cx, cz } = landPlotPos(idx);
   const [ox,oz] = plot.slots[slot];
@@ -950,15 +990,24 @@ function buildStructureMesh(id, x, z, extra) {
   }
   return g;
 }
+// "make it so you and your freind can see your housers" — real bug found while building the
+// divine-clash feature (item 304): this always read the CURRENT account's OWN plotBuildings,
+// even for a plot someone ELSE owns, so an owner's house/buildings only ever rendered in 3D on
+// their own screen — a friend walking up to it just saw an empty fenced lot with a sign, same
+// gap already flagged for shops (item 181). Now reads whichever account actually owns this plot.
 function renderExistingBuildings(idx) {
   const plot = LAND_PLOTS[idx];
-  const placed = plotBuildings[plot.id] || [];
+  const ownerName = getLandOwners()[plot.id] || null;
+  const isMine = ownerName === currentUser;
+  const ownerData = ownerName ? (isMine ? null : getUserData(ownerName)) : null;
+  const placed = isMine ? (plotBuildings[plot.id] || []) : (ownerData ? (ownerData.plotBuildings || {})[plot.id] || [] : []);
+  const ownerLandColor = isMine ? landColor : (ownerData ? (ownerData.landColor || {}) : {});
   const { cx, cz } = landPlotPos(idx);
   placed.forEach(entry => {
     const key = plot.id+'_'+entry.slot;
     if(PLOT_BUILDING_MESHES[key]) return; // already rendered
     const [ox,oz] = plot.slots[entry.slot];
-    const extra = entry.id === 'customhouse' ? { size: entry.houseSize, material: entry.houseMaterial, color: landColor[plot.id] } : undefined;
+    const extra = entry.id === 'customhouse' ? { size: entry.houseSize, material: entry.houseMaterial, color: ownerLandColor[plot.id] } : undefined;
     PLOT_BUILDING_MESHES[key] = buildStructureMesh(entry.id, cx+ox, cz+oz, extra);
   });
 }
@@ -985,10 +1034,12 @@ function renderBuildMenu(idx) {
   cat.innerHTML = '';
   BUILD_CATALOG.forEach((b) => {
     const canAfford = canAffordRecipe(b); // shared with crafting — handles wood/scrap/sip/mats uniformly
+    const needsPermit = PERMIT_REQUIRED_BUILDING_IDS.includes(b.id);
+    const hasPermit = !needsPermit || hasPermitFor(plot.id);
     const d = document.createElement('div'); d.className='shopItem';
     d.innerHTML = `<div class="siName">${b.emoji} ${b.name}</div>
-      <div class="siCost">${craftCostText(b) || 'Free'}${b.produces?` — makes ${b.produces.amount} ${b.produces.type==='sip'?'S.I.P.':b.produces.type==='wood'?'Wood':'Scrap'} every ${b.produces.everySec}s`:''}</div>
-      <button class="shopBtn" onclick="placeBuilding(${idx},'${b.id}')" ${(!canAfford||full)?'disabled':''}>${full?'Plot Full':'Build'}</button>`;
+      <div class="siCost">${craftCostText(b) || 'Free'}${b.produces?` — makes ${b.produces.amount} ${b.produces.type==='sip'?'S.I.P.':b.produces.type==='wood'?'Wood':'Scrap'} every ${b.produces.everySec}s`:''}${needsPermit?` — 🏛️ ${hasPermit?'Permit ready':'Needs a Building Permit'}`:''}</div>
+      <button class="shopBtn" onclick="placeBuilding(${idx},'${b.id}')" ${(!canAfford||full||!hasPermit)?'disabled':''}>${full?'Plot Full':(!hasPermit?'🏛️ Need Permit':'Build')}</button>`;
     cat.appendChild(d);
   });
   const placedList = document.getElementById('buildPlaced');
@@ -1019,7 +1070,10 @@ function renderBuildMenu(idx) {
   }).join('');
   const effSize = Math.min(selectedHouseSize, maxSize);
   const houseCost = houseBuildCost(effSize, selectedHouseMaterial);
-  document.getElementById('houseBuildCostText').textContent = `${effSize}x${effSize} ${HOUSE_MATERIALS[selectedHouseMaterial].name} house costs: ${craftCostText(houseCost) || 'Free'}`;
+  const houseNeedsPermit = effSize >= PERMIT_REQUIRED_CUSTOM_HOUSE_MIN_SIZE;
+  const houseHasPermit = !houseNeedsPermit || hasPermitFor(plot.id);
+  document.getElementById('houseBuildCostText').textContent = `${effSize}x${effSize} ${HOUSE_MATERIALS[selectedHouseMaterial].name} house costs: ${craftCostText(houseCost) || 'Free'}`
+    + (houseNeedsPermit ? (houseHasPermit ? ' — 🏛️ Permit ready' : ' — 🏛️ Needs a Building Permit from City Hall') : '');
 
   document.getElementById('buildPaintSwatches').innerHTML = PAINT_SWATCHES.map(s =>
     `<button onclick="paintMyLand(${idx},${s.color})" title="${s.name}" style="width:26px;height:26px;border-radius:6px;border:2px solid #fff;background:#${s.color.toString(16).padStart(6,'0')};cursor:pointer;margin:3px;"></button>`
@@ -1053,6 +1107,11 @@ function placeBuilding(idx, buildingId) {
   const def = BUILD_CATALOG.find(b=>b.id===buildingId);
   const placed = plotBuildings[plot.id] || (plotBuildings[plot.id] = []);
   if(placed.length >= plot.slots.length) { showNotif('🏗️ This plot is full!'); return; }
+  const needsPermit = PERMIT_REQUIRED_BUILDING_IDS.includes(buildingId);
+  // hasPermitFor() is checked (not consumed) BEFORE the affordability check below on purpose — a
+  // real bug this avoids: consuming the permit here and THEN finding out the player can't actually
+  // afford the build would waste a real approved permit on a build that never happened.
+  if(needsPermit && !hasPermitFor(plot.id)) { showNotif(`🏛️ ${def.name} needs a Building Permit for this plot first — apply at City Hall's Forms Office.`); return; }
   if(!canAffordRecipe(def)) { showNotif(`❌ Need ${craftCostText(def)}`); return; }
   const usedSlots = placed.map(p=>p.slot);
   let slot = -1;
@@ -1062,6 +1121,7 @@ function placeBuilding(idx, buildingId) {
   if(def.scrap) { scrapMetal -= def.scrap; updateScrapMetal(); }
   spendMats(def.mats);
   placed.push({ slot, id: buildingId, _t:0 });
+  if(needsPermit) consumePermitFor(plot.id); // real consequence — the permit is spent the moment the build actually completes
   saveCurrentUser();
   const { cx, cz } = landPlotPos(idx);
   const [ox,oz] = plot.slots[slot];
@@ -1081,6 +1141,152 @@ function demolishBuilding(idx, slot) {
   if(PLOT_BUILDING_MESHES[key]) { scene.remove(PLOT_BUILDING_MESHES[key]); delete PLOT_BUILDING_MESHES[key]; }
   showNotif('🏗️ Demolished.');
   renderBuildMenu(idx);
+}
+
+// ── Divine create/destroy — called from tickDivineClash() in game-world.js when a clash
+// resolves. Satan smashes one real placed building somewhere in Sunset Plains (yours or another
+// real owner's — same cross-account patchUserData()/pendingNotices pattern as attackOwner() and
+// smashBuilding() above, so an offline owner finds out next login); God either repairs that exact
+// spot back or, if there's nothing to repair, blesses the CURRENT player with a free decoration.
+// Both return a message string (or null if there was truly nothing to do) rather than calling
+// showNotif() directly — the clash's own "Satan/God won" notif already occupies the single
+// #notification element, so the caller staggers this one in after it, same as endWrathAfterDeath().
+function landOwnerBuildingsList(ownerName, isMine, plotId) {
+  return isMine ? (plotBuildings[plotId] || []) : ((getUserData(ownerName).plotBuildings || {})[plotId] || []);
+}
+function buildingDisplayName(entry) {
+  if (entry.id === 'customhouse') return `${entry.houseSize}x${entry.houseSize} House`;
+  const def = BUILD_CATALOG.find(b => b.id === entry.id);
+  return def ? `${def.emoji} ${def.name}` : entry.id;
+}
+function satanDestroyBuild() {
+  const owners = getLandOwners();
+  const candidates = [];
+  LAND_PLOTS.forEach((plot, idx) => {
+    const ownerName = owners[plot.id];
+    if (!ownerName) return;
+    const isMine = ownerName === currentUser;
+    if (landOwnerBuildingsList(ownerName, isMine, plot.id).length) candidates.push({ idx, plot, ownerName, isMine });
+  });
+  if (!candidates.length) return null; // nothing built anywhere yet for Satan to smash
+  const pick = candidates[Math.floor(Math.random() * candidates.length)];
+  const placed = landOwnerBuildingsList(pick.ownerName, pick.isMine, pick.plot.id);
+  const victimIdx = Math.floor(Math.random() * placed.length);
+  const entry = placed[victimIdx];
+  const name = buildingDisplayName(entry);
+  lastSatanDestroyed = { plotId: pick.plot.id, ownerName: pick.ownerName, isMine: pick.isMine, entry: { ...entry } };
+  if (pick.isMine) {
+    plotBuildings[pick.plot.id].splice(victimIdx, 1);
+    saveCurrentUser();
+    const key = pick.plot.id + '_' + entry.slot;
+    if (PLOT_BUILDING_MESHES[key]) { scene.remove(PLOT_BUILDING_MESHES[key]); delete PLOT_BUILDING_MESHES[key]; }
+    return `🔥 Satan struck down your ${name} at ${pick.plot.name}!`;
+  }
+  patchUserData(pick.ownerName, d => {
+    d.plotBuildings = d.plotBuildings || {};
+    const list = d.plotBuildings[pick.plot.id] || [];
+    const i = list.findIndex(p => p.slot === entry.slot && p.id === entry.id);
+    if (i >= 0) list.splice(i, 1);
+    d.plotBuildings[pick.plot.id] = list;
+    d.pendingNotices = Array.isArray(d.pendingNotices) ? d.pendingNotices : [];
+    d.pendingNotices.push({ message: `🔥 Satan struck down your ${name} at ${pick.plot.name} while the world was in bad hands!` });
+  });
+  return `🔥 Satan struck down ${pick.ownerName}'s ${name} at ${pick.plot.name}!`;
+}
+const BLESSING_ITEMS = ['tree', 'flag', 'wall', 'shed', 'fountain', 'bench', 'watchtower', 'greenhouse']; // decorations only — never a machine or a house, that'd be a free-money exploit
+// Places one free BUILD_CATALOG item on the current player's own land — the first owned plot
+// with an open slot. Returns a real "<name> at <plot>" description, or null if there's genuinely
+// nowhere to put it (no owned land, or every owned plot is full). Shared by godFreeGift() (picks
+// a random decoration) and interpretPrayerGrant() below (places whatever the player asked for).
+function placeFreeBuildingOnOwnedLand(id) {
+  let targetIdx = -1;
+  for (const lotId of ownedLand) {
+    const idx = LAND_PLOTS.findIndex(p => p.id === lotId);
+    if (idx < 0) continue;
+    const plot = LAND_PLOTS[idx];
+    if ((plotBuildings[plot.id] || []).length < plot.slots.length) { targetIdx = idx; break; }
+  }
+  if (targetIdx < 0) return null;
+  const plot = LAND_PLOTS[targetIdx];
+  const placed = plotBuildings[plot.id] || (plotBuildings[plot.id] = []);
+  const usedSlots = placed.map(p => p.slot);
+  let slot = -1;
+  for (let i = 0; i < plot.slots.length; i++) { if (!usedSlots.includes(i)) { slot = i; break; } }
+  placed.push({ slot, id, _t: 0 });
+  saveCurrentUser();
+  const { cx, cz } = landPlotPos(targetIdx);
+  const [ox, oz] = plot.slots[slot];
+  PLOT_BUILDING_MESHES[plot.id + '_' + slot] = buildStructureMesh(id, cx + ox, cz + oz);
+  return `${buildingDisplayName({ id })} at ${plot.name}`;
+}
+function godFreeGift() {
+  const id = BLESSING_ITEMS[Math.floor(Math.random() * BLESSING_ITEMS.length)];
+  const placedDesc = placeFreeBuildingOnOwnedLand(id);
+  if (placedDesc) return `✨ God blessed your land with a free ${placedDesc}!`;
+  const gift = 25;
+  woodCount += gift; updateWood(); saveCurrentUser();
+  return `✨ God blessed you with ${gift} 🪵 wood!`;
+}
+// ── "you type what u want theb god can grant it" — real keyword matching on the player's own
+// typed prayer text, same idea as SAI's keyword-matched answers (game-sai.js), just applied
+// here. Numbers are capped so a huge typed number can't be used to break the economy.
+// Split into two steps — parse (figure out WHAT is being asked for, no side effects) and
+// apply (actually grant it) — so "wish for others" (below) can parse the same way but ship
+// the result to someone else's mailbox instead of applying it to the current player.
+const PRAYER_SIP_CAP = 1000, PRAYER_WOOD_CAP = 200, PRAYER_ELITE_CAP = 10;
+function parsePrayerGrant(text) {
+  const lower = text.toLowerCase();
+  const numMatch = lower.match(/\d[\d,]*/);
+  const num = numMatch ? parseInt(numMatch[0].replace(/,/g, ''), 10) : null;
+  if (num !== null && /(sip|s\.i\.p|money|dollar|cash|rich)/.test(lower)) return { type: 'sip', amount: Math.min(num, PRAYER_SIP_CAP) };
+  if (num !== null && /wood/.test(lower)) return { type: 'wood', amount: Math.min(num, PRAYER_WOOD_CAP) };
+  if (num !== null && /(elite|diamond)/.test(lower)) return { type: 'elite', amount: Math.min(num, PRAYER_ELITE_CAP) };
+  const item = BLESSING_ITEMS.find(id => lower.includes(id) || lower.includes(BUILD_CATALOG.find(b => b.id === id).name.toLowerCase()));
+  if (item) return { type: 'item', id: item };
+  return null;
+}
+// Actually grants a parsed wish to the CURRENT player. Returns a real "you received X"
+// description, or null if there was nothing to grant (unrecognized text, or a decoration
+// with nowhere left to put it) — prayAtChurch() falls back to the generic reward in that
+// case, so a grant always does SOMETHING even when the wording doesn't match anything real.
+function applyPrayerGrant(parsed) {
+  if (!parsed) return null;
+  if (parsed.type === 'sip') { queueEarning(parsed.amount, 0, 'Prayer Granted'); return `${parsed.amount.toLocaleString()} S.I.P.`; }
+  if (parsed.type === 'wood') { woodCount += parsed.amount; updateWood(); saveCurrentUser(); return `${parsed.amount.toLocaleString()} 🪵 wood`; }
+  if (parsed.type === 'elite') { queueEarning(0, parsed.amount, 'Prayer Granted'); return `${parsed.amount.toLocaleString()} 💎 Elite Coins`; }
+  return placeFreeBuildingOnOwnedLand(parsed.id); // may be null if there's no open slot anywhere
+}
+function interpretPrayerGrant(text) {
+  return applyPrayerGrant(parsePrayerGrant(text));
+}
+function godBlessing() {
+  if (!lastSatanDestroyed) return godFreeGift();
+  const { plotId, ownerName, isMine, entry } = lastSatanDestroyed;
+  lastSatanDestroyed = null;
+  const plotIdx = LAND_PLOTS.findIndex(p => p.id === plotId);
+  if (plotIdx < 0 || getLandOwners()[plotId] !== ownerName) return godFreeGift(); // plot's gone or changed hands since
+  const plot = LAND_PLOTS[plotIdx];
+  const placed = landOwnerBuildingsList(ownerName, isMine, plotId);
+  if (placed.some(p => p.slot === entry.slot)) return godFreeGift(); // someone already rebuilt that exact spot
+  const name = buildingDisplayName(entry);
+  if (isMine) {
+    plotBuildings[plotId].push({ ...entry });
+    saveCurrentUser();
+    const { cx, cz } = landPlotPos(plotIdx);
+    const [ox, oz] = plot.slots[entry.slot];
+    const extra = entry.id === 'customhouse' ? { size: entry.houseSize, material: entry.houseMaterial, color: landColor[plotId] } : undefined;
+    PLOT_BUILDING_MESHES[plotId + '_' + entry.slot] = buildStructureMesh(entry.id, cx + ox, cz + oz, extra);
+    return `✨ God repaired your ${name} at ${plot.name}!`;
+  }
+  patchUserData(ownerName, d => {
+    d.plotBuildings = d.plotBuildings || {};
+    const list = d.plotBuildings[plotId] || [];
+    list.push({ ...entry });
+    d.plotBuildings[plotId] = list;
+    d.pendingNotices = Array.isArray(d.pendingNotices) ? d.pendingNotices : [];
+    d.pendingNotices.push({ message: `✨ God repaired your ${name} at ${plot.name}!` });
+  });
+  return `✨ God repaired ${ownerName}'s ${name} at ${plot.name}!`;
 }
 // Passive machine production — only ever ticks the CURRENT account's OWN placed buildings (an
 // account's plotBuildings only ever holds lots it currently owns, since buyLandFromOwner moves
@@ -1221,6 +1427,28 @@ function trySpawnRobot(spawnerIdx) {
   CITY_ZONES.push(zone);
   robots.push(robot);
 }
+// "/spawn robot" (game-admin.js) — same real robot object trySpawnRobot() above builds, just
+// placed next to the player instead of at a spawner, and with spawnerIdx:null since it has no
+// home spawner to send a replacement to on defeat (see the null check in defeatRobot() below).
+function adminSpawnRobotNearPlayer() {
+  const type = pickRobotType();
+  const angle = Math.random()*Math.PI*2, dist = 4;
+  const x = playerGroup.position.x + Math.cos(angle)*dist, z = playerGroup.position.z + Math.sin(angle)*dist;
+  const mesh = buildRobotMesh(x, z, type.color, type.shape);
+  const mult = robotPowerMult();
+  mesh.scale.setScalar(robotSizeMult());
+  const col = addCol(CITY_COLS, x, z, 0.6, 0.6);
+  const hp = Math.round(type.hp * mult);
+  const robot = { id:ROBOT_ID_SEQ++, x, z, hp, maxHp:hp, type, mesh, spawnerIdx:null, alive:true, zone:null, col,
+    homeX:x, homeZ:z, wanderX:x, wanderZ:z, speed:(2+Math.random()*1.3)*(type.speedMult||1),
+    powerMult:mult, rewardRange:[Math.round(type.reward[0]*mult), Math.round(type.reward[1]*mult)],
+    eliteReward: Math.round((ELITE_COIN_REWARD[type.id]||0)*mult) };
+  const zone = { x, z, r:2.8, label:`🤖 Fight ${type.name}`, action: () => fightRobot(robot) };
+  robot.zone = zone;
+  CITY_ZONES.push(zone);
+  robots.push(robot);
+  return type.name;
+}
 function fightRobot(robot) {
   if(!robot.alive) { showNotif('That robot is already scrap.'); return; }
   const dmg = getRobotDamage();
@@ -1257,7 +1485,9 @@ function defeatRobot(robot) {
   buildWreckage(robot.x, robot.z, robot.type); // leaves real scrap behind — take it to the Grinder for materials
   lifetimeRobotKills++;
   // The spawner sends out a replacement after a real cooldown, same idea as item 135's tree respawn.
-  setTimeout(() => trySpawnRobot(robot.spawnerIdx), 7000);
+  // spawnerIdx is null for an admin-spawned robot (adminSpawnRobotNearPlayer(), game-controls.js) —
+  // it has no home spawner to send a replacement, so skip rather than call trySpawnRobot(null).
+  if (robot.spawnerIdx != null) setTimeout(() => trySpawnRobot(robot.spawnerIdx), 7000);
 }
 
 // ── ROGUE ROBOTS (item 156) — genuinely different from the ambient Scrapyard/global-spawner
@@ -1290,7 +1520,7 @@ function spawnRogueRobot() {
 }
 function tickRogueRobots(dt) {
   rogueTimer += dt;
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore;
   if (rogueTimer >= 20) {
     rogueTimer = 0;
     if (outdoors && rogueRobots.filter(r=>r.alive).length < 5) spawnRogueRobot();
@@ -1356,6 +1586,103 @@ let killers = []; // NOT persisted — {id,mesh,x,z,hp,maxHp,alive,speed,attackT
 let killerTimer = 0;
 const KILLER_REVEAL_RANGE = 7, KILLER_ATTACK_RANGE = 2.5, KILLER_ATTACK_INTERVAL = 1.1;
 const KILLER_HP = 200, KILLER_REWARD_ELITE = 500;
+// KILLER SUPREME — user's own ask: "a killer you only see once [per] 2 days explox ones and is 10
+// times better and can summon killers at demand." A real ambient encounter, same "just appears in
+// the world on its own" spirit as a regular Killer/Robber — NOT a walk-up-and-pay challenge like
+// Satan. Gated by the exact same cooldown shape as SATAN_BOSS_COOLDOWN_DAYS/lastSatanBossFightAt
+// (game-world.js), just far shorter (2 Explox days instead of 500) — see killerSupremeReady()
+// below and the spawn check in tickKillers(). 10x HP, 10x damage, 10x reward, exactly as asked.
+let killerSupremeTimer = 0;
+const KILLER_SUPREME_CHECK_INTERVAL = 10; // how often to re-check the cooldown, not a spawn chance — spawns the instant it's ready
+const KILLER_SUPREME_COOLDOWN_DAYS = 2;
+// NOT `KILLER_SUPREME_COOLDOWN_DAYS * DAY_LENGTH` computed here as a top-level const — DAY_LENGTH
+// lives in game-zones.js, which loads AFTER this file (see modules/README.md's own warning on
+// this exact trap), so a top-level reference here would silently evaluate as NaN. Computed live
+// inside killerSupremeSecondsRemaining() below instead, by which time every script has loaded.
+const KILLER_SUPREME_HP = KILLER_HP * 10;
+const KILLER_SUPREME_DMG_MIN = 80, KILLER_SUPREME_DMG_MAX = 150; // 10x the ambient Killer's 8-15
+const KILLER_SUPREME_REWARD_ELITE = KILLER_REWARD_ELITE * 10;
+const KILLER_SUPREME_SUMMON_INTERVAL = 15, KILLER_SUPREME_SUMMON_MAX = 3; // "summon killers at demand" — real ordinary Killers pushed into killers[], same shape Satan's own summon already uses
+function killerSupremeSecondsRemaining() {
+  return Math.max(0, KILLER_SUPREME_COOLDOWN_DAYS*DAY_LENGTH - (playTimeSeconds - lastKillerSupremeFightAt));
+}
+function killerSupremeReady() {
+  return killerSupremeSecondsRemaining() <= 0;
+}
+function buildKillerSupremeMesh(x, z) {
+  const g = buildKillerMesh(x, z);
+  g.scale.setScalar(1.6); // visibly bigger than an ordinary Killer, reads as "10 times better" at a glance
+  const crownMat = new THREE.MeshLambertMaterial({color:0xFFD700});
+  const crown = new THREE.Mesh(new THREE.BoxGeometry(0.9,0.35,0.9), crownMat);
+  crown.position.set(0, 3.75, 0); g.add(crown);
+  [-0.35,0,0.35].forEach(cx => { const spike = new THREE.Mesh(new THREE.ConeGeometry(0.12,0.3,4), crownMat); spike.position.set(cx,3.98,0); g.add(spike); });
+  return g;
+}
+function spawnKillerSupreme() {
+  const angle = Math.random()*Math.PI*2, dist = 40+Math.random()*30;
+  const x = playerGroup.position.x + Math.cos(angle)*dist, z = playerGroup.position.z + Math.sin(angle)*dist;
+  const mesh = buildKillerSupremeMesh(x, z);
+  mesh.visible = false;
+  killers.push({ id:'killersupreme'+ROBOT_ID_SEQ++, x, z, hp:KILLER_SUPREME_HP, maxHp:KILLER_SUPREME_HP, mesh, alive:true,
+    speed:3.5+Math.random()*2, attackTimer:0, summonTimer:0, revealed:false, killerSupreme:true });
+  lastKillerSupremeFightAt = playTimeSeconds;
+  saveCurrentUser();
+  showNotif("👑 Something powerful stirs in the city tonight...");
+}
+function killerSupremeSummon(k) {
+  if (!k.alive) return;
+  if (killers.filter(x => x.alive && x.summonedBySupreme).length >= KILLER_SUPREME_SUMMON_MAX) return;
+  const angle = Math.random()*Math.PI*2, dist = 5+Math.random()*4;
+  const x = playerGroup.position.x + Math.cos(angle)*dist, z = playerGroup.position.z + Math.sin(angle)*dist;
+  const mesh = buildKillerMesh(x, z);
+  mesh.visible = true;
+  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true,
+    speed:3.5+Math.random()*2, attackTimer:0, atkInterval:KILLER_ATTACK_INTERVAL, revealed:true, summonedBySupreme:true });
+  showNotif('👑 Killer Supreme summons a Killer to their side!');
+  sfx.tense();
+}
+function tickKillerSupremeCombat(k, dt) {
+  const dx = playerGroup.position.x-k.x, dz = playerGroup.position.z-k.z, dist = Math.hypot(dx,dz);
+  if (!k.revealed && dist <= KILLER_REVEAL_RANGE) { k.revealed = true; k.mesh.visible = true; sfx.tense(); showNotif('👑 Killer Supreme has appeared!'); }
+  if (dist > KILLER_ATTACK_RANGE) {
+    k.attackTimer = 0;
+    k.x += dx/dist*k.speed*dt; k.z += dz/dist*k.speed*dt;
+    k.mesh.position.set(k.x, 0, k.z);
+    k.mesh.rotation.y = Math.atan2(dx, dz);
+  } else {
+    k.attackTimer += dt;
+    if (k.attackTimer >= KILLER_ATTACK_INTERVAL) {
+      k.attackTimer = 0;
+      damagePlayer(KILLER_SUPREME_DMG_MIN + Math.floor(Math.random()*(KILLER_SUPREME_DMG_MAX-KILLER_SUPREME_DMG_MIN+1)), "Killer Supreme's blade");
+    }
+  }
+  k.summonTimer += dt;
+  if (k.summonTimer >= KILLER_SUPREME_SUMMON_INTERVAL) { k.summonTimer = 0; killerSupremeSummon(k); }
+}
+function fightKillerSupreme(killer) {
+  if (!killer.alive) return;
+  const dmg = getWeaponDamage();
+  killer.hp -= dmg;
+  triggerSwing();
+  startKnockback(playerGroup.position.x, playerGroup.position.z, killer.x, killer.z,
+    (x, z) => { killer.x = x; killer.z = z; killer.mesh.position.set(x, 0, z); });
+  sfx.clang();
+  if (killer.hp > 0) {
+    showNotif(`👑 Hit Killer Supreme for ${dmg}! (${killer.hp}/${killer.maxHp} HP left)`);
+    return;
+  }
+  defeatKillerSupreme(killer);
+}
+function defeatKillerSupreme(killer) {
+  killer.alive = false;
+  scene.remove(killer.mesh);
+  buildKillerCorpse(killer.x, killer.z);
+  killerDefeats++;
+  totalKills++; checkWrathTrigger(); checkDivineJudgment();
+  queueEarning(0, KILLER_SUPREME_REWARD_ELITE, 'Killer Supreme');
+  sfx.boom();
+  showNotif(`👑 You defeated Killer Supreme! +${KILLER_SUPREME_REWARD_ELITE.toLocaleString()} 💎 — a legendary victory!`);
+}
 // User's own follow-up: "you see them more if you kill them, if not they're pretty rare." Both
 // scale off the real persisted killerDefeats count — a fresh account waits a long 90s between
 // checks and only ever sees 1 at a time; by 25 real defeats that's down to a 30s check with up
@@ -1646,6 +1973,55 @@ function buildKillerMesh(x, z) {
   scene.add(g);
   return g;
 }
+// ── SPY AMBUSHERS — the real payoff of the ambient Spy-watcher system (spawnSpy/tickSpies and
+// the favorite-spot tracking, both game-world.js): once the Spies have quietly tracked enough
+// real time at one of the player's favorite hangouts, this is what shows up there. Same shared
+// killers[] array/mesh/fight infrastructure as every other Killer sub-type above (guardKiller/
+// robber/demon), flagged `spy:true`, and same body shape as buildKillerMesh right above (reusing
+// that exact geometry on purpose — these ARE the Spies, finally showing their hand), just
+// recolored into a trench coat + fedora + dark glasses instead of a black hood, so the connection
+// to the ambient watchers reads on sight.
+function buildSpyAmbusherMesh(x, z) {
+  const g = new THREE.Group(); g.position.set(x, 0, z);
+  const coat = 0x3a3226, skinC = 0xd9b38c, dark = 0x1f1a12;
+  const mk = (w,h,d,color,px,py,pz) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color})); m.position.set(px,py,pz); m.castShadow = true; g.add(m); return m; };
+  mk(0.9,0.9,0.9, skinC, 0,2.8,0); // head
+  // Dark glasses — the exact same 3-box shape as playerHat==='sunglasses' (game-character.js),
+  // reused here instead of inventing a new accessory.
+  mk(0.9,0.22,0.1, 0x111111, 0,2.87,0.52);
+  mk(0.15,0.15,0.35, 0x222222, -0.5,2.87,0.35);
+  mk(0.15,0.15,0.35, 0x222222, 0.5,2.87,0.35);
+  mk(1.5,0.1,1.5, 0x2a2418, 0,3.32,0); mk(0.9,0.65,0.9, 0x2a2418, 0,3.65,0); // fedora — same 2-box shape as makeNPC's hat==='fedora'
+  mk(0.9,1.1,0.5, coat, 0,1.75,0); // torso — trench coat, not an ordinary Killer's black hood
+  mk(0.35,0.9,0.35, coat,-0.65,1.75,0); mk(0.35,0.9,0.35, coat,0.65,1.75,0); // arms
+  mk(0.38,0.9,0.38, dark,-0.22,0.75,0); mk(0.38,0.9,0.38, dark,0.22,0.75,0); // legs
+  mk(0.42,0.22,0.5, dark,-0.22,0.1,0.05); mk(0.42,0.22,0.5, dark,0.22,0.1,0.05); // feet
+  // Same dagger prop as an ordinary Killer — combat is the exact same shared pipeline, only the look differs.
+  const blade = mk(0.08,0.55,0.1, 0xc0c0c0, 0.65,1.32,0.28); blade.rotation.x = -0.5;
+  const hilt = mk(0.14,0.2,0.14, 0x3a2a1a, 0.65,1.05,0.15); hilt.rotation.x = -0.5;
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64;
+  const cx2 = cv.getContext('2d');
+  cx2.fillStyle = 'rgba(20,20,20,0.75)'; cx2.fillRect(0,16,256,32);
+  cx2.fillStyle = '#cccccc'; cx2.font = 'bold 22px monospace'; cx2.textAlign = 'center';
+  cx2.fillText('▓▓ THE SPY ▓▓', 128, 40);
+  const tag = new THREE.Mesh(new THREE.PlaneGeometry(2.4,0.6), new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+  tag.position.y = 4.5; g.add(tag);
+  scene.add(g);
+  return g;
+}
+// Called by triggerSpyAmbush() (game-world.js) once the discovery threshold + return-visit
+// condition are both met. No stealth reveal (mesh.visible=true, revealed:true from the start) —
+// the whole point of the moment is "they were WAITING for you here," not another slow approach.
+// Combat itself is 100% the existing tickAmbientKillerCombat() dispatch path in tickKillers()
+// below (spy isn't guardKiller/hitTarget/robber/demon, so it falls straight through to that same
+// final branch) — no new combat code, only spawn + flag + a defeat-message branch in
+// defeatKiller() below, per the ask not to duplicate the combat system.
+function spawnSpyAmbusher(x, z) {
+  const mesh = buildSpyAmbusherMesh(x, z);
+  mesh.visible = true;
+  const atkInterval = KILLER_ATTACK_INTERVAL * (0.8 + Math.random()*0.5);
+  killers.push({ id:'spy'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval, revealed:true, spy:true });
+}
 function buildRobberMesh(x, z) {
   const g = new THREE.Group(); g.position.set(x, 0, z);
   const mk = (w,h,d,color,px,py,pz) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color})); m.position.set(px,py,pz); m.castShadow = true; g.add(m); return m; };
@@ -1665,7 +2041,7 @@ function spawnRobber() {
   const z = Math.max(-WORLD_BOUND, Math.min(WORLD_BOUND, playerGroup.position.z+Math.sin(ang)*dist));
   const mesh = buildRobberMesh(x, z);
   mesh.visible = false;
-  if (Date.now() < satanBadUntil) demonizeMesh(mesh);
+  if (satanReignActive) demonizeMesh(mesh);
   killers.push({ id:'robber'+ROBOT_ID_SEQ++, x, z, hp:ROBBER_HP, maxHp:ROBBER_HP, mesh, alive:true, speed:4+Math.random()*1.5, revealed:false, robber:true, fleeing:false });
 }
 // "5x bad entites" — Satan won this round, so newly-spawned Killers/Robbers get a demonic
@@ -1675,8 +2051,24 @@ function demonizeMesh(mesh) {
   mesh.traverse(o => { if (o.isMesh && o.material && o.material.color && (!o.geometry || o.geometry.type !== 'PlaneGeometry')) o.material.color.setHex(0x220000); });
   const glow = new THREE.PointLight(0xff0000, 1.5, 8); glow.position.y = 3; mesh.add(glow);
 }
+// Cash/ATM feature — a real mugger takes the cash out of your actual pocket first (more
+// realistic than skimming your bank-tracked S.I.P. balance out of thin air, and it's the same
+// "cash is the vulnerable one" tradeoff the whole feature is built around — see the matching
+// cash-loss branch in knockoutPlayer(), game-social.js). Only falls back to the old S.I.P.-steal
+// behavior when the player isn't carrying any cash at all, so a robber encounter still means
+// something for a player who banks everything.
 function robMoney(k) {
-  const stolen = Math.round(sipDollars * (ROBBER_STEAL_PCT_MIN + Math.random()*(ROBBER_STEAL_PCT_MAX-ROBBER_STEAL_PCT_MIN)));
+  const pct = ROBBER_STEAL_PCT_MIN + Math.random()*(ROBBER_STEAL_PCT_MAX-ROBBER_STEAL_PCT_MIN);
+  if (cash > 0) {
+    const stolen = Math.max(1, Math.round(cash * pct));
+    cash = Math.max(0, cash - stolen);
+    updateCash();
+    showNotif(`🥷 A robber snatched $${stolen.toLocaleString()} cash right out of your pocket and ran off!`);
+    sfx.nope();
+    k.fleeing = true;
+    return;
+  }
+  const stolen = Math.round(sipDollars * pct);
   sipDollars = Math.max(0, sipDollars - stolen);
   updateSIP();
   showNotif(`🥷 A robber snatched ${stolen.toLocaleString()} S.I.P. right out of your wallet and ran off!`);
@@ -1716,8 +2108,8 @@ function fightRobber(k) {
 function defeatRobber(k) {
   k.alive = false;
   scene.remove(k.mesh);
-  totalKills++; checkWrathTrigger();
-  const badLuck = Date.now() < satanBadUntil;
+  totalKills++; checkWrathTrigger(); checkDivineJudgment();
+  const badLuck = satanReignActive;
   const reward = Math.round(Math.max(ROBBER_BOUNTY_MIN, Math.round(sipDollars * ROBBER_KILL_REWARD_PCT)) * (badLuck ? 0.5 : 1));
   if (k.fleeing) {
     queueEarning(reward, 0, 'Caught a robber');
@@ -1741,7 +2133,7 @@ function spawnKiller() {
   // every future hit landed on the SAME tick, turning "two independent threats" into a scripted
   // double-hit combo. Each killer now gets its own randomized cadence so they drift apart instead.
   const atkInterval = KILLER_ATTACK_INTERVAL * (0.8 + Math.random()*0.5);
-  if (Date.now() < satanBadUntil) demonizeMesh(mesh); // "more demons" — Satan won this round, so what spawns looks the part
+  if (satanReignActive) demonizeMesh(mesh); // "more demons" — Satan won this round, so what spawns looks the part
   killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval, revealed:false });
 }
 // Combat for an ambient Killer — always targets the player. Unchanged behavior from before this
@@ -1806,25 +2198,142 @@ function tickGuardKillerCombat(k, dt) {
 // Satan won this round (also demonizeMesh()'d, above), otherwise the normal rate.
 function evilSpawnMultiplier() {
   const now = Date.now();
-  if (now < satanBadUntil) return 5;
+  if (satanReignActive) return 5;
   if (now < safePeriodEndsAt) return 0;
   return 1;
 }
+
+// ─── DEMONS — real named followers of Satan, NOT Satan itself. God and Satan stay exactly what
+// the game-world.js comment above tickDivineClash() already established: an abstract light-vs-
+// shadow clash over the Church, never a literal character to hit or click on. These are Satan's
+// own troops sent out while he's actually winning — same shared killers[] array/mesh/fight
+// infrastructure as everything else here (a 5th mode alongside robber/guardKiller/hitTargetName/
+// hitTargetType), flagged `demon:true`, but they ONLY ever spawn while satanReignActive is true
+// (see tickSatanEvent()/endSatanReign() in game-world.js) — once the reign ends they don't just
+// linger, tickKillers() below clears them out the same way a Guard shift's own killers get cleared
+// when the shift ends. Tougher than an ambient Killer and themed in SATAN_COLOR (game-world.js's
+// established "satan purple power") so they read as Satan's own on sight, not just another
+// re-skinned mob. Defeating one is also real progress toward ending the reign — see
+// satanReignProgress in defeatDemon() below.
+const DEMON_DEFS = [
+  { name:'Vraxis',  emoji:'😈', line:'"The boss owns the world for a while. I plan on making the most of it."' },
+  { name:'Ghorlak', emoji:'👹', line:'"Every time the light wins, we just come back stronger. You should be more worried than that."' },
+  { name:'Skreel',  emoji:'💀', line:"\"Don't take it personal. Down here, everybody gets a turn.\"" },
+  { name:'Malchor', emoji:'🔥', line:'"Beat one of us and three more show up. That\'s just how the bad hands go."' },
+];
+const DEMON_HP = 260, DEMON_REVEAL_RANGE = 9, DEMON_ATTACK_RANGE = 2.5, DEMON_ATTACK_INTERVAL = 1.0;
+const DEMON_REWARD_ELITE = 650; // a step up from an ambient Killer's 500 — these are Satan's own troops, not petty street crime
+const DEMON_MAX_ACTIVE = 3, DEMON_SPAWN_INTERVAL = 40; // real seconds between spawn rolls, only ever checked while satanReignActive is true
+let demonTimer = 0;
+function buildDemonMesh(x, z, def) {
+  const g = new THREE.Group(); g.position.set(x, 0, z);
+  const dark = 0x1a0022; // near-black with a purple cast, distinct from an ordinary Killer's flat 0x0a0a0a
+  const mk = (w,h,d,color,px,py,pz) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color})); m.position.set(px,py,pz); m.castShadow = true; g.add(m); return m; };
+  mk(1,1,1, dark, 0,2.8,0); // head
+  const eyeMat = new THREE.MeshBasicMaterial({color:SATAN_COLOR}); // purple eyes, not a Killer's red — Satan's own, not just another crook
+  [-0.22,0.22].forEach(ex => { const e = new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.05), eyeMat); e.position.set(ex,2.85,0.51); g.add(e); });
+  mk(0.9,1.1,0.5, dark, 0,1.75,0); // torso
+  mk(0.35,0.9,0.35, dark,-0.65,1.75,0); mk(0.35,0.9,0.35, dark,0.65,1.75,0); // arms
+  mk(0.38,0.9,0.38, dark,-0.22,0.75,0); mk(0.38,0.9,0.38, dark,0.22,0.75,0); // legs
+  mk(0.42,0.22,0.5, dark,-0.22,0.1,0.05); mk(0.42,0.22,0.5, dark,0.22,0.1,0.05); // feet
+  // A pair of curved horns — the one silhouette detail an ambient Killer's hood never has, so even
+  // at a glance (before the nametag is readable) these read as something else entirely.
+  [-1,1].forEach(side => {
+    const horn = mk(0.12,0.55,0.12, 0x0a0010, side*0.32,3.55,0);
+    horn.rotation.z = side*0.35;
+  });
+  const glow = new THREE.PointLight(SATAN_COLOR, 2, 12); glow.position.y = 3; g.add(glow); // same purple as the Satan clash beam, not a Killer's red
+  // A real nametag with the demon's actual name — unlike a plain Killer's glitchy "UNKNOWN" tag,
+  // these are named enough to have their own line of dialogue (DEMON_DEFS above).
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64;
+  const cx2 = cv.getContext('2d');
+  cx2.fillStyle = 'rgba(30,0,45,0.8)'; cx2.fillRect(0,16,256,32);
+  cx2.fillStyle = '#cc88ff'; cx2.font = 'bold 22px monospace'; cx2.textAlign = 'center';
+  cx2.fillText(`${def.emoji} ${def.name}`, 128, 40);
+  const tag = new THREE.Mesh(new THREE.PlaneGeometry(2.4,0.6), new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+  tag.position.y = 4.5; g.add(tag);
+  scene.add(g);
+  return g;
+}
+function spawnDemon() {
+  const def = DEMON_DEFS[Math.floor(Math.random()*DEMON_DEFS.length)];
+  const ang = Math.random()*Math.PI*2, dist = 30+Math.random()*20;
+  const x = Math.max(-WORLD_BOUND, Math.min(WORLD_BOUND, playerGroup.position.x+Math.cos(ang)*dist));
+  const z = Math.max(-WORLD_BOUND, Math.min(WORLD_BOUND, playerGroup.position.z+Math.sin(ang)*dist));
+  const mesh = buildDemonMesh(x, z, def);
+  mesh.visible = false; // same "no sign it's coming" reveal-on-approach as an ambient Killer
+  const atkInterval = DEMON_ATTACK_INTERVAL * (0.8 + Math.random()*0.5);
+  killers.push({ id:'demon'+ROBOT_ID_SEQ++, x, z, hp:DEMON_HP, maxHp:DEMON_HP, mesh, alive:true, speed:4+Math.random()*2, attackTimer:0, atkInterval, revealed:false, demon:true, demonDef:def });
+}
+// "/spawn demon" (game-admin.js) — same real demon object spawnDemon() above builds, just placed
+// next to the player and already revealed, so an admin can test-fight one without waiting on the
+// real Satan-wins roll (or the outdoors/satanReignActive gate tickKillers() enforces below).
+function adminSpawnDemonNearPlayer() {
+  const def = DEMON_DEFS[Math.floor(Math.random()*DEMON_DEFS.length)];
+  const angle = Math.random()*Math.PI*2, dist = 2.5;
+  const x = playerGroup.position.x + Math.cos(angle)*dist, z = playerGroup.position.z + Math.sin(angle)*dist;
+  const mesh = buildDemonMesh(x, z, def);
+  mesh.visible = true;
+  killers.push({ id:'demon'+ROBOT_ID_SEQ++, x, z, hp:DEMON_HP, maxHp:DEMON_HP, mesh, alive:true, speed:4+Math.random()*2, attackTimer:0, atkInterval:DEMON_ATTACK_INTERVAL, revealed:true, demon:true, demonDef:def });
+  return def.name;
+}
+function tickDemonCombat(k, dt) {
+  const dx = playerGroup.position.x-k.x, dz = playerGroup.position.z-k.z;
+  const dist = Math.hypot(dx,dz);
+  if (!k.revealed && dist <= DEMON_REVEAL_RANGE) {
+    k.revealed = true; k.mesh.visible = true; sfx.tense();
+    showNotif(`${k.demonDef.emoji} ${k.demonDef.name}: ${k.demonDef.line}`);
+  }
+  if (dist < DEMON_ATTACK_RANGE) {
+    k.attackTimer += dt;
+    if (k.attackTimer > k.atkInterval) {
+      k.attackTimer = 0;
+      if (!isEvilImmune()) damagePlayer(10+Math.floor(Math.random()*10), `${k.demonDef.name}'s claws`);
+    }
+  } else {
+    k.x += dx/dist*k.speed*dt; k.z += dz/dist*k.speed*dt;
+    k.mesh.position.set(k.x, 0, k.z);
+    k.mesh.rotation.y = Math.atan2(dx, dz);
+  }
+}
 function tickKillers(dt) {
   killerTimer += dt;
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore;
   const evilMult = evilSpawnMultiplier();
   if (killerTimer >= killerSpawnInterval() / Math.max(1,evilMult)) {
     killerTimer = 0;
     // Only counts ambient killers against the ambient cap now — a Guard shift's own separate
     // GUARD_KILLER_MAX_ACTIVE pool used to count against this too, silently starving ambient
     // spawns for the whole 20-minute shift. Real bug, fixed while touching this code anyway.
-    if (outdoors && evilMult>0 && killers.filter(k=>k.alive && !k.guardKiller && !k.hitTargetName && !k.hitTargetType && !k.robber).length < killerMaxActive()*evilMult) spawnKiller();
+    // `!k.spy` alongside the existing exclusions — a one-time favorite-spot ambush (game-world.js's
+    // triggerSpyAmbush) shouldn't count against or suppress the normal ambient Killer spawn rate.
+    if (outdoors && evilMult>0 && killers.filter(k=>k.alive && !k.guardKiller && !k.hitTargetName && !k.hitTargetType && !k.robber && !k.demon && !k.spy && !k.killerSupreme && !k.summonedBySupreme).length < killerMaxActive()*evilMult) spawnKiller();
+  }
+  // KILLER SUPREME — real ambient spawn the instant the 2-Explox-day cooldown clears (checked
+  // periodically, not on the same fast timer as ordinary Killers — there's no random chance here,
+  // just a wait), same "just shows up in the world" spirit as everything else in this function.
+  killerSupremeTimer += dt;
+  if (killerSupremeTimer >= KILLER_SUPREME_CHECK_INTERVAL) {
+    killerSupremeTimer = 0;
+    if (outdoors && killerSupremeReady() && !killers.some(k => k.alive && k.killerSupreme)) spawnKillerSupreme();
   }
   robberTimer += dt;
   if (robberTimer >= ROBBER_SPAWN_INTERVAL / Math.max(1,evilMult)) {
     robberTimer = 0;
     if (outdoors && evilMult>0 && killers.filter(k=>k.alive && k.robber).length < ROBBER_MAX_ACTIVE*evilMult) spawnRobber();
+  }
+  // Demons only ever spawn while Satan's Reign is active — this is what actually ties them to the
+  // Satan storyline instead of just being reskinned Killers. Once the reign ends, any still
+  // standing get cleared out the same beat a Guard shift's own killers do.
+  if (satanReignActive) {
+    demonTimer += dt;
+    if (demonTimer >= DEMON_SPAWN_INTERVAL) {
+      demonTimer = 0;
+      if (outdoors && killers.filter(k=>k.alive && k.demon).length < DEMON_MAX_ACTIVE) spawnDemon();
+    }
+  } else if (killers.some(k => k.demon && k.alive)) {
+    clearDemons();
+    demonTimer = 0;
   }
   const onGuardShift = activeBankJob && activeBankJob.job.id === 'guard';
   if (onGuardShift) {
@@ -1851,6 +2360,9 @@ function tickKillers(dt) {
     if (k.hitTargetType) { tickHitmanVsType(k, dt); return; } // hunts the nearest robot/robber, same "keeps going indoors" treatment
     if (!outdoors) return;
     if (k.robber) { tickRobberCombat(k, dt); return; }
+    if (k.demon) { tickDemonCombat(k, dt); return; }
+    if (k.satanBoss) { tickSatanBossCombat(k, dt); return; }
+    if (k.killerSupreme) { tickKillerSupremeCombat(k, dt); return; }
     tickAmbientKillerCombat(k, dt);
   });
 }
@@ -1900,12 +2412,197 @@ function defeatKiller(killer) {
     return;
   }
   killerDefeats++;
-  totalKills++; checkWrathTrigger();
-  const badLuck = Date.now() < satanBadUntil;
+  totalKills++; checkWrathTrigger(); checkDivineJudgment();
+  const badLuck = satanReignActive;
   const reward = badLuck ? Math.max(1, Math.round(KILLER_REWARD_ELITE*0.5)) : KILLER_REWARD_ELITE;
-  queueEarning(0, reward, 'Killer');
+  queueEarning(0, reward, killer.spy ? 'Spy Ambusher' : 'Killer');
   sfx.boom();
-  showNotif(`💀 Defeated the killer! +${reward} 💎${badLuck ? ' (bad luck is cutting your rewards right now...)' : ''}`);
+  if (killer.spy) {
+    // Distinct flavor text only — same reward math, same totalKills/Wrath/Judgment counting as an
+    // ordinary Killer above, per the ask not to duplicate the combat/reward system.
+    showNotif(`💀 Fought off one of the Spies! +${reward} 💎${badLuck ? ' (bad luck is cutting your rewards right now...)' : ''}`);
+    if (!killers.some(k => k.alive && k.spy)) showNotif('🕵️ The ambush is over — they won\'t be back again for a long while.');
+  } else {
+    showNotif(`💀 Defeated the killer! +${reward} 💎${badLuck ? ' (bad luck is cutting your rewards right now...)' : ''}`);
+  }
+}
+// Fight/defeat for a Demon (spawn/mesh/combat-tick live up above, before tickKillers, same
+// ordering the rest of this Killer section already uses) — same shape as fightKiller/defeatKiller
+// just above, with its own name-aware messages and Elite-only reward.
+function fightDemon(demon) {
+  if (!demon.alive) return;
+  const dmg = getWeaponDamage();
+  demon.hp -= dmg;
+  triggerSwing();
+  startKnockback(playerGroup.position.x, playerGroup.position.z, demon.x, demon.z,
+    (x, z) => { demon.x = x; demon.z = z; demon.mesh.position.set(x, 0, z); });
+  sfx.clang();
+  if (demon.hp > 0) {
+    showNotif(`⚔️ Hit ${demon.demonDef.name} for ${dmg}! (${demon.hp}/${demon.maxHp} HP left)`);
+    return;
+  }
+  defeatDemon(demon);
+}
+function defeatDemon(demon) {
+  demon.alive = false;
+  scene.remove(demon.mesh);
+  buildKillerCorpse(demon.x, demon.z); // same fallen-body/blood-pool treatment as an ambient Killer
+  killerDefeats++;
+  totalKills++; checkWrathTrigger(); checkDivineJudgment();
+  // Real progress toward ending Satan's Reign — see SATAN_REIGN_GOAL/endSatanReign() in
+  // game-world.js. Guarded on satanReignActive (not just "demons only exist during the reign
+  // anyway") so a stray hit landing the same tick the reign already ended can't double-count.
+  if (satanReignActive) satanReignProgress++;
+  queueEarning(0, DEMON_REWARD_ELITE, demon.demonDef.name);
+  sfx.boom();
+  showNotif(`💀 ${demon.demonDef.emoji} ${demon.demonDef.name} is struck down! +${DEMON_REWARD_ELITE} 💎`);
+}
+// Satan's window closing shouldn't leave his minions standing around in the now-ordinary world —
+// same "shift ended mid-fight, don't leave the swarm standing there" treatment tickKillers()
+// already gives a Guard shift's own killers once that trigger condition ends (see clearGuardKillers above).
+function clearDemons() {
+  killers.filter(k => k.demon && k.alive).forEach(k => { k.alive = false; scene.remove(k.mesh); });
+}
+
+// ─── SATAN BOSS combat — same shared killers[]/fightX()/tickXCombat() shape every other fightable
+// thing in this file uses (a 6th mode alongside guardKiller/hitTargetName/hitTargetType/robber/
+// demon), summoned only via challengeSatan() (game-world.js) rather than spawned ambiently — see
+// that function's own comment for the God/Satan boundary reasoning. Real combat both ways, unlike
+// Wrath (game-world.js), which is deliberately unfightable — this is meant to be won.
+// Real flight, not walking — hovers at SATAN_FLY_HEIGHT with a gentle sine bob, updated every
+// frame regardless of whether he's currently chasing or standing in attack range.
+function satanFlyY(k) {
+  k.flyT = (k.flyT || 0) + 0.016; // a fixed small step is fine here — this only drives a cosmetic bob, not real motion, so it doesn't need dt precision
+  return SATAN_FLY_HEIGHT + Math.sin(k.flyT*1.6)*SATAN_FLY_BOB;
+}
+function tickSatanBossCombat(k, dt) {
+  k.mesh.position.y = satanFlyY(k);
+  // "he can... summon demons and killers" — a real, capped, repeating ability during the fight,
+  // not just flavor text. See satanSummon() below.
+  k.summonTimer = (k.summonTimer || 0) + dt;
+  if (k.summonTimer >= SATAN_SUMMON_INTERVAL) { k.summonTimer = 0; satanSummon(k); }
+  const dx = playerGroup.position.x-k.x, dz = playerGroup.position.z-k.z;
+  const dist = Math.hypot(dx,dz);
+  if (dist < SATAN_BOSS_ATTACK_RANGE) {
+    k.attackTimer += dt;
+    if (k.attackTimer > k.atkInterval) {
+      k.attackTimer = 0;
+      if (!isEvilImmune()) damagePlayer(SATAN_BOSS_DMG, "Satan's own hand");
+    }
+  } else {
+    k.x += dx/dist*k.speed*dt; k.z += dz/dist*k.speed*dt;
+    k.mesh.position.x = k.x; k.mesh.position.z = k.z;
+    k.mesh.rotation.y = Math.atan2(dx, dz);
+  }
+}
+// Summons a real Demon or Killer to fight alongside Satan, same real meshes/combat as their
+// ordinary spawns (buildDemonMesh/buildKillerMesh, tickDemonCombat/tickAmbientKillerCombat via the
+// normal killers[] dispatch in tickKillers() — nothing new to simulate here). Capped by
+// SATAN_SUMMON_MAX (counting only what SATAN summoned, via the summonedBySatan tag) so a long
+// 100k-HP fight can't spiral into an unbounded swarm — once some are defeated, he'll summon more.
+function satanSummon(k) {
+  if (!k.alive) return;
+  if (killers.filter(x => x.alive && x.summonedBySatan).length >= SATAN_SUMMON_MAX) return;
+  const angle = Math.random()*Math.PI*2, dist = 5+Math.random()*4;
+  const x = playerGroup.position.x + Math.cos(angle)*dist, z = playerGroup.position.z + Math.sin(angle)*dist;
+  if (Math.random() < 0.5) {
+    const def = DEMON_DEFS[Math.floor(Math.random()*DEMON_DEFS.length)];
+    const mesh = buildDemonMesh(x, z, def);
+    mesh.visible = true;
+    killers.push({ id:'demon'+ROBOT_ID_SEQ++, x, z, hp:DEMON_HP, maxHp:DEMON_HP, mesh, alive:true, speed:4+Math.random()*2, attackTimer:0, atkInterval:DEMON_ATTACK_INTERVAL, revealed:true, demon:true, demonDef:def, summonedBySatan:true });
+    showNotif(`😈 Satan summons ${def.emoji} ${def.name} to his side!`);
+  } else {
+    const mesh = buildKillerMesh(x, z);
+    mesh.visible = true;
+    killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval:KILLER_ATTACK_INTERVAL, revealed:true, summonedBySatan:true });
+    showNotif('😈 Satan summons a Killer from the shadows!');
+  }
+  sfx.tense();
+}
+function fightSatanBoss(satan) {
+  if (!satan.alive) return;
+  const dmg = getWeaponDamage();
+  satan.hp -= dmg;
+  triggerSwing();
+  startKnockback(playerGroup.position.x, playerGroup.position.z, satan.x, satan.z,
+    (x, z) => { satan.x = x; satan.z = z; satan.mesh.position.x = x; satan.mesh.position.z = z; });
+  sfx.clang();
+  if (satan.hp > 0) {
+    showNotif(`⚔️ Struck Satan for ${dmg}! (${satan.hp.toLocaleString()}/${satan.maxHp.toLocaleString()} HP left)`);
+    return;
+  }
+  defeatSatanBoss(satan);
+}
+function defeatSatanBoss(satan) {
+  satan.alive = false;
+  scene.remove(satan.mesh);
+  triggerSatanDeathExplosion(); // the same real black-sky/particle-burst sequence the automatic clash outcome already uses — Satan "dying" always looks like this, whether it's the abstract clash or a real fought win
+  // The reward is explicitly framed as GRANTED by God's judgment for the win, not loot Satan
+  // dropped — see the section header comment above (game-world.js) for why that framing matters.
+  queueEarning(SATAN_BOSS_SIP_REWARD, SATAN_BOSS_ELITE_REWARD, 'Satan defeated');
+  sfx.boom();
+  showNotif(`✨ Satan is struck down! God grants you ${SATAN_BOSS_SIP_REWARD.toLocaleString()} S.I.P. and ${SATAN_BOSS_ELITE_REWARD.toLocaleString()} 💎 for the win.`);
+  setTimeout(() => showNotif(`😈 He'll be back in ${SATAN_BOSS_COOLDOWN_DAYS} Explox days — not gone, just beaten back again.`), 2400);
+}
+
+// ─── COMBAT GRENADE — user's own ask: "make grenades... for daily combats." A real, repeatable Q-
+// key ability (not a limited carried item — this is a combat TOOL for everyday fights, not a rare
+// consumable), dealing real area damage to every fightable thing near the player at once: Killers,
+// Robbers, Demons, and even the Satan Boss. Deliberately does NOT touch guardKiller/hitTargetName/
+// hitTargetType entries — those aren't fighting the player (they hunt the Bank or another NPC), so
+// an AoE centered on the player has no business reaching them. On a real cooldown so it's a genuine
+// "when things get chaotic" panic button, not a way to trivially one-key every fight.
+const GRENADE_COOLDOWN_MS = 15000, GRENADE_BLAST_RADIUS = 9, GRENADE_DAMAGE_MULT = 1.5;
+let grenadeCooldownUntil = 0; // Date.now() ms — NOT persisted, same category as wrathActive (a mid-cooldown reload just clears it)
+function throwCombatGrenade() {
+  if (!playerGroup) return;
+  const now = Date.now();
+  if (now < grenadeCooldownUntil) {
+    showNotif(`💣 Grenade recharging — ${Math.ceil((grenadeCooldownUntil-now)/1000)}s left.`);
+    return;
+  }
+  grenadeCooldownUntil = now + GRENADE_COOLDOWN_MS;
+  const dmg = Math.round(getWeaponDamage() * GRENADE_DAMAGE_MULT);
+  let hitCount = 0, killCount = 0;
+  killers.filter(k => k.alive && !k.guardKiller && !k.hitTargetName && !k.hitTargetType).forEach(k => {
+    if (Math.hypot(playerGroup.position.x-k.x, playerGroup.position.z-k.z) > GRENADE_BLAST_RADIUS) return;
+    hitCount++;
+    k.hp -= dmg;
+    if (k.hp > 0) return;
+    killCount++;
+    if (k.satanBoss) defeatSatanBoss(k);
+    else if (k.demon) defeatDemon(k);
+    else if (k.robber) defeatRobber(k);
+    else defeatKiller(k);
+  });
+  spawnGrenadeBlastFx(playerGroup.position.x, playerGroup.position.z);
+  sfx.boom();
+  showNotif(hitCount ? `💣 Grenade hits ${hitCount} enem${hitCount===1?'y':'ies'} for ${dmg}!${killCount?` (${killCount} defeated)`:''}` : '💣 Grenade goes off — nothing in range.');
+}
+// A self-contained particle burst, deliberately NOT wired into the main animate() loop like
+// tickSatanDeathParticles — a short setInterval is enough for a one-off effect like this and keeps
+// the change local to this one function instead of touching game-controls.js's tick order.
+function spawnGrenadeBlastFx(x, z) {
+  const parts = [];
+  for (let i = 0; i < 14; i++) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.18+Math.random()*0.15,6,6), new THREE.MeshBasicMaterial({color: i%2?0xff8800:0xffcc00, transparent:true, opacity:0.95}));
+    m.position.set(x, 0.6, z);
+    scene.add(m);
+    const dir = new THREE.Vector3((Math.random()-0.5)*2, Math.random()*0.7, (Math.random()-0.5)*2).normalize();
+    parts.push({ mesh:m, vel: dir.multiplyScalar(6+Math.random()*5) });
+  }
+  let elapsed = 0;
+  const iv = setInterval(() => {
+    elapsed += 0.05;
+    parts.forEach(p => {
+      p.mesh.position.addScaledVector(p.vel, 0.05);
+      p.mesh.material.opacity = Math.max(0, 1 - elapsed/0.5);
+    });
+    if (elapsed >= 0.5) {
+      clearInterval(iv);
+      parts.forEach(p => scene.remove(p.mesh));
+    }
+  }, 50);
 }
 
 // ── The Grinder — turns real robot wreckage into Scrap Metal + the robot's real materials ──
@@ -1979,6 +2676,7 @@ let arenaRunning     = false;
 let arenaTotalRobots = 20;
 let arenaDefeatedCount = 0;
 let arenaActiveRobots = [];
+let inEventBattle = false; // true only while the CURRENT arena run came from Today's Event's own button (startTodaysChallenge() below) — NOT persisted, same ephemeral category as inArenaBattle itself
 
 function buildRobotArenaEntranceSign() {
   const ex = ROBOT_ARENA_ENTRANCE.x, ez = ROBOT_ARENA_ENTRANCE.z;
@@ -2023,6 +2721,7 @@ function exitRobotArena() {
   inArenaBattle = false;
   arenaConfiguring = false;
   arenaRunning = false;
+  inEventBattle = false; // leaving early forfeits nothing (the day isn't marked claimed until a real win) but the flag itself must not survive into the next normal arena visit
   closeArenaConfig();
   document.getElementById('arenaHud').style.display = 'none';
   playerGroup.position.set(ROBOT_ARENA_ENTRANCE.x, 0, ROBOT_ARENA_ENTRANCE.z+3);
@@ -2150,9 +2849,48 @@ function finishArenaBattle() {
   const bonusSip = arenaTotalRobots * 10;
   const bonusElite = arenaTotalRobots * 2;
   queueEarning(bonusSip, bonusElite, 'Robot Arena Clear');
-  saveCurrentUser();
   document.getElementById('arenaHud').style.display = 'none';
   showNotif(`🏆 ARENA CLEARED! All ${arenaTotalRobots} robots defeated! +${bonusSip} S.I.P. +${bonusElite} 💎`);
+  // Today's Event challenge (startTodaysChallenge() below) rides on top of the normal arena clear
+  // above — a real once-per-real-day surprise bonus, on top of the normal per-robot/completion pay,
+  // only when this particular run came from that button (not a normal Robot Arena visit).
+  if (inEventBattle) {
+    inEventBattle = false;
+    lastEventBattleClaim = todayDateString();
+    const surpriseSip = EVENT_BATTLE_BONUS_SIP_MIN + Math.floor(Math.random()*(EVENT_BATTLE_BONUS_SIP_MAX-EVENT_BATTLE_BONUS_SIP_MIN+1));
+    queueEarning(surpriseSip, 0, "Today's Event Challenge");
+    showNotif(`🎁 Today's Event bonus: +${surpriseSip.toLocaleString()} S.I.P.!`);
+  }
+  saveCurrentUser();
+}
+// TODAY'S EVENT CHALLENGE — the Daily Events tab's own button ("make it so the daily events tab is
+// like a special map you play in, could be fighting, and in the tab is a button" — user's own ask,
+// with "random" enemies and "random" reward as the follow-up answer). Reuses the real Robot Arena
+// above wholesale (same pocket space, same tickArenaRobots() chase-and-attack fight, same
+// fightArenaRobot() combat) instead of building a second fake copy of it — the "random enemies"
+// part is already exactly what pickRobotType() does every time a robot spawns (a weighted pick
+// across all 6 real robot types), so a random robot COUNT here is enough to make every run feel
+// different without inventing a whole second enemy roster. Skips the manual count-picker modal
+// (this is meant to be today's one-tap challenge, not a difficulty choice) and grants one surprise
+// S.I.P. bonus in finishArenaBattle() above, once per real calendar day.
+const EVENT_BATTLE_MIN_ROBOTS = 5, EVENT_BATTLE_MAX_ROBOTS = 20;
+const EVENT_BATTLE_BONUS_SIP_MIN = 200, EVENT_BATTLE_BONUS_SIP_MAX = 2000;
+function startTodaysChallenge() {
+  const today = todayDateString();
+  if (lastEventBattleClaim === today) { showNotif("⚔️ Already fought today's challenge — come back tomorrow!"); return; }
+  document.getElementById('neighborModal').style.display = 'none';
+  inArenaBattle = true;
+  inEventBattle = true;
+  arenaConfiguring = false;
+  playerGroup.position.set(ROBOT_ARENA_SPAWN.x, 0, ROBOT_ARENA_SPAWN.z-10);
+  yaw = 0;
+  arenaTotalRobots = EVENT_BATTLE_MIN_ROBOTS + Math.floor(Math.random()*(EVENT_BATTLE_MAX_ROBOTS-EVENT_BATTLE_MIN_ROBOTS+1));
+  arenaDefeatedCount = 0;
+  arenaRunning = true;
+  updateArenaHud();
+  document.getElementById('arenaHud').style.display = 'block';
+  spawnArenaWave();
+  showNotif(`⚔️ Today's Challenge: defeat ${arenaTotalRobots} robots for a surprise bonus!`);
 }
 function clearArenaRobots() {
   arenaActiveRobots.forEach(r => {
@@ -2663,6 +3401,1509 @@ function buildSeaInterior() {
   buildSign('🌊 THE SEA', sx, 6.6, sz+32.3);
   box(8, 3, 0.4, 0x8B5E3C, sx, 1.5, sz+33); // exit gate marker
 }
+
+// ─── SCHOOL — CLASSROOM (real walk-in pocket space for the PLAYER'S OWN character). The School
+// building has existed in the city since early on (real exterior, real sign — see buildCity() in
+// game-buildings.js) but its door only ever opened the kid-enrollment menu (openSchool(),
+// game-shops.js — enroll an adopted child, passive growth bonus). That system stays completely
+// untouched below; this adds a genuinely separate, fully optional way to go yourself: a real
+// pocket-space classroom (same pattern as the Hospital/Sports Park/Sea above). The city door opens
+// a small choice between the two (openSchoolEntrance()), instead of jumping straight into the kid
+// menu — see CITY_ZONES's 'Enter School' entry.
+//
+// ─── REBUILT into a real SCHOOL DAY (coordinator's ask: port City Life's real school system —
+// citylife/src/school.js — into Explox's own engine/economy). What used to be "walk to a desk,
+// answer 10 questions back to back, done" is now a real multi-stage visit with pacing:
+//   1. A real period schedule (SCHOOL_PERIODS, further down) — 5 class periods, each a different
+//      subject (SCHOOL_QUESTIONS_PER_CLASS questions apiece = 10 total, the same total the old flat
+//      quiz always asked), interleaved with a snack break, a lunch break, and P.E., ending in
+//      dismissal — see advanceSchoolPeriod() further down.
+//   2. A real teacher NPC (buildSchoolNPCs()/tickSchoolNPCs() below) that wanders near the board
+//      during class periods and, on its own real timer, WALKS OVER to the player and asks the
+//      question itself — the question modal isn't a button you press, it force-opens the instant
+//      the teacher arrives (openSchoolQuestion(), further down), same "it comes to you" feel as
+//      City Life's teacherApproachState/updateSchoolNPCs(). You can close the modal and watch it
+//      happen in 3D.
+//   3. Real seated classmate NPCs at the room's actual desks (ambient presence + a one-line "talk"
+//      chat each), same makeNPC()+flavor-text-zone pattern the Science Lab's Scientists
+//      (buildLabNPCs(), game-world.js) and the Prison's Rocco/Dusty already use elsewhere.
+//   4. Real subject rotation per period, reusing Explox's OWN existing content instead of inventing
+//      a new bank: the 4 age-band SCHOOL_QUESTIONS_* pools below (now tagged Math/Reading/Social by
+//      classifySchoolQuestion()'s real keyword rules further down — see the comment above that
+//      function for why a keyword classifier instead of retyping 552 hand-written questions by
+//      hand), the Science Lab's own real 95-question SCIENCE_QUESTIONS bank (further down this
+//      file) for the Science period, and a small new hand-written Art bank (SCHOOL_ART_* below)
+//      since Art genuinely didn't exist in either pool yet.
+//   5. Real exam days — every 10th school day actually started (schoolVisitCount) — with real
+//      Explox-shaped stakes (double S.I.P. per correct AND a real S.I.P. penalty at dismissal if
+//      too many were wrong) instead of City Life's happiness/health hit, since Explox doesn't track
+//      those. See the SCHOOL_EXAM_* consts further down for the exact numbers and reasoning.
+//   6. Real homework — assigned at dismissal, doable any time before the NEXT school day from the
+//      new homeworkTab HUD button (EXPLOX.html), with a real modest S.I.P. penalty if it's still
+//      unfinished when the next school day starts. Wrong attempts don't penalize or clear it — same
+//      "keep trying" shape as City Life's answerHomework().
+//   7. Real snack/lunch breaks that reuse Explox's OWN eatFood() (game-engine.js) instead of a
+//      parallel food system — 2-3 real choices per break, same function every bag-eaten food uses.
+//   8. A real bully encounter. City Life's HTML intro text ("Bullies sometimes show up at
+//      school...") turned out to be a REAL implemented mechanic on closer inspection — it just
+//      lives in citylife/src/events.js (maybeSpawnBully/spawnBully/showBullyChoice/bullyChoice),
+//      not school.js itself. Ported with the same 3 real choices (stand up / walk away / tell the
+//      teacher — the safest) and real Explox-shaped stakes: S.I.P. + a real damagePlayer() hit
+//      instead of happiness/health.
+//
+// Deliberate deviation from City Life's actual source: read closely, updateSchoolNPCs() there only
+// ever moves the teacher out of 'wandering' when isExamDay is true — the teacher literally never
+// approaches (and no question ever gets asked) on a REGULAR day in City Life's real code, which
+// contradicts its own "chat with classmates!" flavor text and would leave this feature almost
+// pointless most days. Treated as a genuine oversight in that source rather than intended behavior
+// worth preserving: here, the teacher approaches every class period regardless of exam day; exam
+// days just pay double and add real risk on top, matching what the flavor text (and the original
+// game's evident intent) actually describes.
+const SCHOOL_SPAWN = { x:160000, z:0 }; // own lane, next free one after Sea(150000)
+const SCHOOL_EXIT = { x:70, z:60 }; // real-world door — matches CITY_ZONES's 'Enter School' zone center
+let inSchool = false;
+function openSchoolEntrance() {
+  if(document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('schoolEntranceModal').style.display = 'flex';
+}
+function closeSchoolEntrance() {
+  document.getElementById('schoolEntranceModal').style.display = 'none';
+  if(renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function enterSchool() {
+  inSchool = true;
+  playerGroup.position.set(SCHOOL_SPAWN.x, 0, SCHOOL_SPAWN.z+10);
+  yaw = Math.PI;
+  showNotif('🏫 Welcome to class!');
+}
+function leaveSchool() {
+  inSchool = false;
+  // Walking all the way back out mid-day forfeits the real in-progress school day — same
+  // "abandoning it starts clean next time" rule the old single-quiz version had, just scoped to the
+  // whole multi-period day now. No homework is assigned unless dismissal was actually reached
+  // (assignSchoolHomework() only ever runs from renderSchoolDismissalUI()), so bailing early costs
+  // the day's progress but never leaves a phantom homework assignment behind.
+  schoolDayState = null;
+  removeSchoolBully();
+  document.getElementById('classroomModal').style.display = 'none';
+  // +6, not the more common +3 other buildings use — real bug found live: the School door zone
+  // (CITY_ZONES, r:12 around 70,60) overlaps the much bigger pre-existing "Work as Shopkeeper"
+  // zone (r:16 around 65,48) along its whole southern edge (that overlap already existed before
+  // this feature — Shopkeeper is listed earlier in CITY_ZONES so it always wins there, same
+  // documented issue as the Coffee/Outfit Shop zones above it). +3 (z=63) landed the player
+  // inside that overlap sliver, so leaving school and immediately pressing E again showed "Work as
+  // Shopkeeper" instead of letting them back in. +6 (z=66) clears Shopkeeper's r:16 with room to
+  // spare while staying well inside School's own r:12.
+  playerGroup.position.set(SCHOOL_EXIT.x, 0, SCHOOL_EXIT.z+6);
+  yaw = 0;
+  showNotif('Leaving School...');
+}
+const CLASS_DESK_SPOT = { x:SCHOOL_SPAWN.x, z:SCHOOL_SPAWN.z-6 };
+const SCHOOL_ZONES = [
+  { x:CLASS_DESK_SPOT.x, z:CLASS_DESK_SPOT.z, r:4, label:'📝 Start the School Day', action: () => openClassroom()},
+  { x:SCHOOL_SPAWN.x, z:SCHOOL_SPAWN.z+10, r:4, label:'🚪 Leave School', action: () => leaveSchool()},
+]; // classmate "talk" zones are pushed onto this same array by buildSchoolNPCs() below; a
+   // temporary bully zone is pushed/removed by spawnSchoolBully()/removeSchoolBully() below
+function buildSchoolInterior() {
+  const { x:hx, z:hz } = SCHOOL_SPAWN;
+  box(40,0.2,36, 0xf5e6c8, hx,0.1,hz); // floor — warm wood-tone classroom floor
+  box(40,0.2,36, 0xffffff, hx,6,hz);   // ceiling
+  box(40,6,0.3, 0xe8dcc0, hx,3,hz-18); // back wall (chalkboard wall, north)
+  box(0.3,6,36, 0xe8dcc0, hx-20,3,hz); // west wall
+  box(0.3,6,36, 0xe8dcc0, hx+20,3,hz); // east wall
+  box(17,6,0.3, 0xe8dcc0, hx-11.5,3,hz+18); box(17,6,0.3, 0xe8dcc0, hx+11.5,3,hz+18); // front wall, door gap centered
+  buildSign('🏫 CLASSROOM', hx, 6.6, hz-17.7);
+  box(8,3,0.4, 0x8B5E3C, hx, 1.5, hz+18); // exit door marker
+
+  // Chalkboard, front and center — a real green board with a chalk tray, not just a plain wall.
+  box(11,4,0.15, 0x1a3a24, hx, 3.4, hz-17.75);
+  box(11.4,0.25,0.3, 0x8B5E3C, hx, 1.3, hz-17.6); // chalk tray
+
+  // Teacher's desk, right in front of the chalkboard — also where the quiz sign sits (CLASS_DESK_SPOT).
+  box(3,1,1.6, 0x8B5E3C, CLASS_DESK_SPOT.x, 0.5, CLASS_DESK_SPOT.z-3.5);
+  box(3,0.1,1.6, 0x6a4a2a, CLASS_DESK_SPOT.x, 1.02, CLASS_DESK_SPOT.z-3.5);
+  buildSign('📝 START SCHOOL DAY', CLASS_DESK_SPOT.x, 3.6, CLASS_DESK_SPOT.z-2.2);
+
+  // Rows of student desks + chairs, 3 rows x 4 columns — real furnished feel, box-based like every
+  // other interior in the game (Hospital's exam table, Sports Park's benches, etc.). Kept as the
+  // single source of truth for desk geometry — schoolDeskChairPos() below duplicates this exact
+  // row/col formula so buildSchoolNPCs() can seat classmates in these exact real chairs instead of
+  // guessing separate coordinates.
+  for (let row = 0; row < 3; row++) {
+    const dz = hz + 1 + row * 4.2;
+    for (let col = -1; col <= 2; col++) {
+      const dx = hx + (col - 0.5) * 5.6;
+      box(1.6,0.85,1.1, 0xcc9966, dx, 0.42, dz);    // desk body
+      box(1.7,0.12,1.2, 0xffe8c0, dx, 0.9, dz);     // desktop
+      box(0.9,0.9,0.8, 0x4488cc, dx, 0.45, dz+1.5); // chair
+    }
+  }
+
+  // A globe on a stand near the west wall — one real non-box shape for flavor, same spirit as the
+  // Sports Park's basketball rim (a THREE.TorusGeometry) sitting among otherwise box geometry.
+  const globe = new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 12), new THREE.MeshLambertMaterial({ color: 0x3a7fbf }));
+  globe.position.set(hx-17, 2.6, hz-4); globe.castShadow = true; scene.add(globe);
+  box(0.15,2,0.15, 0x5c3a1e, hx-17, 1.4, hz-4); // globe stand pole
+
+  // A small bookshelf along the west wall for real furnished feel.
+  box(0.6,3,4, 0x6a4a2a, hx-19.5, 1.5, hz-11);
+  [0,1,2].forEach(i => box(0.5,0.15,3.8, 0x8B5E3C, hx-19.5, 0.6+i*1, hz-11));
+}
+// Real chair coordinates for one of the 12 desks buildSchoolInterior() just built (row 0-2,
+// col -1..2) — duplicates that function's own dx/dz formula on purpose (small, static, proven
+// geometry) rather than refactoring working code just to share it.
+function schoolDeskChairPos(row, col) {
+  const { x:hx, z:hz } = SCHOOL_SPAWN;
+  const dz = hz + 1 + row * 4.2;
+  const dx = hx + (col - 0.5) * 5.6;
+  return { x: dx, z: dz + 1.5 };
+}
+
+// ─── SCHOOL NPCs — a real teacher + real seated classmates, built ONCE at game startup (same
+// "always exists in its own pocket lane, ticked every frame regardless of whether the player is
+// there" pattern the Prison's guards/prisoners and the Science Lab's Scientists already use — see
+// buildLabNPCs(), game-world.js). Classmates are seated (makeNPC's own seated:true — the exact
+// same shape the Diner's 3 waiters already use) and kept OUT of the global npcs[] array/generic
+// patrol tick (game-controls.js): seated NPCs there just sit still forever, which is right for
+// classmates, but the teacher needs a real custom wander/approach state machine (tickSchoolNPCs()
+// below) that a shared generic tick would fight. makeNPC() (game-character.js) still does the real
+// character-building for both, same function buildScientistNPC() wraps.
+let schoolTeacherNPC = null;
+let schoolClassmateNPCs = [];
+const SCHOOL_CLASSMATE_DATA = [
+  { name:'Milo',   skin:0xe0b28c, shirt:0x3388dd, pants:0x223355, hair:'short',    hairColor:0x2a1a10, desk:[0,0], line:'"Did you finish the homework? I totally forgot until this morning."' },
+  { name:'Ruby',   skin:0xf0c8a0, shirt:0xff5588, pants:0x552244, hair:'ponytail', hairColor:0x7a2a10, desk:[0,1], line:'"I really hope it\'s pizza day at lunch!"' },
+  { name:'Theo',   skin:0xc07840, shirt:0x33aa66, pants:0x1a1a1a, hair:'curly',    hairColor:0x1a1108, desk:[0,2], line:'"Have you seen the new kid? ...wait, that\'s you!"' },
+  { name:'Ivy',    skin:0xf5d5b5, shirt:0x9955cc, pants:0x2a2a44, hair:'long',     hairColor:0x2a1a0a, desk:[1,-1], line:'"I drew a dragon in Art class yesterday. Wanna see it later?"' },
+  { name:'Jasper', skin:0xd4956a, shirt:0xffaa33, pants:0x333322, hair:'spiky',    hairColor:0x1a1108, desk:[1,0], line:'"Race you to the door the second the bell rings!"' },
+  { name:'Nora',   skin:0xe8c090, shirt:0x44ccee, pants:0x224422, hair:'afro',     hairColor:0x2a1a10, desk:[1,1], line:'"The teacher\'s actually really nice once you get to know them."' },
+  { name:'Finn',   skin:0x8B5E3C, shirt:0xdddddd, pants:0x223355, hair:'short',    hairColor:0x0a0a0a, desk:[2,-1], line:'"I am SO ready for P.E. today. Been waiting all week."' },
+  { name:'Stella', skin:0xf8d8b8, shirt:0xee6688, pants:0x442255, hair:'long',     hairColor:0x552211, desk:[2,1], line:'"Did you study for the pop quiz? I definitely did not."' },
+  { name:'Ezra',   skin:0x7a4a2a, shirt:0x66aadd, pants:0x1a1a1a, hair:'curly',    hairColor:0x1a1108, desk:[2,2], line:'"Lunch better not be mystery meat again. Please."' },
+]; // 9 of the room's 12 real desks are filled — desks (0,-1), (1,2) and (2,0) left empty on
+   // purpose, same "not every seat is full" realism City Life's own classroom art goes for.
+function talkToClassmate(kid) {
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('neighborModalTitle').textContent = `💬 ${kid.name}`;
+  document.getElementById('neighborModalBody').innerHTML = `<p style="color:#ddd;font-size:13px;line-height:1.5;">${kid.line}</p>`;
+  document.getElementById('neighborModal').style.display = 'flex';
+}
+function buildSchoolNPCs() {
+  SCHOOL_CLASSMATE_DATA.forEach(kid => {
+    const { x, z } = schoolDeskChairPos(kid.desk[0], kid.desk[1]);
+    const npc = makeNPC({ name:kid.name, role:'Classmate', skin:kid.skin, shirt:kid.shirt, pants:kid.pants,
+      hair:kid.hair, hairColor:kid.hairColor, pos:[x,0,z], seated:true });
+    schoolClassmateNPCs.push(npc);
+    SCHOOL_ZONES.push({ x, z, r:2.2, label:`💬 Talk to ${kid.name}`, action: () => talkToClassmate(kid) });
+  });
+  schoolTeacherNPC = makeNPC({ name:'Ms. Holt', role:'Teacher', skin:0xe8c080, shirt:0x2a5f8f, pants:0x1a1a2a,
+    hair:'short', hairColor:0x3a2410, pos:[CLASS_DESK_SPOT.x, 0, CLASS_DESK_SPOT.z] });
+}
+// Teacher AI — wanders a small area near the board, then on a real timer (schoolNextApproachAt)
+// walks straight to the player and asks a real question the instant it arrives (openSchoolQuestion()
+// force-opens the modal itself — this is NOT a button, it happens TO the player). Movement uses the
+// generic patrol tick's own speed*dt style (game-controls.js), not a fixed-per-frame lerp like City
+// Life's original teacherApproachState code — Explox's tick loop is real delta-time, so this stays
+// framerate-independent the same way every other moving thing in this game already is.
+let schoolTeacherState = 'wandering'; // 'wandering' | 'approaching'
+let schoolNextApproachAt = 0;
+let schoolTeacherTarget = null;
+const SCHOOL_TEACHER_SPEED = 2.6;
+function schoolTeacherWanderTarget() {
+  const { x:hx, z:hz } = SCHOOL_SPAWN;
+  return { x: hx + (Math.random()-0.5)*10, z: hz - 14 + Math.random()*5 }; // between the board (hz-17.75) and the front desk row (hz+1)
+}
+function tickSchoolNPCs(dt) {
+  if (!inSchool || !schoolTeacherNPC) return;
+  schoolClassmateNPCs.forEach(npc => { if (npc.tag) npc.tag.lookAt(camera.position); });
+  if (schoolBully) {
+    const bp = schoolBully.group.position;
+    if (schoolBully.target) {
+      const bdx = schoolBully.target.x - bp.x, bdz = schoolBully.target.z - bp.z, bdist = Math.hypot(bdx, bdz);
+      if (bdist > 0.3) { bp.x += bdx/bdist*1.3*dt; bp.z += bdz/bdist*1.3*dt; schoolBully.group.rotation.y = Math.atan2(bdx,bdz); }
+    }
+    if (schoolBully.tag) schoolBully.tag.lookAt(camera.position);
+  }
+  const teacher = schoolTeacherNPC;
+  const isClassPeriod = !!(schoolDayState && SCHOOL_PERIODS[schoolDayState.period] && SCHOOL_PERIODS[schoolDayState.period].type === 'class' && !schoolDayState.awaitingAnswer);
+  if (isClassPeriod && schoolTeacherState === 'wandering' && Date.now() > schoolNextApproachAt) {
+    schoolTeacherState = 'approaching';
+    schoolTeacherTarget = null;
+    showNotif(`🧑‍🏫 ${teacher.name} is coming over!`);
+  }
+  if (schoolTeacherState === 'approaching') {
+    schoolTeacherTarget = { x: playerGroup.position.x + 1.4, z: playerGroup.position.z };
+  } else if (!schoolTeacherTarget) {
+    schoolTeacherTarget = schoolTeacherWanderTarget();
+  }
+  const p = teacher.group.position;
+  const dx = schoolTeacherTarget.x - p.x, dz = schoolTeacherTarget.z - p.z, dist = Math.hypot(dx, dz);
+  const arriveDist = schoolTeacherState === 'approaching' ? 1.0 : 0.2;
+  if (dist > arriveDist) {
+    p.x += dx/dist*SCHOOL_TEACHER_SPEED*dt;
+    p.z += dz/dist*SCHOOL_TEACHER_SPEED*dt;
+    teacher.group.rotation.y = Math.atan2(dx, dz);
+  } else if (schoolTeacherState === 'approaching') {
+    schoolTeacherState = 'wandering';
+    schoolTeacherTarget = null;
+    schoolNextApproachAt = Date.now() + 7000 + Math.random()*9000;
+    if (isClassPeriod) openSchoolQuestion();
+  } else {
+    schoolTeacherTarget = null;
+  }
+  if (teacher.tag) teacher.tag.lookAt(camera.position);
+}
+
+// ─── SCHOOL BULLY — a real confrontation with 3 real choices, ported from citylife/src/events.js
+// (maybeSpawnBully/spawnBully/showBullyChoice/bullyChoice — a real implemented mechanic there,
+// just living in a different file than school.js itself, not merely the intro-text promise it
+// first looked like). Explox stakes use real S.I.P. + a real damagePlayer() hit (game-social.js)
+// instead of City Life's happiness/health pair, since Explox already tracks health for combat and
+// has no happiness stat at all.
+let schoolBully = null; // {group, tag, name, target, zoneEntry} — session-only, never persisted
+const SCHOOL_BULLY_DATA = [
+  { name:'Buck', skin:0xd4956a, shirt:0x992222, pants:0x1a1a1a, hair:'spiky', hairColor:0x1a1108 },
+  { name:'Tank', skin:0xc07840, shirt:0x555555, pants:0x222222, hair:'short', hairColor:0x0a0a0a },
+  { name:'Vic',  skin:0xe0b28c, shirt:0x664422, pants:0x1a1a1a, hair:'curly', hairColor:0x2a1a08 },
+];
+function maybeSpawnSchoolBully() {
+  if (!inSchool || !schoolDayState || schoolDayState.isExamDay || schoolBully) return;
+  if (Math.random() < SCHOOL_BULLY_CHANCE) spawnSchoolBully();
+}
+function spawnSchoolBully() {
+  if (!inSchool || schoolBully) return;
+  const data = SCHOOL_BULLY_DATA[Math.floor(Math.random()*SCHOOL_BULLY_DATA.length)];
+  const { x:hx, z:hz } = SCHOOL_SPAWN;
+  const spawnX = hx + (Math.random()-0.5)*6, spawnZ = hz + 3;
+  const npc = makeNPC({ name:data.name, role:'Bully', skin:data.skin, shirt:data.shirt, pants:data.pants, hair:data.hair, hairColor:data.hairColor, pos:[spawnX,0,spawnZ] });
+  const target = { x: SCHOOL_SPAWN.x, z: SCHOOL_SPAWN.z + 6 }; // wanders toward the player's usual entry point
+  const zoneEntry = { x:spawnX, z:spawnZ, r:3, label:`😠 Deal with ${data.name}`, action: () => showSchoolBullyChoice() };
+  SCHOOL_ZONES.push(zoneEntry);
+  schoolBully = { group:npc.group, tag:npc.tag, name:data.name, target, zoneEntry };
+  showNotif(`😠 ${data.name} is looking for trouble! Walk up and press E to deal with it.`);
+  setTimeout(() => { if (schoolBully && schoolBully.name === data.name && schoolBully.zoneEntry === zoneEntry) removeSchoolBully(); }, 40000);
+}
+function removeSchoolBully() {
+  if (!schoolBully) return;
+  if (scene) scene.remove(schoolBully.group);
+  const i = SCHOOL_ZONES.indexOf(schoolBully.zoneEntry);
+  if (i > -1) SCHOOL_ZONES.splice(i, 1);
+  schoolBully = null;
+}
+function showSchoolBullyChoice() {
+  if (!schoolBully) return;
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('schoolBullyName').textContent = `😠 ${schoolBully.name} blocks your way`;
+  document.getElementById('schoolBullyModal').style.display = 'flex';
+}
+function schoolBullyChoice(choice) {
+  document.getElementById('schoolBullyModal').style.display = 'none';
+  if (!schoolBully) { if(renderer && renderer.domElement) renderer.domElement.requestPointerLock(); return; }
+  const name = schoolBully.name;
+  if (choice === 'standup') {
+    if (Math.random() < 0.6) {
+      queueEarning(12, 0, '😤 Stood up to a bully');
+      showNotif(`💪 You stood your ground! ${name} backed off. +12 S.I.P. pending.`);
+    } else {
+      damagePlayer(5, name);
+      showNotif(`😢 ${name} shoved you!`);
+    }
+  } else if (choice === 'walkaway') {
+    sipDollars = Math.max(0, sipDollars - 5);
+    updateSIP();
+    showNotif(`🚶 You walked away. ${name} grabbed a few coins on the way out. -5 S.I.P.`);
+  } else if (choice === 'teacher') {
+    queueEarning(8, 0, '🙋 Told the teacher');
+    showNotif(`🙋 A teacher stepped in — ${name} had to apologize! +8 S.I.P. pending.`);
+  }
+  removeSchoolBully();
+  if(renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+
+// ─── SCHOOL DAY SCHEDULE — 5 real class periods (one subject each), a snack break, a lunch break,
+// and P.E., ending in dismissal. SCHOOL_QUESTIONS_PER_CLASS(2) x 5 class periods = 10 total real
+// quiz questions per full day — the SAME total the old flat 10-question pop quiz always asked, this
+// rebuild changes HOW they're delivered (spread through a real paced day) rather than how many, so
+// SCHOOL_SIP_PER_CORRECT/SCHOOL_QUIZ_COOLDOWN_MS below still add up the same way they always did
+// and didn't need to change.
+const SCHOOL_PERIODS = [
+  { type:'class', subject:'Math',    label:'📐 Math Class' },
+  { type:'break', kind:'snack',      label:'🍎 Snack Break' },
+  { type:'class', subject:'Reading', label:'📖 Reading Class' },
+  { type:'class', subject:'Science', label:'🔬 Science Class' },
+  { type:'break', kind:'lunch',      label:'🍽️ Lunch Break' },
+  { type:'class', subject:'Social',  label:'🌍 Social Studies' },
+  { type:'class', subject:'Art',     label:'🎨 Art Class' },
+  { type:'pe',                       label:'🏃 P.E.' },
+  { type:'dismissal',                label:'🎒 Dismissal' },
+];
+const SCHOOL_QUESTIONS_PER_CLASS = 2;
+const SCHOOL_SIP_PER_CORRECT = 15;      // unchanged from the old flat quiz — see the comment above SCHOOL_PERIODS for why the total pacing still works out the same
+const SCHOOL_QUIZ_COOLDOWN_MS = 20 * 60 * 1000; // unchanged — a real multi-period day now takes real wall-clock minutes to finish on its own (teacher approach delays, walking between periods), so it's naturally harder to spam than the old instant 10-question modal ever was; the same cooldown is if anything more conservative now, not less
+const SCHOOL_EXAM_SIP_MULT = 2;         // exam-day correct answers pay double — real extra reward for the real extra risk below
+// Real bug found live during this feature's own testing: a class period only ever advances once
+// the player lands SCHOOL_QUESTIONS_PER_CLASS correct answers — a wrong answer just makes the
+// teacher ask again, it never lets the period move on. That means correctTotal is ALWAYS exactly
+// 10 by the time dismissal is reached, no matter how badly the day went — a "pass if correctTotal
+// >= 6" check could never actually fail. wrongTotal (how many WRONG attempts it took to get there)
+// is the real, reachable signal for "struggled on exam day" instead.
+const SCHOOL_EXAM_MAX_WRONG_ALLOWED = 4; // more than 4 wrong attempts across the whole exam day = fail, real penalty applies at dismissal
+const SCHOOL_EXAM_FAIL_PENALTY = 60;    // real S.I.P. penalty for failing an exam day — Explox has no happiness/health-drain pair to borrow from City Life's own "-15 happiness, -10 health" exam-fail consequence, so this is a real wallet hit instead, sized to roughly 4 questions' worth of base-rate S.I.P. (60 = 4 x 15) — enough to genuinely sting on a bad exam day without wiping out a whole session's other earnings
+const SCHOOL_HOMEWORK_SIP_REWARD = 20;  // one real question, slightly above the per-class-question rate (15) since it's a single shot rather than 10 tries across a whole day
+const SCHOOL_HOMEWORK_MISS_PENALTY = 15; // real S.I.P. penalty if homework is still unfinished when the NEXT school day starts — matches SCHOOL_SIP_PER_CORRECT's own size, same "one question's worth" logic as the reward above
+const SCHOOL_PE_SIP_MAX = 30;           // P.E.'s own click-mash challenge tops out lower than the Sports Park Gym's real +100 max (gymPump()/finishGymChallenge(), above) since P.E. is one short period inside a bigger school day, not the whole point of a visit
+const SCHOOL_BULLY_CHANCE = 0.15;       // matches City Life's own real 15% roll (events.js maybeSpawnBully())
+const SCHOOL_AGE_BANDS = [
+  { id:'young', label:'Ages 5-7'   },
+  { id:'kid',   label:'Ages 8-10'  },
+  { id:'tween', label:'Ages 11-13' },
+  { id:'teen',  label:'Ages 14-18' },
+];
+function ageToSchoolBand(age) {
+  if (age <= 7) return 'young';
+  if (age <= 10) return 'kid';
+  if (age <= 13) return 'tween';
+  return 'teen'; // also the fallback for any adult player typing their real (18+) age
+}
+let schoolLastQuizAt = 0;  // persisted — Date.now() ms of the last school day START, see SCHOOL_QUIZ_COOLDOWN_MS
+let schoolVisitCount = 0;  // persisted — total real school days STARTED (not just walked into); every 10th is an exam day, see startSchoolDay() below
+let schoolHomework = null; // persisted — {subject, bandId} assigned at dismissal, cleared by a CORRECT homework answer; still set when the next day starts = SCHOOL_HOMEWORK_MISS_PENALTY
+let schoolDayState = null; // NOT persisted — fresh every visit, same as the old classroomState it replaces
+
+// ─── AGE-BAND QUESTION BANKS — each a real, hand-written bank of 110+ non-repeating,
+// age-appropriate questions (q/c[4 choices]/a[correct index 0-3]) mixing math, reading &
+// language, science, and social studies, difficulty-spread within the band. SCHOOL_QUESTIONS
+// just below is the single lookup table every quiz function reads from.
+
+const SCHOOL_QUESTIONS_YOUNG = [
+  {q:"What is 2 + 3?", c:["4","5","6","7"], a:1},
+  {q:"Which word rhymes with cat?", c:["Dog","Hat","Sun","Fish"], a:1},
+  {q:"How many legs does a dog have?", c:["2","3","4","6"], a:2},
+  {q:"What color do you get when you mix blue and yellow?", c:["Purple","Green","Orange","Red"], a:1},
+  {q:"What is 4 + 1?", c:["3","4","5","6"], a:2},
+  {q:"Which word rhymes with sun?", c:["Fun","Cat","Tree","Bird"], a:0},
+  {q:"How many legs does a spider have?", c:["6","8","4","10"], a:1},
+  {q:"What color do you get when you mix red and blue?", c:["Green","Purple","Orange","Yellow"], a:1},
+  {q:"What is 5 - 2?", c:["2","3","4","5"], a:1},
+  {q:"Which word rhymes with log?", c:["Frog","Cat","Bird","Fish"], a:0},
+  {q:"Which sense do you use to hear music?", c:["Sight","Hearing","Smell","Taste"], a:1},
+  {q:"What color do you get when you mix red and yellow?", c:["Purple","Green","Orange","Blue"], a:2},
+  {q:"What is 6 - 3?", c:["2","3","4","5"], a:1},
+  {q:"What sound does the letter B make at the start of the word ball?", c:["The buh sound","The suh sound","The tuh sound","The muh sound"], a:0},
+  {q:"Which sense do you use to smell flowers?", c:["Sight","Hearing","Smell","Touch"], a:2},
+  {q:"Who helps put out fires?", c:["Doctor","Firefighter","Teacher","Chef"], a:1},
+  {q:"How many wheels does a bicycle have?", c:["1","2","3","4"], a:1},
+  {q:"Which letter comes after C in the alphabet?", c:["B","D","E","A"], a:1},
+  {q:"Which body part do you use to see?", c:["Ears","Nose","Eyes","Mouth"], a:2},
+  {q:"Who helps you when you are sick?", c:["Firefighter","Doctor","Police officer","Mail carrier"], a:1},
+  {q:"What shape has 3 sides?", c:["Circle","Square","Triangle","Rectangle"], a:2},
+  {q:"Which letter comes right before M in the alphabet?", c:["N","L","O","K"], a:1},
+  {q:"Which body part do you use to hear?", c:["Eyes","Ears","Nose","Hands"], a:1},
+  {q:"Who helps keep our streets safe?", c:["Chef","Police officer","Farmer","Artist"], a:1},
+  {q:"What shape has 4 equal sides?", c:["Triangle","Square","Circle","Oval"], a:1},
+  {q:"What is the opposite of big?", c:["Small","Tall","Fast","Loud"], a:0},
+  {q:"Besides water and sunlight, what do plants need to grow?", c:["Soil","Rocks","Ice","Sand"], a:0},
+  {q:"Who teaches you at school?", c:["Doctor","Teacher","Firefighter","Farmer"], a:1},
+  {q:"What shape is round with no corners?", c:["Square","Triangle","Circle","Rectangle"], a:2},
+  {q:"What is the opposite of hot?", c:["Warm","Cold","Wet","Dry"], a:1},
+  {q:"What do bees make?", c:["Milk","Honey","Bread","Juice"], a:1},
+  {q:"Who delivers letters and packages?", c:["Mail carrier","Doctor","Teacher","Firefighter"], a:0},
+  {q:"Which number comes after 7?", c:["6","7","8","9"], a:2},
+  {q:"What is the opposite of up?", c:["Down","Out","Left","Near"], a:0},
+  {q:"Which animal says moo?", c:["Dog","Cat","Cow","Duck"], a:2},
+  {q:"What day comes right after Monday?", c:["Sunday","Tuesday","Wednesday","Friday"], a:1},
+  {q:"Which number comes before 5?", c:["3","4","5","6"], a:1},
+  {q:"What is the opposite of happy?", c:["Silly","Sad","Tired","Loud"], a:1},
+  {q:"Which animal says quack?", c:["Duck","Pig","Horse","Sheep"], a:0},
+  {q:"What day comes right before Sunday?", c:["Friday","Saturday","Monday","Thursday"], a:1},
+  {q:"What is 3 + 3?", c:["5","6","7","8"], a:1},
+  {q:"What is the plural of cat, meaning more than one?", c:["Cat","Cats","Cating","Catty"], a:1},
+  {q:"What do we call baby dogs?", c:["Kittens","Puppies","Cubs","Chicks"], a:1},
+  {q:"How many days are in one week?", c:["5","6","7","8"], a:2},
+  {q:"What is 8 - 4?", c:["3","4","5","6"], a:1},
+  {q:"What is the plural of dog?", c:["Doggy","Dogs","Dog","Doged"], a:1},
+  {q:"What do we call baby cats?", c:["Puppies","Kittens","Foals","Calves"], a:1},
+  {q:"What is the first day of the school week for most people?", c:["Sunday","Monday","Saturday","Friday"], a:1},
+  {q:"Which group has more, 5 apples or 2 apples?", c:["2 apples","5 apples","They are the same","Neither"], a:1},
+  {q:"Which word means more than one box?", c:["Boxs","Boxes","Box","Boxies"], a:1},
+  {q:"Is the sun out during the day or at night?", c:["Day","Night","Both","Neither"], a:0},
+  {q:"If something is near you, is it close or far away?", c:["Close","Far away","Both","Neither"], a:0},
+  {q:"What is 10 - 5?", c:["4","5","6","7"], a:1},
+  {q:"Which of these is a common sight word?", c:["Elephant","The","Umbrella","Giraffe"], a:1},
+  {q:"What do we see in the night sky that gives off light?", c:["Sun","Moon","Cloud","Rainbow"], a:1},
+  {q:"If something is far from you, is it close or far away?", c:["Close","Far away","Both","Neither"], a:1},
+  {q:"What is 7 + 2?", c:["8","9","10","11"], a:1},
+  {q:"Which word rhymes with tree?", c:["Bee","Car","Sun","Dog"], a:0},
+  {q:"What season comes right after winter?", c:["Summer","Fall","Spring","Autumn leaves"], a:2},
+  {q:"On most maps, which direction is shown at the top?", c:["Down","Up","Sideways","Diagonal"], a:1},
+  {q:"What number is missing: 1, 2, __, 4?", c:["2","3","5","6"], a:1},
+  {q:"Which word starts with the same sound as moon?", c:["Sun","Milk","Ball","Rain"], a:1},
+  {q:"Which season is usually the hottest?", c:["Winter","Spring","Summer","Fall"], a:2},
+  {q:"What season comes right before winter?", c:["Spring","Summer","Fall","None of these"], a:2},
+  {q:"What is 9 - 6?", c:["2","3","4","5"], a:1},
+  {q:"What is the opposite of fast?", c:["Quick","Slow","Loud","Small"], a:1},
+  {q:"What falls from the sky when it rains?", c:["Snow","Water","Leaves","Sand"], a:1},
+  {q:"What do we call the place where you live with your family?", c:["School","Home","Store","Park"], a:1},
+  {q:"How many sides does a rectangle have?", c:["2","3","4","5"], a:2},
+  {q:"What is the opposite of day?", c:["Night","Sun","Bright","Morning"], a:0},
+  {q:"What falls from the sky when it is very cold outside?", c:["Rain","Snow","Sand","Leaves"], a:1},
+  {q:"What do we call a place where you can borrow books?", c:["Library","Bakery","Garage","Farm"], a:0},
+  {q:"What is 6 + 3?", c:["8","9","10","11"], a:1},
+  {q:"Which word rhymes with star?", c:["Car","Sun","Tree","Moon"], a:0},
+  {q:"Which animal lives in water and breathes with fins?", c:["Dog","Fish","Bird","Cat"], a:1},
+  {q:"Who grows food like fruits and vegetables on a farm?", c:["Farmer","Doctor","Teacher","Pilot"], a:0},
+  {q:"Which is fewer, 3 balls or 6 balls?", c:["6 balls","3 balls","They are the same","Neither"], a:1},
+  {q:"What letter does the word dog start with?", c:["D","B","G","O"], a:0},
+  {q:"Which animal can fly using wings?", c:["Fish","Bird","Dog","Cow"], a:1},
+  {q:"Who flies an airplane?", c:["Pilot","Farmer","Doctor","Chef"], a:0},
+  {q:"What is 15 + 10?", c:["20","24","25","26"], a:2},
+  {q:"What letter does the word fish start with?", c:["S","H","F","I"], a:2},
+  {q:"What do you use your skin for?", c:["Seeing","Feeling things","Hearing","Smelling"], a:1},
+  {q:"What color is the sky on a clear, sunny day?", c:["Green","Blue","Purple","Brown"], a:1},
+  {q:"What is 12 + 13?", c:["24","25","26","27"], a:1},
+  {q:"Which word means the opposite of open?", c:["Shut","Wide","Loud","Big"], a:0},
+  {q:"What do you use your tongue for?", c:["Seeing","Hearing","Tasting","Smelling"], a:2},
+  {q:"What color is grass usually?", c:["Blue","Green","Red","Purple"], a:1},
+  {q:"What is 20 - 10?", c:["5","10","15","20"], a:1},
+  {q:"Which word rhymes with book?", c:["Look","Ball","Tree","Sun"], a:0},
+  {q:"What color do many leaves turn in the fall?", c:["Green","Brown and orange","Blue","Purple"], a:1},
+  {q:"What do we call the colorful arc of colors you see after rain?", c:["Rainbow","Sunset","Cloud","Storm"], a:0},
+  {q:"What comes next in the pattern: red, blue, red, blue, __?", c:["Red","Green","Yellow","Blue"], a:0},
+  {q:"What is the opposite of wet?", c:["Cold","Dry","Soft","Warm"], a:1},
+  {q:"What do caterpillars turn into?", c:["Frogs","Butterflies","Birds","Bees"], a:1},
+  {q:"What do we call a group of people who live and work in the same area?", c:["Community","Ocean","Forest","Desert"], a:0},
+  {q:"What is 4 + 4?", c:["6","7","8","9"], a:2},
+  {q:"Which of these words is a sight word?", c:["Dinosaur","And","Butterfly","Rainbow"], a:1},
+  {q:"Where do fish live?", c:["Trees","Water","Sand","Grass"], a:1},
+  {q:"Who cooks food at a restaurant?", c:["Chef","Pilot","Farmer","Teacher"], a:0},
+  {q:"What is 10 - 3?", c:["6","7","8","9"], a:1},
+  {q:"What sound does S make at the start of the word sun?", c:["The sss sound","The tuh sound","The buh sound","The rrr sound"], a:0},
+  {q:"What is the closest star to Earth?", c:["The moon","The sun","A planet","A cloud"], a:1},
+  {q:"In which season do leaves usually fall off the trees?", c:["Summer","Fall","Spring","Winter"], a:1},
+  {q:"Which shape has no straight sides?", c:["Square","Triangle","Circle","Rectangle"], a:2},
+  {q:"Which word rhymes with pig?", c:["Big","Cat","Sun","Dog"], a:0},
+  {q:"How many eyes does a person usually have?", c:["1","2","3","4"], a:1},
+  {q:"If you walk up the stairs, are you going higher or lower?", c:["Higher","Lower","Sideways","Neither"], a:0},
+  {q:"What is 5 + 5?", c:["9","10","11","12"], a:1},
+  {q:"What is the opposite of in?", c:["Out","Near","Down","Left"], a:0},
+  {q:"What part of a plant grows underground?", c:["Leaves","Flower","Roots","Stem"], a:2},
+  {q:"What do we call the last day of the weekend, right before Monday?", c:["Friday","Saturday","Sunday","Thursday"], a:2},
+  {q:"How many fingers are on one hand?", c:["4","5","6","10"], a:1},
+  {q:"What is 18 - 9?", c:["7","8","9","10"], a:2}
+];
+
+const SCHOOL_QUESTIONS_KID = [
+  {q:"What is 7 x 6?", c:["42","36","48","49"], a:0},
+  {q:"Which word is a synonym for \"happy\"?", c:["Sad","Joyful","Angry","Tired"], a:1},
+  {q:"Which planet is known as the Red Planet?", c:["Venus","Mars","Jupiter","Saturn"], a:1},
+  {q:"How many continents are there on Earth?", c:["5","6","7","8"], a:2},
+  {q:"What is 9 x 8?", c:["81","72","64","56"], a:1},
+  {q:"Which word is an antonym for \"big\"?", c:["Large","Huge","Small","Giant"], a:2},
+  {q:"How many planets are in our solar system?", c:["7","8","9","10"], a:1},
+  {q:"Which is the largest ocean on Earth?", c:["Atlantic Ocean","Indian Ocean","Arctic Ocean","Pacific Ocean"], a:3},
+  {q:"What is 45 divided by 5?", c:["8","9","7","10"], a:1},
+  {q:"In the sentence \"The dog ran quickly,\" which word is the verb?", c:["The","dog","ran","quickly"], a:2},
+  {q:"Which planet is closest to the sun?", c:["Earth","Venus","Mercury","Mars"], a:2},
+  {q:"What is the capital of the United States?", c:["New York City","Los Angeles","Washington D.C.","Chicago"], a:2},
+  {q:"What is 12 x 4?", c:["46","48","44","52"], a:1},
+  {q:"Which word is a noun in this sentence: \"The bright sun warmed the field\"?", c:["bright","sun","warmed","the"], a:1},
+  {q:"What do we call an animal that eats only plants?", c:["Carnivore","Herbivore","Omnivore","Predator"], a:1},
+  {q:"Which direction is opposite of North on a compass?", c:["East","South","West","Northeast"], a:1},
+  {q:"What is 100 minus 37?", c:["63","73","67","53"], a:0},
+  {q:"What is the plural form of \"mouse\"?", c:["Mouses","Mices","Mice","Mouse"], a:2},
+  {q:"What do we call an animal that eats both plants and meat?", c:["Herbivore","Carnivore","Omnivore","Scavenger"], a:2},
+  {q:"Which continent is Egypt located on?", c:["Asia","Africa","Europe","South America"], a:1},
+  {q:"If you eat 3/4 of a pizza and then eat 1/4 more, how much pizza have you eaten?", c:["A whole pizza","Half a pizza","Two pizzas","A quarter pizza"], a:0},
+  {q:"Which word is an adjective in this sentence: \"She wore a shiny necklace\"?", c:["wore","she","shiny","necklace"], a:2},
+  {q:"What is the first stage of a plant's life cycle?", c:["Flower","Seed","Root","Stem"], a:1},
+  {q:"Who is known for inventing the light bulb?", c:["Alexander Graham Bell","Thomas Edison","Benjamin Franklin","Isaac Newton"], a:1},
+  {q:"Which fraction is the same as one half?", c:["2/4","1/3","3/8","1/5"], a:0},
+  {q:"What is the plural of \"child\"?", c:["Childs","Children","Childes","Childrens"], a:1},
+  {q:"Which state of matter has no fixed shape and no fixed volume?", c:["Solid","Liquid","Gas","Plasma"], a:2},
+  {q:"Who is known for inventing the telephone?", c:["Thomas Edison","Alexander Graham Bell","Nikola Tesla","Henry Ford"], a:1},
+  {q:"If a movie starts at 3:00 and lasts 1 hour and 30 minutes, when does it end?", c:["4:00","4:15","4:30","5:00"], a:2},
+  {q:"Which word means almost the same as \"quick\"?", c:["Slow","Lazy","Fast","Calm"], a:2},
+  {q:"Which state of matter has a fixed shape and a fixed volume?", c:["Gas","Liquid","Solid","Steam"], a:2},
+  {q:"What is the elected leader of a city usually called?", c:["Governor","President","Mayor","Senator"], a:2},
+  {q:"How many minutes are in one hour?", c:["50","60","100","30"], a:1},
+  {q:"What is the opposite of \"begin\"?", c:["Start","Finish","Open","Continue"], a:1},
+  {q:"What do plants need, along with water and air, to make their own food?", c:["Soil only","Sunlight","Darkness","Salt"], a:1},
+  {q:"What is the elected leader of a U.S. state usually called?", c:["Mayor","Governor","Principal","Judge"], a:1},
+  {q:"How many days are in the month of April?", c:["31","28","30","29"], a:2},
+  {q:"Which sentence uses correct punctuation?", c:["Where are you going","Where are you going?","where are you going.","Where are you going,"], a:1},
+  {q:"About how many bones are in the adult human body?", c:["106","206","306","406"], a:1},
+  {q:"Which ocean is located between Africa and Australia?", c:["Atlantic Ocean","Pacific Ocean","Indian Ocean","Arctic Ocean"], a:2},
+  {q:"If you have 3 quarters, how much money do you have?", c:["50 cents","75 cents","100 cents","25 cents"], a:1},
+  {q:"What is the plural of \"leaf\"?", c:["Leafs","Leaves","Leafes","Leaven"], a:1},
+  {q:"What is the main organ that pumps blood through your body?", c:["Lungs","Brain","Heart","Liver"], a:2},
+  {q:"What is the capital of California?", c:["Los Angeles","San Francisco","Sacramento","San Diego"], a:2},
+  {q:"How many sides does a hexagon have?", c:["5","6","7","8"], a:1},
+  {q:"Which word is a pronoun in this sentence: \"She gave the book to him\"?", c:["gave","book","she","to"], a:2},
+  {q:"What do we call animals that have a backbone?", c:["Invertebrates","Vertebrates","Mammals","Reptiles"], a:1},
+  {q:"What is the capital of New York State?", c:["New York City","Buffalo","Albany","Rochester"], a:2},
+  {q:"What is 8 x 8?", c:["56","72","64","81"], a:2},
+  {q:"Which of these words rhymes with \"cake\"?", c:["Cat","Lake","Cup","Dog"], a:1},
+  {q:"Which organ do you use to breathe?", c:["Lungs","Stomach","Kidneys","Liver"], a:0},
+  {q:"What is the capital of Texas?", c:["Houston","Dallas","Austin","San Antonio"], a:2},
+  {q:"What is 63 divided by 7?", c:["9","8","7","6"], a:0},
+  {q:"Which word means the opposite of \"loud\"?", c:["Noisy","Quiet","Booming","Loud"], a:1},
+  {q:"What is water called when it turns into a gas?", c:["Ice","Vapor","Frost","Sleet"], a:1},
+  {q:"Which direction does the sun rise from?", c:["North","South","East","West"], a:2},
+  {q:"How many centimeters are in a meter?", c:["10","100","1000","50"], a:1},
+  {q:"What do you call a word that describes a noun?", c:["Verb","Adverb","Adjective","Pronoun"], a:2},
+  {q:"What is the process called when water falls from clouds as rain or snow?", c:["Evaporation","Precipitation","Condensation","Collection"], a:1},
+  {q:"Which direction does the sun set in?", c:["North","South","East","West"], a:3},
+  {q:"Sarah has 24 stickers and wants to split them evenly among 4 friends. How many does each friend get?", c:["4","6","8","5"], a:1},
+  {q:"What is the plural of \"box\"?", c:["Boxs","Boxes","Boxies","Box"], a:1},
+  {q:"What is the process called when water turns from a liquid into vapor?", c:["Evaporation","Precipitation","Condensation","Freezing"], a:0},
+  {q:"Which continent is the largest by land area?", c:["Africa","Asia","North America","Europe"], a:1},
+  {q:"What is 15 x 3?", c:["45","35","40","50"], a:0},
+  {q:"Which word is a synonym for \"smart\"?", c:["Clever","Dull","Slow","Silly"], a:0},
+  {q:"Which planet is famous for its large rings?", c:["Mars","Saturn","Mercury","Earth"], a:1},
+  {q:"Which continent is known for being covered almost entirely in ice?", c:["Africa","Antarctica","Australia","Europe"], a:1},
+  {q:"Which number is bigger than 3/8 but smaller than 3/4?", c:["1/2","1/8","1/10","1/16"], a:0},
+  {q:"Yesterday, the cat ___ up the tree. Which word completes the sentence?", c:["climb","climbed","climbs","climbing"], a:1},
+  {q:"What do you call baby frogs before they grow legs?", c:["Cubs","Tadpoles","Larvae","Kits"], a:1},
+  {q:"Who is credited with inventing the airplane along with his brother?", c:["Orville Wright","Henry Ford","Albert Einstein","Samuel Morse"], a:0},
+  {q:"What is the value of 6 x 0?", c:["6","1","0","60"], a:2},
+  {q:"What punctuation mark ends a question?", c:["Period","Comma","Question mark","Exclamation point"], a:2},
+  {q:"Which gas do humans breathe in that our bodies need to survive?", c:["Carbon dioxide","Oxygen","Nitrogen","Helium"], a:1},
+  {q:"What tool on a map helps you understand what its symbols mean?", c:["Compass rose","Map key","Scale bar","Border"], a:1},
+  {q:"How many inches are in a foot?", c:["10","12","16","14"], a:1},
+  {q:"Which word means the same as \"tiny\"?", c:["Huge","Small","Wide","Tall"], a:1},
+  {q:"What do we call animals that do not have a backbone?", c:["Vertebrates","Mammals","Invertebrates","Reptiles"], a:2},
+  {q:"What is the smallest continent by land area?", c:["Europe","Australia","Antarctica","South America"], a:1},
+  {q:"If a pencil costs 35 cents and you pay with a dollar, how much change do you get?", c:["55 cents","65 cents","75 cents","45 cents"], a:1},
+  {q:"What do you call a word that takes the place of a noun, like \"he\" or \"they\"?", c:["Adjective","Verb","Pronoun","Adverb"], a:2},
+  {q:"What is the largest planet in our solar system?", c:["Earth","Saturn","Jupiter","Neptune"], a:2},
+  {q:"What do we call the group of people elected to make laws for a country?", c:["Court","Congress","Council","Committee"], a:1},
+  {q:"What is 90 divided by 9?", c:["9","10","8","11"], a:1},
+  {q:"Which word is spelled correctly?", c:["Recieve","Receive","Receeve","Receve"], a:1},
+  {q:"Which part of a plant absorbs water from the soil?", c:["Leaves","Roots","Petals","Stem"], a:1},
+  {q:"Which U.S. state is known for being an island chain in the Pacific Ocean?", c:["Florida","Hawaii","Alaska","Maine"], a:1},
+  {q:"What is 1/3 plus 1/3?", c:["2/3","2/6","1/3","3/3"], a:0},
+  {q:"What is the plural of \"tooth\"?", c:["Tooths","Teeth","Toothes","Teethes"], a:1},
+  {q:"What do we call the process by which a caterpillar becomes a butterfly?", c:["Hibernation","Migration","Metamorphosis","Pollination"], a:2},
+  {q:"Which ocean lies along the east coast of the United States?", c:["Pacific Ocean","Atlantic Ocean","Indian Ocean","Arctic Ocean"], a:1},
+  {q:"How many grams are in a kilogram?", c:["100","500","1000","10000"], a:2},
+  {q:"Which sentence is a complete sentence?", c:["Running fast down.","The boy ran fast.","Down the street quickly.","Fast and running."], a:1},
+  {q:"What is the closest star to Earth?", c:["The North Star","The Moon","The Sun","Sirius"], a:2},
+  {q:"Which ocean lies along the west coast of the United States?", c:["Atlantic Ocean","Pacific Ocean","Indian Ocean","Southern Ocean"], a:1},
+  {q:"What is 11 x 11?", c:["111","121","122","112"], a:1},
+  {q:"What do we call a group of sentences about one main idea?", c:["A word","A paragraph","A letter","A title"], a:1},
+  {q:"Which sense organ do you use to hear sounds?", c:["Eyes","Ears","Nose","Skin"], a:1},
+  {q:"What do we call people, like firefighters and police officers, who are paid to serve and protect the community?", c:["Volunteers","Public servants","Tourists","Visitors"], a:1},
+  {q:"A rectangle has a length of 8 and a width of 3. What is its perimeter?", c:["22","24","11","19"], a:0},
+  {q:"Which word means the opposite of \"wet\"?", c:["Damp","Dry","Soggy","Moist"], a:1},
+  {q:"What do we call the layer of gases that surrounds Earth?", c:["Atmosphere","Crust","Core","Mantle"], a:0},
+  {q:"What is the capital of Florida?", c:["Miami","Orlando","Tallahassee","Tampa"], a:2},
+  {q:"What is 7 x 9?", c:["56","63","72","54"], a:1},
+  {q:"What part of speech is the word \"run\" in the sentence \"I like to run\"?", c:["Noun","Adjective","Verb","Adverb"], a:2},
+  {q:"What is the boiling point of water in Celsius, at sea level?", c:["50 degrees","100 degrees","150 degrees","200 degrees"], a:1},
+  {q:"What symbol on a map shows directions like north, south, east, and west?", c:["Compass rose","Legend","Scale","Grid"], a:0},
+  {q:"About how many weeks are in a year?", c:["48","50","52","54"], a:2},
+  {q:"Which of these is an example of an adverb?", c:["Quickly","Table","Green","Dog"], a:0},
+  {q:"What do we call a scientist who studies weather?", c:["Biologist","Geologist","Meteorologist","Astronomer"], a:2},
+  {q:"Which continent is Brazil located on?", c:["Africa","South America","Asia","Europe"], a:1},
+  {q:"What is 144 divided by 12?", c:["11","12","13","14"], a:1},
+  {q:"What is the plural of \"city\"?", c:["Citys","Cities","Citees","Cityes"], a:1},
+  {q:"Which of these is an example of a mammal?", c:["Frog","Snake","Dolphin","Eagle"], a:2},
+  {q:"Who is credited with inventing the printing press with movable type in Europe?", c:["Thomas Edison","Johannes Gutenberg","Leonardo da Vinci","Isaac Newton"], a:1}
+];
+
+const SCHOOL_QUESTIONS_TWEEN = [
+  {q:"Solve for x: 2x + 4 = 12", c:["3","4","6","8"], a:1},
+  {q:"Which of these sentences contains a simile?", c:["The wind whispered through the trees.","Her smile was as bright as the sun.","Time is a thief.","The classroom was a zoo."], a:1},
+  {q:"What is the process by which rock slowly changes from one type to another over long periods of time called?", c:["The water cycle","The rock cycle","The carbon cycle","The nitrogen cycle"], a:1},
+  {q:"Which river is traditionally considered the longest river in the world?", c:["Amazon","Nile","Yangtze","Mississippi"], a:1},
+  {q:"What is 3 + 4 × 2 using the correct order of operations?", c:["14","11","10","9"], a:1},
+  {q:"What figure of speech gives human qualities to non-human things?", c:["Metaphor","Simile","Personification","Hyperbole"], a:2},
+  {q:"What type of rock forms when melted rock (magma or lava) cools and hardens?", c:["Sedimentary","Igneous","Metamorphic","Mineral"], a:1},
+  {q:"What is the largest ocean on Earth?", c:["Atlantic","Pacific","Indian","Arctic"], a:1},
+  {q:"What is 25% of 80?", c:["15","20","25","30"], a:1},
+  {q:"What best defines a metaphor?", c:["A comparison using 'like' or 'as'","A direct comparison that says one thing IS another","An exaggeration for effect","A word that imitates a sound"], a:1},
+  {q:"What type of rock forms from layers of sediment pressed and cemented together?", c:["Igneous","Metamorphic","Sedimentary","Organic"], a:2},
+  {q:"What is the tallest mountain range in the world, home to Mount Everest?", c:["Andes","Rockies","Himalayas","Alps"], a:2},
+  {q:"What is the ratio 8:12 written in simplest form?", c:["2:3","4:6","1:2","3:4"], a:0},
+  {q:"What is hyperbole?", c:["A quiet understatement","An extreme exaggeration not meant to be taken literally","A rhyme at the end of a line","A question with an obvious answer"], a:1},
+  {q:"What type of rock forms when existing rock is changed by intense heat and pressure?", c:["Igneous","Sedimentary","Metamorphic","Crystalline"], a:2},
+  {q:"What is the capital of France?", c:["Lyon","Paris","Marseille","Nice"], a:1},
+  {q:"What is the area of a rectangle with length 6 and width 4?", c:["20","24","10","12"], a:1},
+  {q:"Which word is a synonym for 'enormous'?", c:["Huge","Tiny","Calm","Quick"], a:0},
+  {q:"What is the outermost layer of the Earth called?", c:["Crust","Mantle","Outer core","Inner core"], a:0},
+  {q:"What is the capital of Japan?", c:["Osaka","Kyoto","Tokyo","Nagoya"], a:2},
+  {q:"What is the perimeter of a square with side length 5?", c:["10","15","20","25"], a:2},
+  {q:"Which word is an antonym for 'generous'?", c:["Stingy","Kind","Wealthy","Cheerful"], a:0},
+  {q:"What is the scientific theory that explains how Earth's continents slowly move over time?", c:["The water cycle","Plate tectonics","Photosynthesis","The rock cycle"], a:1},
+  {q:"What is the capital of Egypt?", c:["Cairo","Alexandria","Giza","Luxor"], a:0},
+  {q:"What is -5 + 8?", c:["-13","3","13","-3"], a:1},
+  {q:"Which part of speech describes an action or state of being?", c:["Noun","Verb","Adjective","Adverb"], a:1},
+  {q:"What are the huge slabs of Earth's crust called that move slowly over time?", c:["Fault lines","Tectonic plates","Volcanoes","Glaciers"], a:1},
+  {q:"What is the capital of Australia?", c:["Sydney","Melbourne","Canberra","Perth"], a:2},
+  {q:"What is -3 × -4?", c:["-12","12","-7","7"], a:1},
+  {q:"Which part of speech modifies or describes a noun?", c:["Verb","Adverb","Adjective","Conjunction"], a:2},
+  {q:"What is it called when two blocks of Earth's crust crack and shift, sometimes causing earthquakes?", c:["A fault","A crater","A canyon","A ridge"], a:0},
+  {q:"What is the capital of Brazil?", c:["Rio de Janeiro","Sao Paulo","Brasilia","Salvador"], a:2},
+  {q:"Solve for x: x - 7 = 10", c:["3","17","-3","70"], a:1},
+  {q:"Which of these is an independent clause that can stand alone as a sentence?", c:["Although it was raining","Because she was tired","The dog barked loudly","Running down the street"], a:2},
+  {q:"Which three states of matter are most commonly studied in science class?", c:["Solid, liquid, gas","Solid, liquid, plasma","Rock, water, air","Ice, steam, fire"], a:0},
+  {q:"What continent is the Sahara Desert located on?", c:["Asia","Africa","Australia","South America"], a:1},
+  {q:"What is 3/4 written as a percent?", c:["50%","75%","34%","80%"], a:1},
+  {q:"Which punctuation mark can join two independent clauses without using a conjunction?", c:["Comma","Semicolon","Hyphen","Apostrophe"], a:1},
+  {q:"What is it called when a liquid changes into a gas?", c:["Condensation","Evaporation","Freezing","Melting"], a:1},
+  {q:"Which ancient civilization built the pyramids at Giza?", c:["Ancient Greeks","Ancient Egyptians","Ancient Romans","Ancient Mayans"], a:1},
+  {q:"A triangle has angles of 60 degrees and 70 degrees. What is the measure of the third angle?", c:["40 degrees","50 degrees","60 degrees","70 degrees"], a:1},
+  {q:"Which sentence correctly shows possession for more than one dog?", c:["The dog's bones","The dogs's bones","The dogs' bones","The doges bones"], a:2},
+  {q:"What is it called when a gas changes into a liquid?", c:["Evaporation","Condensation","Sublimation","Melting"], a:1},
+  {q:"Which ancient civilization is credited with developing an early form of democracy?", c:["Ancient Rome","Ancient Greece","Ancient Egypt","Ancient China"], a:1},
+  {q:"What is the sum of the interior angles of any triangle?", c:["90 degrees","180 degrees","270 degrees","360 degrees"], a:1},
+  {q:"What do you call the main character in a story?", c:["Antagonist","Protagonist","Narrator","Setting"], a:1},
+  {q:"What is the smallest unit of an element that still has the properties of that element?", c:["Molecule","Atom","Cell","Compound"], a:1},
+  {q:"Which ancient civilization built the Great Wall to help defend its borders?", c:["Ancient Rome","Ancient China","Ancient Persia","Ancient Egypt"], a:1},
+  {q:"What is 7 squared?", c:["14","49","42","56"], a:1},
+  {q:"What do you call the character who opposes the main character?", c:["Protagonist","Antagonist","Narrator","Author"], a:1},
+  {q:"What do you call a substance made of two or more elements chemically combined?", c:["Mixture","Compound","Solution","Atom"], a:1},
+  {q:"Which river valley civilization arose along the Tigris and Euphrates rivers?", c:["Indus Valley","Mesopotamia","Nile Valley","Yellow River Valley"], a:1},
+  {q:"Simplify: 5 × (3 + 2)", c:["17","20","25","10"], a:2},
+  {q:"What term describes where and when a story takes place?", c:["Plot","Theme","Setting","Tone"], a:2},
+  {q:"What is the chemical formula for water?", c:["CO2","H2O","O2","NaCl"], a:1},
+  {q:"What term describes a government where citizens elect representatives to make decisions?", c:["Monarchy","Republic","Empire","Dictatorship"], a:1},
+  {q:"Solve for x: 3x = 21", c:["6","7","8","63"], a:1},
+  {q:"What term describes the central message or lesson of a story?", c:["Plot","Theme","Climax","Setting"], a:1},
+  {q:"What do you call the chart that organizes all known chemical elements?", c:["Elemental chart","Periodic table","Molecular grid","Atomic map"], a:1},
+  {q:"In approximately what year did World War II end?", c:["1918","1939","1945","1953"], a:2},
+  {q:"What is 0.6 written as a fraction in simplest form?", c:["6/10","3/5","2/3","3/10"], a:1},
+  {q:"What term describes the sequence of events in a story?", c:["Theme","Plot","Mood","Symbol"], a:1},
+  {q:"Which planet is closest to the sun?", c:["Venus","Mercury","Earth","Mars"], a:1},
+  {q:"Which invention by Johannes Gutenberg dramatically changed how information spread in the 1400s?", c:["The telephone","The printing press","The steam engine","The compass"], a:1},
+  {q:"Using pi ≈ 3.14, what is the area of a circle with radius 3?", c:["9.42","18.84","28.26","6.28"], a:2},
+  {q:"What do you call the highest point of tension in a story?", c:["Exposition","Climax","Resolution","Rising action"], a:1},
+  {q:"Which planet is best known for its large, visible rings?", c:["Jupiter","Saturn","Uranus","Neptune"], a:1},
+  {q:"What imaginary line divides Earth into Northern and Southern Hemispheres?", c:["The prime meridian","The equator","The Tropic of Cancer","The International Date Line"], a:1},
+  {q:"What is the additive inverse (opposite) of 9?", c:["9","0","-9","1/9"], a:2},
+  {q:"What do you call a word that means nearly the same as another word?", c:["Antonym","Synonym","Homophone","Prefix"], a:1},
+  {q:"Which is the largest planet in our solar system?", c:["Saturn","Jupiter","Neptune","Earth"], a:1},
+  {q:"What imaginary line running through Greenwich, England divides Earth into Eastern and Western Hemispheres?", c:["The equator","The prime meridian","The Arctic Circle","The tropic line"], a:1},
+  {q:"What is the perimeter of a rectangle with sides 5 and 3?", c:["8","15","16","30"], a:2},
+  {q:"What do you call a word that sounds the same as another word but has a different meaning and spelling?", c:["Synonym","Antonym","Homophone","Homograph"], a:2},
+  {q:"What is the name of Earth's only natural satellite?", c:["Mars","The Moon","Titan","Europa"], a:1},
+  {q:"On a map, what tool shows direction, such as which way is north or south?", c:["A legend","A compass rose","A scale bar","A grid"], a:1},
+  {q:"Solve: -12 divided by 4", c:["3","-3","-8","48"], a:1},
+  {q:"What term describes who is telling a story?", c:["Theme","Point of view","Setting","Plot"], a:1},
+  {q:"What galaxy is our solar system located in?", c:["Andromeda","Milky Way","Triangulum","Whirlpool"], a:1},
+  {q:"On a map, what feature explains what the symbols and colors represent?", c:["The compass rose","The legend","The scale","The title"], a:1},
+  {q:"What is 40% written as a decimal?", c:["4.0","0.4","0.04","40"], a:1},
+  {q:"In first-person point of view, which pronoun is most commonly used?", c:["He","She","I","They"], a:2},
+  {q:"What do we call a body like Pluto that orbits the sun but hasn't cleared its orbital path?", c:["An asteroid","A dwarf planet","A comet","A moon"], a:1},
+  {q:"Lines of latitude measure distance from what reference line?", c:["The prime meridian","The equator","The North Pole","The poles"], a:1},
+  {q:"A recipe uses a 2:3 ratio of sugar to flour. If you use 4 cups of sugar, how many cups of flour are needed?", c:["5","6","8","4"], a:1},
+  {q:"What is a prefix?", c:["A word part added to the end of a word","A word part added to the beginning of a word","A word that means the opposite","A punctuation mark"], a:1},
+  {q:"What mainly causes Earth's seasons to change?", c:["Earth's distance from the sun changing a lot","Earth's tilt on its axis","The moon's gravity","Solar flares"], a:1},
+  {q:"Lines of longitude measure distance from what reference line?", c:["The equator","The prime meridian","The Arctic Circle","The South Pole"], a:1},
+  {q:"What is the measure of a right angle?", c:["45 degrees","90 degrees","180 degrees","360 degrees"], a:1},
+  {q:"In the word 'hopeful,' what is '-ful'?", c:["A prefix","A root word","A suffix","A synonym"], a:2},
+  {q:"What does a food chain show?", c:["How rocks change over time","The path of energy from one living thing to another","The layers of Earth's atmosphere","How weather patterns form"], a:1},
+  {q:"In economics, what term describes how much of a good or service is available?", c:["Demand","Supply","Budget","Trade"], a:1},
+  {q:"What do you call a shape with exactly 5 sides?", c:["Hexagon","Pentagon","Octagon","Quadrilateral"], a:1},
+  {q:"Which sentence uses commas correctly?", c:["I bought apples bananas and oranges.","I bought apples, bananas, and oranges.","I bought, apples bananas and oranges.","I bought apples bananas, and oranges."], a:1},
+  {q:"In a food chain, what do we call organisms that make their own food using sunlight?", c:["Consumers","Producers","Decomposers","Predators"], a:1},
+  {q:"In economics, what term describes how much people want to buy a good or service?", c:["Supply","Demand","Currency","Tariff"], a:1},
+  {q:"Simplify: 10 - 3 × 2", c:["14","4","2","17"], a:1},
+  {q:"What is an idiom?", c:["A phrase whose meaning can't be understood from the literal words alone","A word that rhymes with another","A type of punctuation mark","A formal way of speaking"], a:0},
+  {q:"What do we call organisms that break down dead plants and animals for nutrients?", c:["Producers","Consumers","Decomposers","Predators"], a:2},
+  {q:"According to supply and demand, what usually happens to price when demand rises but supply stays the same?", c:["Price falls","Price rises","Price stays flat","Price disappears"], a:1},
+  {q:"What is the least common multiple of 4 and 6?", c:["24","12","10","6"], a:1},
+  {q:"Which sentence is written in past tense?", c:["She walks to school.","She will walk to school.","She walked to school.","She is walking to school."], a:2},
+  {q:"What is an ecosystem?", c:["A community of living things interacting with their environment","A single type of rock","A chart of the planets","A tool for measuring temperature"], a:0},
+  {q:"What term describes things people must have to survive, like food, water, and shelter?", c:["Wants","Needs","Luxuries","Goods"], a:1},
+  {q:"What is the greatest common factor of 18 and 24?", c:["3","6","9","12"], a:1},
+  {q:"Which sentence uses the correct superlative form of the adjective 'tall'?", c:["She is the more tall student in class.","She is the tallest student in class.","She is the tallerest student in class.","She is the most tallest student in class."], a:1},
+  {q:"What do you call an animal that eats only plants?", c:["Carnivore","Herbivore","Omnivore","Decomposer"], a:1},
+  {q:"What term describes things people would like to have but don't need to survive, like a video game?", c:["Needs","Wants","Resources","Currency"], a:1},
+  {q:"A shirt costs $40 and is on sale for 25% off. What is the sale price?", c:["$35","$30","$10","$32"], a:1},
+  {q:"What is alliteration?", c:["Repeating the same first sound in nearby words","Comparing two things using 'like'","Giving human traits to animals","A word that imitates a sound"], a:0},
+  {q:"What do you call an animal that eats both plants and animals?", c:["Carnivore","Herbivore","Omnivore","Producer"], a:2},
+  {q:"What is it called when countries exchange goods and services with one another?", c:["Taxation","Trade","Currency exchange","Production"], a:1},
+  {q:"What is the value of |-8|?", c:["-8","8","0","1/8"], a:1},
+  {q:"What is onomatopoeia?", c:["A word that imitates the sound it describes, such as 'buzz'","A word with the opposite meaning of another word","A five-line poem","A type of question"], a:0},
+  {q:"What gas do plants absorb from the air during photosynthesis?", c:["Oxygen","Carbon dioxide","Nitrogen","Hydrogen"], a:1},
+  {q:"What ancient trade route connected China to Europe and the Middle East, carrying silk and other goods?", c:["The Amber Road","The Silk Road","The Spice Route","The Royal Road"], a:1},
+  {q:"What is 6 cubed?", c:["18","36","216","64"], a:2},
+  {q:"Which of these words is a conjunction?", c:["Quickly","Beautiful","And","Under"], a:2},
+  {q:"What gas do plants release during photosynthesis that animals need to breathe?", c:["Carbon dioxide","Oxygen","Nitrogen","Methane"], a:1},
+  {q:"Which continent has the greatest number of individual countries?", c:["Asia","Europe","Africa","South America"], a:2}
+];
+
+const SCHOOL_QUESTIONS_TEEN = [
+  {q:"Solve for x: 3x - 7 = 14",c:["5","6","7","8"],a:2},
+  {q:"What is the chemical symbol for gold?",c:["Go","Gd","Au","Ag"],a:2},
+  {q:"Which word most nearly means brief and to the point?",c:["verbose","concise","vague","elaborate"],a:1},
+  {q:"In what year was the U.S. Declaration of Independence signed?",c:["1763","1776","1789","1800"],a:1},
+  {q:"Solve for x: 2x + 5 = 17",c:["4","5","6","7"],a:2},
+  {q:"What is the chemical symbol for sodium?",c:["So","Sd","Na","Nu"],a:2},
+  {q:"Which word most nearly means showing great enthusiasm?",c:["indifferent","ardent","apathetic","reluctant"],a:1},
+  {q:"In what year did World War II end?",c:["1918","1939","1945","1950"],a:2},
+  {q:"Solve for x: 5x = 45",c:["7","8","9","10"],a:2},
+  {q:"What is the chemical formula for water?",c:["CO2","H2O","O2","HO2"],a:1},
+  {q:"Which word is most nearly opposite in meaning to benevolent?",c:["kind","malicious","generous","charitable"],a:1},
+  {q:"Who was the first President of the United States?",c:["Thomas Jefferson","John Adams","George Washington","James Madison"],a:2},
+  {q:"If y = 2x + 3 and x = 4, what is y?",c:["9","10","11","12"],a:2},
+  {q:"What is the pH value of a neutral solution?",c:["0","5","7","14"],a:2},
+  {q:"Which word means to make something less severe?",c:["aggravate","mitigate","intensify","amplify"],a:1},
+  {q:"The Cold War was primarily a rivalry between the United States and which nation?",c:["Germany","Soviet Union","China","France"],a:1},
+  {q:"Simplify: x^2 * x^3",c:["x^5","x^6","x^8","x^9"],a:0},
+  {q:"How many protons does a hydrogen atom have?",c:["0","1","2","3"],a:1},
+  {q:"Which word means lacking experience or judgment?",c:["naive","astute","cynical","shrewd"],a:0},
+  {q:"The Renaissance, a period of renewed art and learning, began in which country?",c:["France","Spain","Italy","England"],a:2},
+  {q:"What is the slope of the line y = 3x + 2?",c:["2","3","5","-3"],a:1},
+  {q:"What is the most abundant gas in Earth's atmosphere?",c:["Oxygen","Carbon Dioxide","Nitrogen","Hydrogen"],a:2},
+  {q:"Which word means widespread or common?",c:["scarce","prevalent","obsolete","isolated"],a:1},
+  {q:"What writing system did the ancient Egyptians use?",c:["cuneiform","hieroglyphics","runes","calligraphy"],a:1},
+  {q:"Solve for x: x/4 = 12",c:["36","40","44","48"],a:3},
+  {q:"What is the chemical symbol for iron?",c:["Ir","In","Fe","Fr"],a:2},
+  {q:"Which word means stubbornly refusing to change?",c:["flexible","obstinate","compliant","agreeable"],a:1},
+  {q:"In what year did World War I begin?",c:["1905","1914","1929","1939"],a:1},
+  {q:"Factor: x^2 - 9",c:["(x-3)(x+3)","(x-9)(x+1)","(x-3)^2","(x+9)(x-1)"],a:0},
+  {q:"What is the basic building block of matter called?",c:["cell","atom","molecule","electron"],a:1},
+  {q:"Which word is a synonym for abundant?",c:["scarce","plentiful","limited","sparse"],a:1},
+  {q:"In what year did the U.S. Civil War end?",c:["1861","1865","1877","1900"],a:1},
+  {q:"Solve for x: 2(x+3) = 16",c:["4","5","6","7"],a:1},
+  {q:"Which state of matter has a fixed shape and a fixed volume?",c:["gas","liquid","solid","plasma"],a:2},
+  {q:"A comparison using like or as is called a:",c:["metaphor","simile","hyperbole","personification"],a:1},
+  {q:"Who is most commonly credited with developing the practical incandescent light bulb?",c:["Nikola Tesla","Thomas Edison","Alexander Graham Bell","Benjamin Franklin"],a:1},
+  {q:"What is the sum of the interior angles of a triangle?",c:["90 degrees","180 degrees","270 degrees","360 degrees"],a:1},
+  {q:"What is the chemical formula for table salt?",c:["NaCl","KCl","CaCl2","NaOH"],a:0},
+  {q:"A direct comparison between two unlike things that does not use like or as is called a:",c:["simile","metaphor","alliteration","irony"],a:1},
+  {q:"Which ancient wonder still standing today is located in Egypt?",c:["Colossus of Rhodes","Hanging Gardens","Great Pyramid of Giza","Lighthouse of Alexandria"],a:2},
+  {q:"Which formula gives the area of a circle with radius r?",c:["2 * pi * r","pi * r^2","pi * d","4 * pi * r^2"],a:1},
+  {q:"What is the chemical symbol for oxygen?",c:["Ox","O","Og","Oy"],a:1},
+  {q:"Giving human traits to non-human things or objects is called:",c:["personification","symbolism","foreshadowing","satire"],a:0},
+  {q:"Which is the largest continent by land area?",c:["Africa","Asia","North America","Europe"],a:1},
+  {q:"How many sides does a hexagon have?",c:["5","6","7","8"],a:1},
+  {q:"What is the basic unit of life called?",c:["atom","cell","tissue","organ"],a:1},
+  {q:"A contrast between what is expected and what actually happens is called:",c:["irony","imagery","tone","mood"],a:0},
+  {q:"The Nile River, one of the longest rivers in the world, is located on which continent?",c:["Asia","South America","Africa","Australia"],a:2},
+  {q:"In a right triangle with legs 3 and 4, what is the length of the hypotenuse?",c:["5","6","7","8"],a:0},
+  {q:"Which organelle is known as the powerhouse of the cell?",c:["nucleus","ribosome","mitochondria","vacuole"],a:2},
+  {q:"The main character of a story is called the:",c:["antagonist","narrator","protagonist","author"],a:2},
+  {q:"Which is the largest ocean on Earth?",c:["Atlantic","Indian","Arctic","Pacific"],a:3},
+  {q:"What is the sum of the interior angles of a quadrilateral?",c:["180 degrees","270 degrees","360 degrees","450 degrees"],a:2},
+  {q:"Which molecule carries an organism's genetic information?",c:["RNA","DNA","ATP","protein"],a:1},
+  {q:"The character who opposes the main character is called the:",c:["protagonist","antagonist","narrator","foil"],a:1},
+  {q:"What is the capital city of France?",c:["Lyon","Marseille","Paris","Nice"],a:2},
+  {q:"What is the area of a rectangle with length 8 and width 5?",c:["13","35","40","45"],a:2},
+  {q:"How many chromosomes are typically found in a human body cell?",c:["23","44","46","48"],a:2},
+  {q:"The repetition of initial consonant sounds in nearby words is called:",c:["assonance","alliteration","rhyme","onomatopoeia"],a:1},
+  {q:"Which is the smallest continent by land area?",c:["Europe","Australia","Antarctica","South America"],a:1},
+  {q:"A right angle measures how many degrees?",c:["45","60","90","180"],a:2},
+  {q:"Which organ is primarily responsible for pumping blood through the body?",c:["lungs","liver","heart","kidney"],a:2},
+  {q:"Deliberate exaggeration used for effect is called:",c:["hyperbole","understatement","irony","metaphor"],a:0},
+  {q:"The Sahara, the world's largest hot desert, is located on which continent?",c:["Asia","Africa","Australia","South America"],a:1},
+  {q:"In a right triangle, sine equals the opposite side divided by which side?",c:["adjacent","hypotenuse","opposite","base"],a:1},
+  {q:"What is the process by which plants use sunlight to make food called?",c:["respiration","photosynthesis","fermentation","digestion"],a:1},
+  {q:"A hint or clue about events that will happen later in a story is called:",c:["flashback","foreshadowing","climax","resolution"],a:1},
+  {q:"Mount Everest, the tallest mountain above sea level, is part of which mountain range?",c:["Andes","Rockies","Himalayas","Alps"],a:2},
+  {q:"What is cos(0 degrees)?",c:["0","1","-1","undefined"],a:1},
+  {q:"Which gas do plants absorb from the air during photosynthesis?",c:["oxygen","nitrogen","carbon dioxide","hydrogen"],a:2},
+  {q:"The vantage point from which a story is narrated is called its:",c:["theme","point of view","setting","plot"],a:1},
+  {q:"The Amazon Rainforest is located primarily in which country?",c:["Peru","Colombia","Brazil","Venezuela"],a:2},
+  {q:"What is tan(45 degrees)?",c:["0","1","-1","undefined"],a:1},
+  {q:"What is the largest organ of the human body?",c:["liver","brain","skin","lungs"],a:2},
+  {q:"The central message or underlying idea of a literary work is called its:",c:["plot","setting","theme","tone"],a:2},
+  {q:"How many branches does the United States federal government have?",c:["Two","Three","Four","Five"],a:1},
+  {q:"What is the probability of flipping heads on a fair coin?",c:["1/6","1/4","1/2","1/3"],a:2},
+  {q:"What is the basic unit of heredity called?",c:["cell","gene","chromosome","protein"],a:1},
+  {q:"Which part of speech describes or modifies a noun?",c:["verb","adjective","adverb","preposition"],a:1},
+  {q:"Which branch of a typical government is responsible for making laws?",c:["executive","judicial","legislative","administrative"],a:2},
+  {q:"What is the mean of the numbers 2, 4, 6, and 8?",c:["4","5","6","8"],a:1},
+  {q:"Which organ system is primarily responsible for breathing?",c:["circulatory system","respiratory system","digestive system","nervous system"],a:1},
+  {q:"Which part of speech expresses an action or a state of being?",c:["noun","verb","conjunction","interjection"],a:1},
+  {q:"Which branch of a typical government is responsible for enforcing laws?",c:["legislative","executive","judicial","regulatory"],a:1},
+  {q:"What is the median of the data set 3, 7, 9, 15, 20?",c:["7","9","15","11"],a:1},
+  {q:"What is the standard unit used to measure force?",c:["Joule","Watt","Newton","Pascal"],a:2},
+  {q:"Which part of speech is used in place of a noun?",c:["adjective","pronoun","adverb","preposition"],a:1},
+  {q:"Which branch of a typical government is responsible for interpreting laws?",c:["executive","legislative","judicial","local"],a:2},
+  {q:"What is the probability of rolling a 4 on a standard six-sided die?",c:["1/2","1/3","1/6","1/4"],a:2},
+  {q:"Newton's first law of motion is closely associated with which concept?",c:["momentum","inertia","friction","gravity"],a:1},
+  {q:"A group of words containing a subject and a verb that expresses a complete thought is called a:",c:["phrase","clause","sentence","fragment"],a:2},
+  {q:"How many justices typically sit on the U.S. Supreme Court?",c:["7","9","11","13"],a:1},
+  {q:"What is the mode of the data set 2, 2, 3, 5, 7?",c:["2","3","5","7"],a:0},
+  {q:"Speed is calculated by dividing distance by which quantity?",c:["mass","time","force","acceleration"],a:1},
+  {q:"Which punctuation mark can be used to join two independent clauses without a conjunction?",c:["comma","semicolon","hyphen","colon"],a:1},
+  {q:"A term of office for a U.S. president lasts how many years?",c:["2","4","6","8"],a:1},
+  {q:"What is the range of the data set 4, 9, 15, and 21?",c:["11","15","17","21"],a:2},
+  {q:"What is the standard unit of electrical resistance?",c:["Volt","Amp","Watt","Ohm"],a:3},
+  {q:"Which part of speech connects words, phrases, or clauses?",c:["conjunction","interjection","pronoun","article"],a:0},
+  {q:"What is the name for the document that outlines a nation's fundamental laws and government structure?",c:["treaty","charter","constitution","statute"],a:2},
+  {q:"What is the probability of drawing an ace from a standard deck of 52 cards?",c:["1/52","1/26","1/13","1/4"],a:2},
+  {q:"What force pulls objects toward the center of the Earth?",c:["magnetism","friction","gravity","tension"],a:2},
+  {q:"What is the plural form of the word child?",c:["childs","children","childes","childrens"],a:1},
+  {q:"According to basic economics, if demand increases while supply stays the same, price tends to:",c:["decrease","stay the same","increase","become zero"],a:2},
+  {q:"What is 15% of 200?",c:["15","20","30","35"],a:2},
+  {q:"What term describes the energy of motion?",c:["potential energy","kinetic energy","thermal energy","chemical energy"],a:1},
+  {q:"In the sentence The dog wagged its tail, which word is a possessive pronoun?",c:["dog","wagged","its","tail"],a:2},
+  {q:"What economic term describes a general rise in prices over time?",c:["deflation","inflation","recession","surplus"],a:1},
+  {q:"Expand: 4(x - 2)",c:["4x - 2","4x - 6","4x - 8","x - 8"],a:2},
+  {q:"What term describes energy stored due to an object's position?",c:["kinetic energy","potential energy","radiant energy","nuclear energy"],a:1},
+  {q:"A word that describes or modifies a verb, adjective, or another adverb is called a(n):",c:["noun","adverb","preposition","article"],a:1},
+  {q:"In an economic system based on private ownership and free markets, what is this system commonly called?",c:["socialism","capitalism","communism","feudalism"],a:1},
+  {q:"What is the formula for the circumference of a circle?",c:["pi * r^2","2 * pi * r","pi * d^2","4 * pi * r"],a:1},
+  {q:"Approximately how fast does light travel in a vacuum?",c:["300 km/s","3,000 km/s","300,000 km/s","3,000,000 km/s"],a:2},
+  {q:"The turning point of highest tension in a story's plot is called the:",c:["exposition","climax","resolution","rising action"],a:1},
+  {q:"What term describes goods and services that a country sells to other countries?",c:["imports","exports","tariffs","subsidies"],a:1},
+  {q:"Solve the inequality: x + 5 > 12",c:["x > 5","x > 6","x > 7","x > 8"],a:2},
+  {q:"Which state of matter has no fixed shape and no fixed volume?",c:["solid","liquid","gas","plasma only"],a:2},
+  {q:"A brief story that teaches a moral lesson, often using animal characters, is called a:",c:["myth","legend","fable","biography"],a:2},
+  {q:"What basic economic term describes the amount of a good that producers are willing to sell?",c:["demand","supply","surplus","deficit"],a:1}
+];
+const SCHOOL_QUESTIONS = {
+  young: SCHOOL_QUESTIONS_YOUNG,
+  kid: SCHOOL_QUESTIONS_KID,
+  tween: SCHOOL_QUESTIONS_TWEEN,
+  teen: SCHOOL_QUESTIONS_TEEN,
+};
+
+// ─── SUBJECT TAGGING — City Life's real school day rotates a different SUBJECT each class period
+// (SUBJECT_BY_PERIOD). The 4 age-band pools above were written pre-mixed (math/reading/language/
+// science/social-studies all together, "naturally mixed" — see their own header comment) rather
+// than pre-split by subject, and retyping 552 hand-written questions by hand just to add a label
+// risked introducing a typo into content that already works. Instead, each question is tagged
+// AFTER the fact by a real, deterministic keyword classifier — not perfect (a few questions land in
+// a slightly loose bucket, e.g. a "who invented the telephone" history question tagging as Social
+// rather than some finer "history" bucket that doesn't exist here), but real and consistent every
+// time, and checked live against actual per-band/per-subject counts during this feature's own
+// testing rather than assumed correct. Runs once, right after the 4 bank arrays above are declared,
+// mutating each question object in place with a `.subj` field.
+function classifySchoolQuestion(q) {
+  const t = q.q.toLowerCase();
+  if (/color.*mix|mix.*color|primary color|secondary color|warm color|cool color/.test(t)) return 'Art';
+  if (/\d\s*[+\-×x]\s*\d|divided by|÷|fraction|percent|number is missing|pattern:|which group has (more|fewer)|how (much|many) .*(left|total|in all|altogether)|minutes are in|hours are in|days are in one|half of|quarter of|solve|inequality|\bequation\b|expression|evaluate|simplify|coefficient|exponent|square root|\bratio\b|proportion|\balgebra\b|perimeter|area of|volume of|circumference|\bslope\b|\bmean\b|\bmedian\b|\bmode\b|probability|\bdegrees\b|multiply|multiplication|division|subtract|\bsum\b|\bproduct\b|\bdifference\b|\bquotient\b|whole numbers?|decimals?|\binteger/.test(t)) return 'Math';
+  if (/rhymes with|synonym|antonym|opposite of|plural (of|form)|sight word|which word (is|means|starts)|sound does|\bvowel\b|syllable|prefix|suffix|\bnoun\b|\bverb\b|adjective|adverb|\bsentence\b|\bspell\b|letter comes|starts with the (same|letter)/.test(t)) return 'Reading';
+  if (/planet|solar system|galaxy|\bmoon\b|\bstar\b|gravity|\batom\b|molecule|\bcell\b|\borgan\b|\banimal\b|herbivore|carnivore|omnivore|habitat|ecosystem|photosynthesis|chlorophyll|state of matter|\bliquid\b|\bgas\b|\bsolid\b|evaporat|condens|weather|water cycle|life cycle|caterpillar|butterfly|\bsense\b|senses|body part|breathe|skeleton|species|vertebrate|magnet|electricity|\bforce\b|\benergy\b|temperature|thermometer|\bocean\b|\bfish\b|\bbird\b|insect|\bplant\b|\bseed\b|\bsun\b/.test(t)) return 'Science';
+  return 'Social'; // community helpers, geography, civics, calendar, history/inventors, money — the real "everything else" bucket
+}
+function tagSchoolQuestionBank(bank) { bank.forEach(q => { q.subj = classifySchoolQuestion(q); }); }
+[SCHOOL_QUESTIONS_YOUNG, SCHOOL_QUESTIONS_KID, SCHOOL_QUESTIONS_TWEEN, SCHOOL_QUESTIONS_TEEN].forEach(tagSchoolQuestionBank);
+
+// ─── ART QUESTIONS — genuinely missing from both the age-band pools above and the Science Lab's
+// bank, so this is a real small new hand-written bank (not a stub) covering color theory/mixing,
+// art tools and vocabulary, and (tween/teen) real art history — the same "who invented the
+// telephone → Alexander Graham Bell" style of factual trivia the age-band pools already use for
+// long-dead historical figures, just for art (Van Gogh, Picasso, da Vinci, Michelangelo).
+const SCHOOL_ART_YOUNG = [
+  {q:"What color do you get when you mix red and yellow paint?", c:["Purple","Green","Orange","Blue"], a:2, subj:'Art'},
+  {q:"What color do you get when you mix blue and yellow paint?", c:["Green","Orange","Purple","Red"], a:0, subj:'Art'},
+  {q:"What color do you get when you mix red and blue paint?", c:["Orange","Green","Purple","Yellow"], a:2, subj:'Art'},
+  {q:"Which of these is a primary color that can't be made by mixing others?", c:["Orange","Purple","Blue","Green"], a:2, subj:'Art'},
+  {q:"What tool do you use to paint a picture?", c:["A fork","A paintbrush","A pillow","A shoe"], a:1, subj:'Art'},
+  {q:"What shape do artists usually start with when drawing a sun?", c:["Square","Triangle","Circle","Star"], a:2, subj:'Art'},
+  {q:"What color is the sky on a clear day?", c:["Green","Blue","Brown","Purple"], a:1, subj:'Art'},
+  {q:"What color are most leaves in the summer?", c:["Blue","Green","Purple","Gray"], a:1, subj:'Art'},
+  {q:"What do artists call the little board they hold to mix their paint colors?", c:["A palette","A plate","A frame","A canvas"], a:0, subj:'Art'},
+  {q:"If you mix white paint into a color, does it get lighter or darker?", c:["Darker","Lighter","It stays the same","It disappears"], a:1, subj:'Art'},
+  {q:"What do we call a picture made by pressing a paint-covered hand onto paper?", c:["A footprint","A handprint","A fingerprint","A stamp"], a:1, subj:'Art'},
+  {q:"What do you call a picture of yourself that you draw or paint?", c:["A landscape","A self-portrait","A cartoon","A sketch"], a:1, subj:'Art'},
+];
+const SCHOOL_ART_KID = [
+  {q:"What are red, yellow, and blue called, since you can't mix other colors to make them?", c:["Secondary colors","Primary colors","Warm colors","Neutral colors"], a:1, subj:'Art'},
+  {q:"What are orange, green, and purple called, since they're made by mixing two primary colors?", c:["Primary colors","Secondary colors","Cool colors","Pastel colors"], a:1, subj:'Art'},
+  {q:"Which of these is considered a 'cool' color?", c:["Red","Orange","Blue","Yellow"], a:2, subj:'Art'},
+  {q:"Which of these is considered a 'warm' color?", c:["Blue","Purple","Green","Red"], a:3, subj:'Art'},
+  {q:"What is the flat surface artists mix their paint on called?", c:["A canvas","A palette","An easel","A frame"], a:1, subj:'Art'},
+  {q:"What do we call the wooden stand artists use to hold their canvas while painting?", c:["A palette","An easel","A frame","A loom"], a:1, subj:'Art'},
+  {q:"What do we call a picture that shows an outdoor scene, like mountains or fields?", c:["A portrait","A landscape","A still life","An abstract"], a:1, subj:'Art'},
+  {q:"What do we call a drawing or painting of a person's face?", c:["A landscape","A portrait","A mural","A sketch"], a:1, subj:'Art'},
+  {q:"What do we call art made by carving or shaping materials like clay or stone into a 3D object?", c:["A painting","A sculpture","A sketch","A collage"], a:1, subj:'Art'},
+  {q:"What do you call it when an artist mixes white into a color to make it lighter?", c:["A shade","A tint","A hue","A tone"], a:1, subj:'Art'},
+  {q:"What do you call it when an artist mixes black into a color to make it darker?", c:["A tint","A shade","A hue","A blend"], a:1, subj:'Art'},
+  {q:"Which shapes are considered 'geometric' shapes, like squares and triangles?", c:["Free-form shapes","Organic shapes","Geometric shapes","Abstract shapes"], a:2, subj:'Art'},
+];
+const SCHOOL_ART_TWEEN = [
+  {q:"On the color wheel, which colors sit directly across from each other and make each other look brighter?", c:["Similar colors","Complementary colors","Primary colors","Neutral colors"], a:1, subj:'Art'},
+  {q:"What do we call colors like red, orange, and yellow that sit next to each other on the color wheel and share a hue family?", c:["Analogous colors","Complementary colors","Monochromatic colors","Cool colors"], a:0, subj:'Art'},
+  {q:"What do we call a piece of art that uses only different shades and tints of ONE single color?", c:["A complementary piece","A monochromatic piece","An analogous piece","A collage"], a:1, subj:'Art'},
+  {q:"Which of these is one of the basic 'elements of art' that every drawing is built from?", c:["Rhythm","Line","Melody","Tempo"], a:1, subj:'Art'},
+  {q:"In art, what does 'texture' describe?", c:["How loud a piece of art is","How a surface looks or feels, like rough or smooth","How big a piece of art is","How old a piece of art is"], a:1, subj:'Art'},
+  {q:"What do we call art made by gluing different materials like paper, fabric, or photos onto a surface?", c:["A mural","A collage","A fresco","A mosaic"], a:1, subj:'Art'},
+  {q:"What do we call a huge painting made directly on a wall?", c:["A mural","A miniature","A sketch","A print"], a:0, subj:'Art'},
+  {q:"What is 'perspective' in a drawing used to create?", c:["The illusion of depth or distance","Bright colors only","A frame around the picture","A signature"], a:0, subj:'Art'},
+  {q:"What do we call the 3 properties of color — hue, value, and saturation — together?", c:["The color harmony","The color wheel","The color properties","The palette rule"], a:2, subj:'Art'},
+  {q:"What famous Dutch painter is known for 'The Starry Night'?", c:["Pablo Picasso","Vincent van Gogh","Claude Monet","Leonardo da Vinci"], a:1, subj:'Art'},
+  {q:"What do we call art that doesn't try to look like anything real, using only shapes and colors?", c:["Realism","Abstract art","Portraiture","Still life"], a:1, subj:'Art'},
+];
+const SCHOOL_ART_TEEN = [
+  {q:"Leonardo da Vinci, who painted the Mona Lisa, lived during which famous historical art period?", c:["The Renaissance","The Stone Age","The Industrial Revolution","The Roman Empire"], a:0, subj:'Art'},
+  {q:"Which art movement, led by artists like Claude Monet, focused on capturing light and fleeting moments with loose brushstrokes?", c:["Cubism","Impressionism","Surrealism","Pop Art"], a:1, subj:'Art'},
+  {q:"Pablo Picasso helped pioneer which art movement, known for showing subjects from multiple angles at once?", c:["Impressionism","Cubism","Baroque","Romanticism"], a:1, subj:'Art'},
+  {q:"Which art movement, associated with artists like Salvador Dalí, explored dreamlike and bizarre imagery?", c:["Realism","Surrealism","Minimalism","Classicism"], a:1, subj:'Art'},
+  {q:"What do we call the technique of using light and shadow to create the illusion of 3D form in a 2D artwork?", c:["Chiaroscuro","Pointillism","Collage","Fresco"], a:0, subj:'Art'},
+  {q:"What do we call a painting technique made entirely of small, distinct dots of color?", c:["Pointillism","Chiaroscuro","Impasto","Cubism"], a:0, subj:'Art'},
+  {q:"What is the term for the specific range of colors an artist chooses to use in a piece?", c:["A palette","A gallery","A gradient","A vignette"], a:0, subj:'Art'},
+  {q:"What do we call a museum or space specifically dedicated to displaying and selling art?", c:["A studio","A gallery","A workshop","An atelier"], a:1, subj:'Art'},
+  {q:"Michelangelo famously painted the ceiling of which chapel in Vatican City?", c:["The Notre Dame","The Sistine Chapel","Westminster Abbey","St. Basil's Cathedral"], a:1, subj:'Art'},
+  {q:"What do we call the golden-ratio-based compositional rule many artists use to place the focal point of an image off-center?", c:["The rule of thirds","The golden frame","The center rule","The symmetry rule"], a:0, subj:'Art'},
+  {q:"What art medium involves carving an image into a surface and pressing it onto paper, used for making multiple copies?", c:["Sculpture","Printmaking","Fresco","Mosaic"], a:1, subj:'Art'},
+];
+const SCHOOL_ART_QUESTIONS = { young:SCHOOL_ART_YOUNG, kid:SCHOOL_ART_KID, tween:SCHOOL_ART_TWEEN, teen:SCHOOL_ART_TEEN };
+
+// Picks the real pool for one band+subject. Deliberately NOT built as a top-level const at parse
+// time — SCIENCE_QUESTIONS (the Science Lab's own bank) is declared FURTHER DOWN this same file,
+// and a bare top-level reference to it here would hit exactly the load-order hazard modules/
+// README.md warns about (a `const` that hasn't executed yet). Called only from inside other
+// functions, at real gameplay time, long after the whole file has finished loading — completely
+// safe by the time it's ever actually invoked.
+function schoolSubjectPool(bandId, subject) {
+  if (subject === 'Science') return SCIENCE_QUESTIONS; // the Science Lab's own real bank, shared across every age band — the Lab itself doesn't age-gate its Science Test either
+  if (subject === 'Art') return SCHOOL_ART_QUESTIONS[bandId];
+  return SCHOOL_QUESTIONS[bandId].filter(q => q.subj === subject);
+}
+function pickSchoolQuestion(bandId, subject, askedSet) {
+  const fullPool = schoolSubjectPool(bandId, subject);
+  let pool = askedSet ? fullPool.filter(q => !askedSet.has(q.q)) : fullPool;
+  if (pool.length === 0) pool = fullPool; // a genuinely thin bucket ran out of fresh ones — a rare repeat beats a crash
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// ─── SCHOOL DAY FLOW — openClassroom() is the real entry point (SCHOOL_ZONES's desk zone), same
+// name the old single-quiz version used so the zone/HTML entry point didn't need to change, but
+// now dispatches to a whole real multi-period day (renderSchoolDayView()) instead of one flat quiz.
+function openClassroom() {
+  if(document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('classroomModal').style.display = 'flex';
+  renderSchoolDayView();
+}
+function closeClassroom() {
+  document.getElementById('classroomModal').style.display = 'none';
+  if(renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function renderSchoolDayView() {
+  const pickerView = document.getElementById('classroomPickerView');
+  const dayView = document.getElementById('classroomDayView');
+  if (!schoolDayState) {
+    pickerView.style.display = 'block';
+    dayView.style.display = 'none';
+    refreshClassroomPickerUI();
+    return;
+  }
+  pickerView.style.display = 'none';
+  dayView.style.display = 'block';
+  const period = SCHOOL_PERIODS[schoolDayState.period];
+  document.getElementById('schoolPeriodLabel').textContent = `${period.label}${schoolDayState.isExamDay ? ' — 📝 EXAM DAY' : ''}`;
+  document.getElementById('schoolPeriodDots').innerHTML = SCHOOL_PERIODS.map((p,i) =>
+    `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;margin:0 2px;background:${i<schoolDayState.period?'#4CAF50':i===schoolDayState.period?'#FFD700':'#445'};"></span>`).join('');
+  ['schoolClassView','schoolBreakView','schoolPEView','schoolDismissalView','schoolWaitingView'].forEach(id => document.getElementById(id).style.display = 'none');
+  if (period.type === 'class') {
+    if (schoolDayState.awaitingAnswer) { document.getElementById('schoolClassView').style.display = 'block'; renderSchoolQuestionUI(); }
+    else {
+      document.getElementById('schoolWaitingView').style.display = 'block';
+      document.getElementById('schoolWaitingText').textContent = `Class is in session. ${schoolTeacherNPC ? schoolTeacherNPC.name : 'The teacher'} will call on you soon — feel free to close this and look around the room.`;
+    }
+  } else if (period.type === 'break') {
+    document.getElementById('schoolBreakView').style.display = 'block';
+    renderSchoolBreakUI(period.kind);
+  } else if (period.type === 'pe') {
+    document.getElementById('schoolPEView').style.display = 'block';
+    renderSchoolPEUI();
+  } else if (period.type === 'dismissal') {
+    document.getElementById('schoolDismissalView').style.display = 'block';
+    renderSchoolDismissalUI();
+  }
+}
+function refreshClassroomPickerUI() {
+  const box2 = document.getElementById('classroomPickerBox');
+  const remainMs = SCHOOL_QUIZ_COOLDOWN_MS - (Date.now() - schoolLastQuizAt);
+  if (remainMs > 0) {
+    const mins = Math.ceil(remainMs/60000);
+    box2.innerHTML = `<div style="color:#aaa;">📚 You already had class recently. Come back in ${mins} minute${mins===1?'':'s'}.</div>`;
+    return;
+  }
+  const homeworkNote = schoolHomework ? `<div style="color:#ff8888;font-size:11px;margin-bottom:8px;">⚠️ You still have unfinished ${schoolHomework.subject} homework — starting today's class without it will cost you ${SCHOOL_HOMEWORK_MISS_PENALTY} S.I.P.!</div>` : '';
+  box2.innerHTML = `
+    ${homeworkNote}
+    <div style="margin-bottom:10px;">How old are you? Class picks real questions to match your age.</div>
+    <input id="classroomAgeInput" type="number" min="5" max="99" placeholder="Your age"
+      style="width:100%;box-sizing:border-box;padding:8px;margin-bottom:10px;border-radius:6px;border:1px solid #446;background:#0a1428;color:#fff;font-size:13px;text-align:center;">
+    <button class="shopBtn" style="width:100%;" onclick="startSchoolDay()">📝 Start School Day</button>`;
+}
+function startSchoolDay() {
+  const remainMs = SCHOOL_QUIZ_COOLDOWN_MS - (Date.now() - schoolLastQuizAt);
+  if (remainMs > 0) { refreshClassroomPickerUI(); return; } // real race guard, same shape as prayAtChurch()'s own re-check
+  const input = document.getElementById('classroomAgeInput');
+  const age = Math.max(3, Math.min(99, parseInt(input && input.value, 10) || 10));
+  const bandId = ageToSchoolBand(age);
+  schoolLastQuizAt = Date.now();
+  schoolVisitCount++;
+  const isExamDay = schoolVisitCount % 10 === 0;
+  // Missed homework from last time — the teacher notices, same real consequence City Life's own
+  // enterSchool() applies, just in S.I.P. instead of happiness.
+  if (schoolHomework) {
+    const missed = schoolHomework;
+    schoolHomework = null;
+    if (document.getElementById('homeworkTab')) document.getElementById('homeworkTab').style.display = 'none';
+    sipDollars = Math.max(0, sipDollars - SCHOOL_HOMEWORK_MISS_PENALTY);
+    updateSIP();
+    showNotif(`😠 You never finished your ${missed.subject} homework! -${SCHOOL_HOMEWORK_MISS_PENALTY} S.I.P.`);
+  }
+  schoolDayState = { bandId, period:0, isExamDay, correctThisPeriod:0, correctTotal:0, wrongTotal:0,
+    sipEarned:0, awaitingAnswer:false, currentQuestion:null, askedSet:new Set() };
+  saveCurrentUser();
+  showNotif(isExamDay ? '📝 Exam day! The teacher will test you for real today.' : '📚 School day started — good luck!');
+  schoolTeacherState = 'wandering';
+  schoolTeacherTarget = null;
+  schoolNextApproachAt = Date.now() + 3000 + Math.random()*4000; // first question comes a bit sooner than the normal between-question gap
+  if (!isExamDay) setTimeout(maybeSpawnSchoolBully, 4500);
+  renderSchoolDayView();
+}
+function openSchoolQuestion() {
+  if (!schoolDayState) return;
+  const period = SCHOOL_PERIODS[schoolDayState.period];
+  if (period.type !== 'class') return;
+  const q = pickSchoolQuestion(schoolDayState.bandId, period.subject, schoolDayState.askedSet);
+  schoolDayState.askedSet.add(q.q);
+  schoolDayState.currentQuestion = q;
+  schoolDayState.awaitingAnswer = true;
+  schoolDayState.answered = false;
+  if(document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('classroomModal').style.display = 'flex';
+  renderSchoolDayView();
+}
+function renderSchoolQuestionUI() {
+  const st = schoolDayState;
+  const period = SCHOOL_PERIODS[st.period];
+  const q = st.currentQuestion;
+  const left = SCHOOL_QUESTIONS_PER_CLASS - st.correctThisPeriod;
+  document.getElementById('schoolClassProgress').textContent =
+    `${period.label.toUpperCase()} — ${left} MORE TO FINISH THIS PERIOD${st.isExamDay ? ' — EXAM: DOUBLE S.I.P.' : ''}`;
+  document.getElementById('schoolClassQuestion').textContent = `👩‍🏫 Ms. Holt asks: ${q.q}`;
+  const choicesEl = document.getElementById('schoolClassChoices');
+  choicesEl.innerHTML = q.c.map((c,i) => `<button onclick="answerSchoolQuiz(${i})" style="width:100%;padding:10px;background:rgba(255,255,255,0.06);border:2px solid #446;border-radius:8px;color:#fff;font-size:12px;cursor:pointer;text-align:left;">${c}</button>`).join('');
+  document.getElementById('schoolClassFeedback').innerHTML = '';
+  document.getElementById('schoolClassNextBtn').style.display = 'none';
+}
+function answerSchoolQuiz(choiceIdx) {
+  const st = schoolDayState;
+  if (!st || st.answered) return; // guard double-clicks / stray repeats
+  const q = st.currentQuestion;
+  st.answered = true;
+  Array.from(document.getElementById('schoolClassChoices').children).forEach((btn,i) => {
+    btn.style.pointerEvents = 'none';
+    if (i === q.a) btn.style.borderColor = '#4CAF50';
+    else if (i === choiceIdx) btn.style.borderColor = '#ff5555';
+  });
+  const feedback = document.getElementById('schoolClassFeedback');
+  if (choiceIdx === q.a) {
+    const reward = SCHOOL_SIP_PER_CORRECT * (st.isExamDay ? SCHOOL_EXAM_SIP_MULT : 1);
+    st.correctThisPeriod++; st.correctTotal++; st.sipEarned += reward;
+    queueEarning(reward, 0, st.isExamDay ? '📝 Exam' : '🏫 School');
+    feedback.innerHTML = `<span style="color:#4CAF50;">✅ Correct! +${reward} S.I.P. pending in Earnings.</span>`;
+    sfx.cheer ? sfx.cheer() : sfx.buy();
+  } else {
+    st.wrongTotal++;
+    feedback.innerHTML = `<span style="color:#ff8888;">❌ Not quite — the answer was "${q.c[q.a]}". The teacher will ask again.</span>`;
+    sfx.nope();
+  }
+  document.getElementById('schoolClassNextBtn').style.display = 'block';
+}
+function advanceSchoolClassAfterAnswer() {
+  const st = schoolDayState;
+  if (!st) return;
+  st.awaitingAnswer = false;
+  st.currentQuestion = null;
+  if (st.correctThisPeriod >= SCHOOL_QUESTIONS_PER_CLASS) {
+    advanceSchoolPeriod();
+  } else {
+    schoolTeacherState = 'wandering';
+    schoolTeacherTarget = null;
+    schoolNextApproachAt = Date.now() + 3000 + Math.random()*5000;
+    renderSchoolDayView();
+  }
+}
+function advanceSchoolPeriod() {
+  const st = schoolDayState;
+  if (!st) return;
+  st.period++;
+  st.correctThisPeriod = 0;
+  st.awaitingAnswer = false;
+  st.currentQuestion = null;
+  schoolTeacherState = 'wandering';
+  schoolTeacherTarget = null;
+  const period = SCHOOL_PERIODS[st.period];
+  if (period.type === 'class') {
+    schoolNextApproachAt = Date.now() + 3000 + Math.random()*5000;
+    showNotif(`🔔 ${period.label} starting!`);
+  } else if (period.type === 'break') {
+    showNotif(`🔔 ${period.label}!`);
+  } else if (period.type === 'pe') {
+    showNotif('🏃 Time for P.E.! Get ready to move!');
+  } else if (period.type === 'dismissal') {
+    showNotif('🎒 School day done!');
+  }
+  saveCurrentUser();
+  renderSchoolDayView();
+}
+
+// Snack/lunch breaks reuse Explox's OWN eatFood() (game-engine.js) — the exact same real bite-
+// animation/taste-reaction flow every bagged food already uses — instead of a parallel food system.
+const SCHOOL_SNACK_CHOICES = [
+  { emoji:'🍎', name:'Apple',        taste:'sweet'  },
+  { emoji:'🧀', name:'Cheese Cubes', taste:'savory' },
+  { emoji:'🍋', name:'Lemonade',     taste:'sour'   },
+];
+const SCHOOL_LUNCH_CHOICES = [
+  { emoji:'🍕', name:'Pizza Slice',  taste:'savory' },
+  { emoji:'🥪', name:'Sandwich',     taste:'savory' },
+  { emoji:'🥗', name:'Salad',        taste:'sweet'  },
+];
+function renderSchoolBreakUI(kind) {
+  const isLunch = kind === 'lunch';
+  const choices = isLunch ? SCHOOL_LUNCH_CHOICES : SCHOOL_SNACK_CHOICES;
+  document.getElementById('schoolBreakTitle').textContent = isLunch ? '🍽️ Lunch Time!' : '🍎 Snack Time!';
+  document.getElementById('schoolBreakChoices').innerHTML = choices.map((f,i) =>
+    `<button onclick="schoolEatAndAdvance(${i}, ${isLunch})" style="display:block;width:100%;margin-bottom:8px;padding:12px;background:rgba(255,255,255,0.06);border:2px solid #446;border-radius:8px;color:#fff;font-size:13px;cursor:pointer;text-align:left;">${f.emoji} ${f.name}</button>`).join('');
+}
+function schoolEatAndAdvance(idx, isLunch) {
+  const f = (isLunch ? SCHOOL_LUNCH_CHOICES : SCHOOL_SNACK_CHOICES)[idx];
+  if (!f) return;
+  eatFood(f.emoji, f.name, f.taste);
+  document.getElementById('schoolBreakChoices').innerHTML = '<div style="color:#4CAF50;text-align:center;">Yum!</div>';
+  setTimeout(advanceSchoolPeriod, 1600); // gives eatFood()'s own ~1.4s bite animation room to finish first
+}
+
+// P.E. reuses the Sports Park Gym's own real "mash a button for a real 5 real-time seconds" shape
+// (gymPump()/finishGymChallenge(), above) — a separate copy with School's own state/DOM/reward
+// scale rather than sharing gymPump() directly, same "each area gets its own copy of the mechanic"
+// convention every other minigame in this file already follows.
+let schoolPEActive = false, schoolPEClicks = 0;
+function renderSchoolPEUI() {
+  schoolPEActive = false; schoolPEClicks = 0;
+  document.getElementById('schoolPEReps').textContent = 'Reps: 0';
+  document.getElementById('schoolPEStatus').textContent = "Ms. Holt blows the whistle — click GO! to start, 5 real seconds!";
+}
+function schoolPEPump() {
+  if (document.getElementById('classroomModal').style.display === 'none') return; // a stray click after closing
+  if (!schoolPEActive) {
+    schoolPEActive = true; schoolPEClicks = 0;
+    document.getElementById('schoolPEStatus').textContent = 'GO GO GO!';
+    setTimeout(() => { if (schoolPEActive) finishSchoolPE(); }, 5000);
+  }
+  if (!schoolPEActive) return; // window already closed via the timeout above
+  schoolPEClicks++;
+  document.getElementById('schoolPEReps').textContent = `Reps: ${schoolPEClicks}`;
+}
+function finishSchoolPE() {
+  schoolPEActive = false;
+  const reps = schoolPEClicks;
+  let result, reward;
+  if (reps >= 25)      { result = '🏃🔥 AMAZING!';   reward = SCHOOL_PE_SIP_MAX; }
+  else if (reps >= 15) { result = '🏃 Great effort!'; reward = 18; }
+  else if (reps >= 8)  { result = '🏃 Decent job.';   reward = 8; }
+  else                  { result = '😅 Barely moved.'; reward = 0; }
+  if (reward > 0) { queueEarning(reward, 0, '🏃 P.E.'); showNotif(`${result} ${reps} reps! +${reward} S.I.P. pending.`); sfx.buy(); }
+  else { showNotif(`${result} ${reps} reps — no reward this time.`); sfx.nope(); }
+  setTimeout(advanceSchoolPeriod, 1200);
+}
+
+function renderSchoolDismissalUI() {
+  const st = schoolDayState;
+  const box2 = document.getElementById('schoolDismissalBox');
+  let examLine = '';
+  if (st.isExamDay) {
+    const passed = st.wrongTotal <= SCHOOL_EXAM_MAX_WRONG_ALLOWED;
+    if (!passed) {
+      sipDollars = Math.max(0, sipDollars - SCHOOL_EXAM_FAIL_PENALTY);
+      updateSIP();
+      examLine = `<div style="color:#ff6666;margin-bottom:8px;">📝 ${st.wrongTotal} wrong answers today — too many mistakes to pass the exam. -${SCHOOL_EXAM_FAIL_PENALTY} S.I.P.!</div>`;
+    } else {
+      examLine = `<div style="color:#4CAF50;margin-bottom:8px;">📝 You passed the exam with only ${st.wrongTotal} wrong answer${st.wrongTotal===1?'':'s'} all day! Great work.</div>`;
+    }
+  }
+  assignSchoolHomework(st.bandId);
+  box2.innerHTML = `
+    ${examLine}
+    <div style="margin-bottom:6px;">🎒 School's out! You got ${st.correctTotal} out of 10 real quiz questions right.</div>
+    <div style="color:${st.sipEarned>0?'#4CAF50':'#aaa'};margin-bottom:10px;">${st.sipEarned>0 ? `Earned ${st.sipEarned} S.I.P. total today — pending in Earnings!` : 'No S.I.P. today — better luck next visit.'}</div>
+    <div style="color:#FFD700;font-size:11px;">📝 Homework assigned: ${schoolHomework.subject}. Finish it before your next school day (📝 H.WORK tab, top of screen) or it'll cost you ${SCHOOL_HOMEWORK_MISS_PENALTY} S.I.P.!</div>
+  `;
+  schoolDayState = null; // day is fully resolved — reopening the modal now shows the picker (still cooldown-gated by schoolLastQuizAt, set back in startSchoolDay())
+}
+
+// ─── HOMEWORK — assigned at dismissal above, doable any time before the next school day from a
+// real always-available HUD tab (only shown while genuinely pending) rather than requiring a trip
+// back to School — same "toggle panel, hide/show its own tab" pattern toggleEarningsPanel()
+// (game-customization.js) already uses.
+function assignSchoolHomework(bandId) {
+  const subjects = ['Math','Reading','Science','Social','Art'];
+  const subject = subjects[Math.floor(Math.random()*subjects.length)];
+  schoolHomework = { subject, bandId };
+  if (document.getElementById('homeworkTab')) document.getElementById('homeworkTab').style.display = 'block';
+  saveCurrentUser();
+}
+let _schoolHomeworkQuestion = null;
+function renderSchoolHomeworkUI() {
+  const q = pickSchoolQuestion(schoolHomework.bandId, schoolHomework.subject, null);
+  _schoolHomeworkQuestion = q;
+  document.getElementById('homeworkSubject').textContent = `📝 ${schoolHomework.subject} Homework`;
+  document.getElementById('homeworkQuestion').textContent = q.q;
+  document.getElementById('homeworkChoices').innerHTML = q.c.map((c,i) =>
+    `<button onclick="answerSchoolHomework(${i})" style="width:100%;padding:10px;background:rgba(255,255,255,0.06);border:2px solid #446;border-radius:8px;color:#fff;font-size:12px;cursor:pointer;text-align:left;">${c}</button>`).join('');
+  document.getElementById('homeworkFeedback').innerHTML = '';
+}
+function toggleSchoolHomeworkPanel() {
+  const panel = document.getElementById('homeworkModal');
+  if (panel.style.display === 'none' || !panel.style.display) {
+    if (!schoolHomework) { showNotif('📝 No homework right now — nice!'); return; }
+    if (document.pointerLockElement) document.exitPointerLock();
+    isPointerLocked = false;
+    renderSchoolHomeworkUI();
+    panel.style.display = 'flex';
+  } else {
+    closeSchoolHomeworkPanel();
+  }
+}
+function closeSchoolHomeworkPanel() {
+  document.getElementById('homeworkModal').style.display = 'none';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function answerSchoolHomework(choiceIdx) {
+  const q = _schoolHomeworkQuestion;
+  if (!q || !schoolHomework) return;
+  if (choiceIdx === q.a) {
+    queueEarning(SCHOOL_HOMEWORK_SIP_REWARD, 0, '📝 Homework');
+    showNotif(`🎉 Homework done! +${SCHOOL_HOMEWORK_SIP_REWARD} S.I.P. pending.`);
+    schoolHomework = null;
+    document.getElementById('homeworkTab').style.display = 'none';
+    saveCurrentUser();
+    closeSchoolHomeworkPanel();
+  } else {
+    document.getElementById('homeworkFeedback').innerHTML = `<span style="color:#ff8888;">❌ Not quite — the answer was "${q.c[q.a]}". Try again!</span>`;
+  }
+}
+
+// ─── SCIENCE LAB — a new civic building, coordinator's own ask: real "Science Tests" administered
+// by real in-game Scientist characters, not just a menu screen. Real walk-up exterior + real
+// collision live in buildCity() (game-buildings.js, right after the Library); 3 named ambient
+// Scientist NPCs stand just outside it (buildLabNPCs(), game-world.js — same makeNPC()/patrol
+// pattern the Space Station's astronauts already use). The door opens a real modal directly from
+// the city (openScienceLab() below), same "Church"/"Library" pattern — NOT a walk-in pocket-space
+// interior, since a Science Test doesn't need physical desks (Library's own reasoning, reused here).
+// The actual Science Test mechanic below is a direct copy of the School's real Pop Quiz shape just
+// above (openClassroom()/answerClassQuiz()/renderQuizResults()) — same session/cooldown/
+// queueEarning() flow — just ONE flat SCIENCE-only question pool instead of 4 age-banded pools (a
+// Science Test doesn't need an age picker the way homeschool-style trivia did).
+const SCIENCE_LAB = { x:-70, z:36 }; // building center — real open lot checked against every addCol() in game-buildings.js: clear of the Police Station (ends z:22) to the south and the Library (starts z:50) to the north, same west side of downtown as both
+const SCIENCE_QUIZ_LENGTH = 10;                  // questions per test — matches SCHOOL_QUIZ_LENGTH
+const SCIENCE_SIP_PER_CORRECT = 15;              // matches SCHOOL_SIP_PER_CORRECT exactly — same established per-question economy, no new number invented
+const SCIENCE_QUIZ_COOLDOWN_MS = 20 * 60 * 1000; // matches SCHOOL_QUIZ_COOLDOWN_MS exactly — a full 10/10 run pays at most 150 S.I.P., same cap logic as School
+let scienceLastQuizAt = 0;   // persisted, Date.now() ms of the last test START — see SCIENCE_QUIZ_COOLDOWN_MS
+let scienceTestState = null; // {questions:[SCIENCE_QUIZ_LENGTH picked from the pool], idx, answered, correctCount, sipEarned} — NOT persisted, fresh every visit, same as classroomState
+
+// ─── SCIENCE QUESTION BANK — a real, hand-written bank of 80+ non-repeating, age-appropriate
+// science questions (q/c[4 choices]/a[correct index 0-3]) spanning physics, chemistry, biology,
+// astronomy, and earth science, difficulty-spread and deliberately picking DIFFERENT facts than the
+// School's own science-flavored questions where School already covers a fact (e.g. School already
+// asks the water formula, the closest/biggest/ringed planets, and "what is a cell" — this bank asks
+// about other formulas, other planets, and other cell parts instead) so the two pools stay genuinely
+// distinct rather than reskinning the same trivia.
+const SCIENCE_QUESTIONS = [
+  // Physics
+  {q:"What do we call a push or pull on an object?", c:["Force","Speed","Mass","Energy"], a:0},
+  {q:"What is the force that gives you weight and pulls objects back down to the ground?", c:["Magnetism","Friction","Gravity","Tension"], a:2},
+  {q:"What is the SI (scientific) unit used to measure force?", c:["Joule","Newton","Watt","Pascal"], a:1},
+  {q:"Which simple machine is basically a flat, sloped surface used to raise objects?", c:["Lever","Pulley","Inclined plane","Wedge"], a:2},
+  {q:"Which travels faster through air: light or sound?", c:["Sound","Light","They travel at the same speed","Neither one moves"], a:1},
+  {q:"What do we call a material that lets electricity flow through it easily, like copper wire?", c:["Insulator","Magnet","Conductor","Resistor"], a:2},
+  {q:"What force acts between two touching surfaces to slow down or resist motion?", c:["Friction","Gravity","Magnetism","Buoyancy"], a:0},
+  {q:"Which branch of science studies matter, energy, and how things move?", c:["Biology","Chemistry","Physics","Geology"], a:2},
+  {q:"What happens to the pitch of a sound as its frequency gets higher?", c:["It gets lower","It gets higher","It disappears","It stays the same"], a:1},
+  {q:"What do we call the type of energy stored in a stretched rubber band or compressed spring?", c:["Kinetic energy","Elastic potential energy","Thermal energy","Sound energy"], a:1},
+  {q:"What is it called when light bends as it passes from air into water?", c:["Reflection","Absorption","Refraction","Diffusion"], a:2},
+  {q:"What do we call the invisible area around a magnet where its pull or push can be felt?", c:["Force field","Magnetic field","Gravity well","Energy zone"], a:1},
+  {q:"Which color of visible light has the longest wavelength?", c:["Violet","Blue","Green","Red"], a:3},
+  {q:"What tool is used to measure temperature?", c:["Barometer","Thermometer","Speedometer","Compass"], a:1},
+  {q:"Which simple machine uses a fixed point called a fulcrum to lift things?", c:["Wheel and axle","Lever","Screw","Pulley"], a:1},
+  {q:"What do we call energy that is actually in motion, like a rolling ball?", c:["Potential energy","Kinetic energy","Nuclear energy","Chemical energy"], a:1},
+  // Chemistry
+  {q:"What are the tiny particles that all matter is made of called?", c:["Cells","Atoms","Molecules only","Photons"], a:1},
+  {q:"What do we call a pure substance made of two or more elements chemically bonded together?", c:["Mixture","Solution","Compound","Alloy"], a:2},
+  {q:"What is the chemical symbol for gold?", c:["Gd","Go","Au","Ag"], a:2},
+  {q:"What is the chemical symbol for sodium?", c:["So","Sd","S","Na"], a:3},
+  {q:"Which state of matter has both a definite shape and a definite volume?", c:["Gas","Liquid","Solid","Plasma"], a:2},
+  {q:"Which state of matter takes the shape of its container but keeps the same volume?", c:["Solid","Liquid","Gas","Plasma"], a:1},
+  {q:"What is it called when a liquid turns into a gas?", c:["Condensation","Freezing","Evaporation","Melting"], a:2},
+  {q:"What is it called when a solid changes directly into a gas without ever becoming a liquid?", c:["Condensation","Sublimation","Evaporation","Precipitation"], a:1},
+  {q:"What is the chemical formula for ordinary table salt?", c:["NaCl","CO2","KCl","CaCO3"], a:0},
+  {q:"What is the chemical formula for carbon dioxide, the gas we breathe out?", c:["O2","CO2","CO","H2O"], a:1},
+  {q:"What gas makes up about 78% of the air in Earth's atmosphere?", c:["Oxygen","Carbon dioxide","Nitrogen","Hydrogen"], a:2},
+  {q:"Which particle inside an atom carries a negative electric charge?", c:["Proton","Neutron","Electron","Nucleus"], a:2},
+  {q:"Which particle inside an atom carries a positive electric charge?", c:["Electron","Proton","Neutron","Ion"], a:1},
+  {q:"Which particle inside an atom has no electric charge at all?", c:["Proton","Electron","Neutron","Photon"], a:2},
+  {q:"What do we call a mixture, like salt stirred into water, where the parts are evenly spread out and can't be seen separately?", c:["Suspension","Solution","Compound","Colloid"], a:1},
+  {q:"On the pH scale, what number is considered exactly neutral (neither acidic nor basic)?", c:["0","7","10","14"], a:1},
+  {q:"What is the name of the chart scientists use to organize all the known chemical elements?", c:["Element wheel","Molecule map","Periodic table","Atom grid"], a:2},
+  // Biology
+  {q:"What part of a cell is often called its 'powerhouse' because it produces energy?", c:["Nucleus","Mitochondria","Cell wall","Ribosome"], a:1},
+  {q:"What is the green pigment in plants called that captures sunlight for making food?", c:["Carotene","Chlorophyll","Melanin","Xylem"], a:1},
+  {q:"What do we call an animal that eats only plants?", c:["Carnivore","Omnivore","Herbivore","Decomposer"], a:2},
+  {q:"What do we call an animal that eats only meat?", c:["Herbivore","Carnivore","Omnivore","Producer"], a:1},
+  {q:"What do we call an animal that eats both plants and meat?", c:["Herbivore","Carnivore","Omnivore","Scavenger"], a:2},
+  {q:"Which organ pumps blood through the human body?", c:["Lungs","Liver","Heart","Kidney"], a:2},
+  {q:"Which pair of organs mainly filters waste out of the blood in humans?", c:["Lungs","Kidneys","Stomach","Liver"], a:1},
+  {q:"Which organs do humans use to breathe?", c:["Lungs","Heart","Kidneys","Stomach"], a:0},
+  {q:"How many chambers does a healthy human heart have?", c:["2","3","4","5"], a:2},
+  {q:"What is the largest organ of the human body?", c:["The liver","The brain","The skin","The heart"], a:2},
+  {q:"Which type of blood cell mainly helps the body fight off infections?", c:["Red blood cells","White blood cells","Platelets","Plasma cells"], a:1},
+  {q:"What is the passing of traits from parents to their children called?", c:["Metamorphosis","Photosynthesis","Heredity","Pollination"], a:2},
+  {q:"What molecule carries the genetic instructions in nearly every living thing?", c:["ATP","DNA","RNA only","Protein"], a:1},
+  {q:"What do we call animals that have a backbone, like fish, birds, and mammals?", c:["Invertebrates","Vertebrates","Amphibians only","Arachnids"], a:1},
+  {q:"What do we call animals that do NOT have a backbone, like insects and worms?", c:["Vertebrates","Invertebrates","Mammals","Reptiles"], a:1},
+  {q:"What is the process called in which a caterpillar transforms into a butterfly?", c:["Pollination","Germination","Metamorphosis","Hibernation"], a:2},
+  {q:"What do bees do when they move pollen from flower to flower, helping plants reproduce?", c:["Photosynthesis","Pollination","Respiration","Migration"], a:1},
+  {q:"What term describes all the members of one species living together in the same area?", c:["Ecosystem","Habitat","Population","Community"], a:2},
+  {q:"What do we call the natural place where an animal or plant normally lives?", c:["Habitat","Territory","Colony","Biome only"], a:0},
+  {q:"Which part of the eye is a light-sensitive layer that helps you see images?", c:["Cornea","Retina","Pupil","Iris"], a:1},
+  // Astronomy
+  {q:"What is the name of the galaxy that contains our solar system?", c:["Andromeda","Milky Way","Whirlpool Galaxy","Triangulum"], a:1},
+  {q:"What do we call a huge collection of billions of stars, dust, and gas held together by gravity?", c:["A nebula","A galaxy","A comet","An asteroid belt"], a:1},
+  {q:"What causes the Moon to appear to change shape in the sky over the course of a month?", c:["The Moon spinning very fast","Clouds covering the Moon","Different parts of the sunlit Moon facing Earth","The Moon changing size"], a:2},
+  {q:"What do we call a giant ball of hot, glowing gas held together by its own gravity, like our Sun?", c:["A planet","A star","A moon","An asteroid"], a:1},
+  {q:"About how long does it take Earth to complete one full orbit around the Sun?", c:["One day","One month","One year","Ten years"], a:2},
+  {q:"About how long does it take Earth to spin once all the way around on its axis?", c:["One hour","One day","One week","One year"], a:1},
+  {q:"What do we call a small piece of rock or dust that burns up in Earth's atmosphere, creating a 'shooting star'?", c:["A comet","A meteor","An asteroid","A satellite"], a:1},
+  {q:"What do we call a large chunk of rock that orbits the Sun, with many found in a belt between Mars and Jupiter?", c:["A comet","A meteorite","An asteroid","A moon"], a:2},
+  {q:"What do we call a ball of ice, dust, and rock that grows a glowing tail as it gets close to the Sun?", c:["An asteroid","A comet","A meteor","A satellite"], a:1},
+  {q:"What was the name of the first artificial satellite ever launched into orbit around Earth?", c:["Apollo 11","Sputnik","Voyager 1","Hubble"], a:1},
+  {q:"Who was the first human being to walk on the surface of the Moon?", c:["Buzz Aldrin","Yuri Gagarin","Neil Armstrong","John Glenn"], a:2},
+  {q:"What do we call the layer of gases that surrounds a planet?", c:["Crust","Atmosphere","Magnetosphere","Exosphere"], a:1},
+  {q:"Which planet is unusual because it spins almost completely on its side?", c:["Venus","Uranus","Neptune","Mercury"], a:1},
+  {q:"Which planet is often called Earth's 'twin' because it is close to Earth in size?", c:["Mars","Mercury","Venus","Jupiter"], a:2},
+  {q:"What do we call it when the Moon passes directly between the Sun and Earth, blocking out sunlight?", c:["A lunar eclipse","A solar eclipse","A supermoon","A meteor shower"], a:1},
+  {q:"What force keeps the planets moving in orbit around the Sun instead of flying off into space?", c:["Magnetism","Gravity","Friction","Air pressure"], a:1},
+  // Earth Science
+  {q:"What is the thin, outermost solid layer of the Earth called?", c:["Core","Mantle","Crust","Atmosphere"], a:2},
+  {q:"What do we call the hot, liquid rock found beneath Earth's crust?", c:["Lava","Magma","Ash","Sediment"], a:1},
+  {q:"What do we call melted rock once it has erupted onto Earth's surface from a volcano?", c:["Magma","Lava","Obsidian","Slag"], a:1},
+  {q:"What is the continuous natural movement of water between the ocean, the sky, and the land called?", c:["The rock cycle","The carbon cycle","The water cycle","The food chain"], a:2},
+  {q:"What is it called when water vapor in the air cools down and turns back into tiny liquid droplets, forming clouds?", c:["Evaporation","Condensation","Precipitation","Sublimation"], a:1},
+  {q:"What are the three main categories that all rocks are classified into?", c:["Hard, soft, and crumbly","Igneous, sedimentary, and metamorphic","Light, medium, and heavy","Old, new, and ancient"], a:1},
+  {q:"What type of rock forms when melted magma or lava cools and hardens?", c:["Sedimentary rock","Metamorphic rock","Igneous rock","Fossil rock"], a:2},
+  {q:"What type of rock forms when layers of sand, mud, and other sediment get pressed and cemented together over time?", c:["Igneous rock","Sedimentary rock","Metamorphic rock","Volcanic rock"], a:1},
+  {q:"What instrument do scientists use to measure and record the strength of an earthquake?", c:["Barometer","Anemometer","Seismograph","Thermometer"], a:2},
+  {q:"What do we call a huge, destructive ocean wave often triggered by an underwater earthquake?", c:["A hurricane","A tsunami","A whirlpool","A riptide"], a:1},
+  {q:"What is the name of the layer of the atmosphere closest to Earth's surface, where nearly all weather happens?", c:["Stratosphere","Troposphere","Mesosphere","Exosphere"], a:1},
+  {q:"What is the name of the imaginary line circling the middle of the Earth, exactly halfway between the North and South Poles?", c:["Prime Meridian","Equator","Tropic line","Horizon"], a:1},
+  {q:"Which type of rock is most likely to contain preserved fossils of ancient plants and animals?", c:["Igneous rock","Metamorphic rock","Sedimentary rock","Volcanic glass"], a:2},
+];
+function pickRandomScienceQuestions(n) {
+  const pool = SCIENCE_QUESTIONS.slice();
+  for (let i = pool.length - 1; i > 0; i--) { // real Fisher-Yates shuffle, same as pickRandomQuestions() above
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, Math.min(n, pool.length));
+}
+function openScienceLab() {
+  if(document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('scienceLabModal').style.display = 'flex';
+  if (scienceTestState && scienceTestState.idx < scienceTestState.questions.length) {
+    // Resume an in-progress test (player closed the modal mid-test and walked back to the door) —
+    // same "real state, don't silently discard it" treatment openClassroom() gives classroomState.
+    document.getElementById('scienceLabPickerView').style.display = 'none';
+    document.getElementById('scienceLabQuizView').style.display = 'block';
+    renderScienceQuestion();
+  } else {
+    scienceTestState = null;
+    document.getElementById('scienceLabPickerView').style.display = 'block';
+    document.getElementById('scienceLabQuizView').style.display = 'none';
+    refreshScienceLabPickerUI();
+  }
+}
+// Opens directly from a city door zone with nothing else open underneath it — same as openLibrary()
+// (see that function's own comment for why it's always safe to re-request pointer lock on close).
+function closeScienceLab() {
+  document.getElementById('scienceLabModal').style.display = 'none';
+  if(renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function refreshScienceLabPickerUI() {
+  const box2 = document.getElementById('scienceLabPickerBox');
+  const remainMs = SCIENCE_QUIZ_COOLDOWN_MS - (Date.now() - scienceLastQuizAt);
+  if (remainMs > 0) {
+    const mins = Math.ceil(remainMs/60000);
+    box2.innerHTML = `<div style="color:#aaa;">🧪 The lab just ran a test with you. Come back in ${mins} minute${mins===1?'':'s'}.</div>`;
+    return;
+  }
+  box2.innerHTML = `
+    <div style="margin-bottom:10px;">Dr. Greenwood hands you a clipboard: "Ready for a real Science Test? ${SCIENCE_QUIZ_LENGTH} questions — physics, chemistry, biology, space, and earth science."</div>
+    <button class="shopBtn" style="width:100%;" onclick="startScienceTest()">🧪 Start Science Test (${SCIENCE_QUIZ_LENGTH} questions)</button>`;
+}
+function startScienceTest() {
+  const remainMs = SCIENCE_QUIZ_COOLDOWN_MS - (Date.now() - scienceLastQuizAt);
+  if (remainMs > 0) { refreshScienceLabPickerUI(); return; } // real race guard, same shape as startClassSession()'s own re-check
+  scienceLastQuizAt = Date.now();
+  scienceTestState = { questions: pickRandomScienceQuestions(SCIENCE_QUIZ_LENGTH), idx:0, answered:false, correctCount:0, sipEarned:0 };
+  saveCurrentUser();
+  document.getElementById('scienceLabPickerView').style.display = 'none';
+  document.getElementById('scienceLabQuizView').style.display = 'block';
+  renderScienceQuestion();
+}
+function renderScienceQuestion() {
+  const st = scienceTestState;
+  if (!st) return;
+  if (st.idx >= st.questions.length) { renderScienceResults(); return; }
+  const q = st.questions[st.idx];
+  document.getElementById('scienceLabProgress').textContent = `QUESTION ${st.idx+1} OF ${st.questions.length} — ${st.correctCount} CORRECT SO FAR`;
+  document.getElementById('scienceLabQuestion').textContent = q.q;
+  const choicesEl = document.getElementById('scienceLabChoices');
+  choicesEl.innerHTML = q.c.map((c,i) => `<button onclick="answerScienceTest(${i})" style="width:100%;padding:10px;background:rgba(255,255,255,0.06);border:2px solid #2a6653;border-radius:8px;color:#fff;font-size:12px;cursor:pointer;text-align:left;">${c}</button>`).join('');
+  document.getElementById('scienceLabFeedback').innerHTML = '';
+  document.getElementById('scienceLabNextBtn').style.display = 'none';
+}
+function answerScienceTest(choiceIdx) {
+  const st = scienceTestState;
+  if (!st || st.answered) return; // guard double-clicks / stray repeats
+  const q = st.questions[st.idx];
+  st.answered = true;
+  Array.from(document.getElementById('scienceLabChoices').children).forEach((btn,i) => {
+    btn.style.pointerEvents = 'none';
+    if (i === q.a) btn.style.borderColor = '#4CAF50';
+    else if (i === choiceIdx) btn.style.borderColor = '#ff5555';
+  });
+  const feedback = document.getElementById('scienceLabFeedback');
+  if (choiceIdx === q.a) {
+    st.correctCount++;
+    st.sipEarned += SCIENCE_SIP_PER_CORRECT;
+    queueEarning(SCIENCE_SIP_PER_CORRECT, 0, '🧪 Science Test');
+    feedback.innerHTML = `<span style="color:#4CAF50;">✅ Correct! +${SCIENCE_SIP_PER_CORRECT} S.I.P. pending in Earnings.</span>`;
+    sfx.cheer ? sfx.cheer() : sfx.buy();
+  } else {
+    feedback.innerHTML = `<span style="color:#ff8888;">❌ Not quite — the answer was "${q.c[q.a]}".</span>`;
+    sfx.nope();
+  }
+  document.getElementById('scienceLabNextBtn').style.display = 'block';
+}
+function advanceScienceTest() {
+  const st = scienceTestState;
+  if (!st) return;
+  st.idx++;
+  st.answered = false;
+  renderScienceQuestion();
+}
+function renderScienceResults() {
+  const st = scienceTestState;
+  document.getElementById('scienceLabProgress').textContent = 'TEST COMPLETE';
+  document.getElementById('scienceLabQuestion').textContent = `You got ${st.correctCount} out of ${st.questions.length} right!`;
+  document.getElementById('scienceLabChoices').innerHTML = '';
+  document.getElementById('scienceLabFeedback').innerHTML = st.sipEarned > 0
+    ? `<span style="color:#4CAF50;">🎉 Earned ${st.sipEarned} S.I.P. total this visit — pending in your Earnings tab!</span>`
+    : `<span style="color:#aaa;">No S.I.P. this time — come back after the cooldown for another shot.</span>`;
+  document.getElementById('scienceLabNextBtn').style.display = 'none';
+}
+
 const MOVIE_FIGHT_EXIT  = { x:110000, z:18 };
 const MOVIE_FIGHT_COLS  = [];
 const MOVIE_FIGHT_SIZE  = 20;

@@ -534,6 +534,16 @@ const ARMOR = [
   { id:'gold',    name:'👑 Golden Armor',  cost:600, reduction:0.45, color:0xFFD700 },
   { id:'scrap',   name:'🔩 Scrap Armor',   cost:0,   reduction:0.35, color:0x667788, craftOnly:true },
   { id:'titanium',name:'🦾 Titanium Armor',cost:0,   reduction:0.50, color:0xcfd8e0, craftOnly:true },
+  // SUPER ARMOR — user's own ask: the item behind the $10.00 real-money 🛍️ SHOP tab listing
+  // (CURRENCY_SHOP_PACKAGES, game-alignment.js), same permanently-disabled-purchase pattern as
+  // the Super Tank. Real and equippable (same shape as every entry above, so ARMOR.find() in
+  // damagePlayer()/buildArmorVisual() picks it up correctly) but marked premiumOnly so it never
+  // shows up in the normal browse-and-buy list below (can't be bought with S.I.P. or crafted) —
+  // equipArmor('super_armor') is the only way onto it right now. 0.93 reduction was picked AFTER
+  // checking generateArmorBatch() below — the buyable batch already climbs as high as 0.90, so
+  // this has to clear that to honestly be the strongest, while staying under the batch's own
+  // deliberate "never literally unkillable" ceiling of 1.0.
+  { id:'super_armor', name:'⭐ Super Armor', cost:0, reduction:0.93, color:0xff3355, premiumOnly:true },
 ];
 // User's own follow-up: "add armor using the same batch system" — reuses the exact same tier-name
 // generator (and its dedup Set, so it can never collide with a weapon tier id) and hue-rotation
@@ -627,7 +637,7 @@ function openShop(type) {
       items.appendChild(d);
     });
   } else if(type==='armor') {
-    ARMOR.filter(a => !a.craftOnly).forEach((a) => {
+    ARMOR.filter(a => !a.craftOnly && !a.premiumOnly).forEach((a) => {
       const realIdx = ARMOR.indexOf(a);
       const owned = ownedArmor.includes(a.id);
       const equipped = playerArmor === a.id;
@@ -832,6 +842,52 @@ function renderAddOnsPanel() {
       <button class="shopBtn" onclick="repaintBuddy()" style="width:100%;">🎨 Repaint Buddy</button>`;
     items.appendChild(info);
   }
+
+  // ── Bodyguards section — a real roster (up to BODYGUARD_MAX_COUNT), unlike Buddy's one-forever
+  // slot, since hiring more than one is the whole point of a bodyguard.
+  const bgHeader = document.createElement('div');
+  bgHeader.style.cssText = 'color:#ff9944;font-size:11px;font-weight:bold;letter-spacing:1px;margin-top:14px;';
+  bgHeader.textContent = '💂 BODYGUARDS';
+  items.appendChild(bgHeader);
+  const bgIntro = document.createElement('div'); bgIntro.className='shopItem';
+  bgIntro.innerHTML = `<div class="siName">💂 Hired Muscle</div>
+    <div style="color:#aaa;font-size:11px;margin:4px 0;">Follow you and help fight whatever you're fighting. Hire up to ${BODYGUARD_MAX_COUNT} with 💎 Elite Coins, then level each one up to ${BODYGUARD_MAX_LEVEL}.</div>`;
+  items.appendChild(bgIntro);
+  bodyguards.forEach(bg => {
+    const maxed = bg.level >= BODYGUARD_MAX_LEVEL;
+    const cost = maxed ? 0 : BODYGUARD_LEVEL_UP_COST[bg.level-1];
+    const d = document.createElement('div'); d.className='shopItem';
+    d.innerHTML = `<div class="siName">💂 ${bg.name} — Level ${bg.level}${maxed?' (MAX)':''}</div>
+      <div class="siCost">${maxed ? '⭐ Max Level' : `💎 ${cost.toLocaleString()} to level up`}</div>
+      <button class="shopBtn" onclick="levelUpBodyguard('${bg.id}')" ${(maxed || eliteCoins<cost)?'disabled':''}>${maxed?'Maxed':'Level Up'}</button>`;
+    items.appendChild(d);
+  });
+  if (bodyguards.length < BODYGUARD_MAX_COUNT) {
+    const hireDiv = document.createElement('div'); hireDiv.className='shopItem';
+    hireDiv.innerHTML = `<div class="siName">💂 Hire a Bodyguard</div>
+      <div class="siCost">💎 ${BODYGUARD_HIRE_COST.toLocaleString()} Elite Coins</div>
+      <button class="shopBtn" onclick="hireBodyguard()" ${eliteCoins<BODYGUARD_HIRE_COST?'disabled':''}>Hire (${bodyguards.length}/${BODYGUARD_MAX_COUNT})</button>`;
+    items.appendChild(hireDiv);
+  }
+
+  // ── Pro Pilot section — user's own ask: "hire a pro driver for driving my jet." One-time hire,
+  // same shape as Buddy (pay once, keep forever) — unlocks a real autopilot for the Super Jet
+  // (H key while flying, tickJetAutopilot(), game-vehicles.js), not just a cosmetic title.
+  const pilotHeader = document.createElement('div');
+  pilotHeader.style.cssText = 'color:#ff9944;font-size:11px;font-weight:bold;letter-spacing:1px;margin-top:14px;';
+  pilotHeader.textContent = '🧑‍✈️ PRO PILOT';
+  items.appendChild(pilotHeader);
+  const pilotDiv = document.createElement('div'); pilotDiv.className='shopItem';
+  if (hiredJetPilot) {
+    pilotDiv.innerHTML = `<div class="siName">🧑‍✈️ Pro Pilot — Hired</div>
+      <div style="color:#aaa;font-size:11px;margin:4px 0;">While flying the Super Jet, press [H] to autopilot straight home and land, hands-off.</div>`;
+  } else {
+    pilotDiv.innerHTML = `<div class="siName">🧑‍✈️ Hire a Pro Pilot</div>
+      <div style="color:#aaa;font-size:11px;margin:4px 0;">A real autopilot for the Super Jet — press H mid-flight and it flies itself home and lands for you.</div>
+      <div class="siCost">💰 ${JET_PILOT_HIRE_COST.toLocaleString()} S.I.P.</div>
+      <button class="shopBtn" onclick="hireJetPilot()" ${sipDollars<JET_PILOT_HIRE_COST?'disabled':''}>Hire</button>`;
+  }
+  items.appendChild(pilotDiv);
 
   // ── Family section — your real relatives (Mom & Dad, always family, no befriending needed —
   // walk up to them in the city), your own marriage status, and (once married) a child who
@@ -1048,6 +1104,67 @@ function buildBuddy() {
   scene.add(buddyGroup);
 }
 
+// ─── BODYGUARDS — hire with Elite Coins, level each one up to a real cap of 10 (user's own ask).
+const BODYGUARD_MAX_COUNT = 3;
+const BODYGUARD_MAX_LEVEL = 10;
+const BODYGUARD_HIRE_COST = 400;
+// Cost to go FROM level i+1 TO i+2 (9 entries covers level 1→2 up to 9→10) — a real fixed ramp,
+// not open-ended, since unlike the player's own eliteLevel this is deliberately capped at 10.
+const BODYGUARD_LEVEL_UP_COST = [150, 250, 400, 600, 850, 1150, 1500, 1900, 2400];
+const BODYGUARD_NAMES = ['Rex', 'Tank', 'Duke', 'Bruno', 'Diesel', 'Axel'];
+function bodyguardDamageMult(level) { return 0.25 + (level-1) * 0.08; } // level 1 = 0.25x weapon dmg, level 10 = 0.97x
+function buildBodyguardMesh(x, z) {
+  const g = new THREE.Group();
+  function b(w,h,d,color,px,py,pz) { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(color)); m.position.set(px,py,pz); m.castShadow=true; g.add(m); return m; }
+  b(0.55,0.85,0.32, 0x1a1a1a, 0,1.15,0);     // black suit torso
+  b(0.4,0.4,0.4, 0xd4a070, 0,1.85,0);        // head
+  b(0.42,0.14,0.1, 0x111111, 0,1.9,0.18);    // sunglasses
+  b(0.5,0.75,0.3, 0x0d0d0d, 0,0.55,0);       // suit pants
+  [[-0.32,1.3,0],[0.32,1.3,0]].forEach(([ax,ay,az]) => b(0.16,0.6,0.16, 0x1a1a1a, ax,ay,az)); // arms
+  g.position.set(x,0,z);
+  scene.add(g);
+  return g;
+}
+// Rebuilds every hired bodyguard's real mesh fresh — called once at world-init (see the _dbg
+// startup sequence, game-zones.js), same "rebuild the visual from saved data" role buildBuddy()
+// already plays, since only {id,name,level} survive a save/load, never the live mesh reference.
+function buildBodyguards() {
+  bodyguards.forEach((bg, i) => {
+    if (bg.group) { scene.remove(bg.group); bg.group = null; }
+    const startX = playerGroup ? playerGroup.position.x - 1.5 - i*0.9 : -1.5 - i*0.9;
+    const startZ = playerGroup ? playerGroup.position.z + 1 : 16;
+    bg.group = buildBodyguardMesh(startX, startZ);
+  });
+}
+function hireBodyguard() {
+  if (bodyguards.length >= BODYGUARD_MAX_COUNT) { showNotif(`❌ You already have the max of ${BODYGUARD_MAX_COUNT} bodyguards!`); return; }
+  if (eliteCoins < BODYGUARD_HIRE_COST) { showNotif(`❌ Need ${BODYGUARD_HIRE_COST.toLocaleString()} 💎 to hire a bodyguard!`); return; }
+  eliteCoins -= BODYGUARD_HIRE_COST;
+  updateElite();
+  const name = BODYGUARD_NAMES[bodyguards.length % BODYGUARD_NAMES.length];
+  const bg = { id: 'bg' + Date.now() + '_' + Math.floor(Math.random()*10000), name, level: 1, group: null };
+  bodyguards.push(bg);
+  buildBodyguards();
+  sfx.buy();
+  showNotif(`💂 Hired ${name} as your bodyguard! (${bodyguards.length}/${BODYGUARD_MAX_COUNT})`);
+  saveCurrentUser();
+  renderAddOnsPanel();
+}
+function levelUpBodyguard(id) {
+  const bg = bodyguards.find(b => b.id === id);
+  if (!bg) return;
+  if (bg.level >= BODYGUARD_MAX_LEVEL) { showNotif(`❌ ${bg.name} is already max level (${BODYGUARD_MAX_LEVEL})!`); return; }
+  const cost = BODYGUARD_LEVEL_UP_COST[bg.level - 1];
+  if (eliteCoins < cost) { showNotif(`❌ Need ${cost.toLocaleString()} 💎 to level up ${bg.name}!`); return; }
+  eliteCoins -= cost;
+  updateElite();
+  bg.level++;
+  sfx.buy();
+  showNotif(`⬆️ ${bg.name} is now level ${bg.level}!`);
+  saveCurrentUser();
+  renderAddOnsPanel();
+}
+
 // ─── GROWTH tick — applies the current real-play-time growth stage to the player (and the
 // adopted child, on its own slower clock) every frame; only fires the "you grew!" notif and a
 // re-save on an ACTUAL stage change, not every frame. ───────────────────────────────────────
@@ -1118,7 +1235,14 @@ function renameChild() {
 // system (game-world.js) is the consequence side of the same theme, and never makes God the
 // target of anything.
 const PRAY_COOLDOWN_MS = 3600000; // 1 real hour between prayers
-const PRAY_SIP_REWARD = 25;
+// User's own ask: prayer is a real gamble now, not a guaranteed reward — one roll, split into
+// 3 buckets (5% / 10% / the rest), same "one random number line sliced into sections" idea as
+// a loot table. RESPOND is God giving you something to DO (a real trackable quest, reusing the
+// existing Quests system rather than inventing a second one), GRANT is a real, bigger reward
+// than the old flat 25 S.I.P. ever was — meant to feel worth the 1-in-10 odds.
+const PRAY_RESPOND_CHANCE = 0.05;
+const PRAY_GRANT_CHANCE   = 0.10;
+const PRAY_GRANT_SIP_MIN = 150, PRAY_GRANT_SIP_MAX = 500;
 function openChurch() {
   if(document.pointerLockElement) document.exitPointerLock();
   isPointerLocked = false;
@@ -1136,17 +1260,72 @@ function refreshChurchUI() {
     const mins = Math.ceil(remainMs/60000);
     box.innerHTML = `<div style="color:#aaa;font-size:13px;">🙏 You already prayed recently. Come back in ${mins} minute${mins===1?'':'s'}.</div>`;
   } else {
-    box.innerHTML = `<div style="color:#ddd;font-size:13px;">A quiet, peaceful place. Take a moment to pray.</div>`;
+    box.innerHTML = `<div style="color:#ddd;font-size:13px;">A quiet, peaceful place. Type what's on your heart below, then pray.</div>`;
   }
+}
+// "make it so you can wish for others" — a GRANT can go to someone else's real mailbox instead
+// of yourself. Only the real-money-shaped outcomes (sip/wood/elite) travel — a decoration item
+// can't be remotely built on a stranger's land with how land data works today (game-land.js's
+// own comment on that), so that case (and any unrecognized wish) just becomes a generic S.I.P.
+// gift instead, same as a self-grant's fallback.
+function sendPrayerGift(target, parsed, prayerText) {
+  const kind = (parsed && parsed.type !== 'item') ? parsed.type : 'sip';
+  const amount = (parsed && parsed.type !== 'item') ? parsed.amount : (PRAY_GRANT_SIP_MIN + Math.floor(Math.random() * (PRAY_GRANT_SIP_MAX - PRAY_GRANT_SIP_MIN)));
+  sendMail(target, 'prayer_gift', { kind, amount, prayer: prayerText });
 }
 function prayAtChurch() {
   if (Date.now() - churchLastPrayed < PRAY_COOLDOWN_MS) { refreshChurchUI(); return; }
+  const inputEl = document.getElementById('prayerTextInput');
+  const prayerText = (inputEl && inputEl.value.trim()) || 'for guidance';
+  const forEl = document.getElementById('prayerForInput');
+  const targetRaw = (forEl && forEl.value.trim()) || '';
+  const target = (targetRaw && targetRaw !== currentUser) ? targetRaw : null;
+  if (target && serverMode !== 'online') { showNotif('🙏 Praying for someone else needs ONLINE mode!'); return; }
+  if (inputEl) inputEl.value = '';
+  if (forEl) forEl.value = '';
   churchLastPrayed = Date.now();
-  playerHealth = playerMaxHealth;
-  updateHealthBar();
-  queueEarning(PRAY_SIP_REWARD, 0, 'Prayer at Church');
-  showNotif(`🙏 You feel at peace. Fully healed, +${PRAY_SIP_REWARD} S.I.P. pending in Earnings.`);
-  sfx.coin();
+  // A real prayer while the world is in Satan's hands is itself a push back — worth double a
+  // Demon kill (+2, see defeatDemon() in game-land.js), but hard-capped by PRAY_COOLDOWN_MS so it
+  // stays a boost, never the main strategy. Guarded on satanReignActive per the same reasoning as
+  // the Demon-kill increment. See SATAN_REIGN_GOAL/endSatanReign() in game-world.js.
+  if (satanReignActive) {
+    satanReignProgress += 2;
+    setTimeout(() => showNotif(`😇 Your prayer pushes back Satan's Reign! (${Math.min(satanReignProgress, SATAN_REIGN_GOAL)}/${SATAN_REIGN_GOAL})`), 2200);
+  }
+  const roll = Math.random();
+  if (roll < PRAY_RESPOND_CHANCE) {
+    // God asks something of YOU, rather than handing you a reward — a real quest, pushed
+    // straight into the same activeQuests list the Quests panel already tracks/renders/pays
+    // out, so it's a genuine trackable task, not just a line of flavor text. This always stays
+    // with the person who actually prayed, even when the GRANT case (below) would go to someone
+    // else — praying FOR a friend doesn't hand God's request to do something over to them too.
+    const q = generateQuest();
+    q.desc = `God asks you to: ${q.desc}`;
+    activeQuests.push(q);
+    showNotif(`🙏 A voice answers your prayer for "${prayerText}"... "${q.desc}"`);
+  } else if (roll < PRAY_RESPOND_CHANCE + PRAY_GRANT_CHANCE) {
+    if (target) {
+      sendPrayerGift(target, parsePrayerGrant(prayerText), prayerText);
+      showNotif(`✨ Your prayer for "${prayerText}" is granted — sent to ${target}!`);
+    } else {
+      playerHealth = playerMaxHealth;
+      updateHealthBar();
+      // "you type what u want theb god can grant it" — try to actually give the specific thing
+      // the player typed (interpretPrayerGrant() in game-land.js); only fall back to the generic
+      // big reward when nothing in the text is recognized, so a grant never comes up empty.
+      const specific = interpretPrayerGrant(prayerText);
+      if (specific) {
+        showNotif(`✨ Your prayer for "${prayerText}" is granted! You received ${specific}, and you're fully healed!`);
+      } else {
+        const gift = PRAY_GRANT_SIP_MIN + Math.floor(Math.random() * (PRAY_GRANT_SIP_MAX - PRAY_GRANT_SIP_MIN));
+        queueEarning(gift, 0, 'Prayer Granted');
+        showNotif(`✨ Your prayer for "${prayerText}" is granted! Fully healed, +${gift.toLocaleString()} S.I.P. pending in Earnings.`);
+      }
+    }
+    sfx.coin();
+  } else {
+    showNotif(`🙏 You pray for "${prayerText}"... but no answer comes this time.`);
+  }
   saveCurrentUser();
   refreshChurchUI();
 }
@@ -1329,6 +1508,185 @@ function billsToCash(amount) {
   return out.join(' + ');
 }
 
+// ─── CITY HALL FORMS OFFICE — real paperwork, real fields, a real short "Processing..." wait,
+// then a real approval (or, for the Loan, a real light denial case). City Hall itself has stood
+// in the city as a pure decoration since the very first build (see buildCity()'s CITY HALL block,
+// game-buildings.js) — this is its first real interactive function, opened via a new CITY_ZONES
+// door (game-zones.js) → openFormsOffice(), same single-modal "walk up and use it" pattern as the
+// Library/Science Lab (not a walk-in 3D interior). Three real forms:
+//   1. Business License — required before the FIRST Store purchase (buyStore(), game-vehicles.js).
+//   2. Building Permit — required before big Sunset Plains construction (placeBuilding()/
+//      buildCustomHouse(), game-land.js). Approval is banked PER PLOT (approvedPermits below) and
+//      consumed the moment a qualifying build actually completes on that plot — not a permanent
+//      unlock, and not wasted if the player can't yet afford the build they asked permission for.
+//   3. Small Business Loan — reuses the existing unpaidBills/Bills mechanic (this same file, just
+//      above) instead of inventing a parallel debt system: approval grants real S.I.P. immediately
+//      and pushes a real 'loan_'-prefixed bill that comes due, accrues the same late fee as any
+//      other bill if ignored, and is paid off with the existing payBill().
+let hasBusinessLicense = false;  // persisted — City Hall Business License, gates the FIRST Store purchase only
+let businessLicenseInfo = null;  // persisted — {storeName, category, reason, approvedAt} once granted, for display
+let approvedPermits = [];        // persisted — [{id, plotId, plotName, project, approvedAt}], one entry consumed per qualifying big build
+const LICENSE_CATEGORIES = ['General Retail','Food & Grocery','Fashion & Apparel','Electronics & Tech','Specialty Goods'];
+const LOAN_CAP = 2000;            // City Hall won't lend more than this in one application — kept well under even the cheapest Store tier's price
+const LOAN_INTEREST_RATE = 0.25;  // 25% interest — you always owe back MORE than you borrowed, a real tradeoff not free money
+const LOAN_GRACE_SECONDS = 300;   // real 5-minute grace period (playTimeSeconds clock, same one Bills already use) before the repayment bill can go overdue
+const FORMS_PROCESSING_MS = 2600; // real few-second "Processing your application..." wait — long enough to feel real, short enough not to be annoying
+function openFormsOffice() {
+  if(document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('formsOfficeModal').style.display = 'flex';
+  showFormsOfficeList();
+}
+function closeFormsOffice() {
+  document.getElementById('formsOfficeModal').style.display = 'none';
+  if(renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function showFormsOfficeList() {
+  ['formsOfficeLicenseView','formsOfficePermitView','formsOfficeLoanView','formsOfficeProcessingView','formsOfficeResultView']
+    .forEach(id => document.getElementById(id).style.display = 'none');
+  document.getElementById('formsOfficeListView').style.display = 'block';
+  renderFormsOfficeList();
+}
+function renderFormsOfficeList() {
+  const outstandingLoan = unpaidBills.some(b => b.id.startsWith('loan_'));
+  const list = document.getElementById('formsOfficeList');
+  list.innerHTML = `
+    <div class="shopItem" style="margin-bottom:8px;">
+      <div class="siName">🏪 Business License Application</div>
+      <div style="color:#99a;font-size:11px;margin:4px 0 8px;">Required before you can open your very first Store.</div>
+      ${hasBusinessLicense
+        ? `<div style="color:#7CFC00;font-size:11px;">✅ Approved — ${businessLicenseInfo ? businessLicenseInfo.storeName+' ('+businessLicenseInfo.category+')' : 'on file'}</div>`
+        : `<button class="shopBtn" style="width:100%;" onclick="openLicenseForm()">Apply →</button>`}
+    </div>
+    <div class="shopItem" style="margin-bottom:8px;">
+      <div class="siName">🏗️ Building Permit</div>
+      <div style="color:#99a;font-size:11px;margin:4px 0 8px;">Required before big Sunset Plains construction (2-story houses and up, or a 10x10+ custom house).</div>
+      <div style="color:#aaa;font-size:11px;margin-bottom:8px;">${approvedPermits.length ? `📋 ${approvedPermits.length} approved permit${approvedPermits.length>1?'s':''} banked, waiting to be used` : 'No approved permits banked right now.'}</div>
+      ${ownedLand.length
+        ? `<button class="shopBtn" style="width:100%;" onclick="openPermitForm()">Apply →</button>`
+        : `<div style="color:#ff8888;font-size:11px;">Buy Sunset Plains land first.</div>`}
+    </div>
+    <div class="shopItem">
+      <div class="siName">💰 Small Business Loan</div>
+      <div style="color:#99a;font-size:11px;margin:4px 0 8px;">Borrow up to ${LOAN_CAP.toLocaleString()} S.I.P. now — pay it back with 25% interest over real time.</div>
+      ${outstandingLoan
+        ? `<div style="color:#ff8888;font-size:11px;">You already have an outstanding loan — pay it off in 🧩 Add-Ons → Bills before applying again.</div>`
+        : `<button class="shopBtn" style="width:100%;" onclick="openLoanForm()">Apply →</button>`}
+    </div>
+  `;
+}
+function formsOfficeSwitchView(viewId) {
+  ['formsOfficeListView','formsOfficeLicenseView','formsOfficePermitView','formsOfficeLoanView','formsOfficeProcessingView','formsOfficeResultView']
+    .forEach(id => document.getElementById(id).style.display = id===viewId ? 'block' : 'none');
+}
+function openLicenseForm() {
+  if(hasBusinessLicense) { showNotif('✅ You already have a Business License!'); return; }
+  document.getElementById('licenseStoreName').value = '';
+  document.getElementById('licenseCategory').innerHTML = LICENSE_CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('');
+  document.getElementById('licenseReason').value = '';
+  document.getElementById('licenseFormErr').textContent = '';
+  formsOfficeSwitchView('formsOfficeLicenseView');
+}
+function openPermitForm() {
+  if(!ownedLand.length) { showNotif('❌ You need to own Sunset Plains land first!'); return; }
+  const sel = document.getElementById('permitPlot');
+  sel.innerHTML = LAND_PLOTS.filter(p => ownedLand.includes(p.id))
+    .map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  document.getElementById('permitProject').value = '';
+  document.getElementById('permitConfirm').checked = false;
+  document.getElementById('permitFormErr').textContent = '';
+  formsOfficeSwitchView('formsOfficePermitView');
+}
+function openLoanForm() {
+  if(unpaidBills.some(b => b.id.startsWith('loan_'))) { showNotif('❌ Pay off your current loan first!'); return; }
+  document.getElementById('loanAmount').value = '';
+  document.getElementById('loanReason').value = '';
+  document.getElementById('loanFormErr').textContent = '';
+  formsOfficeSwitchView('formsOfficeLoanView');
+}
+// Shared "Processing your application..." wait state — hides every form view, shows the spinner
+// text for FORMS_PROCESSING_MS, then runs the real approve/deny logic. Mutating state INSIDE the
+// timeout (not before it) is what makes this a real wait rather than an instant click wearing a
+// costume.
+function runFormsOfficeProcessing(onDone) {
+  formsOfficeSwitchView('formsOfficeProcessingView');
+  setTimeout(onDone, FORMS_PROCESSING_MS);
+}
+function showFormsOfficeResult(approved, html) {
+  formsOfficeSwitchView('formsOfficeResultView');
+  const box = document.getElementById('formsOfficeResultText');
+  box.innerHTML = html;
+  box.style.color = approved ? '#7CFC00' : '#ff8888';
+}
+function submitLicenseApplication() {
+  const storeName = document.getElementById('licenseStoreName').value.trim();
+  const category = document.getElementById('licenseCategory').value;
+  const reason = document.getElementById('licenseReason').value.trim();
+  const errEl = document.getElementById('licenseFormErr');
+  if(!storeName) { errEl.textContent = 'Enter a store name.'; return; }
+  if(!reason) { errEl.textContent = 'Tell City Hall why you want this license.'; return; }
+  errEl.textContent = '';
+  runFormsOfficeProcessing(() => {
+    hasBusinessLicense = true;
+    businessLicenseInfo = { storeName, category, reason, approvedAt: playTimeSeconds };
+    saveCurrentUser();
+    sfx.buy();
+    showFormsOfficeResult(true, `✅ <b>Application Approved!</b><br>Your Business License for <b>${storeName}</b> (${category}) is on file at City Hall. You can now buy your first Store.`);
+  });
+}
+function submitPermitApplication() {
+  const plotId = document.getElementById('permitPlot').value;
+  const plot = LAND_PLOTS.find(p => p.id === plotId);
+  const project = document.getElementById('permitProject').value.trim();
+  const confirmed = document.getElementById('permitConfirm').checked;
+  const errEl = document.getElementById('permitFormErr');
+  if(!plot) { errEl.textContent = "Pick which plot you're building on."; return; }
+  if(!project) { errEl.textContent = "Describe what you're building."; return; }
+  if(!confirmed) { errEl.textContent = 'You must confirm the safety-code checkbox.'; return; }
+  errEl.textContent = '';
+  runFormsOfficeProcessing(() => {
+    approvedPermits.push({ id:'permit_'+Date.now(), plotId: plot.id, plotName: plot.name, project, approvedAt: playTimeSeconds });
+    saveCurrentUser();
+    sfx.buy();
+    showFormsOfficeResult(true, `✅ <b>Application Approved!</b><br>Building Permit granted for <b>${project}</b> at <b>${plot.name}</b>. Head to Sunset Plains — this permit is used automatically the moment your next qualifying build there actually completes.`);
+  });
+}
+function submitLoanApplication() {
+  const amount = parseInt(document.getElementById('loanAmount').value, 10);
+  const reason = document.getElementById('loanReason').value.trim();
+  const errEl = document.getElementById('loanFormErr');
+  if(!Number.isFinite(amount) || amount < 50) { errEl.textContent = 'Enter an amount of at least 50 S.I.P.'; return; }
+  if(amount > LOAN_CAP) { errEl.textContent = `City Hall only lends up to ${LOAN_CAP.toLocaleString()} S.I.P. per application.`; return; }
+  if(!reason) { errEl.textContent = 'Tell City Hall what the loan is for.'; return; }
+  errEl.textContent = '';
+  runFormsOfficeProcessing(() => {
+    // Real light denial case: an amount that's clearly too large relative to the player's CURRENT
+    // wallet gets turned down even though it's under the hard cap above — a poorer account has a
+    // lower effective ceiling than a richer one, same "can you actually repay this" logic a real
+    // loan officer would apply.
+    if(amount > sipDollars * 6 + 300) {
+      sfx.nope();
+      showFormsOfficeResult(false, `❌ <b>Application Denied.</b><br>City Hall doesn't think you can repay ${amount.toLocaleString()} S.I.P. yet — try a smaller amount.`);
+      return;
+    }
+    const owed = Math.ceil(amount * (1 + LOAN_INTEREST_RATE));
+    sipDollars += amount; updateSIP();
+    unpaidBills.push({ id:'loan_'+Date.now(), label:`🏦 City Hall Loan repayment (borrowed ${amount.toLocaleString()})`, amount: owed, dueAt: playTimeSeconds + LOAN_GRACE_SECONDS });
+    saveCurrentUser();
+    sfx.buy();
+    showFormsOfficeResult(true, `✅ <b>Application Approved!</b><br>${amount.toLocaleString()} S.I.P. deposited immediately. You'll owe back <b>${owed.toLocaleString()} S.I.P.</b> (25% interest) — check 🧩 Add-Ons → Bills when it comes due.`);
+  });
+}
+// ── Building Permit lookup/consumption — called from placeBuilding()/buildCustomHouse()
+// (game-land.js). hasPermitFor() is a pure check (safe to call before an affordability check, so
+// a permit is never wasted on a build the player couldn't actually pay for); consumePermitFor()
+// is the real mutation, called only once a gated build has actually completed.
+function hasPermitFor(plotId) { return approvedPermits.some(p => p.plotId === plotId); }
+function consumePermitFor(plotId) {
+  const i = approvedPermits.findIndex(p => p.plotId === plotId);
+  if(i >= 0) { approvedPermits.splice(i, 1); saveCurrentUser(); }
+}
+
 // ─── GUIDE — a real "how to play" walkthrough. Auto-opens the FIRST time a genuinely new
 // account enters the world (not on every login), and can be reopened anytime from the ❓ HELP
 // tab. The point: a brand-new player who doesn't know what any of this does is the exact
@@ -1452,7 +1810,11 @@ function toggleAddOn(id) {
   if(id==='snowday' || id==='leafstorm') {
     if(activeAddOns.includes('snowday')) startWeatherParticles('snow');
     else if(activeAddOns.includes('leafstorm')) startWeatherParticles('leaves');
-    else applySeasonEffects();
+    // Neither forced add-on is on anymore — hand control back to the real dynamic weather system
+    // (game-zones.js) instead of the old static "just re-apply the season's fixed particle" reset.
+    // Clearing these two forces tickWeather() to re-roll immediately rather than seeing "nothing
+    // changed" and leaving the forced particles in place until the next natural window boundary.
+    else { currentWeatherKey = null; _lastWeatherWindow = null; tickWeather(0); }
   }
   saveCurrentUser();
   renderAddOnsPanel();

@@ -172,6 +172,152 @@ function safeWithdraw() {
   msg.textContent = '✅ Took out ' + amt.toLocaleString() + ' S.I.P.!';
   saveCurrentUser();
 }
+
+// ─── TRASH SAFE — "add a trash safe you set a passcode others can't get it but can put stuff in
+// the same trash can so you can put your stuff in". Two halves, deliberately asymmetric: GIVING
+// needs no passcode at all (anyone, including you, can put something in — via sendMail() to a
+// named account, same real cross-machine delivery the S.I.P./prayer gifts already use), but
+// OPENING it to see or take anything back out is passcode-gated exactly like the existing
+// per-account Safe above, just a second, separate combo.
+function openTrashModal() {
+  if(document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('trashModal').style.display = 'flex';
+  trashShowGiveView();
+}
+function closeTrashModal() {
+  document.getElementById('trashModal').style.display = 'none';
+  if(renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function trashShowGiveView() {
+  document.getElementById('trashGiveView').style.display = 'block';
+  document.getElementById('trashSafeSetView').style.display = 'none';
+  document.getElementById('trashSafeEnterView').style.display = 'none';
+  document.getElementById('trashSafeOpenView').style.display = 'none';
+  document.getElementById('trashGiveTarget').value = '';
+  document.getElementById('trashGiveItem').value = '';
+  document.getElementById('trashGiveSip').value = '';
+  document.getElementById('trashGiveMsg').textContent = '';
+}
+function trashShowMySafe() {
+  document.getElementById('trashGiveView').style.display = 'none';
+  document.getElementById('trashSafeOpenView').style.display = 'none';
+  if(!trashSafeCombo) {
+    document.getElementById('trashSafeSetView').style.display = 'block';
+    document.getElementById('trashSafeEnterView').style.display = 'none';
+    document.getElementById('trashSafeNewCombo').value = '';
+    document.getElementById('trashSafeConfirmCombo').value = '';
+    document.getElementById('trashSafeSetErr').textContent = '';
+  } else {
+    document.getElementById('trashSafeSetView').style.display = 'none';
+    document.getElementById('trashSafeEnterView').style.display = 'block';
+    document.getElementById('trashSafeComboInput').value = '';
+    document.getElementById('trashSafeEnterErr').textContent = '';
+  }
+}
+function setTrashSafeCombo() {
+  const c1 = document.getElementById('trashSafeNewCombo').value;
+  const c2 = document.getElementById('trashSafeConfirmCombo').value;
+  const err = document.getElementById('trashSafeSetErr');
+  if(!c1)       { err.textContent = 'Enter a passcode!';        return; }
+  if(c1 !== c2) { err.textContent = "Passcodes don't match!";  return; }
+  trashSafeCombo = c1;
+  saveCurrentUser();
+  document.getElementById('trashSafeSetView').style.display = 'none';
+  trashShowSafeOpen();
+}
+function submitTrashSafeCombo() {
+  const entered = document.getElementById('trashSafeComboInput').value;
+  if(entered === trashSafeCombo) {
+    document.getElementById('trashSafeEnterView').style.display = 'none';
+    trashShowSafeOpen();
+  } else {
+    document.getElementById('trashSafeEnterErr').textContent = 'Wrong passcode! Try again.';
+    document.getElementById('trashSafeComboInput').value = '';
+  }
+}
+function trashShowSafeOpen() {
+  document.getElementById('trashSafeOpenView').style.display = 'block';
+  document.getElementById('trashSafeSipDisplay').textContent = trashSafeSip.toLocaleString() + ' S.I.P.';
+  refreshTrashSafeItems();
+}
+function refreshTrashSafeItems() {
+  const el = document.getElementById('trashSafeItemsList');
+  if(!el) return;
+  const keys = Object.keys(trashSafeItems || {});
+  if(keys.length === 0) {
+    el.innerHTML = '<div style="color:#555;font-size:11px;text-align:center;padding:8px 0;">Nothing in here yet</div>';
+    return;
+  }
+  el.innerHTML = keys.map(id => {
+    const it = trashSafeItems[id];
+    return `<div style="display:flex;align-items:center;gap:8px;background:rgba(120,255,120,0.06);border:1px solid #335533;border-radius:6px;padding:6px 10px;margin-bottom:5px;">
+      <span style="font-size:18px;">${it.emoji}</span>
+      <span style="flex:1;color:#fff;font-size:12px;">${it.name}${it.qty > 1 ? ` x${it.qty}` : ''}</span>
+      <button onclick="takeFromTrashSafe('${id}')" style="padding:3px 10px;background:#1a3a1a;border:1px solid #44aa44;border-radius:5px;color:#44ff88;font-size:11px;cursor:pointer;font-weight:bold;">Take</button>
+    </div>`;
+  }).join('');
+}
+function takeFromTrashSafe(id) {
+  const it = trashSafeItems[id];
+  if(!it) return;
+  for(let i = 0; i < it.qty; i++) addToInventory(id, it.name, it.emoji);
+  delete trashSafeItems[id];
+  saveCurrentUser();
+  refreshTrashSafeItems();
+}
+function withdrawTrashSafeSip() {
+  if(trashSafeSip <= 0) return;
+  sipDollars += trashSafeSip;
+  updateSIP();
+  trashSafeSip = 0;
+  saveCurrentUser();
+  trashShowSafeOpen();
+}
+function depositIntoOwnTrashSafe(id, name, emoji, qty) {
+  if(trashSafeItems[id]) trashSafeItems[id].qty += qty; else trashSafeItems[id] = { name, emoji, qty };
+  saveCurrentUser();
+}
+function trashGiveItem() {
+  const target = document.getElementById('trashGiveTarget').value.trim() || currentUser;
+  const query = document.getElementById('trashGiveItem').value.trim().toLowerCase();
+  const msg = document.getElementById('trashGiveMsg');
+  if(!query) { msg.style.color = '#ff8888'; msg.textContent = 'Type an item name!'; return; }
+  if(target !== currentUser && serverMode !== 'online') { msg.style.color = '#ff8888'; msg.textContent = 'Giving to someone else needs ONLINE mode!'; return; }
+  const entry = Object.entries(playerInventory).find(([id, it]) => it.name.toLowerCase().includes(query));
+  if(!entry) { msg.style.color = '#ff8888'; msg.textContent = "You don't have that item!"; return; }
+  const [id, it] = entry;
+  const name = it.name, emoji = it.emoji;
+  it.qty--;
+  if(it.qty <= 0) delete playerInventory[id];
+  saveCurrentUser();
+  if(target === currentUser) {
+    depositIntoOwnTrashSafe(id, name, emoji, 1);
+    msg.style.color = '#44ff88'; msg.textContent = `✅ Put ${emoji} ${name} in your Trash Safe!`;
+  } else {
+    sendMail(target, 'trash_deposit', { kind: 'item', id, name, emoji, qty: 1 });
+    msg.style.color = '#44ff88'; msg.textContent = `✅ Sent ${emoji} ${name} to ${target}'s Trash Safe!`;
+  }
+  document.getElementById('trashGiveItem').value = '';
+}
+function trashGiveSip() {
+  const target = document.getElementById('trashGiveTarget').value.trim() || currentUser;
+  const amt = parseInt(document.getElementById('trashGiveSip').value, 10);
+  const msg = document.getElementById('trashGiveMsg');
+  if(!Number.isFinite(amt) || amt <= 0) { msg.style.color = '#ff8888'; msg.textContent = 'Enter a valid amount!'; return; }
+  if(amt > sipDollars) { msg.style.color = '#ff8888'; msg.textContent = "You don't have that much!"; return; }
+  if(target !== currentUser && serverMode !== 'online') { msg.style.color = '#ff8888'; msg.textContent = 'Giving to someone else needs ONLINE mode!'; return; }
+  sipDollars -= amt; updateSIP();
+  if(target === currentUser) {
+    trashSafeSip += amt; saveCurrentUser();
+    msg.style.color = '#44ff88'; msg.textContent = `✅ Put ${amt.toLocaleString()} S.I.P. in your Trash Safe!`;
+  } else {
+    sendMail(target, 'trash_deposit', { kind: 'sip', amount: amt });
+    msg.style.color = '#44ff88'; msg.textContent = `✅ Sent ${amt.toLocaleString()} S.I.P. to ${target}'s Trash Safe!`;
+  }
+  document.getElementById('trashGiveSip').value = '';
+}
+
 function openBank() {
   document.getElementById('bankWalletDisplay').textContent = sipDollars.toLocaleString() + ' S.I.P.';
   document.getElementById('bankBalDisplay').textContent = bankBalance.toLocaleString() + ' S.I.P.';
@@ -179,6 +325,11 @@ function openBank() {
   document.getElementById('bankEliteWalletDisplay').textContent = Math.floor(eliteCoins).toLocaleString() + ' 💎';
   document.getElementById('bankEliteBalDisplay').textContent = formatBigNum(bankEliteBalance) + ' 💎';
   document.getElementById('bankEliteAmtInput').value = '';
+  // Cash/ATM feature — display-only here (an ATM is where you actually move money between this
+  // and sipDollars); still worth showing while you're at the Bank so you can see your full real
+  // financial picture in one place, same reason the Diamond Wallet sits in this same overlay.
+  const bcd = document.getElementById('bankCashDisplay');
+  if (bcd) bcd.textContent = '$' + Math.floor(cash).toLocaleString();
   document.getElementById('bankMsg').textContent = '';
   document.getElementById('bankOverlay').style.display = 'flex';
 }
@@ -208,6 +359,13 @@ async function syncStocks() {
   } catch(e) { /* next sync will catch up */ }
 }
 
+// TRADING CENTER — the building's real door action (buildCity()'s TRADING CENTER block,
+// game-buildings.js / CITY_ZONES, game-zones.js). Reuses the exact same Stock Market modal and
+// state as the Bank's own menu button — buying/selling shares works identically either way.
+function openTradingCenter() {
+  showNotif('📈 Welcome to the Trading Center!');
+  openStockMarket();
+}
 function openStockMarket() {
   document.getElementById('stockMarketModal').style.display = 'flex';
   refreshStockMarketUI();
@@ -333,6 +491,63 @@ function bankEliteWithdraw() {
   saveCurrentUser();
 }
 
+// ─── ATMs — small standalone cash kiosks around the city (see buildATM(), game-zones.js, and its
+// CITY_ZONES.push() call sites in buildCity(), game-buildings.js). Same real amount-input/
+// validate/settle shape as bankDeposit()/bankWithdraw() above, just moving money between
+// sipDollars and the new carried `cash` instead of between sipDollars and bankBalance — and
+// deliberately NOT routed through spendSip() (game-customization.js): spendSip's whole job is
+// "every S.I.P. spend also deposits the same amount into the Bank," which is exactly backwards
+// for a withdrawal (it would leave the player with both the withdrawn cash AND a phantom deposit
+// of the same amount sitting in bankBalance — free money out of nowhere). Direct sipDollars/cash
+// manipulation here matches bankWithdraw()'s own style above, which has the same "moving OUT of
+// the safe balance" shape and also skips spendSip() for the same reason.
+function openATM() {
+  if(document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('atmAmtInput').value = '';
+  document.getElementById('atmMsg').textContent = '';
+  refreshATMDisplay();
+  document.getElementById('atmModal').style.display = 'flex';
+}
+function refreshATMDisplay() {
+  document.getElementById('atmSipDisplay').textContent = sipDollars.toLocaleString() + ' S.I.P.';
+  document.getElementById('atmCashDisplay').textContent = '$' + Math.floor(cash).toLocaleString();
+}
+function closeATM() {
+  document.getElementById('atmModal').style.display = 'none';
+  if(renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function atmWithdraw() {
+  const amt = parseInt(document.getElementById('atmAmtInput').value);
+  const msg = document.getElementById('atmMsg');
+  if(!amt || amt <= 0) { msg.style.color='#ff8888'; msg.textContent='Enter a valid amount!'; return; }
+  if(amt > sipDollars) { sfx.nope(); msg.style.color='#ff8888'; msg.textContent="You don't have that much S.I.P.!"; return; }
+  sipDollars -= amt;
+  cash += amt;
+  updateSIP();
+  updateCash();
+  refreshATMDisplay();
+  sfx.coin();
+  msg.style.color = '#FFD700';
+  msg.textContent = '✅ Withdrew $' + amt.toLocaleString() + ' cash!';
+  saveCurrentUser();
+}
+function atmDeposit() {
+  const amt = parseInt(document.getElementById('atmAmtInput').value);
+  const msg = document.getElementById('atmMsg');
+  if(!amt || amt <= 0) { msg.style.color='#ff8888'; msg.textContent='Enter a valid amount!'; return; }
+  if(amt > cash) { sfx.nope(); msg.style.color='#ff8888'; msg.textContent="You don't have that much cash!"; return; }
+  cash -= amt;
+  sipDollars += amt;
+  updateCash();
+  updateSIP();
+  refreshATMDisplay();
+  sfx.bank();
+  msg.style.color = '#44ff88';
+  msg.textContent = '✅ Deposited $' + amt.toLocaleString() + ' to S.I.P.!';
+  saveCurrentUser();
+}
+
 function backToLogin() {
   if(shopSalesTimer){ clearInterval(shopSalesTimer); shopSalesTimer=null; } // don't let a staffed shop's timer outlive the logged-in account
   shopOpen = false;
@@ -340,6 +555,8 @@ function backToLogin() {
   currentUser = null;
   clearRemotePlayers();
   clearRemoteKillers();
+  clearRemoteBuddies();
+  clearRemoteBodyguards();
   document.getElementById('customScreen').style.display = 'none';
   document.getElementById('loginScreen').style.display  = 'flex';
   loadLoginScreen();
@@ -428,6 +645,16 @@ let buddyName    = 'Buddy';
 let buddyColors  = { body:'#66ddff', accent:'#ffffff', eye:'#111111' };
 let buddyGroup   = null;                 // THREE.Group, lives directly in scene (not a playerGroup child) so it can lag behind
 let buddyMeshes  = null;                 // { body:[], accent:[], eye:[] } — tagged parts a repaint recolors live
+
+// ─── BODYGUARDS — user's own ask: hire (with Elite Coins, not S.I.P.) real combat companions,
+// each independently levelable up to a real cap of 10. Same "lives directly in scene, follows the
+// player" convention as Buddy above, and plugs into the exact same landCompanionHit()/
+// getCompanionCombatTarget() assist pipeline (game-world.js) tickCompanionAssist() already uses —
+// see tickBodyguards() there. Unlike Buddy (one, forever), this is a real roster: hire up to
+// BODYGUARD_MAX_COUNT, each its own {id,name,level} — see hireBodyguard()/levelUpBodyguard()/
+// buildBodyguards() (game-shops.js).
+let bodyguards = []; // [{id, name, level, group}] — group is a live THREE.Group reference, rebuilt fresh by buildBodyguards() every load, never itself persisted (see game-core.js save/load)
+let hiredJetPilot = false; // Pro Pilot — a real one-time hire (game-vehicles.js hireJetPilot()), same "pay once, keep forever" shape as Buddy
 
 // ─── ADOPTED CHILD — a real family member who follows you like Buddy, but a small person
 // (reuses the box-figure style, not a pet shape) who visibly grows up via GROWTH_STAGES above. ──

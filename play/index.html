@@ -80,6 +80,11 @@
     #sickHud       { position:fixed; top:430px; right:14px; color:#aaff66; font-size:13px; font-weight:bold; background:rgba(40,60,0,0.85); padding:7px 12px; border-radius:8px; border:1px solid #779922; display:none; }
     #bladderHud    { position:fixed; top:468px; right:14px; color:#66ccff; font-size:13px; font-weight:bold; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; }
     #tirednessHud  { position:fixed; top:506px; right:14px; color:#bb99ff; font-size:13px; font-weight:bold; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; }
+    /* Cash/ATM feature — appended at the end of the right-side HUD stack (top:544, the next free
+       38px slot after #tirednessHud) rather than reflowing every other HUD rule's hardcoded `top`
+       value down by 38px — this whole stack is fixed pixel positions, not a flex stack, so
+       inserting it near #sipHud would mean touching ~10 unrelated rules for no functional gain. */
+    #cashHud       { position:fixed; top:544px; right:14px; color:#7CFC8A; font-size:13px; font-weight:bold; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; }
     #healthHud     { position:fixed; top:60px; left:14px; z-index:15; background:rgba(0,0,0,0.5); padding:8px 12px; border-radius:8px; }
     #healthBarBg   { width:150px; height:14px; background:#330000; border:1px solid #ff4444; border-radius:7px; overflow:hidden; }
     #healthBarFill { width:100%; height:100%; background:linear-gradient(90deg,#ff4444,#ff8844); transition:width 0.2s; }
@@ -220,6 +225,12 @@
     .acSip  { color:#FFD700; font-size:12px; margin-top:2px; }
     .acDel  { background:none; border:1px solid #444; color:#666; font-size:14px; cursor:pointer; padding:4px 8px; border-radius:6px; }
     .acDel:hover { color:#e94560; border-color:#e94560; }
+    .acBackup  { background:none; border:1px solid #444; color:#666; font-size:14px; cursor:pointer; padding:4px 8px; border-radius:6px; }
+    .acBackup:hover { color:#FFD700; border-color:#FFD700; }
+    .acRestore { background:none; border:1px solid #444; color:#666; font-size:14px; cursor:pointer; padding:4px 8px; border-radius:6px; }
+    .acRestore:hover { color:#3ddc71; border-color:#3ddc71; }
+    .acRestore:disabled { opacity:0.3; cursor:not-allowed; }
+    .acRestore:disabled:hover { color:#666; border-color:#444; }
     #noAccounts { color:#666; font-size:13px; text-align:center; padding:20px; }
     .newAccRow  { display:flex; gap:8px; width:320px; }
     .accInput {
@@ -247,6 +258,7 @@
 <div id="loginScreen">
   <h1>EXPLOX</h1>
   <h2>SELECT YOUR ACCOUNT</h2>
+  <div id="loginSitePlayersLine" style="color:#888;font-size:11px;margin-bottom:8px;">🌍 <span id="loginSitePlayerCount">…</span> people play Explox</div>
   <div id="serverModeRow">
     <button id="onlineModeBtn"  class="modeBtn" onclick="setServerMode('online')">🟢 ONLINE</button>
     <button id="offlineModeBtn" class="modeBtn" onclick="setServerMode('offline')">🔴 OFFLINE</button>
@@ -279,6 +291,54 @@
     <div style="display:flex;gap:8px;">
       <button onclick="cancelPassword()" style="flex:1;padding:10px;background:none;border:1px solid #555;border-radius:8px;color:#aaa;font-size:14px;cursor:pointer;">Cancel</button>
       <button onclick="submitPassword()" style="flex:1;padding:10px;background:#e94560;border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:bold;cursor:pointer;">▶ PLAY</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE ACCOUNT CONFIRM MODAL — native confirm() is unreliable here (some embeds/iframes block
+     or auto-suppress it, and repeated dialogs can get throttled by the browser itself), so account
+     deletion gets its own real in-page modal instead, same z-index/style family as pwModal above. -->
+<div id="deleteConfirmModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#1a1a2e,#2a0f18);border:2px solid #e94560;border-radius:16px;padding:32px 28px;width:320px;text-align:center;">
+    <div style="font-size:36px;margin-bottom:8px;">⚠️</div>
+    <h2 style="color:#ff6666;font-size:18px;letter-spacing:2px;margin-bottom:6px;">DELETE ACCOUNT?</h2>
+    <p style="color:#ccc;font-size:13px;margin-bottom:4px;">Delete "<span id="deleteConfirmName" style="color:#fff;font-weight:bold;"></span>"?</p>
+    <p style="color:#888;font-size:12px;margin-bottom:16px;">This cannot be undone — all progress on this account will be lost.</p>
+    <div style="display:flex;gap:8px;">
+      <button onclick="cancelDeleteAccount()" style="flex:1;padding:10px;background:none;border:1px solid #555;border-radius:8px;color:#aaa;font-size:14px;cursor:pointer;">Cancel</button>
+      <button onclick="confirmDeleteAccount()" style="flex:1;padding:10px;background:#e94560;border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:bold;cursor:pointer;">🗑️ Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESTORE BACKUP CONFIRM MODAL — every account gets one manual backup slot (💾 on the account
+     card makes it, ♻️ loads it back). Restoring overwrites the current save, so it gets the same
+     real in-page modal treatment as deleteConfirmModal above instead of native confirm(). -->
+<div id="restoreConfirmModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#0a1a12,#0f2a1a);border:2px solid #3ddc71;border-radius:16px;padding:32px 28px;width:320px;text-align:center;">
+    <div style="font-size:36px;margin-bottom:8px;">♻️</div>
+    <h2 style="color:#3ddc71;font-size:18px;letter-spacing:2px;margin-bottom:6px;">RESTORE BACKUP?</h2>
+    <p style="color:#ccc;font-size:13px;margin-bottom:4px;">Restore "<span id="restoreConfirmName" style="color:#fff;font-weight:bold;"></span>" to its backup from <span id="restoreConfirmTime" style="color:#fff;font-weight:bold;"></span>?</p>
+    <p style="color:#888;font-size:12px;margin-bottom:16px;">Whatever this account currently has will be gone — replaced by that backup.</p>
+    <div style="display:flex;gap:8px;">
+      <button onclick="cancelRestoreAccount()" style="flex:1;padding:10px;background:none;border:1px solid #555;border-radius:8px;color:#aaa;font-size:14px;cursor:pointer;">Cancel</button>
+      <button onclick="confirmRestoreAccount()" style="flex:1;padding:10px;background:#3ddc71;border:none;border-radius:8px;color:#0a1a12;font-size:14px;font-weight:bold;cursor:pointer;">♻️ Restore</button>
+    </div>
+  </div>
+</div>
+
+<!-- HEAVEN INVITE MODAL — real periodic popup (native confirm() is unreliable in this game's
+     embeds, same reasoning as deleteConfirmModal above), asking every 5 minutes
+     (maybeShowHeavenInvite(), game-world.js) if the player wants to visit the existing Heaven
+     zone (HEAVEN_ZONE/enterHeaven(), also game-world.js — the Divine Judgment destination). -->
+<div id="heavenInviteModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.82);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#3a2e0a,#4a3a10);border:2px solid #FFEE00;border-radius:16px;padding:32px 28px;width:320px;text-align:center;">
+    <div style="font-size:36px;margin-bottom:8px;">🕊️</div>
+    <h2 style="color:#FFEE00;font-size:18px;letter-spacing:2px;margin-bottom:6px;">A VOICE CALLS TO YOU</h2>
+    <p style="color:#eee;font-size:13px;margin-bottom:16px;">Do you want to go to Heaven?</p>
+    <div style="display:flex;gap:8px;">
+      <button onclick="declineHeavenInvite()" style="flex:1;padding:10px;background:none;border:1px solid #776633;border-radius:8px;color:#ccc;font-size:14px;cursor:pointer;">Not now</button>
+      <button onclick="acceptHeavenInvite()" style="flex:1;padding:10px;background:#FFEE00;border:none;border-radius:8px;color:#332200;font-size:14px;font-weight:bold;cursor:pointer;">🕊️ Yes</button>
     </div>
   </div>
 </div>
@@ -340,6 +400,12 @@
         <span style="color:#aaa;font-size:13px;">🏦 Bank Balance</span>
         <span id="bankBalDisplay" style="color:#44ff88;font-weight:bold;font-size:14px;"></span>
       </div>
+      <!-- Cash/ATM feature — display-only here; actual Withdraw/Deposit between this and the
+           wallet happens at an ATM (openATM(), game-economy.js), not from inside the Bank. -->
+      <div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);">
+        <span style="color:#aaa;font-size:13px;">💵 Cash on Hand</span>
+        <span id="bankCashDisplay" style="color:#7CFC8A;font-weight:bold;font-size:14px;"></span>
+      </div>
     </div>
     <div style="margin-bottom:12px;">
       <div style="color:#aaa;font-size:11px;letter-spacing:1px;margin-bottom:6px;">AMOUNT</div>
@@ -378,7 +444,41 @@
   </div>
 </div>
 
-<!-- SCHOOL MODAL -->
+<!-- ATM MODAL — Cash/ATM feature. Small, single-screen machine (no passcode gate like the Bank —
+     it's just a street kiosk): Withdraw pulls S.I.P. out as real carried cash, Deposit puts cash
+     back into S.I.P. Same real amount-input/validate/settle shape as the Bank overlay above, just
+     for the smaller cash/sipDollars pair instead of sipDollars/bankBalance — see
+     openATM()/atmWithdraw()/atmDeposit() (game-economy.js). -->
+<div id="atmModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.78);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#0a1a14,#0e2a1e);border:2px solid #33ccff;border-radius:16px;padding:28px;width:320px;">
+    <h2 style="color:#33ccff;text-align:center;letter-spacing:3px;margin-bottom:4px;font-size:20px;">🏧 ATM</h2>
+    <p style="color:#888;text-align:center;font-size:11px;letter-spacing:2px;margin-bottom:20px;">WITHDRAW OR DEPOSIT CASH</p>
+    <div style="background:rgba(51,204,255,0.07);border:1px solid #225577;border-radius:10px;padding:14px;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+        <span style="color:#aaa;font-size:13px;">💰 S.I.P.</span>
+        <span id="atmSipDisplay" style="color:#FFD700;font-weight:bold;font-size:14px;"></span>
+      </div>
+      <div style="display:flex;justify-content:space-between;">
+        <span style="color:#aaa;font-size:13px;">💵 Cash on Hand</span>
+        <span id="atmCashDisplay" style="color:#7CFC8A;font-weight:bold;font-size:14px;"></span>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <div style="color:#aaa;font-size:11px;letter-spacing:1px;margin-bottom:6px;">AMOUNT</div>
+      <input id="atmAmtInput" type="number" min="1" placeholder="Enter amount..."
+        style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.08);border:2px solid #444;border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;outline:none;"
+        onfocus="this.style.borderColor='#33ccff'" onblur="this.style.borderColor='#444'">
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button onclick="atmWithdraw()" style="flex:1;padding:10px;background:#1a4a1a;border:1px solid #44aa44;border-radius:8px;color:#44ff88;font-weight:bold;cursor:pointer;font-size:13px;">⬇ Withdraw Cash</button>
+      <button onclick="atmDeposit()" style="flex:1;padding:10px;background:#4a1a1a;border:1px solid #aa4444;border-radius:8px;color:#ff8888;font-weight:bold;cursor:pointer;font-size:13px;">⬆ Deposit Cash</button>
+    </div>
+    <div id="atmMsg" style="font-size:12px;text-align:center;min-height:16px;margin-bottom:10px;"></div>
+    <button onclick="closeATM()" style="width:100%;padding:9px;background:none;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">✖ Leave ATM</button>
+  </div>
+</div>
+
+<!-- SCHOOL MODAL — kid-enrollment menu, UNCHANGED, still reachable via the entrance choice below -->
 <div id="schoolModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
   <div style="background:linear-gradient(135deg,#1a1400,#241d00);border:2px solid #cc9900;border-radius:16px;padding:26px;width:320px;text-align:center;">
     <div style="font-size:38px;margin-bottom:6px;">🏫</div>
@@ -388,13 +488,296 @@
   </div>
 </div>
 
+<!-- SCHOOL ENTRANCE CHOICE — the real School door (CITY_ZONES 'Enter School', game-zones.js) opens
+     this first now: go to class yourself (a real walk-in classroom, game-land.js) or manage your
+     kid's enrollment (the schoolModal above, completely unchanged). -->
+<div id="schoolEntranceModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#1a1400,#241d00);border:2px solid #cc9900;border-radius:16px;padding:26px;width:320px;text-align:center;">
+    <div style="font-size:38px;margin-bottom:6px;">🏫</div>
+    <h2 style="color:#FFD700;font-size:18px;letter-spacing:3px;margin-bottom:16px;">SCHOOL</h2>
+    <div style="color:#ccc;font-size:12px;margin-bottom:16px;">What brings you to School today?</div>
+    <button class="shopBtn" style="width:100%;margin-bottom:8px;" onclick="closeSchoolEntrance();enterSchool();">🧑‍🎓 Go to Class Yourself</button>
+    <button class="shopBtn" style="width:100%;margin-bottom:8px;background:#3a2f10;color:#FFD700;" onclick="closeSchoolEntrance();openSchool();">👨‍👩‍👧 Manage Your Kid's Schooling</button>
+    <button onclick="closeSchoolEntrance()" style="width:100%;padding:9px;background:none;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">✖ Never Mind</button>
+  </div>
+</div>
+
+<!-- CLASSROOM — a real multi-period SCHOOL DAY inside the walk-in classroom (rebuilt from City
+     Life's own school.js structure — see game-land.js's big comment block above SCHOOL_SPAWN for
+     the full read-through of what changed and why). Age picker view maps the player's typed age to
+     one of 4 real question banks, then a real paced day (5 subject class periods, snack, lunch,
+     P.E., dismissal) runs inside classroomDayView — same list-view/active-view toggle pattern as
+     the Bible Stories modal, just with more inner sub-views now. -->
+<div id="classroomModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#12203a,#0d1930);border:2px solid #4488cc;border-radius:16px;padding:24px;width:380px;max-width:90vw;max-height:85vh;overflow-y:auto;box-sizing:border-box;">
+    <div style="font-size:34px;text-align:center;margin-bottom:4px;">🏫</div>
+    <h2 style="color:#7fc8ff;font-size:17px;letter-spacing:2px;text-align:center;margin-bottom:14px;">SCHOOL DAY</h2>
+
+    <!-- PICKER VIEW -->
+    <div id="classroomPickerView">
+      <div id="classroomPickerBox" style="color:#ccc;font-size:12px;margin-bottom:4px;text-align:center;"></div>
+    </div>
+
+    <!-- DAY VIEW — one active period at a time -->
+    <div id="classroomDayView" style="display:none;">
+      <div id="schoolPeriodLabel" style="color:#FFD700;font-size:13px;font-weight:bold;text-align:center;margin-bottom:4px;letter-spacing:1px;"></div>
+      <div id="schoolPeriodDots" style="text-align:center;margin-bottom:14px;"></div>
+
+      <!-- Waiting for the teacher to approach -->
+      <div id="schoolWaitingView" style="display:none;text-align:center;padding:20px 4px;">
+        <div style="font-size:26px;margin-bottom:8px;">🧑‍🏫</div>
+        <div id="schoolWaitingText" style="color:#aaa;font-size:12px;line-height:1.6;"></div>
+      </div>
+
+      <!-- A live quiz question -->
+      <div id="schoolClassView" style="display:none;">
+        <div id="schoolClassProgress" style="color:#888;font-size:10px;letter-spacing:1px;text-align:center;margin-bottom:8px;"></div>
+        <div id="schoolClassQuestion" style="color:#fff;font-size:14px;font-weight:bold;margin-bottom:14px;line-height:1.5;text-align:center;"></div>
+        <div id="schoolClassChoices" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;"></div>
+        <div id="schoolClassFeedback" style="font-size:12px;text-align:center;min-height:34px;margin-bottom:8px;"></div>
+        <button id="schoolClassNextBtn" onclick="advanceSchoolClassAfterAnswer()" style="display:none;width:100%;padding:10px;background:#4488cc;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:13px;margin-bottom:8px;">Continue →</button>
+      </div>
+
+      <!-- Snack/lunch break -->
+      <div id="schoolBreakView" style="display:none;text-align:center;">
+        <div id="schoolBreakTitle" style="color:#f39c12;font-size:15px;font-weight:bold;margin-bottom:12px;"></div>
+        <div id="schoolBreakChoices"></div>
+      </div>
+
+      <!-- P.E. click-mash challenge -->
+      <div id="schoolPEView" style="display:none;text-align:center;padding:6px 4px;">
+        <div style="font-size:26px;margin-bottom:6px;">🏃</div>
+        <div id="schoolPEStatus" style="color:#aaa;font-size:12px;margin-bottom:10px;"></div>
+        <div id="schoolPEReps" style="color:#2ecc71;font-size:1.8em;font-weight:bold;margin-bottom:16px;">Reps: 0</div>
+        <button class="shopBtn" style="width:100%;" onclick="schoolPEPump()">🏃 GO!</button>
+      </div>
+
+      <!-- Dismissal summary -->
+      <div id="schoolDismissalView" style="display:none;">
+        <div id="schoolDismissalBox" style="color:#ccc;font-size:12px;line-height:1.6;text-align:center;margin-bottom:10px;"></div>
+        <button class="shopBtn" style="width:100%;" onclick="closeClassroom()">🎒 OK</button>
+      </div>
+    </div>
+
+    <button onclick="closeClassroom()" style="width:100%;padding:9px;background:none;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:12px;margin-top:6px;">✖ Close</button>
+  </div>
+</div>
+
+<!-- SCHOOL BULLY — a real confrontation with 3 real choices, ported from citylife/src/events.js
+     (maybeSpawnBully/spawnBully/showBullyChoice/bullyChoice — a real implemented mechanic there,
+     just living in a different file than school.js itself). See schoolBullyChoice() in
+     game-land.js for the real S.I.P./health consequences of each choice. -->
+<div id="schoolBullyModal" style="display:none;position:fixed;inset:0;z-index:65;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#2a0a0a,#3a1010);border:3px solid #e74c3c;border-radius:16px;padding:28px 32px;max-width:340px;text-align:center;">
+    <h2 id="schoolBullyName" style="color:#ff6b6b;font-size:16px;margin-bottom:12px;"></h2>
+    <p style="color:#ddd;font-size:13px;margin-bottom:20px;">"Give me your lunch money, or else!"</p>
+    <button class="shopBtn" style="width:100%;margin-bottom:8px;" onclick="schoolBullyChoice('standup')">😤 Stand up to them</button>
+    <button class="shopBtn" style="width:100%;margin-bottom:8px;" onclick="schoolBullyChoice('walkaway')">🚶 Walk away</button>
+    <button class="shopBtn" style="width:100%;" onclick="schoolBullyChoice('teacher')">🙋 Tell the teacher (safest)</button>
+  </div>
+</div>
+
+<!-- SCHOOL HOMEWORK — real follow-up question assigned at dismissal (assignSchoolHomework(),
+     game-land.js), doable any time before the next school day from a real HUD tab (homeworkTab,
+     below in the right tab stack — only shown while genuinely pending) rather than requiring a
+     trip back to School. Same "toggle panel, hide/show its own tab" pattern
+     toggleEarningsPanel() (game-customization.js) already uses. -->
+<div id="homeworkModal" style="display:none;position:fixed;inset:0;z-index:65;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#12203a,#0d1930);border:2px solid #FFD700;border-radius:16px;padding:24px;width:340px;max-width:90vw;box-sizing:border-box;">
+    <div style="font-size:30px;text-align:center;margin-bottom:4px;">📝</div>
+    <h2 id="homeworkSubject" style="color:#FFD700;font-size:15px;text-align:center;margin-bottom:14px;letter-spacing:1px;"></h2>
+    <div id="homeworkQuestion" style="color:#fff;font-size:14px;font-weight:bold;margin-bottom:14px;line-height:1.5;text-align:center;"></div>
+    <div id="homeworkChoices" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;"></div>
+    <div id="homeworkFeedback" style="font-size:12px;text-align:center;min-height:20px;margin-bottom:8px;"></div>
+    <button onclick="closeSchoolHomeworkPanel()" style="width:100%;padding:9px;background:none;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">✖ Close</button>
+  </div>
+</div>
+
 <div id="churchModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
   <div style="background:linear-gradient(135deg,#1a1608,#241f0e);border:2px solid #d4af37;border-radius:16px;padding:26px;width:320px;text-align:center;">
     <div style="font-size:38px;margin-bottom:6px;">⛪</div>
     <h2 style="color:#FFD700;font-size:18px;letter-spacing:3px;margin-bottom:16px;">CHURCH</h2>
     <div id="churchBox" style="text-align:left;margin-bottom:16px;"></div>
+    <input id="prayerTextInput" type="text" maxlength="120" placeholder="Type what you're praying for..." style="width:100%;box-sizing:border-box;padding:8px;margin-bottom:8px;border-radius:6px;border:1px solid #665;background:#0f0d05;color:#fff;font-size:12px;">
+    <input id="prayerForInput" type="text" maxlength="30" placeholder="Who is this for? (leave blank for yourself)" style="width:100%;box-sizing:border-box;padding:8px;margin-bottom:8px;border-radius:6px;border:1px solid #665;background:#0f0d05;color:#fff;font-size:12px;">
     <button onclick="prayAtChurch()" style="width:100%;padding:10px;margin-bottom:8px;background:#FFD700;border:none;border-radius:8px;color:#111;cursor:pointer;font-size:13px;font-weight:bold;">🙏 Pray</button>
+    <button onclick="openBibleStories()" style="width:100%;padding:9px;margin-bottom:8px;background:none;border:1px solid #d4af37;border-radius:8px;color:#FFD700;cursor:pointer;font-size:12px;font-weight:bold;">📖 Bible Stories</button>
     <button onclick="closeChurch()" style="width:100%;padding:9px;background:none;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">✖ Leave Church</button>
+  </div>
+</div>
+
+<!-- BIBLE STORIES — "make a story of the whole bible book by book in the church". Real,
+     original story per book (game-bible.js's BIBLE_BOOKS), browsable by section, one book read
+     at a time. -->
+<div id="bibleModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#1a1608,#241f0e);border:2px solid #d4af37;border-radius:16px;padding:24px;width:360px;max-width:90vw;max-height:85vh;overflow-y:auto;box-sizing:border-box;">
+    <div style="font-size:34px;text-align:center;margin-bottom:4px;">📖</div>
+    <h2 style="color:#FFD700;font-size:17px;letter-spacing:2px;text-align:center;margin-bottom:14px;">BIBLE STORIES</h2>
+
+    <!-- LIST VIEW -->
+    <div id="bibleListView">
+      <p style="color:#887755;font-size:10px;text-align:center;margin-bottom:10px;">TAP A BOOK TO READ ITS STORY</p>
+      <div id="bibleList"></div>
+      <button onclick="closeBibleStories()" style="width:100%;padding:9px;background:none;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:12px;margin-top:6px;">✖ Close</button>
+    </div>
+
+    <!-- READ VIEW -->
+    <div id="bibleReadView" style="display:none;">
+      <div id="bibleReadTitle" style="color:#FFD700;font-size:20px;font-weight:bold;text-align:center;margin-bottom:2px;"></div>
+      <div id="bibleReadSub" style="color:#998855;font-size:10px;letter-spacing:1px;text-align:center;margin-bottom:12px;"></div>
+      <div id="bibleReadBox" style="max-height:50vh;overflow-y:auto;background:rgba(255,215,0,0.05);border:1px solid #443300;border-radius:10px;padding:14px;margin-bottom:12px;">
+        <div id="bibleReadStory" style="color:#eee;font-size:13px;line-height:1.7;white-space:pre-line;"></div>
+      </div>
+      <button onclick="backToBibleList()" style="width:100%;padding:9px;background:#3a2f10;border:1px solid #d4af37;border-radius:8px;color:#FFD700;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:6px;">← Back to Books</button>
+      <button onclick="closeBibleStories()" style="width:100%;padding:9px;background:none;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">✖ Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- LIBRARY — a real new building you walk into (game-buildings.js's exterior, game-zones.js's
+     Enter Library door zone → openLibrary()), with original Explox-world stories to read
+     (game-library.js's LIBRARY_BOOKS). Same list view + read view pattern as Bible Stories above. -->
+<div id="libraryModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#1a1608,#241f0e);border:2px solid #d4af37;border-radius:16px;padding:24px;width:360px;max-width:90vw;max-height:85vh;overflow-y:auto;box-sizing:border-box;">
+    <div style="font-size:34px;text-align:center;margin-bottom:4px;">📚</div>
+    <h2 style="color:#FFD700;font-size:17px;letter-spacing:2px;text-align:center;margin-bottom:14px;">LIBRARY</h2>
+
+    <!-- LIST VIEW -->
+    <div id="libraryListView">
+      <p style="color:#887755;font-size:10px;text-align:center;margin-bottom:10px;">TAP A BOOK TO READ IT</p>
+      <div id="libraryList"></div>
+      <button onclick="closeLibrary()" style="width:100%;padding:9px;background:none;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:12px;margin-top:6px;">✖ Close</button>
+    </div>
+
+    <!-- READ VIEW -->
+    <div id="libraryReadView" style="display:none;">
+      <div id="libraryReadTitle" style="color:#FFD700;font-size:20px;font-weight:bold;text-align:center;margin-bottom:12px;"></div>
+      <div id="libraryReadBox" style="max-height:50vh;overflow-y:auto;background:rgba(255,215,0,0.05);border:1px solid #443300;border-radius:10px;padding:14px;margin-bottom:12px;">
+        <div id="libraryReadStory" style="color:#eee;font-size:13px;line-height:1.7;white-space:pre-line;"></div>
+      </div>
+      <button onclick="backToLibraryList()" style="width:100%;padding:9px;background:#3a2f10;border:1px solid #d4af37;border-radius:8px;color:#FFD700;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:6px;">← Back to Books</button>
+      <button onclick="closeLibrary()" style="width:100%;padding:9px;background:none;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">✖ Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCIENCE LAB — a real new civic building you walk up to (game-buildings.js's exterior,
+     game-zones.js's Enter Science Lab door zone → openScienceLab()), with a real Science Test
+     minigame inside (game-land.js). Same picker view/quiz view pattern as the Classroom modal
+     above (School's real Pop Quiz), just teal-themed to match the Lab's own steel-and-glass look. -->
+<div id="scienceLabModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#0a1f1a,#0d2620);border:2px solid #33cc99;border-radius:16px;padding:24px;width:360px;max-width:90vw;box-sizing:border-box;">
+    <div style="font-size:34px;text-align:center;margin-bottom:4px;">🧪</div>
+    <h2 style="color:#5fffc2;font-size:17px;letter-spacing:2px;text-align:center;margin-bottom:14px;">SCIENCE LAB</h2>
+
+    <!-- PICKER VIEW -->
+    <div id="scienceLabPickerView">
+      <div id="scienceLabPickerBox" style="color:#ccc;font-size:12px;margin-bottom:4px;text-align:center;"></div>
+    </div>
+
+    <!-- QUIZ VIEW -->
+    <div id="scienceLabQuizView" style="display:none;">
+      <div id="scienceLabProgress" style="color:#888;font-size:10px;letter-spacing:1px;text-align:center;margin-bottom:8px;"></div>
+      <div id="scienceLabQuestion" style="color:#fff;font-size:14px;font-weight:bold;margin-bottom:14px;line-height:1.5;text-align:center;"></div>
+      <div id="scienceLabChoices" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;"></div>
+      <div id="scienceLabFeedback" style="font-size:12px;text-align:center;min-height:34px;margin-bottom:8px;"></div>
+      <button id="scienceLabNextBtn" onclick="advanceScienceTest()" style="display:none;width:100%;padding:10px;background:#33cc99;border:none;border-radius:8px;color:#08201a;font-weight:bold;cursor:pointer;font-size:13px;margin-bottom:8px;">Next Question →</button>
+    </div>
+
+    <button onclick="closeScienceLab()" style="width:100%;padding:9px;background:none;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">✖ Close</button>
+  </div>
+</div>
+
+<!-- CITY HALL FORMS OFFICE — City Hall stood in the city as pure decoration since the very first
+     build (buildCity()'s CITY HALL block, game-buildings.js) until now. Real first interactive
+     function: a real bureaucratic office with 3 real multi-field forms (Business License/Building
+     Permit/Small Business Loan — game-shops.js's openFormsOffice() and friends), opened from a new
+     CITY_ZONES door (game-zones.js). Same single-modal "walk up and use it" pattern as the
+     Library/Science Lab above, just civic-blue themed to read as an official office rather than
+     either of those two. -->
+<div id="formsOfficeModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#0a1420,#111f30);border:2px solid #4a78c2;border-radius:16px;padding:24px;width:380px;max-width:90vw;max-height:85vh;overflow-y:auto;box-sizing:border-box;">
+    <div style="font-size:34px;text-align:center;margin-bottom:4px;">🏛️</div>
+    <h2 style="color:#7fb3ff;font-size:17px;letter-spacing:2px;text-align:center;margin-bottom:2px;">CITY HALL</h2>
+    <p style="color:#6a86ad;font-size:11px;text-align:center;letter-spacing:1px;margin-bottom:14px;">FORMS OFFICE</p>
+
+    <!-- LIST VIEW -->
+    <div id="formsOfficeListView">
+      <p style="color:#7f96b8;font-size:10px;text-align:center;margin-bottom:10px;">TAP A FORM TO APPLY</p>
+      <div id="formsOfficeList"></div>
+      <button onclick="closeFormsOffice()" style="width:100%;padding:9px;background:none;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:12px;margin-top:10px;">✖ Close</button>
+    </div>
+
+    <!-- BUSINESS LICENSE FORM VIEW -->
+    <div id="formsOfficeLicenseView" style="display:none;">
+      <h3 style="color:#7fb3ff;font-size:14px;margin-bottom:10px;">🏪 Business License Application</h3>
+      <label style="color:#aab8cc;font-size:11px;display:block;margin-bottom:4px;">Store Name</label>
+      <input id="licenseStoreName" type="text" maxlength="30" placeholder="e.g. Sunny's Corner Shop"
+        style="width:100%;padding:9px;background:rgba(255,255,255,0.08);border:2px solid #2c4360;border-radius:8px;color:#fff;font-size:13px;margin-bottom:10px;box-sizing:border-box;outline:none;"
+        onfocus="this.style.borderColor='#4a78c2'" onblur="this.style.borderColor='#2c4360'">
+      <label style="color:#aab8cc;font-size:11px;display:block;margin-bottom:4px;">Category</label>
+      <select id="licenseCategory" style="width:100%;padding:9px;background:rgba(255,255,255,0.08);border:2px solid #2c4360;border-radius:8px;color:#fff;font-size:13px;margin-bottom:10px;box-sizing:border-box;outline:none;"></select>
+      <label style="color:#aab8cc;font-size:11px;display:block;margin-bottom:4px;">Why do you want this license?</label>
+      <textarea id="licenseReason" maxlength="200" rows="3" placeholder="Tell City Hall a bit about your business idea..."
+        style="width:100%;padding:9px;background:rgba(255,255,255,0.08);border:2px solid #2c4360;border-radius:8px;color:#fff;font-size:13px;margin-bottom:6px;box-sizing:border-box;outline:none;resize:none;font-family:inherit;"
+        onfocus="this.style.borderColor='#4a78c2'" onblur="this.style.borderColor='#2c4360'"></textarea>
+      <div id="licenseFormErr" style="color:#ff8888;font-size:11px;min-height:14px;margin-bottom:8px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="showFormsOfficeList()" style="flex:1;padding:10px;background:none;border:1px solid #555;border-radius:8px;color:#aaa;cursor:pointer;font-size:12px;">Cancel</button>
+        <button onclick="submitLicenseApplication()" style="flex:2;padding:10px;background:#3a5fa0;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:12px;">Submit Application →</button>
+      </div>
+    </div>
+
+    <!-- BUILDING PERMIT FORM VIEW -->
+    <div id="formsOfficePermitView" style="display:none;">
+      <h3 style="color:#7fb3ff;font-size:14px;margin-bottom:10px;">🏗️ Building Permit Application</h3>
+      <label style="color:#aab8cc;font-size:11px;display:block;margin-bottom:4px;">Which Sunset Plains plot?</label>
+      <select id="permitPlot" style="width:100%;padding:9px;background:rgba(255,255,255,0.08);border:2px solid #2c4360;border-radius:8px;color:#fff;font-size:13px;margin-bottom:10px;box-sizing:border-box;outline:none;"></select>
+      <label style="color:#aab8cc;font-size:11px;display:block;margin-bottom:4px;">What are you building?</label>
+      <input id="permitProject" type="text" maxlength="40" placeholder="e.g. 3-Story House"
+        style="width:100%;padding:9px;background:rgba(255,255,255,0.08);border:2px solid #2c4360;border-radius:8px;color:#fff;font-size:13px;margin-bottom:10px;box-sizing:border-box;outline:none;"
+        onfocus="this.style.borderColor='#4a78c2'" onblur="this.style.borderColor='#2c4360'">
+      <label style="color:#ccd6e6;font-size:11px;display:flex;align-items:center;gap:6px;margin-bottom:8px;cursor:pointer;">
+        <input id="permitConfirm" type="checkbox" style="width:15px;height:15px;">
+        I confirm this construction meets Explox safety code.
+      </label>
+      <div id="permitFormErr" style="color:#ff8888;font-size:11px;min-height:14px;margin-bottom:8px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="showFormsOfficeList()" style="flex:1;padding:10px;background:none;border:1px solid #555;border-radius:8px;color:#aaa;cursor:pointer;font-size:12px;">Cancel</button>
+        <button onclick="submitPermitApplication()" style="flex:2;padding:10px;background:#3a5fa0;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:12px;">Submit Application →</button>
+      </div>
+    </div>
+
+    <!-- SMALL BUSINESS LOAN FORM VIEW -->
+    <div id="formsOfficeLoanView" style="display:none;">
+      <h3 style="color:#7fb3ff;font-size:14px;margin-bottom:10px;">💰 Small Business Loan Application</h3>
+      <label style="color:#aab8cc;font-size:11px;display:block;margin-bottom:4px;">Amount requested (max 2,000 S.I.P.)</label>
+      <input id="loanAmount" type="number" min="50" max="2000" placeholder="e.g. 500"
+        style="width:100%;padding:9px;background:rgba(255,255,255,0.08);border:2px solid #2c4360;border-radius:8px;color:#fff;font-size:13px;margin-bottom:6px;box-sizing:border-box;outline:none;"
+        onfocus="this.style.borderColor='#4a78c2'" onblur="this.style.borderColor='#2c4360'">
+      <p style="color:#7f96b8;font-size:10px;margin:0 0 10px;">25% interest — you'll owe back more than you borrow, due over real time.</p>
+      <label style="color:#aab8cc;font-size:11px;display:block;margin-bottom:4px;">Reason for the loan</label>
+      <input id="loanReason" type="text" maxlength="80" placeholder="e.g. Startup cash for my new shop"
+        style="width:100%;padding:9px;background:rgba(255,255,255,0.08);border:2px solid #2c4360;border-radius:8px;color:#fff;font-size:13px;margin-bottom:6px;box-sizing:border-box;outline:none;"
+        onfocus="this.style.borderColor='#4a78c2'" onblur="this.style.borderColor='#2c4360'">
+      <div id="loanFormErr" style="color:#ff8888;font-size:11px;min-height:14px;margin-bottom:8px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="showFormsOfficeList()" style="flex:1;padding:10px;background:none;border:1px solid #555;border-radius:8px;color:#aaa;cursor:pointer;font-size:12px;">Cancel</button>
+        <button onclick="submitLoanApplication()" style="flex:2;padding:10px;background:#3a5fa0;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:12px;">Submit Application →</button>
+      </div>
+    </div>
+
+    <!-- PROCESSING VIEW -->
+    <div id="formsOfficeProcessingView" style="display:none;text-align:center;padding:20px 0;">
+      <div style="font-size:32px;margin-bottom:10px;">⏳</div>
+      <p style="color:#ccd6e6;font-size:13px;">Processing your application...</p>
+    </div>
+
+    <!-- RESULT VIEW -->
+    <div id="formsOfficeResultView" style="display:none;">
+      <div id="formsOfficeResultText" style="font-size:13px;line-height:1.6;margin-bottom:14px;text-align:center;"></div>
+      <button onclick="showFormsOfficeList()" style="width:100%;padding:9px;background:#3a5fa0;border:none;border-radius:8px;color:#fff;cursor:pointer;font-size:12px;font-weight:bold;">← Back to Forms</button>
+    </div>
   </div>
 </div>
 
@@ -472,6 +855,84 @@
   </div>
 </div>
 
+<!-- TRASH SAFE — "add a trash safe you set a passcode others can't get it but can put stuff in
+     the same trash can so you can put your stuff in". Give needs no passcode at all (anyone,
+     yourself included); opening it to take anything back out does. -->
+<div id="trashModal" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#0a1a0a,#122a12);border:3px solid #338833;border-radius:16px;padding:28px;width:320px;text-align:center;max-height:85vh;overflow-y:auto;max-width:90vw;box-sizing:border-box;">
+    <div style="font-size:38px;margin-bottom:6px;">🗑️</div>
+    <h2 style="color:#66ff66;font-size:17px;letter-spacing:3px;margin-bottom:16px;">TRASH SAFE</h2>
+
+    <!-- GIVE VIEW (default — no passcode ever needed) -->
+    <div id="trashGiveView">
+      <p style="color:#aaa;font-size:12px;margin-bottom:10px;">Anyone can put stuff in — no passcode needed to give.</p>
+      <input id="trashGiveTarget" type="text" placeholder="Who's this for? (blank = yourself)" maxlength="30"
+        style="width:100%;padding:9px;background:rgba(255,255,255,0.08);border:2px solid #444;border-radius:8px;color:#fff;font-size:13px;margin-bottom:10px;box-sizing:border-box;outline:none;"
+        onfocus="this.style.borderColor='#66ff66'" onblur="this.style.borderColor='#444'">
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
+        <input id="trashGiveItem" type="text" placeholder="Item name..." maxlength="40"
+          style="flex:1;padding:9px;background:rgba(255,255,255,0.08);border:2px solid #444;border-radius:8px;color:#fff;font-size:13px;box-sizing:border-box;outline:none;"
+          onfocus="this.style.borderColor='#66ff66'" onblur="this.style.borderColor='#444'"
+          onkeydown="if(event.key==='Enter')trashGiveItem()">
+        <button onclick="trashGiveItem()" style="padding:9px 12px;background:#1a4a1a;border:1px solid #44aa44;border-radius:8px;color:#44ff88;font-weight:bold;cursor:pointer;font-size:12px;">Give</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:12px;">
+        <input id="trashGiveSip" type="number" min="1" placeholder="S.I.P. amount..."
+          style="flex:1;padding:9px;background:rgba(255,255,255,0.08);border:2px solid #444;border-radius:8px;color:#fff;font-size:13px;box-sizing:border-box;outline:none;"
+          onfocus="this.style.borderColor='#66ff66'" onblur="this.style.borderColor='#444'"
+          onkeydown="if(event.key==='Enter')trashGiveSip()">
+        <button onclick="trashGiveSip()" style="padding:9px 12px;background:#1a4a1a;border:1px solid #44aa44;border-radius:8px;color:#44ff88;font-weight:bold;cursor:pointer;font-size:12px;">Give</button>
+      </div>
+      <div id="trashGiveMsg" style="font-size:12px;min-height:16px;margin-bottom:8px;"></div>
+      <button onclick="trashShowMySafe()" style="width:100%;padding:9px;background:#2a5a2a;border:1px solid #66ff66;border-radius:8px;color:#66ff66;font-weight:bold;cursor:pointer;font-size:12px;margin-bottom:8px;">🔐 Open MY Trash Safe</button>
+      <button onclick="closeTrashModal()" style="width:100%;padding:9px;background:none;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">✕ Close</button>
+    </div>
+
+    <!-- SET PASSCODE VIEW (first time opening YOUR OWN safe) -->
+    <div id="trashSafeSetView" style="display:none;">
+      <p style="color:#aaa;font-size:12px;margin-bottom:14px;">No passcode set yet. Create one so only you can open this.</p>
+      <input id="trashSafeNewCombo" type="password" placeholder="Create a passcode..." maxlength="32"
+        style="width:100%;padding:10px;background:rgba(255,255,255,0.08);border:2px solid #444;border-radius:8px;color:#fff;font-size:14px;margin-bottom:8px;box-sizing:border-box;outline:none;"
+        onfocus="this.style.borderColor='#66ff66'" onblur="this.style.borderColor='#444'"
+        onkeydown="if(event.key==='Enter')setTrashSafeCombo()">
+      <input id="trashSafeConfirmCombo" type="password" placeholder="Confirm passcode..." maxlength="32"
+        style="width:100%;padding:10px;background:rgba(255,255,255,0.08);border:2px solid #444;border-radius:8px;color:#fff;font-size:14px;margin-bottom:8px;box-sizing:border-box;outline:none;"
+        onfocus="this.style.borderColor='#66ff66'" onblur="this.style.borderColor='#444'"
+        onkeydown="if(event.key==='Enter')setTrashSafeCombo()">
+      <div id="trashSafeSetErr" style="color:#ff8888;font-size:12px;height:16px;margin-bottom:8px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="trashShowGiveView()" style="flex:1;padding:10px;background:none;border:1px solid #555;border-radius:8px;color:#aaa;cursor:pointer;font-size:13px;">Back</button>
+        <button onclick="setTrashSafeCombo()" style="flex:1;padding:10px;background:#338833;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:13px;">Set Passcode →</button>
+      </div>
+    </div>
+
+    <!-- ENTER PASSCODE VIEW -->
+    <div id="trashSafeEnterView" style="display:none;">
+      <p style="color:#aaa;font-size:12px;margin-bottom:14px;">Enter your Trash Safe passcode</p>
+      <input id="trashSafeComboInput" type="password" placeholder="Passcode..." maxlength="32"
+        style="width:100%;padding:10px;background:rgba(255,255,255,0.08);border:2px solid #444;border-radius:8px;color:#fff;font-size:14px;margin-bottom:8px;box-sizing:border-box;outline:none;"
+        onfocus="this.style.borderColor='#66ff66'" onblur="this.style.borderColor='#444'"
+        onkeydown="if(event.key==='Enter')submitTrashSafeCombo()">
+      <div id="trashSafeEnterErr" style="color:#ff8888;font-size:12px;height:16px;margin-bottom:8px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="trashShowGiveView()" style="flex:1;padding:10px;background:none;border:1px solid #555;border-radius:8px;color:#aaa;cursor:pointer;font-size:13px;">Back</button>
+        <button onclick="submitTrashSafeCombo()" style="flex:1;padding:10px;background:#338833;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;font-size:13px;">Open →</button>
+      </div>
+    </div>
+
+    <!-- MY TRASH SAFE OPEN VIEW -->
+    <div id="trashSafeOpenView" style="display:none;">
+      <div style="background:rgba(102,255,102,0.07);border:1px solid #336633;border-radius:10px;padding:14px;margin-bottom:14px;display:flex;justify-content:space-between;">
+        <span style="color:#aaa;font-size:13px;">💰 Deposited S.I.P.</span>
+        <span id="trashSafeSipDisplay" style="color:#66ff66;font-weight:bold;font-size:13px;"></span>
+      </div>
+      <button onclick="withdrawTrashSafeSip()" style="width:100%;padding:9px;background:#1a4a1a;border:1px solid #44aa44;border-radius:8px;color:#44ff88;font-weight:bold;cursor:pointer;font-size:12px;margin-bottom:10px;">⬆ Take All S.I.P.</button>
+      <div id="trashSafeItemsList" style="margin-bottom:6px;text-align:left;"></div>
+      <button onclick="trashShowGiveView()" style="width:100%;padding:9px;background:none;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">🔒 Lock Trash Safe</button>
+    </div>
+  </div>
+</div>
+
 <!-- CHARACTER CUSTOMIZATION -->
 <div id="customScreen" style="display:none">
   <button id="backToLoginBtn" onclick="backToLogin()">← Accounts</button>
@@ -530,11 +991,13 @@
         <button class="optBtn" data-val="flower">Flower Crown</button>
         <button class="optBtn" data-val="backwards">Backwards Cap</button>
         <button class="optBtn" data-val="sombrero">Sombrero</button>
+        <button class="optBtn" data-val="sunglasses">Sunglasses</button>
         <button class="optBtn" data-val="propeller">Propeller</button>
         <button class="optBtn" data-val="antlers">Antlers</button>
         <button class="optBtn" data-val="headphones">Headphones</button>
         <button class="optBtn" data-val="chef">Chef Hat</button>
         <button class="optBtn" data-val="turban">Turban</button>
+        <button class="optBtn" data-val="catears">Cat Ears (Gamer Request)</button>
       </div>
       <div class="sectionLabel">SKIN COLOR</div>
       <div class="colorRow"><label>Skin</label><input type="color" id="skinColor" value="#f5c89a"></div>
@@ -639,7 +1102,7 @@
 <div id="pfpModal" style="display:none;position:fixed;inset:0;z-index:310;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;pointer-events:auto;">
   <div style="background:linear-gradient(135deg,#0a1a10,#0f2418);border:2px solid #44dd88;border-radius:16px;padding:16px;text-align:center;">
     <div id="pfpModalTitle" style="color:#44dd88;font-size:14px;font-weight:bold;letter-spacing:2px;margin-bottom:10px;">🖌️ DRAW YOUR PROFILE PICTURE</div>
-    <canvas id="pfpCanvas" width="256" height="256" style="border-radius:6px;cursor:crosshair;touch-action:none;"
+    <canvas id="pfpCanvas" width="256" height="256" style="border-radius:6px;cursor:crosshair;touch-action:none;width:min(90vw,420px);height:min(90vw,420px);image-rendering:pixelated;"
       onmousedown="pfpMouseDown(event)" onmousemove="pfpMouseMove(event)" onmouseup="pfpMouseUp()" onmouseleave="pfpMouseUp()"
       ontouchstart="event.preventDefault();pfpMouseDown(event)" ontouchmove="event.preventDefault();pfpMouseMove(event)" ontouchend="pfpMouseUp()" ontouchcancel="pfpMouseUp()"></canvas>
     <div id="pfpPalette" style="margin:10px 0;"></div>
@@ -1016,11 +1479,33 @@
       <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🚕</span>CAB
     </button>
   </div>
+    <!-- Only shown while real homework (assignSchoolHomework(), game-land.js) is actually pending —
+         same conditional-visibility pattern as contractsTab above. -->
+    <div id="homeworkTab" style="display:none;">
+    <button onclick="toggleSchoolHomeworkPanel()" style="display:block;background:linear-gradient(180deg,#2a1a00,#4a3200);border:2px solid #FFD700;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
+      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">📝</span>H.WORK
+    </button>
+  </div>
   </div>
 <div id="leftTabStack" style="position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:20;display:flex;flex-direction:column;gap:3px;max-height:94vh;overflow-y:auto;overflow-x:hidden;pointer-events:auto;">
+    <div id="chatTab">
+    <button onclick="toggleGameChat()" style="display:block;background:linear-gradient(180deg,#0a1a2a,#0a2a4a);border:2px solid #44ccff;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">💬</span>CHAT
+    </button>
+  </div>
+    <div id="trashTab">
+    <button onclick="openTrashModal()" style="display:block;background:linear-gradient(180deg,#0a2a0a,#122a12);border:2px solid #66ff66;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🗑️</span>TRASH
+    </button>
+  </div>
     <div id="saiTab">
     <button onclick="toggleSAI()" style="display:block;background:linear-gradient(180deg,#0a2a0a,#0a4a1a);border:2px solid #00ff88;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
       <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🤖</span>SAI
+    </button>
+  </div>
+    <div id="adminChatTab" style="display:none;">
+    <button onclick="toggleAdminChat()" style="display:block;background:linear-gradient(180deg,#2a0a0a,#4a0a0a);border:2px solid #ff4444;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">⚙️</span>ADMIN
     </button>
   </div>
     <div id="musicTabBtn">
@@ -1053,12 +1538,22 @@
       <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🗡️</span>KILLER
     </button>
   </div>
+    <!-- "no in a tab called daily events" — real user correction: the walk-to-a-board version got
+         replaced with this always-available tab, same left-side vertical-tab family as SHOP/JOB/
+         HELP etc. above. Opens the exact same openEventOfDay() (game-world.js), unchanged. -->
+    <div id="dailyEventsTab">
+    <button onclick="openEventOfDay()" style="display:block;background:linear-gradient(180deg,#2a0a1a,#4a0e2e);border:2px solid #ff66aa;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🎁</span>DAILY EVENTS
+    </button>
+  </div>
   </div>
 
   <div id="gameName">EXPLOX</div>
   <div id="crosshair">+</div>
   <div id="location">City Center</div>
+  <div id="sitePlayersHud" style="display:none;">🌍 <span id="sitePlayerCount">1</span> people play Explox</div>
   <div id="sipHud">💰 <span id="sipAmount">500</span> S.I.P.</div>
+  <div id="cashHud">💵 $<span id="cashAmount">0</span> Cash</div>
   <div id="bagHud">🎒 <span id="bagItems">empty</span></div>
   <div id="jobHud">💼 No Job</div>
   <div id="alignmentHud">😈 BAD GUY MODE</div>
@@ -1066,6 +1561,7 @@
   <div id="woodHud">🪵 <span id="woodAmount">0</span> Wood</div>
   <div id="scrapHud">🔩 <span id="scrapAmount">0</span> Scrap</div>
   <div id="eliteHud">💎 <span id="eliteAmount">0</span> Elite</div>
+  <div id="altitudeHud" style="display:none;">🛫 Altitude: <span id="altitudeAmount">0</span>m</div>
   <div id="growthHud">🧒 Kid</div>
   <div id="hungerHud">🍔 Hunger: 100%</div>
   <div id="sickHud">🤒 SICK — slower, losing health</div>
@@ -1112,7 +1608,7 @@
       <div id="navHudDist" style="color:#888;font-size:10px;"></div>
     </div>
   </div>
-  <div id="controls">WASD — Move &nbsp;|&nbsp; Shift — Run &nbsp;|&nbsp; Space — Jump &nbsp;|&nbsp; Mouse — Look &nbsp;|&nbsp; E — Interact &nbsp;|&nbsp; B — Bag &nbsp;|&nbsp; T — SAI &nbsp;|&nbsp; M — Music &nbsp;|&nbsp; G — Add Ons &nbsp;|&nbsp; Click screen to start</div>
+  <div id="controls">WASD — Move &nbsp;|&nbsp; Shift — Run &nbsp;|&nbsp; Space — Jump &nbsp;|&nbsp; Mouse — Look &nbsp;|&nbsp; E — Interact &nbsp;|&nbsp; Q — Grenade &nbsp;|&nbsp; B — Bag &nbsp;|&nbsp; T — SAI &nbsp;|&nbsp; M — Music &nbsp;|&nbsp; G — Add Ons &nbsp;|&nbsp; Click screen to start</div>
 
   <!-- MOBILE TOUCH CONTROLS — only visible on touch-primary devices -->
   <div id="mobileControls">
@@ -1125,8 +1621,26 @@
   <button id="musicBtn" onclick="toggleBgMusic()" title="Toggle music" style="position:fixed;top:278px;right:14px;z-index:20;pointer-events:auto;background:rgba(0,0,0,0.5);border:1px solid #555;border-radius:8px;color:#fff;font-size:16px;padding:5px 10px;cursor:pointer;line-height:1;">🎵</button>
   <div id="seasonHud" onclick="openCalendar()" style="position:fixed;top:240px;right:14px;color:#fff;font-size:12px;background:rgba(0,0,0,0.5);padding:7px 12px;border-radius:8px;cursor:pointer;pointer-events:auto;white-space:nowrap;"></div>
 
+  <!-- CHAT PANEL — "a normal chat so u can talk", a real shared chat everyone online can see and
+       post to, separate from SAI (a bot) and Admin Chat (commands only, 2 accounts only). Needs
+       ONLINE mode — sendChatMessage()/syncChatMessages() explain why if you try offline. -->
+  <div id="chatPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#050f18,#081828);border:2px solid #44ccff;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:320px;pointer-events:auto;max-height:85vh;overflow:hidden;">
+    <div style="color:#44ccff;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:2px;">💬 CHAT</div>
+    <p style="color:#555;font-size:9px;text-align:center;margin-bottom:8px;letter-spacing:1px;">TALK TO EVERYONE ONLINE</p>
+    <div style="display:flex;gap:4px;margin-bottom:8px;">
+      <button id="chatModePublic" onclick="setChatMode('public')" style="flex:1;padding:5px;background:#44ccff33;border:1px solid #44ccff;border-radius:6px;color:#44ccff;font-size:10px;cursor:pointer;font-weight:bold;">💬 Public</button>
+      <button id="chatModeDev" onclick="setChatMode('devtalk')" style="flex:1;padding:5px;background:none;border:1px solid #444;border-radius:6px;color:#888;font-size:10px;cursor:pointer;">📨 Dev Talk</button>
+    </div>
+    <div id="chatMessages" style="height:220px;overflow-y:auto;overflow-x:hidden;background:rgba(68,204,255,0.04);border:1px solid #44ccff33;border-radius:8px;padding:8px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px;"></div>
+    <div style="display:flex;gap:6px;">
+      <input id="chatInput" placeholder="Say something..." maxlength="200" onkeydown="if(event.key==='Enter')sendChatMessage()" style="flex:1;padding:7px;background:rgba(255,255,255,0.06);border:1px solid #44ccff66;border-radius:6px;color:#fff;font-size:11px;outline:none;" onfocus="this.style.borderColor='#44ccff'" onblur="this.style.borderColor='#44ccff66'">
+      <button onclick="sendChatMessage()" style="padding:7px 12px;background:#0a3a5a;border:1px solid #44ccff;border-radius:6px;color:#44ccff;font-size:13px;cursor:pointer;font-weight:bold;">→</button>
+    </div>
+    <button onclick="closeGameChat()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:10px;">✕ Close</button>
+  </div>
+
   <!-- SAI TAB -->
-  
+
 
   <!-- SAI PANEL -->
   <div id="saiPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#050f08,#071a0f);border:2px solid #00ff88;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:340px;pointer-events:auto;max-height:85vh;overflow:hidden;">
@@ -1176,6 +1690,34 @@
       <div style="color:#555;font-size:9px;text-align:center;margin-top:6px;" id="saiTipCounter"></div>
     </div>
     <button onclick="closeSAI()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:10px;">✕ Close</button>
+  </div>
+
+  <!-- ADMIN CHAT PANEL — "make a chat that has commands only for me". The tab button above is
+       display:none by default and only shown by refreshAdminTabVisibility() (game-admin.js,
+       called from doLogin()) when the logged-in account is in ADMIN_ACCOUNTS — nobody else ever
+       sees this tab. On top of that account gate, a real passcode gate (adminUnlocked,
+       game-admin.js): the tab alone was only "hiding the door", this is the actual lock — and
+       adminExecute() checks adminUnlocked itself too, same as it independently checks isAdmin(),
+       so a command can't run through the console either before the passcode's been entered. -->
+  <div id="adminChatPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#1a0505,#2a0a0a);border:2px solid #ff4444;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:320px;pointer-events:auto;max-height:85vh;overflow:hidden;">
+    <div style="color:#ff6666;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:2px;">⚙️ ADMIN</div>
+    <!-- LOCK VIEW -->
+    <div id="adminLockView">
+      <p style="color:#555;font-size:9px;text-align:center;margin-bottom:14px;letter-spacing:1px;">ENTER THE PASSCODE</p>
+      <input id="adminPasscodeInput" type="password" placeholder="Passcode" onkeydown="if(event.key==='Enter')adminSubmitPasscode()" style="width:100%;box-sizing:border-box;padding:8px;margin-bottom:8px;border-radius:6px;border:1px solid #ff444466;background:rgba(255,255,255,0.06);color:#fff;font-size:12px;outline:none;text-align:center;letter-spacing:4px;" onfocus="this.style.borderColor='#ff4444'" onblur="this.style.borderColor='#ff444466'">
+      <div id="adminPasscodeError" style="color:#ff6666;font-size:10px;text-align:center;min-height:14px;margin-bottom:8px;"></div>
+      <button onclick="adminSubmitPasscode()" style="width:100%;padding:8px;background:#4a1111;border:1px solid #ff4444;border-radius:6px;color:#ff6666;font-size:12px;font-weight:bold;cursor:pointer;">Unlock</button>
+    </div>
+    <!-- CHAT VIEW -->
+    <div id="adminChatView" style="display:none;">
+      <p style="color:#555;font-size:9px;text-align:center;margin-bottom:10px;letter-spacing:1px;">TYPE /help FOR COMMANDS</p>
+      <div id="adminChatMessages" style="height:220px;overflow-y:auto;overflow-x:hidden;background:rgba(255,68,68,0.04);border:1px solid #ff444433;border-radius:8px;padding:8px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px;"></div>
+      <div style="display:flex;gap:6px;">
+        <input id="adminChatInput" placeholder="/help" onkeydown="if(event.key==='Enter')adminRunCommand()" style="flex:1;padding:7px;background:rgba(255,255,255,0.06);border:1px solid #ff444466;border-radius:6px;color:#fff;font-size:11px;outline:none;" onfocus="this.style.borderColor='#ff4444'" onblur="this.style.borderColor='#ff444466'">
+        <button onclick="adminRunCommand()" style="padding:7px 12px;background:#4a1111;border:1px solid #ff4444;border-radius:6px;color:#ff6666;font-size:13px;cursor:pointer;font-weight:bold;">→</button>
+      </div>
+    </div>
+    <button onclick="closeAdminChat()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:10px;">✕ Close</button>
   </div>
 
   <!-- MUSIC TAB -->
@@ -1265,6 +1807,7 @@
     <div style="background:rgba(255,255,255,0.06);border:2px solid #cc66ff;border-radius:10px;padding:10px;margin-bottom:10px;text-align:center;">
       <div id="questsLevelLine" style="color:#fff;font-size:12px;margin-bottom:8px;"></div>
       <button id="questsLevelUpBtn" onclick="levelUpElite()" style="width:100%;padding:8px;background:#7a2aff;border:none;border-radius:8px;color:#fff;font-weight:bold;font-size:12px;cursor:pointer;"></button>
+      <button id="questsUpgradeMaxBtn" onclick="levelUpEliteMax()" style="width:100%;padding:7px;background:#4a1a8a;border:1px solid #cc66ff;border-radius:8px;color:#fff;font-weight:bold;font-size:11px;cursor:pointer;margin-top:6px;">⏫ UPGRADE MAX (spend all 💎)</button>
       <div style="color:#888;font-size:9px;margin-top:6px;">Higher level = bigger, stronger robots — but better rewards too!</div>
     </div>
     <p style="color:#555;font-size:9px;text-align:center;margin-bottom:8px;letter-spacing:1px;">COMPLETE QUESTS FOR 💎 ELITE COINS</p>
@@ -1602,6 +2145,26 @@
       <div class="mgDesc">Fight through a medieval-futuristic castle. Hold the throne for 20 seconds to win!</div>
       <div class="mgBadge">★ Available Now</div>
     </a>
+    <a class="mgCard" href="AiGame/explox/minigames/robotwar.html" target="_blank">
+      <div class="mgTitle">🤖 Robot War</div>
+      <div class="mgDesc">Command a robot army through 100 levels, 5 factions, and 5 boss fights.</div>
+      <div class="mgBadge">★ Available Now</div>
+    </a>
+    <a class="mgCard" href="AiGame/explox/minigames/survivalhorde.html" target="_blank">
+      <div class="mgTitle">🧟 Survival Horde</div>
+      <div class="mgDesc">Endless waves attack from every side. Pick upgrades, choose your difficulty, survive!</div>
+      <div class="mgBadge">★ Available Now</div>
+    </a>
+    <a class="mgCard" href="AiGame/explox/minigames/towerdefense.html" target="_blank">
+      <div class="mgTitle">🏯 Tower Defense Fight</div>
+      <div class="mgDesc">Defend your tower with turrets, traps and your own sword across 18 waves.</div>
+      <div class="mgBadge">★ Available Now</div>
+    </a>
+    <a class="mgCard" href="AiGame/explox/minigames/olympicsparkour.html" target="_blank">
+      <div class="mgTitle">🥇 Olympics Parkour</div>
+      <div class="mgDesc">4 timed events, real medals, a podium ceremony — beat your own best time!</div>
+      <div class="mgBadge">★ Available Now</div>
+    </a>
     <a class="mgCard" href="AiGame/explox/minigames/obby.html" target="_blank">
       <div class="mgTitle">🏃 Obby / Parkour</div>
       <div class="mgDesc">Jump across platforms without falling. Beat your best time!</div>
@@ -1628,7 +2191,7 @@
 
 <!-- CALENDAR OVERLAY -->
 <div id="calendarOverlay" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.78);align-items:center;justify-content:center;pointer-events:auto;">
-  <div style="background:linear-gradient(135deg,#1a1a2e,#0f3460);border:2px solid #e94560;border-radius:16px;padding:22px;width:300px;max-height:82vh;overflow-y:auto;">
+  <div style="background:linear-gradient(135deg,#1a1a2e,#0f3460);border:2px solid #e94560;border-radius:16px;padding:22px;width:320px;max-height:82vh;overflow-y:auto;">
     <div id="calendarContent"></div>
     <button onclick="closeCalendar()" style="width:100%;margin-top:10px;padding:8px;background:none;border:1px solid #555;border-radius:8px;color:#888;cursor:pointer;font-size:12px;">✕ Close</button>
   </div>
@@ -1701,6 +2264,19 @@
   </div>
 </div>
 
+<!-- MYSTERIES — DETECTIVE CORKBOARD MODAL — a passive case-status panel (progress + Accuse), not a
+     picker: the 3 cases trigger on their own (game-world.js: tickMysteries()/triggerMysteryCase()),
+     this is just where you check what you've got and make your call. Same modal template as
+     Town/World Events right above. -->
+<div id="mysteryCaseModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;flex-direction:column;">
+  <div style="background:linear-gradient(135deg,#241818,#2e1e1e);border:2px solid #c98a4a;border-radius:16px;padding:24px;min-width:300px;max-width:400px;max-height:82vh;overflow-y:auto;">
+    <h2 style="color:#c98a4a;letter-spacing:2px;margin-bottom:4px;font-size:18px;text-align:center;">🕵️ Detective Corkboard</h2>
+    <p style="color:#888;font-size:11px;text-align:center;margin-bottom:16px;">Mysteries turn up on their own around the city — this tracks whatever's active.</p>
+    <div id="mysteryCaseBody"></div>
+    <button onclick="closeMysteryCaseFile()" style="margin-top:10px;width:100%;padding:8px;background:none;border:1px solid #555;border-radius:8px;color:#888;font-size:12px;cursor:pointer;">✕ Close</button>
+  </div>
+</div>
+
 <div id="warRoomModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;flex-direction:column;">
   <div style="background:linear-gradient(135deg,#0d1526,#1a2440);border:2px solid #4488ff;border-radius:16px;padding:24px;min-width:320px;max-width:420px;max-height:82vh;overflow-y:auto;">
     <h2 style="color:#4488ff;letter-spacing:2px;margin-bottom:4px;font-size:18px;text-align:center;">⚔️ War Room</h2>
@@ -1745,6 +2321,10 @@
   <div style="background:linear-gradient(135deg,#2a1510,#3a1f14);border:2px solid #ffaa55;border-radius:16px;padding:24px;min-width:340px;max-height:82vh;overflow-y:auto;">
     <h2 id="restaurantModalTitle" style="color:#ffaa55;letter-spacing:2px;margin-bottom:4px;font-size:18px;text-align:center;">🍽️ The Diner</h2>
     <p style="color:#888;font-size:11px;text-align:center;margin-bottom:16px;">Order a dish, then press C to eat it!</p>
+    <!-- Live timer + both racers' running counts during an active Eating Competition round
+         (game-social.js: startEatingCompetition/tickEatingCompetition/updateEatingCompHud).
+         Hidden outside a competition; the normal Diner/buffet flows never touch this. -->
+    <div id="restaurantCompHud" style="display:none;background:rgba(255,255,255,0.06);border:1px solid #ffaa55;border-radius:10px;padding:10px 14px;margin-bottom:14px;"></div>
     <div id="restaurantList" style="display:flex;flex-direction:column;gap:10px;"></div>
     <button onclick="closeRestaurant()" style="margin-top:16px;width:100%;padding:8px;background:none;border:1px solid #555;border-radius:8px;color:#888;font-size:12px;cursor:pointer;">✕ Close</button>
   </div>
@@ -1974,6 +2554,9 @@ function closeMgPanel(){
 <script src="AiGame/explox/modules/game-world.js"></script>
 <script src="AiGame/explox/modules/game-controls.js"></script>
 <script src="AiGame/explox/modules/game-sai.js"></script>
+<script src="AiGame/explox/modules/game-admin.js"></script>
+<script src="AiGame/explox/modules/game-bible.js"></script>
+<script src="AiGame/explox/modules/game-library.js"></script>
 <script src="AiGame/explox/game-builder.js"></script>
 <script>
 window.addEventListener('load', function() {

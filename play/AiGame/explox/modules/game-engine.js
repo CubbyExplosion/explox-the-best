@@ -76,6 +76,14 @@ function updateElite() {
   if (eliteCoins > peakElite) peakElite = eliteCoins;
   saveCurrentUser();
 }
+// Cash/ATM feature — same shape as updateSIP()/updateElite() above, just for physical cash on
+// hand. Math.floor since cash only ever moves in whole-dollar amounts (ATM withdraw/deposit,
+// robber steal, knockout loss all round already) but a stray float shouldn't ever display one.
+function updateCash() {
+  const el = document.getElementById('cashAmount');
+  if (el) el.textContent = Math.floor(cash).toLocaleString();
+  saveCurrentUser();
+}
 function updateWood() {
   document.getElementById('woodAmount').textContent = woodCount;
   const cw = document.getElementById('craftWood'); if(cw) cw.textContent = woodCount;
@@ -306,21 +314,56 @@ function readBook() {
 const CITY_COLS = [];       // city building colliders
 const HOUSE_COLS = [];      // house interior colliders
 
-function addCol(arr, cx, cz, hw, hd) {
+function addCol(arr, cx, cz, hw, hd, roofY) {
   // See scalePt()/scaleLen()'s own comment (HELPERS section, near box()) for why this is real
   // math and not a free ride on some parent transform.
   if (_buildOrigin) { [cx,cz] = scalePt(cx,cz); hw = scaleLen(hw); hd = scaleLen(hd); }
-  const c = { cx, cz, hw, hd }; arr.push(c); return c;
+  // roofY (optional) marks this as a climbable rooftop, not just a solid wall: isBlocked() below
+  // only lets the player cross into this footprint once they're already at/above roofY (arrived
+  // via a real addRoofRamp() staircase), and groundHeightAt() (game-zones.js) then holds them at
+  // roofY while they're up there. Leaving roofY undefined (every existing call before this change)
+  // keeps a collider exactly as solid as it always was — always blocked, no roof to stand on.
+  const c = { cx, cz, hw, hd, roofY }; arr.push(c); return c;
 }
 
-function isBlocked(nx, nz, rOverride) {
+function isBlocked(nx, nz, rOverride, py) {
   const r = rOverride !== undefined ? rOverride : 0.65; // real optional radius — cars (item 159 fix) pass a bigger one
-  const cols = inMovieFight ? MOVIE_FIGHT_COLS : inArenaBattle ? ROBOT_ARENA_COLS : inPrison ? [] : inFriendHouse ? [] : inLandHouse ? LAND_HOUSE_COLS : inCountryHotel ? COUNTRY_HOTEL_COLS : inAirportLounge ? AIRPORT_LOUNGE_COLS : inArcade ? ARCADE_COLS : inHotel ? HOTEL_COLS : inHouse ? HOUSE_COLS : inMall ? MALL_COLS : inStore ? STORE_COLS : inBankInterior ? BANK_INTERIOR_COLS : CITY_COLS;
+  const cols = inMovieFight ? MOVIE_FIGHT_COLS : inArenaBattle ? ROBOT_ARENA_COLS : inPrison ? [] : inFriendHouse ? [] : inLandHouse ? LAND_HOUSE_COLS : inCountryHotel ? COUNTRY_HOTEL_COLS : inAirportLounge ? AIRPORT_LOUNGE_COLS : inArcade ? ARCADE_COLS : inHotel ? HOTEL_COLS : inHouse ? HOUSE_COLS : inMall ? MALL_COLS : inStore ? STORE_COLS : inVisitStore ? [] : inBankInterior ? BANK_INTERIOR_COLS : CITY_COLS;
   for(const c of cols) {
     if(nx+r > c.cx-c.hw && nx-r < c.cx+c.hw &&
-       nz+r > c.cz-c.hd && nz-r < c.cz+c.hd) return true;
+       nz+r > c.cz-c.hd && nz-r < c.cz+c.hd) {
+      // Up on the roof already (climbed a real addRoofRamp() staircase to get there) — the wall
+      // that blocks you down at street level shouldn't also trap you on top of it.
+      if(c.roofY !== undefined && py !== undefined && py >= c.roofY - 0.3) continue;
+      return true;
+    }
   }
   return false;
+}
+
+// ─── ROOF RAMPS ───────────────────────────────────────────────────────────────
+// Real exterior staircases up to a rooftop (addCol's roofY above): a straight sloped strip from
+// ground level (y0) to the roof (y1). groundHeightAt() (game-zones.js) samples this every frame
+// exactly like it already does for the Park/Woods/Plains hills — same "just re-follow the height
+// while walking" trick, just a straight line instead of a dome — so walking up the visual stair
+// steps built alongside it (see buildCity(), game-buildings.js) smoothly lifts the player. Always
+// placed in open air beside a building's own addCol rectangle, never overlapping it, so isBlocked()
+// never needs to know about the climb itself — only the final step off the ramp onto the roof does.
+const ROOF_RAMPS = [];
+function addRoofRamp(x1, z1, x2, z2, halfWidth, y0, y1) {
+  if (_buildOrigin) { [x1,z1] = scalePt(x1,z1); [x2,z2] = scalePt(x2,z2); halfWidth = scaleLen(halfWidth); }
+  ROOF_RAMPS.push({ x1, z1, x2, z2, halfWidth, y0, y1 });
+}
+function roofRampHeightAt(x, z) {
+  for (const rp of ROOF_RAMPS) {
+    const dx = rp.x2-rp.x1, dz = rp.z2-rp.z1, len = Math.hypot(dx,dz);
+    const ux = dx/len, uz = dz/len;
+    const px = x-rp.x1, pz = z-rp.z1;
+    const along = px*ux + pz*uz;
+    const perp = Math.abs(px*-uz + pz*ux);
+    if (along >= 0 && along <= len && perp <= rp.halfWidth) return rp.y0 + (rp.y1-rp.y0)*(along/len);
+  }
+  return null;
 }
 
 // ─── JOB SYSTEM ──────────────────────────────────────────────────────────────

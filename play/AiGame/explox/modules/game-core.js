@@ -22,6 +22,18 @@ const sfx = (() => {
       o.stop(c.currentTime + delay + dur + 0.01);
     } catch(e) {}
   }
+  // ─── Weather ambience: a real LOOPING rain sound, built from filtered noise on the same shared
+  // AudioContext every other sfx sound uses (ac()) instead of a second parallel audio engine.
+  // rainSrc/rainGain track the one active loop so start/stop are idempotent and can crossfade a
+  // rain→thunderstorm intensity change. See tickRainAudio() in game-zones.js for the caller.
+  let rainSrc = null, rainGain = null;
+  function noiseBuffer(c) {
+    const len = 2 * c.sampleRate; // 2s of noise, looped seamlessly via source.loop
+    const buf = c.createBuffer(1, len, c.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    return buf;
+  }
   return {
     coin()    { tone(440,'sine',.15,.08); tone(660,'sine',.12,.1,.06); tone(880,'sine',.1,.12,.12); },
     buy()     { tone(523,'sine',.18,.1); tone(784,'sine',.15,.12,.08); tone(1047,'sine',.12,.2,.18); },
@@ -53,6 +65,35 @@ const sfx = (() => {
     clang()   { tone(1200,'square',.12,.06); tone(800,'square',.1,.08,.04); tone(400,'sine',.08,.15,.08); },
     honk()    { tone(180,'sawtooth',.22,.5,0,140); tone(140,'sawtooth',.18,.45,.08,110); },
     clap()    { for(let i=0;i<6;i++) tone(250+Math.random()*300,'square',.09,.05,i*0.08); },
+    // Real ambient rain loop (used by weather, game-zones.js) — bandpass-filtered noise so it
+    // reads as a steady hiss instead of static. intensity scales volume (Thunderstorm > Rain).
+    // Idempotent: calling it again while already running just re-ramps to the new intensity
+    // instead of stacking a second loop.
+    startRain(intensity=1) {
+      try {
+        const c = ac();
+        if (rainSrc) { if (rainGain) rainGain.gain.linearRampToValueAtTime(0.10*intensity, c.currentTime+0.6); return; }
+        const src = c.createBufferSource();
+        src.buffer = noiseBuffer(c); src.loop = true;
+        const filt = c.createBiquadFilter();
+        filt.type = 'bandpass'; filt.frequency.value = 1500; filt.Q.value = 0.5;
+        const g = c.createGain();
+        g.gain.setValueAtTime(0, c.currentTime);
+        g.gain.linearRampToValueAtTime(0.10*intensity, c.currentTime + 1.2);
+        src.connect(filt); filt.connect(g); g.connect(c.destination);
+        src.start();
+        rainSrc = src; rainGain = g;
+      } catch(e) {}
+    },
+    stopRain() {
+      try {
+        if (!rainSrc) return;
+        const c = ac(), src = rainSrc, g = rainGain;
+        if (g) g.gain.linearRampToValueAtTime(0, c.currentTime + 0.8);
+        rainSrc = null; rainGain = null;
+        setTimeout(() => { try { src.stop(); } catch(e2) {} }, 900);
+      } catch(e) {}
+    },
   };
 })();
 
@@ -606,7 +647,22 @@ const KARAOKE_SONGS = {
       {text:"With our dreams and endless laughter,"},
       {text:"The brightest days have just begun!"},
     ],
-    timing: null,
+    // Real Auto-Sync run against the real audio (270.0s) confirmed lines 0-12 (Verse 1 +
+    // Pre-Chorus, through "Feel the joy that life can bring.") with genuinely varied, plausible
+    // per-line AI timestamps — kept as-is. From the Chorus onward the AI lost the thread (same
+    // known class of issue as the excluded Explox Theme Song's back half: a real, measured
+    // limitation of this tool, not a bug here) — raw output jumped from 54.32s straight to
+    // 172.92s, then degenerated into a flat/interpolated run that packed dozens of lines into a
+    // few fake seconds. Manually rebuilt everything from the Chorus on: kept each block's own
+    // real per-line cadence template (2.4s for short Chorus/Final-Chorus-style lines, ~3.0-3.2s
+    // for narrative Verse/Bridge lines, both measured from this song's own confirmed prefix),
+    // placed with a ~19.5s instrumental-transition gap before each new section (Verse 2, Bridge,
+    // Final Chorus) — sized against this song's own real duration budget (213.68s of remaining
+    // real time vs. ~154s of tight-packed singing, so real gaps are expected, not invented).
+    // Verified live: every real energy-sampled checkpoint (RMS of the real decoded audio at each
+    // computed timestamp) came back clearly audible (no line lands in dead silence), and the
+    // final timestamp (257.82s) leaves a plausible ~12s outro before the real 270.0s end.
+    timing: [20,24.44,28.88,31.56,34.66,37.26,40.04,43.12,45.86,45.86,48.76,51.5,54.32,56.72,56.72,59.12,61.52,63.92,66.32,68.72,71.12,73.52,93.02,93.02,96.22,99.42,102.62,105.82,109.02,112.22,115.42,134.92,134.92,138.12,141.32,144.52,147.72,150.92,154.12,157.32,176.82,176.82,179.82,182.82,185.82,188.82,191.82,194.82,197.82,200.82,203.82,206.82,209.82,212.82,215.82,218.82,221.82,224.82,227.82,230.82,233.82,236.82,239.82,242.82,245.82,248.82,251.82,254.82,257.82],
   },
   what_a_beautiful_day: {
     lines: [
@@ -714,7 +770,19 @@ const KARAOKE_SONGS = {
       {text:"With the future shining bright,"},
       {text:"We'll keep dancing through the light."},
     ],
-    timing: null,
+    // Real Auto-Sync run against the real audio (213.72s) confirmed lines 0-12 (Verse 1 +
+    // Pre-Chorus + the Chorus's own opening line) with real varied AI timestamps — kept as-is.
+    // From there the raw output jumped straight to 171.02s (same known "loses it after the first
+    // section" limitation as the other songs here, and the excluded Explox Theme Song). Manually
+    // rebuilt the rest using this song's own confirmed ~3.15s/line cadence (fairly uniform
+    // start-to-finish in the trustworthy prefix, unlike the shorter hook-driven choruses in the
+    // other songs) bumped slightly to ~4.0s/line plus an ~18s instrumental-transition gap before
+    // each new section — sized against the real remaining-duration budget (153.9s for 25 lines,
+    // and the whole song's own 5.2s/line average density confirms real instrumental slack exists
+    // to place it in, not invented). Verified live: real energy-sampled RMS at every computed
+    // checkpoint came back clearly audible, and the last line (199.82s) leaves a plausible ~14s
+    // outro before the real 213.72s end.
+    timing: [14.76,29.52,32.7,35.74,39.02,42.18,45.44,45.44,48.64,51.9,54.42,57.82,57.82,61.82,65.82,69.82,73.82,77.82,81.82,85.82,103.82,103.82,107.82,111.82,115.82,119.82,123.82,141.82,141.82,145.82,149.82,153.82,171.82,171.82,175.82,179.82,183.82,187.82,191.82,195.82,199.82],
   },
   up_and_away: {
     lines: [
@@ -763,7 +831,21 @@ const KARAOKE_SONGS = {
       {text:"Up and away,"},
       {text:"Going to stay."},
     ],
-    timing: null,
+    // Real Auto-Sync run against the real audio (178.76s) confirmed lines 0-10 (Verse 1 through
+    // the Chorus's first two lines) with real varied AI timestamps — kept as-is. From there the
+    // raw output jumped from 42.24s straight to 147.6s, then degenerated into a flat/interpolated
+    // run that overshot the real 178.76s audio duration entirely (values up to 239.14s) — this
+    // song is the one this project's own history already flagged for exactly this "loses it after
+    // the chorus repeats" failure (tried a bigger model on it directly, confirmed same wall, see
+    // the filler-word-filter fix). Manually rebuilt everything from line 11 on using this song's
+    // own confirmed real Chorus cadence (2.42s between "Up and away," and "Living for today.") for
+    // every short Chorus-style line, this song's own confirmed Verse 1 cadence (~3.15s/line) for
+    // Verse 2, and a 15s instrumental-transition gap before each new section — sized against the
+    // real remaining-duration budget (135s for 30 lines at tight-packed ~2.6s avg, so real gaps
+    // are expected). Verified live: real energy-sampled RMS at every computed checkpoint came back
+    // clearly audible, and the last line (157.64s) leaves a plausible ~21s outro before the real
+    // 178.76s end.
+    timing: [13.94,15.92,20.94,24.35,27.76,29.32,34.28,36.12,39.82,39.82,42.24,44.64,47.04,49.44,51.84,54.24,56.64,71.64,71.64,74.84,78.04,81.24,84.44,87.64,90.84,94.04,109.04,109.04,111.44,113.84,116.24,118.64,121.04,123.44,125.84,140.84,140.84,143.24,145.64,148.04,150.44,152.84,155.24,157.64],
   },
   good_world: {
     lines: [
@@ -827,7 +909,19 @@ const KARAOKE_SONGS = {
       {text:"(What a good world)"},
       {text:"I'm learning to stand."},
     ],
-    timing: null,
+    // Real Auto-Sync run against the real audio (202.68s) came back mostly usable: lines 0-21
+    // (Verse 1, Pre-Chorus, Chorus) and 36-44 (2nd Chorus) had real varied AI timestamps — kept
+    // as-is. Two spots were clearly fake: lines 22-35 (Verse 2 + Pre-Chorus repeat) showed the
+    // project's own documented "suspiciously perfectly-even = fake interpolation" tell (~1.25s
+    // apart, every single gap, both blocks) and lines 45-58 (Bridge + Final Chorus) were a flat,
+    // exact +3.00s/line run from the last real anchor — both replaced with a proportional rebuild
+    // bounded by the same real trusted anchors on either side (122.16s→142.24s for the first spot,
+    // 158.98s→202.68s real duration for the second), using this song's own confirmed real Verse-
+    // and Chorus-cadence templates plus small instrumental-transition gaps rather than either the
+    // fake even-spacing or a blind overshoot. Verified live: real energy-sampled RMS at every
+    // computed checkpoint came back clearly audible, and the last line (195.28s) leaves a
+    // plausible ~7s outro before the real 202.68s end.
+    timing: [5.48,7.6,10.36,12.82,14.74,17.12,19.7,22.12,91.06,91.06,94.8,97.06,100.38,105.56,105.56,108.22,110.6,112.64,115.4,117.28,120.52,122.16,123.68,123.68,125.2,126.72,128.24,129.76,131.28,132.8,134.32,136.12,136.12,137.92,139.71,141.51,142.24,142.24,144.56,147.38,149.44,152.42,154.2,157.24,158.98,161.98,161.98,164.98,167.98,170.98,178.48,178.48,180.88,183.28,185.68,188.08,190.48,192.88,195.28],
   },
 };
 // Pulls any previously-saved timing out of localStorage on first load — so a sync session
@@ -1185,7 +1279,34 @@ function renderKaraokePanel() {
 // ─── MULTI-ACCOUNT SYSTEM ────────────────────────────────────────────────────
 let currentUser = null;
 
-function getUserData(name) { return JSON.parse(localStorage.getItem('explox_user_' + name) || '{}'); }
+// Real bug found live: JSON has no way to represent Infinity/-Infinity/NaN — JSON.stringify()
+// silently turns all three into the literal `null`. A maxed-out currency (repeated admin Office
+// grants stacking past Number.MAX_VALUE, see officeGive()/OFFICE_MAX_GRANT in game-admin.js)
+// overflows to real Infinity, and saving THAT quietly wrote `sip:null` — which then crashed the
+// account list (sipFor(name).toLocaleString() on null) and made the whole account unopenable.
+// User's own fix, once we found the cause: "when it says infinity make it save at that" — round
+// those three values through their own text markers instead of losing them to null. Number's own
+// toLocaleString() already renders Infinity as "∞" and does real math with it correctly, so
+// nothing else has to change once the value survives the save/load round trip intact.
+function explosafeStringify(obj) {
+  return JSON.stringify(obj, (key, value) => {
+    if (typeof value === 'number') {
+      if (value === Infinity) return '__Infinity__';
+      if (value === -Infinity) return '__-Infinity__';
+      if (Number.isNaN(value)) return '__NaN__';
+    }
+    return value;
+  });
+}
+function explosafeParse(text) {
+  return JSON.parse(text, (key, value) => {
+    if (value === '__Infinity__') return Infinity;
+    if (value === '__-Infinity__') return -Infinity;
+    if (value === '__NaN__') return NaN;
+    return value;
+  });
+}
+function getUserData(name) { return explosafeParse(localStorage.getItem('explox_user_' + name) || '{}'); }
 
 function saveCurrentUser() {
   if(!currentUser) return;
@@ -1196,11 +1317,12 @@ function saveCurrentUser() {
     safeBalance:   safeBalance,
     safeCombo:     safeCombo,
     safeInventory: safeInventory,
+    trashSafeCombo: trashSafeCombo, trashSafeSip: trashSafeSip, trashSafeItems: trashSafeItems,
     hat:playerHat, hair:playerHair, shirt:playerShirt, pants:playerPants, shoes:playerShoes,
     profilePic: playerProfilePic, shirtPaint: playerShirtPaint,
     skin:playerColors.skin, shirtColor:playerColors.shirt,
     pantsColor:playerColors.pants, shoesColor:playerColors.shoes,
-    hairColor:playerColors.hair, name:playerName, sip:sipDollars, wood:woodCount, scrap:scrapMetal, ownedLand:ownedLand, plotBuildings:plotBuildings,
+    hairColor:playerColors.hair, name:playerName, sip:sipDollars, cash:cash, wood:woodCount, scrap:scrapMetal, ownedLand:ownedLand, plotBuildings:plotBuildings,
     landInvites:landInvites, landColor:landColor, landForSale:landForSale, pendingNotices:pendingNotices,
     tubeLikes:tubeLikes, tubeViews:tubeViews, tubeBaseComments:tubeBaseComments, myUploads:myUploads, mySubscribers:mySubscribers, carLocation:carLocation, installedApps:installedApps,
     weapon:playerWeapon, ownedWeapons:ownedWeapons, ownedItems:ownedItems, ownedSkins:ownedSkins,
@@ -1217,30 +1339,47 @@ function saveCurrentUser() {
     lastBirthdayGiftDate: lastBirthdayGiftDate,
     deadNPCs: deadNPCs,
     buddyOwned: buddyOwned, buddySpecies: buddySpecies, buddyName: buddyName, buddyColors: buddyColors,
+    // Only the plain {id,name,level} fields — never the live `group` mesh reference, which isn't
+    // serializable. buildBodyguards() (game-shops.js) rebuilds real meshes from this on load,
+    // exactly the same "rebuild the visual from saved data" role buildBuddy() already plays.
+    bodyguards: bodyguards.map(b => ({ id:b.id, name:b.name, level:b.level })),
+    hiredJetPilot: hiredJetPilot,
     activeAddOns: activeAddOns,
     playTimeSeconds: playTimeSeconds, lastGrowthStageId: lastGrowthStageId, eliteCoins: eliteCoins,
     familyKidAdopted: familyKidAdopted, familyKidId: familyKidId, familyKidName: familyKidName, familyKidPlayTime: familyKidPlayTime,
     familyKidInSchool: familyKidInSchool, familyKidSmarts: familyKidSmarts, familyKidLastStageId: familyKidLastStageId,
     lastAllowanceAt: lastAllowanceAt,
     unpaidBills: unpaidBills, lastBillCheck: lastBillCheck, hasSeenGuide: hasSeenGuide,
-    myStocks: myStocks, ffaKills: ffaKills,
+    hasBusinessLicense: hasBusinessLicense, businessLicenseInfo: businessLicenseInfo, approvedPermits: approvedPermits,
+    myStocks: myStocks, ffaKills: ffaKills, eatingCompBests: eatingCompBests,
     eliteLevel: eliteLevel, activeQuests: activeQuests,
     lifetimeRobotKills: lifetimeRobotKills, lifetimeRogueKills: lifetimeRogueKills, lifetimeWarHits: lifetimeWarHits,
     killerDefeats: killerDefeats, pendingEarnings: pendingEarnings,
-    totalKills: totalKills, wrathTriggerCount: wrathTriggerCount, churchLastPrayed: churchLastPrayed, safePeriodEndsAt: safePeriodEndsAt,
+    totalKills: totalKills, wrathTriggerCount: wrathTriggerCount, divineJudgmentServed: divineJudgmentServed,
+    divineSentenceStartedAt: divineSentenceStartedAt, divineRedemptionGranted: divineRedemptionGranted,
+    lastSatanBossFightAt: lastSatanBossFightAt, lastKillerSupremeFightAt: lastKillerSupremeFightAt, lastEventOfDayClaim: lastEventOfDayClaim,
+    dailyStreakCount: dailyStreakCount, lastStreakClaimDate: lastStreakClaimDate,
+    lastEventBattleClaim: lastEventBattleClaim,
+    churchLastPrayed: churchLastPrayed, safePeriodEndsAt: safePeriodEndsAt,
+    schoolLastQuizAt: schoolLastQuizAt, schoolVisitCount: schoolVisitCount, schoolHomework: schoolHomework,
+    satanReignActive: satanReignActive, satanReignProgress: satanReignProgress, satanReignStartedAt: satanReignStartedAt,
     peakSip: peakSip, peakElite: peakElite, totalQuestsCompleted: totalQuestsCompleted, totalBossesDefeated: totalBossesDefeated,
     activeContracts: activeContracts, lifetimeShopsRobbed: lifetimeShopsRobbed,
     lifetimeCitizensDefeated: lifetimeCitizensDefeated, lifetimeCopsDefeated: lifetimeCopsDefeated,
-    totalContractsCompleted: totalContractsCompleted
+    totalContractsCompleted: totalContractsCompleted,
+    calendarReminders: calendarReminders,
+    spyLocationTally: spyLocationTally, spyFavoriteSpot: spyFavoriteSpot,
+    spyDiscoveredAt: spyDiscoveredAt, spyNextEligibleAt: spyNextEligibleAt,
+    mysteryCaseState: mysteryCaseState, mysteryActiveCaseId: mysteryActiveCaseId, mysteryNextTriggerAt: mysteryNextTriggerAt
   };
-  localStorage.setItem('explox_user_' + currentUser, JSON.stringify(data));
+  localStorage.setItem('explox_user_' + currentUser, explosafeStringify(data));
   localStorage.setItem('explox_current_user', currentUser);
   if(serverMode === 'online') {
     // Fire-and-forget: never let a slow/dead server hold up gameplay, which
     // autosaves via this function constantly. localStorage above is always
     // the safety net.
     fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/user/' + encodeURIComponent(currentUser), {
-      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data)
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: explosafeStringify(data)
     }, 4000).catch(()=>{});
   }
 }
@@ -1356,6 +1495,10 @@ async function setServerMode(mode) {
 
 async function loadLoginScreen() {
   updateServerModeButtons();
+  // User's own ask: "any one can see how many people are playoing any time any wheree" — even
+  // here, before logging in at all, regardless of Online/Offline (syncSitePlayerCount(),
+  // game-character.js, always tries the server on purpose).
+  syncSitePlayerCount();
   const list = document.getElementById('accountList');
   document.getElementById('newAccName').value = '';
   document.getElementById('newAccPw').value   = '';
@@ -1394,12 +1537,15 @@ async function loadLoginScreen() {
       const thumb = pic
         ? `<img src="${pic}" style="width:32px;height:32px;border-radius:6px;image-rendering:pixelated;flex-shrink:0;">`
         : '';
+      const hasBackup = !!localStorage.getItem('explox_backup_' + name);
       return `<div class="accountCard" onclick="loginAs('${name}')">
         ${thumb}
         <div class="acInfo">
           <div class="acName">${name}</div>
           <div class="acSip">💰 ${sip} S.I.P.</div>
         </div>
+        <button class="acBackup" title="Save a backup of this account" onclick="event.stopPropagation();backupAccount('${name}')">💾</button>
+        <button class="acRestore" title="${hasBackup ? 'Load your last backup' : 'No backup saved yet'}" ${hasBackup ? '' : 'disabled'} onclick="event.stopPropagation();restoreAccount('${name}')">♻️</button>
         <button class="acDel" onclick="event.stopPropagation();deleteAccount('${name}')">✕</button>
       </div>`;
     }).join('');
@@ -1442,8 +1588,26 @@ async function createAccount() {
   }
 }
 
+// Real bug report: "delete does nothing" — native confirm() is unreliable in some browsers/embeds
+// (throws or is silently auto-suppressed, e.g. the itch.io iframe issue documented next to
+// prompt() in game-vehicles.js; a browser can also throttle/auto-decline repeated dialogs on the
+// same page). A real in-page modal (#deleteConfirmModal, EXPLOX.html) can't be silently skipped
+// the same way, so deletion now goes through that instead of confirm().
+let pendingDeleteAccountName = null;
 function deleteAccount(name) {
-  if(!confirm('Delete account "' + name + '"? This cannot be undone.')) return;
+  pendingDeleteAccountName = name;
+  document.getElementById('deleteConfirmName').textContent = name;
+  document.getElementById('deleteConfirmModal').style.display = 'flex';
+}
+function cancelDeleteAccount() {
+  pendingDeleteAccountName = null;
+  document.getElementById('deleteConfirmModal').style.display = 'none';
+}
+function confirmDeleteAccount() {
+  const name = pendingDeleteAccountName;
+  document.getElementById('deleteConfirmModal').style.display = 'none';
+  pendingDeleteAccountName = null;
+  if (!name) return;
   if(serverMode === 'online') {
     fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/user/' + encodeURIComponent(name), { method:'DELETE' }, 4000)
       .catch(()=>{})
@@ -1454,6 +1618,54 @@ function deleteAccount(name) {
   saveUsers(users);
   localStorage.removeItem('explox_user_' + name);
   localStorage.removeItem('explox_pw_' + name);
+  loadLoginScreen();
+}
+
+// User's own ask, right after a scare where the online mode's account list looked empty (real
+// cause: the online server's DB was empty — local data was never actually touched, see
+// serverMode/EXPLOX_ONLINE_URL above): "make a back up for me the back up is for all every one
+// can make a back up with a button and use once u click it the old one is gone and the new one is
+// in" — one manual backup slot per account, available to every player (not admin-gated), stored
+// as a second localStorage entry so it survives independently of the live save. Restoring is
+// destructive on purpose (that's the point — "the old one is gone and the new one is in"), so it
+// goes through the same real in-page modal pattern as deleteConfirmModal above instead of a
+// native confirm() (already documented as unreliable in some embeds).
+function backupAccount(name) {
+  const data = localStorage.getItem('explox_user_' + name);
+  if (!data) { showBigMsg(`⚠️ No save data for "${name}" on this device yet — play a bit first!`); return; }
+  localStorage.setItem('explox_backup_' + name, data);
+  localStorage.setItem('explox_backup_time_' + name, String(Date.now()));
+  showBigMsg(`💾 Backup saved for "${name}"!`);
+  loadLoginScreen();
+}
+let pendingRestoreAccountName = null;
+function restoreAccount(name) {
+  const backup = localStorage.getItem('explox_backup_' + name);
+  if (!backup) { showBigMsg(`⚠️ No backup saved for "${name}" yet — tap 💾 first.`); return; }
+  pendingRestoreAccountName = name;
+  document.getElementById('restoreConfirmName').textContent = name;
+  const ts = Number(localStorage.getItem('explox_backup_time_' + name));
+  document.getElementById('restoreConfirmTime').textContent = ts ? new Date(ts).toLocaleString() : 'an earlier save';
+  document.getElementById('restoreConfirmModal').style.display = 'flex';
+}
+function cancelRestoreAccount() {
+  pendingRestoreAccountName = null;
+  document.getElementById('restoreConfirmModal').style.display = 'none';
+}
+function confirmRestoreAccount() {
+  const name = pendingRestoreAccountName;
+  document.getElementById('restoreConfirmModal').style.display = 'none';
+  pendingRestoreAccountName = null;
+  if (!name) return;
+  const backup = localStorage.getItem('explox_backup_' + name);
+  if (!backup) return;
+  localStorage.setItem('explox_user_' + name, backup);
+  if (serverMode === 'online') {
+    fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/user/' + encodeURIComponent(name), {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: backup
+    }, 4000).catch(()=>{});
+  }
+  showBigMsg(`♻️ "${name}" restored from backup!`);
   loadLoginScreen();
 }
 
@@ -1534,6 +1746,7 @@ async function doLogin(name) {
     } catch(e) { /* no save on the server yet, or it dropped mid-fetch — fall back to local copy */ }
   }
   currentUser = name;
+  refreshAdminTabVisibility(); // "commands only for me" — shows the ADMIN tab only for ADMIN_ACCOUNTS (game-admin.js)
   const d = getUserData(name);
   // A genuinely brand-new account (never saved before) starts growth at 0 (Baby) — that's the
   // whole point of the feature. An EXISTING account just updated to a version with growth added
@@ -1557,6 +1770,7 @@ async function doLogin(name) {
   playerProfilePic = d.profilePic || null;
   playerShirtPaint = d.shirtPaint || null;
   sipDollars    = d.sip !== undefined ? d.sip : 0;
+  cash          = d.cash !== undefined ? d.cash : 0; // Cash/ATM feature — physical cash carried, separate from bank-safe sipDollars
   woodCount     = d.wood !== undefined ? d.wood : 0;
   scrapMetal    = d.scrap !== undefined ? d.scrap : 0;
   ownedLand     = Array.isArray(d.ownedLand) ? d.ownedLand : [];
@@ -1586,6 +1800,9 @@ async function doLogin(name) {
   safeBalance     = d.safeBalance    || 0;
   safeCombo       = d.safeCombo      || null;
   safeInventory   = d.safeInventory  || null;
+  trashSafeCombo  = d.trashSafeCombo || null;
+  trashSafeSip    = d.trashSafeSip   || 0;
+  trashSafeItems  = d.trashSafeItems || {};
   playerWeapon  = d.weapon       || 'none';
   ownedWeapons  = d.ownedWeapons || [];
   playerArmor   = d.armor        || 'none';
@@ -1616,6 +1833,8 @@ async function doLogin(name) {
   buddyOwned   = !!d.buddyOwned;
   buddySpecies = d.buddySpecies || null;
   buddyName    = d.buddyName || 'Buddy';
+  bodyguards = Array.isArray(d.bodyguards) ? d.bodyguards.map(b => ({ id:b.id, name:b.name, level:b.level, group:null })) : [];
+  hiredJetPilot = !!d.hiredJetPilot;
   buddyColors  = d.buddyColors && typeof d.buddyColors === 'object' ? d.buddyColors : { body:'#66ddff', accent:'#ffffff', eye:'#111111' };
   activeAddOns = Array.isArray(d.activeAddOns) ? d.activeAddOns : [];
   familyKidAdopted = !!d.familyKidAdopted;
@@ -1632,8 +1851,12 @@ async function doLogin(name) {
   // account has never seen the guide (show it); an existing account predating this feature
   // shouldn't suddenly get nagged with it on their next login.
   hasSeenGuide = d.hasSeenGuide !== undefined ? !!d.hasSeenGuide : !isBrandNewAccount;
+  hasBusinessLicense = !!d.hasBusinessLicense; // City Hall Forms Office — game-shops.js
+  businessLicenseInfo = d.businessLicenseInfo && typeof d.businessLicenseInfo === 'object' ? d.businessLicenseInfo : null;
+  approvedPermits = Array.isArray(d.approvedPermits) ? d.approvedPermits : [];
   myStocks = d.myStocks && typeof d.myStocks === 'object' ? d.myStocks : {};
   ffaKills = d.ffaKills !== undefined ? d.ffaKills : 0;
+  eatingCompBests = d.eatingCompBests && typeof d.eatingCompBests === 'object' ? d.eatingCompBests : {};
   eliteLevel = d.eliteLevel !== undefined ? d.eliteLevel : 0;
   // Recomputed here (not left at the module-load default of 100) so a login always starts fresh
   // at the CORRECT full health for this account's real Robot Level, not last account's or nobody's.
@@ -1653,9 +1876,30 @@ async function doLogin(name) {
   killerDefeats      = d.killerDefeats !== undefined ? d.killerDefeats : 0;
   totalKills         = d.totalKills !== undefined ? d.totalKills : 0;
   wrathTriggerCount  = d.wrathTriggerCount !== undefined ? d.wrathTriggerCount : 0;
+  divineJudgmentServed = !!d.divineJudgmentServed; // persisted — once true, this can never fire again on this account
+  divineSentenceStartedAt = d.divineSentenceStartedAt !== undefined ? d.divineSentenceStartedAt : 0;
+  divineRedemptionGranted = !!d.divineRedemptionGranted;
+  lastSatanBossFightAt = d.lastSatanBossFightAt !== undefined ? d.lastSatanBossFightAt : 0;
+  lastKillerSupremeFightAt = d.lastKillerSupremeFightAt !== undefined ? d.lastKillerSupremeFightAt : 0;
+  lastEventOfDayClaim = d.lastEventOfDayClaim !== undefined ? d.lastEventOfDayClaim : '';
+  dailyStreakCount = d.dailyStreakCount !== undefined ? d.dailyStreakCount : 0;
+  lastStreakClaimDate = d.lastStreakClaimDate !== undefined ? d.lastStreakClaimDate : '';
+  lastEventBattleClaim = d.lastEventBattleClaim !== undefined ? d.lastEventBattleClaim : '';
   churchLastPrayed   = d.churchLastPrayed !== undefined ? d.churchLastPrayed : 0;
   safePeriodEndsAt   = d.safePeriodEndsAt !== undefined ? d.safePeriodEndsAt : 0;
-  wrathActive = false; satanBadUntil = 0; satanCheckTimer = 0; // a fresh login always starts with no mid-chase/mid-bad-window state
+  schoolLastQuizAt   = d.schoolLastQuizAt !== undefined ? d.schoolLastQuizAt : 0; // real School day cooldown gate — see SCHOOL_QUIZ_COOLDOWN_MS, game-land.js
+  schoolVisitCount   = d.schoolVisitCount !== undefined ? d.schoolVisitCount : 0; // real school days STARTED — every 10th is an exam day, game-land.js
+  schoolHomework     = d.schoolHomework && typeof d.schoolHomework === 'object' ? d.schoolHomework : null; // real pending homework — {subject, bandId}, game-land.js
+  if (document.getElementById('homeworkTab')) document.getElementById('homeworkTab').style.display = schoolHomework ? 'block' : 'none';
+  // Unlike the old satanBadUntil (a short mid-chase timer that deliberately didn't survive
+  // reload), Satan's Reign is a real ongoing world takeover now — a page reload shouldn't let
+  // players dodge an active reign or lose real progress made pushing back against it (see
+  // SATAN_REIGN_GOAL in game-world.js), so it's restored here the same way safePeriodEndsAt above
+  // already is.
+  satanReignActive    = !!d.satanReignActive;
+  satanReignProgress  = d.satanReignProgress !== undefined ? d.satanReignProgress : 0;
+  satanReignStartedAt = d.satanReignStartedAt !== undefined ? d.satanReignStartedAt : 0;
+  wrathActive = false; satanCheckTimer = 0; // a fresh login always starts with no mid-chase state — Wrath is a personal chase, not shared world state
   // max()'d against the account's real current balance so an account that already had money
   // before this feature existed shows a correct record immediately, not a jarring 0.
   peakSip  = Math.max(d.peakSip !== undefined ? d.peakSip : 0, sipDollars);
@@ -1671,6 +1915,19 @@ async function doLogin(name) {
   lifetimeCitizensDefeated = d.lifetimeCitizensDefeated !== undefined ? d.lifetimeCitizensDefeated : 0;
   lifetimeCopsDefeated = d.lifetimeCopsDefeated !== undefined ? d.lifetimeCopsDefeated : 0;
   totalContractsCompleted = d.totalContractsCompleted !== undefined ? d.totalContractsCompleted : 0;
+  calendarReminders = Array.isArray(d.calendarReminders) ? d.calendarReminders : [];
+  spyLocationTally  = d.spyLocationTally && typeof d.spyLocationTally === 'object' ? d.spyLocationTally : {};
+  spyFavoriteSpot   = d.spyFavoriteSpot || null;
+  spyDiscoveredAt   = d.spyDiscoveredAt !== undefined ? d.spyDiscoveredAt : 0;
+  spyNextEligibleAt = d.spyNextEligibleAt !== undefined ? d.spyNextEligibleAt : 0;
+  // Mysteries (game-world.js) — real detective cases that trigger on their own. A brand-new
+  // account (and any existing account predating this feature, since d.mysteryNextTriggerAt is
+  // undefined either way) gets its first possible case scheduled 5-10 real minutes from THIS
+  // login, same range tickMysteries() uses between every later case — no instant case on login,
+  // but no long silent wait either.
+  mysteryCaseState    = d.mysteryCaseState && typeof d.mysteryCaseState === 'object' ? d.mysteryCaseState : {};
+  mysteryActiveCaseId = d.mysteryActiveCaseId || null;
+  mysteryNextTriggerAt = d.mysteryNextTriggerAt !== undefined ? d.mysteryNextTriggerAt : (Date.now() + MYSTERY_TRIGGER_MIN_MS + Math.random()*(MYSTERY_TRIGGER_MAX_MS-MYSTERY_TRIGGER_MIN_MS));
   if (alignment === 'bad') ensureContracts();
   shopOpen = false; // never resume a shop as open across a reload — you have to reopen it yourself
   document.getElementById('skinColor').value  = playerColors.skin;

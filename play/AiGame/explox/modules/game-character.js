@@ -265,11 +265,14 @@ function drawAvatarCard(cv) {
   else if(playerHat==='flower')    { c.fillStyle='#2d7a2d'; c.fillRect(cx-14,13,28,5); ['#ff69b4','#ffcc00','#ff6688','#cc88ff','#ffffff'].forEach((col,i)=>{c.fillStyle=col;c.beginPath();c.arc(cx-11+i*5.5,14,3,0,Math.PI*2);c.fill();}); }
   else if(playerHat==='backwards') { c.fillStyle='#3355aa'; c.fillRect(cx-11,10,22,14); c.fillRect(cx-11,21,22,4); c.fillRect(cx-4,7,8,6); }
   else if(playerHat==='sombrero')  { c.fillStyle='#d4a860'; c.fillRect(cx-26,21,52,4); c.fillRect(cx-11,7,22,15); c.fillStyle='#a8763a'; c.fillRect(cx-26,21,52,2); }
+  else if(playerHat==='sunglasses'){ c.fillStyle='#111111'; c.fillRect(cx-13,15,26,6); c.fillRect(cx-16,15,4,5); c.fillRect(cx+12,15,4,5); }
   else if(playerHat==='propeller') { c.fillStyle='#dd4444'; c.fillRect(cx-14,11,28,15); c.fillStyle='#888'; c.fillRect(cx-1,7,3,6); c.fillStyle='#ccc'; c.fillRect(cx-10,7,20,2); }
   else if(playerHat==='antlers')   { c.fillStyle=hairC; c.fillRect(cx-12,11,24,13); c.fillStyle='#8B5A2B'; [-10,10].forEach(ax=>{c.fillRect(cx+ax-1,-4,3,15); c.fillRect(cx+ax-6,2,6,2); c.fillRect(cx+ax,7,6,2);}); }
   else if(playerHat==='headphones'){ c.fillStyle='#222222'; c.fillRect(cx-17,14,4,11); c.fillRect(cx+13,14,4,11); c.fillRect(cx-15,6,30,5); }
   else if(playerHat==='chef')      { c.fillStyle='#ffffff'; c.fillRect(cx-12,18,24,7); c.beginPath(); c.ellipse(cx,9,14,11,0,0,Math.PI*2); c.fill(); }
   else if(playerHat==='turban')    { c.fillStyle='#8833aa'; c.beginPath(); c.ellipse(cx,14,15,12,0,0,Math.PI*2); c.fill(); c.fillStyle='#ffcc00'; c.beginPath(); c.arc(cx,7,3,0,Math.PI*2); c.fill(); }
+  // Cat Ears — real user request (a fan playing the deployed game): "Pls add cat ears... As an hat".
+  else if(playerHat==='catears')   { c.fillStyle='#333333'; c.beginPath(); c.moveTo(cx-16,10); c.lineTo(cx-8,-6); c.lineTo(cx-1,10); c.closePath(); c.fill(); c.beginPath(); c.moveTo(cx+1,10); c.lineTo(cx+8,-6); c.lineTo(cx+16,10); c.closePath(); c.fill(); c.fillStyle='#ff88aa'; c.beginPath(); c.moveTo(cx-13,8); c.lineTo(cx-8,-1); c.lineTo(cx-4,8); c.closePath(); c.fill(); c.beginPath(); c.moveTo(cx+4,8); c.lineTo(cx+8,-1); c.lineTo(cx+13,8); c.closePath(); c.fill(); }
 
   // Pants & shoes — real match to the character's actual customization, not just the shirt/hair
   // colors this card already used. Drawn in the space freed by growing the card 24px taller
@@ -346,11 +349,14 @@ function buildPlayer() {
   else if(playerHat==='flower')    { mk(1.15,0.15,1.15,0x2d7a2d,0,3.35,0); ['#ff69b4','#ffcc00','#ff6688','#cc88ff','#ffffff'].forEach((col,i)=>{const a2=i*Math.PI*2/5; mk(0.16,0.16,0.16,parseInt(col.slice(1),16),Math.cos(a2)*0.55,3.4,Math.sin(a2)*0.55);}); }
   else if(playerHat==='backwards') { mk(1.2,0.5,0.8,0x3355aa,0,3.63,0.05); mk(0.5,0.12,0.4,0x3355aa,0,3.28,-0.7); }
   else if(playerHat==='sombrero')  { mk(2.2,0.12,2.2,0xd4a860,0,3.35,0); mk(0.9,0.7,0.9,0xd4a860,0,3.75,0); }
+  else if(playerHat==='sunglasses'){ mk(0.9,0.22,0.1,0x111111,0,2.87,0.52); mk(0.15,0.15,0.35,0x222222,-0.5,2.87,0.35); mk(0.15,0.15,0.35,0x222222,0.5,2.87,0.35); }
   else if(playerHat==='propeller') { mk(1.05,0.7,1.05,0xdd4444,0,3.5,0); mk(0.7,0.06,0.12,0xcccccc,0,3.95,0); mk(0.1,0.15,0.1,0x888888,0,3.9,0); }
   else if(playerHat==='antlers')   { mk(1.1,0.7,1.1,hairC,0,3.5,0); [-0.4,0.4].forEach(ax=>{ mk(0.1,0.7,0.1,0x8B5A2B,ax,4.0,0); mk(0.3,0.1,0.1,0x8B5A2B,ax-0.15,3.85,0); mk(0.3,0.1,0.1,0x8B5A2B,ax+0.15,4.15,0); }); }
   else if(playerHat==='headphones'){ mk(0.18,0.5,0.5,0x222222,-0.62,3.15,0); mk(0.18,0.5,0.5,0x222222,0.62,3.15,0); mk(1.3,0.12,0.2,0x222222,0,3.75,0); }
   else if(playerHat==='chef')      { mk(1.0,0.3,1.0,0xffffff,0,3.45,0); mk(0.8,0.7,0.8,0xffffff,0,3.95,0); }
   else if(playerHat==='turban')    { mk(1.1,0.7,1.1,0x8833aa,0,3.55,0); mk(0.16,0.16,0.16,0xffcc00,0,3.95,0.4); }
+  // Cat Ears — real user request (a fan playing the deployed game): "Pls add cat ears... As an hat".
+  else if(playerHat==='catears')   { mk(0.32,0.5,0.14,0x333333,-0.35,3.75,0); mk(0.32,0.5,0.14,0x333333,0.35,3.75,0); mk(0.18,0.3,0.06,0xff88aa,-0.35,3.68,0.06); mk(0.18,0.3,0.06,0xff88aa,0.35,3.68,0.06); }
 
   // Body & arms
   const bCol = playerShirt==='suit' ? 0x222222 : shirt;
@@ -434,9 +440,15 @@ function buildPlayer() {
 // ─── MULTIPLAYER: OTHER PLAYERS ──────────────────────────────────────────────
 // A simplified, parameterized cousin of buildPlayer() — builds into its OWN
 // group instead of the global playerGroup, so it never touches the local
-// player's own avatar/weapon/armor state. Deliberately skips weapon/armor
-// meshes (not worth the wire cost for a same-second-ish sync) and uses a
-// plain text nametag instead of the heavier avatar-canvas one.
+// player's own avatar/weapon/armor state. Uses a plain text nametag instead
+// of the heavier avatar-canvas one. User's own ask: "make the houses badges
+// weapons money all in the server" — weapon/armor reuse the same lightweight
+// buildWeaponVisual()/buildArmorVisual() (game-shops.js) the local player's
+// own updateWeaponMesh()/updateArmorMesh() already use (a few boxes, cheap),
+// the profile picture ("badge") is a small separate plane loaded via
+// THREE.TextureLoader (handles the data-URL load asynchronously on its own —
+// no blocking, no extra code needed here), and money rides on the same
+// nametag canvas the name was already drawn on.
 function buildOtherPlayerAvatar(a) {
   const g = new THREE.Group();
   const skin=c3(a.skin||'#f5c89a'), shirtC=c3(a.shirtColor||'#2196F3');
@@ -469,15 +481,39 @@ function buildOtherPlayerAvatar(a) {
   mk(0.42,shH,a.shoes==='sandals'?0.6:0.52, shoeC,-0.22,shY,0.05);
   mk(0.42,shH,a.shoes==='sandals'?0.6:0.52, shoeC, 0.22,shY,0.05);
 
-  const cv=document.createElement('canvas'); cv.width=256; cv.height=64;
-  const cx2=cv.getContext('2d');
-  cx2.fillStyle='rgba(0,0,0,0.55)'; cx2.fillRect(0,16,256,32);
-  cx2.fillStyle='#fff'; cx2.font='bold 26px Arial'; cx2.textAlign='center';
-  cx2.fillText((a.name||'Player').slice(0,16), 128, 40);
-  const tag=new THREE.Mesh(new THREE.PlaneGeometry(2.4,0.6),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthWrite:false,side:THREE.DoubleSide}));
-  tag.position.y=4.6; g.add(tag); g.nametag=tag;
+  g.weaponMesh = buildWeaponVisual(a.weapon);
+  if(g.weaponMesh) g.add(g.weaponMesh);
+  g.weapon = a.weapon || 'none';
+  g.armorMesh = buildArmorVisual(a.armor);
+  if(g.armorMesh) g.add(g.armorMesh);
+  g.armor = a.armor || 'none';
+
+  if(a.profilePic) {
+    const badgeTex = new THREE.TextureLoader().load(a.profilePic);
+    const badgeMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.55,0.55), new THREE.MeshBasicMaterial({map:badgeTex,transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+    badgeMesh.position.set(-1.35,4.6,0); g.add(badgeMesh); g.badgeMesh = badgeMesh;
+  }
+
+  g.moneySip = a.sip || 0;
+  const cv=document.createElement('canvas'); cv.width=256; cv.height=88;
+  drawRemoteNametag(cv, a.name, g.moneySip);
+  const tag=new THREE.Mesh(new THREE.PlaneGeometry(2.4,0.82),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+  tag.position.y=4.7; g.add(tag); g.nametag=tag; g.nametagCanvas=cv;
 
   return g;
+}
+// Shared by buildOtherPlayerAvatar() (first build) and syncPresence() (refreshed only when the
+// money shown would actually change, not every single sync tick — a canvas redraw for every
+// online player every second is exactly the kind of extra cost worth avoiding after the real
+// stutter found testing live multiplayer for the first time).
+function drawRemoteNametag(cv, name, sip) {
+  const cx2=cv.getContext('2d');
+  cx2.clearRect(0,0,256,88);
+  cx2.fillStyle='rgba(0,0,0,0.55)'; cx2.fillRect(0,10,256,68);
+  cx2.fillStyle='#fff'; cx2.font='bold 24px Arial'; cx2.textAlign='center';
+  cx2.fillText((name||'Player').slice(0,16), 128, 40);
+  cx2.fillStyle='#FFD700'; cx2.font='bold 18px Arial';
+  cx2.fillText(`💰 ${Math.floor(sip||0).toLocaleString()}`, 128, 65);
 }
 
 // Builds an isolated preview character for the shop "Preview" buttons (weapons/armor/outfits/
@@ -530,11 +566,13 @@ function buildPreviewAvatar(overrides) {
   else if(hat==='flower')    { mk(1.15,0.15,1.15,0x2d7a2d,0,3.35,0); ['#ff69b4','#ffcc00','#ff6688','#cc88ff','#ffffff'].forEach((col,i)=>{const a2=i*Math.PI*2/5; mk(0.16,0.16,0.16,parseInt(col.slice(1),16),Math.cos(a2)*0.55,3.4,Math.sin(a2)*0.55);}); }
   else if(hat==='backwards') { mk(1.2,0.5,0.8,0x3355aa,0,3.63,0.05); mk(0.5,0.12,0.4,0x3355aa,0,3.28,-0.7); }
   else if(hat==='sombrero')  { mk(2.2,0.12,2.2,0xd4a860,0,3.35,0); mk(0.9,0.7,0.9,0xd4a860,0,3.75,0); }
+  else if(hat==='sunglasses'){ mk(0.9,0.22,0.1,0x111111,0,2.87,0.52); mk(0.15,0.15,0.35,0x222222,-0.5,2.87,0.35); mk(0.15,0.15,0.35,0x222222,0.5,2.87,0.35); }
   else if(hat==='propeller') { mk(1.05,0.7,1.05,0xdd4444,0,3.5,0); mk(0.7,0.06,0.12,0xcccccc,0,3.95,0); mk(0.1,0.15,0.1,0x888888,0,3.9,0); }
   else if(hat==='antlers')   { mk(1.1,0.7,1.1,hairC,0,3.5,0); [-0.4,0.4].forEach(ax=>{ mk(0.1,0.7,0.1,0x8B5A2B,ax,4.0,0); mk(0.3,0.1,0.1,0x8B5A2B,ax-0.15,3.85,0); mk(0.3,0.1,0.1,0x8B5A2B,ax+0.15,4.15,0); }); }
   else if(hat==='headphones'){ mk(0.18,0.5,0.5,0x222222,-0.62,3.15,0); mk(0.18,0.5,0.5,0x222222,0.62,3.15,0); mk(1.3,0.12,0.2,0x222222,0,3.75,0); }
   else if(hat==='chef')      { mk(1.0,0.3,1.0,0xffffff,0,3.45,0); mk(0.8,0.7,0.8,0xffffff,0,3.95,0); }
   else if(hat==='turban')    { mk(1.1,0.7,1.1,0x8833aa,0,3.55,0); mk(0.16,0.16,0.16,0xffcc00,0,3.95,0.4); }
+  else if(hat==='catears')   { mk(0.32,0.5,0.14,0x333333,-0.35,3.75,0); mk(0.32,0.5,0.14,0x333333,0.35,3.75,0); mk(0.18,0.3,0.06,0xff88aa,-0.35,3.68,0.06); mk(0.18,0.3,0.06,0xff88aa,0.35,3.68,0.06); }
 
   const shirtStyle = playerShirt, pantsStyle = playerPants, shoesStyle = playerShoes;
   const bCol = shirtStyle==='suit' ? 0x222222 : shirtC;
@@ -569,6 +607,33 @@ let remotePlayers = {};
 let _lastPresenceSync = -999;
 const PRESENCE_SYNC_INTERVAL = 1; // seconds
 
+// User's own correction after the first version only showed who's online RIGHT NOW: "no it shows
+// how many people are playing al togetnher in the site" — every account that's ever signed up on
+// this server (/api/users, the same endpoint the online login screen's account list already
+// uses), not just the tiny in-memory presence list that forgets someone the moment they've been
+// quiet for 8 seconds (game-core.js's PRESENCE_TIMEOUT_SEC on the server side). Changes rarely,
+// so a real 30-second interval is plenty — no reason to hit this every second like presence.
+// Second correction: "any one can see how many people are playoing any time any wheree" — this is
+// a real, deliberate exception to "Offline means no network calls" every other sync in this file
+// follows: it always tries the server regardless of serverMode, since the whole point is a public
+// number anyone should see, on the login screen or in-game, online or off.
+let _lastSitePlayersSync = -999;
+const SITE_PLAYERS_SYNC_INTERVAL = 30; // seconds
+async function syncSitePlayerCount() {
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/users', {}, 4000);
+    if (!r.ok) return;
+    const allUsers = await r.json();
+    const count = allUsers.length.toLocaleString();
+    // Whichever of the two HUD locations exists right now (login screen vs. in-game) gets it —
+    // harmless no-op on the one that isn't currently in the DOM.
+    const loginEl = document.getElementById('loginSitePlayerCount');
+    if (loginEl) loginEl.textContent = count;
+    const inGameEl = document.getElementById('sitePlayerCount');
+    if (inGameEl) inGameEl.textContent = count;
+  } catch(e) { /* next sync will catch up */ }
+}
+
 // User's own ask: "if i an fighting a killer you can see that" — real-time visibility into what
 // OTHER online players are currently fighting, piggybacked on the same free-form /api/presence
 // POST every other field above already uses (server stores whatever's sent, no schema — see
@@ -579,12 +644,22 @@ const PRESENCE_SYNC_INTERVAL = 1; // seconds
 // client's own ROBOT_ID_SEQ starts at 0, so two different players' first killer would otherwise
 // both be "killer0" and collide.
 let remoteKillers = {};
+// User's own ask: "pets body gards and and also npcs u fight" — the killers/robbers/demons half
+// was already covered above; this adds the other two personal companions. Same "owner:key ->
+// {mesh, targetX, targetZ, owner}" shape as remoteKillers, and the same reasoning for why these
+// are a separate map instead of touching the real local `buddyGroup`/`bodyguards` — pure visual
+// echoes of someone else's stuff, never able to affect your own. Position is never sent over the
+// wire at all: it's recomputed from the owner's own already-synced x/z using the exact same fixed
+// offset buildBuddy()/buildBodyguards() (game-shops.js) use locally, so there's nothing extra to
+// interpolate wrong and no extra bytes on every single presence tick.
+let remoteBuddies = {};     // ownerName -> {mesh, targetX, targetZ}
+let remoteBodyguards = {};  // "ownerName:index" -> {mesh, targetX, targetZ}
 // Thin wrapper around the real buildKillerMesh()/buildRobberMesh() (game-land.js) — reuses the
 // exact same models real killers/robbers use, then swaps the "▓▓ UNKNOWN ▓▓" nametag (correct
 // for YOUR OWN killers, where the game deliberately hides who/what it is) for a real "fighting
 // {name}" label, since here the whole point is showing whose fight this is.
-function buildRemoteKillerMesh(x, z, isRobber, ownerName) {
-  const g = isRobber ? buildRobberMesh(x, z) : buildKillerMesh(x, z);
+function buildRemoteKillerMesh(x, z, isRobber, ownerName, isDemon, demonName, demonEmoji) {
+  const g = isDemon ? buildDemonMesh(x, z, { name: demonName || 'Demon', emoji: demonEmoji || '😈' }) : (isRobber ? buildRobberMesh(x, z) : buildKillerMesh(x, z));
   const oldTag = g.children.find(c => c.geometry && c.geometry.type === 'PlaneGeometry');
   if (oldTag) g.remove(oldTag);
   const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64;
@@ -636,8 +711,9 @@ function cullDistantLights() {
 // it, so driving through/near one is always a harmless pass-through, never a
 // crashIntoBuilding()-style fee. Reuses buildCar() exactly like NPC cars do.
 function buildRemotePlayerCar(o) {
+  if (o.carId === 'super_jet') return buildJetMesh(o.x, o.z, o.yaw || 0);
   const def = CAR_CATALOG.find(c => c.id === o.carId) || CAR_CATALOG[0];
-  return buildCar(def, o.x, o.z, o.yaw || 0); // buildCar already adds it to the scene
+  return buildOwnedVehicleMesh(def, o.x, o.z, o.yaw || 0); // real jet shape for isJet entries, buildCar() otherwise — both already add to the scene
 }
 async function syncPresence(t) {
   if(!currentUser || serverMode !== 'online' || !playerGroup) return;
@@ -653,7 +729,7 @@ async function syncPresence(t) {
     // and only the plain-data fields (never `.mesh` — a live THREE object can't go over JSON).
     const visibleKillers = (typeof killers !== 'undefined' ? killers : [])
       .filter(k => k.alive && k.revealed)
-      .map(k => ({ id:k.id, x:k.x, z:k.z, robber:!!k.robber }));
+      .map(k => ({ id:k.id, x:k.x, z:k.z, robber:!!k.robber, demon:!!k.demon, demonName:k.demon?k.demonDef.name:null, demonEmoji:k.demon?k.demonDef.emoji:null }));
     const body = {
       name: currentUser,
       x: posSrc.x, y: posSrc.y, z: posSrc.z,
@@ -662,7 +738,10 @@ async function syncPresence(t) {
       hat: playerHat, hair: playerHair, shirt: playerShirt, pants: playerPants, shoes: playerShoes,
       skin: playerColors.skin, shirtColor: playerColors.shirt, pantsColor: playerColors.pants,
       shoesColor: playerColors.shoes, hairColor: playerColors.hair,
-      killers: visibleKillers
+      weapon: playerWeapon, armor: playerArmor, profilePic: playerProfilePic, sip: sipDollars,
+      killers: visibleKillers,
+      buddy: (buddyOwned && buddySpecies) ? { species: buddySpecies, colors: buddyColors } : null,
+      bodyguardCount: bodyguards.length
     };
     fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/presence', {
       method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
@@ -673,21 +752,54 @@ async function syncPresence(t) {
     const others = await r.json();
     const seen = new Set();
     const seenKillers = new Set();
+    const seenBuddies = new Set();
+    const seenBodyguards = new Set();
     others.forEach(o => {
       seen.add(o.name);
       const wantCar = !!o.inCar;
       let rp = remotePlayers[o.name];
       if(!rp) {
+        // Real bug found live: buildCar()/buildRemotePlayerCar() only ever takes x/z/yaw, never
+        // y — a remote Super Jet mid-flight used to appear stuck on the ground and only climb to
+        // its real altitude over the next second as updateRemotePlayers()'s own lerp caught up.
+        // Setting the group's y explicitly right after building it (car or avatar, doesn't
+        // matter which — position.set() on a THREE.Group just repositions the whole thing, safe
+        // either way) means it shows up at the right height from the very first frame instead.
         const mesh = wantCar ? buildRemotePlayerCar(o) : buildOtherPlayerAvatar(o);
-        if(!wantCar) { mesh.position.set(o.x, o.y, o.z); scene.add(mesh); }
+        mesh.position.set(o.x, o.y, o.z);
+        if(!wantCar) scene.add(mesh);
         rp = remotePlayers[o.name] = { mesh, targetX:o.x, targetY:o.y, targetZ:o.z, targetYaw:o.yaw||0, inCar:wantCar, carId:o.carId||null };
       } else {
         if(wantCar !== rp.inCar || (wantCar && o.carId !== rp.carId)) {
           // they just got in/out of a car (or swapped cars) - rebuild as the right mesh type
           scene.remove(rp.mesh);
           const mesh = wantCar ? buildRemotePlayerCar(o) : buildOtherPlayerAvatar(o);
-          if(!wantCar) { mesh.position.set(o.x, o.y, o.z); scene.add(mesh); }
+          mesh.position.set(o.x, o.y, o.z);
+          if(!wantCar) scene.add(mesh);
           rp.mesh = mesh; rp.inCar = wantCar; rp.carId = o.carId||null;
+        } else if(!wantCar) {
+          // Same avatar mesh as last tick — swap just the weapon/armor pieces if they actually
+          // changed (cheap: buildWeaponVisual()/buildArmorVisual() are a few boxes, same cost as
+          // the local player's own updateWeaponMesh()/updateArmorMesh()), and only redraw the
+          // nametag canvas when the displayed money actually moves, not every single sync tick.
+          const oWeapon = o.weapon || 'none', oArmor = o.armor || 'none';
+          if(oWeapon !== rp.mesh.weapon) {
+            if(rp.mesh.weaponMesh) rp.mesh.remove(rp.mesh.weaponMesh);
+            rp.mesh.weaponMesh = buildWeaponVisual(o.weapon);
+            if(rp.mesh.weaponMesh) rp.mesh.add(rp.mesh.weaponMesh);
+            rp.mesh.weapon = oWeapon;
+          }
+          if(oArmor !== rp.mesh.armor) {
+            if(rp.mesh.armorMesh) rp.mesh.remove(rp.mesh.armorMesh);
+            rp.mesh.armorMesh = buildArmorVisual(o.armor);
+            if(rp.mesh.armorMesh) rp.mesh.add(rp.mesh.armorMesh);
+            rp.mesh.armor = oArmor;
+          }
+          if(Math.floor(o.sip||0) !== Math.floor(rp.mesh.moneySip||0) && rp.mesh.nametagCanvas) {
+            rp.mesh.moneySip = o.sip || 0;
+            drawRemoteNametag(rp.mesh.nametagCanvas, o.name, rp.mesh.moneySip);
+            rp.mesh.nametag.material.map.needsUpdate = true;
+          }
         }
         rp.targetX = o.x; rp.targetY = o.y; rp.targetZ = o.z; rp.targetYaw = o.yaw||0;
       }
@@ -696,12 +808,41 @@ async function syncPresence(t) {
         seenKillers.add(key);
         let rk = remoteKillers[key];
         if(!rk) {
-          const mesh = buildRemoteKillerMesh(k.x, k.z, !!k.robber, o.name);
+          const mesh = buildRemoteKillerMesh(k.x, k.z, !!k.robber, o.name, !!k.demon, k.demonName, k.demonEmoji);
           remoteKillers[key] = { mesh, targetX:k.x, targetZ:k.z, owner:o.name };
         } else {
           rk.targetX = k.x; rk.targetZ = k.z;
         }
       });
+      // Same fixed offset buildBuddy() (game-shops.js) plants a real buddy at, just relative to
+      // this OTHER player's own synced x/z instead of the local playerGroup.
+      if(o.buddy && o.buddy.species) {
+        seenBuddies.add(o.name);
+        const targetX = o.x - 1, targetZ = o.z - 1;
+        let rb = remoteBuddies[o.name];
+        if(!rb || rb.species !== o.buddy.species) {
+          if(rb) scene.remove(rb.mesh);
+          const built = buildBuddyMesh(o.buddy.species, o.buddy.colors || {body:'#88cc88',accent:'#ffffff',eye:'#111111'});
+          built.group.position.set(targetX, o.y, targetZ);
+          scene.add(built.group);
+          rb = remoteBuddies[o.name] = { mesh: built.group, species: o.buddy.species, targetX, targetZ };
+        } else {
+          rb.targetX = targetX; rb.targetZ = targetZ;
+        }
+      }
+      // Same fixed per-index offset buildBodyguards() (game-shops.js) uses locally.
+      for(let i = 0; i < (o.bodyguardCount || 0); i++) {
+        const key = o.name + ':' + i;
+        seenBodyguards.add(key);
+        const targetX = o.x - 1.5 - i*0.9, targetZ = o.z + 1;
+        let rg = remoteBodyguards[key];
+        if(!rg) {
+          const mesh = buildBodyguardMesh(targetX, targetZ);
+          remoteBodyguards[key] = { mesh, targetX, targetZ };
+        } else {
+          rg.targetX = targetX; rg.targetZ = targetZ;
+        }
+      }
     });
     Object.keys(remotePlayers).forEach(name => {
       if(!seen.has(name)) { scene.remove(remotePlayers[name].mesh); delete remotePlayers[name]; }
@@ -710,6 +851,12 @@ async function syncPresence(t) {
     // or the owner went offline (in which case they also vanish from `seen` above, same beat).
     Object.keys(remoteKillers).forEach(key => {
       if(!seenKillers.has(key)) { scene.remove(remoteKillers[key].mesh); delete remoteKillers[key]; }
+    });
+    Object.keys(remoteBuddies).forEach(name => {
+      if(!seenBuddies.has(name)) { scene.remove(remoteBuddies[name].mesh); delete remoteBuddies[name]; }
+    });
+    Object.keys(remoteBodyguards).forEach(key => {
+      if(!seenBodyguards.has(key)) { scene.remove(remoteBodyguards[key].mesh); delete remoteBodyguards[key]; }
     });
   } catch(e) { /* a dropped sync just means they'll look stale for a beat - not worth surfacing */ }
 }
@@ -740,6 +887,26 @@ function updateRemoteKillers(dt) {
 function clearRemoteKillers() {
   Object.values(remoteKillers).forEach(rk => scene.remove(rk.mesh));
   remoteKillers = {};
+}
+function updateRemoteBuddies(dt) {
+  Object.values(remoteBuddies).forEach(rb => {
+    rb.mesh.position.x += (rb.targetX - rb.mesh.position.x) * Math.min(1, dt*6);
+    rb.mesh.position.z += (rb.targetZ - rb.mesh.position.z) * Math.min(1, dt*6);
+  });
+}
+function clearRemoteBuddies() {
+  Object.values(remoteBuddies).forEach(rb => scene.remove(rb.mesh));
+  remoteBuddies = {};
+}
+function updateRemoteBodyguards(dt) {
+  Object.values(remoteBodyguards).forEach(rg => {
+    rg.mesh.position.x += (rg.targetX - rg.mesh.position.x) * Math.min(1, dt*6);
+    rg.mesh.position.z += (rg.targetZ - rg.mesh.position.z) * Math.min(1, dt*6);
+  });
+}
+function clearRemoteBodyguards() {
+  Object.values(remoteBodyguards).forEach(rg => scene.remove(rg.mesh));
+  remoteBodyguards = {};
 }
 
 // ─── PRESIDENTS — user's own ask: "make presidents", one per country. Same rule as the
@@ -786,6 +953,11 @@ const NPC_DEFS=[
   {name:'Cruz', role:'Officer',   skin:0xf0c8a0,shirt:0x223366,pants:0x1a2a55,pos:[-66,0,14],patrol:[[-66,14],[-58,14],[-58,6],[-66,6]],hat:'police'},
   {name:'Park', role:'Officer',   skin:0xd4956a,shirt:0x1a2a55,pants:0x111833,pos:[-74,0,8], patrol:[[-74,8],[-66,8],[-66,0],[-74,0]],hat:'police'},
   {name:'Blake',role:'Officer',   skin:0xe8c080,shirt:0x223366,pants:0x1a2a55,pos:[-62,0,18],patrol:[[-62,18],[-54,18],[-54,10],[-62,10]],hat:'police'},
+  // Factory Foremen — one per FACTORY_DEFS entry (game-buildings.js), standing right at their own
+  // loading dock, same short-pace-patrol ambient style as Sam/Mia/Leo outside the shops above.
+  {name:'Gus',  role:'Foreman',  skin:0xd4956a,shirt:0xFFD700,pants:0x223355,pos:[240,0,-27],patrol:[[236,-27],[244,-27]],hair:'short',hairColor:0x2a1505,hat:'cap'},
+  {name:'Rita', role:'Foreman',  skin:0xc97a50,shirt:0xFF6600,pants:0x1a1a1a,pos:[330,0,-27],patrol:[[326,-27],[334,-27]],hair:'ponytail',hairColor:0x3a2010,hat:'cap'},
+  {name:'Dex',  role:'Foreman',  skin:0xe8c080,shirt:0x33aa77,pants:0x111111,pos:[420,0,-27],patrol:[[416,-27],[424,-27]],hat:'helmet'},
   // Prison NPCs — see PRISON_SPAWN; only ever encountered while actually inPrison
   {name:'Rex',   role:'Guard',    skin:0xd4956a,shirt:0x3a3a3a,pants:0x1a1a1a,pos:[PRISON_SPAWN.x-10,0,PRISON_SPAWN.z+5.6],patrol:[[PRISON_SPAWN.x-10,PRISON_SPAWN.z+5.6],[PRISON_SPAWN.x+10,PRISON_SPAWN.z+5.6],[PRISON_SPAWN.x+6,PRISON_SPAWN.z+18],[PRISON_SPAWN.x-6,PRISON_SPAWN.z+18]],hat:'helmet'},
   {name:'Tanaka',role:'Guard',    skin:0xe8c080,shirt:0x3a3a3a,pants:0x1a1a1a,pos:[PRISON_SPAWN.x+10,0,PRISON_SPAWN.z+5.6],patrol:[[PRISON_SPAWN.x-10,PRISON_SPAWN.z+5.6],[PRISON_SPAWN.x+10,PRISON_SPAWN.z+5.6],[PRISON_SPAWN.x+6,PRISON_SPAWN.z+36],[PRISON_SPAWN.x-6,PRISON_SPAWN.z+36]],hat:'helmet'},
@@ -851,6 +1023,13 @@ function makeNPC(def){
   else if(def.hat==='wizard'){ const w=new THREE.Mesh(new THREE.ConeGeometry(0.6,1.8,8),new THREE.MeshLambertMaterial({color:0x4444aa}));w.position.set(0,3.9+hdy,0);g.add(w); mk(1.3,0.12,1.3,0x4444aa,0,3.32+hdy,0); }
   else if(def.hat==='pirate'){ mk(1.4,0.1,1.4,0x111111,0,3.32+hdy,0); mk(0.9,0.6,0.5,0x111111,0,3.66+hdy,0); mk(0.3,0.3,0.15,0xffffff,0,3.7+hdy,0.3); }
   else if(def.hat==='santa') { mk(1.1,0.2,1.1,0xffffff,0,3.32+hdy,0); const cn=new THREE.Mesh(new THREE.ConeGeometry(0.5,1.0,8),new THREE.MeshLambertMaterial({color:0xdd2222}));cn.position.set(0.1,3.88+hdy,0);g.add(cn); mk(0.25,0.25,0.25,0xffffff,0.45,4.32+hdy,0); }
+  // Dark glasses as an actual def.hat option for NPCs — the exact same 3-box shape (lens bar +
+  // 2 temple arms) buildPlayer() uses for playerHat==='sunglasses' (this file, ~line 350), just
+  // reused here instead of inventing a new accessory. Unlike the Celebrity-only block just below
+  // (which is keyed off role, not hat, and stacks on top of whatever hat a Celebrity already has),
+  // this is a real selectable hat like 'fedora'/'cap'/etc — the Spy NPCs (game-world.js) are the
+  // first to use it, going for a "trench coat + dark glasses" look without a hat on top of it.
+  else if(def.hat==='sunglasses'){ mk(0.9,0.22,0.1,0x111111,0,2.87+hdy,0.52); mk(0.15,0.15,0.35,0x222222,-0.5,2.87+hdy,0.35); mk(0.15,0.15,0.35,0x222222,0.5,2.87+hdy,0.35); }
   // Black sunglasses — user's own ask, Celebrities only. A separate accessory from the hat chain
   // above (not exclusive with it — Chaz Diamond keeps his crown AND gets shades), same low-poly
   // 2-3-box style as everything else here: one lens bar across the eyes, two temple arms back

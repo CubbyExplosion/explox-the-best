@@ -22,7 +22,8 @@ function tryCityJump(){
   if(inWater){ jumpVel = playerGroup.position.y > -0.3 ? -6 : 6; return; }
   // Zero-gravity thruster — unlimited, unlike the ground jump's onGround/doubleJump gating,
   // since floating in real outer space with a jetpack shouldn't run out after 1-2 taps.
-  if(inOuterSpace){ jumpVel = 10; onGround = false; return; }
+  // adminFlying (/fly, game-admin.js) reuses this exact same thruster feel anywhere in the city.
+  if(inOuterSpace || adminFlying){ jumpVel = 10; onGround = false; return; }
   if(onGround){
     jumpVel=13; onGround=false; jumpsUsed=1;
     if(activeAddOns.includes('confettijump')) burstConfetti(playerGroup.position.clone().setY(playerGroup.position.y+1), 10);
@@ -40,6 +41,10 @@ function setupControls(){
     if(e.code==='KeyA') moveState.a=true;
     if(e.code==='KeyD') moveState.d=true;
     if(e.code==='KeyE' && !e.repeat) onInteractDown();
+    if(e.code==='KeyQ' && !e.repeat) throwCombatGrenade();
+    if(e.code==='KeyF' && !e.repeat) { fireTankCannon(); fireJetGuns(); fireMotorcycleRockets(); } // each self-gates on its own vehicle's def flag, so only one ever actually fires
+    if(e.code==='KeyV' && !e.repeat) dropJetBomb();
+    if(e.code==='KeyH' && !e.repeat) toggleJetAutopilot();
     if(e.code==='KeyI'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) eatIceCream(); }
     if(e.code==='KeyC'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) eatFromBag(); }
     // Keyboard shortcuts for the side tabs — these work even while the mouse
@@ -54,13 +59,14 @@ function setupControls(){
     if(e.code==='Escape' && placingStore) cancelStorePlacement();
     // Shift = run faster; Space = jump (ignore Space while typing in a text field)
     if(e.code==='ShiftLeft'||e.code==='ShiftRight') moveState.run=true;
-    if(e.code==='Space'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))){ e.preventDefault(); tryCityJump(); } }
+    if(e.code==='Space'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))){ e.preventDefault(); tryCityJump(); jetThrustHeld=true; } }
   });
   document.addEventListener('keyup',e=>{
     if(e.code==='KeyW') moveState.w=false;
     if(e.code==='KeyS') moveState.s=false;
     if(e.code==='KeyA') moveState.a=false;
     if(e.code==='KeyD') moveState.d=false;
+    if(e.code==='Space') jetThrustHeld=false; // only meaningful while piloting the Jet (game-vehicles.js) — harmless everywhere else
     if(e.code==='KeyE') onInteractUp();
     if(e.code==='ShiftLeft'||e.code==='ShiftRight') moveState.run=false;
   });
@@ -170,15 +176,26 @@ function animate(){
   if(_fc) _fc.textContent = 'Frames: ' + _frames + ' | canvas: ' + (renderer&&renderer.domElement ? renderer.domElement.width+'x'+renderer.domElement.height : 'none');
   const dt=clock.getDelta(), t=clock.getElapsedTime();
 
+  tickWeather(dt); // recomputes/applies dynamic weather BEFORE updateDayNight() so this frame's sky already reflects any change
   updateDayNight();
   tickKaraokeDisplay();
   if(t - _lastPresenceSync > PRESENCE_SYNC_INTERVAL) { _lastPresenceSync = t; syncPresence(t); }
+  // User's own correction: "any one can see how many people are playoing any time any wheree" —
+  // shown regardless of Online/Offline, unlike every other HUD line tied to serverMode.
+  const sitePlayersHud = document.getElementById('sitePlayersHud');
+  if (sitePlayersHud && sitePlayersHud.style.display === 'none') sitePlayersHud.style.display = 'block';
+  if(t - _lastSitePlayersSync > SITE_PLAYERS_SYNC_INTERVAL) { _lastSitePlayersSync = t; syncSitePlayerCount(); }
   updateRemotePlayers(dt);
   updateRemoteKillers(dt);
+  updateRemoteBuddies(dt);
+  updateRemoteBodyguards(dt);
   if(t - _lastLandSync > LAND_SYNC_INTERVAL) { _lastLandSync = t; syncLandOwners(); }
+  if(t - _lastLandOwnerDataSync > LAND_OWNER_DATA_SYNC_INTERVAL) { _lastLandOwnerDataSync = t; syncOtherLandOwnersData(); }
   if(t - _lastShopSync > SHOP_SYNC_INTERVAL) { _lastShopSync = t; syncShops(); }
+  if(t - _lastStoreOwnerDataSync > STORE_OWNER_DATA_SYNC_INTERVAL) { _lastStoreOwnerDataSync = t; syncOtherStoreOwnersData(); }
   if(t - _lastStockSync > STOCK_SYNC_INTERVAL) { _lastStockSync = t; syncStocks(); }
   if(t - _lastMailboxSync > MAILBOX_SYNC_INTERVAL) { _lastMailboxSync = t; syncMailbox(); }
+  if(t - _lastChatSync > CHAT_SYNC_INTERVAL) { _lastChatSync = t; syncChatMessages(); }
   if(t - _lastLightCullSync > LIGHT_CULL_INTERVAL) { _lastLightCullSync = t; cullDistantLights(); }
   if(activeKnockbacks.length) tickKnockbacks(dt);
   if(placingStore) updatePlacementMarker();
@@ -219,6 +236,8 @@ function animate(){
   tickWrath(dt);
   tickSatanEvent(dt);
   tickDivineClash();
+  tickDivineJudgmentBeam();
+  tickDivineRedemption();
   tickSatanDeathParticles(dt);
   tickChurchWorshippers();
 
@@ -245,8 +264,8 @@ function animate(){
       const step=SPEED*(moveState.run?1.85:1)*addonSpeedMult*dt;
       const nx=playerGroup.position.x+dir.x*step;
       const nz=playerGroup.position.z+dir.z*step;
-      if(!isBlocked(nx, playerGroup.position.z)) playerGroup.position.x=nx;
-      if(!isBlocked(playerGroup.position.x, nz)) playerGroup.position.z=nz;
+      if(!isBlocked(nx, playerGroup.position.z, undefined, playerGroup.position.y)) playerGroup.position.x=nx;
+      if(!isBlocked(playerGroup.position.x, nz, undefined, playerGroup.position.y)) playerGroup.position.z=nz;
       if(activeAddOns.includes('rollerfeet') && dt>0) rollerVel.set(dir.x*step/dt, 0, dir.z*step/dt);
       // Every pocket interior (House/Mall/Hotel/Store/FriendHouse/Prison/SportsPark/Hospital/Sea)
       // now lives 10,000+ units out from downtown, so none of them can be subject to the outdoor
@@ -257,7 +276,7 @@ function animate(){
       // movement key press inside either one snapped the player straight back to x=11000 in the
       // real outdoor city, since 130000/140000 is always outside WORLD_BOUND. Fixed here (and in
       // the 5 other copies of this same "am I outdoors" check) alongside adding Sea's own flag.
-      if(!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea){
+      if(!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inVisitStore){
         playerGroup.position.x=Math.max(-WORLD_BOUND,Math.min(WORLD_BOUND,playerGroup.position.x));
         playerGroup.position.z=Math.max(-WORLD_BOUND,Math.min(WORLD_BOUND,playerGroup.position.z));
         const _px=playerGroup.position.x, _pz=playerGroup.position.z;
@@ -272,20 +291,21 @@ function animate(){
     } else if(activeAddOns.includes('rollerfeet') && rollerVel.lengthSq()>0.01) {
       const nx=playerGroup.position.x+rollerVel.x*dt;
       const nz=playerGroup.position.z+rollerVel.z*dt;
-      if(!isBlocked(nx, playerGroup.position.z)) playerGroup.position.x=nx; else rollerVel.x=0;
-      if(!isBlocked(playerGroup.position.x, nz)) playerGroup.position.z=nz; else rollerVel.z=0;
+      if(!isBlocked(nx, playerGroup.position.z, undefined, playerGroup.position.y)) playerGroup.position.x=nx; else rollerVel.x=0;
+      if(!isBlocked(playerGroup.position.x, nz, undefined, playerGroup.position.y)) playerGroup.position.z=nz; else rollerVel.z=0;
       rollerVel.multiplyScalar(0.9);
     } else {
       rollerVel.set(0,0,0);
     }
   }
   // Jump / gravity (vertical motion, works even while standing still)
-  if(!inCar && !playerSeated && !onBankWall && (!onGround || jumpVel!==0 || inOuterSpace || inWater)){
+  if(!inCar && !playerSeated && !onBankWall && (!onGround || jumpVel!==0 || inOuterSpace || inWater || adminFlying)){
     // Real zero-g: barely any pull at all while inOuterSpace, so a tap of the thruster (tryCityJump)
     // carries you a long way up and you drift back down slowly — nothing like the merely-reduced
     // "moon gravity" the Space Station's ground platform already had before this. currentGravity()
     // now covers every real gravity zone (Space Station/Moon/Mars/Jupiter/Andromeda), not just one.
-    jumpVel -= (inOuterSpace ? 3 : inWater ? 4 : activeAddOns.includes('moonjump') ? 14 : currentGravity())*dt;
+    // adminFlying (/fly) gets the same gentle pull as inOuterSpace, anywhere in the city.
+    jumpVel -= (inOuterSpace || adminFlying ? 3 : inWater ? 4 : activeAddOns.includes('moonjump') ? 14 : currentGravity())*dt;
     playerGroup.position.y += jumpVel*dt;
     if (inWater) {
       // Floating between the surface (0) and a real dive depth (-3) — swimming isn't standing on
@@ -293,19 +313,49 @@ function animate(){
       if (playerGroup.position.y > 0) { playerGroup.position.y = 0; jumpVel = 0; }
       else if (playerGroup.position.y < -3) { playerGroup.position.y = -3; jumpVel = 0; }
       onGround = false; // never "landed" while swimming — tryCityJump always dives/surfaces here, never a ground jump
-    } else if(playerGroup.position.y<=0){
-      playerGroup.position.y=0;
-      if(inOuterSpace) { inOuterSpace = false; showNotif('🌍 You drift back down and touch down on the Space Station platform.'); }
-      if(activeAddOns.includes('bouncyshoes')) { jumpVel=12; onGround=false; }
-      else { jumpVel=0; onGround=true; jumpsUsed=0; }
+    } else {
+      // Real terrain height under the player's current x/z (game-zones.js) — exactly 0 everywhere
+      // outside the 4 hill regions (The Park/Whispering Woods/Sunset Plains outskirts/country
+      // outskirts), so this is provably identical to the old hardcoded "0" everywhere the world was
+      // already flat, and only ever different while actually over a hill.
+      const groundY = groundHeightAt(playerGroup.position.x, playerGroup.position.z);
+      if (playerGroup.position.y <= groundY) {
+        playerGroup.position.y = groundY;
+        if(inOuterSpace) { inOuterSpace = false; showNotif('🌍 You drift back down and touch down on the Space Station platform.'); }
+        // adminFlying deliberately does NOT auto-disable on touchdown, unlike inOuterSpace above —
+        // a /fly toggle should stay on until you type /fly again, so landing just briefly grounds
+        // you and the very next jump tap launches you again.
+        if(activeAddOns.includes('bouncyshoes')) { jumpVel=12; onGround=false; }
+        else { jumpVel=0; onGround=true; jumpsUsed=0; }
+      }
     }
+  } else if(!inCar && !playerSeated && !onBankWall && onGround && !inWater) {
+    // Ground-follow while just standing/walking (not jumping/falling — the block above owns that
+    // arc): the gravity block above is skipped entirely whenever onGround && jumpVel===0, which is
+    // most frames, so without this the player would never re-sample the terrain height while
+    // walking across a hill and would stay glued to whatever Y they last landed at. Runs every such
+    // frame, cheap and a no-op (0) outside the 4 hill regions — same "provably unchanged everywhere
+    // flat" guarantee as the branch above.
+    playerGroup.position.y = groundHeightAt(playerGroup.position.x, playerGroup.position.z);
   }
   if(inCar&&activeCar){
+    // Pro Pilot autopilot (user's own ask: "hire a pro driver for driving my jet") — takes over
+    // steering/throttle entirely and flies itself home, real navigation through the exact same
+    // flight physics a manual pilot uses (tickJetAutopilot() sets carYaw/position/jetThrustHeld
+    // itself, game-vehicles.js), so this branch skips the manual WASD block below rather than
+    // fighting it for control of the same frame.
+    if (activeCar.def.isJet && jetAutopilotActive) { tickJetAutopilot(dt); } else {
     const CAR_TURN=2.2;
     if(moveState.d) carYaw+=CAR_TURN*dt;
     if(moveState.a) carYaw-=CAR_TURN*dt;
     if(moveState.w||moveState.s){
-      const vehicleSpeedMult = (activeAddOns.includes('turboboost')?1.6:1) * ((nitroEndTime && t<nitroEndTime)?2.2:1);
+      // User's own ask, right after the new jet tiers: "make a speed bost" — a real, free
+      // afterburner for jets, not another purchasable item like the existing Nitro Boost above.
+      // Shift (moveState.run) does nothing while driving today — it's only ever read on foot
+      // (the SPEED*1.85 walk/run line further down this file) — so holding it in a jet is a
+      // genuinely free key to reuse, no conflict with anything already bound to a vehicle.
+      const afterburner = (activeCar.def.isJet && moveState.run) ? 1.8 : 1;
+      const vehicleSpeedMult = (activeAddOns.includes('turboboost')?1.6:1) * ((nitroEndTime && t<nitroEndTime)?2.2:1) * afterburner;
       if(nitroEndTime && t>=nitroEndTime) nitroEndTime = 0;
       const spd=activeCar.def.speed*vehicleSpeedMult*(moveState.s?-0.55:1);
       const nx=activeCar.group.position.x+Math.sin(carYaw)*spd*dt;
@@ -315,22 +365,53 @@ function animate(){
       // (buildCar() is 4.2 wide x 8.5 long), split into separate x/z checks like on-foot movement
       // already does, so the car can still slide along a wall instead of just freezing dead on contact.
       const CAR_R = 2.3;
+      // The Jet stops colliding with city buildings entirely once it's actually airborne above
+      // JET_FLIGHT_CLEARANCE (game-vehicles.js) — real flight has to mean clearing rooftops, not
+      // just hovering at ground level still blocked by every wall. Below that height it's still a
+      // driven vehicle: rams/crashes exactly like a car, so takeoff has to actually happen first.
+      const flying = activeCar.def.isJet && activeCar.group.position.y > JET_FLIGHT_CLEARANCE;
       // Ram check runs on the SAME candidate position/radius isBlocked() is about to use, and
       // BEFORE it, so a just-destroyed target's collider is already gone by the time isBlocked()
       // runs this same frame — the car smashes straight through instead of bouncing off a
       // now-invisible wall where the target used to stand.
-      tickCarRam(nx, nz, CAR_R);
-      const blockedX = isBlocked(nx, activeCar.group.position.z, CAR_R);
-      const blockedZ = isBlocked(activeCar.group.position.x, nz, CAR_R);
+      if (!flying) tickCarRam(nx, nz, CAR_R);
+      const blockedX = flying ? false : isBlocked(nx, activeCar.group.position.z, CAR_R);
+      const blockedZ = flying ? false : isBlocked(activeCar.group.position.x, nz, CAR_R);
       if(!blockedX) activeCar.group.position.x=Math.max(-WORLD_BOUND,Math.min(WORLD_BOUND,nx));
       if(!blockedZ) activeCar.group.position.z=Math.max(-WORLD_BOUND,Math.min(WORLD_BOUND,nz));
       // Buildings aren't destroyable like item 160's NPCs/robots/trees (they're permanent city
       // architecture) — ramming one instead charges a real repair fee, same spirit, different cost.
-      if(blockedX || blockedZ) crashIntoBuilding(activeCar.group.position.x, activeCar.group.position.z);
+      if(!flying && (blockedX || blockedZ)) crashIntoBuilding(activeCar.group.position.x, activeCar.group.position.z);
+    }
+    } // end of the manual-control else branch opened above (autopilot skips straight past all of it)
+    if (activeCar.def.isJet) {
+      // Real vertical flight — thrust while Space is held (jetThrustHeld), a gentle gravity glides
+      // it back down otherwise, floor-clamped at groundHeightAt() so it lands and rests exactly
+      // like a car when it comes back down instead of sinking through the ground.
+      if (jetThrustHeld) jetVel = Math.min(JET_MAX_ASCENT, jetVel + JET_THRUST_ACCEL*dt);
+      jetVel -= JET_GRAVITY*dt;
+      activeCar.group.position.y += jetVel*dt;
+      const jetGroundY = groundHeightAt(activeCar.group.position.x, activeCar.group.position.z);
+      if (activeCar.group.position.y <= jetGroundY) { activeCar.group.position.y = jetGroundY; jetVel = 0; }
+      // User's own ask: "make it show altitude" — a real flight-sim style readout, height above
+      // the actual ground under the jet (not raw world Y), so it still reads 0 sitting on a hill.
+      const altitudeHud = document.getElementById('altitudeHud');
+      if (altitudeHud) {
+        altitudeHud.style.display = 'block';
+        document.getElementById('altitudeAmount').textContent = Math.round(activeCar.group.position.y - jetGroundY);
+      }
+    } else {
+      // Real hills are drivable (nothing stops a car from crossing The Park/Whispering Woods/Sunset
+      // Plains outskirts/country outskirts) — buildCar() always spawns a car at y=0, and nothing
+      // else ever touched its Y afterward, so without this a car driven onto a hill would visibly
+      // float/clip through the slope instead of riding over it. groundHeightAt() is 0 everywhere
+      // outside the 4 hill regions, so this is a no-op on every road/lot the car already drove on.
+      activeCar.group.position.y = groundHeightAt(activeCar.group.position.x, activeCar.group.position.z);
     }
     activeCar.group.rotation.y=carYaw;
     activeCar.carYaw=carYaw;
     playerGroup.position.x=activeCar.group.position.x;
+    playerGroup.position.y=activeCar.group.position.y; // kept in sync so exitCar() (game-vehicles.js) steps out at the right height instead of the stale pre-drive Y
     playerGroup.position.z=activeCar.group.position.z;
     if(activeAddOns.includes('rainbowpaint') && activeCar.group.bodyMesh) {
       const carHue = (t*80) % 360;
@@ -492,6 +573,20 @@ function animate(){
     familyKidGroup.rotation.y += (yaw - familyKidGroup.rotation.y) * followLerp;
   }
 
+  // Bodyguards — same lag-behind-follow pattern as Buddy/the kid, fanned out behind the player
+  // (one slot per roster index) so a full roster of 3 doesn't stack on top of each other.
+  bodyguards.forEach((bg, i) => {
+    if (!bg.group) return;
+    const spread = (i - (bodyguards.length-1)/2) * 1.3;
+    const targetX = playerGroup.position.x - Math.sin(yaw)*2.2 + Math.cos(yaw)*spread;
+    const targetZ = playerGroup.position.z - Math.cos(yaw)*2.2 - Math.sin(yaw)*spread;
+    const followLerp = Math.min(1, dt*3);
+    bg.group.position.x += (targetX - bg.group.position.x) * followLerp;
+    bg.group.position.z += (targetZ - bg.group.position.z) * followLerp;
+    bg.group.position.y = playerGroup.position.y;
+    bg.group.rotation.y += (yaw - bg.group.rotation.y) * followLerp;
+  });
+
   // Camera — skipped entirely while a Cab ride or a flight is flying its own camera path through
   // the real scene (game-transit.js, startCabRide()/startFlightAnim()); this per-frame follow
   // logic would otherwise fight it every single frame and win, since it runs unconditionally after.
@@ -502,9 +597,15 @@ function animate(){
     const camY=activeCar.group.position.y+9;
     const camZ=activeCar.group.position.z-Math.cos(carYaw)*18;
     camera.position.lerp(new THREE.Vector3(camX,camY,camZ),0.08);
-    camera.lookAt(activeCar.group.position.x,2,activeCar.group.position.z);
+    // Real bug found live (user report: "make it so you see your jket at all times when u fly") —
+    // this hardcoded y:2 look target was always close enough to correct for a ground vehicle
+    // (activeCar.group.position.y never strays far from 0), but the Jet actually climbs — the
+    // camera kept staring at a fixed near-ground point while the jet flew up and out of view above
+    // it. Tracking the car's real current height keeps it framed at any altitude, and is a
+    // no-op for every ground vehicle (y stays ~0, same as the old hardcoded value).
+    camera.lookAt(activeCar.group.position.x,activeCar.group.position.y+2,activeCar.group.position.z);
   } else {
-    const interior = inHotel || inHouse || inMall || inStore || inArcade || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inBankInterior;
+    const interior = inHotel || inHouse || inMall || inStore || inArcade || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inBankInterior || inVisitStore;
     const camDist = interior ? 4 : 9;
     const camHeight = interior ? 2.5 : 4;
     const camX=playerGroup.position.x-Math.sin(yaw)*camDist;
@@ -519,6 +620,7 @@ function animate(){
   if(inMall  && playerGroup.position.z > 25)   exitMall();
   if(inStore && playerGroup.position.z > 8.5)  exitStore();
   if(inFriendHouse && playerGroup.position.z > FRIEND_HOUSE_SPAWN.z + 7.5) leaveFriendHouse();
+  if(inVisitStore && playerGroup.position.z > VISIT_STORE_SPAWN.z + 7.5) exitVisitStore();
   if(inLandHouse && playerGroup.position.z > LAND_HOUSE_SPAWN.z + 5.5) exitLandHouse();
   if(inCountryHotel && playerGroup.position.z > COUNTRY_HOTEL_SPAWN.z + 4.5) checkoutCountryHotel();
   if(inAirportLounge && playerGroup.position.z > AIRPORT_LOUNGE_SPAWN.z + 7.5) exitAirportLounge();
@@ -575,6 +677,7 @@ function animate(){
 
   // Systems
   tickJob(dt);
+  tickActorFight(dt);
   tickBankJob(dt);
   tickPrinter(dt);
   tickCounter(dt);
@@ -586,6 +689,7 @@ function animate(){
   tickElders(dt);
   tickGrowth(dt);
   tickSchoolEvent();
+  tickSchoolNPCs(dt); // the player's OWN walk-in School day (game-land.js) — teacher wander/approach + bully movement; distinct from tickSchoolEvent() above (the separate kid-enrollment system, game-shops.js)
   tickHunger(dt);
   tickSickness();
   tickBladder(dt);
@@ -596,13 +700,19 @@ function animate(){
   tickTubeGrowth(dt);
   tickRogueRobots(dt);
   tickKillers(dt);
+  tickSpies(dt);
+  tickMysteries(dt);
+  tickFavoriteSpotTracking(dt);
   tickCoinBots(dt);
   tickPoliceHelpers(dt);
   tickCompanionAssist(dt);
+  tickBodyguards(dt);
   tickEvilAllies(dt);
   billTimerTick(dt);
   tickBillsOverdue();
+  tickFactorySupply(dt);
   tickCarImpactDebris(dt);
+  tickSatanReignHud();
   tickPrison(dt);
   tickHealth(dt);
   updatePrompt();
@@ -624,7 +734,17 @@ function animate(){
     document.getElementById('location').textContent='📍 '+loc;
   }
 
+  // Weather particles (rain/snow/leaves) are hidden — not animated, not just invisible-but-moving —
+  // while indoors, so rain doesn't visibly fall through a house/mall ceiling. Positions keep frozen
+  // in place rather than resetting, so stepping back outside doesn't cause a visible pop/jump. Also
+  // hidden in a space/planet zone (currentSpaceZone(), game-world.js) — rain on Mars would be
+  // exactly the "still looks like Earth" bug the zone sky override (updateDayNight, game-zones.js)
+  // exists to fix, and this same visibility check covers the "Snow Day"/"Leaf Storm" shop add-ons
+  // too since it just hides whatever particle meshes already exist, regardless of why they exist.
+  const _weatherIndoors = isPlayerIndoors() || !!currentSpaceZone();
   weatherParticles.forEach(p => {
+    p.visible = !_weatherIndoors;
+    if (_weatherIndoors) return;
     p.position.y -= p._speed * dt;
     p.position.x += p._driftX;
     p.position.z += p._driftZ;

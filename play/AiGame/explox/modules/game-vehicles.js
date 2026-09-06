@@ -5,8 +5,306 @@ const CAR_CATALOG = [
   { id:'off_roader',   name:'Off-Roader',    emoji:'🚙', color:0x336633, price:5000,  speed:26 },
   { id:'speed_racer',  name:'Speed Racer',   emoji:'🏎', color:0x2244ff, price:8000,  speed:38 },
   { id:'diamond_limo', name:'Diamond Limo',  emoji:'💎', color:0x44ddff, price:20000, speed:30 },
+  // Two REAL, buyable-with-in-game-currency jets — user's own ask: "normal jet 59000sip high
+  // speed jet 100000 sip 10 elite comes with 2 guns." Unlike the Super Jet (a permanent
+  // showroom fixture, admin-only, real-$-priced), these are plain S.I.P./Elite CAR_CATALOG
+  // entries — buyCarItem() below already knows how to charge a priceElite on top of the usual
+  // S.I.P., and every other car system (spawnOwnedCars, driving physics gated on
+  // activeCar.def.isJet in game-controls.js) already works generically off `isJet`/`speed`
+  // with zero extra plumbing needed. gunCount/hasBombs feed fireJetGuns()/dropJetBomb() above —
+  // 0/false means "unarmed," matching Normal Jet being the cheap, no-frills option.
+  { id:'normal_jet',    name:'Normal Jet',     emoji:'✈️', color:0x5577aa, price:59000,  speed:45, isJet:true, gunCount:0, hasBombs:false },
+  { id:'highspeed_jet', name:'High Speed Jet', emoji:'🛫', color:0xdd5522, price:100000, priceElite:10, speed:75, isJet:true, gunCount:2, hasBombs:false },
 ];
 
+// SUPER TANK — a real rideable "super weapon" (user's own ask), parked as a permanent showroom
+// fixture at the Car Dealership lot — NOT part of CAR_CATALOG/ownedCars, since it isn't bought
+// with S.I.P. Shown in the Car Shop list with a real $10.00 USD price tag, permanently disabled —
+// same no-real-payment-processor rule already established for the Currency Shop
+// (CURRENCY_SHOP_PACKAGES, game-alignment.js) and the Daily Streak Premium button (game-world.js):
+// a real price shown honestly, a real charge never taken. Free to walk up and drive regardless,
+// exactly like every other inert price tag in this game.
+const TANK_DEF = { id:'super_tank', name:'Super Tank', emoji:'🛡️', color:0x4a5c3a, price:'$10.00', speed:14, isTank:true };
+let dealershipTank = null; // {def, group, carYaw} — built once in buildCity() (game-buildings.js); never touched by spawnOwnedCars()'s wipe-and-rebuild the way parkedCars is
+function buildTankMesh(x, z, yawAngle) {
+  const g = new THREE.Group();
+  function b(w,h,d,color,px,py,pz) { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(color)); m.position.set(px,py,pz); m.castShadow=true; g.add(m); return m; }
+  g.bodyMesh = b(5.5,1.8,9, TANK_DEF.color, 0,1.3,0);   // armored hull
+  g.cabinMesh = b(3,1.2,3.6, 0x3a4a2e, 0,2.6,0.5);      // turret (tagged so Rainbow Paint can still recolor it, same as a car's cabin)
+  b(0.5,0.5,6, 0x222222, 0,2.6,4.5);                    // cannon barrel — points down local +Z, same "forward" axis buildCar()'s own front bumper uses
+  [-3,3].forEach(sx => b(1.6,1.4,9.5, 0x1a1a1a, sx,0.7,0)); // tank treads — same boxy shorthand buildRobotMesh()'s 'tank' shape already uses (game-land.js), just player-scale
+  g.position.set(x,0,z);
+  g.rotation.y = yawAngle||0;
+  scene.add(g);
+  return g;
+}
+// Cannon fire — bound to F while driving the tank specifically (game-controls.js keydown), only
+// live when isTank is true so it can never fire from a normal car. Targets the same hostile
+// categories the grenade (game-land.js throwCombatGrenade) and car-ram (tickCarRam above) already
+// do — robots/rogue robots/real killers — deliberately NOT peaceful npcs, same "weapon, not a way
+// to grief bystanders" line the grenade already draws.
+// Range bumped from 14 to 50 (user's own ask: "real tank range") — a real tank cannon hits things
+// far past melee distance, closer to the size of a whole city block here than a car-ram's reach.
+const TANK_CANNON_COOLDOWN_MS = 2000, TANK_CANNON_RANGE = 50, TANK_CANNON_SPLASH = 6, TANK_CANNON_DAMAGE = 220;
+let tankCannonCooldownUntil = 0;
+function fireTankCannon() {
+  if (!inCar || !activeCar || !activeCar.def.isTank) return;
+  const now = Date.now();
+  if (now < tankCannonCooldownUntil) { showNotif(`🎯 Cannon reloading — ${Math.ceil((tankCannonCooldownUntil-now)/1000)}s left.`); return; }
+  tankCannonCooldownUntil = now + TANK_CANNON_COOLDOWN_MS;
+  const ix = activeCar.group.position.x + Math.sin(carYaw)*TANK_CANNON_RANGE;
+  const iz = activeCar.group.position.z + Math.cos(carYaw)*TANK_CANNON_RANGE;
+  let hitCount = 0, killCount = 0;
+  robots.filter(r => r.alive).forEach(r => {
+    if (Math.hypot(ix-r.x, iz-r.z) > TANK_CANNON_SPLASH) return;
+    hitCount++; killCount++; defeatRobot(r);
+  });
+  rogueRobots.filter(r => r.alive).forEach(r => {
+    if (Math.hypot(ix-r.x, iz-r.z) > TANK_CANNON_SPLASH) return;
+    hitCount++; killCount++; defeatRogueRobot(r);
+  });
+  killers.filter(k => k.alive && !k.guardKiller && !k.hitTargetName && !k.hitTargetType).forEach(k => {
+    if (Math.hypot(ix-k.x, iz-k.z) > TANK_CANNON_SPLASH) return;
+    hitCount++;
+    k.hp -= TANK_CANNON_DAMAGE;
+    if (k.hp > 0) return;
+    killCount++;
+    if (k.satanBoss) defeatSatanBoss(k);
+    else if (k.demon) defeatDemon(k);
+    else if (k.robber) defeatRobber(k);
+    else defeatKiller(k);
+  });
+  spawnGrenadeBlastFx(ix, iz);
+  sfx.boom();
+  showNotif(hitCount ? `🎯💥 Cannon blast hits ${hitCount}!${killCount?` (${killCount} defeated)`:''}` : "🎯💥 Cannon fires — nothing in range.");
+}
+// SUPER JET — a second real rideable "super weapon" (user's own ask). Driven on the ground like
+// every other vehicle here — user's own correction, "no u drive it" — NOT flown, so it reuses the
+// exact same generic driving-physics block (game-controls.js) as a car/the Tank with zero changes
+// there. Parked as a second permanent showroom fixture at the Car Dealership, next to the Tank.
+// Same $-priced/permanently-disabled SHOP tab listing pattern (CURRENCY_SHOP_PACKAGES,
+// game-alignment.js) as the Tank and Super Armor. Fastest vehicle in the game (55, ahead of the
+// Speed Racer's 38) with three real abilities: guns (F, rapid small hits), bombs (V, a bigger
+// blast on a real cooldown), and armor (waives the usual building-crash fee below, same free pass
+// "crashinsurance" already grants — a real, functional meaning for "armor" on a vehicle that has
+// no HP of its own to begin with).
+const JET_DEF = { id:'super_jet', name:'Super Jet', emoji:'✈️', color:0x2a3a4a, price:'$15.00', speed:55, isJet:true, jetArmor:true };
+// FUTURE JET — user's own ask: "future 1 99 500000 sip has 20 guns some rockets lasers and
+// more." Has a real $ component (on top of the S.I.P.), so it follows the exact same
+// admin-only/"buy in SHOP" pattern as the Tank/Super Jet/Motorcycle above rather than the plain
+// CAR_CATALOG S.I.P.-only purchase Normal Jet/High Speed Jet use — no real payment processor
+// exists anywhere in this game, so a listing with any real-money price stays a locked preview
+// for everyone but the admin account, same rule, same reason, every time it's come up. gunCount
+// 20 (10x High Speed Jet's) + hasBombs true is "rockets and lasers" — a felt, dramatic firepower
+// jump from fireJetGuns()/dropJetBomb() (both above) scaling off the SAME def fields already
+// added for the S.I.P. jets, not a third separate weapon system.
+const FUTURE_JET_DEF = { id:'future_jet', name:'Future Jet', emoji:'🚀', color:0x22ddaa, price:'$1.99 + 500,000 S.I.P.', speed:80, isJet:true, gunCount:20, hasBombs:true };
+let dealershipFutureJet = null; // {def, group, carYaw, homeX, homeZ, homeYaw} — built once in buildCity(), same pattern as dealershipJet
+// Real flight (user's own follow-up ask, "make the jet fly" — reversing the earlier "no u drive
+// it" ground-only correction into "drive it AND it can also take off"). Only the Jet gets this —
+// every other vehicle stays exactly as ground-locked as before (see the isJet branch,
+// game-controls.js's driving-physics block). Space thrusts upward while held (jetThrustHeld,
+// set/cleared by the Space keydown/keyup handlers, game-controls.js); a gentle gravity glides it
+// back down and it lands safely, floor-clamped at groundHeightAt(), exactly like a car resting on
+// the ground when not thrusting. JET_FLIGHT_CLEARANCE is the altitude above which it stops
+// colliding with city buildings at all — below it, it still drives/rams/crashes like a normal car,
+// so you have to actually climb before you can clear rooftops, not just hover at ground level.
+let jetVel = 0, jetThrustHeld = false;
+const JET_THRUST_ACCEL = 14, JET_MAX_ASCENT = 18, JET_GRAVITY = 10, JET_FLIGHT_CLEARANCE = 8;
+
+// PRO PILOT — user's own ask: "hire a pro driver for driving my jet." A real one-time hire
+// (hiredJetPilot, persisted — game-core.js/game-economy.js), same "pay once, keep forever" shape
+// as Buddy, that unlocks a real autopilot: press H while flying to have it fly itself home and
+// land, hands-off, through the exact same flight physics (jetThrustHeld/jetVel above) a manual
+// pilot uses — tickJetAutopilot() below just drives those same numbers itself instead of reading
+// Space/WASD. jetAutopilotActive is ephemeral (not persisted), same category as jetVel/jetThrustHeld.
+const JET_PILOT_HIRE_COST = 3000;
+let jetAutopilotActive = false;
+const AUTOPILOT_TURN_RATE = 1.5, AUTOPILOT_CRUISE_ALT = 12, AUTOPILOT_ARRIVE_DIST = 4;
+function hireJetPilot() {
+  if (hiredJetPilot) { showNotif('❌ You already hired a Pro Pilot!'); return; }
+  if (sipDollars < JET_PILOT_HIRE_COST) { showNotif(`❌ Need ${JET_PILOT_HIRE_COST.toLocaleString()} S.I.P. to hire a Pro Pilot!`); return; }
+  spendSip(JET_PILOT_HIRE_COST); updateSIP();
+  hiredJetPilot = true;
+  sfx.buy();
+  showNotif('🧑‍✈️ Pro Pilot hired! Press H while flying the Super Jet to autopilot home.');
+  saveCurrentUser();
+  renderAddOnsPanel();
+}
+function toggleJetAutopilot() {
+  if (!inCar || !activeCar || !activeCar.def.isJet) return;
+  if (!hiredJetPilot) { showNotif('❌ Hire a Pro Pilot first! (Add-Ons panel)'); return; }
+  jetAutopilotActive = !jetAutopilotActive;
+  showNotif(jetAutopilotActive ? '🧑‍✈️ Autopilot engaged — flying you home!' : '🧑‍✈️ Autopilot disengaged — you have the controls.');
+}
+// Drives carYaw/position/jetThrustHeld itself (see the isJet-autopilot branch in the main driving
+// block, game-controls.js) instead of reading moveState/Space — real navigation toward the Jet's
+// own home pad (activeCar.homeX/homeZ, set once in game-buildings.js), climbing to a safe cruising
+// altitude first so it doesn't just plow into whatever's between here and home at rooftop height.
+function tickJetAutopilot(dt) {
+  const dx = activeCar.homeX - activeCar.group.position.x, dz = activeCar.homeZ - activeCar.group.position.z;
+  const distHome = Math.hypot(dx, dz);
+  if (distHome > AUTOPILOT_ARRIVE_DIST) {
+    const desiredYaw = Math.atan2(dx, dz);
+    let angleDiff = desiredYaw - carYaw;
+    while (angleDiff > Math.PI) angleDiff -= Math.PI*2;
+    while (angleDiff < -Math.PI) angleDiff += Math.PI*2;
+    carYaw += Math.sign(angleDiff) * Math.min(Math.abs(angleDiff), AUTOPILOT_TURN_RATE*dt);
+    const spd = activeCar.def.speed;
+    const nx = activeCar.group.position.x + Math.sin(carYaw)*spd*dt;
+    const nz = activeCar.group.position.z + Math.cos(carYaw)*spd*dt;
+    // Same rooftop-clearance rule a manual pilot follows — flying blind through buildings at low
+    // altitude wouldn't read as a "pro" pilot. Below clearance it just holds position horizontally
+    // and climbs in place first, exactly like a real takeoff, instead of ramming something on the way up.
+    const flying = activeCar.group.position.y > JET_FLIGHT_CLEARANCE;
+    if (flying || !isBlocked(nx, nz, 2.3)) { activeCar.group.position.x = nx; activeCar.group.position.z = nz; }
+    jetThrustHeld = activeCar.group.position.y < AUTOPILOT_CRUISE_ALT;
+  } else {
+    // Arrived over home — cut thrust and let it glide down; the shared vertical-physics block
+    // (game-controls.js) floor-clamps it at groundHeightAt() exactly like a manual landing.
+    jetThrustHeld = false;
+    const groundY = groundHeightAt(activeCar.group.position.x, activeCar.group.position.z);
+    if (activeCar.group.position.y <= groundY + 0.05) {
+      activeCar.group.position.x = activeCar.homeX; activeCar.group.position.z = activeCar.homeZ; carYaw = activeCar.homeYaw;
+      jetAutopilotActive = false;
+      showNotif('🧑‍✈️ Landed! Your Pro Pilot brought you home safe.');
+    }
+  }
+}
+let dealershipJet = null; // {def, group, carYaw} — built once in buildCity(), same pattern as dealershipTank
+function buildJetMesh(x, z, yawAngle, color) {
+  color = color !== undefined ? color : JET_DEF.color;
+  const g = new THREE.Group();
+  function b(w,h,d,color,px,py,pz) { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(color)); m.position.set(px,py,pz); m.castShadow=true; g.add(m); return m; }
+  g.bodyMesh = b(2.6,1.4,10, color, 0,1,0);                    // sleek fuselage
+  g.cabinMesh = b(1.6,1,2.6, 0x1a2230, 0,1.9,1.5);             // cockpit body (tagged for Rainbow Paint, same as a car's cabin)
+  const glassMat = new THREE.MeshLambertMaterial({ color:0x88ccff, transparent:true, opacity:0.55 });
+  const canopy = new THREE.Mesh(new THREE.BoxGeometry(1.3,0.7,1.8), glassMat); canopy.position.set(0,2.35,2); canopy.castShadow=true; g.add(canopy);
+  b(7,0.3,2, color, 0,1,-0.5);                                 // wings
+  b(0.4,1.4,1.6, color, 0,1.6,-4.6);                           // tail fin
+  b(0.9,0.9,1.4, 0x111111, -1.3,0.6,-5);                       // engine L
+  b(0.9,0.9,1.4, 0x111111,  1.3,0.6,-5);                       // engine R
+  b(0.5,0.5,0.5, 0xff6600, -1.3,0.6,-5.7);                     // exhaust glow L
+  b(0.5,0.5,0.5, 0xff6600,  1.3,0.6,-5.7);                     // exhaust glow R
+  [[-2.5,0.1,4],[2.5,0.1,4],[0,0.1,-4]].forEach(([wx,wy,wz]) => { // landing gear, since it drives on the ground, not flies
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,0.4,10), mat(0x111111));
+    wheel.rotation.z = Math.PI/2; wheel.position.set(wx,wy,wz); g.add(wheel);
+  });
+  g.position.set(x,0,z);
+  g.rotation.y = yawAngle||0;
+  scene.add(g);
+  return g;
+}
+// Guns — rapid small hits, bound to F while driving the jet (game-controls.js keydown). Shares the
+// F key with fireTankCannon() above; both self-gate on their own vehicle's def flag, so only one
+// ever actually fires depending on which vehicle you're in.
+const JET_GUN_COOLDOWN_MS = 450, JET_GUN_RANGE = 12, JET_GUN_SPLASH = 3, JET_GUN_DAMAGE = 50;
+let jetGunCooldownUntil = 0;
+function fireJetGuns() {
+  if (!inCar || !activeCar || !activeCar.def.isJet) return;
+  // User's own ask, adding new jet tiers: "high speed jet ... comes with 2 guns" / "future ...
+  // has 20 guns some rockets lasers and more" — real, felt firepower differences instead of
+  // every jet hitting identically. `gunCount` defaults to 1 (undefined ?? 1) so the original
+  // Super Jet's balance is completely unchanged; an explicit 0 (Normal Jet) means unarmed.
+  const gunCount = activeCar.def.gunCount ?? 1;
+  if (gunCount <= 0) { showNotif('🔒 This jet has no weapons.'); return; }
+  const now = Date.now();
+  if (now < jetGunCooldownUntil) return; // rapid-fire — no "reloading" notif spam, just a silent gate
+  jetGunCooldownUntil = now + JET_GUN_COOLDOWN_MS;
+  const dmg = JET_GUN_DAMAGE * gunCount;
+  const ix = activeCar.group.position.x + Math.sin(carYaw)*JET_GUN_RANGE;
+  const iz = activeCar.group.position.z + Math.cos(carYaw)*JET_GUN_RANGE;
+  let hitCount = 0;
+  robots.filter(r => r.alive).forEach(r => { if (Math.hypot(ix-r.x, iz-r.z) <= JET_GUN_SPLASH) { hitCount++; defeatRobot(r); } });
+  rogueRobots.filter(r => r.alive).forEach(r => { if (Math.hypot(ix-r.x, iz-r.z) <= JET_GUN_SPLASH) { hitCount++; defeatRogueRobot(r); } });
+  killers.filter(k => k.alive && !k.guardKiller && !k.hitTargetName && !k.hitTargetType).forEach(k => {
+    if (Math.hypot(ix-k.x, iz-k.z) > JET_GUN_SPLASH) return;
+    hitCount++;
+    k.hp -= dmg;
+    if (k.hp > 0) return;
+    if (k.satanBoss) defeatSatanBoss(k); else if (k.demon) defeatDemon(k); else if (k.robber) defeatRobber(k); else defeatKiller(k);
+  });
+  sfx.clang();
+  if (hitCount) showNotif(`🔫 Guns hit ${hitCount}!`);
+}
+// Bombs — one big blast on a real cooldown, dropped straight down from wherever the jet currently
+// is, bound to V (game-controls.js keydown).
+const JET_BOMB_COOLDOWN_MS = 4000, JET_BOMB_SPLASH = 9, JET_BOMB_DAMAGE = 320;
+let jetBombCooldownUntil = 0;
+function dropJetBomb() {
+  if (!inCar || !activeCar || !activeCar.def.isJet) return;
+  // hasBombs defaults to true (undefined !== false) so Super Jet's existing bomb is unaffected;
+  // Normal Jet and High Speed Jet explicitly set it false — only guns, no bombs, at that tier.
+  if (activeCar.def.hasBombs === false) { showNotif('🔒 This jet has no bombs.'); return; }
+  const now = Date.now();
+  if (now < jetBombCooldownUntil) { showNotif(`💣 Bomb reloading — ${Math.ceil((jetBombCooldownUntil-now)/1000)}s left.`); return; }
+  jetBombCooldownUntil = now + JET_BOMB_COOLDOWN_MS;
+  const ix = activeCar.group.position.x, iz = activeCar.group.position.z;
+  let hitCount = 0, killCount = 0;
+  robots.filter(r => r.alive).forEach(r => { if (Math.hypot(ix-r.x, iz-r.z) <= JET_BOMB_SPLASH) { hitCount++; killCount++; defeatRobot(r); } });
+  rogueRobots.filter(r => r.alive).forEach(r => { if (Math.hypot(ix-r.x, iz-r.z) <= JET_BOMB_SPLASH) { hitCount++; killCount++; defeatRogueRobot(r); } });
+  killers.filter(k => k.alive && !k.guardKiller && !k.hitTargetName && !k.hitTargetType).forEach(k => {
+    if (Math.hypot(ix-k.x, iz-k.z) > JET_BOMB_SPLASH) return;
+    hitCount++;
+    k.hp -= JET_BOMB_DAMAGE;
+    if (k.hp > 0) return;
+    killCount++;
+    if (k.satanBoss) defeatSatanBoss(k); else if (k.demon) defeatDemon(k); else if (k.robber) defeatRobber(k); else defeatKiller(k);
+  });
+  spawnGrenadeBlastFx(ix, iz);
+  sfx.boom();
+  showNotif(hitCount ? `💣💥 Bomb hits ${hitCount}!${killCount?` (${killCount} defeated)`:''}` : '💣💥 Bomb drops — nothing in range.');
+}
+// SUPER MOTORCYCLE — a third real rideable "super weapon" (user's own ask). Driven on the ground
+// exactly like the Tank/a car (same generic driving-physics block, game-controls.js) — parked as a
+// third permanent showroom fixture at the Car Dealership lot, past the Tank. Same $-priced/
+// permanently-disabled SHOP tab listing pattern (CURRENCY_SHOP_PACKAGES, game-alignment.js) as the
+// Tank/Armor/Jet. Fast and agile (speed 40, between the Off-Roader's 26 and the Speed Racer's 38)
+// with one real ability: rockets (F, shared with the Tank's cannon/Jet's guns — each self-gates on
+// its own vehicle's def flag, so only one ever actually fires).
+const MOTORCYCLE_DEF = { id:'super_motorcycle', name:'Super Motorcycle', emoji:'🏍️', color:0xcc1122, price:'$8.00', speed:40, isMotorcycle:true };
+let dealershipMotorcycle = null; // {def, group, carYaw} — built once in buildCity(), same pattern as dealershipTank
+function buildMotorcycleMesh(x, z, yawAngle) {
+  const g = new THREE.Group();
+  function b(w,h,d,color,px,py,pz) { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(color)); m.position.set(px,py,pz); m.castShadow=true; g.add(m); return m; }
+  g.bodyMesh = b(0.9,0.7,3.4, MOTORCYCLE_DEF.color, 0,0.9,0);   // frame/tank
+  g.cabinMesh = b(0.6,0.6,0.8, 0x1a1a1a, 0,1.35,-0.7);          // seat (tagged for Rainbow Paint, same as a car's cabin)
+  b(1.1,0.5,0.15, 0x222222, 0,1.15,1.6);                        // handlebars
+  b(0.15,0.6,0.15, 0x888888, 0,1.3,1.5);                        // front fork
+  [-1.15,1.15].forEach(rx => b(0.5,0.3,1.4, 0x333333, rx,1.1,-1.3)); // side-mounted rocket pods
+  [-1.15,1.15].forEach(rx => b(0.2,0.2,0.3, 0xff6600, rx,1.1,-2.0)); // rocket tips
+  [1.6,-1.6].forEach(wz => { const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.55,0.4,12), mat(0x111111)); wheel.rotation.z = Math.PI/2; wheel.position.set(0,0.55,wz); g.add(wheel); });
+  g.position.set(x,0,z);
+  g.rotation.y = yawAngle||0;
+  scene.add(g);
+  return g;
+}
+// Rockets — one real explosive hit on a cooldown, fired forward from wherever the motorcycle is
+// facing, bound to F while driving it (game-controls.js keydown).
+const MOTO_ROCKET_COOLDOWN_MS = 1500, MOTO_ROCKET_RANGE = 13, MOTO_ROCKET_SPLASH = 7, MOTO_ROCKET_DAMAGE = 190;
+let motoRocketCooldownUntil = 0;
+function fireMotorcycleRockets() {
+  if (!inCar || !activeCar || !activeCar.def.isMotorcycle) return;
+  const now = Date.now();
+  if (now < motoRocketCooldownUntil) { showNotif(`🚀 Rockets reloading — ${Math.ceil((motoRocketCooldownUntil-now)/1000)}s left.`); return; }
+  motoRocketCooldownUntil = now + MOTO_ROCKET_COOLDOWN_MS;
+  const ix = activeCar.group.position.x + Math.sin(carYaw)*MOTO_ROCKET_RANGE;
+  const iz = activeCar.group.position.z + Math.cos(carYaw)*MOTO_ROCKET_RANGE;
+  let hitCount = 0, killCount = 0;
+  robots.filter(r => r.alive).forEach(r => { if (Math.hypot(ix-r.x, iz-r.z) <= MOTO_ROCKET_SPLASH) { hitCount++; killCount++; defeatRobot(r); } });
+  rogueRobots.filter(r => r.alive).forEach(r => { if (Math.hypot(ix-r.x, iz-r.z) <= MOTO_ROCKET_SPLASH) { hitCount++; killCount++; defeatRogueRobot(r); } });
+  killers.filter(k => k.alive && !k.guardKiller && !k.hitTargetName && !k.hitTargetType).forEach(k => {
+    if (Math.hypot(ix-k.x, iz-k.z) > MOTO_ROCKET_SPLASH) return;
+    hitCount++;
+    k.hp -= MOTO_ROCKET_DAMAGE;
+    if (k.hp > 0) return;
+    killCount++;
+    if (k.satanBoss) defeatSatanBoss(k); else if (k.demon) defeatDemon(k); else if (k.robber) defeatRobber(k); else defeatKiller(k);
+  });
+  spawnGrenadeBlastFx(ix, iz);
+  sfx.boom();
+  showNotif(hitCount ? `🚀💥 Rockets hit ${hitCount}!${killCount?` (${killCount} defeated)`:''}` : '🚀💥 Rockets fire — nothing in range.');
+}
 function buildCar(def, x, z, yawAngle) {
   const g = new THREE.Group();
   function b(w,h,d,color,px,py,pz) {
@@ -101,7 +399,9 @@ function crashIntoBuilding(x, z) {
   const now = performance.now();
   if (now - lastCarCrashAt < 1500) return;
   lastCarCrashAt = now;
-  const fee = activeAddOns.includes('crashinsurance') ? 0 : Math.min(sipDollars, BUILDING_CRASH_FEE);
+  // Super Jet's "armor" (JET_DEF.jetArmor) — same free pass as the crashinsurance add-on. A real,
+  // functional meaning for "armor" on a vehicle that has no HP of its own to take damage against.
+  const fee = (activeAddOns.includes('crashinsurance') || (activeCar && activeCar.def.jetArmor)) ? 0 : Math.min(sipDollars, BUILDING_CRASH_FEE);
   spendSip(fee); updateSIP(); saveCurrentUser();
   spawnCarImpactBurst(x, z, [0xff8800,0x888888,0xffcc00]); // sparks, not the "destroyed" debris palette
   sfx.hit();
@@ -173,6 +473,12 @@ function parkCarAtHome() {
   sfx.buy();
   showNotif('🅿️ Your car is now parked at home!');
 }
+// A CAR_CATALOG entry flagged isJet (Normal Jet/High Speed Jet) gets the real sleek jet shape
+// instead of the generic boxy car — same buildJetMesh() the admin-only Super Jet uses, just
+// recolored per def.color, so a jet you can actually fly doesn't look like a car with wheels.
+function buildOwnedVehicleMesh(def, x, z, yaw) {
+  return def.isJet ? buildJetMesh(x, z, yaw, def.color) : buildCar(def, x, z, yaw);
+}
 function spawnOwnedCars() {
   parkedCars.forEach(pc => scene.remove(pc.group));
   parkedCars = [];
@@ -182,10 +488,10 @@ function spawnOwnedCars() {
     // Only your FIRST-owned car can travel — every other car always stays at the Downtown lot
     if (i === 0 && carLocation !== 'Downtown Explox') {
       const spot = carLocationSpot(carLocation);
-      if (spot) { parkedCars.push({def, group: buildCar(def, spot.x, spot.z, 0), carYaw:0}); return; }
+      if (spot) { parkedCars.push({def, group: buildOwnedVehicleMesh(def, spot.x, spot.z, 0), carYaw:0}); return; }
     }
     const spot = CAR_PARKING_SPOTS[i % CAR_PARKING_SPOTS.length];
-    const group = buildCar(def, spot.x, spot.z, 0);
+    const group = buildOwnedVehicleMesh(def, spot.x, spot.z, 0);
     parkedCars.push({def, group, carYaw:0});
   });
 }
@@ -207,19 +513,27 @@ function refreshCarShopUI() {
     const owned = ownedCars.includes(def.id);
     const d = document.createElement('div');
     d.className = 'shopItem';
+    const eliteCost = def.priceElite ? ` + 💎 ${def.priceElite.toLocaleString()}` : '';
     d.innerHTML = `<div class="siName">${def.emoji} ${def.name}</div>
-      <div class="siCost">💰 ${def.price.toLocaleString()} S.I.P. &nbsp;|&nbsp; 🏎 Speed: ${def.speed}</div>
+      <div class="siCost">💰 ${def.price.toLocaleString()} S.I.P.${eliteCost} &nbsp;|&nbsp; 🏎 Speed: ${def.speed}</div>
       <button class="shopBtn" ${owned?'disabled':''} onclick="buyCarItem(${i})">${owned?'✅ Owned':'Buy'}</button>`;
     list.appendChild(d);
   });
+  // Super Tank's real-money listing lives in the sidebar 🛍️ SHOP tab instead (the Currency Shop
+  // panel, CURRENCY_SHOP_PACKAGES — game-alignment.js), not here — user's own correction: this Car
+  // Dealership modal is only ever S.I.P. purchases. The Tank itself is still parked right outside
+  // on the lot regardless (dealershipTank above), free to walk up and drive either way.
 }
 function buyCarItem(idx) {
   const def = CAR_CATALOG[idx];
   if(ownedCars.includes(def.id)) { showNotif('You already own this car!'); return; }
   const cost = def.price;
-  if(sipDollars < cost) { sfx.nope(); showNotif(`❌ Need ${cost} S.I.P.!`); return; }
+  const eliteCost = def.priceElite || 0;
+  if(sipDollars < cost) { sfx.nope(); showNotif(`❌ Need ${cost.toLocaleString()} S.I.P.!`); return; }
+  if(eliteCoins < eliteCost) { sfx.nope(); showNotif(`❌ Need ${eliteCost.toLocaleString()} 💎 Elite too!`); return; }
   spendSip(cost);
   updateSIP();
+  if(eliteCost) { eliteCoins -= eliteCost; updateElite(); }
   ownedCars.push(def.id);
   saveCurrentUser();
   spawnOwnedCars();
@@ -227,37 +541,83 @@ function buyCarItem(idx) {
   showNotif(`${def.emoji} ${def.name} purchased! Find it parked at the Car Shop!`);
   refreshCarShopUI();
 }
+// All three "Super" vehicles (Tank/Jet/Motorcycle) are real-money 🛍️ SHOP tab listings
+// (CURRENCY_SHOP_PACKAGES, game-alignment.js) whose purchase is permanently disabled, same as
+// every other real-money item in this game — user's own correction: "non of the tanks are
+// avalible for free only for me" — letting any player walk up and drive them for free would give
+// away, for nothing, the exact thing the Shop is asking real money for. Gated to the account's own
+// admin accounts (isAdmin(), game-admin.js) — the SAME 2-account allowlist the Admin Chat console
+// already uses — so it's still possible to actually test/enjoy them, just not handed to every
+// player. Everyone else gets a real locked message instead of silently sliding in.
+function enterPremiumVehicle(pv) {
+  if (!isAdmin()) { showNotif(`🔒 ${pv.def.name} isn't available for free — buy it in the 🛍️ SHOP tab!`); return; }
+  enterCar(pv);
+}
+// PRIVATE CAB — user's own ask: "a cab only for me, any one who is not me can see unknown and is
+// locked." Unlike the Tank/Jet/Motorcycle above, even the NAME stays hidden from everyone else —
+// its sign (buildSign(), game-buildings.js) is built from isAdmin() at world-init time, which runs
+// once per player's own client using THEIR OWN currentUser, so every other real player genuinely
+// sees "❓ UNKNOWN" baked right into the sign texture itself, not just a locked prompt.
+const CAB_DEF = { id:'private_cab', name:'Private Cab', emoji:'🚕', color:0x161616, price:'', speed:32, isPrivateCab:true };
+let dealershipCab = null;
+function buildCabMesh(x, z, yawAngle) {
+  const g = buildCar(CAB_DEF, x, z, yawAngle);
+  const lightMat = new THREE.MeshBasicMaterial({color:0xffee88});
+  const cabLight = new THREE.Mesh(new THREE.BoxGeometry(0.8,0.3,1.2), lightMat);
+  cabLight.position.set(0,2.85,-0.5); g.add(cabLight); // a small roof light, real taxi flavor, no text on it
+  return g;
+}
+function enterMysteryVehicle(pv) {
+  if (!isAdmin()) { showNotif('❓ Unknown — locked.'); return; }
+  enterCar(pv);
+}
 function enterCar(pc) {
   activeCar = pc;
   inCar = true;
   carYaw = pc.carYaw || 0;
+  jetVel = 0; jetThrustHeld = false; jetAutopilotActive = false; // no leftover flight state from a previous flight — harmless for non-jets, never read outside the isJet branch
   playerGroup.visible = false;
-  showNotif(`🚗 Driving ${pc.def.name}! WASD to drive · A/D to turn · E to exit`);
+  showNotif(pc.def.isJet ? `✈️ Flying ${pc.def.name}! WASD to steer · Hold Space to climb · F Guns · V Bomb${hiredJetPilot?' · H Autopilot':''} · E to exit` : `🚗 Driving ${pc.def.name}! WASD to drive · A/D to turn · E to exit`);
 }
 function exitCar() {
   if(!inCar||!activeCar) return;
   playerGroup.position.x = activeCar.group.position.x + Math.cos(carYaw)*5;
   playerGroup.position.z = activeCar.group.position.z - Math.sin(carYaw)*5;
   activeCar.carYaw = carYaw;
+  // User's own follow-up: "don't land it back in the airport when u exit" — reverses the earlier
+  // auto-teleport-home behavior. The Jet now just stays exactly where you left it on exit, same as
+  // any other vehicle, even mid-air — Pro Pilot (toggleJetAutopilot(), H key) is the real, deliberate
+  // way to send it home now, not an automatic side effect of every exit.
+  jetVel = 0; jetAutopilotActive = false;
   activeCar = null;
   inCar = false;
   playerGroup.visible = true;
+  const altitudeHud = document.getElementById('altitudeHud');
+  if (altitudeHud) altitudeHud.style.display = 'none';
   showNotif('Stepped out of car.');
 }
 
 // ─── STORE OWNERSHIP — buy a real store that appears in the world ───────────
 // Only one store can be owned at a time; buying a new one replaces the old one.
+// `category` — a real SHOP_CATEGORIES id (game-district.js) each archetype's real-world flavor
+// naturally leans toward (Boutique Store → Fashion Boutique, Main Street Shop → a small-town Toy
+// Store, etc). This is what tickFactorySupply() (below) checks against a Factory's `supplies`
+// list (game-buildings.js FACTORY_DEFS) — own a store whose category is on one of the 3
+// factories' 5-category supply lists and that factory keeps it auto-restocked for free. Grocery
+// Store has none on purpose: it's the archetype that best matches what every store already sells
+// (STORE_INGREDIENTS is all food), so it's a real, honest "no factory supplies groceries" case —
+// same for Boutique/Tower, whose categories (fashion/jewelry) no factory happens to make.
 const STORE_CATALOG = [
-  { id:'kiosk',    name:'Corner Kiosk',     price:100,   size:'small',  floors:1, furnished:false },
-  { id:'minimart', name:'Mini Mart',        price:500,   size:'small',  floors:1, furnished:true  },
-  { id:'mainst',   name:'Main Street Shop', price:1000,  size:'medium', floors:1, furnished:false },
-  { id:'boutique', name:'Boutique Store',   price:2000,  size:'medium', floors:1, furnished:true  },
-  { id:'grocery',  name:'Grocery Store',    price:3000,  size:'medium', floors:1, furnished:true  },
-  { id:'plaza',    name:'Plaza Storefront', price:4000,  size:'large',  floors:1, furnished:false },
-  { id:'outlet',   name:'Outlet Center',    price:5000,  size:'large',  floors:2, furnished:false },
-  { id:'depart',   name:'Department Store', price:6000,  size:'large',  floors:2, furnished:true  },
-  { id:'complex',  name:'Shopping Complex', price:10000, size:'xlarge', floors:2, furnished:true  },
-  { id:'tower',    name:'Commerce Tower',   price:15000, size:'xlarge', floors:2, furnished:true  },
+  { id:'kiosk',    name:'Corner Kiosk',     price:100,   size:'small',  floors:1, furnished:false, category:'candy_shop' },
+  { id:'minimart', name:'Mini Mart',        price:500,   size:'small',  floors:1, furnished:true,  category:'phone_accessories_store' },
+  { id:'mainst',   name:'Main Street Shop', price:1000,  size:'medium', floors:1, furnished:false, category:'toy_store' },
+  { id:'boutique', name:'Boutique Store',   price:2000,  size:'medium', floors:1, furnished:true,  category:'fashion_boutique' },
+  { id:'grocery',  name:'Grocery Store',    price:3000,  size:'medium', floors:1, furnished:true,  category:null },
+  { id:'plaza',    name:'Plaza Storefront', price:4000,  size:'large',  floors:1, furnished:false, category:'electronics_store' },
+  { id:'outlet',   name:'Outlet Center',    price:5000,  size:'large',  floors:2, furnished:false, category:'sports_store' },
+  { id:'depart',   name:'Department Store', price:6000,  size:'large',  floors:2, furnished:true,  category:'video_game_store' },
+  { id:'complex',  name:'Shopping Complex', price:10000, size:'xlarge', floors:2, furnished:true,  category:'hobby_shop' },
+  { id:'tower',    name:'Commerce Tower',   price:15000, size:'xlarge', floors:2, furnished:true,  category:'jewelry_store' },
 ];
 // Footprint per size — floors * fh gives total building height (2-story = taller, same footprint)
 const STORE_SIZES = {
@@ -375,14 +735,18 @@ const FRIEND_HOUSE_SPAWN = { x:50000, z:0 }; // its own 10,000-unit lane, same s
 let storeStockOrder = []; // persisted per account
 const SHELF_ROW_CAP = 4;
 const BOX_QTY = 5; // every restock box holds this many units — priced as unit price × BOX_QTY
-function getShelfSlots(){
-  return storeStockOrder.slice(0, 5*SHELF_ROW_CAP).map((id,i) => ({
+// Both take an optional override so buildStoreInterior() can build a READ-ONLY copy of a
+// DIFFERENT real player's store (visiting) without touching this account's own storeStockOrder/
+// ownedStore globals — omitted, they default to this account's own data exactly as before.
+function getShelfSlots(stockOrder){
+  const order = stockOrder || storeStockOrder;
+  return order.slice(0, 5*SHELF_ROW_CAP).map((id,i) => ({
     id, x: [-4,-2,0,2,4][i%5], row: Math.floor(i/5),
   }));
 }
 function shelfLocalPos(slot, roomD){ return { x: slot.x, z: -roomD/2 + 0.7 + slot.row*1.4 }; }
-function currentRoomDepth(){
-  const def = STORE_CATALOG.find(s => s.id === ownedStore.id);
+function currentRoomDepth(def){
+  def = def || STORE_CATALOG.find(s => s.id === ownedStore.id);
   return STORE_SIZES[def.size].d + 6;
 }
 let storeBoxes = [];      // boxes delivered and sitting on the floor, waiting to be carried: {ingredientId, group, x, z}
@@ -483,6 +847,7 @@ function tryPlaceBox(){
   return false;
 }
 let storeInteriorGroup = null;
+let visitStoreInteriorGroup = null; // interior room built while visiting ANOTHER real player's store — kept separate from storeInteriorGroup above so a visit never tears down this account's own store
 
 function interactWithStorePlot(){ ownedStore ? enterStore() : openStoreManager(); }
 function enterStore(){
@@ -641,6 +1006,45 @@ function tryStaffRestock(){
     if(inStore) buildStoreInterior();
     refreshStoreManagerUI();
   }
+}
+// ─── FACTORY SUPPLY-CHAIN AUTO-RESTOCK — the real mechanical half of the Factory supply chain
+// (game-buildings.js FACTORY_DEFS.supplies / game-district.js factoryForCategory()). If the
+// owned Store's own STORE_CATALOG archetype carries a `category` that's on one of the 3
+// factories' 5-category supply lists, that factory keeps the shelf stocked automatically — a
+// real box lands DIRECTLY on the shelf every FACTORY_SUPPLY_INTERVAL of real play, through the
+// exact same storeStock/storeStockOrder pipeline tryStaffRestock()/tryPlaceBox() already use
+// (same increment, same shelf-cap check, same saveCurrentUser()/rebuild/refresh), just skipping
+// the "sitting on the floor waiting to be carried" step since nobody has to walk it over — that's
+// the whole point of a supplier automatically keeping you stocked. A store whose category isn't
+// on any factory's list (e.g. the food-themed Grocery Store) never gets a delivery — factory
+// is null, tick bails immediately. Ticked once per frame from the main loop (game-controls.js),
+// same dt-accumulator pattern as billTimerTick() (game-shops.js).
+const FACTORY_SUPPLY_INTERVAL = 180; // real play-seconds between automatic factory deliveries
+let factorySupplyTimer = 0; // NOT persisted — same as billTimer, just a real-time accumulator
+function tickFactorySupply(dt){
+  if(!ownedStore) return;
+  const def = STORE_CATALOG.find(s => s.id === ownedStore.id);
+  if(!def || !def.category) return;
+  const factory = factoryForCategory(def.category); // game-district.js — null if no factory supplies this category
+  if(!factory) return;
+  factorySupplyTimer += dt;
+  if(factorySupplyTimer < FACTORY_SUPPLY_INTERVAL) return;
+  factorySupplyTimer = 0;
+  // Real items straight from that shop category's own SHOP_CATEGORIES list, pushed onto
+  // STORE_INGREDIENTS with a matching supplyCategory tag by game-district.js at load time —
+  // not a made-up parallel item list.
+  const options = STORE_INGREDIENTS.filter(i => i.supplyCategory === def.category);
+  if(options.length === 0) return;
+  const ing = options[Math.floor(Math.random()*options.length)];
+  const maxSlots = 5 * SHELF_ROW_CAP;
+  const isNew = !storeStockOrder.includes(ing.id);
+  if(isNew && storeStockOrder.length >= maxSlots) return; // shelves full — skip this delivery, same cap tryStaffRestock respects
+  if(isNew) storeStockOrder.push(ing.id);
+  storeStock[ing.id] = (storeStock[ing.id] || 0) + BOX_QTY;
+  saveCurrentUser();
+  showNotif(`📦 ${factory.emoji} ${factory.name} delivered ${BOX_QTY}× ${ing.emoji} ${ing.name} straight to your shelf!`);
+  if(inStore) buildStoreInterior();
+  refreshStoreManagerUI();
 }
 function trySellToCustomer(){
   if(!shopOpen) return;
@@ -811,23 +1215,34 @@ function refreshStoreManagerUI() {
       <div style="color:#888;font-size:10px;text-align:center;">${ownedStaff.length>0 ? "Your staff keeps the shop open even if you leave." : "You have to stay in the store while it's open — leaving closes it, unless you hire staff."}</div>
     `;
   } else {
-    owned.innerHTML = `You don't own a store yet — the plot east of The Diner is empty.`;
+    // Real gate: a first-time store buyer needs a City Hall Business License (hasBusinessLicense,
+    // game-shops.js's Forms Office) before buyStore() below will let the purchase through — this
+    // just surfaces that requirement here too, so it's not a silent wall the player only discovers
+    // after clicking Buy.
+    owned.innerHTML = hasBusinessLicense
+      ? `You don't own a store yet — the plot east of The Diner is empty.`
+      : `You don't own a store yet — the plot east of The Diner is empty. <span style="color:#ffcc66;">🏛️ You'll need a Business License from City Hall's Forms Office before you can buy your first store.</span>`;
   }
   const list = document.getElementById('storeCatalogList');
   list.innerHTML = '';
   STORE_CATALOG.forEach((def, i) => {
     const isCurrent = ownedStore && ownedStore.id === def.id;
+    const blockedByLicense = !ownedStore && !hasBusinessLicense;
     const d = document.createElement('div');
     d.className = 'shopItem';
     d.innerHTML = `<div class="siName">${def.name} ${def.furnished ? '🛋️ furnished' : ''} ${def.floors===2 ? '🏢 2-story' : ''}</div>
       <div class="siCost">💰 ${def.price.toLocaleString()} S.I.P.</div>
-      <button class="shopBtn" ${isCurrent?'disabled':''} onclick="buyStore(${i})">${isCurrent ? '✅ Owned' : (ownedStore ? 'Upgrade/Switch' : 'Buy')}</button>`;
+      <button class="shopBtn" ${(isCurrent||blockedByLicense)?'disabled':''} onclick="buyStore(${i})">${isCurrent ? '✅ Owned' : (blockedByLicense ? '🏛️ Need License' : (ownedStore ? 'Upgrade/Switch' : 'Buy'))}</button>`;
     list.appendChild(d);
   });
 }
 function buyStore(idx) {
   const def = STORE_CATALOG[idx];
   if(ownedStore && ownedStore.id === def.id) { showNotif('You already own this store!'); return; }
+  // Real gate — user's own ask: a Business License (City Hall's Forms Office, game-shops.js) is
+  // required before the FIRST store purchase only. Once an account owns any store, later
+  // upgrades/switches (the branch above) are unrestricted, same as before this feature existed.
+  if(!ownedStore && !hasBusinessLicense) { sfx.nope(); showNotif('🏛️ You need a Business License from City Hall before opening your first store! Visit the Forms Office.'); return; }
   if(sipDollars < def.price) { sfx.nope(); showNotif(`❌ Need ${def.price.toLocaleString()} S.I.P.!`); return; }
   // Resolve the name BEFORE spending any S.I.P. — some browsers/embeds (e.g. a sandboxed
   // itch.io iframe) don't support prompt() at all and throw instead of returning null, so
@@ -842,7 +1257,8 @@ function buyStore(idx) {
 // ─── STORE PLACEMENT — pick any open ground in the city, not one fixed spot ─
 let placingStore = null;   // {def, customName} while the player is choosing a spot
 let placementMarker = null; // ground ring, green = valid spot, red = blocked
-let remoteShops = {};       // ownerName -> {storeId, customName, x, z} synced from the server (used for overlap checks now; rendering other players' shops is a later step)
+let remoteShops = {};       // ownerName -> {storeId, customName, x, z} synced from the server — used for overlap checks AND (see renderRemoteStores() in game-world.js) rendering every other real player's store exterior at its actual city location
+let remoteStoreMeshes = {}; // ownerName -> {group, sign, col, zone, key} for exteriors renderRemoteStores() has built, so re-syncs are idempotent (skip if unchanged) instead of rebuilding every tick
 
 function isStoreSpotValid(x, z) {
   if(isBlocked(x, z, 12)) return false; // overlaps an existing building/road collider
@@ -910,7 +1326,97 @@ async function syncShops() {
     const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/shops', {}, 4000);
     if(r.ok) remoteShops = await r.json();
   } catch(e) { /* next sync will catch up */ }
+  // Real bug (same class as item 304's land/house fix): remoteShops used to be fetched ONLY for
+  // isStoreSpotValid()'s overlap check — nothing ever actually built these in the 3D world, so a
+  // friend walking up to another real player's store just saw open ground, not their real shop.
+  // renderRemoteStores() (game-world.js) is idempotent — it skips any owner whose storeId/
+  // customName/x/z haven't changed since last render, so calling it every 3s here is cheap.
+  if(typeof renderRemoteStores === 'function') renderRemoteStores();
 }
+// "make it so you and your freind can see your housers" (item 304) fixed HOUSES on Sunset Plains
+// via syncOtherLandOwnersData(); this is the exact same twin for STORES. remoteShops above only
+// carries {storeId, customName, x, z} — enough to build the EXTERIOR (renderRemoteStores()), but
+// NOT enough to render what's actually on the shelves/floor inside (stock, furniture, staff) —
+// that lives in the owner's full save, same as plotBuildings does for houses. Pulls each store
+// owner's full save (same /api/user/<name> GET doLogin()/syncOtherLandOwnersData() already use)
+// into the same 'explox_user_<name>' localStorage key getUserData() reads, so a real friend's
+// store looks right even on a different machine, not just for an account already cached on this
+// same PC. Kept as its OWN function rather than folded into syncOtherLandOwnersData() — the two
+// owner sets (land owners vs. store owners) are usually disjoint, and land's sync is a proven,
+// already-relied-upon function other work touches too; a small dedicated twin is lower-risk.
+let _lastStoreOwnerDataSync = -999;
+const STORE_OWNER_DATA_SYNC_INTERVAL = 5; // matches LAND_OWNER_DATA_SYNC_INTERVAL — a full save per owner, not just a location ping
+async function syncOtherStoreOwnersData() {
+  if(serverMode !== 'online') return;
+  const otherOwners = Object.keys(remoteShops).filter(name => name && name !== currentUser);
+  if(!otherOwners.length) return;
+  await Promise.all(otherOwners.map(async name => {
+    try {
+      const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/user/' + encodeURIComponent(name), {}, 4000);
+      if(r.ok) localStorage.setItem('explox_user_' + name, JSON.stringify(await r.json()));
+    } catch(e) { /* next sync will catch up */ }
+  }));
+  // Currently standing inside a visit to one of these owners' stores — refresh it now that
+  // fresher stock/furniture/staff data may have just arrived (mirrors buildLandPlot(idx) being
+  // re-run after land's own periodic sync in syncOtherLandOwnersData()).
+  if(inVisitStore && visitStoreOwnerName && otherOwners.includes(visitStoreOwnerName)) refreshVisitStoreInterior();
+}
+
+// ─── VISITING ANOTHER REAL PLAYER'S STORE — same "walk up to the real structure, read THEIR
+// data" pattern as Sunset Plains' land houses (enterLandHouse()/renderExistingBuildings(), game-
+// land.js). A visitor sees the owner's REAL stock/furniture/staff, read-only — buying/managing
+// stays owner-only (interactWithStorePlot() below is unchanged for your OWN store), same as
+// land's build menu staying owner-only for a visited plot. ─────────────────────────────────────
+const VISIT_STORE_SPAWN = { x:180000, z:0 }; // own lane, next free one after Hell(170000)
+const VISIT_STORE_EXIT  = { x:180000, z:7 };
+let inVisitStore = false;
+let visitStoreOwnerName = null;
+function buildVisitStoreInteriorFor(ownerName) {
+  const ownerData = getUserData(ownerName);
+  const info = ownerData.ownedStore;
+  if(!info) return false;
+  const def = STORE_CATALOG.find(s => s.id === info.id);
+  if(!def) return false;
+  buildStoreInterior({
+    def, spawn: VISIT_STORE_SPAWN,
+    stockOrder: ownerData.storeStockOrder || [], stock: ownerData.storeStock || {},
+    furniture: ownerData.ownedFurniture || [], staff: ownerData.ownedStaff || [],
+  });
+  return true;
+}
+function refreshVisitStoreInterior() {
+  if(!inVisitStore || !visitStoreOwnerName) return;
+  buildVisitStoreInteriorFor(visitStoreOwnerName); // idempotent rebuild, same shape as buildStoreInterior()'s own-store path
+}
+function interactWithRemoteStorePlot(ownerName) {
+  const ownerData = getUserData(ownerName);
+  const info = ownerData.ownedStore;
+  if(!info) { showNotif(`🏪 ${ownerName}'s store data isn't here yet — try again in a few seconds.`); return; }
+  const def = STORE_CATALOG.find(s => s.id === info.id);
+  if(!def) { showNotif(`🏪 Can't load ${ownerName}'s store right now.`); return; }
+  visitStoreOwnerName = ownerName;
+  inVisitStore = true;
+  buildVisitStoreInteriorFor(ownerName);
+  playerGroup.position.set(VISIT_STORE_SPAWN.x, 0, VISIT_STORE_SPAWN.z);
+  yaw = Math.PI;
+  showNotif(`🏪 Welcome to ${info.customName || def.name} — ${ownerName}'s store!`);
+}
+function exitVisitStore() {
+  inVisitStore = false;
+  const ownerName = visitStoreOwnerName;
+  visitStoreOwnerName = null;
+  const info = remoteShops[ownerName];
+  if(info) {
+    const def = STORE_CATALOG.find(s => s.id === info.storeId);
+    const sz = def ? STORE_SIZES[def.size] : STORE_SIZES.small;
+    playerGroup.position.set(info.x, 0, info.z + sz.d/2 + 3);
+    yaw = 0;
+  }
+  showNotif('Leaving...');
+}
+const VISIT_STORE_ZONES = [
+  { x: VISIT_STORE_SPAWN.x, z: VISIT_STORE_SPAWN.z + 6, r:3, label:'Exit', action: () => exitVisitStore()},
+];
 
 // ─── COMPUTER SHOP & SIB BROWSER ─────────────────────────────────────────────
 const COMPUTER_CATALOG = [

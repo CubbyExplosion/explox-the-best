@@ -23,6 +23,22 @@ function _cDetective(ctx,x,y,sz,t){const b=Math.sin(t*1.5)*sz*.01;ctx.fillStyle=
 function _cAlien(ctx,x,y,sz,t,angry=false){ctx.fillStyle='#33cc33';ctx.beginPath();ctx.ellipse(x,y+sz*.15,sz*.12,sz*.22,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#44dd44';ctx.beginPath();ctx.ellipse(x,y-sz*.18,sz*.26,sz*.3,0,0,Math.PI*2);ctx.fill();[-1,1].forEach(s=>{ctx.fillStyle='#000';ctx.beginPath();ctx.ellipse(x+s*sz*.1,y-sz*.2,sz*.08,sz*.12,0,0,Math.PI*2);ctx.fill();ctx.fillStyle=angry?'#ff0000':'#4400ff';ctx.beginPath();ctx.arc(x+s*sz*.1,y-sz*.2,sz*.035,0,Math.PI*2);ctx.fill();ctx.fillStyle='rgba(255,255,255,.3)';ctx.beginPath();ctx.arc(x+s*sz*.1-sz*.02,y-sz*.24,sz*.018,0,Math.PI*2);ctx.fill();});const aw=Math.sin(t*2.5)*sz*.04;ctx.strokeStyle='#44dd44';ctx.lineWidth=sz*.035;ctx.beginPath();ctx.moveTo(x-sz*.1,y-sz*.44);ctx.lineTo(x-sz*.18+aw,y-sz*.6);ctx.stroke();ctx.beginPath();ctx.moveTo(x+sz*.1,y-sz*.44);ctx.lineTo(x+sz*.18+aw,y-sz*.6);ctx.stroke();ctx.fillStyle='#88ff88';ctx.beginPath();ctx.arc(x-sz*.18+aw,y-sz*.63,sz*.045,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(x+sz*.18+aw,y-sz*.63,sz*.045,0,Math.PI*2);ctx.fill();const ab=Math.sin(t*1.5)*sz*.04;ctx.strokeStyle='#33cc33';ctx.lineWidth=sz*.06;ctx.beginPath();ctx.moveTo(x-sz*.11,y+sz*.05);ctx.lineTo(x-sz*.28,y+sz*.14+ab);ctx.stroke();ctx.beginPath();ctx.moveTo(x+sz*.11,y+sz*.05);ctx.lineTo(x+sz*.28,y+sz*.14-ab);ctx.stroke();ctx.beginPath();ctx.moveTo(x-sz*.06,y+sz*.35);ctx.lineTo(x-sz*.1,y+sz*.52);ctx.stroke();ctx.beginPath();ctx.moveTo(x+sz*.06,y+sz*.35);ctx.lineTo(x+sz*.1,y+sz*.52);ctx.stroke();}
 function _cDragon(ctx,x,y,sz,t,breathe=false){ctx.strokeStyle='#cc2200';ctx.lineWidth=sz*.09;ctx.beginPath();ctx.moveTo(x+sz*.18,y+sz*.08);ctx.quadraticCurveTo(x+sz*.48,y+sz*.32,x+sz*.52+Math.sin(t*2)*sz*.1,y+sz*.52);ctx.stroke();ctx.fillStyle='#dd2200';ctx.beginPath();ctx.ellipse(x,y,sz*.26,sz*.18,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ffaa44';ctx.beginPath();ctx.ellipse(x,y+sz*.04,sz*.16,sz*.1,0,0,Math.PI*2);ctx.fill();const wf=Math.sin(t*3)*sz*.07;ctx.fillStyle='rgba(180,20,0,.75)';ctx.beginPath();ctx.moveTo(x-sz*.08,y-sz*.08);ctx.lineTo(x-sz*.42,y-sz*.38-wf);ctx.lineTo(x-sz*.18,y-sz*.1);ctx.closePath();ctx.fill();ctx.beginPath();ctx.moveTo(x+sz*.08,y-sz*.08);ctx.lineTo(x+sz*.42,y-sz*.38-wf);ctx.lineTo(x+sz*.18,y-sz*.1);ctx.closePath();ctx.fill();ctx.fillStyle='#dd2200';ctx.beginPath();ctx.moveTo(x-sz*.08,y-sz*.14);ctx.lineTo(x-sz*.2,y-sz*.42);ctx.lineTo(x-sz*.06,y-sz*.4);ctx.closePath();ctx.fill();ctx.beginPath();ctx.ellipse(x-sz*.22,y-sz*.5,sz*.18,sz*.12,-.35,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ffee00';ctx.beginPath();ctx.arc(x-sz*.3,y-sz*.52,sz*.04,0,Math.PI*2);ctx.fill();ctx.fillStyle='#000';ctx.beginPath();ctx.arc(x-sz*.3,y-sz*.52,sz*.02,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ff5500';for(let i=0;i<4;i++){const sx=x-sz*.14+i*sz*.1;ctx.beginPath();ctx.moveTo(sx,y-sz*.17);ctx.lineTo(sx+sz*.04,y-sz*.05);ctx.lineTo(sx-sz*.04,y-sz*.05);ctx.closePath();ctx.fill();}if(breathe){const fa=.5+.5*Math.abs(Math.sin(t*6));ctx.fillStyle=`rgba(255,160,0,${fa})`;ctx.beginPath();ctx.moveTo(x-sz*.38,y-sz*.5);ctx.lineTo(x-sz*.38-sz*.35,y-sz*.48+sz*.03);ctx.lineTo(x-sz*.38-sz*.18,y-sz*.54);ctx.closePath();ctx.fill();ctx.fillStyle=`rgba(255,50,0,${fa*.7})`;ctx.beginPath();ctx.moveTo(x-sz*.38,y-sz*.5);ctx.lineTo(x-sz*.38-sz*.22,y-sz*.49);ctx.lineTo(x-sz*.38-sz*.1,y-sz*.52);ctx.closePath();ctx.fill();}}
 function _cCar(ctx,x,y,sz,t,col='#ff2200'){const b=Math.sin(t*4)*sz*.007;ctx.fillStyle='rgba(0,0,0,.18)';ctx.beginPath();ctx.ellipse(x,y+sz*.24,sz*.38,sz*.055,0,0,Math.PI*2);ctx.fill();ctx.fillStyle=col;ctx.beginPath();ctx.roundRect(x-sz*.4,y-sz*.1+b,sz*.8,sz*.2,sz*.05);ctx.fill();ctx.beginPath();ctx.roundRect(x-sz*.18,y-sz*.28+b,sz*.36,sz*.2,sz*.06);ctx.fill();ctx.fillStyle='rgba(120,210,255,.7)';ctx.beginPath();ctx.roundRect(x-sz*.14,y-sz*.26+b,sz*.28,sz*.16,sz*.04);ctx.fill();[x-sz*.26,x+sz*.26].forEach(wx=>{ctx.fillStyle='#111';ctx.beginPath();ctx.arc(wx,y+sz*.13+b,sz*.12,0,Math.PI*2);ctx.fill();ctx.fillStyle='#555';ctx.beginPath();ctx.arc(wx,y+sz*.13+b,sz*.065,0,Math.PI*2);ctx.fill();});ctx.fillStyle='rgba(255,255,255,.45)';ctx.fillRect(x-sz*.36,y-sz*.03+b,sz*.72,sz*.036);const ef=.4+.6*Math.abs(Math.sin(t*9));ctx.fillStyle=`rgba(255,140,0,${ef})`;ctx.beginPath();ctx.moveTo(x-sz*.4,y+sz*.02+b);ctx.lineTo(x-sz*.52-ef*sz*.08,y);ctx.lineTo(x-sz*.4,y-sz*.05+b);ctx.closePath();ctx.fill();}
+// Killer — the "tall and wrong" shadow creature from the Library's "How Killers and Suburbs Made
+// Peace" (a robed, jagged-edged silhouette rather than a clean humanoid, on purpose — the book
+// describes them as "built by someone who'd only ever heard people described"). aggro (0-1)
+// controls how far it leans/reaches into a lunge — 0 is a calm, held-back stance (Halfstep),
+// close to 1 is a full aggressive swing (Splinter).
+function _cKiller(ctx,x,y,sz,t,aggro){aggro=aggro||0;const sway=Math.sin(t*2.2)*sz*.04,lean=aggro*sz*.22,bob=Math.sin(t*3)*sz*.015;ctx.save();ctx.translate(x,y+bob);const g=ctx.createLinearGradient(0,-sz*.55,0,sz*.45);g.addColorStop(0,'#3a1050');g.addColorStop(1,'#0a0512');ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(sway*.3,-sz*.55);ctx.lineTo(-sz*.22,-sz*.28);ctx.lineTo(-sz*.34+lean*.3,sz*.05);ctx.lineTo(-sz*.4+lean*.5,sz*.44);ctx.lineTo(-sz*.12,sz*.3);ctx.lineTo(0,sz*.46);ctx.lineTo(sz*.14,sz*.28);ctx.lineTo(sz*.4+lean*.4,sz*.42);ctx.lineTo(sz*.3+lean*.25,sz*.02);ctx.lineTo(sz*.2,-sz*.3);ctx.closePath();ctx.fill();if(aggro>.15){ctx.strokeStyle='#1c0a2a';ctx.lineWidth=sz*.09;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(sz*.16,-sz*.18);ctx.lineTo(sz*.5+aggro*sz*.3,-sz*.02+Math.sin(t*8)*sz*.05);ctx.stroke();}const eg=.5+.5*Math.sin(t*4);ctx.fillStyle=`rgba(255,60,90,${.4+eg*.5})`;ctx.beginPath();ctx.arc(-sz*.06,-sz*.36,sz*.035,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(sz*.07,-sz*.37,sz*.035,0,Math.PI*2);ctx.fill();ctx.restore();}
+// Oak — the big tree the settlement gathers under in "The First Mayor" (and City Hall is later
+// built around, roots and all). Simple layered-canopy silhouette, gently swaying.
+function _cOak(ctx,x,y,sz,t){const sway=Math.sin(t*1.2)*sz*.015;ctx.fillStyle='#3a2612';ctx.beginPath();ctx.moveTo(x-sz*.08,y+sz*.5);ctx.lineTo(x-sz*.05,y-sz*.05);ctx.lineTo(x+sz*.05,y-sz*.05);ctx.lineTo(x+sz*.08,y+sz*.5);ctx.closePath();ctx.fill();const leaves=[[-.22,-.32,.34],[.05,-.48,.4],[.3,-.3,.32],[0,-.2,.42]];leaves.forEach((L,i)=>{ctx.fillStyle=i%2?'#2c5a1e':'#1f4415';ctx.beginPath();ctx.ellipse(x+L[0]*sz+sway,y+L[1]*sz,L[2]*sz,L[2]*sz*.82,0,0,Math.PI*2);ctx.fill();});ctx.fillStyle='rgba(160,220,110,.14)';ctx.beginPath();ctx.ellipse(x-sz*.08+sway,y-sz*.42,sz*.16,sz*.1,0,0,Math.PI*2);ctx.fill();}
+// ── book-specific helpers for "The Doctor Who Stayed" / "The Wall That Became a Prison" / "The First House" ──
+function _cLantern(ctx,x,y,r,t){const p=.55+.45*Math.sin(t*3+x*.01);const g=ctx.createRadialGradient(x,y,0,x,y,r*p);g.addColorStop(0,'rgba(255,224,150,.85)');g.addColorStop(.5,'rgba(255,180,80,.35)');g.addColorStop(1,'rgba(255,140,40,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r*p,0,Math.PI*2);ctx.fill();}
+function _cDoc(ctx,x,y,sz,t,tending){const bob=tending?0:Math.sin(t*2)*sz*.015;ctx.save();ctx.translate(x,y+bob);if(tending)ctx.rotate(.22);ctx.fillStyle='#3a3f52';ctx.beginPath();ctx.roundRect(-sz*.14,sz*.32,sz*.12,sz*.28,sz*.03);ctx.fill();ctx.beginPath();ctx.roundRect(sz*.02,sz*.32,sz*.12,sz*.28,sz*.03);ctx.fill();ctx.fillStyle='#f2f2ea';ctx.beginPath();ctx.moveTo(-sz*.22,-sz*.05);ctx.lineTo(sz*.22,-sz*.05);ctx.lineTo(sz*.26,sz*.36);ctx.lineTo(-sz*.26,sz*.36);ctx.closePath();ctx.fill();ctx.strokeStyle='#d8d8cc';ctx.lineWidth=sz*.02;ctx.beginPath();ctx.moveTo(0,-sz*.03);ctx.lineTo(0,sz*.34);ctx.stroke();ctx.fillStyle='#f2f2ea';ctx.save();ctx.translate(-sz*.24,sz*.0);ctx.rotate(tending?-.55:.15);ctx.beginPath();ctx.roundRect(-sz*.05,0,sz*.1,sz*.24,sz*.03);ctx.fill();ctx.restore();ctx.save();ctx.translate(sz*.24,sz*.0);ctx.rotate(tending?.55:-.15);ctx.beginPath();ctx.roundRect(-sz*.05,0,sz*.1,sz*.24,sz*.03);ctx.fill();ctx.restore();ctx.fillStyle='#6b4226';ctx.beginPath();ctx.roundRect(sz*.19,sz*.14,sz*.16,sz*.13,sz*.02);ctx.fill();ctx.fillStyle='#d8a840';ctx.font='bold '+(sz*.1)+'px Arial';ctx.textAlign='center';ctx.fillText('+',sz*.27,sz*.245);ctx.fillStyle='#c9986a';ctx.beginPath();ctx.arc(0,-sz*.22,sz*.16,0,Math.PI*2);ctx.fill();ctx.fillStyle='#3a2a1a';ctx.beginPath();ctx.arc(0,-sz*.28,sz*.17,Math.PI,Math.PI*2);ctx.fill();ctx.strokeStyle='#8899aa';ctx.lineWidth=sz*.018;ctx.beginPath();ctx.moveTo(-sz*.09,-sz*.03);ctx.quadraticCurveTo(0,sz*.05,sz*.09,-sz*.03);ctx.stroke();ctx.restore();}
+function _cMason(ctx,x,y,sz,t,working){const sw=working?Math.sin(t*4)*.5-.35:-.1;ctx.save();ctx.translate(x,y);ctx.fillStyle='#5a4a3a';ctx.beginPath();ctx.roundRect(-sz*.13,sz*.3,sz*.11,sz*.3,sz*.03);ctx.fill();ctx.beginPath();ctx.roundRect(sz*.02,sz*.3,sz*.11,sz*.3,sz*.03);ctx.fill();ctx.fillStyle='#8a7256';ctx.beginPath();ctx.roundRect(-sz*.22,-sz*.05,sz*.44,sz*.38,sz*.05);ctx.fill();ctx.fillStyle='#c9b58a';ctx.beginPath();ctx.roundRect(-sz*.14,sz*.06,sz*.28,sz*.26,sz*.03);ctx.fill();ctx.fillStyle='#8a7256';ctx.save();ctx.translate(-sz*.22,sz*.0);ctx.rotate(.25);ctx.beginPath();ctx.roundRect(-sz*.05,0,sz*.1,sz*.24,sz*.03);ctx.fill();ctx.restore();ctx.save();ctx.translate(sz*.22,sz*.0);ctx.rotate(sw);ctx.fillStyle='#8a7256';ctx.beginPath();ctx.roundRect(-sz*.05,0,sz*.1,sz*.24,sz*.03);ctx.fill();ctx.fillStyle='#5a4422';ctx.fillRect(-sz*.018,sz*.22,sz*.036,sz*.16);ctx.fillStyle='#8a6d3b';ctx.beginPath();ctx.roundRect(-sz*.07,sz*.36,sz*.14,sz*.1,sz*.02);ctx.fill();ctx.restore();ctx.fillStyle='#c9986a';ctx.beginPath();ctx.arc(0,-sz*.2,sz*.15,0,Math.PI*2);ctx.fill();ctx.fillStyle='#5a4a3a';ctx.beginPath();ctx.arc(0,-sz*.24,sz*.16,Math.PI,Math.PI*2);ctx.fill();ctx.fillRect(-sz*.16,-sz*.245,sz*.32,sz*.03);ctx.restore();}
+function _cWallRise(ctx,x,gy,w,maxH,progress,withDoor){const p=Math.max(0,Math.min(1,progress)),h=maxH*p,rowH=maxH*.135,rows=Math.max(1,Math.round(h/rowH)),cols=6;ctx.save();for(let r=0;r<rows;r++){const ry=gy-(r+1)*rowH,off=(r%2)*(w/cols/2);for(let c=-1;c<cols;c++){const cx=x-w*.5+off+c*(w/cols);if(cx+w/cols<x-w*.5-1||cx>x+w*.5)continue;ctx.fillStyle=(r+c)%2===0?'#8f8878':'#a29a8c';ctx.fillRect(Math.max(cx,x-w*.5)+1,ry,Math.min(w/cols,x+w*.5-cx)-2,rowH-3);}}if(withDoor&&p>=.98){ctx.fillStyle='#241a10';ctx.fillRect(x-w*.09,gy-maxH*.42,w*.18,maxH*.42);ctx.strokeStyle='#0f0a06';ctx.lineWidth=2;ctx.strokeRect(x-w*.09,gy-maxH*.42,w*.18,maxH*.42);ctx.fillStyle='#d8b860';ctx.beginPath();ctx.arc(x+w*.06,gy-maxH*.2,maxH*.015,0,Math.PI*2);ctx.fill();}ctx.restore();}
+function _cSettler(ctx,x,y,sz,t,male,working){const sw=working?Math.sin(t*3)*.45:Math.sin(t*1.4)*.06;ctx.save();ctx.translate(x,y);ctx.fillStyle=male?'#4a3826':'#7a4a3a';ctx.beginPath();ctx.roundRect(-sz*.13,sz*.26,sz*.11,sz*.3,sz*.03);ctx.fill();ctx.beginPath();ctx.roundRect(sz*.02,sz*.26,sz*.11,sz*.3,sz*.03);ctx.fill();if(male){ctx.fillStyle='#6b5636';ctx.beginPath();ctx.roundRect(-sz*.2,-sz*.05,sz*.4,sz*.34,sz*.04);ctx.fill();}else{ctx.fillStyle='#a85f45';ctx.beginPath();ctx.moveTo(-sz*.2,-sz*.05);ctx.lineTo(sz*.2,-sz*.05);ctx.lineTo(sz*.28,sz*.38);ctx.lineTo(-sz*.28,sz*.38);ctx.closePath();ctx.fill();ctx.fillStyle='#e8d8b8';ctx.beginPath();ctx.roundRect(-sz*.13,sz*.05,sz*.26,sz*.18,sz*.02);ctx.fill();}ctx.fillStyle=male?'#6b5636':'#a85f45';ctx.save();ctx.translate(-sz*.22,sz*.0);ctx.rotate(.2+sw);ctx.beginPath();ctx.roundRect(-sz*.05,0,sz*.1,sz*.22,sz*.03);ctx.fill();ctx.restore();ctx.save();ctx.translate(sz*.22,sz*.0);ctx.rotate(-.2-sw);ctx.beginPath();ctx.roundRect(-sz*.05,0,sz*.1,sz*.22,sz*.03);ctx.fill();ctx.restore();ctx.fillStyle='#c9986a';ctx.beginPath();ctx.arc(0,-sz*.19,sz*.15,0,Math.PI*2);ctx.fill();if(male){ctx.fillStyle='#3a2a1a';ctx.beginPath();ctx.arc(0,-sz*.25,sz*.155,Math.PI,Math.PI*2);ctx.fill();}else{ctx.fillStyle='#4a2a18';ctx.beginPath();ctx.arc(0,-sz*.23,sz*.17,Math.PI*.85,Math.PI*2.15);ctx.fill();ctx.beginPath();ctx.moveTo(-sz*.15,-sz*.2);ctx.quadraticCurveTo(-sz*.22,sz*.02,-sz*.1,sz*.12);ctx.quadraticCurveTo(-sz*.17,-sz*.04,-sz*.15,-sz*.2);ctx.fill();}ctx.restore();}
+function _cCabin(ctx,x,gy,w,h,stage,t){ctx.save();if(stage<1){ctx.strokeStyle='#6b5636';ctx.lineWidth=Math.max(2,w*.018);ctx.beginPath();ctx.moveTo(x-w*.5,gy);ctx.lineTo(x-w*.5,gy-h);ctx.lineTo(x,gy-h*1.3);ctx.lineTo(x+w*.5,gy-h);ctx.lineTo(x+w*.5,gy);ctx.stroke();for(let i=1;i<4;i++){ctx.beginPath();ctx.moveTo(x-w*.5+i*w*.25,gy);ctx.lineTo(x-w*.5+i*w*.25,gy-h);ctx.stroke();}ctx.beginPath();ctx.moveTo(x-w*.5,gy-h*.5);ctx.lineTo(x+w*.5,gy-h*.5);ctx.stroke();}else{ctx.fillStyle='#8a6a3e';ctx.fillRect(x-w*.5,gy-h,w,h);const logs=Math.max(2,Math.floor(h/(h*.12)));ctx.strokeStyle='rgba(0,0,0,.15)';for(let i=1;i<logs;i++){ctx.beginPath();ctx.moveTo(x-w*.5,gy-i*(h/logs));ctx.lineTo(x+w*.5,gy-i*(h/logs));ctx.stroke();}ctx.fillStyle='#5a3a24';ctx.beginPath();ctx.moveTo(x-w*.58,gy-h);ctx.lineTo(x,gy-h*1.42);ctx.lineTo(x+w*.58,gy-h);ctx.closePath();ctx.fill();ctx.fillStyle='#3a2a1a';ctx.fillRect(x-w*.08,gy-h*.5,w*.16,h*.5);ctx.fillStyle='rgba(255,200,100,.55)';ctx.fillRect(x-w*.34,gy-h*.72,w*.14,h*.18);if(stage>=2){ctx.fillStyle='#4a3020';ctx.fillRect(x+w*.28,gy-h*1.15,w*.08,h*.5);for(let i=0;i<3;i++){const cyc=(t*20+i*22)%(h*.7),sy=gy-h*1.15-cyc,sa=Math.max(0,.5-cyc/(h*.7)*.5);ctx.fillStyle='rgba(210,210,210,'+sa+')';ctx.beginPath();ctx.arc(x+w*.32+i*w*.015,sy,w*.025+i*w*.008,0,Math.PI*2);ctx.fill();}}}ctx.restore();}
 
 // ── sounds per scene: [{t:seconds, fn:'sfxMethodName'}, ...] ──
 const CINEMA_SOUNDS = [
@@ -1926,6 +1942,1606 @@ const CINEMA_MOVIES = [
       }},
     ]
   },
+  // ── Adapted from the Library's original books (game-library.js, LIBRARY_BOOKS) ──
+  { title:'The Fist War', genre:'👊 Coming-of-Age Drama', price:30, bg:'#0a0c14', icons:'👊🌙🏘️',
+    trailer:[
+      {text:'🌙 Forty houses. One street. The dark always came.',      dur:2200},
+      {text:'👊 One boy stepped off his porch and said no.',           dur:2200},
+      {text:'✊ The whole street stood up beside him.',                dur:2000},
+      {text:'🤝 A war nobody chose ends the way peace always does.',   dur:2200},
+      {text:'👊 THE FIST WAR 👊',                                      dur:2600},
+    ],
+    scenes:[
+      { dur:5, text:'Forty houses. One street. Lock the doors when it\'s dark.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#04060c','#0a0a16');_cStars(ctx,w,h,t,40);
+        ctx.fillStyle='#050a05';for(let i=0;i<9;i++){const tx=i*(w/8),th=h*(0.22+((i*53)%7)/7*0.12);ctx.beginPath();ctx.ellipse(tx,h*0.58-th*0.5,w*0.09,th,0,0,Math.PI*2);ctx.fill();}
+        ctx.fillStyle='#0c0c14';ctx.fillRect(0,h*0.62,w,h*0.38);
+        for(let i=0;i<6;i++){
+          const hx=w*(0.08+i*0.16),hw=w*0.11,hh=h*0.16,hy=h*0.62-hh;
+          ctx.fillStyle='#141422';ctx.fillRect(hx,hy,hw,hh);
+          ctx.fillStyle='#1c1c30';ctx.beginPath();ctx.moveTo(hx-w*0.01,hy);ctx.lineTo(hx+hw*0.5,hy-h*0.06);ctx.lineTo(hx+hw+w*0.01,hy);ctx.closePath();ctx.fill();
+          const on=Math.sin(t*1.5+i)>-0.6;
+          ctx.fillStyle=on?'rgba(255,200,110,.85)':'rgba(60,60,80,.5)';ctx.beginPath();ctx.arc(hx+hw*0.5,hy+hh*0.65,h*0.012,0,Math.PI*2);ctx.fill();
+        }
+        _cKiller(ctx,w*.85,h*.5,h*.22,t,0.1);
+        ctx.fillStyle='rgba(220,220,255,.75)';ctx.font=`bold ${h*.035}px Arial`;ctx.textAlign='center';ctx.fillText('LOCK THE DOORS. STAY INSIDE.',w*.5,h*.16);
+      }},
+      { dur:5, text:'Denny Okafor won\'t wait behind a locked door anymore.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#05070e','#0b0b1a');_cStars(ctx,w,h,t,30);
+        ctx.fillStyle='#0c0c14';ctx.fillRect(0,h*0.62,w,h*0.38);
+        ctx.fillStyle='#161624';ctx.fillRect(w*0.06,h*0.4,w*0.18,h*0.24);
+        const lx=w*0.55,ly=h*0.6;
+        const lg=ctx.createRadialGradient(lx,ly,0,lx,ly,h*0.28);lg.addColorStop(0,'rgba(255,230,150,.35)');lg.addColorStop(1,'rgba(255,230,150,0)');
+        ctx.fillStyle=lg;ctx.beginPath();ctx.arc(lx,ly,h*0.28,0,Math.PI*2);ctx.fill();
+        ctx.strokeStyle='#333';ctx.lineWidth=h*0.012;ctx.beginPath();ctx.moveTo(lx,ly+h*0.02);ctx.lineTo(lx,h*0.3);ctx.stroke();
+        ctx.fillStyle='#ffe8a0';ctx.beginPath();ctx.arc(lx,h*0.3,h*0.025,0,Math.PI*2);ctx.fill();
+        const dx=w*(0.14+Math.min(0.4,t*0.09));
+        _cJake(ctx,dx,h*0.58,h*0.22,t);
+        const fa=Math.min(1,t*0.6);ctx.globalAlpha=fa;ctx.fillStyle='rgba(255,220,150,.8)';ctx.font=`bold ${h*.032}px Arial`;ctx.textAlign='center';ctx.fillText('HE STEPPED OFF THE PORCH.',w*.5,h*.18);ctx.globalAlpha=1;
+      }},
+      { dur:5, text:'"Not tonight. Not this street." The first fight begins.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#05070e','#0a0a16');
+        ctx.fillStyle='#0c0c14';ctx.fillRect(0,h*0.62,w,h*0.38);
+        const lg=ctx.createRadialGradient(w*.5,h*.55,0,w*.5,h*.55,h*.3);lg.addColorStop(0,'rgba(255,230,150,.3)');lg.addColorStop(1,'rgba(255,230,150,0)');
+        ctx.fillStyle=lg;ctx.beginPath();ctx.arc(w*.5,h*.55,h*.3,0,Math.PI*2);ctx.fill();
+        _cJake(ctx,w*.32,h*.58,h*.2,t);
+        _cKiller(ctx,w*.68,h*.55,h*.24,t,0.8);
+        const la=0.4+0.6*Math.abs(Math.sin(t*9));
+        ctx.strokeStyle=`rgba(255,220,120,${la})`;ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(w*.42,h*.5);ctx.lineTo(w*.5,h*.42+Math.sin(t*12)*h*.04);ctx.lineTo(w*.58,h*.5);ctx.stroke();
+        ctx.fillStyle=`rgba(255,220,120,${la})`;ctx.font=`bold ${h*.04}px Arial`;ctx.textAlign='center';ctx.fillText('"NOT TONIGHT. NOT THIS STREET."',w*.5,h*.18);
+      }},
+      { dur:5, text:'Priyanka, Otis, Fatima, Grady — the whole street stands up.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0a0e16','#141420');
+        ctx.fillStyle='#12121e';ctx.fillRect(0,h*0.66,w,h*0.34);
+        for(let i=0;i<5;i++){const kx=w*(0.14+i*0.18);_cJake(ctx,kx,h*0.62,h*0.15,t+i*0.6);}
+        ctx.fillStyle='rgba(255,255,255,.85)';ctx.font=`bold ${h*.032}px Arial`;ctx.textAlign='center';ctx.fillText('THE WHOLE STREET STANDS UP',w*.5,h*.18);
+        for(let i=0;i<3;i++){const bx=w*(0.2+i*0.3),by=h*0.2+Math.sin(t+i)*h*0.02;_cBird(ctx,bx,by,h*0.012,t+i);}
+      }},
+      { dur:5, text:'Ribs cracked. Hands broken. "Why are we still doing this?"', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#050608','#0a0c12');_cRain(ctx,w,h,t,70);
+        ctx.fillStyle='#12121a';ctx.fillRect(w*0.2,h*0.4,w*0.6,h*0.36);
+        _cJake(ctx,w*0.5,h*0.66,h*0.2,t*0.4);
+        ctx.fillStyle='rgba(200,210,255,.7)';ctx.font=`${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('"WHY ARE WE STILL DOING THIS?"',w*.5,h*.2);
+      }},
+      { dur:5, text:'Splinter fights for the thrill. Halfstep... hesitates.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#06060e','#0c0a16');_cStars(ctx,w,h,t,20);
+        ctx.fillStyle='#0c0c14';ctx.fillRect(0,h*0.66,w,h*0.34);
+        _cKiller(ctx,w*.28,h*.56,h*.24,t,0.9);
+        _cKiller(ctx,w*.72,h*.56,h*.24,t+1,0.05);
+        ctx.fillStyle='rgba(255,120,120,.8)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('SPLINTER',w*.28,h*.24);
+        ctx.fillStyle='rgba(150,180,255,.8)';ctx.fillText('HALFSTEP',w*.72,h*.24);
+      }},
+      { dur:5, text:'A truce with no words — two fists that finally don\'t swing.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#06070e','#0b0c18');
+        const lg=ctx.createRadialGradient(w*.5,h*.5,0,w*.5,h*.5,h*.32);lg.addColorStop(0,'rgba(255,230,160,.28)');lg.addColorStop(1,'rgba(255,230,160,0)');
+        ctx.fillStyle=lg;ctx.beginPath();ctx.arc(w*.5,h*.5,h*.32,0,Math.PI*2);ctx.fill();
+        _cJake(ctx,w*.36,h*.56,h*.2,t*0.3);
+        _cKiller(ctx,w*.64,h*.56,h*.22,t*0.3,0);
+        ctx.fillStyle='rgba(255,255,255,.7)';ctx.font=`${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('NEITHER OF THEM SWUNG.',w*.5,h*.2);
+      }},
+      { dur:5, text:'Spring. Halfstep returns unarmed. The porch lights go dark for good.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#1a1408','#3a2818');
+        ctx.fillStyle='#0c0c14';ctx.fillRect(0,h*0.66,w,h*0.34);
+        for(let i=0;i<6;i++){
+          const hx=w*(0.08+i*0.16),hw=w*0.11,hh=h*0.16,hy=h*0.66-hh;
+          ctx.fillStyle='#241c16';ctx.fillRect(hx,hy,hw,hh);
+          const off=t>2+i*0.3;
+          ctx.fillStyle=off?'rgba(80,70,60,.4)':'rgba(255,210,140,.85)';ctx.beginPath();ctx.arc(hx+hw*0.5,hy+hh*0.65,h*0.012,0,Math.PI*2);ctx.fill();
+        }
+        if(t>1)_cKiller(ctx,w*.7,h*.6,h*.2,t,0);
+        ctx.fillStyle='rgba(255,230,180,.85)';ctx.font=`bold ${h*.035}px Arial`;ctx.textAlign='center';ctx.fillText('PEACE, AT LAST.',w*.5,h*.16);
+      }},
+    ]
+  },
+  { title:'The First War', genre:'✨ Sacred Origin Epic', price:35, bg:'#0a0600', icons:'✨🕯️🌌',
+    trailer:[
+      {text:'✨ Before the city. Before the dark. Only the light.',    dur:2400},
+      {text:'😈 Pride turned the nearest of them against it.',        dur:2200},
+      {text:'⚡ Argument. Accusation. Fury. The light never moved.',   dur:2400},
+      {text:'🕯️ THE FIRST WAR 🕯️',                                    dur:2800},
+    ],
+    scenes:[
+      { dur:5, text:'Before Explox, before dark — only the light.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0a0600','#1a1000');
+        const cx=w*.5,cy=h*.46;
+        const lg=ctx.createRadialGradient(cx,cy,0,cx,cy,h*.5);lg.addColorStop(0,'#fffde0');lg.addColorStop(.4,'#ffe066');lg.addColorStop(1,'rgba(255,200,0,0)');
+        ctx.fillStyle=lg;ctx.beginPath();ctx.arc(cx,cy,h*.5,0,Math.PI*2);ctx.fill();
+        _cLines(ctx,cx,cy,h*.42,20,'rgba(255,240,180,.18)');
+        const pulse=.85+.15*Math.sin(t*1.4);
+        ctx.fillStyle='#fffef0';ctx.beginPath();ctx.arc(cx,cy,h*.09*pulse,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='rgba(255,245,200,.9)';ctx.font=`bold ${h*.035}px Arial`;ctx.textAlign='center';ctx.fillText('ONLY THE LIGHT.',w*.5,h*.14);
+      }},
+      { dur:5, text:'Satan once stood nearest the light of all.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0a0600','#160a05');
+        const cx=w*.32,cy=h*.42;
+        const lg=ctx.createRadialGradient(cx,cy,0,cx,cy,h*.38);lg.addColorStop(0,'#fffde0');lg.addColorStop(.5,'#ffdb55');lg.addColorStop(1,'rgba(255,200,0,0)');
+        ctx.fillStyle=lg;ctx.beginPath();ctx.arc(cx,cy,h*.38,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#fffef0';ctx.beginPath();ctx.arc(cx,cy,h*.07,0,Math.PI*2);ctx.fill();
+        const sx=w*.66,sy=h*.48,sway=Math.sin(t*1.2)*h*.01;
+        const sg=ctx.createRadialGradient(sx,sy+sway,0,sx,sy+sway,h*.2);sg.addColorStop(0,'#9a44ff');sg.addColorStop(1,'rgba(90,0,140,0)');
+        ctx.fillStyle=sg;ctx.beginPath();ctx.arc(sx,sy+sway,h*.2,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#3a0a5a';ctx.beginPath();ctx.ellipse(sx,sy+sway,h*.05,h*.09,0,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='rgba(255,255,255,.7)';ctx.font=`${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('HE STOOD NEAREST OF ALL.',w*.5,h*.16);
+      }},
+      { dur:5, text:'Pride crept in. Doubt spread, one whispered question at a time.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0a0500','#150a05');
+        const cx=w*.72,cy=h*.3;
+        const lg=ctx.createRadialGradient(cx,cy,0,cx,cy,h*.3);lg.addColorStop(0,'#fffde0');lg.addColorStop(.5,'#ffdb55');lg.addColorStop(1,'rgba(255,200,0,0)');
+        ctx.fillStyle=lg;ctx.beginPath();ctx.arc(cx,cy,h*.3,0,Math.PI*2);ctx.fill();
+        const sx=w*.32,sy=h*.55;
+        const sg=ctx.createRadialGradient(sx,sy,0,sx,sy,h*.22);sg.addColorStop(0,'#7a2ad0');sg.addColorStop(1,'rgba(60,0,100,0)');
+        ctx.fillStyle=sg;ctx.beginPath();ctx.arc(sx,sy,h*.22,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#2a0840';ctx.beginPath();ctx.ellipse(sx,sy,h*.05,h*.09,0,0,Math.PI*2);ctx.fill();
+        for(let i=0;i<5;i++){
+          const a=i/5*Math.PI*0.6-0.3,wx=sx+Math.cos(a)*w*.22,wy=sy+Math.sin(a)*h*.14+h*.12;
+          const prog=(t*.4+i*.15)%1;
+          ctx.strokeStyle=`rgba(150,60,220,${.4*(1-prog)})`;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(sx+(wx-sx)*prog,sy+(wy-sy)*prog);ctx.stroke();
+          ctx.fillStyle='rgba(200,200,220,.5)';ctx.beginPath();ctx.arc(wx,wy,h*.015,0,Math.PI*2);ctx.fill();
+        }
+        ctx.fillStyle='rgba(220,180,255,.75)';ctx.font=`${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('ONE WHISPERED QUESTION AT A TIME...',w*.5,h*.16);
+      }},
+      { dur:5, text:'Satan gathered his followers and turned against the light.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#080400','#150500');
+        const cx=w*.78,cy=h*.35;
+        const lg=ctx.createRadialGradient(cx,cy,0,cx,cy,h*.26);lg.addColorStop(0,'#fffde0');lg.addColorStop(.5,'#ffcf44');lg.addColorStop(1,'rgba(255,200,0,0)');
+        ctx.fillStyle=lg;ctx.beginPath();ctx.arc(cx,cy,h*.26,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#fffef0';ctx.beginPath();ctx.arc(cx,cy,h*.055,0,Math.PI*2);ctx.fill();
+        for(let i=0;i<10;i++){
+          const fx=w*(0.05+(i%5)*0.05)+((i>4)?w*0.02:0),fy=h*(0.6+Math.floor(i/5)*0.1);
+          ctx.fillStyle='rgba(120,50,180,.55)';ctx.beginPath();ctx.arc(fx,fy,h*.02,0,Math.PI*2);ctx.fill();
+        }
+        const sx=w*.28,sy=h*.5;
+        const sg=ctx.createRadialGradient(sx,sy,0,sx,sy,h*.26);sg.addColorStop(0,'#8a2ae0');sg.addColorStop(1,'rgba(60,0,100,0)');
+        ctx.fillStyle=sg;ctx.beginPath();ctx.arc(sx,sy,h*.26,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#28073e';ctx.beginPath();ctx.ellipse(sx,sy,h*.06,h*.11,0,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='rgba(220,180,255,.8)';ctx.font=`bold ${h*.032}px Arial`;ctx.textAlign='center';ctx.fillText('HE TURNED AGAINST THE LIGHT.',w*.5,h*.16);
+      }},
+      { dur:5, text:'Argument. Accusation. Fury. The light never moved.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#060300','#120400');
+        const cx=w*.72,cy=h*.42;
+        const lg=ctx.createRadialGradient(cx,cy,0,cx,cy,h*.28);lg.addColorStop(0,'#fffde0');lg.addColorStop(.5,'#ffcf44');lg.addColorStop(1,'rgba(255,200,0,0)');
+        ctx.fillStyle=lg;ctx.beginPath();ctx.arc(cx,cy,h*.28,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#fffef0';ctx.beginPath();ctx.arc(cx,cy,h*.06,0,Math.PI*2);ctx.fill();
+        const sx=w*.28,sy=h*.5,jitter=Math.sin(t*14)*h*.015;
+        const sg=ctx.createRadialGradient(sx,sy,0,sx,sy,h*.24);sg.addColorStop(0,'#7a1ad0');sg.addColorStop(1,'rgba(50,0,90,0)');
+        ctx.fillStyle=sg;ctx.beginPath();ctx.arc(sx,sy+jitter,h*.24,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#22052e';ctx.beginPath();ctx.ellipse(sx,sy+jitter,h*.06,h*.1,0,0,Math.PI*2);ctx.fill();
+        for(let i=0;i<4;i++){
+          const prog=(t*1.3+i*.25)%1;
+          const bx=sx+(cx-sx)*prog,by=sy+(cy-sy)*prog+Math.sin(prog*10+i)*h*.03;
+          ctx.strokeStyle=`rgba(180,60,255,${.6*(1-prog)})`;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(bx,by);ctx.stroke();
+        }
+        ctx.fillStyle='rgba(255,240,200,.85)';ctx.font=`bold ${h*.032}px Arial`;ctx.textAlign='center';ctx.fillText('THE LIGHT DID NOT MOVE.',w*.5,h*.14);
+      }},
+      { dur:5, text:'Lies cannot stand in real light. Satan fell.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#050300','#0e0400');
+        const cx=w*.5,cy=h*.2;
+        const lg=ctx.createRadialGradient(cx,cy,0,cx,cy,h*.24);lg.addColorStop(0,'#fffde0');lg.addColorStop(.5,'#ffcf44');lg.addColorStop(1,'rgba(255,200,0,0)');
+        ctx.fillStyle=lg;ctx.beginPath();ctx.arc(cx,cy,h*.24,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#fffef0';ctx.beginPath();ctx.arc(cx,cy,h*.05,0,Math.PI*2);ctx.fill();
+        const fy=h*(0.45+Math.min(.45,t*.13));
+        ctx.globalAlpha=Math.max(0,1-t*.18);
+        const sg=ctx.createRadialGradient(w*.5,fy,0,w*.5,fy,h*.2);sg.addColorStop(0,'#5a1090');sg.addColorStop(1,'rgba(30,0,50,0)');
+        ctx.fillStyle=sg;ctx.beginPath();ctx.arc(w*.5,fy,h*.2,0,Math.PI*2);ctx.fill();
+        for(let i=0;i<8;i++){
+          const a=i/8*Math.PI*2,dr=t*h*.04;
+          ctx.fillStyle='rgba(90,20,140,.6)';ctx.beginPath();ctx.arc(w*.5+Math.cos(a)*dr,fy+Math.sin(a)*dr*.6,h*.014,0,Math.PI*2);ctx.fill();
+        }
+        ctx.globalAlpha=1;
+        ctx.fillStyle='rgba(255,245,220,.85)';ctx.font=`bold ${h*.033}px Arial`;ctx.textAlign='center';ctx.fillText('LIES CANNOT STAND IN REAL LIGHT.',w*.5,h*.7);
+      }},
+      { dur:5, text:'Those who stayed built the Suburbs, lamp by lamp.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0e0a04','#1c1408');
+        ctx.fillStyle='#141018';ctx.fillRect(0,h*0.66,w,h*0.34);
+        for(let i=0;i<6;i++){
+          const hx=w*(0.08+i*0.16),hw=w*0.11,hh=h*0.15,hy=h*0.66-hh;
+          ctx.fillStyle='#241c16';ctx.fillRect(hx,hy,hw,hh);
+          const on=t*1.2>i*0.7;
+          ctx.fillStyle=on?'rgba(255,210,140,.9)':'rgba(90,80,70,.4)';ctx.beginPath();ctx.arc(hx+hw*0.5,hy+hh*0.65,h*0.014,0,Math.PI*2);ctx.fill();
+        }
+        ctx.fillStyle='rgba(255,225,170,.85)';ctx.font=`bold ${h*.032}px Arial`;ctx.textAlign='center';ctx.fillText('LAMP BY LAMP, THEY STAYED.',w*.5,h*.18);
+      }},
+      { dur:5, text:'The war goes quiet, but never truly ends. Somewhere, a light still holds.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#06060e','#0c0a16');_cStars(ctx,w,h,t,40);
+        const cx=w*.42,cy=h*.42;
+        const lg=ctx.createRadialGradient(cx,cy,0,cx,cy,h*.3);lg.addColorStop(0,'#fffde0');lg.addColorStop(.5,'#ffdb66');lg.addColorStop(1,'rgba(255,200,0,0)');
+        ctx.fillStyle=lg;ctx.beginPath();ctx.arc(cx,cy,h*.3,0,Math.PI*2);ctx.fill();
+        const pulse=.9+.1*Math.sin(t*1.2);
+        ctx.fillStyle='#fffef0';ctx.beginPath();ctx.arc(cx,cy,h*.07*pulse,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='rgba(90,30,140,.5)';ctx.beginPath();ctx.ellipse(w*.86,h*.62,h*.035,h*.06,0,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='rgba(255,240,210,.8)';ctx.font=`${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('THE LIGHT STILL HOLDS.',w*.5,h*.14);
+      }},
+    ]
+  },
+  { title:'The First Mayor', genre:'🌳 Founding Drama', price:25, bg:'#0e1410', icons:'🌳💧🏛️',
+    trailer:[
+      {text:'🌳 One woman. One well. Sixty families arrived at once.', dur:2200},
+      {text:'🔥 A fence post nearly tore the whole settlement apart.', dur:2200},
+      {text:'💧 "Whose water is this?" "...Ours."',                   dur:2200},
+      {text:'🏛️ THE FIRST MAYOR 🏛️',                                  dur:2600},
+    ],
+    scenes:[
+      { dur:5, text:'Odessa Vance, alone at the bend in the river.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0a1410','#142a1c');_cStars(ctx,w,h,t,20);
+        const rg=ctx.createLinearGradient(0,h*0.6,0,h);rg.addColorStop(0,'#264858');rg.addColorStop(1,'#0a1a20');
+        ctx.fillStyle=rg;ctx.fillRect(0,h*0.66,w,h*0.34);
+        for(let i=0;i<5;i++){const ry=h*0.7+i*h*0.05+Math.sin(t*1.5+i)*h*0.005;ctx.strokeStyle='rgba(200,230,255,.15)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,ry);ctx.lineTo(w,ry);ctx.stroke();}
+        _cGrandma(ctx,w*.4,h*.58,h*.24,t,false);
+        ctx.fillStyle='rgba(200,230,220,.8)';ctx.font=`${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('ALONE AT THE BEND IN THE RIVER.',w*.5,h*.18);
+      }},
+      { dur:5, text:'Four months. Frozen ground. She struck water alone.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0a1008','#182818');_cStars(ctx,w,h,t,15);
+        ctx.fillStyle='#2a2018';ctx.beginPath();ctx.ellipse(w*.5,h*.66,w*.14,h*.05,0,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#120c08';ctx.beginPath();ctx.ellipse(w*.5,h*.66,w*.1,h*.035,0,0,Math.PI*2);ctx.fill();
+        const glow=Math.min(1,t*.35);
+        const wg=ctx.createRadialGradient(w*.5,h*.66,0,w*.5,h*.66,h*.15*glow);wg.addColorStop(0,`rgba(150,220,255,${.6*glow})`);wg.addColorStop(1,'rgba(150,220,255,0)');
+        ctx.fillStyle=wg;ctx.beginPath();ctx.arc(w*.5,h*.66,h*.15*glow,0,Math.PI*2);ctx.fill();
+        ctx.strokeStyle='#8a6030';ctx.lineWidth=h*.012;ctx.beginPath();ctx.moveTo(w*.36,h*.42);ctx.lineTo(w*.4,h*.66);ctx.stroke();
+        ctx.fillStyle='#aaa';ctx.beginPath();ctx.moveTo(w*.38,h*.64);ctx.lineTo(w*.42,h*.64);ctx.lineTo(w*.4,h*.7);ctx.closePath();ctx.fill();
+        _cGrandma(ctx,w*.3,h*.58,h*.22,t,false);
+        ctx.fillStyle='rgba(180,230,255,.85)';ctx.font=`bold ${h*.032}px Arial`;ctx.textAlign='center';ctx.fillText('FOUR MONTHS. THEN — WATER.',w*.5,h*.18);
+      }},
+      { dur:5, text:'Then, sixty families arrived at once.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#101408','#1c2410');
+        ctx.fillStyle='#182010';ctx.fillRect(0,h*0.72,w,h*0.28);
+        for(let i=0;i<4;i++){const cx=w*(0.1+i*0.24)+Math.sin(t+i)*w*0.01;_cCar(ctx,cx,h*0.7,h*0.14,t+i,i%2?'#8a6a3a':'#5a7a3a');}
+        for(let i=0;i<3;i++)_cJake(ctx,w*(0.2+i*0.3),h*0.66,h*0.13,t+i*0.5);
+        ctx.fillStyle='rgba(255,255,255,.85)';ctx.font=`bold ${h*.032}px Arial`;ctx.textAlign='center';ctx.fillText('SIXTY FAMILIES, ALL AT ONCE.',w*.5,h*.18);
+      }},
+      { dur:5, text:'A fence post. A stolen road. The whole settlement erupts.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#141008','#241a0c');
+        ctx.fillStyle='#1c1408';ctx.fillRect(0,h*0.72,w,h*0.28);
+        ctx.fillStyle='#4a3a20';ctx.fillRect(w*.48,h*.5,w*.02,h*.24);
+        _cJake(ctx,w*.32,h*.62,h*.18,t);
+        _cJake(ctx,w*.68,h*.62,h*.18,t+0.5);
+        const la=.4+.5*Math.abs(Math.sin(t*6));
+        ctx.fillStyle=`rgba(255,120,80,${la})`;ctx.font=`bold ${h*.04}px Arial`;ctx.textAlign='center';ctx.fillText('WHOSE ROAD IS THIS?!',w*.5,h*.18);
+      }},
+      { dur:5, text:'"Whose water is this?" Odessa asks beneath the oak.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#080a10','#101828');_cStars(ctx,w,h,t,50);
+        _cOak(ctx,w*.5,h*.62,h*.5,t);
+        for(let i=0;i<8;i++){const gx=w*(0.15+i*0.1),gy=h*(0.78+(i%2)*0.05);ctx.fillStyle='rgba(255,210,140,.6)';ctx.beginPath();ctx.arc(gx,gy,h*.012,0,Math.PI*2);ctx.fill();}
+        _cGrandma(ctx,w*.5,h*.7,h*.2,t,false);
+        ctx.fillStyle='rgba(255,235,190,.9)';ctx.font=`bold ${h*.032}px Arial`;ctx.textAlign='center';ctx.fillText('"WHOSE WATER IS THIS?"',w*.5,h*.16);
+      }},
+      { dur:5, text:'Eleven days. Rain, washed-out mud, one road built by all.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0a0c10','#141a20');_cRain(ctx,w,h,t,60);
+        ctx.fillStyle='#241c14';ctx.fillRect(0,h*0.7,w,h*0.3);
+        ctx.fillStyle='#3a2c1a';ctx.fillRect(w*.1,h*.78,w*.8,h*.05);
+        for(let i=0;i<3;i++)_cGrandma(ctx,w*(0.25+i*0.28),h*0.68,h*0.16,t+i,false);
+        ctx.fillStyle='rgba(200,220,255,.8)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('ELEVEN DAYS. ONE ROAD.',w*.5,h*.18);
+      }},
+      { dur:5, text:'Children run the finished road, laughing into the night.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0c0e14','#1a2030');_cStars(ctx,w,h,t,40);
+        ctx.fillStyle='#241c14';ctx.fillRect(0,h*0.72,w,h*0.28);
+        ctx.fillStyle='#3a2c1a';ctx.fillRect(w*.05,h*.8,w*.9,h*.05);
+        for(let i=0;i<4;i++){const rx=((i*0.27+t*0.15)%1.1-0.05)*w;_cJake(ctx,rx,h*0.76,h*0.13,t*3+i);}
+        _cConfetti(ctx,w,h,t,25);
+        ctx.fillStyle='rgba(255,255,255,.85)';ctx.font=`bold ${h*.032}px Arial`;ctx.textAlign='center';ctx.fillText('THE ROAD WAS FINISHED.',w*.5,h*.16);
+      }},
+      { dur:5, text:'City Hall rises around the oak that never got cut down.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0e0c08','#1c1810');
+        _cOak(ctx,w*.62,h*.62,h*.4,t);
+        const bh=Math.min(h*.32,t*h*.07);
+        ctx.fillStyle='#3a3020';ctx.fillRect(w*.28,h*.72-bh,w*.36,bh);
+        ctx.fillStyle='#4a3e28';ctx.beginPath();ctx.moveTo(w*.26,h*.72-bh);ctx.lineTo(w*.46,h*.72-bh-h*.06);ctx.lineTo(w*.66,h*.72-bh);ctx.closePath();ctx.fill();
+        ctx.fillStyle='rgba(255,210,140,.7)';ctx.fillRect(w*.34,h*.72-bh*0.5,w*.06,bh*0.4);
+        ctx.fillStyle='rgba(255,235,190,.9)';ctx.font=`bold ${h*.032}px Arial`;ctx.textAlign='center';ctx.fillText('BUILT AROUND THE OAK.',w*.5,h*.16);
+      }},
+    ]
+  },
+  // ── Adapted from the Library's capstone book, "The One Who Dreamed It All" ──
+  { title:'The One Who Dreamed It All', genre:'📖 Founders\' Epic', price:40, bg:'#1a1004', icons:'📖🌆✨',
+    trailer:[
+      {text:'📖 Every story in this city starts somewhere...', dur:2500},
+      {text:'🌳 One woman asked a question under an oak tree...', dur:2200},
+      {text:'✨ Ten founders. One dreamer behind every page.',  dur:2500},
+      {text:'🌆 THE ONE WHO DREAMED IT ALL',                    dur:3000},
+    ],
+    scenes:[
+      { dur:6, text:'This Library holds every story Explox has ever told.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0d0703','#1e1006');
+        for(let row=0;row<4;row++){
+          const ry=h*(.18+row*.16);
+          for(let i=0;i<14;i++){
+            ctx.fillStyle=`hsl(${(i*37+row*61)%360},38%,${18+row*3}%)`;
+            ctx.fillRect(w*(.03+i*.07),ry,w*.055,h*.13);
+          }
+        }
+        ctx.fillStyle='rgba(10,6,2,.55)';ctx.fillRect(0,0,w,h);
+        const glow=.7+.3*Math.sin(t*1.6);
+        const g=ctx.createRadialGradient(w*.5,h*.58,0,w*.5,h*.58,h*.32);
+        g.addColorStop(0,`rgba(255,220,150,${.55*glow})`);g.addColorStop(1,'rgba(255,180,80,0)');
+        ctx.fillStyle=g;ctx.beginPath();ctx.arc(w*.5,h*.58,h*.32,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#7a4a1a';ctx.beginPath();ctx.moveTo(w*.5,h*.5);ctx.lineTo(w*.34,h*.56);ctx.lineTo(w*.34,h*.72);ctx.lineTo(w*.5,h*.66);ctx.closePath();ctx.fill();
+        ctx.fillStyle='#8a5a22';ctx.beginPath();ctx.moveTo(w*.5,h*.5);ctx.lineTo(w*.66,h*.56);ctx.lineTo(w*.66,h*.72);ctx.lineTo(w*.5,h*.66);ctx.closePath();ctx.fill();
+        ctx.fillStyle='#fff8e0';ctx.font=`bold ${h*.026}px Arial`;ctx.textAlign='center';
+        ctx.fillText('THE ONE WHO',w*.5,h*.6);ctx.fillText('DREAMED IT ALL',w*.5,h*.635);
+        if(t>1.5){const fa=Math.min(1,(t-1.5)*.6);ctx.globalAlpha=fa;ctx.fillStyle='rgba(255,220,160,.9)';ctx.font=`bold ${h*.04}px Arial`;ctx.fillText('Every story starts on this shelf.',w*.5,h*.2);ctx.globalAlpha=1;}
+      }},
+      { dur:6, text:'Odessa Vance asked one honest question under an oak tree.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#bcd8e8','#dff0c8');
+        ctx.fillStyle='#8fc76a';ctx.fillRect(0,h*.72,w,h*.28);
+        _cOak(ctx,w*.28,h*.62,h*.42,t);
+        function fig(x,y,sz,col){ctx.fillStyle=col;ctx.beginPath();ctx.ellipse(x,y,sz*.16,sz*.34,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(x,y-sz*.4,sz*.13,0,Math.PI*2);ctx.fill();}
+        const cols=['#7a5a3a','#5a7a9a','#8a5a6a','#6a8a5a','#9a7a4a'];
+        for(let i=0;i<6;i++) fig(w*(.5+i*.075),h*.78,h*.24,cols[i%cols.length]);
+        _cGrandma(ctx,w*.32,h*.7,h*.26,t,false);
+        const fa=Math.min(1,t*.6);ctx.globalAlpha=fa;ctx.fillStyle='rgba(60,40,10,.85)';ctx.font=`bold ${h*.036}px Arial`;ctx.textAlign='center';ctx.fillText('"Whose water is it?"',w*.5,h*.16);ctx.globalAlpha=1;
+      }},
+      { dur:6, text:'Soledad Price carved wooden discs so a whole town could stop arguing.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#241608','#150c04');
+        ctx.fillStyle='#3a2a1a';ctx.fillRect(0,h*.62,w,h*.38);
+        ctx.strokeStyle='rgba(0,0,0,.25)';ctx.lineWidth=2;
+        for(let i=0;i<6;i++){ctx.beginPath();ctx.moveTo(0,h*(.62+i*.06));ctx.lineTo(w,h*(.62+i*.06));ctx.stroke();}
+        ctx.fillStyle='#5a3c1e';ctx.fillRect(w*.2,h*.66,w*.6,h*.06);
+        for(let i=0;i<8;i++){
+          const dx=w*(.32+(i%4)*.12), dy=h*.63-Math.floor(i/4)*h*.045;
+          ctx.fillStyle='#c9944a';ctx.beginPath();ctx.ellipse(dx,dy,h*.032,h*.012,0,0,Math.PI*2);ctx.fill();
+          ctx.strokeStyle='#7a5222';ctx.lineWidth=1.5;ctx.stroke();
+        }
+        function fig(x,y,sz,col,headCol,t){const bob=Math.sin(t*1.4)*sz*.02;ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(x-sz*.16,y-sz*.02+bob);ctx.lineTo(x+sz*.16,y-sz*.02+bob);ctx.lineTo(x+sz*.23,y+sz*.5+bob);ctx.lineTo(x-sz*.23,y+sz*.5+bob);ctx.closePath();ctx.fill();ctx.fillStyle=headCol;ctx.beginPath();ctx.arc(x,y-sz*.22+bob,sz*.17,0,Math.PI*2);ctx.fill();}
+        fig(w*.68,h*.58,h*.34,'#7a3a2a','#e0b088',t);
+        const fa=Math.min(1,t*.6);ctx.globalAlpha=fa;ctx.fillStyle='rgba(230,190,130,.9)';ctx.font=`bold ${h*.032}px Arial`;ctx.textAlign='center';ctx.fillText('"Same. If. Paid."',w*.5,h*.2);ctx.globalAlpha=1;
+      }},
+      { dur:6, text:'Teo Alvarez built a robot from a washing machine drum, bored on a rainy day.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#232833','#12151c');
+        _cRain(ctx,w,h,t,50);
+        ctx.fillStyle='#3a4048';ctx.fillRect(0,h*.7,w,h*.3);
+        _cJake(ctx,w*.32,h*.62,h*.36,t);
+        const a=t*2.2, rx=w*.62+Math.cos(a)*w*.05, ry=h*.72+Math.sin(a)*h*.02;
+        _cRobot(ctx,rx,ry,h*.15,t,true);
+        if(Math.sin(t*5)>.6){ctx.fillStyle='rgba(0,220,255,.9)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('BEEP!',rx,ry-h*.14);}
+        const fa=Math.min(1,t*.6);ctx.globalAlpha=fa;ctx.fillStyle='rgba(200,220,255,.85)';ctx.font=`bold ${h*.032}px Arial`;ctx.textAlign='center';ctx.fillText('It rolled in a circle. That was enough.',w*.5,h*.18);ctx.globalAlpha=1;
+      }},
+      { dur:6, text:'Two tired neighbors drew a chalk circle instead of shouting — and the Arena was born.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#3a2c1c','#1e150c');
+        ctx.fillStyle='#6a5238';ctx.fillRect(0,h*.6,w,h*.4);
+        ctx.strokeStyle='rgba(255,255,255,.75)';ctx.lineWidth=h*.012;ctx.setLineDash([h*.02,h*.015]);
+        ctx.beginPath();ctx.ellipse(w*.5,h*.78,w*.16,h*.06,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+        function fig(x,y,sz,col,headCol,t){const bob=Math.sin(t*1.4)*sz*.02;ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(x-sz*.16,y-sz*.02+bob);ctx.lineTo(x+sz*.16,y-sz*.02+bob);ctx.lineTo(x+sz*.23,y+sz*.5+bob);ctx.lineTo(x-sz*.23,y+sz*.5+bob);ctx.closePath();ctx.fill();ctx.fillStyle=headCol;ctx.beginPath();ctx.arc(x,y-sz*.22+bob,sz*.17,0,Math.PI*2);ctx.fill();}
+        fig(w*.4,h*.72,h*.3,'#4a5a3a','#d8a878',t);
+        fig(w*.6,h*.72,h*.3,'#3a4a6a','#e0b088',t);
+        const n=Math.min(10,Math.floor(t*1.7));
+        for(let i=0;i<n;i++){ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.arc(w*(.15+i*.075),h*.9,h*.02,0,Math.PI*2);ctx.fill();}
+        const fa=Math.min(1,t*.6);ctx.globalAlpha=fa;ctx.fillStyle='rgba(255,240,210,.9)';ctx.font=`bold ${h*.032}px Arial`;ctx.textAlign='center';ctx.fillText('A fair fight beats a shouting match.',w*.5,h*.18);ctx.globalAlpha=1;
+      }},
+      { dur:6, text:'Rosalind Kade crossed the ocean in a plane patched together from scavenged vans.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0a2a4a','#c8e0f0');
+        _cBird(ctx,w*.2,h*.16,h*.02,t);_cBird(ctx,w*.3,h*.12,h*.018,t+1);
+        ctx.fillStyle='#0a4a7a';ctx.fillRect(0,h*.72,w,h*.28);
+        for(let i=0;i<6;i++){const wy=h*(.74+i*.04)+Math.sin(t*2+i)*h*.006;ctx.strokeStyle='rgba(255,255,255,.2)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,wy);for(let x=0;x<=w;x+=w/10)ctx.lineTo(x,wy+Math.sin(t*3+x*.02+i)*h*.006);ctx.stroke();}
+        const px=w*(.15+Math.min(.6,t*.11)), py=h*.42+Math.sin(t*.8)*h*.02;
+        ctx.save();ctx.translate(px,py);
+        ctx.fillStyle='#8a9aaa';ctx.beginPath();ctx.roundRect(-w*.09,-h*.018,w*.2,h*.036,h*.012);ctx.fill();
+        ctx.fillStyle='#6a5a4a';ctx.beginPath();ctx.roundRect(-w*.02,-h*.014,w*.05,h*.028,h*.006);ctx.fill();
+        ctx.fillStyle='#7a8a9a';ctx.beginPath();ctx.moveTo(-w*.02,-h*.05);ctx.lineTo(w*.02,-h*.05);ctx.lineTo(w*.05,h*.01);ctx.lineTo(-w*.05,h*.01);ctx.closePath();ctx.fill();
+        ctx.fillStyle='#4a5a6a';ctx.beginPath();ctx.moveTo(w*.07,-h*.005);ctx.lineTo(w*.13,-h*.03);ctx.lineTo(w*.13,h*.01);ctx.closePath();ctx.fill();
+        ctx.fillStyle='#cfe6ff';ctx.beginPath();ctx.arc(-w*.02,-h*.002,h*.014,0,Math.PI*2);ctx.fill();
+        ctx.restore();
+        const fa=Math.min(1,t*.6);ctx.globalAlpha=fa;ctx.fillStyle='rgba(255,255,255,.9)';ctx.font=`bold ${h*.032}px Arial`;ctx.textAlign='center';ctx.fillText('Nothing here flies alone.',w*.5,h*.18);ctx.globalAlpha=1;
+      }},
+      { dur:6, text:'A badge. A market stall. A lantern by a sickbed. A wall with a door in it.', draw(ctx,w,h,t){
+        const seg=Math.min(3,Math.floor(t/1.5)), lt=t-seg*1.5;
+        const bgs=[['#140a02','#2a1804'],['#0c1806','#1a2c0c'],['#0a0c1c','#141c34'],['#160c06','#2a1a0c']];
+        _cBg(ctx,w,h,bgs[seg][0],bgs[seg][1]);
+        const fa=Math.max(.15,Math.min(1,lt*3)*Math.min(1,(1.5-lt)*3+.15));
+        ctx.globalAlpha=fa;
+        if(seg===0){
+          ctx.save();ctx.translate(w*.5,h*.46);
+          ctx.fillStyle='#d4a840';for(let i=0;i<8;i++){const a=i/8*Math.PI*2;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(a)*h*.16,Math.sin(a)*h*.16);ctx.lineTo(Math.cos(a+.2)*h*.09,Math.sin(a+.2)*h*.09);ctx.closePath();ctx.fill();}
+          ctx.fillStyle='#8a6820';ctx.beginPath();ctx.arc(0,0,h*.1,0,Math.PI*2);ctx.fill();
+          ctx.restore();
+          ctx.fillStyle='rgba(255,230,180,.9)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('Priya\'s badge — "I will."',w*.5,h*.75);
+        } else if(seg===1){
+          ctx.fillStyle='#7a5a2a';ctx.fillRect(w*.3,h*.5,w*.4,h*.05);
+          ctx.fillStyle='#a83030';for(let i=0;i<5;i++){ctx.beginPath();ctx.moveTo(w*(.3+i*.08),h*.5);ctx.lineTo(w*(.34+i*.08),h*.36);ctx.lineTo(w*(.38+i*.08),h*.5);ctx.closePath();ctx.fill();}
+          ['#e05a3a','#e8b830','#5aa840'].forEach((c,i)=>{ctx.fillStyle=c;ctx.beginPath();ctx.arc(w*(.38+i*.09),h*.46,h*.025,0,Math.PI*2);ctx.fill();});
+          ctx.fillStyle='rgba(255,230,180,.9)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('Bram\'s table — rain or shine.',w*.5,h*.75);
+        } else if(seg===2){
+          ctx.fillStyle='#2a3348';ctx.fillRect(w*.28,h*.5,w*.3,h*.08);
+          const gl=.6+.4*Math.sin(t*4);
+          const g=ctx.createRadialGradient(w*.64,h*.42,0,w*.64,h*.42,h*.14);g.addColorStop(0,`rgba(255,210,120,${gl})`);g.addColorStop(1,'rgba(255,180,80,0)');
+          ctx.fillStyle=g;ctx.beginPath();ctx.arc(w*.64,h*.42,h*.14,0,Math.PI*2);ctx.fill();
+          ctx.fillStyle='#4a3a20';ctx.fillRect(w*.62,h*.44,w*.04,h*.08);
+          ctx.fillStyle='rgba(255,230,180,.9)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('Wren\'s lantern — "one more week."',w*.5,h*.75);
+        } else {
+          for(let r=0;r<5;r++)for(let c=0;c<9;c++){ctx.fillStyle=(r+c)%2===0?'#6a5848':'#5a4838';ctx.fillRect(w*(.1+c*.09),h*(.32+r*.07),w*.085,h*.065);}
+          const dg=.6+.4*Math.sin(t*3);
+          ctx.fillStyle=`rgba(255,220,140,${dg})`;ctx.fillRect(w*.44,h*.4,w*.12,h*.28);
+          ctx.fillStyle='rgba(255,230,180,.9)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('Cassius\'s wall — always with a door.',w*.5,h*.78);
+        }
+        ctx.globalAlpha=1;
+      }},
+      { dur:8, text:'One builder, one street at a time. This is Explox.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#02040c','#0a1428');
+        _cStars(ctx,w,h,t,70);
+        _cCity(ctx,w,h,true);
+        const glow=.6+.4*Math.sin(t*1.3);
+        const g=ctx.createRadialGradient(w*.42,h*.4,0,w*.42,h*.4,h*.1);
+        g.addColorStop(0,`rgba(255,210,140,${.5*glow})`);g.addColorStop(1,'rgba(255,180,80,0)');
+        ctx.fillStyle=g;ctx.beginPath();ctx.arc(w*.42,h*.4,h*.1,0,Math.PI*2);ctx.fill();
+        if(t>1){const fa=Math.min(1,(t-1)*.5);ctx.globalAlpha=fa;ctx.fillStyle='rgba(255,230,180,.9)';ctx.font=`${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('📖 the Library, still adding pages',w*.42,h*.28);ctx.globalAlpha=1;}
+        if(t>3){const fa=Math.min(1,(t-3)*.5);ctx.globalAlpha=fa;ctx.fillStyle='rgba(255,240,210,.95)';ctx.font=`bold ${h*.045}px Arial`;ctx.textAlign='center';ctx.fillText('Built by someone who kept going.',w*.5,h*.16);ctx.globalAlpha=1;}
+        if(t>5.5){const fa=Math.min(1,(t-5.5)*.6);ctx.globalAlpha=fa;ctx.fillStyle='rgba(255,255,255,.85)';ctx.font=`${h*.026}px Arial`;ctx.textAlign='center';ctx.fillText('Everything after this page is still being written.',w*.5,h*.9);ctx.globalAlpha=1;}
+      }},
+    ]
+  },
+  // ── Adapted from the Library's "The Newcomer's Almanac: A Practical Guide to Explox" ──
+  { title:'The Newcomer\'s Almanac', genre:'🗺️ Newcomer Special', price:20, bg:'#1a1400', icons:'🏙️🗺️🎉',
+    trailer:[
+      {text:'🏙️ New in town? You are not alone.',              dur:2000},
+      {text:'💼 Jobs. 🏦 The Bank. ⚖️ Good or bad.',            dur:2200},
+      {text:'✈️ Flights, 🎮 minigames, 🎓 school, and more...', dur:2200},
+      {text:'🗺️ THE NEWCOMER\'S ALMANAC',                      dur:2800},
+    ],
+    scenes:[
+      { dur:5, text:'You just arrived in Explox. Here\'s everything you need to know.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#8ec8e8','#fbe6a8');
+        _cSun(ctx,w*.78,h*.22,h*.09,t);
+        ctx.fillStyle='#7ab858';ctx.fillRect(0,h*.68,w,h*.32);
+        ctx.fillStyle='#c8a888';ctx.fillRect(w*.42,h*.6,w*.16,h*.02);
+        function fig(x,y,sz,col,headCol,t){const bob=Math.sin(t*3)*sz*.02;ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(x-sz*.15,y-sz*.02+bob);ctx.lineTo(x+sz*.15,y-sz*.02+bob);ctx.lineTo(x+sz*.21,y+sz*.46+bob);ctx.lineTo(x-sz*.21,y+sz*.46+bob);ctx.closePath();ctx.fill();ctx.fillStyle=headCol;ctx.beginPath();ctx.arc(x,y-sz*.2+bob,sz*.16,0,Math.PI*2);ctx.fill();}
+        fig(w*.5,h*.66,h*.3,'#3388cc','#f5c89a',t);
+        ctx.fillStyle='#334455';ctx.fillRect(w*.06,h*.5,w*.16,h*.2);
+        ctx.fillStyle='#a83030';ctx.beginPath();ctx.moveTo(w*.05,h*.5);ctx.lineTo(w*.14,h*.4);ctx.lineTo(w*.23,h*.5);ctx.closePath();ctx.fill();
+        const fa=Math.min(1,t*.6);ctx.globalAlpha=fa;ctx.fillStyle='rgba(40,30,10,.9)';ctx.font=`bold ${h*.04}px Arial`;ctx.textAlign='center';ctx.fillText('Welcome to Explox!',w*.5,h*.16);ctx.globalAlpha=1;
+      }},
+      { dur:5, text:'Clock in as a Shopkeeper or Officer — then watch for the prompt.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#1a2438','#0c1220');
+        ctx.fillStyle='#2a3a50';ctx.fillRect(0,h*.62,w,h*.38);
+        ctx.fillStyle='#e94560';ctx.beginPath();ctx.roundRect(w*.36,h*.3,w*.28,h*.18,h*.03);ctx.fill();
+        ctx.fillStyle='#fff';ctx.font=`bold ${h*.09}px Arial`;ctx.textAlign='center';ctx.fillText('E',w*.5,h*.42);
+        const frac=Math.max(0,1-t/4);
+        ctx.fillStyle='#222';ctx.fillRect(w*.32,h*.5,w*.36,h*.025);
+        ctx.fillStyle=frac>.3?'#4caf50':'#ff4444';ctx.fillRect(w*.32,h*.5,w*.36*frac,h*.025);
+        if(t>4){_cMoney(ctx,w,h,t-4,14);ctx.fillStyle='rgba(255,220,0,.9)';ctx.font=`bold ${h*.04}px Arial`;ctx.fillText('+5 S.I.P.!',w*.5,h*.7);}
+        ctx.fillStyle='rgba(255,255,255,.85)';ctx.font=`${h*.024}px Arial`;ctx.fillText('Shopkeeper: 5 S.I.P. • Officer: 10 S.I.P.',w*.5,h*.9);
+      }},
+      { dur:5, text:'Deposit it at the Bank — 10,000 S.I.P. every real minute, automatically.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#1a1400','#0c0a00');
+        ctx.fillStyle='#3a2e10';ctx.fillRect(w*.2,h*.3,w*.6,h*.5);
+        ctx.strokeStyle='#8a7020';ctx.lineWidth=4;ctx.strokeRect(w*.2,h*.3,w*.6,h*.5);
+        ctx.fillStyle='#1a1400';ctx.beginPath();ctx.arc(w*.5,h*.55,h*.12,0,Math.PI*2);ctx.fill();
+        ctx.strokeStyle='#d4a840';ctx.lineWidth=3;ctx.beginPath();ctx.arc(w*.5,h*.55,h*.12,0,Math.PI*2);ctx.stroke();
+        _cMoney(ctx,w,h,t,26);
+        ctx.fillStyle='rgba(255,220,0,.95)';ctx.font=`bold ${h*.04}px Arial`;ctx.textAlign='center';
+        ctx.fillText('+'+Math.min(10000,Math.floor(t*2200))+' S.I.P.',w*.5,h*.2);
+        ctx.fillStyle='rgba(255,255,255,.8)';ctx.font=`${h*.024}px Arial`;ctx.fillText('An hour of play banks 600,000 S.I.P. in interest alone.',w*.5,h*.88);
+      }},
+      { dur:5, text:'Talk to the Shady Dealer — good or bad, the city remembers.', draw(ctx,w,h,t){
+        const g=ctx.createLinearGradient(0,0,w,0);g.addColorStop(0,'#0a1a2a');g.addColorStop(.5,'#1a0a0a');g.addColorStop(1,'#2a0a0a');
+        ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+        ctx.fillStyle='rgba(80,150,255,.15)';ctx.fillRect(0,0,w*.5,h);
+        ctx.fillStyle='rgba(255,60,60,.15)';ctx.fillRect(w*.5,0,w*.5,h);
+        function fig(x,y,sz,col,headCol,t){const bob=Math.sin(t*2)*sz*.02;ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(x-sz*.15,y-sz*.02+bob);ctx.lineTo(x+sz*.15,y-sz*.02+bob);ctx.lineTo(x+sz*.21,y+sz*.46+bob);ctx.lineTo(x-sz*.21,y+sz*.46+bob);ctx.closePath();ctx.fill();ctx.fillStyle=headCol;ctx.beginPath();ctx.arc(x,y-sz*.2+bob,sz*.16,0,Math.PI*2);ctx.fill();}
+        fig(w*.5,h*.6,h*.34,'#2a2a2a','#c89868',t);
+        ctx.fillStyle='rgba(255,255,255,.7)';ctx.font=`${h*.05}px Arial`;ctx.textAlign='center';ctx.fillText('🎩',w*.5,h*.3);
+        ctx.fillStyle='rgba(150,200,255,.9)';ctx.font=`bold ${h*.032}px Arial`;ctx.fillText('😇 GOOD',w*.22,h*.2);
+        ctx.fillStyle='rgba(255,120,120,.9)';ctx.fillText('😈 BAD',w*.78,h*.2);
+        if(t>2){const st=Math.min(3,Math.floor((t-2)*1.6));let s='';for(let i=0;i<st;i++)s+='⭐';ctx.fillStyle='rgba(255,220,0,.9)';ctx.font=`${h*.04}px Arial`;ctx.fillText(s,w*.78,h*.42);}
+        ctx.fillStyle='rgba(255,255,255,.85)';ctx.font=`${h*.022}px Arial`;ctx.fillText('Free, instant, no cooldown — flip anytime.',w*.5,h*.88);
+      }},
+      { dur:5, text:'Pray at the Church — most of the time it\'s quiet. Sometimes it isn\'t.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0a0a1a','#1a1428');
+        ctx.fillStyle='#241c34';ctx.fillRect(0,h*.6,w,h*.4);
+        const glow=.6+.4*Math.sin(t*1.2);
+        const g=ctx.createRadialGradient(w*.5,h*.1,0,w*.5,h*.6,h*.5);
+        g.addColorStop(0,`rgba(255,240,190,${.55*glow})`);g.addColorStop(1,'rgba(255,240,190,0)');
+        ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(w*.5,0);ctx.lineTo(w*.36,h*.7);ctx.lineTo(w*.64,h*.7);ctx.closePath();ctx.fill();
+        function fig(x,y,sz,col,headCol){ctx.fillStyle=col;ctx.beginPath();ctx.ellipse(x,y,sz*.2,sz*.3,0,0,Math.PI*2);ctx.fill();ctx.fillStyle=headCol;ctx.beginPath();ctx.arc(x,y-sz*.28,sz*.15,0,Math.PI*2);ctx.fill();}
+        fig(w*.5,h*.72,h*.3,'#3a3050','#e0b088');
+        if(t>3){const fa=Math.min(1,(t-3)*.7);ctx.globalAlpha=fa;ctx.fillStyle='rgba(255,230,180,.95)';ctx.font=`bold ${h*.036}px Arial`;ctx.textAlign='center';ctx.fillText('✨ A real gift, once in a while.',w*.5,h*.2);ctx.globalAlpha=1;}
+      }},
+      { dur:5, text:'Subway, cab, flight — even a Space Station, if you\'ve got 150 S.I.P.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0a1a2a','#12283c');
+        _cStars(ctx,w,h,t,30);
+        const sx=((t*.3)%1.3-.15)*w;
+        ctx.fillStyle='#cc3344';ctx.beginPath();ctx.roundRect(sx,h*.66,w*.22,h*.08,h*.02);ctx.fill();
+        for(let i=0;i<3;i++){ctx.fillStyle='#bfe6ff';ctx.fillRect(sx+w*(.02+i*.06),h*.68,w*.04,h*.03);}
+        _cCar(ctx,w*.28,h*.42,h*.14,t,'#ffcc22');
+        _cRocket(ctx,w*.74,h*.28-(t*.02%1)*h*.15,h*.14,t);
+        ctx.fillStyle='rgba(255,255,255,.85)';ctx.font=`${h*.024}px Arial`;ctx.textAlign='center';
+        ctx.fillText('🚇 2-4 S.I.P.   🚕 by the mile   ✈️ 70-100 S.I.P.',w*.5,h*.92);
+      }},
+      { dur:5, text:'Storm a castle. Command an army. Survive the horde. Defend the line.', draw(ctx,w,h,t){
+        const seg=Math.min(3,Math.floor(t/1.25));
+        _cBg(ctx,w,h,'#140a1c','#0a0614');
+        if(seg===0){
+          ctx.fillStyle='#5a4a3a';ctx.fillRect(w*.3,h*.4,w*.4,h*.3);
+          ctx.fillStyle='#4a3a2a';for(let i=0;i<4;i++)ctx.fillRect(w*(.3+i*.13),h*.34,w*.06,h*.1);
+          _cNinja(ctx,w*.5,h*.62,h*.2,t,false);
+          ctx.fillStyle='rgba(255,220,180,.9)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('Capture the Throne',w*.5,h*.85);
+        } else if(seg===1){
+          _cRobot(ctx,w*.35,h*.62,h*.22,t,true);_cRobot(ctx,w*.65,h*.6,h*.24,t+1,true);
+          ctx.fillStyle='rgba(180,220,255,.9)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('Robot War — 100 levels',w*.5,h*.85);
+        } else if(seg===2){
+          _cExplo(ctx,w*.5,h*.5,h*.28,(t*.7)%1);
+          ctx.fillStyle='rgba(255,180,150,.9)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('Survival Horde',w*.5,h*.85);
+        } else {
+          for(let i=0;i<3;i++){ctx.fillStyle='#6a8a5a';ctx.fillRect(w*(.32+i*.14),h*.5,w*.06,h*.14);}
+          ctx.fillStyle='rgba(180,255,180,.9)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('Tower Defense Fight',w*.5,h*.85);
+        }
+      }},
+      { dur:6, text:'Answer real questions for real S.I.P. — then go make the city yours.', draw(ctx,w,h,t){
+        if(t<3){
+          _cBg(ctx,w,h,'#1a2438','#0c1220');
+          ctx.fillStyle='#1a3020';ctx.fillRect(w*.25,h*.28,w*.5,h*.3);
+          ctx.fillStyle='#fff';ctx.font=`${h*.05}px Arial`;ctx.textAlign='center';
+          ctx.fillText('7 + 5 = ?',w*.5,h*.46);
+          _cJake(ctx,w*.5,h*.78,h*.3,t);
+          if(t>1.5){_cMoney(ctx,w,h,t-1.5,10);ctx.fillStyle='rgba(255,220,0,.9)';ctx.font=`bold ${h*.032}px Arial`;ctx.fillText('+15 S.I.P.!',w*.5,h*.18);}
+        } else {
+          const lt=t-3;
+          _cBg(ctx,w,h,'#8ec8e8','#fbe6a8');
+          _cSun(ctx,w*.5,h*.2,h*.1,t);
+          ctx.fillStyle='#7ab858';ctx.fillRect(0,h*.68,w,h*.32);
+          const fa=Math.min(1,lt*.6);ctx.globalAlpha=fa;ctx.fillStyle='rgba(40,30,10,.95)';ctx.font=`bold ${h*.042}px Arial`;ctx.textAlign='center';ctx.fillText('Welcome. You\'re the next one.',w*.5,h*.5);ctx.globalAlpha=1;
+        }
+      }},
+    ]
+  },
+  (function(){
+    function house(ctx,x,y,ww,hh,roofC,wallC){
+      ctx.fillStyle=wallC;ctx.fillRect(x-ww/2,y-hh,ww,hh);
+      ctx.fillStyle=roofC;ctx.beginPath();ctx.moveTo(x-ww*.6,y-hh);ctx.lineTo(x,y-hh-hh*.55);ctx.lineTo(x+ww*.6,y-hh);ctx.closePath();ctx.fill();
+      ctx.fillStyle='rgba(255,220,140,.55)';ctx.fillRect(x-ww*.15,y-hh*.55,ww*.3,hh*.28);
+    }
+    function person(ctx,x,y,sz,shirt,skin,t,arm){
+      const bob=Math.sin((t||0)*3)*sz*.015;
+      ctx.fillStyle='#2a2018';
+      ctx.fillRect(x-sz*.12,y+sz*.18+bob,sz*.09,sz*.22);
+      ctx.fillRect(x+sz*.03,y+sz*.18+bob,sz*.09,sz*.22);
+      ctx.fillStyle=shirt;
+      ctx.beginPath();ctx.roundRect(x-sz*.16,y-sz*.12+bob,sz*.32,sz*.34,sz*.06);ctx.fill();
+      if(arm){
+        ctx.strokeStyle=shirt;ctx.lineWidth=sz*.07;ctx.lineCap='round';
+        ctx.beginPath();ctx.moveTo(x+sz*.14,y-sz*.02+bob);ctx.lineTo(x+sz*.14+arm*sz*.22,y-sz*.05-Math.abs(arm)*sz*.1+bob);ctx.stroke();
+      }
+      ctx.fillStyle=skin;
+      ctx.beginPath();ctx.arc(x,y-sz*.24+bob,sz*.13,0,Math.PI*2);ctx.fill();
+    }
+    function disc(ctx,x,y,r,t,glow){
+      if(glow){const g=ctx.createRadialGradient(x,y,0,x,y,r*2.2);g.addColorStop(0,'rgba(255,220,120,.5)');g.addColorStop(1,'rgba(255,220,120,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r*2.2,0,Math.PI*2);ctx.fill();}
+      ctx.save();ctx.translate(x,y);ctx.rotate(Math.sin((t||0)*.6)*.15);
+      ctx.fillStyle='#a97c46';ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='#6b4a26';ctx.lineWidth=r*.1;
+      for(let i=0;i<10;i++){const a=i/10*Math.PI*2;ctx.beginPath();ctx.moveTo(Math.cos(a)*r*.86,Math.sin(a)*r*.86);ctx.lineTo(Math.cos(a)*r*1.02,Math.sin(a)*r*1.02);ctx.stroke();}
+      ctx.fillStyle='#4a2f16';ctx.font=`bold ${r*.6}px Arial`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('S.I.P',0,r*.05);
+      ctx.restore();
+    }
+    return { title:'S.I.P.: The First Coin', genre:'🪙 Historical Drama', price:25, bg:'#2a1806', icons:'🪙🔨🏦',
+    trailer:[
+      {text:'🪙 Before money, there was only memory...', dur:2200},
+      {text:'📜 A ledger. A tally stick. Clay lost to a flood.', dur:2200},
+      {text:'🔨 One tinkerer refused to give up.', dur:2000},
+      {text:'🪙 S.I.P.: THE FIRST COIN 🪙', dur:3000},
+    ],
+    scenes:[
+      { dur:5, text:'Before money, there was only memory — and favors owed by hand.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#3a2a12','#5a3f1c');
+        _cSun(ctx,w*.85,h*.15,h*.06,t);
+        const hy=h*.62;
+        house(ctx,w*.1,hy,w*.13,h*.16,'#4a2f18','#6b4226');
+        house(ctx,w*.26,hy,w*.1,h*.13,'#3d2614','#5a3620');
+        house(ctx,w*.44,hy,w*.15,h*.19,'#4a2f18','#6b4226');
+        house(ctx,w*.66,hy,w*.11,h*.14,'#3d2614','#5a3620');
+        house(ctx,w*.86,hy,w*.13,h*.16,'#4a2f18','#6b4226');
+        person(ctx,w*.36,hy+h*.02,h*.16,'#7a4a2a','#e0a878',t,0);
+        person(ctx,w*.5,hy+h*.03,h*.15,'#3a6a4a','#d89868',t,0);
+        ctx.font=`${h*.05}px Arial`;ctx.textAlign='center';ctx.fillText('🤝',w*.43,hy-h*.1);
+        ctx.fillStyle='rgba(255,230,180,.9)';ctx.font=`bold ${h*.036}px Arial`;ctx.fillText('BEFORE MONEY, THERE WAS ONLY MEMORY',w*.5,h*.2);
+      }},
+      { dur:5, text:'Warrick built Ines a roof. She remembers a patch owed. He remembers a whole new fence.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#4a3a1a','#6a5024');
+        const hy=h*.68;
+        ctx.fillStyle='#5a4020';ctx.fillRect(0,hy,w,h*.32);
+        person(ctx,w*.32,hy-h*.02,h*.22,'#8a4a20','#e0a878',t,Math.sin(t*6)*.8);
+        person(ctx,w*.66,hy-h*.02,h*.22,'#2a5a3a','#d89868',t,-Math.sin(t*6)*.8);
+        const sh=.5+.5*Math.sin(t*8);
+        ctx.fillStyle=`rgba(255,80,60,${sh})`;ctx.font=`bold ${h*.06}px Arial`;ctx.textAlign='center';
+        ctx.fillText('!',w*.32,hy-h*.34);ctx.fillText('!',w*.66,hy-h*.34);
+        ctx.fillStyle='rgba(255,220,150,.9)';ctx.font=`bold ${h*.03}px Arial`;ctx.fillText('"THAT\'S NOT WHAT WE SHOOK ON!"',w*.5,h*.2);
+      }},
+      { dur:5, text:"Soledad's shared ledger works beautifully — until one bad afternoon.", draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#241708','#3a260f');
+        ctx.fillStyle='#e8d9b0';ctx.beginPath();ctx.roundRect(w*.28,h*.32,w*.44,h*.4,h*.02);ctx.fill();
+        ctx.strokeStyle='#c8b888';ctx.lineWidth=2;
+        for(let i=0;i<6;i++){ctx.beginPath();ctx.moveTo(w*.32,h*(.38+i*.05));ctx.lineTo(w*.68,h*(.38+i*.05));ctx.stroke();}
+        ctx.strokeStyle='#a08858';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(w*.5,h*.32);ctx.lineTo(w*.5,h*.72);ctx.stroke();
+        if(t>2){
+          const p=Math.min(1,(t-2)*1.6);
+          ctx.strokeStyle='rgba(160,20,10,.85)';ctx.lineWidth=h*.02;ctx.lineCap='round';
+          ctx.beginPath();ctx.moveTo(w*.33,h*.4);ctx.lineTo(w*.33+(w*.3)*p,h*.4+(h*.28)*p);ctx.stroke();
+        }
+        ctx.fillStyle='rgba(255,220,150,.9)';ctx.font=`bold ${h*.032}px Arial`;ctx.textAlign='center';ctx.fillText('ONE GOUGE. ONE RUINED PAGE.',w*.5,h*.2);
+      }},
+      { dur:5, text:'Tally sticks are next — split fair, but lost, broken, and stuck between just two people.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#241708','#3a260f');
+        const snap=Math.min(1,Math.max(0,(t-2)*1.2));
+        ctx.save();ctx.translate(w*.5,h*.5);ctx.rotate(-.15-snap*.5);
+        ctx.fillStyle='#8a6438';ctx.fillRect(-w*.16,-h*.02,w*.16,h*.04);
+        for(let i=0;i<5;i++){ctx.fillStyle='#3d2a14';ctx.fillRect(-w*.02-i*w*.028,-h*.018,w*.01,h*.036);}
+        ctx.restore();
+        ctx.save();ctx.translate(w*.5,h*.5);ctx.rotate(.15+snap*.5);
+        ctx.fillStyle='#8a6438';ctx.fillRect(0,-h*.02,w*.16,h*.04);
+        ctx.restore();
+        if(snap>0){ctx.fillStyle=`rgba(255,220,150,${snap})`;ctx.font=`bold ${h*.05}px Arial`;ctx.textAlign='center';ctx.fillText('SNAP.',w*.5,h*.7);}
+        ctx.fillStyle='rgba(255,220,150,.9)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('LOST. BROKEN. STUCK BETWEEN TWO PEOPLE.',w*.5,h*.2);
+      }},
+      { dur:5, text:'Two hundred clay tokens... and four days of rain.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#1a2430','#0a1420');
+        _cRain(ctx,w,h,t,110);
+        const wl=h*(.7-Math.min(.22,t*.045));
+        ctx.fillStyle='rgba(60,90,120,.55)';ctx.fillRect(0,wl,w,h-wl);
+        for(let i=0;i<14;i++){
+          const tx=w*(.15+(i%7)*.1),ty=h*.6+(i>6?h*.06:0);
+          const dis=Math.min(1,Math.max(0,t*.3-i*.02));
+          ctx.globalAlpha=1-dis;
+          ctx.fillStyle='#b08050';ctx.beginPath();ctx.arc(tx,ty+dis*h*.05,h*.018*(1-dis*.5),0,Math.PI*2);ctx.fill();
+        }
+        ctx.globalAlpha=1;
+        ctx.fillStyle='rgba(200,220,255,.9)';ctx.font=`bold ${h*.034}px Arial`;ctx.textAlign='center';ctx.fillText('THE FLOOD TAKES THEM ALL',w*.5,h*.18);
+      }},
+      { dur:5, text:'Warrick\'s "boring" pile of scrap wood sparks the real idea.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#3a2a12','#5a3f1c');_cSun(ctx,w*.82,h*.16,h*.055,t);
+        for(let i=0;i<9;i++){
+          ctx.save();ctx.translate(w*(.32+(i%5)*.05),h*(.68-Math.floor(i/5)*.05));ctx.rotate((i*.3)%.6-.3);
+          ctx.fillStyle=i%2?'#8a6438':'#a97c46';ctx.fillRect(-w*.05,-h*.008,w*.1,h*.016);
+          ctx.restore();
+        }
+        person(ctx,w*.62,h*.68,h*.2,'#7a4a2a','#e0a878',t,0);
+        const glow=.4+.4*Math.abs(Math.sin(t*3));
+        ctx.fillStyle=`rgba(255,230,150,${glow})`;ctx.beginPath();ctx.arc(w*.62,h*.42,h*.05,0,Math.PI*2);ctx.fill();
+        ctx.font=`bold ${h*.05}px Arial`;ctx.textAlign='center';ctx.fillText('💡',w*.62,h*.46);
+        ctx.fillStyle='rgba(255,230,180,.9)';ctx.font=`bold ${h*.03}px Arial`;ctx.fillText('"BORING. CHEAP. THERE\'S A MOUNTAIN OF IT."',w*.5,h*.2);
+      }},
+      { dur:5, text:'The first disc is stamped: S — I — P. "Same. If. Paid."', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#241708','#3a260f');
+        disc(ctx,w*.5,h*.48,h*.22,t,true);
+        person(ctx,w*.18,h*.72,h*.18,'#7a4a2a','#e0a878',t,0);
+        person(ctx,w*.82,h*.72,h*.18,'#2a5a3a','#d89868',t,0);
+        if(t>2.2){ctx.fillStyle='rgba(255,230,180,.9)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('"SAME. IF. PAID."',w*.5,h*.86);}
+        ctx.fillStyle='rgba(255,220,120,.9)';ctx.font=`bold ${h*.038}px Arial`;ctx.textAlign='center';ctx.fillText('S . I . P .',w*.5,h*.18);
+      }},
+      { dur:5, text:'Neighbors raise a stone vault by hand — and S.I.P. spreads through the whole city. THE END.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#1a2438','#0a1220');_cStars(ctx,w,h,t,30);
+        ctx.fillStyle='#6b6458';ctx.fillRect(w*.34,h*.42,w*.32,h*.3);
+        ctx.fillStyle='#4a453c';ctx.fillRect(w*.4,h*.58,w*.08,h*.14);
+        for(let i=0;i<4;i++){ctx.fillStyle='#3a352e';ctx.fillRect(w*(.38+i*.06),h*.48,w*.02,h*.06);}
+        _cMoney(ctx,w,h,t,22);
+        _cConfetti(ctx,w,h,t,30);
+        if(t>1){ctx.fillStyle=`rgba(255,255,255,${Math.min(1,(t-1)*.6)})`;ctx.font=`bold ${h*.06}px Arial`;ctx.textAlign='center';ctx.fillText('THE END',w*.5,h*.24);}
+        ctx.fillStyle='rgba(255,220,150,.85)';ctx.font=`${h*.022}px Arial`;ctx.fillText('(Every S.I.P. in Explox still traces back to this room.)',w*.5,h*.88);
+      }},
+    ]
+    };
+  })(),
+  (function(){
+    function drum(ctx,x,y,r,t,dent){
+      const wob=Math.sin((t||0)*4)*r*.04;
+      ctx.save();ctx.translate(x,y+wob);
+      ctx.fillStyle='#5a5a5a';ctx.beginPath();ctx.ellipse(0,0,r,r*.62,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#484848';
+      for(let i=0;i<3;i++){ctx.beginPath();ctx.ellipse(-r*.3+i*r*.3,-r*.05,r*.05,r*.05,0,0,Math.PI*2);ctx.fill();}
+      ctx.strokeStyle='#333';ctx.lineWidth=r*.04;ctx.beginPath();ctx.ellipse(0,0,r,r*.62,0,0,Math.PI*2);ctx.stroke();
+      if(dent){ctx.strokeStyle='#222';ctx.lineWidth=r*.06;ctx.beginPath();ctx.moveTo(-r*.3,-r*.3);ctx.lineTo(r*.1,-r*.1);ctx.stroke();}
+      ctx.restore();
+    }
+    function scrapPile(ctx,x,y,sz){
+      const parts=[['#7a7a7a',.5,.2],['#8a6a3a',.35,.15],['#5a8aaa',.3,.12],['#9a3a3a',.25,.1]];
+      parts.forEach(([col,px,py],i)=>{
+        ctx.save();ctx.translate(x+(px-.3)*sz,y+(py-.1)*sz);ctx.rotate(i*.7);
+        ctx.fillStyle=col;ctx.fillRect(-sz*.08,-sz*.04,sz*.16,sz*.08);
+        ctx.restore();
+      });
+    }
+    function kid(ctx,x,y,sz,col,t){
+      const bob=Math.sin((t||0)*3+x)*sz*.03;
+      ctx.fillStyle=col;ctx.beginPath();ctx.roundRect(x-sz*.14,y-sz*.02+bob,sz*.28,sz*.3,sz*.06);ctx.fill();
+      ctx.fillStyle='#e0a878';ctx.beginPath();ctx.arc(x,y-sz*.14+bob,sz*.12,0,Math.PI*2);ctx.fill();
+    }
+    return { title:"The Scrapyard's First Robot", genre:'🔧 Underdog Story', price:20, bg:'#1a1608', icons:'🤖🔧⚙️',
+    trailer:[
+      {text:'🔩 One boy. One rusted drum. One rainy Saturday.', dur:2200},
+      {text:'⚡ It rolled. It beeped. It changed everything.', dur:2000},
+      {text:'🤖 Now the whole Scrapyard builds.', dur:2000},
+      {text:'⚙️ THE SCRAPYARD\'S FIRST ROBOT ⚙️', dur:3000},
+    ],
+    scenes:[
+      { dur:5, text:'Teo lives at the edge of the Scrapyard, where broken things go to be forgotten.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#3a3a30','#20201a');
+        ctx.fillStyle='#26261e';ctx.fillRect(0,h*.72,w,h*.28);
+        for(let i=0;i<6;i++)scrapPile(ctx,w*(.1+i*.15),h*.72,h*.22);
+        ctx.fillStyle='#4a4438';ctx.fillRect(w*.06,h*.5,w*.14,h*.22);
+        ctx.fillStyle='#3a3428';ctx.beginPath();ctx.moveTo(w*.05,h*.5);ctx.lineTo(w*.13,h*.4);ctx.lineTo(w*.21,h*.5);ctx.closePath();ctx.fill();
+        kid(ctx,w*.13,h*.66,h*.14,'#4a5a3a',t);
+        ctx.fillStyle='rgba(220,230,210,.85)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('WHERE BROKEN THINGS GO TO BE FORGOTTEN',w*.5,h*.2);
+      }},
+      { dur:5, text:'A rainy Saturday. A steel drum in the mud looks like the beginning of something.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#2a3038','#12161c');_cRain(ctx,w,h,t,100);
+        ctx.fillStyle='rgba(60,50,40,.6)';ctx.fillRect(0,h*.68,w,h*.32);
+        drum(ctx,w*.5,h*.74,h*.16,t,false);
+        kid(ctx,w*.72,h*.62,h*.2,'#3a4a5a',t);
+        ctx.fillStyle='rgba(200,220,255,.85)';ctx.font=`bold ${h*.034}px Arial`;ctx.textAlign='center';ctx.fillText('THE BEGINNING OF SOMETHING',w*.5,h*.2);
+      }},
+      { dur:5, text:'Wooden legs fail — three tries, three collapses.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#241f18','#100d09');
+        const fall=Math.min(1,Math.max(0,(t-1.5)*1.4));
+        ctx.save();ctx.translate(w*.5,h*.6);ctx.rotate(fall*.9);
+        drum(ctx,0,0,h*.15,t,true);
+        ctx.strokeStyle='#5a4020';ctx.lineWidth=h*.015;
+        [[-.6,.5],[.6,.5],[-.3,.55],[.3,.55]].forEach(([lx,ly])=>{ctx.beginPath();ctx.moveTo(lx*h*.15,0);ctx.lineTo(lx*h*.15,ly*h*.5);ctx.stroke();});
+        ctx.restore();
+        if(fall>0.5){ctx.fillStyle=`rgba(255,180,120,${fall})`;ctx.font=`bold ${h*.045}px Arial`;ctx.textAlign='center';ctx.fillText('THUD.',w*.5,h*.78);}
+        ctx.fillStyle='rgba(220,200,180,.85)';ctx.font=`bold ${h*.03}px Arial`;ctx.fillText('THREE TRIES. THREE COLLAPSES.',w*.5,h*.2);
+      }},
+      { dur:5, text:'A car battery, a salvaged motor, a bicycle chain — and it ROLLS.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#241f18','#100d09');
+        const rx=w*(.15+(t*.12)%.7);
+        ctx.save();ctx.translate(rx,h*.66);ctx.rotate(t*4);
+        drum(ctx,0,0,h*.14,t,false);
+        ctx.restore();
+        _cLines(ctx,rx-h*.05,h*.72,h*.1,8,'rgba(255,220,100,.35)');
+        ctx.fillStyle='rgba(255,220,100,.9)';ctx.font=`bold ${h*.04}px Arial`;ctx.textAlign='center';ctx.fillText('IT ROLLS!',w*.5,h*.2);
+      }},
+      { dur:5, text:'He claps. It beeps. Teo finally shows the Scrapyard what he built.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#2a2a20','#14140e');
+        drum(ctx,w*.42,h*.62,h*.16,t,false);
+        kid(ctx,w*.15,h*.66,h*.15,'#4a5a3a',t);kid(ctx,w*.68,h*.68,h*.14,'#5a3a4a',t);kid(ctx,w*.8,h*.64,h*.16,'#3a4a5a',t);
+        if(Math.sin(t*4)>.85){ctx.fillStyle='rgba(255,255,150,.9)';ctx.font=`bold ${h*.05}px Arial`;ctx.textAlign='center';ctx.fillText('BEEP!',w*.42,h*.4);}
+        ctx.fillStyle='rgba(230,230,200,.85)';ctx.font=`bold ${h*.028}px Arial`;ctx.textAlign='center';ctx.fillText('"WAIT — YOU BUILT THAT?"',w*.5,h*.2);
+      }},
+      { dur:5, text:'Bumping turns into blades — and the Scrapyard becomes a battlefield.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#1a1a14','#0a0a08');
+        _cRobot(ctx,w*.3,h*.58,h*.2,t,true);_cRobot(ctx,w*.68,h*.58,h*.2,t+1,true);
+        const ep=(t*.4)%1;_cExplo(ctx,w*.49,h*.56,h*.09,ep);
+        ctx.fillStyle='rgba(255,150,80,.9)';ctx.font=`bold ${h*.032}px Arial`;ctx.textAlign='center';ctx.fillText('"THAT\'S CHEATING AND I LOVE IT."',w*.5,h*.2);
+      }},
+      { dur:5, text:'The rules get written in the dirt: nothing built to hurt the kid, only the machine.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#2a2a20','#14140e');
+        kid(ctx,w*.28,h*.62,h*.16,'#4a5a3a',t);kid(ctx,w*.42,h*.64,h*.15,'#5a3a4a',t);kid(ctx,w*.56,h*.62,h*.16,'#3a4a5a',t);kid(ctx,w*.7,h*.64,h*.15,'#5a5a3a',t);
+        ctx.fillStyle='#c8b898';ctx.font=`${h*.022}px Arial`;ctx.textAlign='left';
+        ctx.fillText('✓ nothing sharp',w*.1,h*.32);ctx.fillText('✓ nothing that leaves the machine',w*.1,h*.37);ctx.fillText('✓ no hitting a downed opponent',w*.1,h*.42);
+        ctx.fillStyle='rgba(230,230,200,.85)';ctx.font=`bold ${h*.028}px Arial`;ctx.textAlign='center';ctx.fillText('A CONTEST OF MACHINES, NOT PEOPLE',w*.5,h*.2);
+      }},
+      { dur:5, text:'Years later, a whole street of kids has somewhere to bring their own. THE END.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#3a2a14','#1a1208');_cSun(ctx,w*.15,h*.2,h*.06,t);
+        ctx.fillStyle='#2a2418';ctx.fillRect(0,h*.7,w,h*.3);
+        const cols=['#4a5a3a','#5a3a4a','#3a4a5a','#5a5a3a','#4a3a5a'];
+        for(let i=0;i<5;i++)kid(ctx,w*(.1+i*.18),h*.66,h*.12,cols[i],t+i);
+        _cRobot(ctx,w*.5,h*.58,h*.2,t,false);
+        _cConfetti(ctx,w,h,t,25);
+        if(t>1){ctx.fillStyle=`rgba(255,255,255,${Math.min(1,(t-1)*.6)})`;ctx.font=`bold ${h*.055}px Arial`;ctx.textAlign='center';ctx.fillText('THE END',w*.5,h*.22);}
+      }},
+    ]
+    };
+  })(),
+  (function(){
+    function chalkCircle(ctx,x,y,r,prog){
+      ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=r*.04;ctx.setLineDash([r*.08,r*.05]);
+      ctx.beginPath();ctx.arc(x,y,r,-Math.PI/2,-Math.PI/2+Math.PI*2*Math.min(1,prog));ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    function fence(ctx,x,y,ww,broken,t){
+      const n=6;
+      for(let i=0;i<n;i++){
+        const px=x-ww/2+i*(ww/(n-1));
+        const fall=broken?Math.sin(i*1.7)*.4:0;
+        ctx.save();ctx.translate(px,y);ctx.rotate(fall);
+        ctx.fillStyle='#5a4028';ctx.fillRect(-ww*.015,-ww*.16,ww*.03,ww*.16);
+        ctx.restore();
+      }
+      if(!broken){ctx.strokeStyle='#5a4028';ctx.lineWidth=ww*.012;ctx.beginPath();ctx.moveTo(x-ww/2,y-ww*.1);ctx.lineTo(x+ww/2,y-ww*.1);ctx.stroke();}
+    }
+    function fighter(ctx,x,y,sz,shirt,skin,t,punch){
+      const bob=Math.sin((t||0)*3)*sz*.015;
+      ctx.fillStyle='#2a2018';
+      ctx.fillRect(x-sz*.12,y+sz*.18+bob,sz*.09,sz*.22);
+      ctx.fillRect(x+sz*.03,y+sz*.18+bob,sz*.09,sz*.22);
+      ctx.fillStyle=shirt;
+      ctx.beginPath();ctx.roundRect(x-sz*.16,y-sz*.12+bob,sz*.32,sz*.34,sz*.06);ctx.fill();
+      const pd=punch||0;
+      ctx.strokeStyle=skin;ctx.lineWidth=sz*.08;ctx.lineCap='round';
+      ctx.beginPath();ctx.moveTo(x+sz*.14,y-sz*.02+bob);ctx.lineTo(x+sz*.14+Math.max(0,pd)*sz*.4,y-sz*.05+bob);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x-sz*.14,y-sz*.02+bob);ctx.lineTo(x-sz*.14-Math.max(0,-pd)*sz*.4,y-sz*.05+bob);ctx.stroke();
+      ctx.fillStyle=skin;
+      ctx.beginPath();ctx.arc(x,y-sz*.24+bob,sz*.13,0,Math.PI*2);ctx.fill();
+    }
+    function crowd(ctx,x,y,sz,col){
+      ctx.fillStyle=col;ctx.beginPath();ctx.roundRect(x-sz*.13,y-sz*.02,sz*.26,sz*.28,sz*.05);ctx.fill();
+      ctx.fillStyle='#e0a878';ctx.beginPath();ctx.arc(x,y-sz*.14,sz*.11,0,Math.PI*2);ctx.fill();
+    }
+    return { title:"The Arena's First Fight", genre:'🥊 Underdog Drama', price:22, bg:'#150c05', icons:'⚔️🤝🏟️',
+    trailer:[
+      {text:'🤝 Two friends. One broken fence. A year of silence.', dur:2200},
+      {text:'⚔️ A child asks the question nobody else would.', dur:2000},
+      {text:'👊 One chalk circle settles it — for good.', dur:2000},
+      {text:'🏟️ THE ARENA\'S FIRST FIGHT 🏟️', dur:3000},
+    ],
+    scenes:[
+      { dur:5, text:'Roan and Yusuf grew up as brothers — until a storm broke the fence between them.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#2a2a3a','#12121e');
+        ctx.fillStyle='#3a3428';ctx.fillRect(0,h*.7,w,h*.3);
+        ctx.fillStyle='#4a4438';ctx.fillRect(w*.14,h*.5,w*.14,h*.2);ctx.fillStyle='#3a3428';ctx.beginPath();ctx.moveTo(w*.12,h*.5);ctx.lineTo(w*.21,h*.4);ctx.lineTo(w*.3,h*.5);ctx.closePath();ctx.fill();
+        ctx.fillStyle='#4a4438';ctx.fillRect(w*.6,h*.52,w*.14,h*.18);ctx.fillStyle='#3a3428';ctx.beginPath();ctx.moveTo(w*.58,h*.52);ctx.lineTo(w*.67,h*.42);ctx.lineTo(w*.76,h*.52);ctx.closePath();ctx.fill();
+        fence(ctx,w*.46,h*.72,w*.28,true,t);
+        _cRain(ctx,w,h,t,40);
+        ctx.fillStyle='rgba(210,210,230,.85)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('ONE STORM. ONE BROKEN FENCE.',w*.5,h*.2);
+      }},
+      { dur:5, text:'Two honest memories. Two different fence lines. A year of silence.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#2a2418','#14100a');
+        fighter(ctx,w*.28,h*.62,h*.2,'#7a4a2a','#e0a878',t,0);
+        fighter(ctx,w*.72,h*.62,h*.2,'#2a5a3a','#d89868',t,0);
+        ctx.strokeStyle='rgba(255,255,255,.4)';ctx.setLineDash([6,5]);
+        ctx.beginPath();ctx.moveTo(w*.42,h*.75);ctx.lineTo(w*.5,h*.4);ctx.stroke();
+        ctx.strokeStyle='rgba(255,200,80,.5)';ctx.beginPath();ctx.moveTo(w*.58,h*.75);ctx.lineTo(w*.5,h*.4);ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle='rgba(220,210,190,.85)';ctx.font=`bold ${h*.028}px Arial`;ctx.textAlign='center';ctx.fillText('"THAT IS EXACTLY WHAT WE SHOOK ON!"',w*.5,h*.2);
+      }},
+      { dur:5, text:'"Why don\'t you just fight about it?" Amara asks — and everything changes.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#2a2418','#14100a');
+        fighter(ctx,w*.68,h*.6,h*.2,'#2a5a3a','#d89868',t,0);
+        const cbob=Math.sin(t*3)*h*.01;
+        ctx.fillStyle='#5a4a3a';ctx.beginPath();ctx.roundRect(w*.27,h*.56+cbob,h*.1,h*.18,h*.03);ctx.fill();
+        ctx.fillStyle='#e8b888';ctx.beginPath();ctx.arc(w*.32,h*.5+cbob,h*.07,0,Math.PI*2);ctx.fill();
+        if(t>1.5){ctx.fillStyle='rgba(255,230,180,.9)';ctx.font=`bold ${h*.028}px Arial`;ctx.textAlign='center';ctx.fillText('"DRAW A LINE. HAVE IT OUT. SHAKE HANDS."',w*.5,h*.22);}
+      }},
+      { dur:5, text:'At dawn, they chalk a circle in the mud. Fists only. Loser accepts the line.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#4a3a2a','#241a10');_cSun(ctx,w*.15,h*.2,h*.05,t);
+        ctx.fillStyle='#3a3020';ctx.fillRect(0,h*.62,w,h*.38);
+        chalkCircle(ctx,w*.5,h*.74,h*.18,Math.min(1,t*.5));
+        fighter(ctx,w*.36,h*.7,h*.18,'#7a4a2a','#e0a878',t,0);
+        fighter(ctx,w*.64,h*.7,h*.18,'#2a5a3a','#d89868',t,0);
+        ctx.fillStyle='rgba(255,230,180,.85)';ctx.font=`bold ${h*.026}px Arial`;ctx.textAlign='center';ctx.fillText('FISTS ONLY. NO HITTING A MAN WHO\'S DOWN.',w*.5,h*.2);
+      }},
+      { dur:5, text:'It doesn\'t look angry. It looks like relief.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#3a3020','#1a140a');
+        chalkCircle(ctx,w*.5,h*.68,h*.2,1);
+        const pu=Math.sin(t*6);
+        fighter(ctx,w*.38,h*.66,h*.2,'#7a4a2a','#e0a878',t,pu);
+        fighter(ctx,w*.62,h*.66,h*.2,'#2a5a3a','#d89868',t,-pu);
+        crowd(ctx,w*.15,h*.6,h*.13,'#5a5a5a');crowd(ctx,w*.85,h*.6,h*.13,'#6a6a6a');
+        ctx.fillStyle='rgba(255,220,150,.85)';ctx.font=`bold ${h*.028}px Arial`;ctx.textAlign='center';ctx.fillText('A YEAR\'S SILENCE, SPENT HONESTLY',w*.5,h*.2);
+      }},
+      { dur:5, text:'They rebuild the fence together the very next morning.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#3a4a2a','#1a2412');_cSun(ctx,w*.85,h*.16,h*.055,t);
+        const done=Math.min(6,Math.floor(t*1.5));
+        for(let i=0;i<6;i++){
+          ctx.fillStyle=i<done?'#8a6438':'rgba(138,100,56,.25)';
+          ctx.fillRect(w*(.2+i*.1),h*.6,w*.02,h*.16);
+        }
+        fighter(ctx,w*.3,h*.7,h*.18,'#7a4a2a','#e0a878',t,0);
+        fighter(ctx,w*.66,h*.7,h*.18,'#2a5a3a','#d89868',t,0);
+        ctx.fillStyle='rgba(220,240,200,.85)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('STRAIGHTER AND STURDIER THAN BEFORE',w*.5,h*.2);
+      }},
+      { dur:5, text:'The idea spreads — a sibling rivalry, a soldier\'s patient practice, a blacksmith\'s loud fun.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#2a2418','#14100a');
+        chalkCircle(ctx,w*.22,h*.7,h*.09,1);chalkCircle(ctx,w*.5,h*.62,h*.11,1);chalkCircle(ctx,w*.78,h*.72,h*.09,1);
+        fighter(ctx,w*.19,h*.68,h*.12,'#5a3a5a','#d89868',t,Math.sin(t*5)*.6);fighter(ctx,w*.25,h*.68,h*.12,'#3a5a5a','#e0a878',t,-Math.sin(t*5)*.6);
+        fighter(ctx,w*.47,h*.6,h*.13,'#5a4a2a','#c8966a',t,0);fighter(ctx,w*.53,h*.6,h*.13,'#2a4a5a','#e0a878',t,0);
+        fighter(ctx,w*.75,h*.7,h*.12,'#8a5a2a','#e0a878',t,Math.sin(t*7)*.5);fighter(ctx,w*.81,h*.7,h*.12,'#5a2a5a','#d89868',t,-Math.sin(t*7)*.5);
+        ctx.fillStyle='rgba(230,220,200,.85)';ctx.font=`bold ${h*.026}px Arial`;ctx.textAlign='center';ctx.fillText('A CIRCLE, TWO PEOPLE, AN HONEST TEST',w*.5,h*.18);
+      }},
+      { dur:5, text:'Walls rise around the original circle. The Fight Arena is born. THE END.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#1a1a28','#0a0a14');_cStars(ctx,w,h,t,25);
+        ctx.fillStyle='#5a5044';
+        ctx.beginPath();ctx.arc(w*.5,h*.75,h*.32,Math.PI,0);ctx.closePath();ctx.fill();
+        ctx.fillStyle='rgba(30,26,20,.4)';
+        ctx.beginPath();ctx.arc(w*.5,h*.75,h*.32,Math.PI*.5,Math.PI);ctx.lineTo(w*.5,h*.75);ctx.closePath();ctx.fill();
+        chalkCircle(ctx,w*.5,h*.78,h*.13,1);
+        crowd(ctx,w*.3,h*.6,h*.1,'#4a4a5a');crowd(ctx,w*.7,h*.6,h*.1,'#5a4a4a');crowd(ctx,w*.4,h*.55,h*.09,'#4a5a4a');crowd(ctx,w*.6,h*.55,h*.09,'#5a5a4a');
+        _cConfetti(ctx,w,h,t,25);
+        if(t>1){ctx.fillStyle=`rgba(255,255,255,${Math.min(1,(t-1)*.6)})`;ctx.font=`bold ${h*.055}px Arial`;ctx.textAlign='center';ctx.fillText('THE END',w*.5,h*.22);}
+      }},
+    ]
+    };
+  })(),
+  { title:'The Doctor Who Stayed', genre:'🩺 Frontier Drama', price:30, bg:'#2a1408', icons:'🩺🕯️❤️',
+    trailer:[
+      {text:'🩺 Eleven towns. Eleven goodbyes. She never stayed for the twelfth.', dur:2500},
+      {text:'❄️ Then a flu winter hit a town with nowhere else to turn...', dur:2200},
+      {text:'🕯️ One fever. One tiny hand. One promise she almost broke.', dur:2200},
+      {text:'❤️ THE DOCTOR WHO STAYED', dur:2800},
+    ],
+    scenes:[
+      { dur:5, text:'Eleven towns behind her. Explox was never supposed to be different.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#4a3420','#8a6a3e');
+        ctx.fillStyle='#5a4228';ctx.fillRect(0,h*.7,w,h*.3);
+        ctx.strokeStyle='rgba(90,60,30,.4)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,h*.78);ctx.lineTo(w,h*.74);ctx.stroke();
+        const wx=w*(.1+Math.min(.55,t*.09));
+        ctx.fillStyle='#6b4226';ctx.fillRect(wx,h*.6,w*.16,h*.12);
+        ctx.fillStyle='#8a6800';ctx.beginPath();ctx.arc(wx+w*.02,h*.6,h*.05,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(wx+w*.14,h*.6,h*.05,0,Math.PI*2);ctx.fill();
+        _cDoc(ctx,wx+w*.08,h*.52,h*.2,t,false);
+        ctx.fillStyle='rgba(255,255,255,.85)';ctx.font=`${h*.032}px Arial`;ctx.textAlign='center';ctx.fillText('ELEVEN TOWNS. NO PLAN TO STAY.',w*.5,h*.16);
+      }},
+      { dur:5, text:'The flu hits. The barn becomes a sickroom overnight.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0a0a18','#1a1420');
+        ctx.fillStyle='#3a2a1a';ctx.fillRect(0,h*.7,w,h*.3);
+        ctx.fillStyle='#2a1c10';ctx.beginPath();ctx.moveTo(w*.2,h*.7);ctx.lineTo(w*.5,h*.3);ctx.lineTo(w*.8,h*.7);ctx.closePath();ctx.fill();
+        _cLantern(ctx,w*.5,h*.6,h*.3,t);
+        _cDoc(ctx,w*.42,h*.62,h*.18,t,true);
+        ctx.fillStyle='#8a6a4a';ctx.beginPath();ctx.ellipse(w*.6,h*.68,w*.07,h*.03,0,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#8a6a4a';ctx.beginPath();ctx.ellipse(w*.72,h*.68,w*.07,h*.03,0,0,Math.PI*2);ctx.fill();
+        const ia=.5+.5*Math.sin(t*2);ctx.fillStyle=`rgba(255,160,80,${ia*.8})`;ctx.font=`bold ${h*.038}px Arial`;ctx.textAlign='center';ctx.fillText('THIRTY-ONE PATIENTS, ONE DOCTOR',w*.5,h*.18);
+      }},
+      { dur:5, text:'A trapper\'s son. A fever that wouldn\'t break. Snow off the roof.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#000410','#080818');_cStars(ctx,w,h,t,40);
+        ctx.fillStyle='#0a0a12';ctx.fillRect(0,h*.72,w,h*.28);
+        _cLantern(ctx,w*.3,h*.5,h*.22,t);
+        _cDoc(ctx,w*.35,h*.6,h*.17,t,true);
+        ctx.fillStyle='#c8d8f0';ctx.beginPath();ctx.roundRect(w*.55,h*.62,w*.16,h*.08,h*.02);ctx.fill();
+        for(let i=0;i<24;i++){const sx=(i*53.7+t*30)%w,sy=(i*29.3+t*70)%(h*.7);ctx.fillStyle='rgba(230,240,255,.7)';ctx.beginPath();ctx.arc(sx,sy,1.6,0,Math.PI*2);ctx.fill();}
+        const fa=.4+.4*Math.sin(t*4);ctx.fillStyle=`rgba(140,200,255,${fa})`;ctx.font=`bold ${h*.036}px Arial`;ctx.textAlign='center';ctx.fillText('PACKING SNOW AGAINST THE FEVER',w*.5,h*.18);
+      }},
+      { dur:5, text:'A grand hospital offered her everything — except the people she already knew.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#1a1428','#0a0818');_cStars(ctx,w,h,t,50);
+        _cCity(ctx,w,h,true);
+        ctx.fillStyle='#3a2a1a';ctx.beginPath();ctx.moveTo(w*.15,h*.7);ctx.lineTo(w*.28,h*.4);ctx.lineTo(w*.4,h*.7);ctx.closePath();ctx.fill();
+        _cLantern(ctx,w*.27,h*.55,h*.15,t);
+        _cDoc(ctx,w*.5,h*.62,h*.2,t,false);
+        const ga=.5+.3*Math.sin(t*1.5);ctx.strokeStyle=`rgba(150,200,255,${ga})`;ctx.setLineDash([5,5]);ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(w*.5,h*.6);ctx.lineTo(w*.75,h*.35);ctx.stroke();ctx.setLineDash([]);
+        ctx.fillStyle=`rgba(150,200,255,${ga})`;ctx.font=`${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('A CITY HOSPITAL. THREE TIMES THE PAY.',w*.5,h*.2);
+      }},
+      { dur:6, text:'Her hand on a tiny chest. The fever broke. So did a decade of leaving.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#080810','#100818');
+        ctx.fillStyle='#1a140a';ctx.fillRect(0,h*.75,w,h*.25);
+        _cLantern(ctx,w*.5,h*.42,h*.34,t);
+        _cDoc(ctx,w*.42,h*.6,h*.2,t,true);
+        ctx.fillStyle='#e8d8c0';ctx.beginPath();ctx.roundRect(w*.55,h*.62,w*.12,h*.07,h*.02);ctx.fill();
+        if(t>3){const fa=Math.min(1,(t-3)*.7);ctx.fillStyle=`rgba(255,220,150,${fa})`;ctx.font=`bold ${h*.045}px Arial`;ctx.textAlign='center';ctx.fillText('"She\'s going to be alright."',w*.5,h*.18);}
+      }},
+      { dur:5, text:'Neighbors turned a barn into a clinic, board by board.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#87ceeb','#c8e8ff');_cSun(ctx,w*.85,h*.15,h*.06,t);
+        ctx.fillStyle='#4a8e2c';ctx.fillRect(0,h*.72,w,h*.28);
+        _cCabin(ctx,w*.5,h*.72,w*.42,h*.32,1,t);
+        _cMason(ctx,w*.22,h*.62,h*.18,t,true);
+        _cDoc(ctx,w*.78,h*.6,h*.17,t,false);
+        ctx.font=`${h*.04}px Arial`;ctx.textAlign='center';ctx.fillText('🔨',w*.35,h*.5+Math.sin(t*4)*h*.02);
+        ctx.fillStyle='rgba(60,90,40,.85)';ctx.font=`bold ${h*.032}px Arial`;ctx.fillText('A WHOLE STREET, BUILDING TOGETHER',w*.5,h*.18);
+      }},
+      { dur:5, text:'Decades later, the beam she once counted nights under still holds the roof.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#f0e8d8','#d8c8a8');
+        ctx.fillStyle='#c8b088';ctx.fillRect(0,h*.7,w,h*.3);
+        _cCabin(ctx,w*.3,h*.7,w*.35,h*.4,2,t);
+        _cDoc(ctx,w*.62,h*.6,h*.19,t,false);
+        ctx.strokeStyle='#8a6a4a';ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(w*.75,h*.42);ctx.lineTo(w*.95,h*.4);ctx.stroke();
+        _cSettler(ctx,w*.78,h*.6,h*.17,t,false,false);
+        ctx.fillStyle='rgba(90,60,30,.85)';ctx.font=`${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('"I never left again."',w*.5,h*.18);
+      }},
+      { dur:5, text:'Explox General. Built by a doctor who finally stopped leaving. THE END.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#87ceeb','#ffe0b2');_cSun(ctx,w*.85,h*.14,h*.065,t);
+        ctx.fillStyle='#e8e8e8';ctx.fillRect(w*.2,h*.32,w*.6,h*.4);
+        for(let r=0;r<3;r++)for(let c=0;c<5;c++){ctx.fillStyle='rgba(120,180,255,.5)';ctx.fillRect(w*.24+c*w*.11,h*.38+r*h*.11,w*.07,h*.06);}
+        ctx.fillStyle='#c62828';ctx.font=`${h*.05}px Arial`;ctx.textAlign='center';ctx.fillText('➕',w*.5,h*.3);
+        _cDoc(ctx,w*.35,h*.78,h*.16,t,false);_cSettler(ctx,w*.5,h*.78,h*.15,t,false,false);_cSettler(ctx,w*.65,h*.78,h*.16,t,true,false);
+        _cConfetti(ctx,w,h,t,40);
+        if(t>2.5){const fa=Math.min(1,(t-2.5)*.8);ctx.fillStyle=`rgba(255,255,255,${fa*.9})`;ctx.font=`bold ${h*.06}px Arial`;ctx.fillText('THE END',w*.5,h*.2);}
+      }},
+    ]
+  },
+  { title:'The Wall That Became a Prison', genre:'🧱 Frontier Drama', price:28, bg:'#171310', icons:'🧱⚖️🔑',
+    trailer:[
+      {text:'🧱 He built walls that told the truth about the man who built them.', dur:2500},
+      {text:'🔨 Then the town asked him to build one that could hold a person.', dur:2300},
+      {text:'🔑 He said yes — on one condition. Every wall needs a door.', dur:2300},
+      {text:'⚖️ THE WALL THAT BECAME A PRISON', dur:2800},
+    ],
+    scenes:[
+      { dur:5, text:'A crooked stone always tells on you. His father made him learn it early.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#c8a860','#e8d0a0');
+        ctx.fillStyle='#8a7050';ctx.fillRect(0,h*.72,w,h*.28);
+        _cWallRise(ctx,w*.5,h*.72,w*.3,h*.22,.35,false);
+        _cJake(ctx,w*.42,h*.64,h*.15,t);
+        _cMason(ctx,w*.68,h*.6,h*.19,t,false);
+        ctx.fillStyle='rgba(80,50,20,.85)';ctx.font=`${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('"Do it again. Slower this time."',w*.5,h*.18);
+      }},
+      { dur:5, text:'Every wall taught him something about what people were afraid of losing.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#87ceeb','#c8e8ff');_cSun(ctx,w*.85,h*.14,h*.06,t);
+        ctx.fillStyle='#5a9e3c';ctx.fillRect(0,h*.72,w,h*.28);
+        _cWallRise(ctx,w*.28,h*.75,w*.24,h*.16,.6,false);
+        _cWallRise(ctx,w*.68,h*.75,w*.24,h*.2,.8,false);
+        ctx.font=`${h*.05}px Arial`;ctx.textAlign='center';ctx.fillText('🐐',w*.28,h*.66+Math.sin(t*3)*h*.01);
+        ctx.font=`${h*.045}px Arial`;ctx.fillText('🌾',w*.68,h*.62);
+        _cMason(ctx,w*.48,h*.65,h*.18,t,true);
+        ctx.fillStyle='rgba(40,60,20,.85)';ctx.font=`bold ${h*.03}px Arial`;ctx.fillText('GOAT PENS. GARDEN WALLS. COUNTING ROOMS.',w*.5,h*.18);
+      }},
+      { dur:5, text:'Three stolen hammers later, he built his first wall to keep somebody OUT.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0a0a16','#161020');_cStars(ctx,w,h,t,40);
+        ctx.fillStyle='#2a2015';ctx.fillRect(0,h*.72,w,h*.28);
+        ctx.strokeStyle='#5a4a30';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(w*.55,h*.72);ctx.lineTo(w*.55,h*.45);ctx.lineTo(w*.85,h*.4);ctx.lineTo(w*.85,h*.72);ctx.stroke();
+        ctx.fillStyle='#8a6800';ctx.beginPath();ctx.arc(w*.6,h*.5,h*.008,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(w*.68,h*.5,h*.008,0,Math.PI*2);ctx.fill();
+        const prog=Math.min(1,.2+t*.15);_cWallRise(ctx,w*.32,h*.75,w*.32,h*.24,prog,false);
+        _cMason(ctx,w*.32,h*.58,h*.19,t,true);
+        const ia=.4+.4*Math.sin(t*3);ctx.fillStyle=`rgba(255,120,60,${ia})`;ctx.font=`bold ${h*.034}px Arial`;ctx.textAlign='center';ctx.fillText('SOMEBODY WAS WALKING HIS YARD AT NIGHT',w*.5,h*.18);
+      }},
+      { dur:5, text:'Build something that\'s never stood in Explox before, she said. A wall to hold a person.', draw(ctx,w,h,t){
+        const dk=Math.min(1,t*.15);
+        _cBg(ctx,w,h,`rgb(${180-100*dk|0},${110-70*dk|0},${70-50*dk|0})`,`rgb(${60-40*dk|0},${40-25*dk|0},${50-30*dk|0})`);
+        ctx.fillStyle='#3a2e18';ctx.fillRect(0,h*.75,w,h*.25);
+        _cOak(ctx,w*.48,h*.72,h*.5,t);
+        _cGrandma(ctx,w*.28,h*.68,h*.2,t,false);
+        _cMason(ctx,w*.62,h*.66,h*.2,t,false);
+        ctx.fillStyle=`rgba(220,190,150,${.6+.3*Math.sin(t*1.5)})`;ctx.font=`${h*.028}px Arial`;ctx.textAlign='center';ctx.fillText('"Everyone knows you build the best walls in this town."',w*.5,h*.16);
+      }},
+      { dur:6, text:'A wall around a shed protects something. A wall around a person felt like something else.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#040814','#0a1428');_cStars(ctx,w,h,t,60);
+        ctx.fillStyle='#0a0e1a';ctx.fillRect(0,h*.75,w,h*.25);
+        _cWallRise(ctx,w*.2,h*.78,w*.16,h*.12,1,false);
+        _cWallRise(ctx,w*.42,h*.78,w*.16,h*.14,1,false);
+        _cWallRise(ctx,w*.64,h*.78,w*.16,h*.1,1,false);
+        const wx=w*(.15+Math.min(.6,t*.09));
+        _cMason(ctx,wx,h*.66,h*.18,t,false);
+        ctx.strokeStyle='rgba(120,160,220,.3)';ctx.lineWidth=1;for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(wx,h*.66-h*.1,h*.06+i*h*.03,0,Math.PI*2);ctx.stroke();}
+        ctx.fillStyle='rgba(150,180,230,.85)';ctx.font=`${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('DOES IT BOTHER YOU, BUILDING SOMETHING TO HOLD A PERSON?',w*.5,h*.18);
+      }},
+      { dur:6, text:'One condition: every wall of his needs a door. He laid this one, stone by careful stone.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0a0810','#140a10');_cStars(ctx,w,h,t,30);
+        _cLantern(ctx,w*.72,h*.5,h*.22,t);
+        const prog=Math.min(1,t*.17);
+        _cWallRise(ctx,w*.42,h*.78,w*.38,h*.4,prog,true);
+        _cMason(ctx,w*.28,h*.66,h*.2,t,true);
+        ctx.fillStyle='rgba(255,210,150,.8)';ctx.font=`${h*.028}px Arial`;ctx.textAlign='center';ctx.fillText('EVERY WALL OF MINE HAS A DOOR.',w*.5,h*.18);
+      }},
+      { dur:5, text:'The door opened. He said the wall\'s only job was to give a person room to change.', draw(ctx,w,h,t){
+        const wm=Math.min(1,t*.3);
+        _cBg(ctx,w,h,`rgb(${40+160*wm|0},${30+120*wm|0},${60+90*wm|0})`,`rgb(${90+140*wm|0},${70+110*wm|0},${100+80*wm|0})`);
+        _cSun(ctx,w*.82,h*.22,h*.05,t);
+        _cWallRise(ctx,w*.35,h*.78,w*.32,h*.36,1,true);
+        ctx.fillStyle='rgba(255,235,190,.9)';ctx.fillRect(w*.35-w*.045,h*.6,w*.09,h*.18);
+        const px=w*(.35+Math.min(.28,Math.max(0,(t-1)*.14)));
+        ctx.fillStyle='#c9986a';ctx.beginPath();ctx.arc(px,h*.62,h*.07,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#8a6a4a';ctx.beginPath();ctx.roundRect(px-h*.05,h*.66,h*.1,h*.14,h*.02);ctx.fill();
+        _cMason(ctx,w*.68,h*.66,h*.2,t,false);
+        ctx.fillStyle='rgba(90,60,30,.85)';ctx.font=`${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('"I never thanked you for the window."',w*.5,h*.18);
+      }},
+      { dur:5, text:'Two crossed chisels, passed hand to hand. "He asked first."', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#3a2818','#6a4a2c');_cSun(ctx,w*.18,h*.18,h*.05,t);
+        ctx.fillStyle='#5a8e3c';ctx.fillRect(0,h*.74,w,h*.26);
+        ctx.fillStyle='#9a9488';ctx.beginPath();ctx.roundRect(w*.42,h*.5,w*.16,h*.26,h*.02);ctx.fill();
+        ctx.save();ctx.translate(w*.5,h*.58);ctx.rotate(.5);ctx.fillStyle='#5a5248';ctx.fillRect(-h*.012,-h*.05,h*.024,h*.1);ctx.restore();
+        ctx.save();ctx.translate(w*.5,h*.58);ctx.rotate(-.5);ctx.fillStyle='#5a5248';ctx.fillRect(-h*.012,-h*.05,h*.024,h*.1);ctx.restore();
+        ctx.fillStyle='#3a342a';ctx.font=`${h*.02}px Arial`;ctx.textAlign='center';ctx.fillText('HE ASKED FIRST',w*.5,h*.68);
+        _cSettler(ctx,w*.72,h*.68,h*.18,t,true,false);
+        for(let i=0;i<14;i++){const px=(i*67.3%1)*w,py=((i*41.7%1+t*.1)%1)*h*.7,a=.3+.3*Math.sin(t+i);ctx.fillStyle=`rgba(200,170,90,${a})`;ctx.save();ctx.translate(px,py);ctx.rotate(t+i);ctx.beginPath();ctx.ellipse(0,0,h*.01,h*.005,0,0,Math.PI*2);ctx.fill();ctx.restore();}
+        ctx.fillStyle='rgba(255,240,210,.85)';ctx.font=`bold ${h*.03}px Arial`;ctx.fillText('THE MARK PASSED ON. THREE GENERATIONS DEEP.',w*.5,h*.18);
+      }},
+    ]
+  },
+  { title:'The First House', genre:'🏡 Pioneer Romance', price:25, bg:'#3a2410', icons:'🏡🌅❤️',
+    trailer:[
+      {text:'🏡 Two people. A wagon. Not one wall built yet.', dur:2300},
+      {text:'🌍 Four towns already had somebody\'s plans. They wanted a blank page.', dur:2500},
+      {text:'❄️ Then came the loneliest winter either of them ever survived.', dur:2300},
+      {text:'❤️ THE FIRST HOUSE', dur:2600},
+    ],
+    scenes:[
+      { dur:5, text:'Three years behind a curtain. She wanted a door only they decided who to open.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#3a2818','#5a3c22');
+        ctx.fillStyle='#6b4a2a';ctx.fillRect(0,h*.7,w,h*.3);
+        ctx.fillStyle='#8a6a4a';ctx.fillRect(w*.1,h*.3,w*.8,h*.4);
+        const sway=Math.sin(t*.8)*w*.01;
+        ctx.fillStyle='rgba(180,60,60,.55)';ctx.fillRect(w*.55+sway,h*.32,w*.3,h*.38);
+        _cSettler(ctx,w*.35,h*.62,h*.18,t,false,false);_cSettler(ctx,w*.5,h*.62,h*.18,t,true,false);
+        ctx.fillStyle='rgba(230,210,180,.85)';ctx.font=`${h*.028}px Arial`;ctx.textAlign='center';ctx.fillText('"I want to build something that\'s ours."',w*.5,h*.18);
+      }},
+      { dur:5, text:'Four towns, four good offers. None of them a blank page.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#a8c8e8','#e0f0ff');
+        ctx.fillStyle='#5a9e3c';ctx.fillRect(0,h*.7,w,h*.3);
+        for(let i=0;i<5;i++){const fx=((i*.22+.05)*w - (t*w*.15)%w+w)%w;ctx.strokeStyle='rgba(90,70,40,.5)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(fx,h*.72);ctx.lineTo(fx,h*.62);ctx.stroke();ctx.beginPath();ctx.moveTo(fx,h*.66);ctx.lineTo(fx+w*.05,h*.66);ctx.stroke();}
+        const wx=w*.3;
+        ctx.fillStyle='#6b4a2a';ctx.fillRect(wx-w*.06,h*.6,w*.14,h*.08);
+        ctx.fillStyle='#3a2a1a';ctx.beginPath();ctx.arc(wx-w*.03,h*.7,h*.025,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(wx+w*.05,h*.7,h*.025,0,Math.PI*2);ctx.fill();
+        _cSettler(ctx,wx-w*.09,h*.58,h*.14,t,true,false);
+        ctx.fillStyle='rgba(40,60,30,.85)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('EVERY TOWN ALREADY HAD A PLAN',w*.5,h*.18);
+      }},
+      { dur:5, text:'A rise above the river, facing east. "This is it," she said.', draw(ctx,w,h,t){
+        const r1=Math.min(255,120+t*20)|0;
+        _cBg(ctx,w,h,`rgb(${r1},160,110)`,'#87ceeb');
+        _cSun(ctx,w*.75,h*(.4-t*.03),h*.07,t);
+        ctx.fillStyle='#4a7ab0';ctx.beginPath();ctx.moveTo(0,h*.78);ctx.quadraticCurveTo(w*.5,h*.7,w,h*.8);ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();ctx.fill();
+        ctx.fillStyle='#6a9e4c';ctx.beginPath();ctx.ellipse(w*.4,h*.68,w*.32,h*.14,0,0,Math.PI*2);ctx.fill();
+        _cSettler(ctx,w*.32,h*.6,h*.19,t,false,false);_cSettler(ctx,w*.52,h*.6,h*.19,t,true,true);
+        ctx.fillStyle='#3a2a18';ctx.beginPath();ctx.ellipse(w*.42,h*.72,h*.025,h*.012,0,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#c8a860';ctx.beginPath();ctx.arc(w*.42,h*.71,h*.018,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='rgba(255,255,240,.9)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('THE CLAY BOWL, BURIED AT THE CORNERSTONE',w*.5,h*.18);
+      }},
+      { dur:5, text:'One peg at a time — the only way anything that big ever gets built.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#87ceeb','#c8e8ff');_cSun(ctx,w*.85,h*.14,h*.06,t);
+        ctx.fillStyle='#5a9e3c';ctx.fillRect(0,h*.74,w,h*.26);
+        _cCabin(ctx,w*.5,h*.74,w*.42,h*.32,0,t);
+        _cSettler(ctx,w*.3,h*.64,h*.18,t,true,true);
+        _cSettler(ctx,w*.7,h*.64,h*.17,t,false,true);
+        ctx.fillStyle='rgba(40,60,20,.85)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('JUST ONE MORE PEG',w*.5,h*.18);
+      }},
+      { dur:6, text:'A twisted ankle. A quarter mile of snow. The loneliest winter either of them survived.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0a1020','#141c30');
+        for(let i=0;i<40;i++){const sx=(i*53.1+t*30)%w,sy=(i*29.7+t*80)%h;ctx.fillStyle='rgba(220,230,255,.75)';ctx.beginPath();ctx.arc(sx,sy,1.8,0,Math.PI*2);ctx.fill();}
+        ctx.fillStyle='#1a2030';ctx.fillRect(0,h*.78,w,h*.22);
+        _cLantern(ctx,w*.5,h*.6,h*.16,t);
+        const dx=w*(.3+Math.min(.35,t*.06));
+        _cSettler(ctx,dx,h*.72,h*.16,t,false,true);
+        ctx.save();ctx.translate(dx+h*.1,h*.76);ctx.rotate(1.3);_cSettler(ctx,0,0,h*.14,t,true,false);ctx.restore();
+        const ca=.4+.4*Math.sin(t*3);ctx.fillStyle=`rgba(160,190,255,${ca})`;ctx.font=`bold ${h*.032}px Arial`;ctx.textAlign='center';ctx.fillText('DRAGGING HIM HOME THROUGH THE DARK',w*.5,h*.18);
+      }},
+      { dur:5, text:'Smoke from a chimney where there had been nothing but forest. They weren\'t alone anymore.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#a8d8f0','#d8f0ff');_cSun(ctx,w*.82,h*.15,h*.06,t);
+        ctx.fillStyle='#5a9e3c';ctx.fillRect(0,h*.74,w,h*.26);
+        _cCabin(ctx,w*.32,h*.74,w*.32,h*.3,2,t);
+        const wx=w*(.7+Math.min(.15,t*.02));
+        ctx.fillStyle='#6b4a2a';ctx.fillRect(wx-w*.05,h*.66,w*.12,h*.07);
+        ctx.fillStyle='#3a2a1a';ctx.beginPath();ctx.arc(wx-w*.02,h*.75,h*.02,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(wx+w*.05,h*.75,h*.02,0,Math.PI*2);ctx.fill();
+        _cSettler(ctx,w*.5,h*.64,h*.16,t,false,false);_cSettler(ctx,w*.6,h*.64,h*.15,t,true,false);
+        ctx.fillStyle='rgba(30,50,20,.85)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('A SECOND FAMILY, COMING UP THE RIVER',w*.5,h*.18);
+      }},
+      { dur:5, text:'Every road in the city still bends around where the first house stood.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#ffcc88','#ff9955');_cSun(ctx,w*.2,h*.2,h*.06,t);
+        ctx.fillStyle='#4a6e2c';ctx.fillRect(0,h*.72,w,h*.28);
+        _cCabin(ctx,w*.16,h*.72,w*.2,h*.24,2,t);
+        ctx.fillStyle='#8a6a4a';ctx.fillRect(w*.4,h*.7,w*.3,h*.03);
+        const people=[[.42,false],[.5,true],[.58,false],[.66,true],[.36,false]];
+        people.forEach(([px,male],i)=>_cSettler(ctx,w*px,h*.66,h*.13,t+i,male,false));
+        _cJake(ctx,w*.76,h*.72,h*.11,t);
+        ctx.fillStyle='rgba(255,240,220,.9)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('THE RISE SUPPER — EVERY YEAR SINCE',w*.5,h*.18);
+      }},
+      { dur:5, text:'They took it apart with love. The blank page had finally been fully written. THE END.', draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#ffe0b2','#ffb877');_cSun(ctx,w*.8,h*.16,h*.055,t);
+        ctx.fillStyle='#6a9e4c';ctx.fillRect(0,h*.74,w,h*.26);
+        ctx.globalAlpha=Math.max(.15,1-t*.15);_cCabin(ctx,w*.32,h*.74,w*.3,h*.28,1,t);ctx.globalAlpha=1;
+        _cSettler(ctx,w*.62,h*.68,h*.16,t*.3,false,false);_cSettler(ctx,w*.72,h*.68,h*.16,t*.3,true,false);
+        ctx.fillStyle='#c8a860';ctx.beginPath();ctx.arc(w*.5,h*.7,h*.02,0,Math.PI*2);ctx.fill();
+        _cConfetti(ctx,w,h,t,30);
+        if(t>2.5){const fa=Math.min(1,(t-2.5)*.8);ctx.fillStyle=`rgba(255,255,255,${fa*.9})`;ctx.font=`bold ${h*.06}px Arial`;ctx.textAlign='center';ctx.fillText('THE END',w*.5,h*.22);}
+      }},
+    ]
+  },
+  { title:'Wings Over Explox', genre:'✈️ Family Adventure', price:35, bg:'#132a44', icons:'🛫🗺️🌊',
+    trailer:[
+      {text:'🌊 The ocean took her husband...',                dur:2200},
+      {text:'🔧 So she built a plane from scavenged scrap.',     dur:2400},
+      {text:'✈️ Eight countries. One promise to her kids.',      dur:2400},
+      {text:'🛫 WINGS OVER EXPLOX',                              dur:3000},
+    ],
+    scenes:(function(){
+      function plane(ctx,x,y,sz,ang,smoke){
+        ctx.save();ctx.translate(x,y);ctx.rotate(ang||0);
+        ctx.fillStyle='#c9b27a';ctx.fillRect(-sz*.06,-sz*.5,sz*.12,sz*1.0);
+        ctx.fillStyle='#a97c4f';ctx.beginPath();ctx.ellipse(0,0,sz*.55,sz*.14,0,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#8a6a3a';ctx.beginPath();ctx.moveTo(-sz*.5,0);ctx.lineTo(-sz*.68,-sz*.24);ctx.lineTo(-sz*.42,-sz*.05);ctx.closePath();ctx.fill();
+        ctx.fillStyle='rgba(160,225,255,.75)';ctx.beginPath();ctx.arc(sz*.14,-sz*.02,sz*.09,0,Math.PI*2);ctx.fill();
+        ctx.strokeStyle='rgba(90,90,90,.6)';ctx.lineWidth=sz*.03;ctx.beginPath();ctx.ellipse(sz*.58,0,sz*.03,sz*.22,0,0,Math.PI*2);ctx.stroke();
+        if(smoke){for(let i=0;i<6;i++){const sa=Math.max(0,.5-i*.08);ctx.fillStyle=`rgba(40,40,40,${sa})`;ctx.beginPath();ctx.arc(-sz*.6-i*sz*.16,-i*sz*.05,sz*.07+i*sz*.012,0,Math.PI*2);ctx.fill();}}
+        ctx.restore();
+      }
+      function person(ctx,x,y,sz,shirt,skin,hair){
+        ctx.fillStyle=shirt;ctx.beginPath();ctx.roundRect(x-sz*.16,y-sz*.04,sz*.32,sz*.46,sz*.08);ctx.fill();
+        ctx.fillStyle=skin;ctx.beginPath();ctx.arc(x,y-sz*.2,sz*.18,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle=hair;ctx.beginPath();ctx.arc(x,y-sz*.26,sz*.19,Math.PI,Math.PI*2);ctx.fill();
+      }
+      return [
+      {dur:5,text:'Warrick sails past the horizon... and never sails home.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0a1a2a','#03080f');
+        ctx.fillStyle='#08202e';ctx.fillRect(0,h*.62,w,h*.38);
+        for(let i=0;i<5;i++){ctx.strokeStyle='rgba(120,170,200,.25)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,h*(.66+i*.055)+Math.sin(t+i)*3);ctx.lineTo(w,h*(.66+i*.055)+Math.cos(t+i)*3);ctx.stroke();}
+        ctx.fillStyle='#3a2a18';ctx.fillRect(w*.06,h*.6,w*.18,h*.05);
+        person(ctx,w*.13,h*.6,h*.22,'#7b1fa2','#e6a866','#3a2510');
+        person(ctx,w*.18,h*.62,h*.13,'#2a7ab0','#e6a866','#241408');
+        const bx=w*.2+t*w*.13,by=h*.63-t*h*.02,bs=Math.max(2,h*.05-t*h*.008);
+        ctx.fillStyle='#5a4028';ctx.beginPath();ctx.moveTo(bx-bs,by);ctx.lineTo(bx+bs,by);ctx.lineTo(bx+bs*.5,by+bs*.5);ctx.lineTo(bx-bs*.5,by+bs*.5);ctx.closePath();ctx.fill();
+        ctx.strokeStyle='#eee';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(bx,by-bs*1.6);ctx.stroke();
+        for(let i=0;i<3;i++)_cBird(ctx,w*(.5+i*.1),h*.2+Math.sin(t+i)*5,h*.012,t+i);
+        ctx.fillStyle='rgba(200,220,255,.85)';ctx.font=`bold ${h*.032}px Arial`;ctx.textAlign='center';ctx.fillText('The leaves finished turning. He never came home.',w*.5,h*.15);
+      }},
+      {dur:5,text:'At the Scrapyard, Rosalind makes a promise: "The sky never had him."',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#1a1810','#08070a');
+        [[.06,.62,.18,.32,'#3a3a44'],[.28,.68,.15,.26,'#333340'],[.55,.6,.2,.32,'#2e2e38'],[.8,.66,.15,.22,'#3a3a44']].forEach(([x,y,ww,hh,c])=>{ctx.fillStyle=c;ctx.fillRect(w*x,h*y,w*ww,h*hh);});
+        for(let i=0;i<8;i++){ctx.strokeStyle='rgba(160,160,170,.5)';ctx.lineWidth=2;const sx=w*(.08+i*.1),sy=h*.6-((i*53)%40);ctx.beginPath();ctx.arc(sx,sy,h*.014,0,Math.PI*2);ctx.stroke();}
+        person(ctx,w*.35,h*.72,h*.24,'#5a4a3a','#e6b083','#4a2f1a');
+        ctx.strokeStyle='#8899aa';ctx.lineWidth=3;ctx.save();ctx.translate(w*.4,h*.62);ctx.rotate(Math.sin(t*2)*.3);ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(w*.03,h*.03);ctx.stroke();ctx.restore();
+        const fa=.3+.3*Math.sin(t*1.5);
+        ctx.strokeStyle=`rgba(120,200,255,${fa})`;ctx.lineWidth=2;
+        ctx.strokeRect(w*.55,h*.32,w*.32,h*.1);
+        ctx.beginPath();ctx.moveTo(w*.6,h*.37);ctx.lineTo(w*.92,h*.37);ctx.stroke();
+        ctx.fillStyle=`rgba(150,220,255,${.6+.3*Math.sin(t*2)})`;ctx.font=`${h*.024}px Arial`;ctx.textAlign='center';ctx.fillText('"The ocean had Warrick. The sky never had."',w*.5,h*.86);
+      }},
+      {dur:5,text:'Three years of scavenged metal become the Kade.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#241a10','#0c0805');
+        ctx.fillStyle='#443322';ctx.fillRect(0,h*.78,w,h*.22);
+        ctx.globalAlpha=Math.min(1,t*.6);
+        ctx.fillStyle='#c9b27a';ctx.fillRect(w*.5-w*.03,h*.5-h*.28,w*.06,h*.56);
+        ctx.globalAlpha=Math.min(1,Math.max(0,(t-1)*.6));
+        ctx.fillStyle='#a97c4f';ctx.beginPath();ctx.ellipse(w*.5,h*.6,w*.24,h*.07,0,0,Math.PI*2);ctx.fill();
+        ctx.globalAlpha=Math.min(1,Math.max(0,(t-2)*.7));
+        ctx.strokeStyle='rgba(90,90,90,.8)';ctx.lineWidth=w*.012;ctx.beginPath();ctx.ellipse(w*.5+w*.24,h*.6,w*.015,h*.11,0,0,Math.PI*2);ctx.stroke();
+        ctx.globalAlpha=1;
+        person(ctx,w*.24,h*.7,h*.24,'#33bb77','#f5c89a','#4a2f1a');
+        person(ctx,w*.72,h*.72,h*.22,'#5a4a3a','#e6b083','#241408');
+        for(let i=0;i<6;i++){const sp=(t*2+i)%1;ctx.fillStyle=`rgba(255,200,80,${1-sp})`;ctx.beginPath();ctx.arc(w*.5+Math.cos(i)*w*.06,h*.6+Math.sin(i)*h*.04-sp*h*.05,h*.006,0,Math.PI*2);ctx.fill();}
+        ctx.fillStyle='rgba(255,220,150,.85)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('Piece by piece. Nothing wasted. The Kade takes shape.',w*.5,h*.18);
+      }},
+      {dur:5,text:'First flight — engine smoke, a hard bounce, and "a coffin with wings."',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#4a7ab0','#274a70');
+        ctx.fillStyle='#3d8b3d';ctx.fillRect(0,h*.7,w,h*.3);
+        for(let i=0;i<5;i++)person(ctx,w*(.1+i*.06),h*.78,h*.1,'#888','#e6b083','#333');
+        const rise=Math.min(1,t*.6),px=w*.2+t*w*.12,py=h*.7-Math.sin(rise*Math.PI)*h*.28;
+        plane(ctx,px,py,h*.16,-rise*.3+Math.sin(t*3)*.03,t>2);
+        if(t>2){ctx.fillStyle='rgba(255,255,255,.92)';ctx.strokeStyle='#333';ctx.lineWidth=2;ctx.beginPath();ctx.roundRect(w*.58,h*.15,w*.34,h*.14,8);ctx.fill();ctx.stroke();ctx.fillStyle='#333';ctx.font=`${h*.022}px Arial`;ctx.textAlign='center';ctx.fillText('"A coffin with wings!" — Percival Nash',w*.75,h*.22);}
+      }},
+      {dur:5,text:'Engine seized over open ocean — six hours alone on a bare rock.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0a2030','#010508');_cStars(ctx,w,h,t,Math.min(70,t*20));
+        ctx.fillStyle='#08202e';ctx.fillRect(0,h*.7,w,h*.3);
+        ctx.fillStyle='#5a5548';ctx.beginPath();ctx.ellipse(w*.5,h*.74,w*.1,h*.03,0,0,Math.PI*2);ctx.fill();
+        plane(ctx,w*.5,h*.68,h*.15,-.15,false);
+        person(ctx,w*.5,h*.6,h*.16,'#7b1fa2','#e6a866','#3a2510');
+        if(t>2){const bx=w*(.05+Math.min(.85,(t-2)*.2)),bl=.5+.5*Math.sin(t*6);ctx.fillStyle=`rgba(255,230,150,${bl})`;ctx.beginPath();ctx.arc(bx,h*.5,h*.012,0,Math.PI*2);ctx.fill();}
+        ctx.fillStyle='rgba(200,220,255,.85)';ctx.font=`bold ${h*.028}px Arial`;ctx.textAlign='center';ctx.fillText('Six hours on a rock in the middle of the sea...',w*.5,h*.18);
+      }},
+      {dur:5,text:'JAPAN! The fifth flight finally reaches the far shore.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#8fc7e8','#3d7ab0');
+        ctx.fillStyle='#4a8a4a';ctx.beginPath();ctx.moveTo(w*.55,h*.65);ctx.quadraticCurveTo(w*.75,h*.5,w,h*.6);ctx.lineTo(w,h);ctx.lineTo(w*.5,h);ctx.closePath();ctx.fill();
+        ctx.fillStyle='#d8c8a0';ctx.fillRect(0,h*.78,w,h*.22);
+        const lx=Math.min(w*.4,t*w*.1);
+        plane(ctx,lx,h*.75,h*.14,0,false);
+        for(let i=0;i<4;i++)person(ctx,w*(.62+i*.07),h*.84,h*.09,i%2?'#c0392b':'#2a7ab0','#e6b083','#241408');
+        if(t>3){ctx.fillStyle='#e94560';ctx.save();ctx.translate(w*.7,h*.55);ctx.rotate(t*3);ctx.beginPath();ctx.moveTo(0,-8);ctx.lineTo(8,0);ctx.lineTo(0,8);ctx.lineTo(-8,0);ctx.closePath();ctx.fill();ctx.restore();}
+        _cConfetti(ctx,w,h,t,Math.min(40,t*10));
+        ctx.fillStyle='rgba(255,255,255,.92)';ctx.font=`bold ${h*.045}px Arial`;ctx.textAlign='center';ctx.fillText('"Japan," she said. "It\'s real."',w*.5,h*.18);
+      }},
+      {dur:5,text:'France... Brazil... Egypt... the UK... Australia... Canada... Italy — one by one, the map fills in.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#12233a','#08131f');
+        ctx.fillStyle='rgba(120,150,180,.25)';ctx.fillRect(0,h*.7,w,h*.3);
+        const pts=[[.15,.3],[.28,.55],[.42,.25],[.55,.6],[.68,.35],[.8,.5],[.9,.28]];
+        const lit=Math.min(pts.length,Math.floor(t*1.5));
+        pts.forEach(([x,y],i)=>{
+          const on=i<lit;
+          ctx.fillStyle=on?'#ffcc00':'rgba(255,255,255,.2)';
+          ctx.beginPath();ctx.arc(w*x,h*y,on?h*.018:h*.01,0,Math.PI*2);ctx.fill();
+          if(on){const gg=ctx.createRadialGradient(w*x,h*y,0,w*x,h*y,h*.05);gg.addColorStop(0,'rgba(255,220,100,.5)');gg.addColorStop(1,'rgba(255,220,100,0)');ctx.fillStyle=gg;ctx.beginPath();ctx.arc(w*x,h*y,h*.05,0,Math.PI*2);ctx.fill();}
+        });
+        const pi=(t*.7)%pts.length,p0=pts[Math.floor(pi)],p1=pts[(Math.floor(pi)+1)%pts.length],fr=pi-Math.floor(pi);
+        plane(ctx,w*(p0[0]+(p1[0]-p0[0])*fr),h*(p0[1]+(p1[1]-p0[1])*fr),h*.09,Math.atan2((p1[1]-p0[1]),(p1[0]-p0[0])),false);
+        ctx.fillStyle='rgba(255,255,255,.85)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('Eight gates. Eight countries. Eight promises kept.',w*.5,h*.15);
+      }},
+      {dur:5,text:'A real Airport rises. Eight gates, one promise kept eight times over.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#274a70','#0c1a2a');
+        ctx.fillStyle='#445566';ctx.beginPath();ctx.roundRect(w*.2,h*.35,w*.6,h*.32,10);ctx.fill();
+        ctx.fillStyle='#33445a';ctx.beginPath();ctx.moveTo(w*.2,h*.35);ctx.lineTo(w*.5,h*.2);ctx.lineTo(w*.8,h*.35);ctx.closePath();ctx.fill();
+        ctx.fillStyle='#1a2a38';ctx.fillRect(0,h*.72,w,h*.28);
+        for(let i=0;i<8;i++){const lx=w*(.08+i*.115),bl=.4+.6*Math.abs(Math.sin(t*4+i));ctx.fillStyle=`rgba(255,230,120,${bl})`;ctx.beginPath();ctx.arc(lx,h*.8,h*.008,0,Math.PI*2);ctx.fill();}
+        plane(ctx,Math.min(w*.85,w*.1+t*w*.15),h*.78,h*.12,0,false);
+        _cConfetti(ctx,w,h,t,45);
+        if(t>1.5){ctx.fillStyle=`rgba(255,255,255,${Math.min(1,(t-1.5)*.8)})`;ctx.font=`bold ${h*.05}px Arial`;ctx.textAlign='center';ctx.fillText('WINGS OVER EXPLOX',w*.5,h*.15);}
+      }},
+      ];
+    })()
+  },
+  { title:'The Night the Badge Was Made', genre:'🛡️ Hometown Drama', price:25, bg:'#0a0e1a', icons:'🔥🛡️🌙',
+    trailer:[
+      {text:'🌙 Every street took its own turn keeping watch...',   dur:2200},
+      {text:'😱 Until one night, that wasn\'t enough.',              dur:2200},
+      {text:'🔨 A girl. A forge. One melted-down coin.',             dur:2400},
+      {text:'🛡️ THE NIGHT THE BADGE WAS MADE',                      dur:3000},
+    ],
+    scenes:(function(){
+      function person(ctx,x,y,sz,shirt,skin,hair){
+        ctx.fillStyle=shirt;ctx.beginPath();ctx.roundRect(x-sz*.16,y-sz*.04,sz*.32,sz*.46,sz*.08);ctx.fill();
+        ctx.fillStyle=skin;ctx.beginPath();ctx.arc(x,y-sz*.2,sz*.18,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle=hair;ctx.beginPath();ctx.arc(x,y-sz*.26,sz*.19,Math.PI,Math.PI*2);ctx.fill();
+      }
+      function badge(ctx,x,y,r,glow){
+        if(glow>0){const gg=ctx.createRadialGradient(x,y,0,x,y,r*2.4);gg.addColorStop(0,`rgba(255,215,80,${glow})`);gg.addColorStop(1,'rgba(255,215,80,0)');ctx.fillStyle=gg;ctx.beginPath();ctx.arc(x,y,r*2.4,0,Math.PI*2);ctx.fill();}
+        ctx.fillStyle='#caa53a';ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+        ctx.strokeStyle='#8a6a1a';ctx.lineWidth=Math.max(1,r*.12);ctx.beginPath();ctx.arc(x,y,r*.82,0,Math.PI*2);ctx.stroke();
+        ctx.fillStyle='#5a3e10';ctx.font=`bold ${Math.max(6,r*.3)}px Arial`;ctx.textAlign='center';ctx.fillText('ON',x,y-r*.06);ctx.fillText('WATCH',x,y+r*.34);
+      }
+      return [
+      {dur:5,text:'Every street takes its turn keeping watch... but nobody truly knows whose turn it is.',draw(ctx,w,h,t){
+        _cCity(ctx,w,h,true);_cStars(ctx,w,h,t,40);
+        ctx.fillStyle='rgba(255,255,220,.8)';ctx.beginPath();ctx.arc(w*.85,h*.15,h*.045,0,Math.PI*2);ctx.fill();
+        for(let i=0;i<3;i++){const bl=.3+.3*Math.sin(t*1.5+i*2);ctx.fillStyle=`rgba(255,200,100,${bl})`;ctx.beginPath();ctx.arc(w*(.15+i*.3),h*.55,h*.012,0,Math.PI*2);ctx.fill();}
+        ctx.fillStyle='rgba(200,210,230,.85)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('Nobody wrote the schedule down. Nobody was sure whose turn it was.',w*.5,h*.85);
+      }},
+      {dur:5,text:'A Killer slips along the fence — Kwame is caught at the goat pen!',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0a0a12','#020204');_cStars(ctx,w,h,t,20);
+        ctx.strokeStyle='#443322';ctx.lineWidth=4;for(let i=0;i<8;i++){ctx.beginPath();ctx.moveTo(w*(.1+i*.1),h*.68);ctx.lineTo(w*(.1+i*.1),h*.5);ctx.stroke();}
+        person(ctx,w*.35,h*.68,h*.16,'#2a7ab0','#e6a866','#241408');
+        const gp=Math.min(1,t*.6);
+        ctx.fillStyle=`rgba(10,10,10,${.6+.3*gp})`;ctx.beginPath();ctx.ellipse(w*.42+gp*w*.04,h*.6,h*.09,h*.13,0,0,Math.PI*2);ctx.fill();
+        if(t>1.2){const ra=.5+.5*Math.abs(Math.sin(t*8));ctx.fillStyle=`rgba(255,40,40,${ra})`;ctx.font=`bold ${h*.05}px Arial`;ctx.textAlign='center';ctx.fillText('!!',w*.42,h*.42);}
+      }},
+      {dur:5,text:'Priya\'s scream sends the whole street into the night — Kwame lives.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#0a0e18','#03050a');
+        ctx.fillStyle='#1a1a2a';ctx.fillRect(0,h*.6,w,h*.4);
+        const lit=Math.min(4,Math.floor(t*1.2));
+        for(let i=0;i<4;i++){ctx.fillStyle=i<lit?'rgba(255,220,140,.9)':'rgba(60,60,70,.6)';ctx.fillRect(w*(.1+i*.22),h*.4,w*.08,h*.08);}
+        person(ctx,w*.5,h*.75,h*.2,'#7b1fa2','#e6a866','#3a2510');
+        const kb=Math.max(0,1-t*.4);ctx.strokeStyle=`rgba(20,20,20,${kb})`;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(w*.7,h*.75);ctx.lineTo(w*.85+t*w*.05,h*.68-t*h*.02);ctx.stroke();
+        ctx.fillStyle='rgba(255,240,200,.9)';ctx.font=`bold ${h*.035}px Arial`;ctx.textAlign='center';ctx.fillText('It shoved him into the dirt and fled.',w*.5,h*.18);
+      }},
+      {dur:5,text:'"Something you can see from far off," Kwame says. Priya has her answer.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#241a10','#100a06');
+        ctx.fillStyle='#3a2a18';ctx.fillRect(0,h*.7,w,h*.3);
+        person(ctx,w*.35,h*.78,h*.22,'#7b1fa2','#e6a866','#3a2510');
+        person(ctx,w*.6,h*.8,h*.16,'#33bb77','#e6b083','#241408');
+        const glow=.4+.3*Math.sin(t*2);
+        badge(ctx,w*.5,h*.32,h*.09,glow*.6);
+        ctx.fillStyle=`rgba(255,230,160,${.7+.3*Math.sin(t*2)})`;ctx.font=`${h*.026}px Arial`;ctx.textAlign='center';ctx.fillText('"Something you can see from far off."',w*.5,h*.5);
+      }},
+      {dur:5,text:'At the forge, a retired S.I.P. coin becomes a badge: ON WATCH.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#1a0e08','#0a0503');
+        const fg=ctx.createRadialGradient(w*.3,h*.7,0,w*.3,h*.7,h*.24);fg.addColorStop(0,'rgba(255,160,40,.9)');fg.addColorStop(1,'rgba(255,80,0,0)');
+        ctx.fillStyle=fg;ctx.beginPath();ctx.arc(w*.3,h*.7,h*.24,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#2a2a2a';ctx.fillRect(w*.2,h*.78,w*.24,h*.08);
+        person(ctx,w*.55,h*.72,h*.24,'#7b1fa2','#e6a866','#3a2510');
+        for(let i=0;i<5;i++){const sp=(t*3+i*.6)%1;ctx.fillStyle=`rgba(255,210,100,${1-sp})`;ctx.beginPath();ctx.arc(w*.35+Math.cos(i*2)*w*.03,h*.68-sp*h*.1,h*.006,0,Math.PI*2);ctx.fill();}
+        const morph=Math.min(1,t*.35);
+        if(morph<1){ctx.fillStyle='#999';ctx.beginPath();ctx.arc(w*.3,h*.66,h*.045,0,Math.PI*2);ctx.fill();}
+        else badge(ctx,w*.3,h*.66,h*.05,.5+.4*Math.sin(t*3));
+        ctx.fillStyle='rgba(255,220,180,.85)';ctx.font=`bold ${h*.028}px Arial`;ctx.textAlign='center';ctx.fillText('ON WATCH — scratched in with the tip of a nail.',w*.5,h*.16);
+      }},
+      {dur:5,text:'Word spreads. Badge after badge, street after street joins the watch.',draw(ctx,w,h,t){
+        _cCity(ctx,w,h,true);_cStars(ctx,w,h,t,30);
+        const spots=[[.12,.5],[.25,.68],[.4,.45],[.52,.7],[.65,.5],[.78,.65],[.9,.42]];
+        const lit=Math.min(spots.length,Math.floor(t*1.6));
+        spots.forEach(([x,y],i)=>{ if(i<lit) badge(ctx,w*x,h*y,h*.02,.5+.3*Math.sin(t*3+i)); });
+        ctx.fillStyle='rgba(255,255,255,.85)';ctx.font=`bold ${h*.032}px Arial`;ctx.textAlign='center';ctx.fillText('A dozen streets. A dozen badges. One shared watch.',w*.5,h*.15);
+      }},
+      {dur:5,text:'Priya asks City Hall for one thing: a real Police Station.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#2a2418','#141008');
+        ctx.fillStyle='#8a7a5a';ctx.fillRect(w*.3,h*.3,w*.4,h*.5);
+        for(let i=0;i<4;i++){ctx.fillStyle='#6a5a3a';ctx.fillRect(w*(.34+i*.08),h*.34,w*.03,h*.4);}
+        ctx.fillStyle='#5a4a2a';ctx.beginPath();ctx.moveTo(w*.28,h*.3);ctx.lineTo(w*.5,h*.16);ctx.lineTo(w*.72,h*.3);ctx.closePath();ctx.fill();
+        person(ctx,w*.4,h*.82,h*.18,'#7b1fa2','#e6a866','#3a2510');
+        person(ctx,w*.62,h*.82,h*.18,'#334a6a','#e6b083','#221a10');
+        badge(ctx,w*.4,h*.66,h*.03,.4+.4*Math.sin(t*3));
+        ctx.fillStyle='rgba(255,240,220,.85)';ctx.font=`${h*.024}px Arial`;ctx.textAlign='center';ctx.fillText('"Talk to each other — fast enough that it matters."',w*.5,h*.94);
+      }},
+      {dur:5,text:'The Police Station rises. The very first badge still watches from a case by the door.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#1a2030','#0a0e16');
+        ctx.fillStyle='#8a5a3a';ctx.fillRect(w*.25,h*.4,w*.5,h*.42);
+        ctx.fillStyle='#6a4020';ctx.fillRect(w*.44,h*.14,w*.12,h*.28);
+        ctx.fillStyle='#3a2010';ctx.beginPath();ctx.ellipse(w*.5,h*.14,h*.07,h*.05,0,Math.PI,Math.PI*2);ctx.fill();
+        const swing=Math.sin(t*2)*.3;
+        ctx.save();ctx.translate(w*.5,h*.16);ctx.rotate(swing);ctx.fillStyle='#caa53a';ctx.beginPath();ctx.arc(0,h*.03,h*.025,0,Math.PI*2);ctx.fill();ctx.restore();
+        _cConfetti(ctx,w,h,t,40);
+        badge(ctx,w*.5,h*.75,h*.06,.5+.4*Math.sin(t*3));
+        if(t>1.5){ctx.fillStyle=`rgba(255,255,255,${Math.min(1,(t-1.5)*.8)})`;ctx.font=`bold ${h*.04}px Arial`;ctx.textAlign='center';ctx.fillText('ON WATCH — forever.',w*.5,h*.92);}
+      }},
+      ];
+    })()
+  },
+  { title:'Market Day', genre:'🥕 Slice-of-Life Drama', price:20, bg:'#3a2410', icons:'🥕🍞🏪',
+    trailer:[
+      {text:'🌾 One farmer. One folding table. One stubborn idea.', dur:2200},
+      {text:'🍞 Then a baker joined. Then a fisherman.',            dur:2200},
+      {text:'⛈️ Storms couldn\'t stop it. Arguments couldn\'t stop it.', dur:2400},
+      {text:'🏪 MARKET DAY',                                        dur:2600},
+    ],
+    scenes:(function(){
+      function person(ctx,x,y,sz,shirt,skin,hair){
+        ctx.fillStyle=shirt;ctx.beginPath();ctx.roundRect(x-sz*.16,y-sz*.04,sz*.32,sz*.46,sz*.08);ctx.fill();
+        ctx.fillStyle=skin;ctx.beginPath();ctx.arc(x,y-sz*.2,sz*.18,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle=hair;ctx.beginPath();ctx.arc(x,y-sz*.26,sz*.19,Math.PI,Math.PI*2);ctx.fill();
+      }
+      function stall(ctx,x,y,sz,awning,goods){
+        ctx.fillStyle='#7a5a34';ctx.fillRect(x-sz*.5,y,sz,sz*.1);
+        ctx.fillStyle='#5a3f22';ctx.fillRect(x-sz*.42,y+sz*.1,sz*.06,sz*.24);ctx.fillRect(x+sz*.36,y+sz*.1,sz*.06,sz*.24);
+        ctx.fillStyle=awning;ctx.beginPath();ctx.moveTo(x-sz*.56,y);ctx.lineTo(x+sz*.56,y);ctx.lineTo(x+sz*.42,y-sz*.22);ctx.lineTo(x-sz*.42,y-sz*.22);ctx.closePath();ctx.fill();
+        for(let i=0;i<5;i++){ctx.fillStyle=goods;ctx.beginPath();ctx.arc(x-sz*.38+i*sz*.19,y-sz*.03,sz*.045,0,Math.PI*2);ctx.fill();}
+      }
+      return [
+      {dur:5,text:'Door to door, cart to cart — Bram\'s vegetables keep going unsold.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#4a5560','#2a3238');_cRain(ctx,w,h,t,50);
+        ctx.fillStyle='#3a3f44';ctx.fillRect(0,h*.78,w,h*.22);
+        person(ctx,w*.35,h*.76,h*.22,'#5a4a3a','#e6b083','#4a2f1a');
+        ctx.fillStyle='#6a4a2a';ctx.beginPath();ctx.roundRect(w*.5,h*.7,w*.16,h*.1,4);ctx.fill();
+        for(let i=0;i<4;i++){ctx.fillStyle='#4a7a3a';ctx.beginPath();ctx.arc(w*(.52+i*.035),h*.7,h*.018,0,Math.PI*2);ctx.fill();}
+        ctx.fillStyle='rgba(220,220,230,.8)';ctx.font=`${h*.028}px Arial`;ctx.textAlign='center';ctx.fillText('Another door. Another two-hour walk home.',w*.5,h*.16);
+      }},
+      {dur:5,text:'"Let them come to me." Bram sets a table at the old crossroads.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#bcd8ee','#5a90b8');_cSun(ctx,w*.85,h*.15,h*.06,t);
+        ctx.fillStyle='#8a7a5a';ctx.fillRect(0,h*.72,w,h*.28);
+        ctx.fillStyle='#666';ctx.beginPath();ctx.arc(w*.72,h*.7,h*.05,0,Math.PI*2);ctx.fill();ctx.fillStyle='#555';ctx.fillRect(w*.7,h*.62,w*.04,h*.1);
+        stall(ctx,w*.35,h*.76,h*.34,'#c0392b','#3d8b3d');
+        person(ctx,w*.35,h*.9,h*.16,'#5a4a3a','#e6b083','#4a2f1a');
+        ctx.fillStyle='rgba(60,40,20,.75)';ctx.font=`${h*.026}px Arial`;ctx.textAlign='center';ctx.fillText('A long, quiet, mostly-empty first morning.',w*.5,h*.14);
+      }},
+      {dur:5,text:'A crowd draws a crowd — Halima\'s bread and Yusuf\'s fish join the table.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#bcd8ee','#5a90b8');
+        ctx.fillStyle='#8a7a5a';ctx.fillRect(0,h*.72,w,h*.28);
+        stall(ctx,w*.28,h*.78,h*.28,'#c0392b','#3d8b3d');
+        stall(ctx,w*.52,h*.78,h*.26,'#d4a017','#e0c060');
+        stall(ctx,w*.76,h*.78,h*.26,'#3a6a9a','#7ab0d8');
+        const n=Math.min(6,Math.floor(t*1.4));
+        for(let i=0;i<n;i++)person(ctx,w*(.15+i*.13),h*.94,h*.09,i%2?'#33bb77':'#2a7ab0','#e6b083','#241408');
+        ctx.fillStyle='rgba(60,40,20,.8)';ctx.font=`bold ${h*.026}px Arial`;ctx.textAlign='center';ctx.fillText('One table became three.',w*.5,h*.14);
+      }},
+      {dur:5,text:'A storm flattens every table — but nobody walks away.',draw(ctx,w,h,t){
+        if(t<2.6){_cBg(ctx,w,h,'#2a2a32','#0a0a10');_cRain(ctx,w,h,t,110);
+          ctx.strokeStyle='rgba(200,200,220,.3)';for(let i=0;i<4;i++){ctx.beginPath();ctx.moveTo(0,h*(.3+i*.15));ctx.lineTo(w,h*(.32+i*.15)+Math.sin(t*8)*6);ctx.stroke();}
+          ctx.fillStyle='#5a5040';ctx.save();ctx.translate(w*.3,h*.8);ctx.rotate(.6);ctx.fillRect(-h*.14,0,h*.28,h*.03);ctx.restore();
+          ctx.fillStyle='rgba(255,255,255,.85)';ctx.font=`bold ${h*.032}px Arial`;ctx.textAlign='center';ctx.fillText('Every table, flat in the mud.',w*.5,h*.16);
+        } else {
+          _cBg(ctx,w,h,'#5a90b8','#3a6a9a');
+          person(ctx,w*.25,h*.82,h*.2,'#5a4a3a','#e6b083','#4a2f1a');
+          person(ctx,w*.5,h*.84,h*.18,'#d4a017','#e6b083','#241408');
+          person(ctx,w*.72,h*.82,h*.2,'#3a6a9a','#e6b083','#3a2510');
+          ctx.fillStyle='rgba(255,255,255,.85)';ctx.font=`bold ${h*.028}px Arial`;ctx.textAlign='center';ctx.fillText('"We split what\'s left three ways, and start again."',w*.5,h*.16);
+        }
+      }},
+      {dur:5,text:'A stranger takes Bram\'s spot. Odessa Vance draws the line — literally.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#bcd8ee','#5a90b8');
+        ctx.fillStyle='#8a7a5a';ctx.fillRect(0,h*.72,w,h*.28);
+        stall(ctx,w*.4,h*.78,h*.3,'#c0392b','#3d8b3d');
+        stall(ctx,w*.46,h*.78,h*.24,'#d47a17','#cc8833');
+        person(ctx,w*.3,h*.92,h*.16,'#5a4a3a','#e6b083','#4a2f1a');
+        person(ctx,w*.62,h*.92,h*.16,'#334a6a','#e6b083','#241408');
+        const r=Math.min(1,t*.35)*h*.16;
+        ctx.strokeStyle='rgba(255,255,255,.9)';ctx.setLineDash([5,5]);ctx.lineWidth=3;ctx.beginPath();ctx.arc(w*.4,h*.8,r,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+        ctx.fillStyle='rgba(60,40,20,.8)';ctx.font=`${h*.024}px Arial`;ctx.textAlign='center';ctx.fillText('"You don\'t plant your flag in someone else\'s field."',w*.5,h*.15);
+      }},
+      {dur:5,text:'Drought hits hard — so the sellers start trading goods for goods.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#d8b878','#a88848');
+        ctx.fillStyle='#c0a060';ctx.fillRect(0,h*.72,w,h*.28);
+        ctx.strokeStyle='rgba(100,70,30,.4)';ctx.lineWidth=1;for(let i=0;i<6;i++){ctx.beginPath();ctx.moveTo(w*(.1+i*.15),h*.75);ctx.lineTo(w*(.13+i*.15),h*.95);ctx.stroke();}
+        stall(ctx,w*.2,h*.8,h*.22,'#c0392b','#3d8b3d');
+        stall(ctx,w*.42,h*.8,h*.2,'#d4a017','#e0c060');
+        stall(ctx,w*.62,h*.8,h*.2,'#8a5a3a','#c8a060');
+        stall(ctx,w*.82,h*.8,h*.2,'#5a8a4a','#e08080');
+        const fl=.4+.4*Math.sin(t*3);
+        ctx.strokeStyle=`rgba(255,220,120,${fl})`;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(w*.28,h*.76);ctx.lineTo(w*.5,h*.76);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(w*.5,h*.76);ctx.lineTo(w*.7,h*.76);ctx.stroke();
+        ctx.fillStyle='rgba(80,50,20,.85)';ctx.font=`bold ${h*.026}px Arial`;ctx.textAlign='center';ctx.fillText('Bread for jam. Cloth for fish. Nobody folded.',w*.5,h*.15);
+      }},
+      {dur:5,text:'A second storm — worse than the first. This time, they build a roof.',draw(ctx,w,h,t){
+        if(t<2.6){_cBg(ctx,w,h,'#20202a','#08080c');_cRain(ctx,w,h,t,140);
+          for(let i=0;i<3;i++){const ea=Math.max(0,1-((t+i*.7)%2.5)/2.5);_cExplo(ctx,w*(.25+i*.3),h*.55,h*.1,1-ea);}
+          ctx.fillStyle='rgba(255,255,255,.85)';ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('Thirty tables. A whole season\'s trust, exposed.',w*.5,h*.16);
+        } else {
+          _cBg(ctx,w,h,'#8fc7e8','#4a7ab0');
+          ctx.strokeStyle='#8a5a3a';ctx.lineWidth=5;for(let i=0;i<6;i++){ctx.beginPath();ctx.moveTo(w*(.1+i*.15),h*.9);ctx.lineTo(w*(.13+i*.15),h*.4);ctx.stroke();}
+          ctx.strokeStyle='#6a4020';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(w*.08,h*.4);ctx.lineTo(w*.95,h*.4);ctx.stroke();
+          person(ctx,w*.5,h*.86,h*.18,'#5a4a3a','#e6b083','#4a2f1a');
+          ctx.fillStyle='rgba(30,30,40,.85)';ctx.font=`bold ${h*.026}px Arial`;ctx.textAlign='center';ctx.fillText('Odessa Vance grants the land. Cassius builds.',w*.5,h*.15);
+        }
+      }},
+      {dur:5,text:'The Mall opens — built right around Bram\'s exact spot. He never stopped showing up.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#bcd8ee','#5a90b8');
+        ctx.fillStyle='#6a4a2a';ctx.fillRect(w*.08,h*.42,w*.84,h*.06);
+        for(let i=0;i<6;i++){ctx.fillStyle=['#c0392b','#d4a017','#3a6a9a','#5a8a4a','#8a5a3a','#7a4a8a'][i];ctx.beginPath();ctx.moveTo(w*(.1+i*.14),h*.48);ctx.lineTo(w*(.22+i*.14),h*.48);ctx.lineTo(w*(.19+i*.14),h*.62);ctx.lineTo(w*(.13+i*.14),h*.62);ctx.closePath();ctx.fill();}
+        ctx.fillStyle='#8a7a5a';ctx.fillRect(0,h*.8,w,h*.2);
+        for(let i=0;i<5;i++)person(ctx,w*(.15+i*.16),h*.94,h*.1,i%2?'#33bb77':'#2a7ab0','#e6b083','#241408');
+        _cConfetti(ctx,w,h,t,45);
+        if(t>1.2){ctx.fillStyle=`rgba(255,255,255,${Math.min(1,(t-1.2)*.8)})`;ctx.font=`bold ${h*.038}px Arial`;ctx.textAlign='center';ctx.fillText('"Just don\'t be the one who doesn\'t come back."',w*.5,h*.16);}
+      }},
+      ];
+    })()
+  },
+  { title:'The First Wrath', genre:'⚡ Founders\' Origin Epic', price:35, bg:'#1a0000', icons:'⚡👁️🩸',
+    trailer:[
+      {text:'⚔️ Every Killer he put down, Doran carved into the board.', dur:2200},
+      {text:'🩸 Old Fenwick warned him — there\'s a number past this one.', dur:2200},
+      {text:'👁️ Nobody in Explox had ever seen the sky turn red. Until now.', dur:2400},
+      {text:'⚡ THE FIRST WRATH', dur:2600},
+    ],
+    scenes:(function(){
+      function person(ctx,x,y,sz,shirt,skin,hair){
+        ctx.fillStyle=shirt;ctx.beginPath();ctx.roundRect(x-sz*.16,y-sz*.04,sz*.32,sz*.46,sz*.08);ctx.fill();
+        ctx.fillStyle=skin;ctx.beginPath();ctx.arc(x,y-sz*.2,sz*.18,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle=hair;ctx.beginPath();ctx.arc(x,y-sz*.26,sz*.19,Math.PI,Math.PI*2);ctx.fill();
+      }
+      function board(ctx,x,y,sz,count,warn){
+        ctx.fillStyle='#5a3f22';ctx.beginPath();ctx.roundRect(x-sz*.36,y-sz*.5,sz*.72,sz*.9,sz*.04);ctx.fill();
+        ctx.strokeStyle='#3a2712';ctx.lineWidth=sz*.03;ctx.strokeRect(x-sz*.36,y-sz*.5,sz*.72,sz*.9);
+        ctx.fillStyle='#e8d8b0';ctx.font=`bold ${sz*.34}px Arial`;ctx.textAlign='center';ctx.fillText(String(count),x,y-sz*.02);
+        ctx.fillStyle='rgba(230,210,170,.8)';ctx.font=`${sz*.08}px Arial`;ctx.fillText('KILLERS DOWN',x,y+sz*.28);
+        if(warn){ctx.strokeStyle='#e23b3b';ctx.lineWidth=sz*.035;ctx.beginPath();ctx.moveTo(x-sz*.3,y-sz*.14);ctx.lineTo(x+sz*.3,y-sz*.14);ctx.stroke();}
+      }
+      function wrathFig(ctx,x,y,sz,t,riseP){
+        const gy=y+sz*.5*(1-riseP), glow=.5+.5*Math.sin(t*4);
+        const g=ctx.createRadialGradient(x,gy-sz*.2,0,x,gy-sz*.2,sz*.9);
+        g.addColorStop(0,`rgba(255,30,30,${.35*riseP})`);g.addColorStop(1,'rgba(255,30,30,0)');
+        ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,gy-sz*.2,sz*.9,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#0a0005';
+        ctx.beginPath();ctx.moveTo(x,gy-sz*.62*riseP);ctx.lineTo(x-sz*.26,gy+sz*.02);ctx.lineTo(x+sz*.26,gy+sz*.02);ctx.closePath();ctx.fill();
+        [-1,1].forEach(s=>{ctx.fillStyle='rgba(10,0,5,.9)';ctx.beginPath();ctx.moveTo(x+s*sz*.18,gy-sz*.4*riseP);ctx.lineTo(x+s*sz*.55,gy-sz*.1*riseP-sz*.15);ctx.lineTo(x+s*sz*.2,gy-sz*.02);ctx.closePath();ctx.fill();});
+        ctx.fillStyle='#0a0005';ctx.beginPath();ctx.arc(x,gy-sz*.68*riseP,sz*.14,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle=`rgba(255,30,30,${.6+glow*.4})`;
+        ctx.beginPath();ctx.arc(x-sz*.045,gy-sz*.68*riseP,sz*.025,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.arc(x+sz*.045,gy-sz*.68*riseP,sz*.025,0,Math.PI*2);ctx.fill();
+      }
+      return [
+      {dur:5,text:'Every Killer that falls to Doran\'s blade earns a mark on the board — bounty coin, and the whole frontier\'s respect.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#3a1a2a','#150a10');_cStars(ctx,w,h,t,20);
+        ctx.fillStyle='#241418';ctx.fillRect(0,h*.78,w,h*.22);
+        const fade=Math.max(0,1-t*.4);
+        ctx.globalAlpha=fade;_cKiller(ctx,w*.24,h*.74,h*.28,t,0);ctx.globalAlpha=1;
+        _cJake(ctx,w*.55,h*.78,h*.32,t);
+        board(ctx,w*.84,h*.64,h*.3,62+Math.floor(t*2),false);
+        ctx.fillStyle='rgba(255,220,220,.85)';ctx.font=`${h*.026}px Arial`;ctx.textAlign='center';ctx.fillText('Sixty-two, and climbing.',w*.5,h*.14);
+      }},
+      {dur:5,text:'Old Fenwick taps the board. "There\'s a number past this one. Nobody who\'s touched it stayed the same."',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#4a3a30','#241a14');
+        ctx.fillStyle='#332420';ctx.fillRect(0,h*.78,w,h*.22);
+        board(ctx,w*.5,h*.62,h*.36,97,false);
+        person(ctx,w*.24,h*.82,h*.24,'#6a5a48','#c98a5f','#aaa8a0');
+        _cJake(ctx,w*.76,h*.86,h*.26,t);
+        ctx.fillStyle='rgba(255,230,210,.85)';ctx.font=`${h*.025}px Arial`;ctx.textAlign='center';ctx.fillText('Doran just laughs and walks past him.',w*.5,h*.15);
+      }},
+      {dur:5,text:'The count climbs fast now — ninety-seven, ninety-eight, ninety-nine. A crowd starts gathering just to watch.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#5a3a1a','#241408');_cSun(ctx,w*.85,h*.18,h*.06,t);
+        ctx.fillStyle='#3a2a1a';ctx.fillRect(0,h*.78,w,h*.22);
+        const n=Math.min(6,Math.floor(t*1.6));
+        for(let i=0;i<n;i++)person(ctx,w*(.08+i*.1),h*.94,h*.11,i%2?'#5a7a4a':'#4a5a8a','#c98a5f','#241408');
+        _cJake(ctx,w*.55,h*.8,h*.3,t);
+        board(ctx,w*.85,h*.6,h*.34,Math.min(99,97+Math.floor(t*.7)),false);
+        _cConfetti(ctx,w,h,t,18);
+        ctx.fillStyle='rgba(255,240,220,.9)';ctx.font=`bold ${h*.028}px Arial`;ctx.textAlign='center';ctx.fillText('The frontier\'s never seen a tally this high.',w*.5,h*.14);
+      }},
+      {dur:5,text:'The hundredth mark goes up. For one perfect second, the whole frontier cheers. Then the sky starts to bleed.',draw(ctx,w,h,t){
+        if(t<2.6){
+          _cBg(ctx,w,h,'#6a4a20','#2a1a08');_cSun(ctx,w*.8,h*.15,h*.07,t);
+          for(let i=0;i<7;i++)person(ctx,w*(.05+i*.13),h*.94,h*.12,['#5a7a4a','#4a5a8a','#8a4a4a','#7a7a3a'][i%4],'#c98a5f','#241408');
+          _cJake(ctx,w*.5,h*.76,h*.34,t);
+          board(ctx,w*.5,h*.42,h*.4,100,false);
+          _cConfetti(ctx,w,h,t,60);
+          ctx.fillStyle='rgba(255,240,200,.95)';ctx.font=`bold ${h*.036}px Arial`;ctx.textAlign='center';ctx.fillText('ONE HUNDRED!',w*.5,h*.14);
+        } else {
+          const p=Math.min(1,(t-2.6)/1.8);
+          _cBg(ctx,w,h,`rgb(${106-40*p|0},${74-74*p|0},${32-32*p|0})`,`rgb(${60-60*p|0},10,8)`);
+          ctx.fillStyle=`rgba(180,0,0,${.25*p})`;ctx.fillRect(0,0,w,h);
+          for(let i=0;i<7;i++)person(ctx,w*(.05+i*.13)+(p*w*.2*(i%2?1:-1)),h*.94,h*.12,'#333','#c98a5f','#241408');
+          _cJake(ctx,w*.5,h*.76,h*.34,t);
+          board(ctx,w*.5,h*.42,h*.4,100,false);
+          ctx.fillStyle=`rgba(255,255,255,${.9*p})`;ctx.font=`bold ${h*.03}px Arial`;ctx.textAlign='center';ctx.fillText('Nobody has ever seen the sky do that.',w*.5,h*.16);
+        }
+      }},
+      {dur:5,text:'Something rises out of the ground where no one is standing. The whole square scatters — everyone except Doran.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#3a0000','#0a0000');
+        ctx.fillStyle=`rgba(255,0,0,${.12+.08*Math.sin(t*3)})`;ctx.fillRect(0,0,w,h);
+        const riseP=Math.min(1,t*.6);
+        wrathFig(ctx,w*.55,h*.7,h*.5,t,riseP);
+        for(let i=0;i<5;i++)person(ctx,w*(.1+i*.15)-t*w*.06*(i+1),h*.94,h*.1,'#222','#c98a5f','#241408');
+        _cJake(ctx,w*.3,h*.86,h*.26,t);
+        ctx.fillStyle='rgba(255,200,200,.9)';ctx.font=`bold ${h*.026}px Arial`;ctx.textAlign='center';ctx.fillText('Doran freezes. Somehow, he already knows it\'s for him.',w*.5,h*.14);
+      }},
+      {dur:5,text:'He runs. It doesn\'t run — it just never stops closing the distance. Fenwick\'s warning finally makes sense.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#2a0000','#080000');_cStars(ctx,w,h,t,15);
+        ctx.fillStyle='#1a0808';ctx.fillRect(0,h*.8,w,h*.2);
+        const chase=Math.min(1,t*.35);
+        _cJake(ctx,w*(.3-chase*.12),h*.82,h*.28,t*8);
+        wrathFig(ctx,w*(.7-chase*.28),h*.76,h*.44,t,1);
+        ctx.fillStyle='rgba(255,180,180,.85)';ctx.font=`${h*.024}px Arial`;ctx.textAlign='center';ctx.fillText('"Nobody who\'s touched it stayed the same," Fenwick had said.',w*.5,h*.15);
+      }},
+      {dur:5,text:'It catches him. The tally, the coin, the glory — all of it scatters in the dirt. Then, for the first time ever, the frontier goes completely quiet.',draw(ctx,w,h,t){
+        if(t<2.2){
+          _cBg(ctx,w,h,'#2a0000','#080000');
+          wrathFig(ctx,w*.5,h*.68,h*.5,t,1);
+          _cJake(ctx,w*.5,h*.84,h*.24,t*20);
+          _cMoney(ctx,w,h,t,16);
+          ctx.fillStyle='rgba(255,200,200,.9)';ctx.font=`bold ${h*.028}px Arial`;ctx.textAlign='center';ctx.fillText('Down he goes.',w*.5,h*.14);
+        } else {
+          const p=Math.min(1,(t-2.2)/2.8);
+          _cBg(ctx,w,h,`rgb(${42-30*p|0},0,0)`,`rgb(${8-8*p|0},${8+30*p|0},${20*p|0})`);
+          _cStars(ctx,w,h,t,25);
+          ctx.fillStyle='#241418';ctx.fillRect(0,h*.8,w,h*.2);
+          const fadeK=Math.max(0,1-p*1.4);
+          ctx.globalAlpha=fadeK;_cKiller(ctx,w*.2,h*.78,h*.22,t,0);_cKiller(ctx,w*.8,h*.76,h*.24,t,0);ctx.globalAlpha=1;
+          _cJake(ctx,w*.5,h*.86,h*.22,t);
+          ctx.fillStyle=`rgba(255,255,255,${.85*p})`;ctx.font=`bold ${h*.026}px Arial`;ctx.textAlign='center';ctx.fillText('Every Killer on the frontier is just... gone.',w*.5,h*.15);
+        }
+      }},
+      {dur:5,text:'Years later, the board still carries a red line before the hundred. Doran teaches every new hunter exactly why.',draw(ctx,w,h,t){
+        _cBg(ctx,w,h,'#4a3a2a','#241a10');_cSun(ctx,w*.82,h*.16,h*.06,t);
+        ctx.fillStyle='#332418';ctx.fillRect(0,h*.8,w,h*.2);
+        board(ctx,w*.28,h*.62,h*.34,'99',true);
+        _cJake(ctx,w*.55,h*.84,h*.26,t);
+        person(ctx,w*.75,h*.88,h*.2,'#3a5a4a','#c98a5f','#1a1408');
+        ctx.fillStyle='rgba(255,240,220,.9)';ctx.font=`${h*.024}px Arial`;ctx.textAlign='center';ctx.fillText('"Mind the hundred," he says. "That\'s the whole rule."',w*.5,h*.15);
+      }},
+      ];
+    })()
+  },
 ];
 
 // ─── EXPAND EACH MOVIE FROM 15 → 60 SCENES ───────────────────────────────────
@@ -2150,6 +3766,795 @@ const _MXTRA=[
    'The university: "You\'re three years late!"','Professor Tick: "Time is relative."','They couldn\'t argue with that.',
    'He kept the watch. The cat kept the copper wire.','The timeline is... probably fine.',
    'Probably.','He started writing his memoir. Working title: "Oops."'],
+  // ── the 14 newer, Library-adapted movies (idx 14-27) — epilogue/legacy beats past their 8 hand-authored scenes ──
+  // 14: The Fist War
+  ["The porch light Denny stepped off of still burns nightly.",
+   "Priyanka's version of the story keeps getting better.",
+   "Otis swears he threw the first punch. Nobody believes him.",
+   "Fatima still keeps watch from her window, out of habit.",
+   "Grady won't walk that street alone after dark. Yet.",
+   "The Shadow Clan tries a different street. Word travels.",
+   "A kid two blocks over can't sleep after hearing it.",
+   "Splinter watches from the treeline. Waiting.",
+   "Halfstep hasn't come armed in years.",
+   "Forty houses. Nobody locks the door tonight.",
+   "The lamppost outside Denny's house never really dims.",
+   "Kids reenact the fight with sticks. Denny always wins.",
+   "Priyanka teaches her own kid the story, word for word.",
+   "The street gets a new name: Fist Street.",
+   "Halfstep leaves a basket on the porch. No note needed.",
+   "Splinter still fights. Just never on this street.",
+   "A new family moves in. Someone explains the rules.",
+   "Otis repaints the fence the color it used to be.",
+   "The block shows up when any porch light flickers.",
+   "Denny's too old to fight. Still steps off the porch.",
+   "Grady's kid asks why the street feels different.",
+   "Fatima keeps a rolling pin by the door. Just in case.",
+   "The truce holds through three more quiet winters.",
+   "Someone carves NOT TONIGHT into the old fence post.",
+   "Halfstep brings his kids by. They don't flinch at the light.",
+   "The Shadow Clan thins out. Fewer scouts every season.",
+   "Priyanka warns newcomers exactly where not to walk.",
+   "A streetlamp goes out. Six houses show up with ladders.",
+   "Denny's porch becomes the unofficial meeting spot.",
+   "Otis still swears about that first punch. Still lying.",
+   "'Doing a Denny' means stepping off the porch first.",
+   "Splinter's name becomes a bedtime warning for kids.",
+   "A cold spring. No fights. Just neighbors, waving.",
+   "Grady finally walks the street alone. Nothing happens.",
+   "The fence Halfstep once lunged across gets a bench.",
+   "Fatima's window light stays on so long it's a landmark.",
+   "A traveling storyteller adds the Fist War to her set.",
+   "The street votes to keep the old busted lamppost.",
+   "Denny vetoes the statue idea. Prefers it that way.",
+   "Otis and Halfstep become unlikely porch-sitting friends.",
+   "A kid asks if the Killer was real. Priyanka just nods.",
+   "The rule spreads to other streets: don't swing first.",
+   "Splinter never crosses onto Fist Street again.",
+   "Grady's the one who checks on the new families now.",
+   "The porch light bulb gets replaced. Same fixture.",
+   "A whole generation grows up not locking the door.",
+   "Fatima's grandkids think the story's a fairy tale.",
+   "Denny still remembers the exact words: not tonight.",
+   "Halfstep teaches his kid the truce, fist to open palm.",
+   "Quiet, it turns out, was the whole point.",
+   "Someone plants a tree where the fight happened.",
+   "Forty houses. Nobody locks the door — by choice now."],
+  // 15: The First War
+  ["A lamp gutters in the wind. Someone relights it.",
+   "The Suburbs light every window before dusk, always.",
+   "A shadow tests a doorway and finds it locked.",
+   "The light never argued back. It never needed to.",
+   "A child asks why the bell rings at dusk. No one explains.",
+   "Doubt still whispers, here and there. Fewer listen.",
+   "A lamp burns all night, untended, unbothered.",
+   "The old story gets retold, lamp by lamp.",
+   "Somewhere, pride still tries to out-argue the light.",
+   "The war goes quiet. Quiet isn't the same as over.",
+   "A single flame steadies against the draft. And holds.",
+   "The Suburbs never went dark again. Not once.",
+   "A shadow lingers at the tree line. Comes no closer.",
+   "The light asks nothing. It simply stays.",
+   "Every lamp in Explox traces back to that first one.",
+   "Someone forgets to lock a door. The light doesn't mind.",
+   "A whispered question passes through town, unanswered.",
+   "The bell tower keeps its watch, rain or shine.",
+   "A candle in the Church window never quite goes out.",
+   "Far off, the fallen shadow paces. It does not return.",
+   "Founders built their homes facing where the light stood.",
+   "A lamp-lighter walks the Suburbs every dusk, from habit.",
+   "The story gets shorter each telling. The meaning doesn't.",
+   "Pride tries the same old argument. Still doesn't work.",
+   "The oldest lamp in the Suburbs has never once gone out.",
+   "A child leaves a candle burning, just to see if it holds.",
+   "The light was never loud. Just steady.",
+   "A shadow tests the Church door. It stays shut.",
+   "The war never fully ends. The light never fully dims.",
+   "Someone chooses to stay lit instead of arguing back.",
+   "The Suburbs' oldest families still tell it the same way.",
+   "A lamp gets passed hand to hand, down the block.",
+   "Far off, the fallen one still calls it unfair.",
+   "A believer asks if the war's over. The Church says: watch.",
+   "The light holds its shape, unbothered by the dark.",
+   "One window stays lit long after the street goes dark.",
+   "The shadow never gets any closer than it did that night.",
+   "Somewhere, a lamp gets lit for no reason but the dark.",
+   "The Church keeps it simple: the light stayed.",
+   "A whispered doubt drifts through and finds nowhere to land.",
+   "The fallen shadow still circles, out past the lamps.",
+   "A child's first lesson: leave a light on for someone.",
+   "The light doesn't grow. It just stays lit.",
+   "Somewhere, an old argument gets made again. Falls flat.",
+   "The Suburbs light their lamps before the sky even dims.",
+   "A lone candle outlasts the whole storm outside.",
+   "The story ends the same way: the light was never moved.",
+   "Past the fence line, something still paces and waits.",
+   "A lamp stays lit for someone who isn't home yet.",
+   "The bell rings once at dusk. Nobody's sure why. Everyone listens.",
+   "Old families still build porches facing where the light stood.",
+   "A new lamp gets lit exactly where the very first one stood."],
+  // 16: The First Mayor
+  ["Odessa still walks the bend in the river every morning.",
+   "The oak's roots crack City Hall's foundation. Nobody minds.",
+   "A new family asks whose water it is. Same answer: ours.",
+   "The well never runs dry, not even in the driest summer.",
+   "Kids carve initials into the oak. Odessa lets them.",
+   "The eleven-day road needs repaving. The whole street shows up.",
+   "Odessa's name ends up on more than she ever wanted.",
+   "A fence post goes missing again. This time, everyone laughs.",
+   "The oak drops acorns onto City Hall's front steps each fall.",
+   "A new mayor takes over. Odessa still fixes the well herself.",
+   "The bend in the river finally gets a bench.",
+   "Sixty families becomes six hundred. The oak still stands.",
+   "Odessa's question becomes the city's oldest unwritten law.",
+   "A drought hits. The well holds. Everyone remembers who dug it.",
+   "Road crews still start every project by asking first.",
+   "Odessa teaches a kid to read the river's current.",
+   "City Hall adds a wing. The oak keeps the corner view.",
+   "A newcomer asks who Odessa is. The answer takes a while.",
+   "The eleven-day road becomes the busiest street in the city.",
+   "Odessa fixes another fence, alone, before dawn, out of habit.",
+   "A statue gets proposed. Odessa asks for a tree instead.",
+   "The well water still tastes the way settlers remember it.",
+   "Every new settlement still starts with the same question.",
+   "The oak survives a storm that flattens half the block.",
+   "Odessa's grandkids play under the same oak, same roots.",
+   "A dry summer worries everyone but Odessa. She checks the well.",
+   "City Hall keeps the original well capped under the floor.",
+   "Families who once fought over the fence share Sunday dinner.",
+   "An engineer studies Odessa's road. Still can't improve it.",
+   "The oak gets its own ordinance: never cut it down.",
+   "Odessa still answers her own door. Mayor or not.",
+   "A festival starts under the oak every autumn.",
+   "The bend in the river finally gets a proper street sign.",
+   "City Hall's cornerstone still has river mud in it.",
+   "Odessa's old rain boots end up in a glass case. She hated that.",
+   "The road holds through every flood since. Built right.",
+   "A new well gets dug across town. Same rules apply.",
+   "The city still measures distance from that one bend.",
+   "WHOSE IS THIS? OURS. — carved into the City Hall archway.",
+   "The oak's shade now stretches over three more buildings.",
+   "A kid asks why the mayor's office smells like a tree.",
+   "Every mayor after Odessa plants one more tree by the river.",
+   "The eleven days become an annual city holiday.",
+   "Odessa never did leave that first bend in the river.",
+   "A flood threatens the well. The street shows up with sandbags.",
+   "The fence that nearly split the settlement holds a century later.",
+   "City Hall's oldest photo is just Odessa, a shovel, a sapling.",
+   "Road crews name their toughest project after those eleven days.",
+   "A new settler asks where to build. Everyone points to the oak.",
+   "Odessa's well still quietly supplies half the block.",
+   "The city grows around the oak the way it grew around her question.",
+   "Sixty families became a city. It still starts at that river bend."],
+  // 17: The One Who Dreamed It All
+  ["Every page in the Library starts on somebody's ordinary Tuesday.",
+   "Soledad's wooden discs get replaced by coins. Same idea.",
+   "Teo's washing-machine robot gets its own shelf in the Library.",
+   "Rosalind's plane still flies the same route, every year.",
+   "Priya's badge sits behind glass. Still called 'the first one.'",
+   "Bram's table becomes a whole Mall. He never stopped showing up.",
+   "Wren's lantern gets passed down, doctor to doctor.",
+   "Cassius's wall gets a door. Every wall since gets one too.",
+   "A kid checks out all fourteen founder stories in one week.",
+   "The Library adds a shelf. Somebody's always writing the next page.",
+   "Odessa's question and Cassius's door turn out to be the same idea.",
+   "A librarian shelves the founders' stories together. They belong that way.",
+   "Ten founders. One city. Nobody planned it to fit this well.",
+   "Soledad's ledger gets digitized. The handwriting still shows through.",
+   "Teo's first robot still rolls in a circle, once a year.",
+   "Rosalind's promise outlives every plane she ever flew.",
+   "Priya checks the badge case every morning, out of habit.",
+   "Bram's stall spot gets a plaque. He asked them not to bother.",
+   "Wren's clinic becomes a hospital. The lantern stays lit in the lobby.",
+   "Cassius teaches his craft the way his father taught him: slowly.",
+   "A new founder's story gets added. The Library keeps growing.",
+   "Odessa reads Rosalind's chapter and cries at the same line.",
+   "The oak, the wall, the lantern, the badge — all still standing.",
+   "A kid asks which founder matters most. The librarian just shrugs.",
+   "Teo and Soledad solve the same problem, decades apart.",
+   "Priya's badge inspires a Police Station. She keeps the original design.",
+   "The Library's oldest shelf finally gets its stories written down.",
+   "Bram and Halima's stalls still stand where the first table was.",
+   "Wren never did leave again. Neither did most of what she built.",
+   "Cassius's door rule becomes law. Every wall needs one now.",
+   "A newcomer reads all fourteen stories before their first shift.",
+   "Rosalind's Kade gets restored and hung in the Airport lobby.",
+   "Odessa's oak still shades the Library that holds her own story.",
+   "The founders never met. Their stories still feel like one conversation.",
+   "Soledad's discs sit in a case beside the very first coin.",
+   "Teo's workshop becomes the Scrapyard everyone knows today.",
+   "Every founder story ends the same way: somebody stayed.",
+   "Priya's watch schedule still gets used, badge or no badge.",
+   "Bram never missed a market day, storm or drought.",
+   "Wren's hospital wing gets named after the barn it started in.",
+   "Cassius's grandkids still lay stone exactly the way he taught them.",
+   "The Library's newest shelf is still empty. Someone's story isn't written yet.",
+   "Rosalind's eight countries become eight statues in the Airport.",
+   "Odessa's river bend gets its own chapter, separate from the rest.",
+   "A kid keeps changing their mind about which founder to be.",
+   "Ten founders, one idea: build it, then stay.",
+   "Teo's first robot and the newest one share a birthday, on purpose.",
+   "Soledad, Wren, and Priya all started with the same question.",
+   "The dreamer who wrote it all down never signed a single page.",
+   "Every founder's story gets read aloud, once a year, together.",
+   "This is Explox: built by ten strangers who each just kept going.",
+   "A new kid finds the fourteenth shelf and starts on a fifteenth story."],
+  // 18: The Newcomer's Almanac
+  ["Another newcomer clocks in as Shopkeeper. First shift, first S.I.P.",
+   "The Bank keeps paying out, every real minute, watched or not.",
+   "Someone flips a coin with the Shady Dealer. Good today.",
+   "A prayer at the Church goes unanswered. Most do.",
+   "The subway fare ticks up. Nobody at the station blinks.",
+   "A rookie Officer clocks in nervous. By lunch, it's routine.",
+   "The Space Station flight books up fast on a Saturday.",
+   "A newcomer answers all ten SAI questions right. Easy S.I.P.",
+   "The Throne changes hands again. Somebody always wants it more.",
+   "A hundred robots go down in the Robot War minigame.",
+   "The Shady Dealer's good side pays out a star, eventually.",
+   "A veteran still checks the Bank interest every single day.",
+   "The Survival Horde gets one wave harder. Somebody's ready.",
+   "A new Officer badge gets handed out. Ten S.I.P., every time.",
+   "The Tower Defense line holds. Barely. Everyone cheers anyway.",
+   "A flight to the Space Station costs 150 S.I.P. and nerve.",
+   "The Church stays quiet most nights. Once in a while, it isn't.",
+   "A newcomer learns the cab fare the hard way: by the mile.",
+   "The Shopkeeper line never really stops moving.",
+   "A good deed at the Dealer's table earns a star. Word travels.",
+   "The vault fills up. 10,000 S.I.P. a minute, like clockwork.",
+   "A rookie asks how the Throne works. Answer: just take it.",
+   "The city remembers every choice at the Dealer's table.",
+   "One player owns both an Officer badge and a Shopkeeper apron.",
+   "The SAI Challenge gets a new question. Somebody gets it wrong first.",
+   "A newcomer learns to check the Bank before anything else.",
+   "The flight board lists a new destination. Everyone wants to be first.",
+   "A losing streak in Robot War finally turns into a winning one.",
+   "The Church glows warm for a second. Someone swears they saw it.",
+   "The subway map gets one more stop. The city keeps growing.",
+   "A Dealer regular has five stars and zero regrets. Allegedly.",
+   "The Officer shift changes at dawn. Somebody's always on watch.",
+   "A new player reads the whole Almanac twice before day one.",
+   "The Bank keeps its promise: an hour of play, 600,000 S.I.P.",
+   "The Arena, the Throne, the Horde — a whole afternoon disappears.",
+   "A cab ride costs more than expected. The newcomer tips anyway.",
+   "The Shopkeeper counter gets busy at rush hour, every day.",
+   "A veteran still can't decide: good or bad at the Dealer's table.",
+   "The Space Station flight takes off on schedule. It always does.",
+   "A new Officer makes their first arrest. Ten S.I.P., and a story.",
+   "The SAI Challenge pays fifteen S.I.P. for one honest answer.",
+   "The Church bell rings and somebody gets exactly what they needed.",
+   "A hundred minigames later, someone beats their own high score.",
+   "The Bank interest rolls in overnight. Nobody has to ask.",
+   "A newcomer becomes the one explaining the rules to the next one.",
+   "The Space Station flight never gets old, no matter how many times.",
+   "The Dealer shrugs. 'Good or bad — the city remembers either way.'",
+   "A new Shopkeeper apron gets handed down, a little more worn.",
+   "Somebody's already queued up for the next Throne round.",
+   "Welcome to Explox. You're the next one — and then, so is someone else.",
+   "The Almanac's last page is blank on purpose. Yours to fill in.",
+   "A newcomer closes the book and heads straight for the Bank."],
+  // 19: S.I.P.: The First Coin
+  ["Warrick keeps a scrap of the original wood pile, for luck.",
+   "Ines never got that fence. She got the coin instead.",
+   "Soledad's ledger gets copied by three towns within a year.",
+   "The vault gets a second door. Just in case.",
+   "A coin gets minted with a tiny nick. Nobody melts it down.",
+   "Warrick tests every batch by dropping it on the bench. Still does.",
+   "The flood that took the clay tokens gets its own small plaque.",
+   "Ines and Warrick still argue about the fence. Fondly, now.",
+   "A hundred coins later, the stamp still reads the same: S.I.P.",
+   "Soledad teaches the ledger system, chalk in hand, to the next generation.",
+   "The first disc, the real one, sits behind glass at the Bank.",
+   "A kid asks what S.I.P. stands for. Everyone answers differently.",
+   "Warrick's scrap pile becomes the most valuable junk in city history.",
+   "The vault walls get taller. The coin never changes size.",
+   "Ines keeps the receipt for that one fence, framed, on her wall.",
+   "A neighboring town tries its own currency. It doesn't catch on.",
+   "'Same. If. Paid.' gets carved above the Bank's front door.",
+   "The coin gets counterfeited once. The whole city notices in a day.",
+   "Warrick builds the second vault. Says the first taught him everything.",
+   "A drought hits. The coin still buys bread, same as always.",
+   "The clay-token flood is the reason nobody trusts clay anymore.",
+   "Ines finally gets her fence. Paid for, fair and square, in coin.",
+   "Soledad's gouged ledger page gets framed instead of thrown out.",
+   "A collector offers a fortune for the first coin. The city says no.",
+   "Warrick's scrap-pile theory gets taught in the market stalls now.",
+   "The stone vault gets robbed once. The system doesn't even blink.",
+   "A kid mints a pretend coin at school. Gets it exactly right.",
+   "Every S.I.P. interest payment still nods back to that first disc.",
+   "Soledad and Warrick never fully agree who had the better idea.",
+   "The tally sticks retire to a museum shelf. Nobody misses them.",
+   "Ines tells the flood story every time it rains hard.",
+   "The coin spreads past Explox's edge, town by town, favor by favor.",
+   "A new mint gets built. Same stamp, same three letters.",
+   "Warrick's 'boring pile of scrap' line ends up in a schoolbook.",
+   "The vault's stone walls outlast three different roofs.",
+   "Soledad's tally system gets one last look before retiring for good.",
+   "A merchant from another town asks to see the 'real' coin.",
+   "The first coin's nick becomes a landmark. The mint keeps the mold.",
+   "Ines and Warrick's kids grow up thinking money always looked like this.",
+   "A century of interest, and the vault's never once run dry.",
+   "Soledad's handwriting is still legible on that one saved ledger page.",
+   "The coin gets weighed and approved by every generation since.",
+   "Warrick's workbench gets donated to the Bank, kept exactly as is.",
+   "A rainstorm hits the city. Nobody worries about the coins this time.",
+   "Ines's framed receipt outlives the fence it was for by decades.",
+   "The vault's first stone gets a tiny S.I.P. stamp pressed into it.",
+   "Soledad's 'fair, if paid' idea becomes the city's whole handshake.",
+   "A newcomer asks why it's called S.I.P. Someone finally writes it down.",
+   "Warrick never stopped tinkering. The Bank still has his sketches.",
+   "The coin outlives the drum, the tally stick, and the clay token.",
+   "Every S.I.P. in Explox still traces back to that one small room.",
+   "A new coin gets stamped. Warrick still checks it for a nick."],
+  // 20: The Scrapyard's First Robot
+  ["Teo's first robot gets a permanent spot by the Scrapyard gate.",
+   "A kid shows up with a busted toaster. Somebody points to Teo's corner.",
+   "The drum robot gets challenged by a kid twice its size. Wins anyway.",
+   "Teo teaches the rule: nothing sharp, nothing leaves the machine.",
+   "A robot battle draws a crowd from three streets over.",
+   "The Scrapyard gets a scoreboard. Teo's name still tops it.",
+   "A kid's robot falls three times. Teo just claps for the fourth try.",
+   "The rusted drum that started it all still rolls, slower now.",
+   "Someone builds a robot twice Teo's size. He's thrilled, not threatened.",
+   "'No hitting a downed opponent' gets copied by every kid league in town.",
+   "Teo's bicycle-chain trick becomes the standard beginner build.",
+   "A robot gets built from one old washing machine. Teo's favorite kind.",
+   "The battlefield gets fenced in. Safer now. Just as loud.",
+   "Teo judges the finals every year. Never takes it too seriously.",
+   "A girl builds a robot faster than Teo's first ever was.",
+   "The scrap piles get sorted by kids now: batteries here, motors there.",
+   "Teo's original robot gets a tiny paint job. Just enough to still be his.",
+   "A robot loses a wheel mid-match. The crowd cheers the comeback anyway.",
+   "The Scrapyard rules get printed by the gate, in Teo's handwriting.",
+   "A kid names their robot after Teo's. There are six 'First's now.",
+   "Teo still fixes the little ones for free, if asked nicely.",
+   "The battlefield gets a name: the Bump. Nobody remembers deciding that.",
+   "A bike-frame robot nearly beats the reigning champion.",
+   "Teo's claps still count as the loudest cheer in the yard.",
+   "The Scrapyard's youngest builder is six. Her robot has a nickname.",
+   "A no-crying rule gets proposed. Teo vetoes it immediately.",
+   "The drum robot gets a battery upgrade. Same rattle, more speed.",
+   "Teo builds a robot with a kid who's never held a wrench.",
+   "The Scrapyard finally gets streetlights. Matches ran late anyway.",
+   "A visiting engineer asks who taught Teo. He says: rain, mostly.",
+   "The finals sell out every year. Standing room only by the fence.",
+   "Teo's robot rolls out for one more exhibition match. Still undefeated.",
+   "A kid cries after losing. Teo hands them a wrench: fix it better.",
+   "The Scrapyard's newest generation builds robots taller than the drum.",
+   "Teo keeps every losing robot's parts in a labeled bin.",
+   "A three-legged robot somehow wins the whole tournament.",
+   "Teo's corner of the Scrapyard becomes its whole heart.",
+   "The bicycle-chain motor design gets its own little plaque.",
+   "A kid asks if robots feel proud. Teo says his did, that first roll.",
+   "The rules get one addition: always help the loser up first.",
+   "Teo's first robot still beeps, on command, every single time.",
+   "A whole street of kids builds robots now. Started with one drum.",
+   "The Scrapyard hosts its hundredth match. Teo watches, grinning.",
+   "A kid welds their first joint under Teo's exact instructions.",
+   "The drum robot gets donated to a school. Teo builds a new one.",
+   "Someone asks the secret. Teo says: keep trying after the thud.",
+   "The Scrapyard's newest robot has lasers. Teo's just glad it rolls straight.",
+   "A rainy Saturday, years later — a kid stares at a rusted drum.",
+   "Teo's rules outlast every robot that's ever broken in that yard.",
+   "The Scrapyard gets a real sign: BUILT HERE. BROKEN HERE. FIXED HERE.",
+   "Where broken things went to be forgotten is now where they get built.",
+   "A new drum shows up in the mud. Someone already knows what to do with it."],
+  // 21: The Arena's First Fight
+  ["Roan and Yusuf fix fences together now. On purpose.",
+   "Amara asks another question nobody wants to answer. It works again.",
+   "The chalk circle gets redrawn every morning by whoever's up first.",
+   "A new rivalry starts two streets over. Someone points them to the circle.",
+   "Yusuf teaches his kid the rule: fists only, never hit a man who's down.",
+   "Roan still remembers exactly where the fence used to stand crooked.",
+   "The Arena gets its first roof. The circle stays the same size.",
+   "Amara grows up and still asks the same question to grown-ups.",
+   "A sibling rivalry gets settled the same way. Chalk, circle, handshake.",
+   "The blacksmith's 'loud fun' matches become a weekly tradition.",
+   "Roan and Yusuf referee together now. Old rivals, older friends.",
+   "The soldier's patient practice gets its own corner of the Arena.",
+   "A kid asks why fighting fair matters more than winning.",
+   "Yusuf's fence line gets a bench built right on top of it.",
+   "The Arena crowd grows every year. The rules never change.",
+   "'WHY NOT JUST TALK?' gets carved above the Arena entrance.",
+   "Roan checks the chalk supply before every big match.",
+   "A storm floods the Arena. Everyone redraws the line by morning.",
+   "Yusuf teaches new fighters the handshake before the fight, not just after.",
+   "The original broken fence post sits framed by the entrance.",
+   "Roan's kid and Yusuf's kid grow up as close as their fathers once were.",
+   "A year of silence turns into a whole season of Sunday matches.",
+   "The Arena hosts its biggest match yet. Roan and Yusuf share a bench.",
+   "Amara becomes the one who suggests the circle to every argument in town.",
+   "A soldier practices there every dawn, alone, patient, as promised.",
+   "The blacksmith's matches get loud enough to hear three streets over.",
+   "Roan still loses sometimes. Says it's good for him.",
+   "'He asked first' gets told to every new mason apprentice.",
+   "The chalk circle wears a groove into the dirt after enough years.",
+   "A kid two towns over builds their own version of the Arena.",
+   "Roan and Yusuf fix a different fence together, just because they can.",
+   "The Arena's oldest rule stays unchanged: never hit a man who's down.",
+   "Amara's grown-up version of the question still stumps half the room.",
+   "A rivalry that would've lasted years gets settled in one honest afternoon.",
+   "The soldier who trained there becomes the Arena's best referee.",
+   "Roan keeps a spare piece of chalk in his pocket. Just in case.",
+   "Yusuf's kids grow up thinking every disagreement gets a chalk circle.",
+   "The Arena adds a second ring for the busiest weekends.",
+   "A blacksmith's apprentice wins their first match and buys everyone bread.",
+   "Roan and Yusuf's fence, rebuilt straighter, still stands today.",
+   "Amara never becomes a fighter. Just the one who asks the right question.",
+   "The crowd learns the rules faster than the fighters do, sometimes.",
+   "A year of silence becomes the story every kid gets told first.",
+   "Yusuf teaches the handshake to a new generation, one match at a time.",
+   "The Arena's chalk runs low during finals. Somebody always has more.",
+   "Roan's old rivalry with Yusuf becomes the Arena's founding legend.",
+   "A fence, a circle, and an honest question started the whole Arena.",
+   "The soldier's patient practice pays off. He never loses his temper again.",
+   "Amara's question gets asked at every Arena opening ceremony since.",
+   "It doesn't look angry anymore. It just looks like relief, every time.",
+   "A new circle gets chalked two streets over. Word travels fast.",
+   "Roan and Yusuf still show up to referee, side by side, every Sunday."],
+  // 22: The Doctor Who Stayed
+  ["Wren still makes house calls, even on her day off.",
+   "The clinic's beam holds through another hard winter.",
+   "A trapper's son grows up to become the clinic's first nurse.",
+   "Wren's twelfth town finally gets to keep her, for good.",
+   "The sickbed lantern gets replaced. Same warm light, new glass.",
+   "A city hospital offers her the job again. She says no, again.",
+   "Wren teaches a young doctor the same lesson: stay for the twelfth.",
+   "The barn gets a proper roof. The old beam stays right where it was.",
+   "A fever breaks on a stormy night. Wren doesn't even look surprised.",
+   "The neighbors who built the clinic come fix it, decades later, unasked.",
+   "Wren's hand on a tiny chest is what every patient remembers most.",
+   "A new doctor arrives, nervous. Wren just says: you'll stay too.",
+   "The clinic passes a thousand patients. Wren still knows most by name.",
+   "Explox General gets built around the original barn. The beam still holds.",
+   "Wren never left again. Eleven towns, and this is the one that stuck.",
+   "A snowstorm strands three patients overnight. Wren just puts the kettle on.",
+   "The clinic's first patient, all grown up, brings his own kids in now.",
+   "Wren's bag still has the same worn handle from her very first town.",
+   "A young doctor asks how she knew to stay. Wren says: I didn't, at first.",
+   "The barn beam gets a plaque. Wren asks them to take it down. They don't.",
+   "A whole street shows up when the clinic runs short on supplies.",
+   "Wren's decade of leaving ends the night a fever finally broke.",
+   "The hospital wing gets her name on it. She still just says 'the doctor.'",
+   "A patient's grandkid becomes a doctor too, trained by Wren herself.",
+   "The sickroom lantern now hangs in the hospital lobby.",
+   "Wren keeps her house near the clinic. Says the walk keeps her honest.",
+   "A flu winter hits again, years later. This time, the town's ready.",
+   "The barn-clinic's old door still creaks the exact same way.",
+   "Wren's eleven old towns each send a letter on the clinic's anniversary.",
+   "A new mother thanks Wren the same way the trapper's family once did.",
+   "The neighbors who raised the barn get a wall of photos in the lobby.",
+   "Wren's twelfth town becomes the reason she never left a thirteenth.",
+   "One more city offer comes in. She doesn't read past the first line.",
+   "An engineer says the beam shouldn't still be standing. It is.",
+   "Wren trains three doctors who each stay in their own twelfth town.",
+   "A stormy night, decades on, and Wren's still first to the door.",
+   "The barn's old hay loft becomes the hospital's quietest waiting room.",
+   "Wren's bag gets passed down. The new doctor keeps the same handle.",
+   "A whole generation of Explox kids get born with Wren in the room.",
+   "The clinic's founding story gets read to every new hire, day one.",
+   "Wren still remembers the trapper's son's name. First and last.",
+   "A hundred flu winters later, the barn beam hasn't moved an inch.",
+   "The city hospital eventually gives up asking. Her answer never changes.",
+   "Wren's file gets one line: ENDED HERE. STAYED.",
+   "A new clinic opens across town. Wren helps them build it, board by board.",
+   "The lantern light still finds its way into every hallway at night.",
+   "Wren's patients outnumber the whole town's population, twice over.",
+   "The barn that became a clinic that became a hospital never forgot its start.",
+   "A tired new doctor asks if it gets easier. Wren says: it gets worth it.",
+   "The original sickroom stays exactly as it was. A reminder, not a museum.",
+   "Explox General still runs on one idea: stay, even when leaving's easier.",
+   "Wren makes one more house call, lantern in hand, same as always."],
+  // 23: The Wall That Became a Prison
+  ["Cassius checks every wall in town for a crooked stone. Habit.",
+   "The prison wall's door gets used more than anyone expected.",
+   "A new apprentice hears the rule first: every wall gets a door.",
+   "Cassius's father's old lesson reaches a fourth generation now.",
+   "The window Cassius cut lets in the room's only sunlight.",
+   "A goat pen gets built with the same care as the prison wall.",
+   "Cassius still walks past his first wall weekly, checking the mortar.",
+   "The town square wall gets a bench built into it. His idea.",
+   "A prisoner Cassius once gave a window becomes a mason himself.",
+   "The town asks for another wall. Cassius asks what it's protecting first.",
+   "Two crossed chisels pass to a fifth apprentice: he asked first.",
+   "Cassius's walls outlast every roof ever built over them.",
+   "A crooked stone turns up in an old wall. He fixes it, decades later.",
+   "The garden walls get taller. The doors stay the same size.",
+   "A wall's job isn't to keep people out. It's to give them room.",
+   "The prison wall gets a second door, just for visiting family.",
+   "The stolen-hammer story gets told as a warning and a joke.",
+   "Cassius's counting-room walls stand as straight as the day he laid them.",
+   "Goat pens multiply across town. Every one has his mark on it.",
+   "A young mason asks if it's hard, walling in a person. He says: every time.",
+   "The elder who first asked for the prison wall visits it, once, quietly.",
+   "Cassius's mark, three generations deep, now shows up across the whole city.",
+   "A wall gets torn down and rebuilt, door and all, just as he'd have done it.",
+   "The sunlit window becomes the design standard for every cell since.",
+   "Cassius's hands still shake a little after a long day. Says it means he cares.",
+   "A prisoner leaves through his door and never comes back — for good reasons.",
+   "The crooked-stone lesson gets carved into the mason's guild entryway.",
+   "Cassius builds one more counting-room wall, slower this time, on purpose.",
+   "A goat escapes through someone else's wall. He fixes it, smiling.",
+   "The prison door swings both ways now. That was always the plan.",
+   "His apprentices spread across the city, door rule and all.",
+   "A garden gate too small for anything but curiosity. On purpose.",
+   "The mark, passed chisel to chisel, is four generations deep now.",
+   "Cassius still remembers: 'do it again, slower this time.'",
+   "A crooked wall two towns over gets fixed by his student, unasked.",
+   "The town square wall's bench becomes the city's favorite meeting spot.",
+   "His youngest apprentice asks for a door-less wall. He refuses, gently.",
+   "The prison window catches the sunrise every single morning.",
+   "A hundred walls later, every one still gets checked for a crooked stone.",
+   "Cassius's father never saw the door rule, but Cassius knows he'd have liked it.",
+   "The counting room walls get a fresh coat of care every ten years.",
+   "A new prison wing goes up. Cassius insists on cutting every window himself.",
+   "The garden wall that once held a goat now just marks the garden's edge.",
+   "Cassius's door rule gets written straight into the city's building code.",
+   "A young mason lays her first stone crooked. He just says: again.",
+   "The wall around the town well gets a door too, just because it can.",
+   "Cassius's tools get passed down, worn smooth, still perfectly balanced.",
+   "A visitor asks why every wall here has a door. One name answers it: Cassius.",
+   "The prison wall's window still lets in the same slice of morning light.",
+   "Every wall of his still tells the truth about the man who built it.",
+   "A new stone goes up, checked twice for crooked, same as always.",
+   "Cassius still keeps a spare chisel in his coat, just in case."],
+  // 24: The First House
+  ["The rise above the river earns its name just from being called home.",
+   "A peg loosens after a storm. They fix it together, same as always.",
+   "The clay bowl buried at the cornerstone turns up generations later.",
+   "A neighbor asks why they chose the spot. 'It faced east' is still the answer.",
+   "The cabin's smoke rises at the same hour every single evening.",
+   "A second winter comes. This one, they're not alone for.",
+   "The Rise Supper tradition gets a bench built just for it.",
+   "A newcomer asks to build nearby. They say yes before the question ends.",
+   "The wagon that brought them stays in a shed, untouched, for luck.",
+   "The twisted-ankle story grows a little more dramatic every year.",
+   "The blank page they wanted becomes the city's most-read chapter.",
+   "A third family builds up the river. Nobody's alone on that bend now.",
+   "The cabin gets a second room. Still just the one door, on purpose.",
+   "A grandkid finds the buried clay bowl and gets told the whole story.",
+   "The road to the rise finally gets a name nobody remembers voting on.",
+   "A quarter mile of snow becomes the measure for every hard winter since.",
+   "The Rise Supper grows from two plates to two hundred.",
+   "A carpenter studies the peg joints and can't improve a single one.",
+   "The first house gets taken apart, lovingly, to make room for the next.",
+   "A young couple asks where to build. The answer's always: face east.",
+   "The forest smoke that once meant 'not alone' still means exactly that.",
+   "A hundred houses now stand where there was only forest and a rise.",
+   "The clay bowl gets reburied, on purpose, under the newest house.",
+   "A storm takes the roof again. The street shows up before they even ask.",
+   "The rise becomes the oldest continuously lived-on spot in the city.",
+   "A grandkid asks why they never left. 'We never wanted to,' they say.",
+   "The wagon wheel gets mounted above the new door. A small joke, mostly.",
+   "The Rise Supper adds a second table, then a third, then loses count.",
+   "A homestead two towns over gets named after the rise, out of respect.",
+   "The peg-built frame outlasts every nail-built house that followed it.",
+   "A newcomer asks what makes a house a home. They just point at the table.",
+   "The clay bowl gets dug up, admired, and buried again, gently.",
+   "A third generation grows up on that same bend in the river.",
+   "The forest around the rise thins out. The house never once moves.",
+   "A snowstorm strands a traveler nearby. The door opens before the knock.",
+   "The Rise Supper becomes an unofficial holiday. Nobody remembers who started it.",
+   "A carpenter's apprentice studies the original joints, taking careful notes.",
+   "The blank page they wanted gets filled in by everyone who came after.",
+   "A century on, the road still bends exactly where the first house stood.",
+   "The shed wagon gets one careful coat of varnish, every decade.",
+   "A young family asks to hear the story before they even unpack.",
+   "The rise above the river never once got renamed. It never needed to.",
+   "A grandkid buries their own small clay bowl nearby, just to start again.",
+   "The Rise Supper bench gets a fresh coat of paint every spring.",
+   "A quarter mile of snow gets crossed again, decades later, happily this time.",
+   "The first house's door frame gets kept as a keepsake in the new build.",
+   "A whole street traces back to the one path worn between two cabins.",
+   "The clay bowl becomes local legend: bury one, and the house holds forever.",
+   "A newcomer plants a tree facing east, just because it felt right.",
+   "The rise hosts its two-hundredth Supper. Same bend, same view.",
+   "The blank page never really finishes. Somebody's always still writing on it.",
+   "The Rise Supper table gets set again, same bend, same view, tonight."],
+  // 25: Wings Over Explox
+  ["Rosalind still checks the Kade's engine herself, every flight.",
+   "The Airport's eighth gate gets a small plaque, for Warrick.",
+   "A new pilot asks how she built it. 'Piece by piece, nothing wasted.'",
+   "The scrapyard where the Kade was born gets its own memorial corner.",
+   "Rosalind's kids grow up thinking every family builds planes from vans.",
+   "A ninth country gets added to the map. She flies it herself once more.",
+   "The 'coffin with wings' review gets framed in the Airport lobby, as a joke.",
+   "A storm strands a new pilot on the same rock Rosalind once waited on.",
+   "The Kade gets fully restored and hung from the Airport ceiling.",
+   "Rosalind teaches every new pilot: check twice, trust the engine once.",
+   "A stranded sailor gets rescued near the waters that took Warrick.",
+   "The Airport's eight gates each get named for the countries she reached.",
+   "Rosalind's promise gets etched right under the Kade's wing.",
+   "A young engineer studies the Kade's scavenged parts, amazed it flew.",
+   "The scrapyard crew that built it gets a group photo in the terminal.",
+   "Rosalind flies one more lap around Explox every anniversary.",
+   "A new route opens past all eight countries. She calls it the Long Way Home.",
+   "The control tower keeps a framed copy of Percival Nash's bad review.",
+   "Rosalind's kids both learn to fly. Neither calls it 'just' a hobby.",
+   "A trainee asks about the six hours on the rock. She says: I knitted, mentally.",
+   "The Kade's engine gets rebuilt twice more. The frame never needs it.",
+   "A tenth country requests a route. She's already sketching the plan.",
+   "The Airport hosts its thousandth flight. Rosalind's there, same as the first.",
+   "A young girl names her toy plane 'the Kade.' Doesn't know why.",
+   "Rosalind's promise to her kids gets kept, flight after flight.",
+   "The scrap yard gets a sign: SOMETHING FLEW OUT OF HERE ONCE.",
+   "A storm grounds every flight but one. She takes off anyway, carefully.",
+   "The eight-country map hangs permanently by the ticket counter.",
+   "Rosalind's co-pilot turns out to be her own kid, years later.",
+   "The Kade's original propeller spins slowly over the check-in desk.",
+   "A pilot asks if the ocean still scares her. She says: respect, not fear.",
+   "The Airport adds a ninth gate. Gate eight stays exactly as it was.",
+   "An engineer redesigns the Kade for a museum, keeping every scavenged bolt.",
+   "'Nothing here flies alone' becomes the Airport's official motto.",
+   "A sailor's family thanks her, decades later, for a kept promise.",
+   "The scrapyard, the ocean, and the sky all end up on the same map.",
+   "Rosalind flies past the horizon that took Warrick, every year, and comes home.",
+   "A hundred flights later, the Kade still smells like scavenged upholstery.",
+   "The Airport's youngest mechanic learns straight off the Kade's blueprints.",
+   "Rosalind's kids take over the anniversary flight when she finally can't.",
+   "A new plane gets built honoring the Kade's design, bolt for bolt.",
+   "The horizon that took Warrick becomes just more sky the Kade flies over.",
+   "Rosalind's six hours on the rock become survival training for new pilots.",
+   "The terminal plays her first flight footage on a loop, coffin joke and all.",
+   "A country she never reached finally opens a route, ten years later.",
+   "Rosalind's promise passes to her grandkids the same way: quietly, and kept.",
+   "The scrapyard crew's grandkids build planes there now. Nothing wasted.",
+   "A hundred storms later, the Kade's never once been grounded for good.",
+   "Rosalind still calls it 'a coffin with wings,' proudly, every flight.",
+   "Eight countries. One promise. The sky never had him — and never got her.",
+   "Rosalind checks the weather, checks the engine, and takes off anyway.",
+   "The Airport's newest gate still gets named for a country, not a person."],
+  // 26: The Night the Badge Was Made
+  ["Priya checks the badge case every morning before opening the station.",
+   "Kwame still eyes the goat pen fence, out of old habit.",
+   "A new badge gets forged for the newest recruit. Same words: ON WATCH.",
+   "The forge that made the first badge still runs, mostly for ceremony.",
+   "A kid asks why the badge says 'on watch' instead of 'police.' Priya smiles.",
+   "The Killer never returns to that fence line. Word travels in shadow too.",
+   "Kwame teaches his kid to spot a gap in a fence before anything else does.",
+   "A dozen streets becomes a hundred. Every one still checks in.",
+   "The night shift still calls it 'keeping the watch,' never just 'the job.'",
+   "Priya's original badge stays in its case, dented, on purpose.",
+   "A recruit asks about the melted-down coin. Priya tells the story every time.",
+   "The city's watch schedule finally gets written down, on paper too.",
+   "Kwame gets an honorary badge decades later. Wears it anyway.",
+   "A shadow gets spotted near the old fence. The street responds in minutes now.",
+   "Priya's forge scar becomes a story for every recruit's first night shift.",
+   "The badge design gets copied by three neighboring towns within a year.",
+   "A goat escapes the same fence gap, decades later. Somebody checks it fast.",
+   "Priya trains the Station's hundredth officer: talk to each other, fast.",
+   "The forge fire that made the first badge gets relit every year.",
+   "Kwame's not-quite-a-scream story becomes Station legend, exaggerated yearly.",
+   "A dozen badges become a thousand. Every one still says ON WATCH.",
+   "Priya's daughter joins the force. Gets the family badge, dent and all.",
+   "The badge case gets a small light installed, so it's never in the dark.",
+   "A new shadow tests the edges. Finds every street lit, every fence checked.",
+   "Kwame becomes the one who shows new families where the watch starts.",
+   "'Something you can see from far off' gets etched above the Station door.",
+   "The badge-making tradition spreads: every officer forges their own once.",
+   "A retired coin becomes a badge becomes a city's worth of trust.",
+   "Priya still walks the night shift once a month, just to remember why.",
+   "The goat pen gets a real fence, reinforced, with a badge nailed to the post.",
+   "Kwame's kids grow up unafraid of the dark. Says that's the whole point.",
+   "A century of badges, and the very first still watches from its case.",
+   "Priya's scratched-in lettering gets recreated exactly for every badge since.",
+   "The Killer story gets told at every officer's first briefing, word for word.",
+   "A shadow tries the fence line once more, generations later. Finds it ready.",
+   "'Just talk to each other' becomes the Station's whole operating manual.",
+   "The forge gets a small plaque: HERE, A COIN BECAME A PROMISE.",
+   "Kwame's grandkids can't believe there was ever a time nobody was watching.",
+   "A new officer forges their badge, hands shaking. Priya says: mine did too.",
+   "The Station's bell rings once at shift change, every time, without fail.",
+   "Priya's original design never gets officially redesigned. Some things stay.",
+   "A dozen streets that barely knew each other now share one watch schedule.",
+   "Kwame still nods at the goat pen fence, every single time he passes.",
+   "The badge case by the door gets dusted every morning, first thing.",
+   "Priya trains her replacement by doing it, scared, anyway — same as she was.",
+   "A new fence goes up somewhere. Someone checks it before nightfall, now.",
+   "The forge's glow becomes tradition: lit every year, on the Station's anniversary.",
+   "'Something you can see from far off' ends up on every badge design since.",
+   "A hundred badges later, not one has ever needed melting back down.",
+   "On watch, forever — not because nobody's afraid, but because somebody's looking.",
+   "A new recruit polishes their badge before their very first shift.",
+   "Priya checks the case one more time, then heads out on the night walk."],
+  // 27: Market Day
+  ["Bram still sets up at the exact same spot, storm or shine.",
+   "Halima's bread sells out before the other stalls finish unpacking.",
+   "Yusuf's fish stall gets its own regular line by sunrise.",
+   "The Mall gets built right around Bram's original table.",
+   "A new vendor asks where to set up. Everyone points to the crossroads.",
+   "Odessa Vance still stops by every market day, mostly just to say hello.",
+   "Cassius built the roof. He checks it after every storm, out of habit.",
+   "A stranger tries to take someone's spot. The chalk-line rule handles it fast.",
+   "The drought-era goods-for-goods system still gets used in a pinch.",
+   "Bram's table gets a small brass marker. He asks them to remove it.",
+   "Halima trains three more bakers, all within sight of her original stall.",
+   "Yusuf's son takes over the fish stall. Same hours, same honest scale.",
+   "The Mall's hundredth vendor sets up shop, thirty tables from the start.",
+   "A storm rolls in. Everyone moves inside now, under Cassius's roof.",
+   "'Don't plant your flag in someone else's field' still settles every dispute.",
+   "Bram never stopped showing up. Not even the year he broke his arm.",
+   "A new baker undercuts Halima's prices. The market politely ignores it.",
+   "The three original stalls still anchor the whole market layout.",
+   "Yusuf's scale gets calibrated every morning before the first customer.",
+   "The drought-years trading system gets revived whenever coin runs short.",
+   "Cassius's roof holds through a hurricane. He just shrugs at the thanks.",
+   "Bram's grandkids run the vegetable stall now. Same spot, newer legs.",
+   "An inspector tries to move Halima's stall for 'better flow.' The street objects.",
+   "Odessa cuts the ribbon on the Mall's newest wing, same as the first table's spot.",
+   "The once-empty crossroads has a line before sunrise every single day.",
+   "Yusuf teaches a new fisherman the honest-weight rule before anything else.",
+   "The second storm's anniversary gets marked with a market-wide potluck.",
+   "Bram's line — 'don't be the one who doesn't come back' — hangs at the Mall entrance.",
+   "Halima's bread recipe gets copied by half the stalls. She calls it flattering.",
+   "The Mall's food court still smells like fresh bread every single morning.",
+   "Cassius builds a second market roof, two towns over, same plans.",
+   "A newcomer asks who Bram is. The answer takes the whole walk to explain.",
+   "Odessa's land-grant plaque hangs quietly by the Mall's main entrance.",
+   "Yusuf's fish stall survives three droughts and one very persistent seagull.",
+   "The chalk boundary line from the stranger incident gets painted permanently.",
+   "Bram's table never once misses a market, in any weather, any year.",
+   "A hundred stalls trade goods for goods during a slow month, old-drought style.",
+   "Halima's bread stall gets its own oven vent. First upgrade in years.",
+   "Cassius checks the roof beams personally before every big holiday rush.",
+   "Yusuf's honest-weight reputation gets him first pick of the fishing spots.",
+   "The Mall's thirtieth anniversary gets thirty free loaves from Halima's stall.",
+   "Bram tells the two-hour-walk-home story to every new vendor, every time.",
+   "Odessa still remembers exactly where she drew that line for Bram's spot.",
+   "A mild drought hits again. The trading system kicks in out of memory.",
+   "Cassius's roof gets a plaque too, eventually. He grumbles about it just as much.",
+   "Yusuf's original scale retires to a display case by the entrance.",
+   "Halima's grandkids learn the family recipe by ruining a batch first.",
+   "Bram's 'stubborn idea' gets its own exhibit, right next to Odessa's oak.",
+   "The Mall keeps one open-air section, so it still feels like the old crossroads.",
+   "Odessa, Cassius, Bram, Halima, and Yusuf finally share a room: the Mall's opening.",
+   "One farmer. One folding table. One stubborn idea. Now: a whole Mall.",
+   "Bram sets his table up again tomorrow. Storm or shine, same as ever."],
+  // 28: The First Wrath
+  ["Doran never hunts past ninety-nine again. Not once, not ever.",
+   "Fenwick's warning gets carved into the tally board itself: MIND THE HUNDRED.",
+   "New hunters ask why the board stops counting at ninety-nine. Doran tells them.",
+   "The frontier still calls it 'the Quiet Weeks' — two days nobody saw a single Killer.",
+   "A hunter brags about a big tally. The others go quiet and glance at the sky.",
+   "Fenwick's old warning becomes the first thing every apprentice hunter hears.",
+   "Doran keeps hunting — just never in a hurry, never for the number.",
+   "A kid asks Doran what the sky looked like that day. He still won't say.",
+   "The tally board gets a red line drawn right before the hundred mark, permanently.",
+   "Someone tests the line on purpose, just to see. They don't do it twice.",
+   "Fenwick's scarred hands get steadier with age. He never picks up a weapon again.",
+   "The frontier settlement adds a bell that rings at ninety kills. Just to be safe.",
+   "Doran trains the next generation: pace yourself, watch the count, watch the sky.",
+   "A traveling merchant hears the story and refuses to believe it. Then sees the board.",
+   "The Quiet Weeks get reenacted every year — no hunting, just rest, on purpose.",
+   "Fenwick's old warning gets a name: 'the Hundred Rule.' Nobody argues with it.",
+   "A new hunter races past eighty and slows down without needing to be told.",
+   "Doran's tally board gets replaced a dozen times. The red line stays every time.",
+   "The story spreads past the frontier — other settlements draw their own red lines.",
+   "A hunter swears they saw red at the edge of the sky once. Everyone believed them.",
+   "Fenwick dies old, in his own bed — the one thing he wanted most, he says.",
+   "Doran carves Fenwick's name into the tally board, above the red line.",
+   "A hundred years later, hunters still call the count 'keeping Doran's watch.'",
+   "The original tally board is retired, uncounted, and hung above the settlement gate.",
+   "A new board starts fresh. The red line gets drawn before a single mark is made.",
+   "Doran's grandkids grow up knowing the story better than they know his real name.",
+   "'Mind the hundred' outlives every other saying the frontier ever had.",
+   "A young hunter almost crosses the line chasing a bounty. Doran finds them first.",
+   "The bell at ninety rings for real, once, decades later. Everyone stops immediately.",
+   "Nobody ever reaches the red line again — not on purpose, not by accident.",
+   "The Quiet Weeks tradition becomes a real festival: two days of rest, every year.",
+   "A historian asks Doran to write it all down. He does, just once, carefully.",
+   "The account gets copied and nailed up in every hunting post on the frontier.",
+   "Doran's version never mentions the coin he lost. Everyone assumes it was worse.",
+   "Fenwick's warning, word for word, gets taught before anyone's first real hunt.",
+   "The old tally board's wood finally gives out. The red line gets sanded onto the new one first.",
+   "A century on, 'the hundred' needs no explanation anywhere on the frontier.",
+   "Doran, gray and slow, still walks the settlement gate every dusk, just watching.",
+   "New hunters leave a coin at the old board's base, for luck, nobody's sure why.",
+   "The legend gets shorter with every telling. The lesson never does.",
+   "A red sky at sunset still makes the whole frontier go quiet for a moment.",
+   "Doran's watch ends peacefully — the settlement keeps his count going anyway.",
+   "The red line outlives the board, the hunters, and every name that carved it.",
+   "Somewhere, a new hunter counts to ninety-nine and stops, just because.",
+   "The lesson was never really about the number. It was about knowing when to stop."],
 ];
 
 // Jake — a regular kid (pizza customer). Same (ctx,x,y,sz,t) contract as the other characters.
@@ -2201,6 +4606,22 @@ const _MVIS=[
   ['#1a0a24','#34104a','#ff66ff',_cCat,_cPizza,'city'],
   ['#0a1c14','#10402a','#ffdd44',_cRobot,_cDetective,'city'],
   ['#0c0c12','#222018','#33ffee',_cRocket,_cDino,'space'],
+  // ── the 14 newer, Library-adapted movies (idx 14-27) ──
+  ['#04060c','#0c0c1e','#ffcc66',_cJake,_cKiller,'city'],      // 14 The Fist War
+  ['#0a0600','#1a1000','#ffdb55',_cLantern,_cKiller,'nature'], // 15 The First War
+  ['#0a1410','#182818','#ffd28a',_cGrandma,_cJake,'nature'],   // 16 The First Mayor
+  ['#0d0703','#1e1006','#ffcc66',_cGrandma,_cJake,'city'],     // 17 The One Who Dreamed It All
+  ['#12100a','#1a1400','#ffcc22',_cJake,_cDetective,'city'],   // 18 The Newcomer's Almanac
+  ['#241708','#3a260f','#d4a840',_cSettler,_cMason,'nature'],  // 19 S.I.P.: The First Coin
+  ['#1a1a14','#241f18','#ffcc55',_cJake,_cRobot,'city'],       // 20 The Scrapyard's First Robot
+  ['#2a2418','#14100a','#e07a3a',_cJake,_cNinja,'nature'],     // 21 The Arena's First Fight
+  ['#0a0a18','#1a1420','#ffb066',_cDoc,_cMason,'nature'],      // 22 The Doctor Who Stayed
+  ['#0a0810','#140a10','#c9a45f',_cMason,_cGrandma,'nature'],  // 23 The Wall That Became a Prison
+  ['#0a1020','#141c30','#ffb877',_cSettler,_cJake,'nature'],   // 24 The First House
+  ['#0a1a2a','#03080f','#ffcc55',_cDetective,_cJake,'city'],   // 25 Wings Over Explox
+  ['#0a0a12','#020204','#ffd750',_cJake,_cKiller,'city'],      // 26 The Night the Badge Was Made
+  ['#20202a','#08080c','#d4a017',_cJake,_cGrandma,'city'],     // 27 Market Day
+  ['#1a0000','#3a0000','#ff2222',_cJake,_cKiller,'nature'],    // 28 The First Wrath
 ];
 
 // Keywords that mean a scene is about character B (the 2nd character) — then B is the focus
@@ -2219,6 +4640,22 @@ const _MCHARS=[
   ['evil pizza','calzone','batch 99','the pizza'],              // 11 fB=evil pizza
   ['rival','dash','opponent'],                                  // 12 fB=detective — rarely
   ['dino','dinosaur','knight','egyptian'],                      // 13 fB=dino — rarely
+  // ── the 14 newer, Library-adapted movies (idx 14-27) ──
+  ['splinter','halfstep','shadow clan','the killer','the shadow'], // 14 fB=the Killer/Shadow Clan
+  ['satan','the shadow','fell','pride','doubt'],                   // 15 fB=Satan/the fallen shadow — rarely
+  ['odessa','families','settlers','city hall'],                    // 16 fB=settlers/families — rarely
+  ['soledad','teo','rosalind','priya','bram','wren','cassius'],    // 17 fB=the other founders
+  ['dealer','shady','officer','shopkeeper'],                       // 18 fB=the Shady Dealer — rarely
+  ['warrick','ines','vault','mason','neighbors'],                  // 19 fB=Soledad/the vault-builders — rarely
+  ['robot','the drum','beep','battle','rival'],                    // 20 fB=the robot(s)
+  ['yusuf','opponent','fighter','fists'],                          // 21 fB=Yusuf/the opponent
+  ['neighbors','clinic','mason','barn'],                           // 22 fB=the neighbors who build — rarely
+  ['elder','grandma','she asked','odessa'],                        // 23 fB=the elder who commissions it — rarely
+  ['wagon','settlers','neighbors'],                                // 24 fB=the partner — rarely
+  ['warrick','family','the kids','the crew'],                      // 25 fB=family/crew — rarely
+  ['killer','kwame','the shadow'],                                 // 26 fB=the Killer — rarely
+  ['odessa','cassius','the elder'],                                // 27 fB=Odessa's cameo — rarely
+  ['killer','shadow','red sky','sky turns red','a bell'],           // 28 fB=the shadow/Killer — rarely
 ];
 
 // ── cinematic backdrop helpers ──
@@ -2496,13 +4933,14 @@ function _mxMood(s,ei){
   return (ei%2===0)?1:5;
 }
 
-// Expand every movie from 15 → 60 scenes
+// Expand every movie from its hand-authored scene count → 60 scenes
 CINEMA_MOVIES.forEach(function(mv,mi){
   const vis=_MVIS[mi]||_MVIS[0];
   const bg1=vis[0],bg2=vis[1],acc=vis[2],fA=vis[3],fB=vis[4],biome=vis[5];
   const texts=_MXTRA[mi]||[];
-  for(let si=mv.scenes.length;si<60;si++){
-    const ei=si-15;
+  const startCount=mv.scenes.length; // 15 for the original 14 movies, 8 for the newer ones — either way, ei starts at 0 right after the last hand-authored scene
+  for(let si=startCount;si<60;si++){
+    const ei=si-startCount;
     const text=texts[ei]||'The story continues...';
     const tIdx=_mxMood(text,ei);
     let prop=_mxPropKind(text);

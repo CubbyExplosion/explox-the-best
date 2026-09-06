@@ -23,6 +23,20 @@ const CITY_ZONES = [
   { x:20,  z:96,  r:4,  label:'🍽️ Deliver to customer (+20 S.I.P.)',           action: ()=>serveAtTable(1), isServe:true },
   { x:28,  z:96,  r:4,  label:'🍽️ Deliver to customer (+20 S.I.P.)',           action: ()=>serveAtTable(2), isServe:true },
   { x:-68, z:10,  r:14, label:'Work as Officer (+10 S.I.P./task)',             action: ()=>toggleJob('Officer',10,'🚨 Trouble downtown — respond!'), isJobZone:true, jobType:'Officer' },
+  // FACTORIES — real Industrial District east of downtown (see FACTORY_DEFS/buildFactories(),
+  // game-buildings.js, for the real exteriors + why this exact spot is clear of every other
+  // building). Same generic toggleJob() pattern as Shopkeeper/Officer above, just 3 more of them —
+  // pay scales up from Officer's +10 since this is real manual labor, same reasoning Bank Jobs pay
+  // more for a bigger time commitment, but stays in a reasonable range rather than jumping wildly.
+  { x:240, z:-29, r:14, label:'Work at Toy Factory (+12 S.I.P./task)',         action: ()=>toggleJob('Toy Factory Worker',12,'🧸 A toy needs assembling!'), isJobZone:true, jobType:'Toy Factory Worker' },
+  { x:330, z:-29, r:14, label:'Work at Auto Parts Factory (+15 S.I.P./task)',  action: ()=>toggleJob('Auto Parts Worker',15,'🔧 A car part needs assembling!'), isJobZone:true, jobType:'Auto Parts Worker' },
+  { x:420, z:-29, r:14, label:'Work at Robot Parts Factory (+18 S.I.P./task)', action: ()=>toggleJob('Robot Parts Worker',18,'⚙️ A robot chassis needs bolting together!'), isJobZone:true, jobType:'Robot Parts Worker' },
+  // ACTOR — real "Work as an Actor" job (user's own ask: "add acting"), at the theater's own
+  // Actors Entrance (game-buildings.js), clear of the main "Pick a Movie" zone below (x:50,z:-72,r:8).
+  // r:9 (bigger than a normal job zone's walk-up radius) — once a task is live, E fights a real
+  // stunt double spawned a couple units away (spawnActorStuntFight()/fightActorStunt(),
+  // game-alignment.js), so there has to be room to actually stand next to it and swing.
+  { x:30, z:-68, r:9, label:`🎭 Work as an Actor (+${ACTOR_PAY} S.I.P./task)`, action: () => startActingJob(), isJobZone:true, jobType:'Actor' },
   { x:34,  z:3,   r:5,  label:'🕴️ Talk to Shady Dealer',                       action: () => toggleAlignment(),   isDealerZone:true },
   { x:-80, z:-71, r:5,  label:'⬛ ???',                                         action: () => openBlackMarket(),   isBlackMarket:true },
   { x:160, z:218, r:7,  label:'🏦 Enter City Bank',                             action: () => openBankPasscode()},
@@ -33,7 +47,17 @@ const CITY_ZONES = [
   { x:160, z:246, r:6,  label:'💂 Work as Guard (5,000 S.I.P. after 20 min)',              action: ()=>toggleBankJob('guard','sip'),     isBankJobZone:true, bankJobId:'guard',   currency:'sip' },
   { x:174, z:246, r:6,  label:'💂 Work as Guard (2,500 💎 after 20 min)',                   action: ()=>toggleBankJob('guard','elite'),   isBankJobZone:true, bankJobId:'guard',   currency:'elite' },
   { x:BANK_WALL_STAIR_BASE.x, z:BANK_WALL_STAIR_BASE.z, r:3, label:'🪜 Climb the Bank wall (Guard duty)', action: () => climbBankWall()},
-  { x:70,  z:60,  r:12, label:'🏫 Enter School',                                action: () => openSchool()},
+  // Real bug found live via user's own follow-up: this used to jump STRAIGHT to the kid-
+  // enrollment menu (openSchool(), game-shops.js) — the player's own character had no way to
+  // actually go to school themselves, just to manage an adopted kid's enrollment. Now the door
+  // opens a small real choice (openSchoolEntrance(), further down this file) between walking in
+  // as yourself (enterSchool() — a real pocket-space classroom, game-land.js) or the existing
+  // kid menu, which is untouched and still one click away.
+  // Real bug found live: r:12 exactly equals the building's own addCol half-depth (game-buildings.js,
+  // addCol(CITY_COLS,70,60,19,12)) — since the player's own collision radius (~0.65) keeps them
+  // 12.7 units from center at the closest, pressed right against the wall, the zone circle (10)
+  // never actually reached them. Bumped to 13 so standing at the wall is genuinely inside it.
+  { x:70,  z:60,  r:13, label:'🏫 Enter School',                                action: () => openSchoolEntrance()},
   { x:50,  z:-72, r:8,  label:'🎬 Movie Theater – Pick a Movie!', action: () => openCinema()},
   { x:0,   z:50,  r:13, label:'🚇 S.I.T.S. Transit Hub – Ride anywhere!', action: () => openSITS()},
   { x:-15, z:4,   r:8,  label:'🏨 City Hotel – Check In!',               action: () => openHotel()},
@@ -46,7 +70,33 @@ const CITY_ZONES = [
   { x:-10, z:-95, r:9,  label:'🏟️ Enter Sports Park', action: () => enterSportsPark()},
   { x:-40, z:74,  r:5,  label:'🏥 City Hospital – See a Doctor!', action: () => enterHospital()},
   { x:SEA_EXIT.x, z:SEA_EXIT.z, r:9, label:'🌊 Enter the Sea', action: () => enterSea()},
-  { x:-40, z:20,  r:10, label:'⛪ Enter Church', action: () => openChurch()},
+  // Real bug found live (user report: "can't get in church") — r:10 exactly equals the building's
+  // own addCol half-width/half-depth (game-buildings.js, addCol(CITY_COLS,-40,20,10,10)). The
+  // player's own collision radius (~0.65) keeps them 10.7 units from center at the closest,
+  // pressed right against the wall, so the zone circle (10) never actually reached them — the
+  // church was never enterable at all. Bumped to 11 so standing at the wall is genuinely inside it.
+  { x:-40, z:20,  r:11, label:'⛪ Enter Church', action: () => openChurch()},
+  // KING EXPLOX MONUMENT — user's own ask: a real statue + a real "origin of Explox" history
+  // exhibit (openExploxHistory(), game-library.js), in the plaza between downtown and City Hall.
+  { x:0, z:-10, r:6, label:'👑 King Explox Monument — Read the History', action: () => openExploxHistory()},
+  // THE MANSION (was "The Office") — admin-only HQ, reskinned as a house per the user's own ask:
+  // "the office is a house the biggest best." Same locked-for-everyone-else pattern as the Super
+  // Tank/Jet/Motorcycle — openOfficeRequest() (game-admin.js) does its own isAdmin() check and
+  // shows the honest locked message itself, so this zone doesn't need a separate gate here.
+  { x:300, z:113, r:9, label:'🏠 The Mansion', action: () => openOfficeRequest()},
+  // Deliberately placed just south of the Church itself — facing away from it, toward the dark —
+  // rather than inside any interior. See challengeSatan() (game-world.js) for the full reasoning.
+  { x:-40, z:3,   r:5,  label:'😈 Challenge Satan', action: () => challengeSatan()},
+  { x:-75, z:60,  r:11, label:'📚 Enter Library', action: () => openLibrary()},
+  { x:SCIENCE_LAB.x, z:SCIENCE_LAB.z, r:11, label:'🧪 Enter Science Lab', action: () => openScienceLab()},
+  // CITY HALL — the building has stood in the city as pure decoration since the very first build
+  // (buildCity()'s CITY HALL block, game-buildings.js: addCol(CITY_COLS,0,-35, 16,13)). Real first
+  // interactive function: a Forms Office (openFormsOffice(), game-shops.js), same sealed-box +
+  // circular-door-zone pattern as Library/Science Lab above, not a walk-in interior. Zone centered
+  // on the building's own addCol center, radius matching its half-width (16) same ratio those two
+  // use against their own half-widths (11).
+  { x:0, z:-35, r:17, label:'🏛️ Enter City Hall — Forms Office', action: () => openFormsOffice()},
+  { x:210, z:210, r:12, label:'📈 Enter Trading Center', action: () => openTradingCenter()},
 ];
 const HOUSE_ZONES = [
   { x:HOUSE_EXIT.x, z:HOUSE_EXIT.z, r:3, label:'Exit House', action: () => exitHouse()},
@@ -145,6 +195,33 @@ function handleInteract() {
     const dx=px2-pc.group.position.x, dz=pz-pc.group.position.z;
     if(Math.sqrt(dx*dx+dz*dz)<7) { enterCar(pc); return; }
   }
+  // The Super Tank — a permanent Car Dealership fixture, not in parkedCars/ownedCars (see
+  // dealershipTank, game-vehicles.js), so it gets this one extra proximity check of its own.
+  if (dealershipTank) {
+    const dx=px2-dealershipTank.group.position.x, dz=pz-dealershipTank.group.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<7) { enterPremiumVehicle(dealershipTank); return; }
+  }
+  // The Super Jet — same idea, parked on the Airport apron (dealershipJet, game-vehicles.js).
+  if (dealershipJet) {
+    const dx=px2-dealershipJet.group.position.x, dz=pz-dealershipJet.group.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<7) { enterPremiumVehicle(dealershipJet); return; }
+  }
+  // The Future Jet — same idea, a second Airport apron pad next to the Super Jet's (dealershipFutureJet, game-vehicles.js).
+  if (dealershipFutureJet) {
+    const dx=px2-dealershipFutureJet.group.position.x, dz=pz-dealershipFutureJet.group.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<7) { enterPremiumVehicle(dealershipFutureJet); return; }
+  }
+  // The Super Motorcycle — same idea, a second Car Dealership pad (dealershipMotorcycle, game-vehicles.js).
+  if (dealershipMotorcycle) {
+    const dx=px2-dealershipMotorcycle.group.position.x, dz=pz-dealershipMotorcycle.group.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<7) { enterPremiumVehicle(dealershipMotorcycle); return; }
+  }
+  // The Private Cab — parked outside The Office. enterMysteryVehicle() (game-vehicles.js) never
+  // reveals what it even is to a non-admin, on top of being locked.
+  if (dealershipCab) {
+    const dx=px2-dealershipCab.group.position.x, dz=pz-dealershipCab.group.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<7) { enterMysteryVehicle(dealershipCab); return; }
+  }
   // Money Printer press window (Bank Jobs) — a short real-time reaction that can happen from
   // anywhere in the city now that jobs don't require standing at a physical zone (item 217), so
   // it's checked here up front rather than tied to any CITY_ZONES entry.
@@ -183,7 +260,7 @@ function handleInteract() {
     const d = Math.sqrt((px2-movieBossFight.curX)**2+(pz-movieBossFight.curZ)**2);
     if (d < 4.5) { fightMovieBoss(); return; }
   }
-  if (!inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital) {
+  if (!inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital && !inSchool) {
     let closestRogue = null, closestRogueDist = 3;
     for (const r of rogueRobots) {
       if (!r.alive) continue;
@@ -198,7 +275,7 @@ function handleInteract() {
       const d = Math.sqrt((px2-k.x)**2+(pz-k.z)**2);
       if (d < closestKillerDist) { closestKillerDist = d; closestKiller = k; }
     }
-    if (closestKiller) { if (closestKiller.robber) fightRobber(closestKiller); else fightKiller(closestKiller); return; }
+    if (closestKiller) { if (closestKiller.robber) fightRobber(closestKiller); else if (closestKiller.demon) fightDemon(closestKiller); else if (closestKiller.satanBoss) fightSatanBoss(closestKiller); else if (closestKiller.killerSupreme) fightKillerSupreme(closestKiller); else fightKiller(closestKiller); return; }
     // Bosses now chase (see tickBossChase) instead of sitting at a fixed CITY_ZONES spot, so
     // fighting one has to be a live proximity check off its real curX/curZ, same as the two above.
     let closestBoss = null, closestBossDist = 4.5;
@@ -210,11 +287,11 @@ function handleInteract() {
     }
     if (closestBoss) { fightBoss(closestBoss); return; }
   }
-  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : inSea ? SEA_ZONES : CITY_ZONES;
+  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inVisitStore ? VISIT_STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : inSea ? SEA_ZONES : inSchool ? SCHOOL_ZONES : CITY_ZONES;
   for(const z of zones) {
     if(Math.sqrt((px2-z.x)**2+(pz-z.z)**2) < z.r) { z.action(); return; }
   }
-  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital && !inSea) {
+  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore) {
     const neighbor = findNearestNeighbor(px2, pz, 3);
     if(neighbor) { openNeighborModal(neighbor.name); return; }
   }
@@ -224,13 +301,53 @@ function handleInteract() {
 function updatePrompt() {
   const px2 = playerGroup.position.x, pz = playerGroup.position.z;
   const el = document.getElementById('ePrompt');
-  if(inCar) { el.textContent='[E] Exit Car'; el.style.display='block'; return; }
+  if(inCar) {
+    // Jet hint built per-jet now that Normal Jet/High Speed Jet/Future Jet don't all share the
+    // Super Jet's exact loadout (gunCount/hasBombs, game-vehicles.js) — showing "[F] Guns" on an
+    // unarmed Normal Jet would just be a lie you'd discover by pressing it. [Shift] Boost is
+    // real and free on every jet (the new afterburner above), so that part's unconditional.
+    const jetHint = (def) => {
+      const parts = ['[E] Exit Car'];
+      if ((def.gunCount ?? 1) > 0) parts.push('[F] Guns');
+      if (def.hasBombs !== false) parts.push('[V] Bomb');
+      parts.push('[Shift] Boost');
+      if (hiredJetPilot) parts.push(`[H] ${jetAutopilotActive?'Cancel':''} Autopilot`);
+      return parts.join(' · ');
+    };
+    el.textContent = (activeCar && activeCar.def.isTank) ? '[E] Exit Car · [F] Fire Cannon'
+      : (activeCar && activeCar.def.isJet) ? jetHint(activeCar.def)
+      : (activeCar && activeCar.def.isMotorcycle) ? '[E] Exit Car · [F] Rockets'
+      : '[E] Exit Car';
+    el.style.display='block'; return;
+  }
   if(onBankWall) { el.textContent='[E] 🏹 Shoot (or climb down if nothing\'s in range)'; el.style.display='block'; return; }
   for(const pc of parkedCars) {
     const dx=px2-pc.group.position.x, dz=pz-pc.group.position.z;
     if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent=`[E] ${pc.def.emoji} Get in ${pc.def.name}`; el.style.display='block'; return; }
   }
-  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : inSea ? SEA_ZONES : CITY_ZONES;
+  // Tank/Jet/Motorcycle are real-money items (see enterPremiumVehicle(), game-vehicles.js) —
+  // a non-admin sees an honest locked hint here instead of "Get in", same gate handleInteract() enforces.
+  if (dealershipTank) {
+    const dx=px2-dealershipTank.group.position.x, dz=pz-dealershipTank.group.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent = isAdmin() ? `[E] ${dealershipTank.def.emoji} Get in ${dealershipTank.def.name}` : `🔒 ${dealershipTank.def.name} — buy in 🛍️ SHOP`; el.style.display='block'; return; }
+  }
+  if (dealershipJet) {
+    const dx=px2-dealershipJet.group.position.x, dz=pz-dealershipJet.group.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent = isAdmin() ? `[E] ${dealershipJet.def.emoji} Get in ${dealershipJet.def.name}` : `🔒 ${dealershipJet.def.name} — buy in 🛍️ SHOP`; el.style.display='block'; return; }
+  }
+  if (dealershipFutureJet) {
+    const dx=px2-dealershipFutureJet.group.position.x, dz=pz-dealershipFutureJet.group.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent = isAdmin() ? `[E] ${dealershipFutureJet.def.emoji} Get in ${dealershipFutureJet.def.name}` : `🔒 ${dealershipFutureJet.def.name} — buy in 🛍️ SHOP`; el.style.display='block'; return; }
+  }
+  if (dealershipMotorcycle) {
+    const dx=px2-dealershipMotorcycle.group.position.x, dz=pz-dealershipMotorcycle.group.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent = isAdmin() ? `[E] ${dealershipMotorcycle.def.emoji} Get in ${dealershipMotorcycle.def.name}` : `🔒 ${dealershipMotorcycle.def.name} — buy in 🛍️ SHOP`; el.style.display='block'; return; }
+  }
+  if (dealershipCab) {
+    const dx=px2-dealershipCab.group.position.x, dz=pz-dealershipCab.group.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent = isAdmin() ? `[E] ${dealershipCab.def.emoji} Get in ${dealershipCab.def.name}` : `❓ Unknown — locked`; el.style.display='block'; return; }
+  }
+  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inVisitStore ? VISIT_STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : inSea ? SEA_ZONES : inSchool ? SCHOOL_ZONES : CITY_ZONES;
   for(const z of zones) {
     if(Math.sqrt((px2-z.x)**2+(pz-z.z)**2) < z.r) {
       if(z.isComputer) {
@@ -302,7 +419,7 @@ function updatePrompt() {
     }
   }
   // Talk to a nearby neighbor — lowest priority, only out in the open city
-  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital && !inSea) {
+  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore) {
     const neighbor = findNearestNeighbor(px2, pz, 3);
     if(neighbor) { el.textContent = `[E] 👋 Talk to ${neighbor.name}`; el.style.display='block'; return; }
   }
@@ -366,6 +483,9 @@ const LOC_ZONES = [
   {name:'City Airport',    x:-200,z:-200,r:40},
   {name:'The Diner',       x:110, z:-25, r:18},
   {name:'Your Store',      x:160, z:-25, r:18},
+  {name:'Toy Factory',         x:240, z:-55, r:24},
+  {name:'Auto Parts Factory',  x:330, z:-55, r:24},
+  {name:'Robot Parts Factory', x:420, z:-55, r:24},
   {name:'Japan',           x:COUNTRY_CENTERS.Japan.x,          z:COUNTRY_CENTERS.Japan.z,          r:85*COUNTRY_SCALE},
   {name:'France',          x:COUNTRY_CENTERS.France.x,         z:COUNTRY_CENTERS.France.z,         r:85*COUNTRY_SCALE},
   {name:'Brazil',          x:COUNTRY_CENTERS.Brazil.x,         z:COUNTRY_CENTERS.Brazil.z,         r:85*COUNTRY_SCALE},
@@ -376,6 +496,192 @@ const LOC_ZONES = [
   {name:'Italy',           x:COUNTRY_CENTERS.Italy.x,          z:COUNTRY_CENTERS.Italy.z,          r:85*COUNTRY_SCALE},
   {name:'Space Station',   x:COUNTRY_CENTERS['Space Station'].x, z:COUNTRY_CENTERS['Space Station'].z, r:65*COUNTRY_SCALE},
 ];
+
+// ─── TERRAIN / HILLS — real elevation, but ONLY in open, undeveloped natural ground. Every
+// developed footprint (city blocks, roads, every CITY_ZONES/LOC_ZONES building/door area,
+// Sunset Plains' actual house plots, each country's landmark+town core) stays perfectly flat at
+// y=0, exactly like before this was added — groundHeightAt() below returns EXACTLY 0 there, not
+// just "close to 0". Hills exist only inside 4 kinds of named regions (defined further down):
+// The Park (a small rolling patch away from City Hall/the pond), Whispering Woods (a real rolling
+// forest floor), Sunset Plains' huge undeveloped outskirts (everything in its LOC_ZONES circle
+// that isn't an actual owned/buyable plot), and a ring of rolling countryside just outside each
+// War Territory country's built core. Every region fades smoothly to 0 over its last several
+// units (regionMul/pocketMul/ringMul below) so there's never a hard cliff between hill and flat
+// ground. groundHeightAt(x,z) is the single source of truth: the visual terrain mesh
+// (buildHillPatchMesh/buildHillTerrain), the player's own ground-clamp (game-controls.js), and a
+// driven car's ground-clamp (same file) all sample this exact same function, so what you see is
+// what you (and everyone else, over online sync) actually stand on.
+//
+// hillMound() is deliberately NOT a full Perlin-noise library — just a real, deterministic,
+// layered sine/cosine "value noise" (3 octaves, decreasing amplitude) — a common enough
+// lightweight technique for exactly this kind of gentle rolling terrain. Remapped to [0,1] (never
+// negative) on purpose: the hill patch meshes below are separate, small meshes layered ON TOP of
+// the existing flat groundMesh rather than modifying it (groundMesh itself stays completely
+// untouched, so the whole rest of the world is provably byte-for-byte unaffected) — a negative
+// height would dip the patch BELOW the flat plane underneath it and either z-fight or get hidden,
+// which is exactly the kind of visual regression this whole feature has to avoid. Mounds-only
+// still reads as real rolling hills; it just never carves a valley below the original ground.
+function hillMound(x, z) {
+  const n = Math.sin(x*0.045)*Math.cos(z*0.045)
+          + Math.sin(x*0.09 + 1.7)*Math.cos(z*0.075 + 0.6)*0.5
+          + Math.sin(x*0.16 + 4.1)*Math.cos(z*0.13 + 2.3)*0.25; // roughly [-1.75, 1.75]
+  return Math.min(1, Math.max(0, (n/1.75 + 1) / 2)); // remapped to [0,1]
+}
+// 1 inside fullR (full hill height), 0 at/beyond edgeR (flat), smooth linear fade between.
+function regionMul(d, fullR, edgeR) {
+  if (d <= fullR) return 1;
+  if (d >= edgeR) return 0;
+  return 1 - (d - fullR) / (edgeR - fullR);
+}
+// The inverse shape — 0 inside flatR (forced flat, e.g. right on top of a pond/bench/plot), 1
+// at/beyond fadeR (full hill height), smooth linear fade between.
+function pocketMul(d, flatR, fadeR) {
+  if (d <= flatR) return 0;
+  if (d >= fadeR) return 1;
+  return (d - flatR) / (fadeR - flatR);
+}
+// A ring shape (flat core, hills in a band around it, flat again past the outer edge) — used for
+// country outskirts, where the flat "developed" area is a whole disk in the MIDDLE, not the edge.
+function ringMul(d, r0, r1, r2, r3) {
+  if (d <= r0 || d >= r3) return 0;
+  if (d < r1) return (d - r0) / (r1 - r0);
+  if (d <= r2) return 1;
+  return 1 - (d - r2) / (r3 - r2);
+}
+
+// The Park (LOC_ZONES 'The Park', x:-10,z:-60) is a small 54x54 grass square wedged tightly
+// between City Hall, the Sports Park gate, a pond, a fountain and 2 benches (see buildCity()'s
+// PARK section) — real hills only fit in its southern half, well clear of all of that, so the
+// region is centered south of the grass square's own center with a real conservative radius.
+// (Verified live: City Hall's own footprint — x:-15..15, z:-47..-23 — is 29 units past this
+// region's outer edge at its very closest point, and the Sports Park gate at z=-95 is 7 units past
+// it the other way, so neither one needs its own flat pocket — only the pond/fountain/benches,
+// which actually sit inside the region, do.)
+const PARK_HILL = { cx:-10, cz:-70, fullR:12, edgeR:18, amp:1.6,
+  pockets: [ [-10,-58,8,12], [-4,-60,4,6], [-18,-68,3,5], [4,-52,3,5] ] }; // [x,z,flatR,fadeR] — pond, fountain, bench, bench
+// Whispering Woods (game-housing.js) — the real 100-tree grove + crafting table + training dummy
+// all get their own visual Y lifted to match the terrain right where they stand (buildWoodsArea()/
+// chopTree()/fellTree()/hitDummy()), so hills can cover the WHOLE grove, not just gaps between
+// trees — no flat pockets needed here at all.
+const WOODS_HILL = { cx:WOODS_CENTER.x, cz:WOODS_CENTER.z, fullR:50, edgeR:75, amp:4.0 };
+// Sunset Plains (game-land.js) — LOC_ZONES gives it a huge r:380 circle around LAND_CENTER, but
+// the 10 real buyable land plots only occupy a small cluster near the middle of it (computed live
+// below, not hand-copied, so a future plot added to LAND_PLOTS is automatically kept flat too) —
+// everywhere else in that circle is real, genuinely undeveloped outskirts.
+const PLAINS_HILL = { cx:LAND_CENTER.x, cz:LAND_CENTER.z, fullR:340, edgeR:380, amp:5.0 };
+// Returns pocketMul() combined (the MINIMUM, i.e. "flattest wins") across every land plot's own
+// fence footprint — a real fence half-extent (plotHalf()) plus a small buffer, so the plot,
+// its fence, and its sign never sit on sloped ground, with the same smooth fade as everywhere else.
+function sunsetPlainsPocketMul(x, z) {
+  let m = 1;
+  for (let i = 0; i < LAND_PLOTS.length; i++) {
+    const { cx, cz } = landPlotPos(i);
+    const half = plotHalf(LAND_PLOTS[i]);
+    // Chebyshev ("square") distance matches the plots' own square fence shape better than a circle.
+    const d = Math.max(Math.abs(x - cx), Math.abs(z - cz));
+    const pm = pocketMul(d, half + 4, half + 14);
+    if (pm < m) m = pm;
+  }
+  return m;
+}
+// War Territory countries (game-world.js/COUNTRY_CENTERS above) — Space Station is deliberately
+// left out of this list, its own real zero-gravity platform (buildSpaceZone()) stays flat on
+// purpose. Every other country gets a real ring of rolling countryside OUTSIDE its built core
+// (landmark + buildTownExtras' shops/skyline/park/airport/hotel, all real-world-verified to sit
+// within ~1341 units of the country's own center — see this file's own hill-region comment
+// history) and INSIDE its own named LOC_ZONES circle (r:85*COUNTRY_SCALE), so hills never spill
+// into the empty neutral ground between two countries. r0 deliberately matches tickWar's own
+// "have I left this country behind" radius (70*COUNTRY_SCALE, game-world.js) — hills start
+// exactly where the game already stops treating you as "in" that country's built city.
+const HILL_COUNTRY_NAMES = ['France','UK','Italy','Japan','Australia','Egypt','Brazil','Canada'];
+const COUNTRY_HILL_R0 = 70*COUNTRY_SCALE, COUNTRY_HILL_R1 = 74*COUNTRY_SCALE,
+      COUNTRY_HILL_R2 = 81*COUNTRY_SCALE, COUNTRY_HILL_R3 = 85*COUNTRY_SCALE;
+const COUNTRY_HILL_AMP = 4.5;
+
+// The single source of truth for real elevation anywhere in the world — see the section comment
+// above. Returns 0 for every (x,z) outside all 4 region kinds, and exactly 0 for any (x,z) inside
+// one that also falls in a flat pocket (pond/bench/land-plot/etc) — both cases are the same
+// "already-developed, stay flat" guarantee the rest of this file depends on.
+function groundHeightAt(x, z) {
+  // ROOFTOPS — a building with a roofY (addCol's optional 5th arg, game-engine.js) is a real
+  // standing surface once you're on it: isBlocked() only ever lets the player's x/z cross into
+  // that footprint at all once they're already at/above roofY, so if (x,z) lands inside one here,
+  // they must already be up there — just hold them at roofY, same as any other floor.
+  for (const c of CITY_COLS) {
+    if (c.roofY === undefined) continue;
+    if (x > c.cx-c.hw && x < c.cx+c.hw && z > c.cz-c.hd && z < c.cz+c.hd) return c.roofY;
+  }
+  // The real exterior staircases leading up to those rooftops (addRoofRamp(), game-engine.js) —
+  // a straight ramp strip sampled the exact same way the hill regions below are.
+  const rampY = roofRampHeightAt(x, z);
+  if (rampY !== null) return rampY;
+  { const dx = x-PARK_HILL.cx, dz = z-PARK_HILL.cz, d = Math.hypot(dx,dz);
+    if (d < PARK_HILL.edgeR) {
+      let rm = regionMul(d, PARK_HILL.fullR, PARK_HILL.edgeR);
+      for (const [px,pz,fr,fdr] of PARK_HILL.pockets) rm = Math.min(rm, pocketMul(Math.hypot(x-px,z-pz), fr, fdr));
+      return rm > 0 ? PARK_HILL.amp * rm * hillMound(x,z) : 0;
+    }
+  }
+  { const dx = x-WOODS_HILL.cx, dz = z-WOODS_HILL.cz, d = Math.hypot(dx,dz);
+    if (d < WOODS_HILL.edgeR) {
+      const rm = regionMul(d, WOODS_HILL.fullR, WOODS_HILL.edgeR);
+      return rm > 0 ? WOODS_HILL.amp * rm * hillMound(x,z) : 0;
+    }
+  }
+  { const dx = x-PLAINS_HILL.cx, dz = z-PLAINS_HILL.cz, d = Math.hypot(dx,dz);
+    if (d < PLAINS_HILL.edgeR) {
+      const rm = Math.min(regionMul(d, PLAINS_HILL.fullR, PLAINS_HILL.edgeR), sunsetPlainsPocketMul(x,z));
+      return rm > 0 ? PLAINS_HILL.amp * rm * hillMound(x,z) : 0;
+    }
+  }
+  for (const name of HILL_COUNTRY_NAMES) {
+    const c = COUNTRY_CENTERS[name], d = Math.hypot(x-c.x, z-c.z);
+    if (d > COUNTRY_HILL_R0 && d < COUNTRY_HILL_R3) {
+      const rm = ringMul(d, COUNTRY_HILL_R0, COUNTRY_HILL_R1, COUNTRY_HILL_R2, COUNTRY_HILL_R3);
+      if (rm > 0) return COUNTRY_HILL_AMP * rm * hillMound(x,z);
+    }
+  }
+  return 0;
+}
+
+// Builds ONE real subdivided terrain patch (not the flat 1x1-segment base groundMesh, which stays
+// completely untouched) covering one hill region, vertex-displaced by the exact same
+// groundHeightAt() the player/car ground-clamp uses. +0.015 keeps it a hair above the flat base
+// groundMesh everywhere (including at 0 height, right at a region's own edge/pockets) so the two
+// never z-fight — imperceptible next to a ~2-unit-tall player, same trick this file's box() calls
+// already use for thin overlays (e.g. road strips sitting at y=0.01 above the ground).
+function buildHillPatchMesh(cx, cz, size, segments, color) {
+  const geo = new THREE.PlaneGeometry(size, size, segments, segments);
+  geo.rotateX(-Math.PI/2); // lie flat — local (x,z) now maps straight onto world (x,z), height along Y
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const wx = cx + pos.getX(i), wz = cz + pos.getZ(i);
+    pos.setY(i, groundHeightAt(wx, wz) + 0.015);
+  }
+  geo.computeVertexNormals();
+  const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color }));
+  m.position.set(cx, 0, cz);
+  m.receiveShadow = true;
+  scene.add(m);
+  return m;
+}
+// Builds the real visual terrain for all 4 hill-region kinds. Called once at startup, after
+// buildCity() (needs groundMesh's current color) and after buildSpaceZone() (world fully built).
+function buildHillTerrain() {
+  hillPatchMeshes.forEach(h => scene.remove(h.mesh));
+  hillPatchMeshes = [];
+  const baseColor = groundMesh ? groundMesh.material.color.getHex() : 0x5a9e3c;
+  // The Park's own grass square is a fixed 0x4a9e2a (buildCity()'s PARK section) and — like that
+  // square — is NOT part of the seasonal-color system, so this patch matches it exactly instead of
+  // the plain city ground color, and doesn't ride along with season changes either (matchesGround:false).
+  hillPatchMeshes.push({ mesh: buildHillPatchMesh(PARK_HILL.cx, PARK_HILL.cz, 44, 22, 0x4a9e2a), matchesGround:false });
+  hillPatchMeshes.push({ mesh: buildHillPatchMesh(WOODS_HILL.cx, WOODS_HILL.cz, 160, 40, baseColor), matchesGround:true });
+  hillPatchMeshes.push({ mesh: buildHillPatchMesh(PLAINS_HILL.cx, PLAINS_HILL.cz, 800, 70, baseColor), matchesGround:true });
+  HILL_COUNTRY_NAMES.forEach(name => {
+    const c = COUNTRY_CENTERS[name];
+    hillPatchMeshes.push({ mesh: buildHillPatchMesh(c.x, c.z, 3500, 100, baseColor), matchesGround:true });
+  });
+}
 
 // ─── START GAME ──────────────────────────────────────────────────────────────
 function _showErr(msg) {
@@ -401,6 +707,17 @@ function _startGameInner() {
     showNotif('🏦 Bank earned +10,000 S.I.P.!');
   }, 60000);
 
+  // Same "start it now, not at page load" reasoning as the bank timer above — keeps checking for a
+  // real day-change while the session stays open (e.g. left running overnight past midnight),
+  // instead of only ever checking once at login.
+  setInterval(checkCalendarReminders, 60000);
+
+  // User's own ask: "add a sighn saying do u want to go to heaven it appears once 5 min" — a real
+  // periodic invite to Heaven (HEAVEN_ZONE/enterHeaven(), game-world.js — the existing Divine
+  // Judgment redemption destination, reused here rather than building a second one), same
+  // 5-minute cadence idea as the bank timer above. Skipped while already in Heaven so it doesn't
+  // ask someone who already said yes.
+  setInterval(maybeShowHeavenInvite, 300000);
 
   // Check WebGL is available
   const _tc = document.createElement('canvas');
@@ -482,6 +799,8 @@ function _startGameInner() {
     }
   }
   _dbg('buildCity', buildCity);
+  _dbg('buildFactories', buildFactories);
+  _dbg('buildLabNPCs', buildLabNPCs); // Scientist NPCs at the Science Lab — after buildCity so the Lab building already exists
   _dbg('buildBankInterior', buildBankInterior);
   _dbg('buildPlayerHouse', buildPlayerHouse);
   _dbg('buildHouseInterior', buildHouseInterior);
@@ -505,15 +824,21 @@ function _startGameInner() {
   _dbg('buildOutfitShopWing', buildOutfitShopWing);
   _dbg('buildCountryZones', buildCountryZones);
   _dbg('buildSpaceZone', buildSpaceZone);
+  _dbg('buildHillTerrain', buildHillTerrain); // real hills — after buildCity (groundMesh color) and every region's own content (Woods/Plains/countries) is built
   _dbg('buildDeepSpaceZones', buildDeepSpaceZones);
+  _dbg('buildSpaceZoneNPCs', buildSpaceZoneNPCs); // astronauts at the Space Station — after buildSpaceZone/buildDeepSpaceZones so their landmarks already exist
+  _dbg('buildDeepSpaceNPCs', buildDeepSpaceNPCs); // astronauts on Moon/Mars, aliens on Jupiter/Andromeda
   _dbg('buildTraffic', buildTraffic);
   _dbg('buildSportsParkInterior', buildSportsParkInterior);
   _dbg('buildHospitalInterior', buildHospitalInterior);
   _dbg('buildSeaInterior', buildSeaInterior);
+  _dbg('buildSchoolInterior', buildSchoolInterior);
+  _dbg('buildSchoolNPCs', buildSchoolNPCs); // real teacher + seated classmates — after buildSchoolInterior so the room/desks already exist
   _dbg('spawnOwnedCars', spawnOwnedCars);
   _dbg('buildWeaponLevels', buildWeaponLevels); // must run before buildPlayer()/updateWeaponMesh() touch the currently-equipped weapon's damage — otherwise a returning player's weapon keeps dealing OLD (pre-rebalance) damage until they happen to open the shop
   _dbg('buildPlayer', buildPlayer);
   _dbg('buildBuddy', buildBuddy);
+  _dbg('buildBodyguards', buildBodyguards);
   _dbg('buildChild', buildChild);
   _dbg('applyCameraFX', applyCameraFX);
   _dbg('buildNPCs', buildNPCs);
@@ -524,14 +849,20 @@ function _startGameInner() {
   _dbg('buildCityShops', buildCityShops);
   _dbg('buildTownEventsBoard', buildTownEventsBoard);
   _dbg('buildWorldEventsBoard', buildWorldEventsBoard);
+  _dbg('buildDetectiveCorkboard', buildDetectiveCorkboard); // Mysteries — game-world.js
+  _dbg('resumeMysteryCase', resumeMysteryCase); // rebuilds an already-active case's props/NPCs after a reload — must run after buildDetectiveCorkboard/buildCity/buildFightArena/buildSunsetPlains etc. so every case location's real landmarks already exist
   _dbg('buildWarRoom', buildWarRoom);
   _dbg('buildElders', buildElders);
   _dbg('buildChildren', buildChildren); // must run AFTER shoppers exist — looks up parent NPCs by name for home position
   _dbg('buildPrisonInterior', buildPrisonInterior);
+  _dbg('buildHellInterior', buildHellInterior); // Divine Judgment's real sentence location — see game-world.js
+  _dbg('buildHeavenZone', buildHeavenZone); // Divine Judgment redemption destination — after buildDeepSpaceZones/GRAVITY_ZONES above so it sits alongside the other planet zones consistently
   _dbg('buildOwnedStore', buildOwnedStore);
   _dbg('applySeasonEffects', applySeasonEffects);
+  _dbg('tickWeather', () => tickWeather(0)); // one call before the first frame renders, so the real dynamic weather (not just the old static season particle) is already picked and applied instead of flashing/overriding on frame 1
   _dbg('updateDayNight', updateDayNight); // one call before the first frame renders, so day/night colors are already correct instead of flashing default values
   _dbg('checkPendingNotices', checkPendingNotices);
+  _dbg('checkCalendarReminders', checkCalendarReminders); // one call at game start, same as checkPendingNotices above, so a reminder due today notifies right away instead of waiting for the first 60s interval tick
   setupControls();
   // Snap camera to spawn position so first frame isn't black
   camera.position.set(
@@ -677,6 +1008,23 @@ function buildParkedDecorCar(x, z, color, yawAngle) {
   g.children.forEach(c=>{c.castShadow=true;c.receiveShadow=true;});
   g.position.set(x,0,z); g.rotation.y = yawAngle; scene.add(g);
   return g;
+}
+// Cash/ATM feature — a small standalone street kiosk, deliberately NOT built like a full building
+// (no roof structure, no columns, tiny addCol() footprint): a dark metal body, a lit screen panel
+// on the front face, and a floating "🏧 ATM" sign, same box()+buildSign() construction every other
+// small prop in this file uses. Reused identically at each real placement (see buildCity(),
+// game-buildings.js, for the 5 real city locations and the reasoning behind each spot), same
+// "shared builder function" pattern as buildChair()/buildParkedDecorCar() above rather than
+// hand-copying the same handful of box() calls 5 times.
+function buildATM(x, z) {
+  box(1.1, 2.0, 0.7, 0x2b3a4a, x, 1.0, z);           // kiosk body — dark blue-grey metal
+  box(1.15, 0.15, 0.75, 0x1a2530, x, 2.02, z);       // small cap/roof lip
+  box(0.6, 0.6, 0.06, 0x1fd8ff, x, 1.35, z + 0.36);  // lit screen panel, front face
+  box(0.7, 0.12, 0.1, 0x0d0d0d, x, 0.9, z + 0.36);   // card/cash slot below the screen
+  buildSign('🏧 ATM', x, 2.7, z);
+  const atmLight = new THREE.PointLight(0x33ccff, 0.5, 6);
+  atmLight.position.set(x, 1.5, z + 0.5); scene.add(atmLight);
+  addCol(CITY_COLS, x, z, 0.55, 0.4);
 }
 // ─── TRAFFIC — user's own ask: "roads all over the world traffic". Downtown already had real
 // paved roads (roadSegments()/the main-street slabs above); every country did not — buildRoadLoop()
@@ -837,14 +1185,47 @@ const DAY_LENGTH = 1800; // real seconds for one full day+night cycle (30 minute
 let seasonSkyColor, seasonFogColor; // THREE.Color, lazily created in applySeasonEffects (THREE isn't loaded yet at parse time)
 let _dayNightColors = null;         // lazily built cache of THREE.Color helpers, see updateDayNight
 let _judgmentColor = null;          // lazily built cache for the Wrath/Satan sky override, see updateDayNight
+let _rainTintColor = null, _fogTintColor = null; // lazily built cache for the weather sky tint, see updateDayNight
 let lastDayPhase = null;            // 'Day'|'Dawn'|'Dusk'|'Night' — only re-renders the HUD when this actually changes
 let lastTimeZoneCountry = null;     // country name the last HUD render reflected, or null outside any country
+// ─── SPACE/PLANET ZONE SKY OVERRIDE — "make it so it actually brings you to another planet not
+// just a weird spot of rock on earth": the 5 space/planet zones (SPACE_ZONE + the 4 GRAVITY_ZONES
+// entries beyond it, game-world.js) are small 110x110 platforms sitting directly on the SAME
+// shared Earth ground/sky as the rest of the map (see buildPlanetZone()'s own comment there) —
+// nothing about the ordinary season/weather/day-night sky above ever knew they existed, so
+// standing on the Moon still showed Explox's ordinary blue daytime (or rainy!) Earth sky. This
+// table gives each zone its own real, DISTINCT sky/fog/light — checked and applied as its own
+// priority tier in updateDayNight() below, the same "top priority, early return" shape the
+// Wrath/Satan judgment override above it already uses, just one tier further down (judgment still
+// wins if somehow both are active at once — Satan's Reign is "the whole world" ending, not a
+// per-zone problem, so it stays the higher-priority check). Colors lean on real astronomy where
+// Explox has a real answer (Mars' sky really is a dusty red-orange from iron oxide dust; the Moon
+// really has a black sky even at "midday" since it has no atmosphere to scatter light into a blue
+// dome the way Earth's does) and a deliberate distinct mood where it's this game's own invention
+// (the Space Station's near-Earth orbit vs. the Moon's flat black, Jupiter's outpost, Andromeda).
+// fogNear/fogFar are tuned to each zone's own ~110-unit platform footprint (half-width 55, plus a
+// little slack for the star scatter around it) — NOT GRAVITY_ZONES' own much larger gravity-EFFECT
+// radius, which for the Space Station alone is 1200 (60*COUNTRY_SCALE): using that as the fog
+// distance would leave over a thousand units of mismatched Earth ground plainly visible past the
+// platform, the exact bug this table exists to fix.
+const SPACE_ZONE_SKY = {
+  'Space Station': { sky:0x02040c, fog:0x02040c, ambient:0x141428, sun:1.0,  ambientI:0.35, fogNear:50, fogFar:190 },
+  Moon:            { sky:0x000000, fog:0x000000, ambient:0x1c1c22, sun:1.05, ambientI:0.3,  fogNear:50, fogFar:180 },
+  Mars:            { sky:0xc9703f, fog:0xb3673f, ambient:0x5a3320, sun:0.75, ambientI:0.55, fogNear:50, fogFar:180 },
+  Jupiter:         { sky:0x6e4a26, fog:0x6e4a26, ambient:0x3a2814, sun:0.55, ambientI:0.65, fogNear:55, fogFar:190 },
+  Andromeda:       { sky:0x1a0a2a, fog:0x1a0a2a, ambient:0x2a1a3a, sun:0.3,  ambientI:0.55, fogNear:50, fogFar:180 }, // 0x1a0a2a is the exact ground color buildPlanetZone() already gives Andromeda — extended here to the sky too
+  // HEAVEN — the Divine Judgment redemption destination (see HEAVEN_ZONE/buildHeavenZone(),
+  // game-world.js). Warm radiant gold instead of any of the above's dark/alien palettes — the one
+  // zone in this table that should feel welcoming rather than hostile or barren.
+  Heaven:          { sky:0xfff2c9, fog:0xffe9a8, ambient:0xfff0cc, sun:1.3,  ambientI:0.75, fogNear:55, fogFar:190 },
+};
+let _wasInSpaceZone = false; // tracks the zone→no-zone transition so leaving a zone can restore the real base fog distance once, see updateDayNight
 // A single shared "am I in a real indoor pocket space right now" check — the Sea/Space/War
 // Territories are all outdoor real-world-ish locations (a beach or a planet's surface looking
 // dark at night is normal), but these are actual roofed buildings, so they're the ones a real
 // day/night cycle shouldn't be allowed to darken. Used by updateDayNight() below.
 function isPlayerIndoors() {
-  return inHouse || inMall || inHotel || inStore || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inPrison || inArcade || inArenaBattle || inMovieFight || inBankInterior || inSportsPark || inHospital;
+  return inHouse || inMall || inHotel || inStore || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inPrison || inArcade || inArenaBattle || inMovieFight || inBankInterior || inSportsPark || inHospital || inSchool || inVisitStore;
 }
 // ─── TIME ZONES — user's own ask: "and time zones". Each real Earth country gets a real-ish UTC
 // offset matching its actual real-world zone, so the SAME moment of real playtime looks like a
@@ -863,7 +1244,9 @@ function currentTimeZoneCountry() {
 function getDayNightBrightness() {
   const zone = currentTimeZoneCountry();
   const offsetDayFrac = zone ? COUNTRY_TIME_ZONE_HOURS[zone] / 24 : 0;
-  const frac = (((playTimeSeconds / DAY_LENGTH) + offsetDayFrac) % 1 + 1) % 1; // 0..1, 0 = midnight; double-mod keeps negative UTC offsets positive
+  // adminTimeOffsetSeconds (game-admin.js, /time day|night) shifts ONLY this display calculation —
+  // playTimeSeconds itself is left untouched since it also drives character growth/aging.
+  const frac = ((((playTimeSeconds + adminTimeOffsetSeconds) / DAY_LENGTH) + offsetDayFrac) % 1 + 1) % 1; // 0..1, 0 = midnight; double-mod keeps negative UTC offsets positive
   const raw = (1 - Math.cos(frac * Math.PI * 2)) / 2;       // 0 at midnight, 1 at noon
   return { frac, raw, zone };
 }
@@ -877,15 +1260,43 @@ function updateDayNight() {
   // "he explodes in black consuming the whole world colapsing in a red sky" — the death-explosion
   // black beats even the Satan-won black, since it's the more recent/dramatic event; either way it
   // "collapses" back into the ordinary red once its own short timer runs out (see the fallthrough).
-  if (wrathActive || now < safePeriodEndsAt || now < satanBadUntil || now < satanDeathExplosionUntil) {
+  if (wrathActive || now < safePeriodEndsAt || satanReignActive || now < satanDeathExplosionUntil) {
     if (!_judgmentColor) _judgmentColor = new THREE.Color();
-    _judgmentColor.set((now < satanBadUntil || now < satanDeathExplosionUntil) ? 0x050505 : 0x660000);
+    _judgmentColor.set((satanReignActive || now < satanDeathExplosionUntil) ? 0x050505 : 0x660000);
     scene.background.copy(_judgmentColor);
     scene.fog.color.copy(_judgmentColor);
     sunLight.intensity = 0.15;
     ambientLight.color.copy(_judgmentColor);
     ambientLight.intensity = 0.3;
     return;
+  }
+  // Space/planet zone override — 2nd priority tier, above the ordinary season/day-night/weather
+  // code below it, same early-return shape as the judgment block just above. See SPACE_ZONE_SKY's
+  // own comment for why each zone's colors were picked and why the fog distance is tied to the
+  // zone's small ~110-unit platform, not GRAVITY_ZONES' own much larger gravity-effect radius.
+  const _zone = currentSpaceZone(); // game-world.js — loads after this file, but only ever called here at real runtime, see that function's own comment
+  const _zoneSky = _zone && SPACE_ZONE_SKY[_zone.name];
+  if (_zoneSky) {
+    _wasInSpaceZone = true;
+    scene.background.set(_zoneSky.sky);
+    scene.fog.color.set(_zoneSky.fog);
+    scene.fog.near = _zoneSky.fogNear;
+    scene.fog.far = _zoneSky.fogFar;
+    sunLight.intensity = _zoneSky.sun;
+    ambientLight.color.set(_zoneSky.ambient);
+    ambientLight.intensity = _zoneSky.ambientI;
+    return;
+  } else if (_wasInSpaceZone) {
+    // Just left a zone this frame — restore the REAL current base fog distance instead of leaving
+    // it stuck at the tight zone value until the next natural weather roll (applyWeather() below
+    // only re-touches scene.fog.near/far on an actual weather CHANGE, which could be minutes away).
+    // Mirrors applyWeather()'s own Fog-weather shrink exactly (same 8/130 values, same condition)
+    // rather than inventing a second fog-distance rule.
+    _wasInSpaceZone = false;
+    if (scene.fog && _baseFogNear !== null) {
+      if (currentWeatherKey === 'fog') { scene.fog.near = 8; scene.fog.far = 130; }
+      else { scene.fog.near = _baseFogNear; scene.fog.far = _baseFogFar; }
+    }
   }
   if (!_dayNightColors) {
     _dayNightColors = {
@@ -906,6 +1317,24 @@ function updateDayNight() {
   ambientLight.color.copy(c.nightAmbient).lerp(c.dayAmbient, b);
   ambientLight.intensity = 0.25 + raw * 0.5;
 
+  // Weather tint — layered ON TOP of the day/night colors just computed above, never in place of
+  // them, and this whole function already returned early above during the Wrath/Satan judgment
+  // override, so weather can never fight that priority. Clear/Snow/Breezy leave the sky exactly as
+  // day/night computed it. Rain/Thunderstorm darken it toward a real storm-grey (Thunderstorm
+  // darker + dims the sun more); Fog does a lighter grey-out to match its own near/far shrink
+  // (applyWeather() below owns that shrink, this just makes the color agree with it).
+  if (currentWeatherKey === 'rain' || currentWeatherKey === 'storm') {
+    if (!_rainTintColor) _rainTintColor = new THREE.Color(0x3a4550);
+    const amt = currentWeatherKey === 'storm' ? 0.55 : 0.35;
+    scene.background.lerp(_rainTintColor, amt);
+    scene.fog.color.lerp(_rainTintColor, amt);
+    sunLight.intensity *= currentWeatherKey === 'storm' ? 0.55 : 0.75;
+  } else if (currentWeatherKey === 'fog') {
+    if (!_fogTintColor) _fogTintColor = new THREE.Color(0xc9d2d8);
+    scene.background.lerp(_fogTintColor, 0.4);
+    scene.fog.color.lerp(_fogTintColor, 0.55);
+  }
+
   // The phase label always reflects the REAL local time where you're actually standing, even
   // indoors — being in a well-lit house at night shouldn't make the clock lie and say "Day".
   const phase = rawLocal >= 0.85 ? 'Day' : rawLocal < 0.3 ? 'Night' : (frac < 0.5 ? 'Dawn' : 'Dusk');
@@ -922,6 +1351,7 @@ function applySeasonEffects() {
   seasonSkyColor.set(skySky);
   seasonFogColor.set(fogFog);
   if(groundMesh) groundMesh.material.color.set(season.ground);
+  hillPatchMeshes.forEach(h => { if(h.matchesGround) h.mesh.material.color.set(season.ground); });
   treeMeshes.forEach(m => m.material.color.set(season.tree));
   if(season.particle) startWeatherParticles(season.particle);
   updateSeasonHud();
@@ -950,30 +1380,209 @@ function updateSeasonHud() {
   const {season, holiday} = getSeasonInfo();
   const phaseText = lastDayPhase ? '  |  ' + DAY_PHASE_EMOJI[lastDayPhase] + ' ' + lastDayPhase : '';
   const zoneText = lastTimeZoneCountry ? '  |  🌍 ' + lastTimeZoneCountry + ' Time' : '';
-  el.textContent = season.emoji + ' ' + season.name + (holiday ? '  |  ' + holiday.emoji + ' ' + holiday.name : '') + phaseText + zoneText;
+  const w = currentWeatherKey ? WEATHER_TYPES[currentWeatherKey] : null;
+  const weatherText = w ? '  |  ' + w.emoji + ' ' + w.name : '';
+  el.textContent = season.emoji + ' ' + season.name + weatherText + (holiday ? '  |  ' + holiday.emoji + ' ' + holiday.name : '') + phaseText + zoneText;
 }
 
+// ─── DYNAMIC WEATHER ──────────────────────────────────────────────────────────
+// The old system was a static 1:1 function of season (winter=always snow, fall=always leaves,
+// else always nothing). This replaces it with real day-to-day variety, using the EXACT same trick
+// DAY_LENGTH/getDayNightBrightness() already use above: the current weather is DERIVED fresh from
+// playTimeSeconds every time it's needed, split into WEATHER_CYCLE_SECONDS-long windows, instead of
+// being a separately-persisted timer. Each window's weather is a deterministic weighted pick seeded
+// from (window index + current season), so reloading the page resumes the SAME weather instead of
+// rerolling — zero new save fields needed, exactly like day/night. 4 real minutes/state gives
+// ~7-8 changes across one 30-minute DAY_LENGTH day, which reads as "weather actually changes today"
+// without flickering between conditions every few seconds.
+const WEATHER_CYCLE_SECONDS = 240;
+const WEATHER_TYPES = {
+  clear:  {emoji:'☀️',  name:'Clear',        particle:null},
+  rain:   {emoji:'🌧️', name:'Rain',         particle:'rain'},
+  storm:  {emoji:'⛈️',  name:'Thunderstorm', particle:'rain'},
+  snow:   {emoji:'❄️',  name:'Snow',         particle:'snow'},
+  fog:    {emoji:'🌫️', name:'Fog',          particle:null},
+  leaves: {emoji:'🍂',  name:'Breezy',       particle:'leaves'},
+};
+// Odds per season, each row sums to 100. Winter leans Snow/Clear/Fog (no Rain/Breezy — it's cold,
+// not leaf-blowing weather). Spring is Rain-heavy with a little Thunderstorm. Summer is mostly
+// Clear with real occasional Thunderstorms and some Rain. Fall keeps the old 'leaves' look as its
+// OWN weather state (a deliberate choice — see startWeatherParticles below — rather than folding it
+// into a generic "windy" flag) mixed with Fog/Rain and a little Clear; Snow never happens outside
+// winter and Breezy-leaves never happens outside fall, matching the old seasonal particle behavior.
+const WEATHER_WEIGHTS = {
+  winter: {clear:35, snow:40, fog:20, rain:0,  storm:0,  leaves:0},
+  spring: {clear:30, rain:40, storm:10, fog:15, snow:0,  leaves:5},
+  summer: {clear:55, storm:20, rain:15, fog:5,  snow:0,  leaves:5},
+  fall:   {clear:20, leaves:30, fog:20, rain:25, storm:5, snow:0},
+};
+let currentWeatherKey = null;    // 'clear'|'rain'|'storm'|'snow'|'fog'|'leaves' — last APPLIED weather
+let _lastWeatherWindow = null;   // WEATHER_CYCLE_SECONDS window index the above was computed for
+let _lastWeatherSeasonKey = null;// season key the above was computed for (re-rolls on a season change even mid-window)
+let lightningTimer = 0;          // real seconds until the next Thunderstorm flash
+let weatherRainActive = false;   // whether sfx's rain loop is currently playing (tracks indoor pauses)
+let _weatherRainKey = null;      // which of 'rain'/'storm' the currently-looping rain sound was started for
+let _lightningFlashLight = null; // shared THREE.PointLight reused for every flash, see triggerLightning()
+let _baseFogNear = null, _baseFogFar = null; // real base scene.fog distances, captured once so Fog weather can restore them exactly
+
+// Deterministic 0..1 hash of a string (djb2-style) — the SAME window index + season always hashes
+// to the SAME roll, so the SAME weather comes back after a reload instead of rerolling.
+function _weatherHash01(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
+  return h / 4294967295;
+}
+function currentWeatherWindow() { return Math.floor(playTimeSeconds / WEATHER_CYCLE_SECONDS); }
+function pickWeatherForWindow(windowIdx, sk) {
+  const weights = WEATHER_WEIGHTS[sk];
+  const roll = _weatherHash01(windowIdx + '_' + sk) * 100; // weight rows sum to 100
+  let acc = 0;
+  for (const key in weights) {
+    acc += weights[key];
+    if (roll < acc) return key;
+  }
+  return 'clear'; // float rounding fallback, never actually reached since weights sum to exactly 100
+}
+
+// Runs every frame (cheap — a hash + a handful of number ops). Only does real work — swapping
+// particles/fog/HUD — on an ACTUAL weather change. The "Snow Day"/"Leaf Storm" shop add-ons
+// (game-shops.js toggleAddOn) force a particle type directly and must win over natural weather —
+// this bails out early while either is active, same spirit as updateDayNight()'s judgment override
+// bailing out of the normal day/night math above.
+function tickWeather(dt) {
+  if (!scene) return;
+  if (activeAddOns.includes('snowday') || activeAddOns.includes('leafstorm')) return;
+  const { sk } = getSeasonInfo();
+  const windowIdx = currentWeatherWindow();
+  if (windowIdx !== _lastWeatherWindow || sk !== _lastWeatherSeasonKey) {
+    _lastWeatherWindow = windowIdx;
+    _lastWeatherSeasonKey = sk;
+    applyWeather(pickWeatherForWindow(windowIdx, sk));
+  }
+  tickLightning(dt);
+  tickRainAudio();
+}
+
+function applyWeather(key) {
+  if (key === currentWeatherKey) return;
+  const isFirstApply = currentWeatherKey === null;
+  currentWeatherKey = key;
+  const w = WEATHER_TYPES[key];
+  startWeatherParticles(w.particle);
+  // Fog weather temporarily shrinks the real fog near/far so visibility is actually limited; every
+  // other weather restores the true base distance captured the first time this ever runs.
+  if (scene.fog) {
+    if (_baseFogNear === null) { _baseFogNear = scene.fog.near; _baseFogFar = scene.fog.far; }
+    if (key === 'fog') { scene.fog.near = 8; scene.fog.far = 130; }
+    else { scene.fog.near = _baseFogNear; scene.fog.far = _baseFogFar; }
+  }
+  lightningTimer = key === 'storm' ? 3 + Math.random()*6 : 0; // first strike lands a little sooner than the steady-state 8-20s gap below
+  updateSeasonHud();
+  if (!isFirstApply) showNotif(w.emoji + ' ' + w.name + ' moving in');
+}
+
+// Thunderstorm-only: a real random lightning flash every 8-20 real seconds, paired with a delayed
+// thunder rumble (sfx.thunder() already existed for this exact sound). Skipped indoors — a flash
+// lighting up your living room / the mall doesn't make sense, same "not intrusive indoors" spirit
+// the rain sound loop below follows. Also skipped in a space/planet zone (currentSpaceZone(),
+// game-world.js) — an Earth thunderstorm flashing over the Moon would be exactly the "still looks
+// like Earth" bug the zone sky override above exists to fix.
+function tickLightning(dt) {
+  if (currentWeatherKey !== 'storm' || isPlayerIndoors() || currentSpaceZone()) return;
+  lightningTimer -= dt;
+  if (lightningTimer <= 0) {
+    lightningTimer = 8 + Math.random()*12;
+    triggerLightning();
+  }
+}
+function triggerLightning() {
+  if (!scene || !playerGroup) return;
+  if (!_lightningFlashLight) {
+    _lightningFlashLight = new THREE.PointLight(0xdfe8ff, 0, 500);
+    scene.add(_lightningFlashLight);
+  }
+  _lightningFlashLight.position.set(
+    playerGroup.position.x + (Math.random()-0.5)*80, 90, playerGroup.position.z + (Math.random()-0.5)*80
+  );
+  const L = _lightningFlashLight;
+  // A quick bright-dim-bright-dark flicker (real lightning often double-strikes) instead of a flat
+  // on/off flash — just staggered setTimeouts, same lightweight pattern showNotif()/birthday-gift
+  // already use elsewhere in this file for "do this, then that, a beat later".
+  L.intensity = 4.5;
+  setTimeout(() => { if (L) L.intensity = 0.8; }, 90);
+  setTimeout(() => { if (L) L.intensity = 3.2; }, 160);
+  setTimeout(() => { if (L) L.intensity = 0; }, 260);
+  setTimeout(() => sfx.thunder(), 350 + Math.random()*600); // thunder lags the flash like real light-before-sound
+}
+
+// Rain/Thunderstorm keep a real looping ambient rain sound going (sfx.startRain()/stopRain() in
+// game-core.js — reuses the shared sfx AudioContext instead of a second audio engine). Paused
+// (not just left running) while indoors via isPlayerIndoors(), matching how day/night already
+// treats indoor pocket spaces as their own thing — restarts the instant you step back outside.
+// Also paused in a space/planet zone (currentSpaceZone(), game-world.js), same reasoning as
+// tickLightning() above — no Earth-side rain sound should follow the player to another planet.
+function tickRainAudio() {
+  const rainy = currentWeatherKey === 'rain' || currentWeatherKey === 'storm';
+  const wantsRain = rainy && !isPlayerIndoors() && !currentSpaceZone();
+  if (wantsRain && (!weatherRainActive || _weatherRainKey !== currentWeatherKey)) {
+    weatherRainActive = true;
+    _weatherRainKey = currentWeatherKey;
+    sfx.startRain(currentWeatherKey === 'storm' ? 1.6 : 1);
+  } else if (!wantsRain && weatherRainActive) {
+    weatherRainActive = false;
+    _weatherRainKey = null;
+    sfx.stopRain();
+  }
+}
+
+// Builds the falling-particle field for the given type: 'snow', 'leaves', 'rain', or null/absent
+// (Clear/Fog — no particles). Spawn is centered on the PLAYER's position (not world origin) so
+// weather is actually visible no matter where in the world you're standing — e.g. deep in a War
+// Territory, not just near Downtown. The existing per-frame respawn logic in game-controls.js
+// already recenters falling particles on the player once they pass below the ground, so this just
+// makes the very FIRST spawn agree with that instead of starting the player's first ~20-100 real
+// seconds (until the first respawn cycle) with no visible weather if they're far from the origin.
+// Near Downtown (where the player normally starts) this looks identical to the old origin-centered
+// spawn, since the player's spawn point IS close to the origin there — verified live, see report.
 function startWeatherParticles(type) {
   weatherParticles.forEach(p => scene.remove(p));
   weatherParticles = [];
-  const count = type==='snow' ? 280 : 180;
+  if (!type) return; // Clear / Fog — an empty sky, no particles
+  const cx = playerGroup ? playerGroup.position.x : 0;
+  const cz = playerGroup ? playerGroup.position.z : 0;
+  const count = type==='snow' ? 280 : type==='rain' ? 220 : 180;
   const leafColors = [0xcc6622,0xdd8833,0xaa4411,0xffaa00,0xdd5500];
   for(let i=0; i<count; i++) {
     const mesh = new THREE.Mesh(
-      type==='snow'
-        ? new THREE.SphereGeometry(0.12,4,4)
-        : new THREE.BoxGeometry(0.35,0.02,0.35),
-      new THREE.MeshBasicMaterial({color: type==='snow' ? 0xffffff : leafColors[Math.floor(Math.random()*leafColors.length)]})
+      type==='snow' ? new THREE.SphereGeometry(0.12,4,4)
+      : type==='rain' ? new THREE.CylinderGeometry(0.015,0.015,0.55,3)
+      : new THREE.BoxGeometry(0.35,0.02,0.35),
+      new THREE.MeshBasicMaterial({
+        color: type==='snow' ? 0xffffff : type==='rain' ? 0x9fc6e0 : leafColors[Math.floor(Math.random()*leafColors.length)],
+        transparent: type==='rain', opacity: type==='rain' ? 0.55 : 1
+      })
     );
-    mesh.position.set((Math.random()-0.5)*200, Math.random()*40, (Math.random()-0.5)*200);
-    mesh._speed  = 0.5 + Math.random()*(type==='snow'?1.5:0.9);
-    mesh._driftX = (Math.random()-0.5)*0.4;
-    mesh._driftZ = (Math.random()-0.5)*0.2;
+    mesh.position.set(cx + (Math.random()-0.5)*200, Math.random()*40, cz + (Math.random()-0.5)*200);
+    mesh._speed  = type==='rain' ? 14 + Math.random()*6 : 0.5 + Math.random()*(type==='snow'?1.5:0.9);
+    mesh._driftX = type==='rain' ? 0.6 : (Math.random()-0.5)*0.4;
+    mesh._driftZ = type==='rain' ? 0.15 : (Math.random()-0.5)*0.2;
     mesh._spin   = type==='leaves' ? (Math.random()-0.5)*0.07 : 0;
+    if (type==='rain') mesh.rotation.x = 0.35; // tilt the streak to match its drift — real wind-blown-rain look
     scene.add(mesh);
     weatherParticles.push(mesh);
   }
 }
+
+// Player-created calendar reminders — real persistence via game-core.js saveCurrentUser()/loginAs(),
+// exactly the same pattern as unpaidBills/activeQuests elsewhere. Full 'YYYY-MM-DD' (not just
+// 'MM-DD' like HOLIDAYS below) so a reminder is for one specific real date and can't collide across
+// different years. `notified` starts false and flips to true the moment checkCalendarReminders()
+// below fires it — a persisted per-reminder gate instead of one shared "last checked" date, because
+// (unlike the fixed, always-known-in-advance playerBirthday lastBirthdayGiftDate gates on) a
+// reminder can be freshly added for TODAY mid-session, after that day's check already ran; a single
+// shared date gate would then never re-open until tomorrow and the reminder would silently never
+// notify. Per-reminder `notified` fires exactly once, whenever it's actually due, with no such gap.
+let calendarReminders = []; // persisted — [{id, date:'YYYY-MM-DD', text, notified}]
 
 function openCalendar() {
   const info = getSeasonInfo();
@@ -983,33 +1592,70 @@ function openCalendar() {
   const DN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const firstDay = new Date(year,month,1).getDay();
   const dim = new Date(year,month+1,0).getDate();
+  // Bucket this player's reminders by full 'YYYY-MM-DD', but only for the month/year on screen —
+  // openCalendar() has no month-navigation UI (it only ever shows the real current month), so a
+  // reminder set for a different month would otherwise just silently vanish from view. otherMonthCount
+  // below surfaces those instead of losing them.
+  const remindersByDate = {};
+  let otherMonthCount = 0;
+  calendarReminders.forEach(r => {
+    if(!r || !r.date) return;
+    const p = r.date.split('-');
+    if(p.length !== 3) return;
+    if(+p[0] === year && +p[1] === month+1) (remindersByDate[r.date] = remindersByDate[r.date] || []).push(r);
+    else otherMonthCount++;
+  });
   let grid = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:10px;">';
   DN.forEach(n => { grid += `<div style="color:#666;font-size:9px;text-align:center;padding:2px;">${n}</div>`; });
   for(let i=0;i<firstDay;i++) grid += '<div></div>';
   for(let d=1;d<=dim;d++) {
     const mmdd = String(month+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const fullDate = year+'-'+mmdd;
     const hol  = HOLIDAYS[mmdd];
     const isBd = playerBirthday === mmdd;
     const isTd = d===today;
+    const dayReminders = remindersByDate[fullDate] || [];
     let bg='rgba(255,255,255,0.04)', col='#888', extra='';
     if(hol)  { bg='rgba(255,200,0,0.18)'; col='#FFD700'; extra=`<div style="font-size:9px;">${hol.emoji}</div>`; }
     if(isBd) { bg='rgba(255,80,200,0.22)'; col='#ff88ff'; extra=`<div style="font-size:9px;">🎂</div>`; }
+    if(dayReminders.length) { extra += `<div style="font-size:9px;">📌</div>`; }
     if(isTd) { bg='#e94560'; col='#fff'; }
-    grid += `<div style="background:${bg};color:${col};border-radius:4px;padding:3px 1px;text-align:center;font-size:11px;font-weight:${isTd?'bold':'normal'};">${d}${extra}</div>`;
+    const titleAttr = dayReminders.length ? ` title="${dayReminders.map(r=>escapeHtml(r.text)).join(', ')}"` : '';
+    grid += `<div style="background:${bg};color:${col};border-radius:4px;padding:3px 1px;text-align:center;font-size:11px;font-weight:${isTd?'bold':'normal'};"${titleAttr}>${d}${extra}</div>`;
   }
   grid += '</div>';
   let upcoming = '';
   for(let d=today;d<=dim;d++){
     const mmdd=String(month+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const fullDate = year+'-'+mmdd;
     const h=HOLIDAYS[mmdd];
     if(h)   upcoming += `<div style="color:#FFD700;font-size:11px;margin-bottom:3px;">${h.emoji} <b>${h.name}</b> — ${MN[month]} ${d}</div>`;
     if(playerBirthday===mmdd) upcoming += `<div style="color:#ff88ff;font-size:11px;margin-bottom:3px;">🎂 <b>Birthday!</b> — ${MN[month]} ${d}</div>`;
+    (remindersByDate[fullDate] || []).forEach(r => {
+      // A reminder that already fired (r.notified) stays listed as real history instead of
+      // vanishing — just dimmed + checked off, so past reminders aren't silently lost.
+      const fired = !!r.notified;
+      upcoming += `<div style="color:${fired?'#888':'#ff8fa8'};font-size:11px;margin-bottom:3px;display:flex;align-items:center;justify-content:space-between;gap:6px;">
+        <span>${fired?'✅':'📌'} ${escapeHtml(r.text)} — ${MN[month]} ${d}</span>
+        <span onclick="deleteCalendarReminder('${r.id}')" style="cursor:pointer;color:#888;flex-shrink:0;" title="Delete reminder">✕</span>
+      </div>`;
+    });
   }
+  const otherMonthsNote = otherMonthCount>0 ? `<div style="color:#777;font-size:10px;margin-top:6px;">📌 +${otherMonthCount} reminder${otherMonthCount===1?'':'s'} in other months</div>` : '';
+  const addForm = `
+    <div style="border-top:1px solid #333;padding-top:8px;margin-top:8px;">
+      <div style="color:#e94560;font-size:11px;font-weight:bold;letter-spacing:1px;margin-bottom:6px;">📌 ADD REMINDER</div>
+      <input id="reminderDateInput" type="date" value="${year}-${String(month+1).padStart(2,'0')}-${String(today).padStart(2,'0')}" style="width:100%;box-sizing:border-box;padding:6px;margin-bottom:6px;border-radius:6px;border:1px solid #444;background:#0f0f1a;color:#fff;font-size:12px;">
+      <input id="reminderTextInput" type="text" maxlength="60" placeholder="What do you want to remember?" style="width:100%;box-sizing:border-box;padding:6px;margin-bottom:6px;border-radius:6px;border:1px solid #444;background:#0f0f1a;color:#fff;font-size:12px;">
+      <button onclick="addCalendarReminder()" style="width:100%;padding:7px;background:#e94560;border:none;border-radius:6px;color:#fff;font-weight:bold;font-size:12px;cursor:pointer;">＋ Add Reminder</button>
+    </div>`;
   document.getElementById('calendarContent').innerHTML = `
     <div style="text-align:center;color:#e94560;font-size:14px;font-weight:bold;letter-spacing:2px;margin-bottom:6px;">${MN[month].toUpperCase()} ${year}</div>
     <div style="text-align:center;font-size:18px;margin-bottom:10px;">${info.season.emoji} ${info.season.name}</div>
     ${grid}
     ${upcoming?`<div style="border-top:1px solid #333;padding-top:8px;margin-top:2px;">${upcoming}</div>`:''}
+    ${otherMonthsNote}
+    ${addForm}
   `;
   if(document.pointerLockElement) document.exitPointerLock();
   isPointerLocked = false;
@@ -1018,5 +1664,48 @@ function openCalendar() {
 function closeCalendar() {
   document.getElementById('calendarOverlay').style.display='none';
   if(renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+
+// ─── CALENDAR REMINDER CRUD (real persistence — see calendarReminders in game-core.js save/load) ──
+function addCalendarReminder() {
+  const dateEl = document.getElementById('reminderDateInput');
+  const textEl = document.getElementById('reminderTextInput');
+  if(!dateEl || !textEl) return;
+  const date = dateEl.value;
+  const text = textEl.value.trim();
+  if(!date || !text) { showNotif('📌 Pick a date and type what to remember first'); return; }
+  calendarReminders.push({ id: 'rem_'+Date.now()+'_'+Math.floor(Math.random()*10000), date: date, text: text.slice(0,60), notified: false });
+  saveCurrentUser();
+  checkCalendarReminders(); // covers adding a reminder dated TODAY — fires the real notification right away instead of waiting for the next periodic tick
+  openCalendar(); // re-render so the new reminder shows immediately in the grid + upcoming list
+}
+function deleteCalendarReminder(id) {
+  calendarReminders = calendarReminders.filter(r => r.id !== id);
+  saveCurrentUser();
+  openCalendar();
+}
+// Real-time check that a reminder's date has actually arrived, so the player gets a real
+// showNotif() the day it's due instead of having to remember to open the calendar and look. Called
+// once at game start and every 60s after (see _startGameInner()/setInterval above) — "once per real
+// day, not once per frame" like the lastBirthdayGiftDate idiom this is modeled on (see
+// applySeasonEffects() above) — but the actual once-only gate here is per-reminder (r.notified),
+// not one shared last-checked date: a reminder can be freshly added for TODAY mid-session (see
+// addCalendarReminder() above), after any shared daily gate would have already tripped, and a
+// shared gate would then silently never fire it. r.notified flips true and persists the moment it
+// fires, so a reload never re-notifies, and the reminder deliberately stays in calendarReminders
+// afterward (shown as history in the grid/upcoming list, see openCalendar()) instead of
+// auto-deleting itself.
+function checkCalendarReminders() {
+  if(!currentUser) return;
+  const now = new Date();
+  const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  const due = calendarReminders.filter(r => r && r.date === todayStr && !r.notified);
+  if(due.length) {
+    due.forEach((r,i) => {
+      r.notified = true;
+      setTimeout(() => showNotif('📌 Reminder: ' + r.text), 600*(i+1));
+    });
+    saveCurrentUser();
+  }
 }
 
