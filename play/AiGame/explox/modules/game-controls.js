@@ -159,11 +159,124 @@ function setupMobileControls(){
     }
   }, {passive:true});
 
-  jumpBtn.addEventListener('touchstart', e=>{ e.preventDefault(); tryCityJump(); });
-  interactBtn.addEventListener('touchstart', e=>{ e.preventDefault(); onInteractDown(); });
-  interactBtn.addEventListener('touchend',   e=>{ e.preventDefault(); onInteractUp(); });
-  runBtn.addEventListener('touchstart', e=>{ e.preventDefault(); moveState.run=true; runBtn.classList.add('active'); });
-  runBtn.addEventListener('touchend',   e=>{ e.preventDefault(); moveState.run=false; runBtn.classList.remove('active'); });
+  // Discrete action buttons use Pointer Events (not touchstart) so each tap fires exactly once on
+  // both phones and any touchscreen laptop, and so a finger that slides off the button still
+  // releases — the old touchstart/touchend-on-the-button pair left RUN stuck on and a charged
+  // punch stuck charging if you lifted your thumb a few px outside the circle. bindHold() wires
+  // the down action on the button and the release on the whole window for exactly that reason.
+  function bindTap(btn, onDown){
+    if(!btn) return;
+    btn.addEventListener('pointerdown', e=>{ e.preventDefault(); onDown(); });
+  }
+  function bindHold(btn, onDown, onUp){
+    if(!btn) return;
+    let held = false;
+    btn.addEventListener('pointerdown', e=>{ e.preventDefault(); held = true; onDown(); });
+    const release = ()=>{ if(held){ held = false; onUp(); } };
+    window.addEventListener('pointerup', release);
+    window.addEventListener('pointercancel', release);
+  }
+
+  bindTap(jumpBtn, tryCityJump);
+  bindHold(interactBtn, onInteractDown, onInteractUp);
+  bindHold(runBtn,
+    ()=>{ moveState.run = true;  runBtn.classList.add('active'); },
+    ()=>{ moveState.run = false; runBtn.classList.remove('active'); });
+
+  // Combat/vehicle actions that used to be keyboard-only (F / V / Q) — with no touch equivalent a
+  // phone player literally could not fire the Tank cannon, the Jet's guns/bombs, or a grenade.
+  // FIRE calls all three vehicle weapons; each self-gates on its own vehicle's def flag, so only
+  // the one you're actually driving ever fires. BOMB and GRENADE map straight to their functions.
+  bindTap(document.getElementById('mobileFireBtn'), ()=>{ fireTankCannon(); fireJetGuns(); fireMotorcycleRockets(); });
+  bindTap(document.getElementById('mobileBombBtn'), dropJetBomb);
+  bindTap(document.getElementById('mobileGrenadeBtn'), throwCombatGrenade);
+
+  // FIRE and BOMB only make sense inside a weaponized vehicle, so they stay hidden until you're in
+  // one (otherwise they'd be two dead buttons cluttering a small screen). Cheap enough to poll —
+  // it's a couple of style writes on a 300ms timer, the same self-contained-interval pattern the
+  // rest of this file already uses for one-off UI, rather than threading a call into animate().
+  updateMobileActionButtons();
+  setInterval(updateMobileActionButtons, 300);
+}
+
+function updateMobileActionButtons(){
+  const fireBtn = document.getElementById('mobileFireBtn');
+  const bombBtn = document.getElementById('mobileBombBtn');
+  if(!fireBtn || !bombBtn) return;
+  const def = (typeof inCar !== 'undefined' && inCar && typeof activeCar !== 'undefined' && activeCar && activeCar.def) ? activeCar.def : null;
+  const canFire = !!(def && (def.isTank || def.isMotorcycle || (def.isJet && (def.gunCount ?? 1) > 0)));
+  const canBomb = !!(def && def.isJet && def.hasBombs !== false);
+  fireBtn.style.display = canFire ? 'flex' : 'none';
+  bombBtn.style.display = canBomb ? 'flex' : 'none';
+}
+
+// ─── PHONE MENU ────────────────────────────────────────────────────────────────
+// On touch devices the vertical side-tab rails are hidden (CSS, keyed off html.touch) and every tab
+// is reached through one ☰ menu instead — a grid of labelled thumbnails. We BUILD that grid live
+// from the rails' own buttons rather than hardcoding a parallel list: that way it can never drift
+// out of sync with the real tabs, it automatically includes any tab added later, it skips tabs the
+// game has hidden (contracts/homework/admin, whose wrapper is display:none), and each item just
+// re-runs that tab's own onclick — the single source of truth for what the tab does.
+function buildTabMenu(){
+  const grid = document.getElementById('tabMenuGrid');
+  if(!grid) return;
+  grid.innerHTML = '';
+  ['rightTabStack','leftTabStack'].forEach(railId => {
+    const rail = document.getElementById(railId);
+    if(!rail) return;
+    Array.from(rail.children).forEach(wrap => {
+      if(wrap.style.display === 'none') return;           // tab the game has hidden — leave it out
+      const btn = wrap.querySelector('a,button');
+      if(!btn) return;
+      const iconEl = btn.querySelector('span');            // the first span is always the emoji icon
+      const icon = iconEl ? iconEl.textContent.trim() : '•';
+      // Label = the button's text with every <span> (icon + any badge/count spans) stripped out.
+      const clone = btn.cloneNode(true);
+      clone.querySelectorAll('span').forEach(s => s.remove());
+      const label = (clone.textContent || '').replace(/\s+/g,' ').trim();
+      // Carry over a live notification badge (e.g. EARNINGS' "!") as a small red dot on the thumbnail.
+      const badge = wrap.querySelector('[id$="Badge"],[id$="Count"]');
+      const hasBadge = badge && getComputedStyle(badge).display !== 'none';
+      const card = document.createElement('div');
+      card.className = 'tabMenuItem';
+      card.innerHTML = `<div class="tabMenuThumb">${icon}${hasBadge?'<span class="tabMenuDot"></span>':''}</div><div class="tabMenuLabel">${label}</div>`;
+      card.addEventListener('click', () => {
+        closeTabMenu();
+        // Run the tab's own onclick directly (not btn.click()) so an <a href="#"> doesn't also
+        // jump the page to the top via its hash.
+        const handler = btn.getAttribute('onclick');
+        if(handler){ try { (new Function(handler)).call(btn); } catch(e){ btn.click(); } }
+        else btn.click();
+      });
+      grid.appendChild(card);
+    });
+  });
+}
+function openTabMenu(){
+  buildTabMenu();
+  const o = document.getElementById('tabMenuOverlay');
+  if(o) o.style.display = 'flex';
+}
+function closeTabMenu(){
+  const o = document.getElementById('tabMenuOverlay');
+  if(o) o.style.display = 'none';
+}
+
+// Real fullscreen toggle (user's own ask, "fullscreen") — the single biggest bit of extra play
+// space on a phone, since it also hides the browser's own address/tab bars. Handles the WebKit
+// prefix; where the browser has no element-fullscreen API at all (notably iOS Safari) it says so
+// instead of failing silently.
+function toggleGameFullscreen(){
+  const d = document, el = d.documentElement;
+  const fsEl = d.fullscreenElement || d.webkitFullscreenElement;
+  if(!fsEl){
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen;
+    if(req) { try { req.call(el); } catch(e){} }
+    else if(typeof showNotif === 'function') showNotif("⛶ This browser can't go fullscreen — try adding Explox to your home screen instead.");
+  } else {
+    const exit = d.exitFullscreen || d.webkitExitFullscreen;
+    if(exit) { try { exit.call(d); } catch(e){} }
+  }
 }
 
 // ─── GAME LOOP ────────────────────────────────────────────────────────────────

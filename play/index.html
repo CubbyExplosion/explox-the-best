@@ -2,8 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Explox</title>
+  <!-- TOUCH DETECTION — runs before first paint so the on-screen controls are already showing when
+       the page renders. Adds `touch` (or `no-touch`) to <html>; the CSS below keys the mobile
+       controls / arcade pads / shrunk side-tabs off that class in addition to @media(pointer:coarse),
+       because that media query alone misses phones & tablets that don't report a coarse pointer.
+       Override for testing or a stubborn device: ?touch=1 / ?touch=0, or window.setTouchControls(true/false). -->
+  <script>
+    (function(){
+      var root = document.documentElement;
+      function apply(on){
+        root.classList.toggle('touch', !!on);
+        root.classList.toggle('no-touch', !on);
+      }
+      var saved = null;
+      try { saved = localStorage.getItem('exploxTouchControls'); } catch(e){}
+      var q = null;
+      try { var m = /[?&]touch=([01])/.exec(location.search); if(m) q = m[1]; } catch(e){}
+      var auto = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0)
+                 || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+      var on = (q !== null) ? (q === '1') : (saved !== null) ? (saved === 'on') : auto;
+      apply(on);
+      if(q !== null){ try { localStorage.setItem('exploxTouchControls', q === '1' ? 'on' : 'off'); } catch(e){} }
+      window.setTouchControls = function(v){
+        apply(v);
+        try { localStorage.setItem('exploxTouchControls', v ? 'on' : 'off'); } catch(e){}
+      };
+    })();
+  </script>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { background:#000; overflow:hidden; font-family:Arial,sans-serif; }
@@ -12,20 +39,30 @@
     /* ── HUD ── */
     #hud { position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:10; }
     #gameName { position:fixed; top:14px; left:50%; transform:translateX(-50%); color:#fff; font-size:26px; font-weight:bold; text-shadow:2px 2px 6px #000; letter-spacing:4px; }
-    #controls  { position:fixed; bottom:14px; left:14px; color:#fff; font-size:12px; background:rgba(0,0,0,0.5); padding:8px 12px; border-radius:8px; line-height:1.9; }
-    /* Touch controls — hidden by default, shown only on touch-primary devices (phones/tablets) */
+    #controls  { position:fixed; bottom:52px; left:14px; color:#fff; font-size:12px; background:rgba(0,0,0,0.5); padding:8px 12px; border-radius:8px; line-height:1.9; }  /* bottom:52 (was 14) so it clears the menu bar now docked in the bottom-left corner */
+    /* Touch controls — hidden by default, shown on touch-primary devices. We key this off BOTH the
+       CSS media query AND a `touch` class set on <html> by JS (see the detectTouch script in <head>).
+       The media query alone silently failed on phones/tablets that don't report `pointer: coarse`
+       (a real, common gap), leaving those players with NO on-screen controls at all. The JS check
+       (ontouchstart / maxTouchPoints) catches them, and a manual override (?touch=1, or the in-game
+       toggle) is the final backstop. */
     #mobileControls { display:none; }
     @media (pointer: coarse) {
       #controls { display:none; }
       #mobileControls { display:block; }
     }
-    /* Arcade cabinet touch controls — same "hidden unless coarse pointer" rule as #mobileControls
-       above, for the 5 minigames that were keyboard-only. .arcadeDpad lays 4 buttons in a cross;
-       .arcadeRow is a plain left-to-right row for games that don't need up/down. */
+    html.touch #controls { display:none; }
+    html.touch #mobileControls { display:block; }
+    html.no-touch #mobileControls { display:none !important; }   /* explicit override off (?touch=0) */
+    html.no-touch #controls { display:block !important; }
+    /* Arcade cabinet touch controls — same rule as #mobileControls above, for the 5 minigames that
+       were keyboard-only. .arcadeDpad lays 4 buttons in a cross; .arcadeRow is a plain row. */
     .arcadeTouch { display:none; margin:14px auto 0; }
     @media (pointer: coarse) {
       .arcadeTouch { display:inline-grid; }
     }
+    html.touch .arcadeTouch { display:inline-grid; }
+    html.no-touch .arcadeTouch { display:none !important; }
     .arcadeBtn {
       width:52px; height:52px; border-radius:12px; background:rgba(255,255,255,0.12);
       border:2px solid rgba(255,255,255,0.35); color:#fff; font-size:20px; font-weight:bold;
@@ -45,15 +82,51 @@
       border-radius:50%; background:rgba(255,255,255,0.5); border:2px solid rgba(255,255,255,0.75);
       pointer-events:none;
     }
-    #mobileJumpBtn, #mobileInteractBtn, #mobileRunBtn {
-      position:fixed; border-radius:50%; background:rgba(0,0,0,0.45); border:2px solid rgba(255,255,255,0.5);
+    #mobileJumpBtn, #mobileInteractBtn, #mobileRunBtn, #mobileGrenadeBtn, #mobileFireBtn, #mobileBombBtn {
+      position:fixed; border-radius:50%; background:rgba(0,0,0,0.5); border:2px solid rgba(255,255,255,0.55);
       color:#fff; font-weight:bold; display:flex; align-items:center; justify-content:center;
-      z-index:15; touch-action:none; user-select:none; pointer-events:auto;
+      z-index:15; touch-action:none; user-select:none; -webkit-user-select:none; pointer-events:auto;
+      box-shadow:0 2px 8px rgba(0,0,0,0.4);
     }
-    #mobileJumpBtn      { right:20px; bottom:100px; width:58px; height:58px; font-size:20px; }
-    #mobileInteractBtn  { right:82px; bottom:154px; width:46px; height:46px; font-size:14px; }
-    #mobileRunBtn       { right:20px; bottom:40px; width:44px; height:44px; font-size:9px; }
+    /* Bottom-right thumb cluster, laid out in two tidy columns so nothing overlaps.
+       Buttons are bumped up a little from the old sizes — easier targets for small hands. */
+    #mobileJumpBtn      { right:24px;  bottom:104px; width:66px; height:66px; font-size:24px; }   /* outer column, primary */
+    #mobileRunBtn       { right:33px;  bottom:40px;  width:48px; height:48px; font-size:10px; }    /* outer column, below jump */
+    #mobileBombBtn      { right:30px;  bottom:182px; width:54px; height:54px; font-size:22px; }    /* outer column, above jump (jet only) */
+    #mobileInteractBtn  { right:100px; bottom:104px; width:58px; height:58px; font-size:19px; }    /* inner column */
+    #mobileGrenadeBtn   { right:103px; bottom:180px; width:52px; height:52px; font-size:21px; }    /* inner column, above interact */
+    #mobileFireBtn      { right:98px;  bottom:250px; width:62px; height:62px; font-size:26px; }    /* inner column, top (vehicle only) */
+    #mobileFireBtn, #mobileBombBtn { display:none; }  /* revealed by updateMobileActionButtons() only inside a weaponized vehicle */
+    #mobileJumpBtn:active, #mobileInteractBtn:active, #mobileGrenadeBtn:active, #mobileFireBtn:active, #mobileBombBtn:active { background:rgba(255,255,255,0.28); transform:scale(0.94); }
     #mobileRunBtn.active { background:rgba(233,69,96,0.65); border-color:#e94560; }
+    #mobileFireBtn { border-color:rgba(255,150,60,0.8); }
+    #mobileBombBtn, #mobileGrenadeBtn { border-color:rgba(255,90,90,0.75); }
+
+    /* ── MENU (replaces the side-tab rails on EVERY device — user's ask, "remove the tab system") ── */
+    /* The two vertical rails are gone everywhere; every tab is reached through the ☰ menu instead.
+       (The joystick and the on-screen action buttons stay touch-only — desktop still uses the mouse
+       and keyboard, and the same B/T/G/M/Y shortcuts as before still work without opening the menu.) */
+    #leftTabStack, #rightTabStack { display:none !important; }
+    /* Small grey launcher in the bottom-left corner. Shown on all devices now. */
+    #phoneMenuBar { position:fixed; left:12px; bottom:14px; z-index:16; display:flex; gap:8px; align-items:center; pointer-events:auto; }
+    #tabMenuBtn, #fullscreenBtn {
+      background:rgba(0,0,0,0.5); border:1px solid rgba(160,160,160,0.5); border-radius:8px;
+      color:#bbb; font-size:12px; font-weight:bold; letter-spacing:0.5px; padding:7px 12px;
+      cursor:pointer; user-select:none; -webkit-user-select:none; line-height:1; white-space:nowrap;
+    }
+    #tabMenuBtn:active, #fullscreenBtn:active { background:rgba(255,255,255,0.15); color:#fff; }
+    /* The menu overlay: a scrollable grid of every tab as a labelled thumbnail. */
+    #tabMenuOverlay { display:none; position:fixed; inset:0; z-index:40; background:rgba(0,0,0,0.72); align-items:center; justify-content:center; pointer-events:auto; }
+    #tabMenuPanel { background:linear-gradient(135deg,#101826,#0b1220); border:2px solid #44ccff; border-radius:16px; width:min(440px,94vw); max-height:82vh; display:flex; flex-direction:column; box-shadow:0 10px 40px rgba(0,0,0,0.6); }
+    #tabMenuHeader { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.1); color:#fff; font-size:16px; font-weight:bold; }
+    #tabMenuClose { width:30px; height:30px; border-radius:50%; background:rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; color:#fff; font-size:14px; cursor:pointer; }
+    #tabMenuClose:active { background:rgba(255,255,255,0.25); }
+    #tabMenuGrid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:16px; overflow-y:auto; }
+    .tabMenuItem { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.14); border-radius:12px; padding:12px 6px; display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer; text-align:center; }
+    .tabMenuItem:active { background:rgba(68,204,255,0.22); border-color:#44ccff; }
+    .tabMenuThumb { position:relative; width:52px; height:52px; border-radius:12px; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; font-size:28px; line-height:1; }
+    .tabMenuDot { position:absolute; top:-3px; right:-3px; width:13px; height:13px; border-radius:50%; background:#ff2222; border:2px solid #101826; box-shadow:0 0 6px #ff2222; }
+    .tabMenuLabel { color:#dfe7f0; font-size:11px; font-weight:bold; letter-spacing:0.4px; line-height:1.15; }
 
     /* Side tabs (SAI/Music/Bag/Mini Games) are sized for mouse clicks on desktop.
        On a touchscreen phone they're written with an inline style="", which always
@@ -65,6 +138,12 @@
       #saiTab button span, #musicTabBtn button span, #addOnsTab button span, #inventoryTab button span, #miniGamesBtn .icon, #questsTab button span, #earningsTab button span, #jobsTab button span {
         font-size:12px !important; margin-bottom:3px !important;
       }
+    }
+    html.touch #saiTab button, html.touch #musicTabBtn button, html.touch #addOnsTab button, html.touch #inventoryTab button, html.touch #miniGamesBtn, html.touch #questsTab button, html.touch #earningsTab button, html.touch #jobsTab button {
+      padding:8px 5px !important; font-size:9px !important;
+    }
+    html.touch #saiTab button span, html.touch #musicTabBtn button span, html.touch #addOnsTab button span, html.touch #inventoryTab button span, html.touch #miniGamesBtn .icon, html.touch #questsTab button span, html.touch #earningsTab button span, html.touch #jobsTab button span {
+      font-size:12px !important; margin-bottom:3px !important;
     }
     #location  { position:fixed; top:14px; right:14px; color:#fff; font-size:14px; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; }
     #sipHud    { position:fixed; top:50px; right:14px; color:#FFD700; font-size:15px; font-weight:bold; background:rgba(0,0,0,0.55); padding:7px 12px; border-radius:8px; }
@@ -1616,6 +1695,25 @@
     <div id="mobileInteractBtn">E</div>
     <div id="mobileRunBtn">RUN</div>
     <div id="mobileJumpBtn">⬆</div>
+    <!-- Combat buttons: Grenade is always usable on foot; Fire/Bomb are shown by
+         updateMobileActionButtons() (game-controls.js) only while driving a weaponized vehicle. -->
+    <div id="mobileGrenadeBtn">🧨</div>
+    <div id="mobileFireBtn">🔥</div>
+    <div id="mobileBombBtn">💣</div>
+  </div>
+
+  <!-- MENU + FULLSCREEN — the vertical side-tab rails are hidden on every device and replaced by this
+       one small grey corner control. ☰ opens a grid where every tab is a labelled thumbnail, built
+       live from the rails by buildTabMenu() (game-controls.js). ⛶ toggles real fullscreen. -->
+  <div id="phoneMenuBar">
+    <div id="tabMenuBtn" onclick="openTabMenu()">☰ Menu</div>
+    <div id="fullscreenBtn" onclick="toggleGameFullscreen()">⛶ Full</div>
+  </div>
+  <div id="tabMenuOverlay" onclick="if(event.target===this)closeTabMenu()">
+    <div id="tabMenuPanel">
+      <div id="tabMenuHeader"><span>☰ Menu</span><div id="tabMenuClose" onclick="closeTabMenu()">✕</div></div>
+      <div id="tabMenuGrid"></div>
+    </div>
   </div>
   <button onclick="backToLogin()" style="position:fixed;top:14px;left:14px;pointer-events:auto;background:rgba(0,0,0,0.5);border:1px solid #555;border-radius:8px;color:#aaa;font-size:13px;padding:6px 14px;cursor:pointer;z-index:20;" onmouseover="this.style.borderColor='#e94560';this.style.color='#fff'" onmouseout="this.style.borderColor='#555';this.style.color='#aaa'">← Accounts</button>
   <button id="musicBtn" onclick="toggleBgMusic()" title="Toggle music" style="position:fixed;top:278px;right:14px;z-index:20;pointer-events:auto;background:rgba(0,0,0,0.5);border:1px solid #555;border-radius:8px;color:#fff;font-size:16px;padding:5px 10px;cursor:pointer;line-height:1;">🎵</button>

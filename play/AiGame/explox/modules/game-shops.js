@@ -1694,9 +1694,10 @@ function consumePermitFor(plotId) {
 // them before that happens, not to decorate the loading screen. ─────────────────────────────
 const GUIDE_PAGES = [
   { emoji:'👋', title:'Welcome to Explox!', tips:[
-    'WASD to move, Shift to run, Space to jump, Mouse to look around.',
-    'Press E to interact with people, doors, and shop counters.',
-    'Press T anytime to ask SAI, your in-game helper, a real question.',
+    'On a phone: use the left joystick to move, RUN to sprint, ⬆ to jump, and drag the screen to look around. On a computer: WASD to move, Shift to run, Space to jump, mouse to look.',
+    'Tap the E button (or press E) to interact with people, doors, and shop counters. Near an enemy, hold it to charge a stronger hit.',
+    'In a Tank, Jet, or Motorcycle a 🔥 FIRE button appears — tap it to shoot. 🧨 throws a grenade. On a computer these are F and Q.',
+    'Tap the 🤖 SAI tab on the left (or press T) anytime to ask your in-game helper a real question.',
   ]},
   { emoji:'💰', title:'Money', tips:[
     'S.I.P. is the main currency — earn it from jobs, selling things, or just exploring.',
