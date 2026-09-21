@@ -20,8 +20,12 @@
       try { saved = localStorage.getItem('exploxTouchControls'); } catch(e){}
       var q = null;
       try { var m = /[?&]touch=([01])/.exec(location.search); if(m) q = m[1]; } catch(e){}
-      var auto = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0)
-                 || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+      // A real phone/tablet reports a COARSE *primary* pointer (the main input is a finger). We
+      // deliberately do NOT use maxTouchPoints / ontouchstart here: plenty of ordinary desktop PCs
+      // — and every touchscreen laptop that also has a mouse — report those as truthy and would
+      // then wrongly show the on-screen joystick. `(pointer: coarse)` is true on phones and false on
+      // any device whose main pointer is a mouse or trackpad, which is exactly the line we want.
+      var auto = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
       var on = (q !== null) ? (q === '1') : (saved !== null) ? (saved === 'on') : auto;
       apply(on);
       if(q !== null){ try { localStorage.setItem('exploxTouchControls', q === '1' ? 'on' : 'off'); } catch(e){} }

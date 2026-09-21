@@ -1697,7 +1697,13 @@ const GUIDE_PAGES = [
     'On a phone: use the left joystick to move, RUN to sprint, ⬆ to jump, and drag the screen to look around. On a computer: WASD to move, Shift to run, Space to jump, mouse to look.',
     'Tap the E button (or press E) to interact with people, doors, and shop counters. Near an enemy, hold it to charge a stronger hit.',
     'In a Tank, Jet, or Motorcycle a 🔥 FIRE button appears — tap it to shoot. 🧨 throws a grenade. On a computer these are F and Q.',
-    'Tap the 🤖 SAI tab on the left (or press T) anytime to ask your in-game helper a real question.',
+    'Open 🤖 SAI from the ☰ Menu (or press T) anytime to ask your in-game helper a real question.',
+  ]},
+  { emoji:'📱', title:'Playing on a Phone', tips:[
+    'Move with the joystick in the bottom-left. Drag anywhere else on the screen to look around.',
+    'Buttons on the right: ⬆ jump, E to interact (hold it near an enemy to charge a stronger hit), and RUN to sprint.',
+    'In a Tank, Jet, or Motorcycle a 🔥 FIRE button appears — tap it to shoot. 🧨 throws a grenade, 💣 drops a Jet bomb.',
+    'Tap ☰ Menu in the bottom-left corner to reach every tab — SAI, Bag, Shop, Mini Games and more. Tap ⛶ Full for fullscreen.',
   ]},
   { emoji:'💰', title:'Money', tips:[
     'S.I.P. is the main currency — earn it from jobs, selling things, or just exploring.',
@@ -1707,7 +1713,7 @@ const GUIDE_PAGES = [
   { emoji:'🏠', title:'Your Place', tips:[
     'You start with a free house right in the city.',
     'Buy your own land at Sunset Plains and build a house, fountain, or more on it.',
-    'Owning land or a car brings real recurring bills — pay them under the 🧩 Add-Ons tab before they go late.',
+    'Owning land or a car brings real recurring bills — pay them under 🧩 Add-Ons in the ☰ Menu (or press G) before they go late.',
   ]},
   { emoji:'🚗', title:'Get Around', tips:[
     'Buy a car at the Car Dealership and drive it around the city.',
@@ -1722,7 +1728,7 @@ const GUIDE_PAGES = [
   { emoji:'🌱', title:'One Last Thing', tips:[
     'Your character actually grows up the more you play — Baby, Kid, Teen, then Adult.',
     'Get a job downtown for steady S.I.P., or fight robots for rare 💎 Elite Coins.',
-    "Stuck? Press T for SAI, or click ❓ HELP on the left edge to see this guide again.",
+    "Stuck? Press T for SAI, or open ❓ HELP from the ☰ Menu to see this guide again.",
   ]},
 ];
 let guidePageIndex = 0;
