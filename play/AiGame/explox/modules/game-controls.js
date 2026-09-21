@@ -177,7 +177,15 @@ function setupMobileControls(){
     window.addEventListener('pointercancel', release);
   }
 
-  bindTap(jumpBtn, tryCityJump);
+  // The jump button doubles as the Jet's climb/thrust — it mirrors the Space key EXACTLY (keydown
+  // does tryCityJump()+jetThrustHeld=true, keyup clears it). Without this, holding it did nothing in
+  // a Jet (tryCityJump() bails out while inCar and never touched jetThrustHeld), so on a phone the Jet
+  // could only ever roll along the ground — you couldn't take off. Hold ⬆ to climb, release to glide
+  // back down. Harmless on foot: jetThrustHeld is only read while piloting the Jet, and a plain tap
+  // still jumps exactly as before.
+  bindHold(jumpBtn,
+    ()=>{ tryCityJump(); jetThrustHeld = true; },
+    ()=>{ jetThrustHeld = false; });
   bindHold(interactBtn, onInteractDown, onInteractUp);
   bindHold(runBtn,
     ()=>{ moveState.run = true;  runBtn.classList.add('active'); },
@@ -190,6 +198,9 @@ function setupMobileControls(){
   bindTap(document.getElementById('mobileFireBtn'), ()=>{ fireTankCannon(); fireJetGuns(); fireMotorcycleRockets(); });
   bindTap(document.getElementById('mobileBombBtn'), dropJetBomb);
   bindTap(document.getElementById('mobileGrenadeBtn'), throwCombatGrenade);
+  // AUTOPILOT (Jet's H key) — only useful once a Pro Pilot is hired; toggleJetAutopilot() itself gates
+  // on inCar/isJet/hiredJetPilot, and updateMobileActionButtons() only shows the button in that case.
+  bindTap(document.getElementById('mobileAutopilotBtn'), toggleJetAutopilot);
 
   // FIRE and BOMB only make sense inside a weaponized vehicle, so they stay hidden until you're in
   // one (otherwise they'd be two dead buttons cluttering a small screen). Cheap enough to poll —
@@ -202,12 +213,19 @@ function setupMobileControls(){
 function updateMobileActionButtons(){
   const fireBtn = document.getElementById('mobileFireBtn');
   const bombBtn = document.getElementById('mobileBombBtn');
+  const autoBtn = document.getElementById('mobileAutopilotBtn');
   if(!fireBtn || !bombBtn) return;
   const def = (typeof inCar !== 'undefined' && inCar && typeof activeCar !== 'undefined' && activeCar && activeCar.def) ? activeCar.def : null;
   const canFire = !!(def && (def.isTank || def.isMotorcycle || (def.isJet && (def.gunCount ?? 1) > 0)));
   const canBomb = !!(def && def.isJet && def.hasBombs !== false);
   fireBtn.style.display = canFire ? 'flex' : 'none';
   bombBtn.style.display = canBomb ? 'flex' : 'none';
+  if(autoBtn){
+    // Autopilot button only in a Jet, and only once a Pro Pilot has actually been hired.
+    const showAuto = !!(def && def.isJet && typeof hiredJetPilot !== 'undefined' && hiredJetPilot);
+    autoBtn.style.display = showAuto ? 'flex' : 'none';
+    if(typeof jetAutopilotActive !== 'undefined') autoBtn.classList.toggle('active', !!jetAutopilotActive);
+  }
 }
 
 // ─── PHONE MENU ────────────────────────────────────────────────────────────────

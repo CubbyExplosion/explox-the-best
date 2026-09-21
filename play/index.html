@@ -86,7 +86,7 @@
       border-radius:50%; background:rgba(255,255,255,0.5); border:2px solid rgba(255,255,255,0.75);
       pointer-events:none;
     }
-    #mobileJumpBtn, #mobileInteractBtn, #mobileRunBtn, #mobileGrenadeBtn, #mobileFireBtn, #mobileBombBtn {
+    #mobileJumpBtn, #mobileInteractBtn, #mobileRunBtn, #mobileGrenadeBtn, #mobileFireBtn, #mobileBombBtn, #mobileAutopilotBtn {
       position:fixed; border-radius:50%; background:rgba(0,0,0,0.5); border:2px solid rgba(255,255,255,0.55);
       color:#fff; font-weight:bold; display:flex; align-items:center; justify-content:center;
       z-index:15; touch-action:none; user-select:none; -webkit-user-select:none; pointer-events:auto;
@@ -94,17 +94,20 @@
     }
     /* Bottom-right thumb cluster, laid out in two tidy columns so nothing overlaps.
        Buttons are bumped up a little from the old sizes — easier targets for small hands. */
-    #mobileJumpBtn      { right:24px;  bottom:104px; width:66px; height:66px; font-size:24px; }   /* outer column, primary */
-    #mobileRunBtn       { right:33px;  bottom:40px;  width:48px; height:48px; font-size:10px; }    /* outer column, below jump */
-    #mobileBombBtn      { right:30px;  bottom:182px; width:54px; height:54px; font-size:22px; }    /* outer column, above jump (jet only) */
-    #mobileInteractBtn  { right:100px; bottom:104px; width:58px; height:58px; font-size:19px; }    /* inner column */
-    #mobileGrenadeBtn   { right:103px; bottom:180px; width:52px; height:52px; font-size:21px; }    /* inner column, above interact */
-    #mobileFireBtn      { right:98px;  bottom:250px; width:62px; height:62px; font-size:26px; }    /* inner column, top (vehicle only) */
-    #mobileFireBtn, #mobileBombBtn { display:none; }  /* revealed by updateMobileActionButtons() only inside a weaponized vehicle */
-    #mobileJumpBtn:active, #mobileInteractBtn:active, #mobileGrenadeBtn:active, #mobileFireBtn:active, #mobileBombBtn:active { background:rgba(255,255,255,0.28); transform:scale(0.94); }
+    #mobileJumpBtn       { right:24px;  bottom:104px; width:66px; height:66px; font-size:24px; }   /* outer column, primary — hold to also thrust the Jet upward */
+    #mobileRunBtn        { right:33px;  bottom:40px;  width:48px; height:48px; font-size:10px; }    /* outer column, below jump */
+    #mobileBombBtn       { right:30px;  bottom:182px; width:54px; height:54px; font-size:22px; }    /* outer column, above jump (jet only) */
+    #mobileAutopilotBtn  { right:33px;  bottom:248px; width:52px; height:52px; font-size:20px; }    /* outer column, above bomb (jet + hired Pro Pilot only) */
+    #mobileInteractBtn   { right:100px; bottom:104px; width:58px; height:58px; font-size:19px; }    /* inner column */
+    #mobileGrenadeBtn    { right:103px; bottom:180px; width:52px; height:52px; font-size:21px; }    /* inner column, above interact */
+    #mobileFireBtn       { right:98px;  bottom:250px; width:62px; height:62px; font-size:26px; }    /* inner column, top (vehicle only) */
+    #mobileFireBtn, #mobileBombBtn, #mobileAutopilotBtn { display:none; }  /* revealed by updateMobileActionButtons() only in the right vehicle */
+    #mobileJumpBtn:active, #mobileInteractBtn:active, #mobileGrenadeBtn:active, #mobileFireBtn:active, #mobileBombBtn:active, #mobileAutopilotBtn:active { background:rgba(255,255,255,0.28); transform:scale(0.94); }
     #mobileRunBtn.active { background:rgba(233,69,96,0.65); border-color:#e94560; }
     #mobileFireBtn { border-color:rgba(255,150,60,0.8); }
     #mobileBombBtn, #mobileGrenadeBtn { border-color:rgba(255,90,90,0.75); }
+    #mobileAutopilotBtn { border-color:rgba(80,160,255,0.8); }
+    #mobileAutopilotBtn.active { background:rgba(68,150,255,0.55); border-color:#44ccff; }  /* engaged — matches toggleJetAutopilot()'s own on/off state */
 
     /* ── MENU (replaces the side-tab rails on EVERY device — user's ask, "remove the tab system") ── */
     /* The two vertical rails are gone everywhere; every tab is reached through the ☰ menu instead.
@@ -1699,12 +1702,14 @@
     <div id="mobileInteractBtn">E</div>
     <div id="mobileRunBtn">RUN</div>
     <div id="mobileJumpBtn">⬆</div>
-    <!-- Combat buttons: Grenade is always usable on foot; Fire/Bomb are shown by
-         updateMobileActionButtons() (game-controls.js) only while driving a weaponized vehicle. -->
+    <!-- Combat buttons: Grenade is always usable on foot; Fire/Bomb/Autopilot are shown by
+         updateMobileActionButtons() (game-controls.js) only while driving the right vehicle.
+         (Hold ⬆ to make the Jet climb — that's wired on the jump button, no separate button.) -->
     <div id="mobileGrenadeBtn">🧨</div>
     <div id="mobileFireBtn">🔥</div>
     <div id="mobileBombBtn">💣</div>
-  </div>
+    <div id="mobileAutopilotBtn">🧑‍✈️</div>
+  </div
 
   <!-- MENU + FULLSCREEN — the vertical side-tab rails are hidden on every device and replaced by this
        one small grey corner control. ☰ opens a grid where every tab is a labelled thumbnail, built
