@@ -192,31 +192,45 @@ function formatBigNum(n) {
 // every existing save that predates this feature. Picked from the real ⚔️ MOB DIFFICULTY tab —
 // setMobDifficulty()/renderMobDifficultyPanel() further down this file.
 let mobDifficulty = 'normal';
-// 10 real tiers (user's own follow-up ask, after an initial 4-tier pass) — a real, felt step up
-// between each one, not just a cosmetic label change. 'normal' (tier 4) stays the default so every
-// existing save that predates this feature sees ZERO change in mob strength until they pick one.
+// 10 real toughness tiers (user's own follow-up ask, after an initial 4-tier pass) — a real, felt
+// step up between each one, not just a cosmetic label change. 'normal' (tier 4) stays the default
+// so every existing save that predates this feature sees ZERO change in mob strength until they
+// pick one. 'peaceful' is a real 11th, DIFFERENT kind of entry — not "very weak mobs" (a 0 HP mob
+// spawning and instantly dying would be a strange, broken edge case, not actually peaceful), but
+// "no mobs spawn at all" (user's own follow-up ask: "a peaceful so no one will spawn") — see
+// isPeacefulMode() and every ambient spawn function's own guard below, game-land.js.
 const MOB_DIFFICULTY_MULT = {
-  babysteps:0.3, easy:0.5, casual:0.7, normal:1.0, tough:1.3,
+  peaceful:0, babysteps:0.3, easy:0.5, casual:0.7, normal:1.0, tough:1.3,
   hard:1.7, brutal:2.2, extreme:2.8, nightmare:3.6, apocalypse:4.5,
 };
 const MOB_DIFFICULTY_LABELS = {
-  babysteps:'🍼 Baby Steps', easy:'🟢 Easy', casual:'🔵 Casual', normal:'🟡 Normal', tough:'🟠 Tough',
+  peaceful:'🕊️ Peaceful', babysteps:'🍼 Baby Steps', easy:'🟢 Easy', casual:'🔵 Casual', normal:'🟡 Normal', tough:'🟠 Tough',
   hard:'🔴 Hard', brutal:'💀 Brutal', extreme:'⚠️ Extreme', nightmare:'☠️ Nightmare', apocalypse:'🔥 Apocalypse',
 };
 function mobDifficultyMult() { return MOB_DIFFICULTY_MULT[mobDifficulty] !== undefined ? MOB_DIFFICULTY_MULT[mobDifficulty] : 1.0; }
+// A real, explicit check for the ambient spawn functions to gate on — separate from reading the
+// multiplier directly, since "peaceful" isn't really "a difficulty of 0", it's "don't spawn at all"
+// (checking `mobDifficultyMult() === 0` would work by coincidence today, but isPeacefulMode() says
+// what it actually means at every call site instead of relying on that coincidence).
+function isPeacefulMode() { return mobDifficulty === 'peaceful'; }
 function setMobDifficulty(diff) {
-  if (!MOB_DIFFICULTY_MULT[diff]) return;
+  // MOB_DIFFICULTY_MULT[diff] is 0 for 'peaceful' — a falsy `if(!MOB_DIFFICULTY_MULT[diff])` guard
+  // would wrongly reject picking it, so this checks for the KEY existing, not a truthy value.
+  if (MOB_DIFFICULTY_MULT[diff] === undefined) return;
   mobDifficulty = diff;
   saveCurrentUser();
   renderMobDifficultyPanel();
-  showNotif(`⚔️ Mob difficulty set to ${MOB_DIFFICULTY_LABELS[diff]} — new mobs use it from here on (won't retroactively change anything already on the field).`);
+  showNotif(diff === 'peaceful'
+    ? `🕊️ Peaceful mode on — Killers, Robots, Robbers, and Demons will stop spawning from here on. Anything already out there stays until you deal with it.`
+    : `⚔️ Mob difficulty set to ${MOB_DIFFICULTY_LABELS[diff]} — new mobs use it from here on (won't retroactively change anything already on the field).`);
 }
 function renderMobDifficultyPanel() {
   const list = document.getElementById('mobDifficultyList');
   if (!list) return;
   list.innerHTML = Object.keys(MOB_DIFFICULTY_MULT).map(diff => {
     const active = diff === mobDifficulty;
-    return `<button class="mobDiffBtn" onclick="setMobDifficulty('${diff}')" style="display:block;width:100%;margin-bottom:8px;padding:10px;border-radius:8px;border:2px solid ${active?'#e94560':'#444'};background:${active?'rgba(233,69,96,0.18)':'rgba(255,255,255,0.05)'};color:#fff;font-size:13px;font-weight:bold;cursor:pointer;">${MOB_DIFFICULTY_LABELS[diff]}${active?' ✓':''} <span style="color:#888;font-weight:normal;font-size:11px;">(${MOB_DIFFICULTY_MULT[diff]}x HP &amp; damage)</span></button>`;
+    const sub = diff === 'peaceful' ? 'no mobs spawn' : `${MOB_DIFFICULTY_MULT[diff]}x HP &amp; damage`;
+    return `<button class="mobDiffBtn" onclick="setMobDifficulty('${diff}')" style="display:block;width:100%;margin-bottom:8px;padding:10px;border-radius:8px;border:2px solid ${active?'#e94560':'#444'};background:${active?'rgba(233,69,96,0.18)':'rgba(255,255,255,0.05)'};color:#fff;font-size:13px;font-weight:bold;cursor:pointer;">${MOB_DIFFICULTY_LABELS[diff]}${active?' ✓':''} <span style="color:#888;font-weight:normal;font-size:11px;">(${sub})</span></button>`;
   }).join('');
 }
 function toggleMobDifficultyPanel() {

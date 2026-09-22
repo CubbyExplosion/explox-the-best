@@ -1404,6 +1404,7 @@ function buildSpawnerMesh(x, z) {
   return g;
 }
 function trySpawnRobot(spawnerIdx) {
+  if (isPeacefulMode()) return; // user's own ask: "a peaceful so no one will spawn" (game-customization.js)
   const sp = ROBOT_SPAWNERS[spawnerIdx];
   const aliveCount = robots.filter(r => r.spawnerIdx===spawnerIdx && r.alive).length;
   if (aliveCount >= sp.maxRobots) return;
@@ -1502,6 +1503,7 @@ const ROGUE_ROBOT_SPEED = 1000/60; // user's own ask: "1km per min" — 1000m/60
 // at whichever of the real ROBOT_SPAWNERS (item 148's 100 scattered spawners) is actually closest
 // to the player and has to genuinely walk the real distance from there to reach you.
 function spawnRogueRobot() {
+  if (isPeacefulMode()) return; // user's own ask: "a peaceful so no one will spawn" (game-customization.js)
   if (!ROBOT_SPAWNERS.length) return;
   let closest = ROBOT_SPAWNERS[0], closestDist = Infinity;
   ROBOT_SPAWNERS.forEach(sp => {
@@ -1620,6 +1622,7 @@ function buildKillerSupremeMesh(x, z) {
   return g;
 }
 function spawnKillerSupreme() {
+  if (isPeacefulMode()) return; // user's own ask: "a peaceful so no one will spawn" (game-customization.js)
   const angle = Math.random()*Math.PI*2, dist = 40+Math.random()*30;
   const x = playerGroup.position.x + Math.cos(angle)*dist, z = playerGroup.position.z + Math.sin(angle)*dist;
   const mesh = buildKillerSupremeMesh(x, z);
@@ -1632,6 +1635,8 @@ function spawnKillerSupreme() {
 }
 function killerSupremeSummon(k) {
   if (!k.alive) return;
+  if (isPeacefulMode()) return; // user's own ask: "a peaceful so no one will spawn" — covers switching to Peaceful mid-fight against an already-alive Killer Supreme, not just the initial spawn above
+
   if (killers.filter(x => x.alive && x.summonedBySupreme).length >= KILLER_SUPREME_SUMMON_MAX) return;
   const angle = Math.random()*Math.PI*2, dist = 5+Math.random()*4;
   const x = playerGroup.position.x + Math.cos(angle)*dist, z = playerGroup.position.z + Math.sin(angle)*dist;
@@ -2039,6 +2044,7 @@ function buildRobberMesh(x, z) {
   return g;
 }
 function spawnRobber() {
+  if (isPeacefulMode()) return; // user's own ask: "a peaceful so no one will spawn" (game-customization.js)
   const ang = Math.random()*Math.PI*2, dist = 25+Math.random()*15;
   const x = Math.max(-WORLD_BOUND, Math.min(WORLD_BOUND, playerGroup.position.x+Math.cos(ang)*dist));
   const z = Math.max(-WORLD_BOUND, Math.min(WORLD_BOUND, playerGroup.position.z+Math.sin(ang)*dist));
@@ -2125,6 +2131,7 @@ function defeatRobber(k) {
   sfx.boom();
 }
 function spawnKiller() {
+  if (isPeacefulMode()) return; // user's own ask: "a peaceful so no one will spawn" (game-customization.js)
   const ang = Math.random()*Math.PI*2, dist = 30+Math.random()*20;
   const x = Math.max(-WORLD_BOUND, Math.min(WORLD_BOUND, playerGroup.position.x+Math.cos(ang)*dist));
   const z = Math.max(-WORLD_BOUND, Math.min(WORLD_BOUND, playerGroup.position.z+Math.sin(ang)*dist));
@@ -2260,6 +2267,7 @@ function buildDemonMesh(x, z, def) {
   return g;
 }
 function spawnDemon() {
+  if (isPeacefulMode()) return; // user's own ask: "a peaceful so no one will spawn" (game-customization.js) — the Satan-summoned demons during a Satan Reign world event go through their own separate inline spawn, not this function, since that's a deliberate story event the player already opted into rather than random ambient danger
   const def = DEMON_DEFS[Math.floor(Math.random()*DEMON_DEFS.length)];
   const ang = Math.random()*Math.PI*2, dist = 30+Math.random()*20;
   const x = Math.max(-WORLD_BOUND, Math.min(WORLD_BOUND, playerGroup.position.x+Math.cos(ang)*dist));

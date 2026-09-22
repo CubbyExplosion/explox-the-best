@@ -1605,6 +1605,7 @@ function tickSpyAmbushWatch() {
   if (dist < zone.r) triggerSpyAmbush(zone);
 }
 function triggerSpyAmbush(zone) {
+  if (isPeacefulMode()) return; // user's own ask: "a peaceful so no one will spawn" (game-customization.js)
   const n = 2 + Math.floor(Math.random()*3); // 2-4 real attackers
   for (let i=0; i<n; i++) {
     const ang = Math.random()*Math.PI*2, dist = 4+Math.random()*7;
