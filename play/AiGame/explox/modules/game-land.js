@@ -2605,6 +2605,233 @@ function spawnGrenadeBlastFx(x, z) {
   }, 50);
 }
 
+// ── THROW ANY ITEM — user's own ask: "make it so you can throw any of your items with damage
+// and each one is 3d when you throw it", corrected right after a first auto-target pass to "NO YOU
+// get to choose and it will have dotted lines to aim" — so this is a real aim-and-release mechanic,
+// not an auto-lock. Every item in the Inventory panel (playerInventory) and every food in the Bag
+// (playerBag) gets a real "🎯 Throw" button (refreshInventory(), game-housing.js): clicking it enters
+// AIM MODE — a dashed line traces the exact real arc the item will fly (reusing your existing mouse-
+// look yaw to aim direction and pitch to control throw distance, the same look controls you already
+// use to move the camera, so aiming needs no new input scheme), and a click/tap RELEASES it as a
+// genuine 3D object — an emoji billboard, so a thrown 🍕 actually looks like a flying pizza, same
+// "draw to a canvas, wrap it in a CanvasTexture" pattern nametags already use (game-character.js) —
+// arcing through the air over real travel time to wherever you aimed, then dealing real damage to
+// whatever's actually standing there using the same hp -= dmg / defeat-on-death shape every other
+// hit in this game uses (see fightKiller above). Damage is a fraction of your equipped weapon's
+// damage (weaker than an actual swing or the Grenade's real explosive blast — this is "whatever you
+// happened to be holding", not a purpose-built weapon), so it scales with progression exactly like
+// everything else instead of needing a hand-tuned value for the ~300 different throwable items here.
+const ITEM_THROW_COOLDOWN_MS = 500, ITEM_THROW_MAX_RANGE = 16, ITEM_THROW_MIN_RANGE = 4,
+      ITEM_THROW_DAMAGE_MULT = 0.5, ITEM_THROW_DURATION = 0.38, ITEM_THROW_ARC_HEIGHT = 2.6,
+      ITEM_THROW_HIT_RADIUS = 3.2; // how close to the landing point something has to be standing to actually get hit
+let itemThrowCooldownUntil = 0; // Date.now() ms — same "not persisted" category as grenadeCooldownUntil
+let thrownItems = []; // {mesh, startX,startY,startZ, tx,ty,tz, elapsed, dur, dmg, emoji} — ticked by tickThrownItems() (game-controls.js animate())
+let aimingThrow = null; // {source:'inventory'|'food', key, emoji, name} while a throw is being aimed, else null
+let throwAimLine = null; // THREE.Line (dashed) previewing the real flight arc, rebuilt every frame while aiming
+
+// Where the aimed throw would land right now, using the SAME yaw the player already steers with
+// (Math.sin/cos(yaw) — the exact forward-vector convention the Tank cannon/Jet guns/melee all use)
+// for direction, and pitch (already mouse/touch-look driven, range -0.5..1.0 — game-controls.js) for
+// distance: looking up throws further/higher, looking down keeps it close, so "aiming" is just using
+// the look controls you already have, no new input scheme needed.
+function computeThrowLanding() {
+  if (!playerGroup) return null;
+  const t = Math.max(0, Math.min(1, (pitch + 0.5) / 1.5)); // pitch's real range is -0.5..1.0
+  const dist = ITEM_THROW_MIN_RANGE + (ITEM_THROW_MAX_RANGE - ITEM_THROW_MIN_RANGE) * t;
+  const x = playerGroup.position.x + Math.sin(yaw) * dist;
+  const z = playerGroup.position.z + Math.cos(yaw) * dist;
+  return { x, z, y: groundHeightAt(x, z) };
+}
+
+// Same "who's actually fightable" filter as throwCombatGrenade's killers check, but centered on a
+// chosen POINT (the landing spot) rather than the player, since the player is now aiming — not
+// auto-locking onto whatever happens to be nearest to themselves.
+function findEnemyNearPoint(x, z, radius) {
+  let best = null, bestDist = radius;
+  killers.filter(k => k.alive && !k.guardKiller && !k.hitTargetName && !k.hitTargetType).forEach(k => {
+    const d = Math.hypot(x-k.x, z-k.z);
+    if (d < bestDist) { bestDist = d; best = { ref:k, kind:'killer' }; }
+  });
+  robots.filter(r => r.alive).forEach(r => {
+    const d = Math.hypot(x-r.x, z-r.z);
+    if (d < bestDist) { bestDist = d; best = { ref:r, kind:'robot' }; }
+  });
+  rogueRobots.filter(r => r.alive).forEach(r => {
+    const d = Math.hypot(x-r.x, z-r.z);
+    if (d < bestDist) { bestDist = d; best = { ref:r, kind:'rogue' }; }
+  });
+  return best;
+}
+
+// A small always-faces-camera billboard showing the item's own emoji, exactly like the "draw to a
+// canvas, wrap it in a CanvasTexture" nametag/sign pattern used all over this game — just on a
+// THREE.Sprite instead of a name-tag plane so it needs no rotation math while it flies.
+function buildThrownItemSprite(emoji) {
+  const cv = document.createElement('canvas'); cv.width = 64; cv.height = 64;
+  const ctx = cv.getContext('2d');
+  ctx.font = '46px "Segoe UI Emoji","Apple Color Emoji",sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(emoji || '📦', 32, 36);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent:true, depthTest:true }));
+  sprite.scale.set(0.6, 0.6, 0.6);
+  return sprite;
+}
+
+// ── AIM MODE — entered by the "🎯 Throw" button (throwInventoryItem()/throwFoodItem() below),
+// exited by confirmAimThrow() (release) or cancelAimThrow() (Escape/right-click/the ✕ button). Input
+// wiring (click-to-confirm, right-click/Escape-to-cancel, the on-screen confirm/cancel buttons for
+// touch) lives in game-controls.js, right next to the rest of setupControls()/setupMobileControls().
+function startAimThrow(source, key, emoji, name) {
+  if (aimingThrow) return; // already aiming something else — finish or cancel that throw first
+  if (Date.now() < itemThrowCooldownUntil) { showNotif('🎯 Wait a moment before throwing again.'); return; }
+  aimingThrow = { source, key, emoji, name };
+  closeInventory(); // let them see the world to aim
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock(); // re-lock so mouse-look keeps steering the aim
+  showThrowAimHud(emoji, name);
+}
+function cancelAimThrow(showMsg) {
+  if (!aimingThrow) return;
+  const a = aimingThrow;
+  aimingThrow = null;
+  hideThrowAimHud();
+  if (throwAimLine) { scene.remove(throwAimLine); throwAimLine.geometry.dispose(); throwAimLine.material.dispose(); throwAimLine = null; }
+  if (showMsg) showNotif(`🎯 Put the ${a.emoji} ${a.name} away.`);
+}
+// Small always-on-top overlay shown only while aiming — names what you're about to throw and gives
+// touch players a real confirm/cancel button (desktop can also just click the canvas / press Esc,
+// wired in setupControls(), game-controls.js).
+function showThrowAimHud(emoji, name) {
+  const hud = document.getElementById('throwAimHud');
+  if (!hud) return;
+  document.getElementById('throwAimLabel').textContent = `${emoji} Aiming ${name}`;
+  hud.style.display = 'flex';
+}
+function hideThrowAimHud() {
+  const hud = document.getElementById('throwAimHud');
+  if (hud) hud.style.display = 'none';
+}
+function confirmAimThrow() {
+  if (!aimingThrow) return;
+  const a = aimingThrow;
+  const landing = computeThrowLanding();
+  cancelAimThrow(false); // clear aim state/line first — the flight below is a completely separate tracked effect
+  itemThrowCooldownUntil = Date.now() + ITEM_THROW_COOLDOWN_MS;
+  const dmg = Math.round(getWeaponDamage() * ITEM_THROW_DAMAGE_MULT);
+  const startX = playerGroup.position.x, startZ = playerGroup.position.z, startY = playerGroup.position.y + 1.3;
+  const sprite = buildThrownItemSprite(a.emoji);
+  sprite.position.set(startX, startY, startZ);
+  scene.add(sprite);
+  thrownItems.push({
+    mesh: sprite, startX, startY, startZ,
+    tx: landing.x, tz: landing.z, ty: landing.y + 0.4,
+    elapsed: 0, dur: ITEM_THROW_DURATION, dmg, emoji: a.emoji
+  });
+  sfx.whoosh();
+  // Consume it now — you released it, it's gone either way, same as any real thrown object.
+  if (a.source === 'inventory') {
+    const it = playerInventory[a.key];
+    if (it) { it.qty--; if (it.qty <= 0) delete playerInventory[a.key]; saveCurrentUser(); }
+  } else {
+    const idx = playerBag.findIndex(f => f.name === a.key);
+    if (idx !== -1) playerBag.splice(idx, 1);
+    updateBagHud();
+  }
+  refreshInventory();
+}
+
+// Per-frame aim-line update — hooked into the main animate() loop (game-controls.js) right next to
+// tickThrownItems below. Rebuilds a DASHED line (LineDashedMaterial — a real "dotted line", the
+// user's own ask) each frame along the same parabola the real throw will fly, from your hand out to
+// wherever you're currently aiming, so it always reflects your current look direction live. Colored
+// green when something's actually standing in the hit radius at the current landing point, white
+// otherwise — real, useful aim feedback rather than just a decorative line.
+const THROW_AIM_SEGMENTS = 16;
+function tickThrowAim() {
+  if (!aimingThrow || !playerGroup) return;
+  const landing = computeThrowLanding();
+  const startX = playerGroup.position.x, startZ = playerGroup.position.z, startY = playerGroup.position.y + 1.3;
+  const willHit = !!findEnemyNearPoint(landing.x, landing.z, ITEM_THROW_HIT_RADIUS);
+  const pts = [];
+  for (let i = 0; i <= THROW_AIM_SEGMENTS; i++) {
+    const p = i / THROW_AIM_SEGMENTS;
+    pts.push(new THREE.Vector3(
+      startX + (landing.x-startX)*p,
+      startY + (landing.y+0.4-startY)*p + Math.sin(p*Math.PI)*ITEM_THROW_ARC_HEIGHT,
+      startZ + (landing.z-startZ)*p
+    ));
+  }
+  if (!throwAimLine) {
+    const geo = new THREE.BufferGeometry().setFromPoints(pts);
+    const mat = new THREE.LineDashedMaterial({ color:0xffffff, dashSize:0.35, gapSize:0.25, linewidth:2 });
+    throwAimLine = new THREE.Line(geo, mat);
+    scene.add(throwAimLine);
+  } else {
+    throwAimLine.geometry.setFromPoints(pts);
+  }
+  throwAimLine.material.color.setHex(willHit ? 0x44ff66 : 0xffffff);
+  throwAimLine.computeLineDistances(); // required every time the geometry changes, or the dashes stop rendering correctly
+}
+
+// Per-frame flight update — hooked into the main animate() loop (game-controls.js), same category
+// AND same dt-accumulates-toward-a-duration idiom as tickKnockbacks above: a short-lived list of
+// in-flight effects, each ticked and pruned every frame, driven by the real per-frame dt rather than
+// wall-clock time (so it behaves correctly regardless of frame rate, a paused debugger, etc.).
+function tickThrownItems(dt) {
+  for (let i = thrownItems.length-1; i >= 0; i--) {
+    const it = thrownItems[i];
+    it.elapsed += dt;
+    const p = Math.min(1, it.elapsed / it.dur);
+    it.mesh.position.x = it.startX + (it.tx-it.startX)*p;
+    it.mesh.position.z = it.startZ + (it.tz-it.startZ)*p;
+    it.mesh.position.y = it.startY + (it.ty-it.startY)*p + Math.sin(p*Math.PI)*ITEM_THROW_ARC_HEIGHT;
+    if (p < 1) continue;
+    scene.remove(it.mesh);
+    thrownItems.splice(i, 1);
+    applyThrownItemHit(it);
+  }
+}
+
+// Lands the hit — searches for whatever's actually standing near where it landed (the player aimed,
+// they don't get a guaranteed lock-on) and applies the same hp -= dmg / "still alive? notify :
+// defeat" shape as fightKiller/fightRobot above, dispatching to the right defeat function for
+// whichever of the three enemy arrays it found the target in.
+function applyThrownItemHit(it) {
+  const found = findEnemyNearPoint(it.tx, it.tz, ITEM_THROW_HIT_RADIUS);
+  if (!found) { showNotif(`🎯 The ${it.emoji} lands... nothing there.`); return; }
+  const target = found.ref;
+  burstConfetti(new THREE.Vector3(target.x, 1, target.z), 6);
+  sfx.hit();
+  target.hp -= it.dmg;
+  if (target.hp > 0) {
+    const label = found.kind === 'killer' ? 'the killer' : ((target.type && target.type.name) || 'the target');
+    showNotif(`🎯 Hit ${label} for ${it.dmg}!`);
+    return;
+  }
+  if (found.kind === 'robot') { defeatRobot(target); return; }
+  if (found.kind === 'rogue') { defeatRogueRobot(target); return; }
+  if (target.satanBoss) defeatSatanBoss(target);
+  else if (target.demon) defeatDemon(target);
+  else if (target.robber) defeatRobber(target);
+  else defeatKiller(target);
+}
+
+// ── Public entry points — one per item source, since playerInventory (id-keyed, has a real qty)
+// and playerBag (a plain array — duplicates just push more entries, game-engine.js) are shaped
+// completely differently. Both are wired to a "🎯 Throw" button in refreshInventory() (game-
+// housing.js), the same panel the "🎒 BAG" tab already opens — both just START aim mode; the actual
+// throw (and item consumption) happens on release, in confirmAimThrow() above. ──
+function throwInventoryItem(id) {
+  const it = playerInventory[id];
+  if (!it) return;
+  startAimThrow('inventory', id, it.emoji, it.name);
+}
+function throwFoodItem(name) {
+  const idx = playerBag.findIndex(f => f.name === name);
+  if (idx === -1) return;
+  const food = playerBag[idx];
+  startAimThrow('food', name, food.emoji, food.name);
+}
+
 // ── The Grinder — turns real robot wreckage into Scrap Metal + the robot's real materials ──
 const GRINDER_POS = { x:SCRAPYARD_CENTER.x, z:SCRAPYARD_CENTER.z+18 };
 let wreckagePiles = []; // {x,z,mesh,type} — NOT persisted, same category as the ambient robots themselves

@@ -39,8 +39,34 @@ function refreshInventory() {
       </div>`;
   }
 
+  // FOOD — user's own ask: "throw ANY of your items". playerBag (game-engine.js) had no real panel
+  // of its own before this — just a tiny emoji strip in the top-right HUD, eaten one at a time with
+  // C — so this both gives it a real place to live and adds the Throw action. It's a plain array
+  // (duplicates just push more entries, no qty field), so group by name for a compact "x3" display;
+  // throwFoodItem() always throws the first matching entry, so which literal row/button doesn't matter.
+  let foodHtml = '';
+  const foodCounts = {};
+  playerBag.forEach(f => { if(!foodCounts[f.name]) foodCounts[f.name] = { emoji:f.emoji, name:f.name, qty:0 }; foodCounts[f.name].qty++; });
+  const foodNames = Object.keys(foodCounts);
+  if (foodNames.length > 0) {
+    foodHtml = `<div style="color:#88ff88;font-size:11px;font-weight:bold;letter-spacing:1px;margin-bottom:6px;">🍔 FOOD (C to eat)</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
+        ${foodNames.map(name => {
+          const f = foodCounts[name];
+          return `<div style="background:rgba(255,255,255,0.06);border:1px solid #444;border-radius:8px;padding:10px;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:22px;">${f.emoji}</span>
+            <div style="flex:1;">
+              <div style="color:#fff;font-size:13px;font-weight:bold;">${f.name}</div>
+              <div style="color:#aaa;font-size:11px;">x${f.qty}</div>
+            </div>
+            <button onclick="throwFoodItem('${name.replace(/'/g,"\\'")}')" style="padding:5px 10px;background:#7a3a1a;border:none;border-radius:6px;color:#fff;font-size:10px;cursor:pointer;">🎯 Throw</button>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }
+
   const keys  = Object.keys(playerInventory);
-  if(keys.length === 0 && !weaponsHtml) {
+  if(keys.length === 0 && !weaponsHtml && !foodHtml) {
     list.innerHTML = '';
     empty.style.display = 'block';
     return;
@@ -55,9 +81,10 @@ function refreshInventory() {
         <div style="color:#fff;font-size:13px;font-weight:bold;">${it.name}</div>
         <div style="color:#aaa;font-size:11px;">x${it.qty}</div>
       </div>
+      <button onclick="throwInventoryItem('${id}')" style="padding:5px 10px;background:#7a3a1a;border:none;border-radius:6px;color:#fff;font-size:10px;cursor:pointer;">🎯 Throw</button>
     </div>`;
   }).join('');
-  list.innerHTML = weaponsHtml + itemsHtml;
+  list.innerHTML = weaponsHtml + foodHtml + itemsHtml;
 }
 
 // ─── HOUSE SYSTEM ────────────────────────────────────────────────────────────

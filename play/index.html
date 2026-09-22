@@ -109,6 +109,24 @@
     #mobileAutopilotBtn { border-color:rgba(80,160,255,0.8); }
     #mobileAutopilotBtn.active { background:rgba(68,150,255,0.55); border-color:#44ccff; }  /* engaged — matches toggleJetAutopilot()'s own on/off state */
 
+    /* ── ITEM-THROW AIM HUD — the dashed line itself is a real 3D THREE.Line in the scene
+       (throwAimLine, game-land.js); this is just the floating label + confirm/cancel buttons. ── */
+    #throwAimHud {
+      position:fixed; top:22%; left:50%; transform:translateX(-50%); z-index:18;
+      flex-direction:column; align-items:center; gap:10px; pointer-events:none;
+    }
+    #throwAimLabel {
+      background:rgba(0,0,0,0.6); border:1px solid #44ff66; border-radius:10px; padding:8px 16px;
+      color:#fff; font-size:15px; font-weight:bold; text-shadow:1px 1px 3px #000;
+    }
+    #throwAimButtons { display:flex; gap:10px; pointer-events:auto; }
+    #throwConfirmBtn, #throwCancelBtn {
+      border:none; border-radius:10px; padding:12px 20px; font-size:14px; font-weight:bold;
+      cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.4);
+    }
+    #throwConfirmBtn { background:#2a8a3a; color:#fff; }
+    #throwCancelBtn  { background:rgba(0,0,0,0.55); color:#ff8888; border:1px solid #ff8888; }
+
     /* ── MENU (replaces the side-tab rails on EVERY device — user's ask, "remove the tab system") ── */
     /* The two vertical rails are gone everywhere; every tab is reached through the ☰ menu instead.
        (The joystick and the on-screen action buttons stay touch-only — desktop still uses the mouse
@@ -1634,8 +1652,21 @@
   </div>
   </div>
 
-  <div id="gameName">EXPLOX</div>
+<div id="gameName">EXPLOX</div>
   <div id="crosshair">+</div>
+  <!-- ITEM-THROW AIM HUD — shown only while aiming a thrown item (startAimThrow()/cancelAimThrow(),
+       game-land.js). Desktop confirms/cancels with a click / right-click / Esc on the canvas itself
+       (setupControls(), game-controls.js); these buttons are the real confirm/cancel gesture for
+       touch, where there's no click-to-confirm. The actual dashed aim line lives IN the 3D scene
+       (throwAimLine, game-land.js) — this HUD is just the label + buttons floating above it. -->
+  <div id="throwAimHud" style="display:none;">
+    <div id="throwAimLabel">🎯 Aiming</div>
+    <div id="throwAimButtons">
+      <button id="throwConfirmBtn" onclick="confirmAimThrow()">🎯 THROW</button>
+      <button id="throwCancelBtn" onclick="cancelAimThrow(true)">✕ Cancel</button>
+    </div>
+  </div>
+  
   <div id="location">City Center</div>
   <div id="sitePlayersHud" style="display:none;">🌍 <span id="sitePlayerCount">1</span> people play Explox</div>
   <div id="sipHud">💰 <span id="sipAmount">500</span> S.I.P.</div>

@@ -57,6 +57,7 @@ function setupControls(){
     if(e.code==='KeyY'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) tryGiveSip(); }
     if(e.code==='KeyP' && placingStore) confirmStorePlacement();
     if(e.code==='Escape' && placingStore) cancelStorePlacement();
+    if(e.code==='Escape' && aimingThrow) cancelAimThrow(true); // back out of an item throw without releasing it
     // Shift = run faster; Space = jump (ignore Space while typing in a text field)
     if(e.code==='ShiftLeft'||e.code==='ShiftRight') moveState.run=true;
     if(e.code==='Space'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))){ e.preventDefault(); tryCityJump(); jetThrustHeld=true; } }
@@ -70,7 +71,21 @@ function setupControls(){
     if(e.code==='KeyE') onInteractUp();
     if(e.code==='ShiftLeft'||e.code==='ShiftRight') moveState.run=false;
   });
-  renderer.domElement.addEventListener('click',()=>renderer.domElement.requestPointerLock());
+  // A click on the canvas normally just (re)acquires Pointer Lock for mouse-look — but while a throw
+  // is being aimed (aimingThrow, game-land.js), the SAME click instead releases it at whatever the
+  // dashed aim line is currently pointing at, matching "you get to choose" — no separate confirm
+  // gesture needed on desktop, you just click where you're already looking.
+  renderer.domElement.addEventListener('click',()=>{
+    if(aimingThrow){ confirmAimThrow(); return; }
+    renderer.domElement.requestPointerLock();
+  });
+  // Right-click backs out of an aim without releasing it (Escape does the same, above) — otherwise
+  // leave the browser's normal context menu alone.
+  renderer.domElement.addEventListener('contextmenu',e=>{
+    if(!aimingThrow) return;
+    e.preventDefault();
+    cancelAimThrow(true);
+  });
   document.addEventListener('pointerlockchange',()=>{ isPointerLocked=document.pointerLockElement===renderer.domElement; });
   document.addEventListener('mousemove',e=>{
     if(!isPointerLocked) return;
@@ -329,6 +344,8 @@ function animate(){
   if(t - _lastChatSync > CHAT_SYNC_INTERVAL) { _lastChatSync = t; syncChatMessages(); }
   if(t - _lastLightCullSync > LIGHT_CULL_INTERVAL) { _lastLightCullSync = t; cullDistantLights(); }
   if(activeKnockbacks.length) tickKnockbacks(dt);
+  if(aimingThrow) tickThrowAim(); // updates the dashed aim-line preview every frame while a throw is being aimed (game-land.js)
+  if(thrownItems.length) tickThrownItems(dt); // flying thrown-item sprites (game-land.js) — same short-lived-effects-list category as activeKnockbacks above
   if(placingStore) updatePlacementMarker();
 
   // The Sea: real swim-zone detection (only counts once actually standing in the water, not just
