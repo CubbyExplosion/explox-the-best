@@ -7,7 +7,18 @@
 // the point the command actually runs, not just in the UI that leads there.
 const ADMIN_ACCOUNTS = ['cubby explosion', 'gurnaldst'];
 const ADMIN_PASSCODE = '12321';
-function isAdmin() { return ADMIN_ACCOUNTS.includes(currentUser); }
+// Real bug found live: this used to be an exact ADMIN_ACCOUNTS.includes(currentUser) check, but
+// account names elsewhere in this game are never case-normalized (createAccount()'s own "that name
+// is taken" check is exact-match too, game-core.js) — so the REAL account (stored as "Cubby
+// Explosion", capitalized) silently never matched the lowercase 'cubby explosion' entry here and
+// quietly lost admin. Comparing case-insensitively (and trimmed) is the real fix, not just adding
+// one more exact string to the list — it survives however the name happens to be typed/stored from
+// here on, the same way a login should already behave.
+function isAdmin() {
+  if (!currentUser) return false;
+  const me = currentUser.trim().toLowerCase();
+  return ADMIN_ACCOUNTS.some(a => a.toLowerCase() === me);
+}
 
 let adminUnlocked = false;           // real passcode gate — resets to false on every reload/fresh login, on purpose
 let adminGodMode = false;            // /godmode — checked in damagePlayer() (game-social.js)
@@ -153,7 +164,7 @@ const ADMIN_TP_EXTRA = [
   { label: 'Church', x: -40, z: 20 },
   { label: 'Sunset Plains', x: LAND_CENTER.x, z: LAND_CENTER.z },
 ];
-const ADMIN_HELP = '/give <amount> sip|wood|elite — /give <weapon name> — /heal — /tp <place> — /spawn robot — /spawn demon — /clear robots — /godmode — /fly — /time day|night — /event god|satan — /help';
+const ADMIN_HELP = '/give <amount> sip|wood|elite — /give <weapon name> — /heal — /tp <place> — /spawn robot — /spawn demon — /clear robots — /godmode — /fly — /time day|night — /event god|satan — /level <n>|infinity|reset — /help';
 
 function adminRunCommand() {
   if (!isAdmin()) return;
@@ -270,6 +281,33 @@ function adminExecute(raw) {
     if (target !== 'god' && target !== 'satan') return '❌ Try: /event god or /event satan.';
     startDivineClash(target);
     return `✅ Triggered the ${target === 'god' ? 'God' : 'Satan'} clash.`;
+  }
+
+  // Sets Robot Level directly instead of grinding levelUpElite() one Elite-Coin-costly level at a
+  // time — mainly for reaching `infinity`, which the normal level-up flow can never actually land
+  // on (eliteThresholdForLevel() itself overflows to a real Infinity cost around level ~1750,
+  // capping how far grinding alone can ever go — see the comments there and on levelUpEliteMax(),
+  // game-customization.js). Heaven's periodic invite (maybeShowHeavenInvite(), game-world.js) only
+  // fires at Robot Level Infinity — this is the real, intended way to actually reach that state,
+  // not a decorative flag with no way in.
+  if (cmd === 'level') {
+    const arg = (parts[1] || '').toLowerCase();
+    let newLevel;
+    if (arg === 'infinity' || arg === 'inf' || arg === 'max') newLevel = Infinity;
+    else if (arg === 'reset' || arg === '0') newLevel = 0;
+    else { newLevel = parseInt(parts[1], 10); if (!Number.isFinite(newLevel) || newLevel < 0) return '❌ Try: /level <number>, /level infinity, or /level reset.'; }
+    eliteLevel = newLevel;
+    updateElite();
+    // Same real HP-bump-not-just-a-cap-raise treatment levelUpElite() gives a normal level-up — via
+    // the shared helper (game-customization.js), which is what actually guards against the
+    // Infinity-to-finite jump this command can do (unlike normal leveling, which only ever moves by
+    // 1 and never touches Infinity) silently corrupting current HP to NaN.
+    applyPlayerMaxHealthChange();
+    saveCurrentUser();
+    renderQuestsPanel();
+    return newLevel === Infinity
+      ? '✅ Robot Level set to ∞. Heaven may call soon — the invite check runs every 5 minutes.'
+      : `✅ Robot Level set to ${eliteLevel.toLocaleString()}.`;
   }
 
   return `❌ Unknown command "${cmd}". Type /help for the list.`;

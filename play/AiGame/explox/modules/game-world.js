@@ -1110,7 +1110,12 @@ function buildHeavenZone() {
   pillarGlow.position.set(px, 10, pz); scene.add(pillarGlow);
   const lamp = new THREE.PointLight(GOD_COLOR, 3, 80); lamp.position.set(px, 12, pz); scene.add(lamp);
   buildSign('🕊️ HEAVEN', px, 26, pz+24);
-  addCol(CITY_COLS, px, pz, 10, 10);
+  // Real bug found live ("cant movwe in heaven"): this used to add a solid, always-blocked 20x20
+  // collider centered right here — the EXACT spot enterHeaven() teleports the player to. Every
+  // arriving player spawned already stuck inside solid geometry, unable to move in any direction.
+  // The pillars/light column are decorative (a column of light shouldn't be a solid wall anyway),
+  // and no other floaty zone (Moon/Mars/Jupiter/Andromeda) has a collider here either — removed
+  // rather than just moved, to match how open every other one of these already is.
   // Real way back — same "walk into a zone, press E" pattern the Space Station's own "🚀 Launch
   // into Space" zone already uses (CITY_ZONES is the default zones list, active here since Heaven
   // has no dedicated inHeaven flag of its own — same as Moon/Mars/etc, see GRAVITY_ZONES' comment).
@@ -1129,8 +1134,14 @@ function returnFromHeaven() {
 // deleteConfirmModal, game-core.js — so this follows the same real-modal pattern), offering the
 // same Heaven this account can already reach through Divine Judgment. Skips the ask while the
 // player is already standing in Heaven (currentSpaceZone(), further down this file).
+// Follow-up correction: "HEAVEN ONLY CALLS TO YOU IF YOUR LEVEL IS INFINITY" — the invite now only
+// fires once Robot Level (eliteLevel, game-customization.js) is the literal, non-finite value
+// Infinity, a real state grinding alone can never actually reach (eliteThresholdForLevel() itself
+// overflows to an infinite cost around level ~1750, so leveling stops there on its own) — reachable
+// for real via the admin console's /level infinity (game-admin.js), which is the intended path in.
 function maybeShowHeavenInvite() {
   if (!currentUser) return;
+  if (eliteLevel !== Infinity) return;
   const z = currentSpaceZone();
   if (z && z.name === 'Heaven') return;
   document.getElementById('heavenInviteModal').style.display = 'flex';

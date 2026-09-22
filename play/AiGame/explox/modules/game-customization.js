@@ -417,6 +417,24 @@ function robotSizeMult()  { return 1; }
 // nobody's damage math actually reads.
 function computePlayerMaxHealth() { return 100 + eliteLevel * 15; }
 function playerLevelDamageMult()  { return 1 + eliteLevel * 0.08; }
+// Shared by every real level-up (levelUpElite() below, and the admin console's /level, game-
+// admin.js): recomputes Max HP and carries the same +delta heal into current HP — EXCEPT that
+// "current HP + delta" breaks the moment either side of the subtraction is non-finite (the exact
+// same `Infinity - Infinity` => NaN trap this file already found and fixed once for eliteCoins in
+// levelUpEliteMax() below — /level infinity, then /level back down to a normal number, hit it again
+// here for real: oldMax was Infinity, the delta became -Infinity, and playerHealth + -Infinity off
+// an Infinity current HP silently corrupted it to NaN). Whenever the math would go non-finite either
+// way, just top off to the new max instead of computing a broken delta — the intuitive behavior for
+// a level change anyway, and it can never produce NaN.
+function applyPlayerMaxHealthChange() {
+  const oldMax = playerMaxHealth;
+  playerMaxHealth = computePlayerMaxHealth();
+  const delta = playerMaxHealth - oldMax;
+  playerHealth = isFinite(delta) ? playerHealth + delta : playerMaxHealth;
+  if (!isFinite(playerHealth)) playerHealth = playerMaxHealth; // final safety net
+  updateHealthBar();
+  return oldMax;
+}
 function levelUpElite() {
   const cost = eliteThresholdForLevel(eliteLevel + 1);
   // Same Infinity-minus-Infinity trap as levelUpEliteMax() above, reachable here too once a
@@ -429,10 +447,7 @@ function levelUpElite() {
   updateElite();
   // The level-up itself doubles as a real heal (added to current HP, not a full refill you have
   // to earn back) rather than just quietly raising a cap you won't notice until you're hurt.
-  const oldMax = playerMaxHealth;
-  playerMaxHealth = computePlayerMaxHealth();
-  playerHealth += playerMaxHealth - oldMax;
-  updateHealthBar();
+  const oldMax = applyPlayerMaxHealthChange();
   showNotif(`🆙 Robot Level ${eliteLevel}! Robots are bigger and stronger now — but worth more too. You're stronger too: +${playerMaxHealth-oldMax} Max HP, +${Math.round((playerLevelDamageMult()-1)*100)}% damage!`);
   sfx.buy();
   saveCurrentUser();
