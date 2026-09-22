@@ -1352,7 +1352,7 @@ function saveCurrentUser() {
     unpaidBills: unpaidBills, lastBillCheck: lastBillCheck, hasSeenGuide: hasSeenGuide,
     hasBusinessLicense: hasBusinessLicense, businessLicenseInfo: businessLicenseInfo, approvedPermits: approvedPermits,
     myStocks: myStocks, ffaKills: ffaKills, eatingCompBests: eatingCompBests,
-    eliteLevel: eliteLevel, activeQuests: activeQuests,
+    eliteLevel: eliteLevel, activeQuests: activeQuests, mobDifficulty: mobDifficulty,
     lifetimeRobotKills: lifetimeRobotKills, lifetimeRogueKills: lifetimeRogueKills, lifetimeWarHits: lifetimeWarHits,
     killerDefeats: killerDefeats, pendingEarnings: pendingEarnings,
     totalKills: totalKills, wrathTriggerCount: wrathTriggerCount, divineJudgmentServed: divineJudgmentServed,
@@ -1858,6 +1858,10 @@ async function doLogin(name) {
   ffaKills = d.ffaKills !== undefined ? d.ffaKills : 0;
   eatingCompBests = d.eatingCompBests && typeof d.eatingCompBests === 'object' ? d.eatingCompBests : {};
   eliteLevel = d.eliteLevel !== undefined ? d.eliteLevel : 0;
+  // Defaults to 'normal' for every existing save that predates this feature (MOB_DIFFICULTY_MULT
+  // has no entry for undefined, so mobDifficultyMult() would silently read as 1.0 anyway -- this
+  // just keeps the picker's own highlighted button honest on login too).
+  mobDifficulty = (d.mobDifficulty && MOB_DIFFICULTY_MULT[d.mobDifficulty] !== undefined) ? d.mobDifficulty : 'normal';
   // Recomputed here (not left at the module-load default of 100) so a login always starts fresh
   // at the CORRECT full health for this account's real Robot Level, not last account's or nobody's.
   playerMaxHealth = computePlayerMaxHealth();

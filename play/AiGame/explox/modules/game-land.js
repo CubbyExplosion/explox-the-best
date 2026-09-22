@@ -1585,7 +1585,8 @@ function defeatRogueRobot(robot) {
 let killers = []; // NOT persisted — {id,mesh,x,z,hp,maxHp,alive,speed,attackTimer,revealed}
 let killerTimer = 0;
 const KILLER_REVEAL_RANGE = 7, KILLER_ATTACK_RANGE = 2.5, KILLER_ATTACK_INTERVAL = 1.1;
-const KILLER_HP = 200, KILLER_REWARD_ELITE = 500;
+function KILLER_HP() { return Math.round(200 * mobDifficultyMult()); }
+function KILLER_REWARD_ELITE() { return Math.round(500 * mobDifficultyMult()); }
 // KILLER SUPREME — user's own ask: "a killer you only see once [per] 2 days explox ones and is 10
 // times better and can summon killers at demand." A real ambient encounter, same "just appears in
 // the world on its own" spirit as a regular Killer/Robber — NOT a walk-up-and-pay challenge like
@@ -1599,9 +1600,9 @@ const KILLER_SUPREME_COOLDOWN_DAYS = 2;
 // lives in game-zones.js, which loads AFTER this file (see modules/README.md's own warning on
 // this exact trap), so a top-level reference here would silently evaluate as NaN. Computed live
 // inside killerSupremeSecondsRemaining() below instead, by which time every script has loaded.
-const KILLER_SUPREME_HP = KILLER_HP * 10;
-const KILLER_SUPREME_DMG_MIN = 80, KILLER_SUPREME_DMG_MAX = 150; // 10x the ambient Killer's 8-15
-const KILLER_SUPREME_REWARD_ELITE = KILLER_REWARD_ELITE * 10;
+function KILLER_SUPREME_HP() { return KILLER_HP() * 10; }
+const KILLER_SUPREME_DMG_MIN = 80, KILLER_SUPREME_DMG_MAX = 150; // 10x the ambient Killer's 8-15 — scaled by mobDifficultyMult() at the one place these are actually used, below
+function KILLER_SUPREME_REWARD_ELITE() { return KILLER_REWARD_ELITE() * 10; }
 const KILLER_SUPREME_SUMMON_INTERVAL = 15, KILLER_SUPREME_SUMMON_MAX = 3; // "summon killers at demand" — real ordinary Killers pushed into killers[], same shape Satan's own summon already uses
 function killerSupremeSecondsRemaining() {
   return Math.max(0, KILLER_SUPREME_COOLDOWN_DAYS*DAY_LENGTH - (playTimeSeconds - lastKillerSupremeFightAt));
@@ -1623,7 +1624,7 @@ function spawnKillerSupreme() {
   const x = playerGroup.position.x + Math.cos(angle)*dist, z = playerGroup.position.z + Math.sin(angle)*dist;
   const mesh = buildKillerSupremeMesh(x, z);
   mesh.visible = false;
-  killers.push({ id:'killersupreme'+ROBOT_ID_SEQ++, x, z, hp:KILLER_SUPREME_HP, maxHp:KILLER_SUPREME_HP, mesh, alive:true,
+  killers.push({ id:'killersupreme'+ROBOT_ID_SEQ++, x, z, hp:KILLER_SUPREME_HP(), maxHp:KILLER_SUPREME_HP(), mesh, alive:true,
     speed:3.5+Math.random()*2, attackTimer:0, summonTimer:0, revealed:false, killerSupreme:true });
   lastKillerSupremeFightAt = playTimeSeconds;
   saveCurrentUser();
@@ -1636,7 +1637,7 @@ function killerSupremeSummon(k) {
   const x = playerGroup.position.x + Math.cos(angle)*dist, z = playerGroup.position.z + Math.sin(angle)*dist;
   const mesh = buildKillerMesh(x, z);
   mesh.visible = true;
-  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true,
+  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP(), maxHp:KILLER_HP(), mesh, alive:true,
     speed:3.5+Math.random()*2, attackTimer:0, atkInterval:KILLER_ATTACK_INTERVAL, revealed:true, summonedBySupreme:true });
   showNotif('👑 Killer Supreme summons a Killer to their side!');
   sfx.tense();
@@ -1653,7 +1654,7 @@ function tickKillerSupremeCombat(k, dt) {
     k.attackTimer += dt;
     if (k.attackTimer >= KILLER_ATTACK_INTERVAL) {
       k.attackTimer = 0;
-      damagePlayer(KILLER_SUPREME_DMG_MIN + Math.floor(Math.random()*(KILLER_SUPREME_DMG_MAX-KILLER_SUPREME_DMG_MIN+1)), "Killer Supreme's blade");
+      damagePlayer(Math.round((KILLER_SUPREME_DMG_MIN + Math.floor(Math.random()*(KILLER_SUPREME_DMG_MAX-KILLER_SUPREME_DMG_MIN+1))) * mobDifficultyMult()), "Killer Supreme's blade");
     }
   }
   k.summonTimer += dt;
@@ -1679,9 +1680,10 @@ function defeatKillerSupreme(killer) {
   buildKillerCorpse(killer.x, killer.z);
   killerDefeats++;
   totalKills++; checkWrathTrigger(); checkDivineJudgment();
-  queueEarning(0, KILLER_SUPREME_REWARD_ELITE, 'Killer Supreme');
+  const kSupReward = KILLER_SUPREME_REWARD_ELITE();
+  queueEarning(0, kSupReward, 'Killer Supreme');
   sfx.boom();
-  showNotif(`👑 You defeated Killer Supreme! +${KILLER_SUPREME_REWARD_ELITE.toLocaleString()} 💎 — a legendary victory!`);
+  showNotif(`👑 You defeated Killer Supreme! +${kSupReward.toLocaleString()} 💎 — a legendary victory!`);
 }
 // User's own follow-up: "you see them more if you kill them, if not they're pretty rare." Both
 // scale off the real persisted killerDefeats count — a fresh account waits a long 90s between
@@ -1697,7 +1699,8 @@ function killerMaxActive() { return Math.min(4, 1 + Math.floor(killerDefeats/8))
 // a bounty; catch them after, you don't get the money back, but they're stopped for good.
 let robberTimer = 0;
 const ROBBER_SPAWN_INTERVAL = 45, ROBBER_MAX_ACTIVE = 3;
-const ROBBER_HP = 40, ROBBER_REVEAL_RANGE = 20, ROBBER_ATTACK_RANGE = 2.5;
+function ROBBER_HP() { return Math.round(40 * mobDifficultyMult()); }
+const ROBBER_REVEAL_RANGE = 20, ROBBER_ATTACK_RANGE = 2.5;
 const ROBBER_STEAL_PCT_MIN = 0.15, ROBBER_STEAL_PCT_MAX = 0.25;
 const ROBBER_BOUNTY_MIN = 100; // floor so beating a robber while nearly broke still means something
 // User's own ask: "kill the robber to get alot ove money like 15% of your money" — the same real
@@ -1745,7 +1748,7 @@ function spawnGuardKiller() {
   const mesh = buildKillerMesh(x, z);
   mesh.visible = true; // no stealth reveal here — you know they're coming for the Bank
   const atkInterval = KILLER_ATTACK_INTERVAL * (0.8 + Math.random()*0.5);
-  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval, revealed:true, guardKiller:true });
+  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP(), maxHp:KILLER_HP(), mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval, revealed:true, guardKiller:true });
 }
 function clearGuardKillers() {
   killers.filter(k => k.guardKiller && k.alive).forEach(k => { k.alive = false; scene.remove(k.mesh); });
@@ -2020,7 +2023,7 @@ function spawnSpyAmbusher(x, z) {
   const mesh = buildSpyAmbusherMesh(x, z);
   mesh.visible = true;
   const atkInterval = KILLER_ATTACK_INTERVAL * (0.8 + Math.random()*0.5);
-  killers.push({ id:'spy'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval, revealed:true, spy:true });
+  killers.push({ id:'spy'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP(), maxHp:KILLER_HP(), mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval, revealed:true, spy:true });
 }
 function buildRobberMesh(x, z) {
   const g = new THREE.Group(); g.position.set(x, 0, z);
@@ -2042,7 +2045,7 @@ function spawnRobber() {
   const mesh = buildRobberMesh(x, z);
   mesh.visible = false;
   if (satanReignActive) demonizeMesh(mesh);
-  killers.push({ id:'robber'+ROBOT_ID_SEQ++, x, z, hp:ROBBER_HP, maxHp:ROBBER_HP, mesh, alive:true, speed:4+Math.random()*1.5, revealed:false, robber:true, fleeing:false });
+  killers.push({ id:'robber'+ROBOT_ID_SEQ++, x, z, hp:ROBBER_HP(), maxHp:ROBBER_HP(), mesh, alive:true, speed:4+Math.random()*1.5, revealed:false, robber:true, fleeing:false });
 }
 // "5x bad entites" — Satan won this round, so newly-spawned Killers/Robbers get a demonic
 // recolor (dark red/black + a red glow) instead of their normal look. Purely visual — same
@@ -2134,7 +2137,7 @@ function spawnKiller() {
   // double-hit combo. Each killer now gets its own randomized cadence so they drift apart instead.
   const atkInterval = KILLER_ATTACK_INTERVAL * (0.8 + Math.random()*0.5);
   if (satanReignActive) demonizeMesh(mesh); // "more demons" — Satan won this round, so what spawns looks the part
-  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval, revealed:false });
+  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP(), maxHp:KILLER_HP(), mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval, revealed:false });
 }
 // Combat for an ambient Killer — always targets the player. Unchanged behavior from before this
 // session's Guard-duty split, just extracted into its own function.
@@ -2146,7 +2149,7 @@ function tickAmbientKillerCombat(k, dt) {
     k.attackTimer += dt;
     if (k.attackTimer > k.atkInterval) {
       k.attackTimer = 0;
-      if (!isEvilImmune()) damagePlayer(8+Math.floor(Math.random()*8), "a Killer's dagger");
+      if (!isEvilImmune()) damagePlayer(Math.round((8+Math.floor(Math.random()*8))*mobDifficultyMult()), "a Killer's dagger");
     }
   } else {
     k.x += dx/dist*k.speed*dt; k.z += dz/dist*k.speed*dt;
@@ -2221,8 +2224,9 @@ const DEMON_DEFS = [
   { name:'Skreel',  emoji:'💀', line:"\"Don't take it personal. Down here, everybody gets a turn.\"" },
   { name:'Malchor', emoji:'🔥', line:'"Beat one of us and three more show up. That\'s just how the bad hands go."' },
 ];
-const DEMON_HP = 260, DEMON_REVEAL_RANGE = 9, DEMON_ATTACK_RANGE = 2.5, DEMON_ATTACK_INTERVAL = 1.0;
-const DEMON_REWARD_ELITE = 650; // a step up from an ambient Killer's 500 — these are Satan's own troops, not petty street crime
+function DEMON_HP() { return Math.round(260 * mobDifficultyMult()); }
+const DEMON_REVEAL_RANGE = 9, DEMON_ATTACK_RANGE = 2.5, DEMON_ATTACK_INTERVAL = 1.0;
+function DEMON_REWARD_ELITE() { return Math.round(650 * mobDifficultyMult()); } // a step up from an ambient Killer's 500 — these are Satan's own troops, not petty street crime
 const DEMON_MAX_ACTIVE = 3, DEMON_SPAWN_INTERVAL = 40; // real seconds between spawn rolls, only ever checked while satanReignActive is true
 let demonTimer = 0;
 function buildDemonMesh(x, z, def) {
@@ -2263,7 +2267,7 @@ function spawnDemon() {
   const mesh = buildDemonMesh(x, z, def);
   mesh.visible = false; // same "no sign it's coming" reveal-on-approach as an ambient Killer
   const atkInterval = DEMON_ATTACK_INTERVAL * (0.8 + Math.random()*0.5);
-  killers.push({ id:'demon'+ROBOT_ID_SEQ++, x, z, hp:DEMON_HP, maxHp:DEMON_HP, mesh, alive:true, speed:4+Math.random()*2, attackTimer:0, atkInterval, revealed:false, demon:true, demonDef:def });
+  killers.push({ id:'demon'+ROBOT_ID_SEQ++, x, z, hp:DEMON_HP(), maxHp:DEMON_HP(), mesh, alive:true, speed:4+Math.random()*2, attackTimer:0, atkInterval, revealed:false, demon:true, demonDef:def });
 }
 // "/spawn demon" (game-admin.js) — same real demon object spawnDemon() above builds, just placed
 // next to the player and already revealed, so an admin can test-fight one without waiting on the
@@ -2274,7 +2278,7 @@ function adminSpawnDemonNearPlayer() {
   const x = playerGroup.position.x + Math.cos(angle)*dist, z = playerGroup.position.z + Math.sin(angle)*dist;
   const mesh = buildDemonMesh(x, z, def);
   mesh.visible = true;
-  killers.push({ id:'demon'+ROBOT_ID_SEQ++, x, z, hp:DEMON_HP, maxHp:DEMON_HP, mesh, alive:true, speed:4+Math.random()*2, attackTimer:0, atkInterval:DEMON_ATTACK_INTERVAL, revealed:true, demon:true, demonDef:def });
+  killers.push({ id:'demon'+ROBOT_ID_SEQ++, x, z, hp:DEMON_HP(), maxHp:DEMON_HP(), mesh, alive:true, speed:4+Math.random()*2, attackTimer:0, atkInterval:DEMON_ATTACK_INTERVAL, revealed:true, demon:true, demonDef:def });
   return def.name;
 }
 function tickDemonCombat(k, dt) {
@@ -2288,7 +2292,7 @@ function tickDemonCombat(k, dt) {
     k.attackTimer += dt;
     if (k.attackTimer > k.atkInterval) {
       k.attackTimer = 0;
-      if (!isEvilImmune()) damagePlayer(10+Math.floor(Math.random()*10), `${k.demonDef.name}'s claws`);
+      if (!isEvilImmune()) damagePlayer(Math.round((10+Math.floor(Math.random()*10))*mobDifficultyMult()), `${k.demonDef.name}'s claws`);
     }
   } else {
     k.x += dx/dist*k.speed*dt; k.z += dz/dist*k.speed*dt;
@@ -2414,7 +2418,7 @@ function defeatKiller(killer) {
   killerDefeats++;
   totalKills++; checkWrathTrigger(); checkDivineJudgment();
   const badLuck = satanReignActive;
-  const reward = badLuck ? Math.max(1, Math.round(KILLER_REWARD_ELITE*0.5)) : KILLER_REWARD_ELITE;
+  const reward = badLuck ? Math.max(1, Math.round(KILLER_REWARD_ELITE()*0.5)) : KILLER_REWARD_ELITE();
   queueEarning(0, reward, killer.spy ? 'Spy Ambusher' : 'Killer');
   sfx.boom();
   if (killer.spy) {
@@ -2453,9 +2457,10 @@ function defeatDemon(demon) {
   // game-world.js. Guarded on satanReignActive (not just "demons only exist during the reign
   // anyway") so a stray hit landing the same tick the reign already ended can't double-count.
   if (satanReignActive) satanReignProgress++;
-  queueEarning(0, DEMON_REWARD_ELITE, demon.demonDef.name);
+  const demonReward = DEMON_REWARD_ELITE();
+  queueEarning(0, demonReward, demon.demonDef.name);
   sfx.boom();
-  showNotif(`💀 ${demon.demonDef.emoji} ${demon.demonDef.name} is struck down! +${DEMON_REWARD_ELITE} 💎`);
+  showNotif(`💀 ${demon.demonDef.emoji} ${demon.demonDef.name} is struck down! +${demonReward} 💎`);
 }
 // Satan's window closing shouldn't leave his minions standing around in the now-ordinary world —
 // same "shift ended mid-fight, don't leave the swarm standing there" treatment tickKillers()
@@ -2509,12 +2514,12 @@ function satanSummon(k) {
     const def = DEMON_DEFS[Math.floor(Math.random()*DEMON_DEFS.length)];
     const mesh = buildDemonMesh(x, z, def);
     mesh.visible = true;
-    killers.push({ id:'demon'+ROBOT_ID_SEQ++, x, z, hp:DEMON_HP, maxHp:DEMON_HP, mesh, alive:true, speed:4+Math.random()*2, attackTimer:0, atkInterval:DEMON_ATTACK_INTERVAL, revealed:true, demon:true, demonDef:def, summonedBySatan:true });
+    killers.push({ id:'demon'+ROBOT_ID_SEQ++, x, z, hp:DEMON_HP(), maxHp:DEMON_HP(), mesh, alive:true, speed:4+Math.random()*2, attackTimer:0, atkInterval:DEMON_ATTACK_INTERVAL, revealed:true, demon:true, demonDef:def, summonedBySatan:true });
     showNotif(`😈 Satan summons ${def.emoji} ${def.name} to his side!`);
   } else {
     const mesh = buildKillerMesh(x, z);
     mesh.visible = true;
-    killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval:KILLER_ATTACK_INTERVAL, revealed:true, summonedBySatan:true });
+    killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP(), maxHp:KILLER_HP(), mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval:KILLER_ATTACK_INTERVAL, revealed:true, summonedBySatan:true });
     showNotif('😈 Satan summons a Killer from the shadows!');
   }
   sfx.tense();

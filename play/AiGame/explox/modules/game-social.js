@@ -1743,7 +1743,7 @@ function hireKillerAgainstType(type) {
   const x = playerGroup.position.x + Math.cos(ang)*dist, z = playerGroup.position.z + Math.sin(ang)*dist;
   const mesh = buildKillerMesh(x, z);
   mesh.visible = true;
-  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:4+Math.random()*1.5, hitTargetType: type, attackTimer:0, huntElapsed:0, revealed:true });
+  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP(), maxHp:KILLER_HP(), mesh, alive:true, speed:4+Math.random()*1.5, hitTargetType: type, attackTimer:0, huntElapsed:0, revealed:true });
   showNotif(free ? `🗡️ One of your own is heading out to hunt down ${label} for you — no charge.` : `🗡️ A killer is heading out to hunt down ${label} for you...`);
   closeHitmanModal();
 }
@@ -1781,7 +1781,7 @@ function spawnHitman(target) {
   const x = targetPos.x + Math.cos(ang)*dist, z = targetPos.z + Math.sin(ang)*dist;
   const mesh = buildKillerMesh(x, z);
   mesh.visible = true; // a hired hit isn't a jump-scare ambush — you can see them coming for the target
-  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:4+Math.random()*1.5, hitTargetName: target.name, hitTargetIsPlayer: isRealPlayer, attackTimer:0, huntElapsed:0, revealed:true });
+  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP(), maxHp:KILLER_HP(), mesh, alive:true, speed:4+Math.random()*1.5, hitTargetName: target.name, hitTargetIsPlayer: isRealPlayer, attackTimer:0, huntElapsed:0, revealed:true });
 }
 function tickHitmanCombat(k, dt) {
   if (k.hitTargetIsPlayer) { tickHitmanVsPlayer(k, dt); return; }

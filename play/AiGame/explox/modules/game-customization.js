@@ -181,6 +181,62 @@ function formatBigNum(n) {
   return Math.abs(n) >= 1e21 ? n.toExponential(2) : n.toLocaleString();
 }
 
+// ─── MOB DIFFICULTY — user's own ask: "make it so you can choose their difficulty for the mobs
+// like killers bots". Robot Level (eliteLevel, right below) already scales robots/rogue robots
+// automatically as you level up, but Killers/Robbers/Demons/Killer Supreme never scaled with
+// ANYTHING — flat HP/damage no matter how strong you'd gotten (KILLER_HP=200 forever, game-land.js).
+// This is a real, deliberate CHOICE layered on top of all of it: a picked multiplier applied to
+// every mob's HP and outgoing damage everywhere they're spawned/attack, independent of Robot Level
+// so a fresh low-level account can still choose Hard/Nightmare, and a maxed-out one can still pick
+// Easy. Persisted per account (saveCurrentUser()/loadUser(), game-core.js), defaults to 'normal' for
+// every existing save that predates this feature. Picked from the real ⚔️ MOB DIFFICULTY tab —
+// setMobDifficulty()/renderMobDifficultyPanel() further down this file.
+let mobDifficulty = 'normal';
+// 10 real tiers (user's own follow-up ask, after an initial 4-tier pass) — a real, felt step up
+// between each one, not just a cosmetic label change. 'normal' (tier 4) stays the default so every
+// existing save that predates this feature sees ZERO change in mob strength until they pick one.
+const MOB_DIFFICULTY_MULT = {
+  babysteps:0.3, easy:0.5, casual:0.7, normal:1.0, tough:1.3,
+  hard:1.7, brutal:2.2, extreme:2.8, nightmare:3.6, apocalypse:4.5,
+};
+const MOB_DIFFICULTY_LABELS = {
+  babysteps:'🍼 Baby Steps', easy:'🟢 Easy', casual:'🔵 Casual', normal:'🟡 Normal', tough:'🟠 Tough',
+  hard:'🔴 Hard', brutal:'💀 Brutal', extreme:'⚠️ Extreme', nightmare:'☠️ Nightmare', apocalypse:'🔥 Apocalypse',
+};
+function mobDifficultyMult() { return MOB_DIFFICULTY_MULT[mobDifficulty] !== undefined ? MOB_DIFFICULTY_MULT[mobDifficulty] : 1.0; }
+function setMobDifficulty(diff) {
+  if (!MOB_DIFFICULTY_MULT[diff]) return;
+  mobDifficulty = diff;
+  saveCurrentUser();
+  renderMobDifficultyPanel();
+  showNotif(`⚔️ Mob difficulty set to ${MOB_DIFFICULTY_LABELS[diff]} — new mobs use it from here on (won't retroactively change anything already on the field).`);
+}
+function renderMobDifficultyPanel() {
+  const list = document.getElementById('mobDifficultyList');
+  if (!list) return;
+  list.innerHTML = Object.keys(MOB_DIFFICULTY_MULT).map(diff => {
+    const active = diff === mobDifficulty;
+    return `<button class="mobDiffBtn" onclick="setMobDifficulty('${diff}')" style="display:block;width:100%;margin-bottom:8px;padding:10px;border-radius:8px;border:2px solid ${active?'#e94560':'#444'};background:${active?'rgba(233,69,96,0.18)':'rgba(255,255,255,0.05)'};color:#fff;font-size:13px;font-weight:bold;cursor:pointer;">${MOB_DIFFICULTY_LABELS[diff]}${active?' ✓':''} <span style="color:#888;font-weight:normal;font-size:11px;">(${MOB_DIFFICULTY_MULT[diff]}x HP &amp; damage)</span></button>`;
+  }).join('');
+}
+function toggleMobDifficultyPanel() {
+  const panel = document.getElementById('mobDifficultyPanel');
+  if (panel.style.display === 'none') {
+    if (document.pointerLockElement) document.exitPointerLock();
+    isPointerLocked = false;
+    renderMobDifficultyPanel();
+    panel.style.display = 'block';
+    document.getElementById('mobDifficultyTab').style.display = 'none';
+  } else {
+    closeMobDifficultyPanel();
+  }
+}
+function closeMobDifficultyPanel() {
+  document.getElementById('mobDifficultyPanel').style.display = 'none';
+  document.getElementById('mobDifficultyTab').style.display = 'block';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+
 // ─── QUESTS & ROBOT LEVEL — completing quests pays out Elite Coins; spending 100/500/1000/
 // 1500/2000/3000/4500/... of them "levels up" the robots themselves (bigger, tougher, hit
 // harder), but scales their rewards up to match so the loop stays worth playing.
@@ -400,7 +456,7 @@ function eliteThresholdForLevel(level) { // cost in Elite Coins to go from level
 // robots. The player's own weapon upgrades (Weapon Shop, WEAPON_DAMAGE/ROBOT_BONUS_DAMAGE below)
 // stay a real, uncapped way to keep growing stronger against them regardless of this cap.
 const ROBOT_POWER_MULT_CAP = 8;   // ≈ level 20 worth of the old uncapped formula
-function robotPowerMult() { return Math.min(ROBOT_POWER_MULT_CAP, 1 + eliteLevel * 0.35); } // HP/damage/reward scale
+function robotPowerMult() { return Math.min(ROBOT_POWER_MULT_CAP, 1 + eliteLevel * 0.35) * mobDifficultyMult(); } // HP/damage/reward scale
 // Robot SIZE used to also scale with the viewing player's own Robot Level, same formula as
 // power above — but robots aren't networked objects (each client spawns its own local copies),
 // so two players standing in the same spot saw genuinely different sizes for "the same" robot

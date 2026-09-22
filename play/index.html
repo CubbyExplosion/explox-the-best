@@ -1622,6 +1622,14 @@
       <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🧩</span>ADD ONS
     </button>
   </div>
+    <!-- MOB DIFFICULTY — user's own ask: "choose their difficulty for the mobs like killers bots".
+         Same rail-tab pattern as every other side tab here, so it automatically shows up in the
+         phone/desktop ☰ Menu too (buildTabMenu(), game-controls.js, scans these rails live). -->
+    <div id="mobDifficultyTab">
+    <button onclick="toggleMobDifficultyPanel()" style="display:block;background:linear-gradient(180deg,#2a0a0a,#4a1414);border:2px solid #ff5555;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">⚔️</span>DIFFICULTY
+    </button>
+  </div>
     <div id="guideTab">
     <button onclick="openGuide()" style="display:block;background:linear-gradient(180deg,#0a1a2a,#0a2a4a);border:2px solid #44ccff;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
       <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">❓</span>HELP
@@ -2270,6 +2278,15 @@
     <div id="inventoryList" style="display:flex;flex-direction:column;gap:8px;"></div>
     <div id="inventoryEmpty" style="color:#555;font-size:12px;text-align:center;padding:20px;">Nothing in your bag yet!<br>Buy items around the city.</div>
     <button onclick="closeInventory()" style="width:100%;margin-top:12px;padding:6px;background:none;border:1px solid #555;border-radius:6px;color:#888;font-size:11px;cursor:pointer;">✕ Close</button>
+  </div>
+
+  <!-- MOB DIFFICULTY PANEL — 10 real tiers (renderMobDifficultyPanel()/setMobDifficulty(),
+       game-customization.js). Same modal pattern/positioning as the Inventory panel above. -->
+  <div id="mobDifficultyPanel" style="display:none;position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#2a0a0a,#4a1414);border:2px solid #ff5555;border-right:none;border-radius:14px 0 0 14px;padding:16px 14px;width:230px;pointer-events:auto;max-height:80vh;overflow-y:auto;">
+    <h3 style="color:#ff5555;font-size:13px;letter-spacing:2px;margin-bottom:6px;text-align:center;">⚔️ MOB DIFFICULTY</h3>
+    <p style="color:#999;font-size:10px;text-align:center;margin-bottom:12px;line-height:1.4;">Scales Killers, Robots, Robbers &amp; Demons — HP, damage, and reward all move together. Applies to new mobs from here on.</p>
+    <div id="mobDifficultyList"></div>
+    <button onclick="closeMobDifficultyPanel()" style="width:100%;margin-top:8px;padding:6px;background:none;border:1px solid #555;border-radius:6px;color:#888;font-size:11px;cursor:pointer;">✕ Close</button>
   </div>
 
   <!-- MINI GAMES TAB -->
