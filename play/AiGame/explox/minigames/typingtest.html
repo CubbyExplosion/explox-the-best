@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explox — Typing Test</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0a0a1a; font-family:Arial,sans-serif; color:#fff;
+    min-height:100vh; overflow-x:hidden;
+  }
+  .screen {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    background:linear-gradient(135deg,#1a1a2e,#0f3460);
+    padding:20px; text-align:center;
+  }
+  .screen h1 { font-size:34px; color:#e94560; letter-spacing:2px; margin-bottom:8px; text-shadow:0 0 18px #e94560; }
+  .screen p { color:#aaa; font-size:14px; max-width:380px; line-height:1.6; margin-bottom:14px; }
+  .bestLine { color:#FFD700; font-size:15px; margin-bottom:20px; }
+  .bigBtn {
+    padding:14px 46px; font-size:17px; font-weight:bold;
+    background:#e94560; border:none; border-radius:14px; color:#fff;
+    cursor:pointer; letter-spacing:2px; box-shadow:0 0 16px #e9456066;
+    margin:6px; min-height:44px; min-width:44px;
+  }
+  .bigBtn:active { transform:scale(0.96); }
+  .backBtn {
+    padding:10px 24px; font-size:13px; background:transparent;
+    border:1px solid #555; border-radius:8px; color:#888; cursor:pointer;
+    min-height:44px;
+  }
+  .backBtn:active { border-color:#e94560; color:#fff; }
+
+  #gameScreen { display:none; min-height:100vh; padding:70px 18px 30px; }
+  #hud {
+    position:fixed; top:0; left:0; right:0; display:flex;
+    justify-content:space-between; align-items:center;
+    padding:14px 18px; z-index:5;
+  }
+  .hudBox { background:rgba(0,0,0,0.55); border-radius:10px; padding:8px 14px; font-weight:bold; font-size:15px; }
+  #timerBox { color:#fff; border:2px solid #FFD700; }
+  #timerBox.low { color:#ff4444; border-color:#ff4444; }
+  #wpmBox { color:#00e676; }
+
+  #typingCard {
+    max-width:640px; margin:20px auto 0; background:rgba(255,255,255,0.05);
+    border:2px solid #e94560; border-radius:18px; padding:26px 22px;
+  }
+  #targetDisplay {
+    font-size:22px; line-height:1.9; letter-spacing:0.5px;
+    font-family:'Courier New',monospace; word-wrap:break-word;
+  }
+  #targetDisplay span.pending   { color:#666; }
+  #targetDisplay span.correct   { color:#00e676; }
+  #targetDisplay span.incorrect { color:#ff4444; background:rgba(255,68,68,0.18); border-radius:2px; }
+
+  #typedInput {
+    width:100%; margin-top:18px; padding:14px 16px; font-size:18px;
+    font-family:'Courier New',monospace; border-radius:12px;
+    border:2px solid #444; background:#10101f; color:#fff;
+    outline:none; min-height:44px;
+  }
+  #typedInput:focus { border-color:#e94560; }
+
+  #endScreen { display:none; }
+  .statLine { font-size:16px; color:#ddd; margin:4px 0; }
+  #newBestTag { color:#00e676; font-size:14px; font-weight:bold; margin-bottom:6px; display:none; }
+  #sipEarned { color:#FFD700; font-size:22px; font-weight:bold; margin:12px 0; }
+  .bigWpm { font-size:52px; font-weight:bold; color:#FFD700; text-shadow:0 0 20px #FFD700; margin:6px 0; }
+</style>
+</head>
+<body>
+
+<!-- START SCREEN -->
+<div id="startScreen" class="screen">
+  <h1>⌨️ TYPING TEST</h1>
+  <p>Type each sentence exactly as shown. Correct characters glow green, mistakes glow red. Finish a sentence to move to the next one — keep going for 60 seconds! Real WPM and accuracy at the end.</p>
+  <div class="bestLine" id="startBest">🏆 Best WPM: --</div>
+  <button class="bigBtn" onclick="startGame()">▶ START</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<!-- GAME SCREEN -->
+<div id="gameScreen">
+  <div id="hud">
+    <div class="hudBox" id="timerBox">⏱ 60s</div>
+    <div class="hudBox" id="wpmBox">0 WPM</div>
+  </div>
+  <div id="typingCard">
+    <div id="targetDisplay"></div>
+    <input id="typedInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Tap here and start typing...">
+  </div>
+</div>
+
+<!-- END SCREEN -->
+<div id="endScreen" class="screen">
+  <h1>⌨️ TIME'S UP!</h1>
+  <div id="newBestTag">🌟 NEW BEST!</div>
+  <div class="bigWpm" id="endWpm">0 WPM</div>
+  <div class="statLine" id="endAccuracy">Accuracy: 0%</div>
+  <div class="statLine" id="endWords">Correct Words: 0</div>
+  <div class="bestLine" id="endBest">🏆 Best WPM: 0</div>
+  <div id="sipEarned">+0 S.I.P.</div>
+  <button class="bigBtn" onclick="startGame()">🔄 Play Again</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<script>
+// ── S.I.P. BRIDGE ──────────────────────────────────────────────────────────
+function awardSip(amount) {
+  try {
+    const user = localStorage.getItem('explox_current_user');
+    if(!user) return;
+    const data = JSON.parse(localStorage.getItem('explox_user_' + user) || '{}');
+    data.sip = (data.sip || 0) + amount;
+    localStorage.setItem('explox_user_' + user, JSON.stringify(data));
+  } catch(e) {}
+}
+
+// ── BEST PERSISTENCE ─────────────────────────────────────────────────────────
+function loadBest() {
+  try { return parseInt(localStorage.getItem('explox_typingtest_best') || '0', 10) || 0; }
+  catch(e) { return 0; }
+}
+function saveBest(v) {
+  try { localStorage.setItem('explox_typingtest_best', String(v)); } catch(e) {}
+}
+
+// ── SENTENCE BANK (20 varied phrases) ────────────────────────────────────────
+const SENTENCES = [
+  "the quick fox jumps over a sleepy dog",
+  "explox is a world full of adventure",
+  "practice makes every skill a little sharper",
+  "the city lights glow bright after sunset",
+  "a good plan today beats a perfect plan tomorrow",
+  "she sold seashells down by the sunny shore",
+  "robots and rockets fill the arcade with noise",
+  "keep your eyes on the screen and your fingers ready",
+  "the market was busy with traders and travelers",
+  "clouds drifted slowly above the quiet valley",
+  "every champion started out as a total beginner",
+  "the old library smelled like dust and paper",
+  "fast fingers and a calm mind win this race",
+  "our team built a bridge out of scrap metal",
+  "the garden bloomed with red and yellow flowers",
+  "a curious cat watched the birds from the window",
+  "the train rumbled across the old stone bridge",
+  "bright stars filled the sky over the quiet town",
+  "the chef added salt and pepper to the soup",
+  "small steps every day lead to big results"
+];
+
+// ── GAME STATE ────────────────────────────────────────────────────────────────
+let running = false;
+let timeLeft = 60;
+let timerInterval = null;
+let lastTick = 0;
+let testStartTime = 0;
+
+let curSentence = '';
+let curSentenceIdx = -1;
+let prevLen = 0;
+
+let totalTyped = 0;        // characters typed (net new keystrokes, for accuracy)
+let totalCorrectChars = 0;
+let totalWordsCount = 0;   // total words presented across finished sentences
+let correctWords = 0;      // words typed exactly right
+
+const inputEl = document.getElementById('typedInput');
+const targetDisplay = document.getElementById('targetDisplay');
+
+function computeSip(wpm, accuracy) {
+  if (wpm <= 0) return 0;
+  return Math.max(10, Math.min(200, Math.round(wpm * (accuracy / 100) * 3)));
+}
+
+function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+function pickSentence() {
+  let idx;
+  do { idx = randInt(0, SENTENCES.length - 1); } while (SENTENCES.length > 1 && idx === curSentenceIdx);
+  curSentenceIdx = idx;
+  return SENTENCES[idx];
+}
+
+function renderTarget(sentence) {
+  targetDisplay.innerHTML = '';
+  for (const ch of sentence) {
+    const span = document.createElement('span');
+    span.textContent = ch;
+    span.className = 'pending';
+    targetDisplay.appendChild(span);
+  }
+}
+
+function loadNextSentence() {
+  curSentence = pickSentence();
+  renderTarget(curSentence);
+  inputEl.value = '';
+  prevLen = 0;
+}
+
+function finishSentence(val) {
+  const targetWords = curSentence.trim().split(/\s+/);
+  const typedWords = val.trim().split(/\s+/);
+  totalWordsCount += targetWords.length;
+  for (let i = 0; i < targetWords.length; i++) {
+    if (typedWords[i] === targetWords[i]) correctWords++;
+  }
+  loadNextSentence();
+}
+
+inputEl.addEventListener('input', () => {
+  if (!running) return;
+  const val = inputEl.value;
+  const spans = targetDisplay.children;
+  for (let i = 0; i < spans.length; i++) {
+    if (i < val.length) {
+      spans[i].className = val[i] === curSentence[i] ? 'correct' : 'incorrect';
+    } else {
+      spans[i].className = 'pending';
+    }
+  }
+  if (val.length > prevLen) {
+    const idx = val.length - 1;
+    totalTyped++;
+    if (val[idx] === curSentence[idx]) totalCorrectChars++;
+  }
+  prevLen = val.length;
+
+  if (val.length >= curSentence.length) {
+    finishSentence(val);
+  }
+});
+
+// ── TIMER ─────────────────────────────────────────────────────────────────────
+function updateHUD() {
+  const secs = Math.max(0, Math.ceil(timeLeft));
+  const timerBox = document.getElementById('timerBox');
+  timerBox.textContent = `⏱ ${secs}s`;
+  timerBox.classList.toggle('low', timeLeft <= 10);
+  const elapsed = (Date.now() - testStartTime) / 1000;
+  const liveWpm = elapsed > 1 ? Math.round(correctWords / (elapsed / 60)) : 0;
+  document.getElementById('wpmBox').textContent = `${liveWpm} WPM`;
+}
+
+function startTimer() {
+  lastTick = Date.now();
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    const now = Date.now();
+    const delta = (now - lastTick) / 1000;
+    lastTick = now;
+    if (!running) return;
+    timeLeft -= delta;
+    if (timeLeft <= 0) {
+      timeLeft = 0;
+      updateHUD();
+      endGame();
+    } else {
+      updateHUD();
+    }
+  }, 100);
+}
+
+// ── FLOW ──────────────────────────────────────────────────────────────────────
+function startGame() {
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('endScreen').style.display = 'none';
+  document.getElementById('gameScreen').style.display = 'block';
+
+  running = true;
+  timeLeft = 60;
+  totalTyped = 0;
+  totalCorrectChars = 0;
+  totalWordsCount = 0;
+  correctWords = 0;
+  curSentenceIdx = -1;
+  testStartTime = Date.now();
+
+  loadNextSentence();
+  updateHUD();
+  startTimer();
+  inputEl.disabled = false;
+  inputEl.value = '';
+  setTimeout(() => inputEl.focus(), 50);
+}
+
+function endGame() {
+  running = false;
+  clearInterval(timerInterval);
+  inputEl.disabled = true;
+  inputEl.blur();
+  document.getElementById('gameScreen').style.display = 'none';
+
+  const elapsedSeconds = Math.max(1, (Date.now() - testStartTime) / 1000);
+  const wpm = Math.round(correctWords / (elapsedSeconds / 60));
+  const accuracy = totalTyped > 0 ? Math.round((totalCorrectChars / totalTyped) * 100) : 100;
+
+  const best = loadBest();
+  const isNew = wpm > best;
+  if (isNew) saveBest(wpm);
+
+  const sip = computeSip(wpm, accuracy);
+  awardSip(sip);
+
+  document.getElementById('newBestTag').style.display = isNew ? 'block' : 'none';
+  document.getElementById('endWpm').textContent = `${wpm} WPM`;
+  document.getElementById('endAccuracy').textContent = `Accuracy: ${accuracy}%`;
+  document.getElementById('endWords').textContent = `Correct Words: ${correctWords}`;
+  document.getElementById('endBest').textContent = `🏆 Best WPM: ${isNew ? wpm : best}`;
+  document.getElementById('sipEarned').textContent = `+${sip} S.I.P.`;
+  document.getElementById('endScreen').style.display = 'flex';
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+document.getElementById('startBest').textContent = `🏆 Best WPM: ${loadBest() || '--'}`;
+inputEl.disabled = true;
+</script>
+</body>
+</html>

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explox — Flappy Cube</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0a0a1a; overflow:hidden; font-family:Arial,sans-serif; }
+  canvas { display:block; touch-action:none; }
+  #ui {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; z-index:10;
+    pointer-events:none;
+  }
+  #startScreen, #overScreen {
+    background:rgba(10,10,26,0.92); border:2px solid #e94560;
+    border-radius:18px; padding:32px 34px; text-align:center;
+    max-width:360px; width:88%;
+    pointer-events:auto;
+  }
+  #startScreen h1 { color:#e94560; font-size:2em; margin-bottom:8px; }
+  #startScreen p { color:#aaa; margin-bottom:20px; font-size:0.95em; line-height:1.5; }
+  #bestLine { color:#FFD700; font-weight:bold; margin-bottom:18px; font-size:1.05em; }
+  .bigBtn {
+    padding:14px 40px; border:2px solid #e94560; border-radius:12px;
+    background:#16213e; color:#fff; font-size:1.1em; cursor:pointer;
+    transition:all 0.15s; min-height:48px; font-weight:bold;
+  }
+  .bigBtn:hover { background:#e94560; }
+  .backBtn {
+    display:block; margin:16px auto 0; padding:9px 24px; font-size:13px;
+    background:transparent; border:1px solid #555; border-radius:8px;
+    color:#888; cursor:pointer; min-height:40px;
+  }
+  .backBtn:hover { border-color:#e94560; color:#fff; }
+  #overScreen { display:none; }
+  #overScreen h1 { color:#ff4444; font-size:1.8em; margin-bottom:10px; }
+  #overScreen .scoreLine { color:#fff; font-size:1.3em; margin:6px 0; }
+  #overScreen .scoreLine b { color:#FFD700; }
+  #newBest { color:#00e676; font-weight:bold; font-size:1em; margin:6px 0 4px; display:none; }
+  #sipEarned { color:#FFD700; font-size:1.3em; font-weight:bold; margin:10px 0 4px; }
+  #savedNote { color:#666; font-size:11px; margin-bottom:16px; }
+  #hud {
+    position:fixed; top:16px; left:0; right:0; text-align:center;
+    z-index:5; pointer-events:none; display:none;
+  }
+  #hudScore { color:#FFD700; font-size:34px; font-weight:bold; text-shadow:0 0 10px rgba(0,0,0,0.6); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"><div id="hudScore">0</div></div>
+<div id="ui">
+  <div id="startScreen">
+    <h1>🟦 FLAPPY CUBE</h1>
+    <p>Tap, click, or press SPACE to flap upward. Squeeze through the gaps without touching a pipe, the floor, or the ceiling. It gets tighter the further you go!</p>
+    <div id="bestLine">🏆 Best: 0</div>
+    <button class="bigBtn" onclick="startGame()">▶ Start</button>
+    <button class="backBtn" onclick="history.back()">← Back to City</button>
+  </div>
+  <div id="overScreen">
+    <h1>💀 CRASHED</h1>
+    <div class="scoreLine">Score: <b id="finalScore">0</b></div>
+    <div id="newBest">🌟 New Best!</div>
+    <div class="scoreLine" style="font-size:0.9em;color:#aaa;">Best: <span id="finalBest">0</span></div>
+    <div id="sipEarned">+0 S.I.P.</div>
+    <div id="savedNote">Saved to your Explox account!</div>
+    <button class="bigBtn" onclick="startGame()">🔄 Play Again</button>
+    <button class="backBtn" onclick="history.back()">← Back to City</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+// ── S.I.P. bridge (verbatim) ──────────────────────────────────────────────
+function awardSip(amount) {
+  try {
+    const user = localStorage.getItem('explox_current_user');
+    if(!user) return;
+    const data = JSON.parse(localStorage.getItem('explox_user_' + user) || '{}');
+    data.sip = (data.sip || 0) + amount;
+    localStorage.setItem('explox_user_' + user, JSON.stringify(data));
+  } catch(e) {}
+}
+
+// ── best score persistence (per logged-in user, matches obby/survivalhorde pattern) ──
+const BEST_FIELD = 'flappycube_best';
+function loadBest() {
+  try {
+    const user = localStorage.getItem('explox_current_user');
+    if(user) { const d = JSON.parse(localStorage.getItem('explox_user_'+user) || '{}'); return d[BEST_FIELD] || 0; }
+    return parseInt(localStorage.getItem(BEST_FIELD) || '0', 10) || 0;
+  } catch(e) { return 0; }
+}
+function saveBest(v) {
+  try {
+    const user = localStorage.getItem('explox_current_user');
+    if(user) { const d = JSON.parse(localStorage.getItem('explox_user_'+user) || '{}'); d[BEST_FIELD] = v; localStorage.setItem('explox_user_'+user, JSON.stringify(d)); }
+    else localStorage.setItem(BEST_FIELD, String(v));
+  } catch(e) {}
+}
+
+// ── constants ──────────────────────────────────────────────────────────────
+const CUBE_X = 130;
+const CUBE_SIZE = 34;
+const GRAVITY = 0.55;
+const FLAP_VY = -8.6;
+const MAX_FALL_VY = 13;
+const GROUND_H = 60;
+const PIPE_W = 74;
+const PIPE_SPACING = 300; // horizontal distance between successive pipe pairs
+const BASE_GAP = 190, MIN_GAP = 120, GAP_SHRINK_PER_SCORE = 3.2;
+const BASE_SPEED = 3.1, MAX_SPEED = 6.2, SPEED_GAIN_PER_SCORE = 0.09;
+
+let cubeY, cubeVY, running = false, score = 0, pipes = [], particles = [];
+let groundY, animId, lastT = 0;
+
+function groundLevel() { return canvas.height - GROUND_H; }
+
+function showScreen(id) {
+  document.getElementById('startScreen').style.display = id==='start' ? 'block' : 'none';
+  document.getElementById('overScreen').style.display   = id==='over'  ? 'block' : 'none';
+  document.getElementById('hud').style.display           = id==='game'  ? 'block' : 'none';
+}
+
+function refreshBestLine() {
+  document.getElementById('bestLine').textContent = '🏆 Best: ' + loadBest();
+}
+
+function startGame() {
+  cubeY = canvas.height/2 - CUBE_SIZE/2;
+  cubeVY = 0;
+  score = 0;
+  pipes = [];
+  particles = [];
+  groundY = groundLevel();
+  let x = canvas.width + 200;
+  for (let i=0; i<3; i++) { pipes.push(makePipe(x)); x += PIPE_SPACING; }
+  running = true;
+  showScreen('game');
+  document.getElementById('hudScore').textContent = '0';
+  lastT = 0;
+  if (animId) cancelAnimationFrame(animId);
+  animId = requestAnimationFrame(loop);
+}
+
+function currentGap() { return Math.max(MIN_GAP, BASE_GAP - score * GAP_SHRINK_PER_SCORE); }
+function currentSpeed() { return Math.min(MAX_SPEED, BASE_SPEED + score * SPEED_GAIN_PER_SCORE); }
+
+function makePipe(x) {
+  const gap = currentGap();
+  const margin = 70;
+  const gapTop = margin + Math.random() * (groundLevel() - margin*2 - gap);
+  return { x, w: PIPE_W, gapTop, gapBottom: gapTop + gap, passed: false };
+}
+
+function flap() {
+  if (!running) return;
+  cubeVY = FLAP_VY;
+  for (let i=0;i<5;i++) {
+    particles.push({ x: CUBE_X, y: cubeY + CUBE_SIZE/2, vx: -(1+Math.random()*2), vy: (Math.random()-0.5)*3, life: 0.5, maxLife:0.5 });
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); flap(); }
+});
+canvas.addEventListener('pointerdown', e => { e.preventDefault(); flap(); });
+
+function loop(t) {
+  if (!running) return;
+  const dt = lastT ? Math.min((t - lastT)/16.67, 2.5) : 1;
+  lastT = t;
+
+  // physics — real integration, not teleporting
+  cubeVY = Math.min(MAX_FALL_VY, cubeVY + GRAVITY * dt);
+  cubeY += cubeVY * dt;
+
+  const speed = currentSpeed();
+  for (const p of pipes) p.x -= speed * dt;
+
+  // recycle pipes that scrolled off, spawn new ones ahead
+  while (pipes.length && pipes[0].x + PIPE_W < -20) pipes.shift();
+  let rightmost = pipes.length ? pipes[pipes.length-1].x : canvas.width;
+  while (rightmost < canvas.width + PIPE_SPACING) {
+    rightmost += PIPE_SPACING;
+    pipes.push(makePipe(rightmost));
+  }
+
+  // score — passing a pipe's right edge
+  for (const p of pipes) {
+    if (!p.passed && p.x + p.w < CUBE_X) {
+      p.passed = true;
+      score++;
+      document.getElementById('hudScore').textContent = score;
+    }
+  }
+
+  // collision — real AABB overlap against pipe gap + ground/ceiling
+  const cubeTop = cubeY, cubeBottom = cubeY + CUBE_SIZE;
+  const cubeLeft = CUBE_X, cubeRight = CUBE_X + CUBE_SIZE;
+  if (cubeTop <= 0) { cubeY = 0; die(); }
+  if (cubeBottom >= groundY) { cubeY = groundY - CUBE_SIZE; die(); }
+  for (const p of pipes) {
+    if (cubeRight > p.x && cubeLeft < p.x + p.w) {
+      if (cubeTop < p.gapTop || cubeBottom > p.gapBottom) { die(); break; }
+    }
+  }
+
+  particles.forEach(pt => { pt.x += pt.vx*dt; pt.y += pt.vy*dt; pt.life -= 0.04*dt; });
+  particles = particles.filter(pt => pt.life > 0);
+
+  draw(speed);
+  if (running) animId = requestAnimationFrame(loop);
+}
+
+function draw(speed) {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+  const bg = ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0, '#0a0a1a'); bg.addColorStop(1, '#0f1a2e');
+  ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
+
+  // parallax stars
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  for (let i=0;i<40;i++) {
+    const sx = ((i*97 - (pipes.length?pipes[0].x:0)*0.1) % W + W) % W;
+    const sy = (i*53) % (H-GROUND_H);
+    ctx.fillRect(sx, sy, 2, 2);
+  }
+
+  // pipes
+  for (const p of pipes) {
+    if (p.x > W || p.x + p.w < 0) continue;
+    ctx.fillStyle = '#16213e';
+    ctx.strokeStyle = '#e94560';
+    ctx.lineWidth = 3;
+    ctx.fillRect(p.x, 0, p.w, p.gapTop);
+    ctx.strokeRect(p.x+1.5, 0, p.w-3, p.gapTop-2);
+    ctx.fillRect(p.x, p.gapBottom, p.w, groundY - p.gapBottom);
+    ctx.strokeRect(p.x+1.5, p.gapBottom+2, p.w-3, groundY - p.gapBottom - 4);
+    // caps
+    ctx.fillStyle = '#e94560';
+    ctx.fillRect(p.x-4, p.gapTop-14, p.w+8, 14);
+    ctx.fillRect(p.x-4, p.gapBottom, p.w+8, 14);
+  }
+
+  // ground
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, groundY, W, GROUND_H);
+  ctx.fillStyle = '#FFD700';
+  ctx.fillRect(0, groundY, W, 3);
+
+  // particles
+  for (const pt of particles) {
+    ctx.globalAlpha = pt.life/pt.maxLife;
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, 3, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // cube
+  ctx.save();
+  ctx.translate(CUBE_X + CUBE_SIZE/2, cubeY + CUBE_SIZE/2);
+  const angle = Math.max(-0.5, Math.min(1.1, cubeVY * 0.06));
+  ctx.rotate(angle);
+  const grad = ctx.createLinearGradient(-CUBE_SIZE/2,-CUBE_SIZE/2,CUBE_SIZE/2,CUBE_SIZE/2);
+  grad.addColorStop(0, '#00c8ff'); grad.addColorStop(1, '#fff');
+  ctx.fillStyle = grad;
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(-CUBE_SIZE/2, -CUBE_SIZE/2, CUBE_SIZE, CUBE_SIZE, 7); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.beginPath(); ctx.arc(5, -3, 3.5, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function die() {
+  if (!running) return;
+  running = false;
+  if (animId) cancelAnimationFrame(animId);
+
+  const best = loadBest();
+  const isNew = score > best;
+  if (isNew) saveBest(score);
+
+  // sip scaled to score, capped 15-200
+  const sip = Math.max(15, Math.min(200, Math.round(score * 11 + 15)));
+  awardSip(sip);
+
+  document.getElementById('finalScore').textContent = score;
+  document.getElementById('finalBest').textContent = isNew ? score : best;
+  document.getElementById('newBest').style.display = isNew ? 'block' : 'none';
+  document.getElementById('sipEarned').textContent = '+' + sip + ' S.I.P.';
+  showScreen('over');
+}
+
+refreshBestLine();
+(function() {
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+})();
+document.getElementById('startScreen').addEventListener('mouseenter', refreshBestLine);
+refreshBestLine();
+</script>
+</body>
+</html>

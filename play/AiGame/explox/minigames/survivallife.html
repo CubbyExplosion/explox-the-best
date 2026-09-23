@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explox — Survival Life</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0a0a1a; overflow:hidden; font-family:Arial,sans-serif; }
+  canvas { display:block; touch-action:none; }
+
+  /* ── HUD ── */
+  #hud { position:fixed; inset:0; pointer-events:none; display:none; z-index:10; }
+  #topBar { position:fixed; top:14px; left:50%; transform:translateX(-50%); display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  .pill { background:rgba(0,0,0,0.6); border-radius:14px; padding:6px 16px; font-size:13px; font-weight:bold; border:1px solid rgba(255,255,255,0.18); white-space:nowrap; }
+  #wavePill { color:#e94560; border-color:#e94560; }
+  #scorePill { color:#FFD700; border-color:#FFD700; }
+  #killPill { color:#ff8888; border-color:#cc4444; }
+  #weaponPill { color:#cfd8dc; border-color:#8a9aa5; }
+
+  #healthBar { position:fixed; bottom:104px; left:50%; transform:translateX(-50%); width:260px; }
+  #healthLabel { color:#fff; font-size:12px; margin-bottom:4px; text-align:center; letter-spacing:1px; text-shadow:1px 1px 2px #000; }
+  #healthTrack { background:rgba(0,0,0,0.55); border:1px solid #ff4444; border-radius:8px; height:14px; overflow:hidden; }
+  #healthFill { background:#00e676; height:100%; width:100%; transition:width 0.15s, background 0.15s; }
+
+  #hungerBar { position:fixed; bottom:142px; left:50%; transform:translateX(-50%); width:260px; }
+  #hungerLabel { color:#fff; font-size:12px; margin-bottom:4px; text-align:center; letter-spacing:1px; text-shadow:1px 1px 2px #000; }
+  #hungerTrack { background:rgba(0,0,0,0.55); border:1px solid #ffa726; border-radius:8px; height:14px; overflow:hidden; }
+  #hungerFill { background:#ffa726; height:100%; width:100%; transition:width 0.15s, background 0.15s; }
+
+  #staminaBar { position:fixed; bottom:180px; left:50%; transform:translateX(-50%); width:260px; }
+  #staminaLabel { color:#fff; font-size:12px; margin-bottom:4px; text-align:center; letter-spacing:1px; text-shadow:1px 1px 2px #000; }
+  #staminaTrack { background:rgba(0,0,0,0.55); border:1px solid #29b6f6; border-radius:8px; height:14px; overflow:hidden; }
+  #staminaFill { background:#29b6f6; height:100%; width:100%; transition:width 0.15s, background 0.15s; }
+
+  #notif { position:fixed; top:36%; left:50%; transform:translate(-50%,-50%); color:#FFD700; font-size:26px; font-weight:bold; text-shadow:2px 2px 6px #000; opacity:0; transition:opacity 0.3s; pointer-events:none; text-align:center; white-space:nowrap; }
+
+  #hitFlash { position:fixed; inset:0; background:rgba(255,0,0,0); pointer-events:none; transition:background 0.12s; z-index:9; }
+
+  #controls { position:fixed; bottom:14px; right:14px; color:#aaa; font-size:11px; background:rgba(0,0,0,0.5); padding:8px 12px; border-radius:8px; line-height:1.8; }
+
+  /* Touch controls — hidden by default, shown only on touch-primary devices AND only while playing (see JS) */
+  #mobileControls { display:none; }
+  @media (pointer: coarse) { #controls { display:none; } }
+  #joyBase {
+    position:fixed; left:20px; bottom:26px; width:92px; height:92px; border-radius:50%;
+    background:rgba(255,255,255,0.12); border:2px solid rgba(255,255,255,0.35);
+    touch-action:none; z-index:25; pointer-events:auto;
+  }
+  #joyStick {
+    position:absolute; left:50%; top:50%; width:40px; height:40px; margin-left:-20px; margin-top:-20px;
+    border-radius:50%; background:rgba(255,255,255,0.5); border:2px solid rgba(255,255,255,0.75);
+    pointer-events:none;
+  }
+  #mobileAttackBtn {
+    position:fixed; right:20px; bottom:36px; width:70px; height:70px; border-radius:50%;
+    background:rgba(233,69,96,0.55); border:2px solid #e94560;
+    color:#fff; font-weight:bold; font-size:26px; display:flex; align-items:center; justify-content:center;
+    z-index:25; touch-action:none; user-select:none; pointer-events:auto;
+  }
+
+  /* ── SCREENS ── */
+  .screen {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:20px;
+    background:linear-gradient(135deg,#1a1a2e,#0f3460);
+    color:#fff; z-index:50;
+  }
+  .screen h1 { font-size:42px; color:#e94560; letter-spacing:3px; margin-bottom:10px; text-shadow:0 0 20px #e94560; }
+  #gameOverScreen h1 { color:#ff4444; text-shadow:0 0 20px #ff4444; }
+  .screen p { color:#aaa; font-size:14px; margin-bottom:12px; max-width:440px; line-height:1.6; }
+  .statLine { font-size:16px; color:#fff; margin:4px 0; }
+  .sipLine { color:#FFD700; font-weight:bold; font-size:19px; margin:12px 0; text-shadow:0 0 10px #FFD70088; }
+  .screen button {
+    padding:13px 44px; font-size:16px; font-weight:bold;
+    background:#e94560; border:none; border-radius:12px; color:#fff;
+    cursor:pointer; letter-spacing:2px; box-shadow:0 0 16px #e9456066;
+    transition:transform 0.1s; margin:6px;
+  }
+  .screen button:hover { transform:scale(1.06); }
+  .backBtn {
+    padding:8px 24px; font-size:13px; background:transparent;
+    border:1px solid #555; border-radius:8px; color:#888; cursor:pointer;
+    box-shadow:none;
+  }
+  .backBtn:hover { border-color:#e94560; color:#fff; }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div id="topBar">
+    <div class="pill" id="wavePill">🌊 Wave <span id="waveNum">1</span></div>
+    <div class="pill" id="scorePill">⭐ <span id="scoreNum">0</span></div>
+    <div class="pill" id="killPill">💀 <span id="killNum">0</span></div>
+    <div class="pill" id="weaponPill">🖐 Fists</div>
+  </div>
+  <div id="healthBar">
+    <div id="healthLabel">❤️ 100 / 100</div>
+    <div id="healthTrack"><div id="healthFill"></div></div>
+  </div>
+  <div id="hungerBar">
+    <div id="hungerLabel">🍗 100 / 100</div>
+    <div id="hungerTrack"><div id="hungerFill"></div></div>
+  </div>
+  <div id="staminaBar">
+    <div id="staminaLabel">⚡ 100 / 100</div>
+    <div id="staminaTrack"><div id="staminaFill"></div></div>
+  </div>
+  <div id="notif"></div>
+  <div id="controls">WASD / Arrows — Move&nbsp;&nbsp;|&nbsp;&nbsp;Click — Attack toward cursor&nbsp;&nbsp;|&nbsp;&nbsp;SPACE — Attack forward&nbsp;&nbsp;|&nbsp;&nbsp;SHIFT — Sprint&nbsp;&nbsp;|&nbsp;&nbsp;Walk over a weapon in the armory fort to equip it</div>
+</div>
+<div id="hitFlash"></div>
+
+<div id="mobileControls">
+  <div id="joyBase"><div id="joyStick"></div></div>
+  <div id="mobileAttackBtn">👊</div>
+</div>
+
+<div id="startScreen" class="screen">
+  <h1>🛡️ SURVIVAL LIFE</h1>
+  <p>Enemies breach the arena from every side, wave after wave. Fight them off, keep your Hunger up by grabbing the food that spawns around the arena, and earn real S.I.P.! A vast armory fort sits in the arena — raid it for real weapons, or retreat behind its walls and make enemies funnel through the one entrance.</p>
+  <p style="font-size:12px;color:#777;">WASD/Arrows to move &nbsp;·&nbsp; Click toward an enemy or press SPACE to swing at whatever you're facing &nbsp;·&nbsp; Hold SHIFT to sprint &nbsp;·&nbsp; Walk over 🍗🍞🍎 to eat before Hunger runs out — starving deals real damage over time &nbsp;·&nbsp; Sprinting and attacking cost Stamina, so pace yourself &nbsp;·&nbsp; The armory fort's walls block everyone — step inside and only its gate lets enemies reach you &nbsp;·&nbsp; Walk over 🗡️⚔️🔨 inside the fort to equip a real weapon — each swings differently (speed, range, and damage all change) &nbsp;·&nbsp; Each cleared wave gets tougher, and hungrier.</p>
+  <button onclick="startGame()">⚔️ START</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<div id="gameOverScreen" class="screen" style="display:none">
+  <h1>💀 YOU FELL</h1>
+  <div class="statLine">Wave Reached: <span id="goWave">1</span></div>
+  <div class="statLine">Enemies Defeated: <span id="goKills">0</span></div>
+  <div class="statLine">Food Collected: <span id="goFood">0</span></div>
+  <div class="statLine">Score: <span id="goScore">0</span></div>
+  <div class="sipLine">+<span id="goSip">0</span> S.I.P. earned!</div>
+  <button onclick="startGame()">▶ Play Again</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════════
+// SURVIVAL LIFE — COMBAT CORE + LIFE-SIM LAYER (combined, two-stage build).
+//
+// ARCHITECTURE MAP:
+//   • Game loop:  requestAnimationFrame → loop(t) → computes dt → tick(dt) → draw().
+//     tick(dt) is the ONE per-frame update function — timers, hunger drain + starvation,
+//     movement + stamina/sprint, food spawn + pickup detection, the wave/breather flow,
+//     enemy AI + combat, and particles all happen inside it, in that order. It is only
+//     called while game.state==='playing'.
+//   • Player stats & position all live on the single `player` object (see resetGame()):
+//     x, y, r, speed, facingAngle, hp/maxHp, invulnTimer, atkRange/atkArcHalf/atkDamage/
+//     atkCooldown, plus the life-sim fields hunger, stamina, exhausted, sprinting,
+//     starving/starveTimer, and foodEaten.
+//   • Enemies live in the `enemies` array — plain objects {x,y,r,hp,maxHp,dmg,speed,
+//     type,color,scoreVal,hitFlash}. Wave/run meta (current wave, score, kills, the
+//     breather countdown) lives on the single `game` object. Food pickups live in the
+//     `foods` array — plain objects {x,y,r,emoji,bob} — spawned/consumed in tick().
+//   • The armory fort: `fort` ({rect, walls[], gate}) is built once per run by
+//     buildFort() and gives BOTH the player and enemies real collision via
+//     resolveWallCollisions() — the same "you cannot occupy solid space" idea as the
+//     ARENA_PAD clamp, just applied to an interior obstacle. `weaponPickups` holds the
+//     armory's ground items; walking over one (in tick()) calls equipWeapon(), which
+//     overwrites player.atkDamage/atkRange/atkArcHalf/atkCooldownBase — the exact
+//     fields performAttack() already reads — so gear is a real stat change, not a label.
+//   • Rendering is entirely inside draw() — arena bounds, the fort + armory, food
+//     pickups, enemies + their HP bars, the attack swing arc, the player, and
+//     particles. draw() runs every animation frame regardless of state, so the arena
+//     is visible behind the start/game-over screens.
+// ══════════════════════════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+let W, H;
+function resize(){
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  if(player){
+    player.x = Math.max(ARENA_PAD+player.r, Math.min(W-ARENA_PAD-player.r, player.x));
+    player.y = Math.max(ARENA_PAD+player.r, Math.min(H-ARENA_PAD-player.r, player.y));
+  }
+}
+
+const isTouchDevice = matchMedia('(pointer: coarse)').matches;
+
+// ── TUNING CONSTANTS ─────────────────────────────────────────────────────────
+const ARENA_PAD           = 40;   // visual + collision boundary inset from the canvas edge
+const PLAYER_R             = 16;
+const PLAYER_SPEED         = 240; // px/s
+const PLAYER_MAX_HP        = 100;
+const PLAYER_ATK_DMG       = 24;
+const PLAYER_ATK_RANGE     = 72;
+const PLAYER_ATK_ARC_HALF  = 0.85; // radians each side of facing angle (~97° total arc)
+const PLAYER_ATK_COOLDOWN  = 0.38; // seconds
+const PLAYER_INVULN_TIME   = 1.0;  // seconds of post-hit invincibility
+const WAVE_BREATHER        = 3.0;  // seconds between a wave clearing and the next spawning
+const SPAWN_MARGIN         = 40;   // px outside the canvas that enemies spawn at (arena "edges")
+
+// ── LIFE-SIM TUNING (hunger / stamina / food) ───────────────────────────────
+const HUNGER_MAX               = 100;
+const HUNGER_DRAIN_BASE        = 100/150; // per second — empties in ~150s of play at wave 1 if never fed
+const STARVE_DMG               = 4;       // real HP damage per starvation tick
+const STARVE_DMG_INTERVAL      = 1.0;     // seconds between starvation damage ticks while hunger is at 0
+const STAMINA_MAX              = 100;
+const SPRINT_MULT              = 1.55;    // movement speed multiplier while sprinting
+const STAMINA_SPRINT_DRAIN     = 22;      // stamina/sec consumed while sprinting
+const STAMINA_ATTACK_COST      = 9;       // stamina consumed per melee swing
+const STAMINA_REGEN            = 15;      // stamina/sec regenerated while not sprinting
+const EXHAUST_RECOVER_THRESHOLD= 25;      // stamina must climb back above this to clear "exhausted"
+const EXHAUSTED_SPEED_MULT     = 0.7;     // real movement penalty while exhausted
+const EXHAUSTED_ATK_COOLDOWN_MULT = 1.6;  // real attack-speed penalty while exhausted
+const FOOD_R                   = 15;
+const FOOD_MAX                 = 3;       // max food items on the field at once
+const FOOD_SPAWN_BASE          = 8;       // seconds, baseline spawn interval at wave 1
+const FOOD_FIRST_SPAWN_DELAY   = 5;       // seconds before the very first food spawns
+const FOOD_HUNGER_RESTORE      = 45;
+const FOOD_STAMINA_RESTORE     = 20;
+const FOOD_EMOJIS              = ['🍗','🍞','🍎','🍖','🍌'];
+// Real coupling between wave progression and life-sim pressure: hunger drains faster
+// AND food spawns less often as waves climb, both capped so it never becomes impossible.
+function hungerDrainMult(w){ return Math.min(1 + (w-1)*0.05, 1.8); }
+function foodSpawnInterval(w){ return Math.min(FOOD_SPAWN_BASE * (1 + (w-1)*0.07), FOOD_SPAWN_BASE*2.2); }
+
+// ── ARMORY FORT TUNING (real walls + real weapon pickups) ──────────────────
+// The fort is a rectangular perimeter of walls with a single gate on its bottom
+// edge. Geometry is computed once per run (buildFort(), called from resetGame())
+// against the arena size at that moment — same "computed at reset" pattern the
+// player's spawn position already uses — and reused for both collision and
+// drawing for the rest of that run.
+const FORT_WALL_THICK = 18;   // px thickness of each wall segment (real collision width)
+const FORT_GATE_W     = 96;   // px width of the entrance gap — the only way in/out
+const WEAPON_PICKUP_R  = 17;
+// Real stat sets a weapon swaps onto the player the moment it's picked up — these
+// are read by performAttack()/draw() through player.atk*/atkCooldownBase, the exact
+// same fields the bare-handed base stats (PLAYER_ATK_*) already populate, so gear
+// is a real, felt change in how combat plays, not a cosmetic label.
+const WEAPON_TYPES = {
+  dagger: { name:'Dagger', emoji:'🗡️', color:'#8ecfff', dmg:14, range:54, arcHalf:0.75, cooldown:0.18 },
+  sword:  { name:'Sword',  emoji:'⚔️', color:'#e6e6e6', dmg:30, range:78, arcHalf:0.9,  cooldown:0.34 },
+  hammer: { name:'Hammer', emoji:'🔨', color:'#ffb74d', dmg:55, range:68, arcHalf:0.65, cooldown:0.62 },
+};
+
+// Base stats per enemy type — real per-wave scaling is applied on top of these in waveMult().
+const ENEMY_TYPES = {
+  grunt:  { hp:22, dmg:9,  speed:95,  r:14, color:'#8b2f2f', scoreVal:10 },
+  runner: { hp:13, dmg:6,  speed:160, r:11, color:'#e07b2a', scoreVal:8  },
+  brute:  { hp:55, dmg:15, speed:60,  r:20, color:'#5a1f6b', scoreVal:22 },
+};
+
+// ── PER-WAVE SCALING (real formulas — no fake/flat difficulty) ─────────────────
+// HP/damage grow linearly per wave so late waves stay hard without becoming
+// unkillable instantly; speed growth is capped so enemies can never run away
+// with an unbounded multiplier. Enemy count grows too, capped for performance.
+function waveMult(w){
+  return {
+    hp:    1 + (w-1)*0.16,
+    dmg:   1 + (w-1)*0.11,
+    speed: Math.min(1 + (w-1)*0.035, 1.9),
+  };
+}
+function waveEnemyCount(w){
+  return Math.min(3 + Math.floor(w*1.4), 22);
+}
+// Tougher enemy types unlock at later waves and their pick-weight climbs with wave,
+// so later waves are more varied, not just bigger piles of the same grunt.
+function pickEnemyType(w){
+  const opts = [{ type:'grunt', weight:10 }];
+  if(w>=3) opts.push({ type:'runner', weight:6 });
+  if(w>=5) opts.push({ type:'brute',  weight:5 });
+  const total = opts.reduce((s,o)=>s+o.weight, 0);
+  let r = Math.random()*total;
+  for(const o of opts){ if(r<o.weight) return o.type; r-=o.weight; }
+  return 'grunt';
+}
+
+// ── S.I.P. BRIDGE (verbatim — do not modify) ────────────────────────────────────
+function awardSip(amount) {
+  try {
+    const user = localStorage.getItem('explox_current_user');
+    if(!user) return;
+    const data = JSON.parse(localStorage.getItem('explox_user_' + user) || '{}');
+    data.sip = (data.sip || 0) + amount;
+    localStorage.setItem('explox_user_' + user, JSON.stringify(data));
+  } catch(e) {}
+}
+// Reward scales with real performance (waves survived + kills + food foraged while
+// surviving), clamped to a sane range similar in scale to this folder's other
+// minigames (geodash: 50-200). Food contribution is capped so it stays a bonus on
+// top of combat performance, not a separate score bolted on.
+function computeReward(wavesCleared, kills, foodEaten){
+  const base = 20 + wavesCleared*16 + kills*2 + Math.min(foodEaten||0, 10)*3;
+  return Math.max(20, Math.min(250, Math.round(base)));
+}
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let game = { state:'start', wave:0, score:0, kills:0, breather:0, breatherActive:false };
+let player = null;
+let enemies = [];
+let particles = [];
+let foods = [];
+let foodSpawnTimer = 0;
+let fort = null;            // { rect:{x,y,w,h}, walls:[{x,y,w,h}, ...] } — built fresh each run in resetGame()
+let weaponPickups = [];     // real armory weapons on the ground: {type, x, y, r}
+let equippedWeapon = null;  // null === bare fists (base PLAYER_ATK_* stats); else a WEAPON_TYPES key
+let mobileSprint = false; // set by the touch joystick when pushed near full extension
+let attackVisual = { timer:0, angle:0 };
+let keys = {};
+let animId = null, lastT = 0;
+
+function resetGame(){
+  player = {
+    x: W/2, y: H/2, r: PLAYER_R, speed: PLAYER_SPEED, facingAngle: 0,
+    hp: PLAYER_MAX_HP, maxHp: PLAYER_MAX_HP, invulnTimer: 0,
+    atkRange: PLAYER_ATK_RANGE, atkArcHalf: PLAYER_ATK_ARC_HALF,
+    atkDamage: PLAYER_ATK_DMG, atkCooldownBase: PLAYER_ATK_COOLDOWN, atkCooldown: 0,
+    hunger: HUNGER_MAX, stamina: STAMINA_MAX, exhausted: false, sprinting: false,
+    starving: false, starveTimer: STARVE_DMG_INTERVAL, foodEaten: 0,
+  };
+  enemies = [];
+  particles = [];
+  foods = [];
+  foodSpawnTimer = FOOD_FIRST_SPAWN_DELAY;
+  fort = buildFort();
+  weaponPickups = fortWeaponSpots(fort).map(s => ({ type:s.type, x:s.x, y:s.y, r:WEAPON_PICKUP_R }));
+  equippedWeapon = null;
+  mobileSprint = false;
+  // Real fix: clear any input state left over from the previous run. Without this, a
+  // movement key still physically held at the moment of death (no keyup fired yet)
+  // would silently keep moving the player in the brand-new run with zero real input,
+  // since keydown/keyup listeners write into this same object across restarts.
+  for(const k in keys) keys[k] = false;
+  attackVisual = { timer:0, angle:0 };
+  game = { state:'playing', wave:0, score:0, kills:0, breather:0, breatherActive:false };
+}
+
+// ── SPAWNING ─────────────────────────────────────────────────────────────────
+function randomEdgeSpawnPoint(){
+  const edge = Math.floor(Math.random()*4);
+  const m = SPAWN_MARGIN;
+  if(edge===0) return { x: Math.random()*W, y: -m };
+  if(edge===1) return { x: Math.random()*W, y: H+m };
+  if(edge===2) return { x: -m, y: Math.random()*H };
+  return { x: W+m, y: Math.random()*H };
+}
+function makeEnemy(type, mult){
+  const base = ENEMY_TYPES[type];
+  const spawn = randomEdgeSpawnPoint();
+  const maxHp = Math.round(base.hp*mult.hp);
+  return {
+    type, x:spawn.x, y:spawn.y, r:base.r,
+    hp:maxHp, maxHp,
+    dmg: Math.round(base.dmg*mult.dmg),
+    speed: base.speed*mult.speed,
+    color: base.color, scoreVal: base.scoreVal,
+    hitFlash: 0,
+  };
+}
+function spawnWave(w){
+  game.wave = w;
+  const mult = waveMult(w);
+  const count = waveEnemyCount(w);
+  for(let i=0;i<count;i++) enemies.push(makeEnemy(pickEnemyType(w), mult));
+  showNotif('⚔️ WAVE ' + w + ' INCOMING!');
+}
+
+// ── FOOD PICKUPS ─────────────────────────────────────────────────────────────
+// Finds a real open spot inside the arena — not on top of the player, an enemy,
+// or another food item — retrying a bounded number of times.
+function randomFoodSpawnPoint(){
+  const minDistPlayer = 130, minDistEnemy = 70, minDistFood = 80;
+  let fallback = null;
+  for(let attempt=0; attempt<24; attempt++){
+    const x = ARENA_PAD+30 + Math.random()*(W-ARENA_PAD*2-60);
+    const y = ARENA_PAD+30 + Math.random()*(H-ARENA_PAD*2-60);
+    fallback = { x, y };
+    if(Math.hypot(x-player.x, y-player.y) < minDistPlayer) continue;
+    if(fort && pointInRect(x, y, fort.rect, 20)) continue;
+    let clear = true;
+    for(const e of enemies){ if(Math.hypot(x-e.x, y-e.y) < minDistEnemy){ clear=false; break; } }
+    if(clear) for(const f of foods){ if(Math.hypot(x-f.x, y-f.y) < minDistFood){ clear=false; break; } }
+    if(clear) return { x, y };
+  }
+  return fallback; // bounded retries exhausted — still a valid random arena point
+}
+function spawnFood(){
+  if(foods.length >= FOOD_MAX) return;
+  const p = randomFoodSpawnPoint();
+  if(!p) return;
+  foods.push({ x:p.x, y:p.y, r:FOOD_R, emoji: FOOD_EMOJIS[Math.floor(Math.random()*FOOD_EMOJIS.length)], bob:Math.random()*Math.PI*2 });
+}
+
+// ── ARMORY FORT: geometry, collision, weapons ───────────────────────────────
+function clamp(v,lo,hi){ return Math.max(lo, Math.min(hi, v)); }
+function pointInRect(x,y,rect,pad){
+  pad = pad||0;
+  return x>rect.x-pad && x<rect.x+rect.w+pad && y>rect.y-pad && y<rect.y+rect.h+pad;
+}
+// Builds the fort's rectangle + its 5 wall segments (top, left, right, and a
+// bottom-left/bottom-right pair split by a real gap — the gate) against the
+// CURRENT arena size. Called once at the start of each run, same "computed at
+// reset time" pattern player.x/y already use, so it stays a fixed real structure
+// for the whole run rather than drifting if the window is resized mid-play.
+function buildFort(){
+  const availW = W-ARENA_PAD*2, availH = H-ARENA_PAD*2;
+  const fw = clamp(availW*0.4, 190, Math.max(190, availW-60));
+  const fh = clamp(availH*0.4, 160, Math.max(160, availH-60));
+  const fx = ARENA_PAD + 26;
+  const fy = H - ARENA_PAD - 26 - fh;
+  const rect = { x:fx, y:fy, w:fw, h:fh };
+
+  const t = FORT_WALL_THICK;
+  const gateW = Math.min(FORT_GATE_W, fw*0.42);
+  const gateStart = fx + fw/2 - gateW/2;
+  const walls = [
+    { x:fx,           y:fy,           w:fw,                    h:t }, // top
+    { x:fx,           y:fy,           w:t,                     h:fh }, // left
+    { x:fx+fw-t,      y:fy,           w:t,                     h:fh }, // right
+    { x:fx,           y:fy+fh-t,      w:(gateStart-fx),        h:t }, // bottom-left (up to the gate)
+    { x:gateStart+gateW, y:fy+fh-t,   w:(fx+fw-(gateStart+gateW)), h:t }, // bottom-right (past the gate)
+  ];
+  return { rect, walls, gate:{ x:gateStart, y:fy+fh-t, w:gateW, h:t } };
+}
+// Three fixed interior spots, one per weapon, well clear of the walls.
+function fortWeaponSpots(f){
+  const r = f.rect;
+  return [
+    { type:'dagger', x:r.x+r.w*0.26, y:r.y+r.h*0.34 },
+    { type:'sword',  x:r.x+r.w*0.50, y:r.y+r.h*0.62 },
+    { type:'hammer', x:r.x+r.w*0.74, y:r.y+r.h*0.34 },
+  ];
+}
+// Real circle-vs-wall collision: pushes `entity` (player or enemy — anything with
+// x/y/r) back out of any fort wall it overlaps, using the same "clamp so you can
+// never occupy the solid space" idea as the outer arena boundary clamp in tick(),
+// just applied to an interior obstacle instead of the arena's outer edge.
+function resolveWallCollisions(entity){
+  if(!fort) return;
+  for(const w of fort.walls){
+    if(w.w<=0 || w.h<=0) continue;
+    const closestX = clamp(entity.x, w.x, w.x+w.w);
+    const closestY = clamp(entity.y, w.y, w.y+w.h);
+    const dx = entity.x-closestX, dy = entity.y-closestY;
+    const distSq = dx*dx + dy*dy;
+    const r = entity.r;
+    if(distSq >= r*r) continue;
+    const dist = Math.sqrt(distSq);
+    if(dist > 0.0001){
+      const push = r - dist;
+      entity.x += (dx/dist)*push;
+      entity.y += (dy/dist)*push;
+    } else {
+      // entity center landed exactly on the wall edge — push out along the
+      // shortest side so it never gets stuck straddling the wall
+      const overL = entity.x-w.x, overR=(w.x+w.w)-entity.x, overT=entity.y-w.y, overB=(w.y+w.h)-entity.y;
+      const m = Math.min(overL,overR,overT,overB);
+      if(m===overL) entity.x = w.x-r;
+      else if(m===overR) entity.x = w.x+w.w+r;
+      else if(m===overT) entity.y = w.y-r;
+      else entity.y = w.y+w.h+r;
+    }
+  }
+}
+// Equips a real weapon: swaps the player's actual combat stats (not a label) and
+// returns whatever was equipped before, so the caller can drop it back on the
+// ground. null in/out both mean "bare fists".
+function equipWeapon(type){
+  const prev = equippedWeapon;
+  const w = WEAPON_TYPES[type];
+  equippedWeapon = type;
+  player.atkDamage = w.dmg;
+  player.atkRange = w.range;
+  player.atkArcHalf = w.arcHalf;
+  player.atkCooldownBase = w.cooldown;
+  showNotif(w.emoji + ' Equipped the ' + w.name + '!');
+  return prev;
+}
+
+// ── COMBAT ───────────────────────────────────────────────────────────────────
+function angleToPoint(px, py){ return Math.atan2(py-player.y, px-player.x); }
+function normalizeAngle(a){ return Math.atan2(Math.sin(a), Math.cos(a)); }
+
+function performAttack(angle){
+  if(!player || game.state!=='playing') return;
+  if(player.atkCooldown>0) return;
+  // real stamina cost per swing, and a real slower-attack penalty while exhausted
+  player.atkCooldown = player.exhausted ? player.atkCooldownBase*EXHAUSTED_ATK_COOLDOWN_MULT : player.atkCooldownBase;
+  player.stamina = Math.max(0, player.stamina - STAMINA_ATTACK_COST);
+  if(player.stamina<=0) player.exhausted = true;
+  player.facingAngle = angle;
+  attackVisual.timer = 0.15;
+  attackVisual.angle = angle;
+  enemies.forEach(e=>{
+    const dx=e.x-player.x, dy=e.y-player.y;
+    const dist=Math.hypot(dx,dy);
+    // real overlapping-range check, not a timer/fake hit
+    if(dist <= player.atkRange + e.r){
+      const diff = normalizeAngle(Math.atan2(dy,dx) - angle);
+      if(Math.abs(diff) <= player.atkArcHalf){
+        e.hp -= player.atkDamage;
+        e.hitFlash = 0.12;
+      }
+    }
+  });
+}
+
+// ── PARTICLES ────────────────────────────────────────────────────────────────
+function spawnParticles(x,y,color,count){
+  for(let i=0;i<count;i++){
+    const a=Math.random()*Math.PI*2, sp=40+Math.random()*90;
+    particles.push({ x,y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, life:0.5, maxLife:0.5, color });
+  }
+}
+function updateParticles(dt){
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.x+=p.vx*dt; p.y+=p.vy*dt; p.life-=dt;
+    if(p.life<=0) particles.splice(i,1);
+  }
+}
+
+// ── MAIN PER-FRAME UPDATE ────────────────────────────────────────────────────
+// Everything gameplay-related happens here, called once per animation frame
+// while game.state==='playing'. Keep new systems (hunger, pickups, etc.) hooked
+// in from this single function rather than adding separate rAF callbacks.
+function tick(dt){
+  if(player.atkCooldown>0)   player.atkCooldown  = Math.max(0, player.atkCooldown-dt);
+  if(player.invulnTimer>0)   player.invulnTimer  = Math.max(0, player.invulnTimer-dt);
+  if(attackVisual.timer>0)   attackVisual.timer  = Math.max(0, attackVisual.timer-dt);
+
+  // -- HUNGER: real drain over time, faster on later waves (real difficulty tie-in) --
+  player.hunger = Math.max(0, player.hunger - HUNGER_DRAIN_BASE*hungerDrainMult(game.wave)*dt);
+  // -- STARVATION: real periodic HP damage while hunger is empty, until the player eats again --
+  if(player.hunger<=0){
+    if(!player.starving){ player.starving = true; showNotif('🍽️ STARVING! Find food!'); }
+    player.starveTimer -= dt;
+    if(player.starveTimer<=0){
+      player.hp = Math.max(0, player.hp - STARVE_DMG);
+      player.starveTimer = STARVE_DMG_INTERVAL;
+      flashDamage();
+    }
+  } else {
+    player.starving = false;
+    player.starveTimer = STARVE_DMG_INTERVAL;
+  }
+
+  // -- movement input: keyboard AND the touch joystick both just set these same `keys` flags --
+  let mx=0, my=0;
+  if(keys['KeyW']||keys['ArrowUp'])    my-=1;
+  if(keys['KeyS']||keys['ArrowDown'])  my+=1;
+  if(keys['KeyA']||keys['ArrowLeft'])  mx-=1;
+  if(keys['KeyD']||keys['ArrowRight']) mx+=1;
+  const isMoving = mx!==0 || my!==0;
+  const wantSprint = (keys['ShiftLeft']||keys['ShiftRight']||mobileSprint);
+  // -- STAMINA / SPRINT: sprinting only "takes" while stamina remains and the player isn't exhausted --
+  player.sprinting = wantSprint && isMoving && !player.exhausted && player.stamina>0;
+  if(player.sprinting){
+    player.stamina = Math.max(0, player.stamina - STAMINA_SPRINT_DRAIN*dt);
+    if(player.stamina<=0) player.exhausted = true;
+  } else {
+    player.stamina = Math.min(STAMINA_MAX, player.stamina + STAMINA_REGEN*dt);
+  }
+  if(player.exhausted && player.stamina>=EXHAUST_RECOVER_THRESHOLD) player.exhausted = false;
+  // real mechanical consequence of exhaustion: slower movement (on top of the slower
+  // attacks already applied in performAttack()) until stamina recovers a bit
+  const speedMult = player.exhausted ? EXHAUSTED_SPEED_MULT : (player.sprinting ? SPRINT_MULT : 1);
+  if(isMoving){
+    player.facingAngle = Math.atan2(my,mx);
+    const len = Math.hypot(mx,my);
+    player.x += (mx/len)*player.speed*speedMult*dt;
+    player.y += (my/len)*player.speed*speedMult*dt;
+  }
+  // confine the player to the arena
+  player.x = Math.max(ARENA_PAD+player.r, Math.min(W-ARENA_PAD-player.r, player.x));
+  player.y = Math.max(ARENA_PAD+player.r, Math.min(H-ARENA_PAD-player.r, player.y));
+  // real fort-wall collision — the player is physically blocked by every wall
+  // segment except the gate, same push-out approach used below for enemies
+  resolveWallCollisions(player);
+  player.x = Math.max(ARENA_PAD+player.r, Math.min(W-ARENA_PAD-player.r, player.x));
+  player.y = Math.max(ARENA_PAD+player.r, Math.min(H-ARENA_PAD-player.r, player.y));
+
+  // -- ARMORY: walking over a weapon on the ground really equips it (real overlap
+  // check, same pattern as the food pickup loop below) and swaps out whatever was
+  // equipped before, dropping it back on the ground at the spot just picked up --
+  for(let i=weaponPickups.length-1;i>=0;i--){
+    const wp = weaponPickups[i];
+    const dist = Math.hypot(player.x-wp.x, player.y-wp.y);
+    if(dist < player.r+wp.r){
+      const prevType = equipWeapon(wp.type);
+      spawnParticles(wp.x, wp.y, WEAPON_TYPES[wp.type].color, 14);
+      weaponPickups.splice(i,1);
+      if(prevType) weaponPickups.push({ type:prevType, x:wp.x, y:wp.y, r:WEAPON_PICKUP_R });
+    }
+  }
+
+  // -- FOOD: periodic spawn (less frequent on later waves) + real walk-over pickup detection --
+  foodSpawnTimer -= dt;
+  if(foodSpawnTimer<=0){
+    spawnFood();
+    foodSpawnTimer = foodSpawnInterval(game.wave) * (0.8 + Math.random()*0.4);
+  }
+  for(let i=foods.length-1;i>=0;i--){
+    const f = foods[i];
+    const dist = Math.hypot(player.x-f.x, player.y-f.y);
+    if(dist < player.r+f.r){
+      player.hunger  = Math.min(HUNGER_MAX, player.hunger + FOOD_HUNGER_RESTORE);
+      player.stamina = Math.min(STAMINA_MAX, player.stamina + FOOD_STAMINA_RESTORE);
+      player.foodEaten++;
+      spawnParticles(f.x, f.y, '#ffd700', 12);
+      showNotif(f.emoji + ' +' + FOOD_HUNGER_RESTORE + ' Hunger');
+      foods.splice(i,1);
+    }
+  }
+
+  // -- wave / breather flow, driven by a REAL "all enemies in this wave are dead" check --
+  if(game.breatherActive){
+    game.breather -= dt;
+    if(game.breather<=0){
+      game.breatherActive = false;
+      spawnWave(game.wave+1);
+    }
+  } else if(enemies.length===0 && game.wave>0){
+    game.breatherActive = true;
+    game.breather = WAVE_BREATHER;
+    game.score += game.wave*15;
+    showNotif('✅ WAVE ' + game.wave + ' CLEARED!');
+  }
+
+  // -- enemy AI (real chase toward the player's current position) + combat --
+  for(let i=enemies.length-1;i>=0;i--){
+    const e = enemies[i];
+    if(e.hitFlash>0) e.hitFlash = Math.max(0, e.hitFlash-dt);
+
+    const dx=player.x-e.x, dy=player.y-e.y;
+    const dist=Math.hypot(dx,dy) || 0.0001;
+    e.x += (dx/dist)*e.speed*dt;
+    e.y += (dy/dist)*e.speed*dt;
+    // real fort-wall collision — enemies are blocked by the same walls as the
+    // player. Since each enemy re-aims straight at the player's live position
+    // every frame, a blocked enemy slides along the wall it hit toward whichever
+    // side reduces that straight-line distance, which naturally drags it toward
+    // the gate without any special-cased pathfinding.
+    resolveWallCollisions(e);
+
+    // real overlapping-bounds contact damage, gated by the player's invincibility window
+    if(dist < player.r+e.r && player.invulnTimer<=0){
+      player.hp = Math.max(0, player.hp - e.dmg);
+      player.invulnTimer = PLAYER_INVULN_TIME;
+      flashDamage();
+      // small separation nudge so the enemy isn't left sitting exactly on top of the player
+      player.x -= (dx/dist)*6;
+      player.y -= (dy/dist)*6;
+    }
+
+    if(e.hp<=0){
+      spawnParticles(e.x, e.y, e.color, 10);
+      game.score += e.scoreVal + game.wave*2;
+      game.kills++;
+      enemies.splice(i,1);
+    }
+  }
+
+  updateParticles(dt);
+  updateHUD();
+
+  if(player.hp<=0 && game.state==='playing') endRun();
+}
+
+// ── RENDERING ────────────────────────────────────────────────────────────────
+function draw(){
+  ctx.clearRect(0,0,W,H);
+
+  const bg = ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#0a0a1a'); bg.addColorStop(1,'#0f1a2e');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0,0,W,H);
+
+  // arena boundary
+  ctx.strokeStyle = 'rgba(233,69,96,0.55)';
+  ctx.lineWidth = 3;
+  ctx.setLineDash([14,10]);
+  ctx.strokeRect(ARENA_PAD, ARENA_PAD, W-ARENA_PAD*2, H-ARENA_PAD*2);
+  ctx.setLineDash([]);
+
+  // subtle grid dots inside the arena
+  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  for(let gx=ARENA_PAD+30; gx<W-ARENA_PAD; gx+=60){
+    for(let gy=ARENA_PAD+30; gy<H-ARENA_PAD; gy+=60){
+      ctx.beginPath(); ctx.arc(gx,gy,1.6,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  if(game.state==='playing' && player){
+    // ── ARMORY FORT: real walls (solid, collidable — see resolveWallCollisions())
+    // drawn as stone blocks, plus a torch-lit gap marking the one real entrance.
+    if(fort){
+      fort.walls.forEach(w=>{
+        ctx.fillStyle = '#3d3a4a';
+        ctx.fillRect(w.x, w.y, w.w, w.h);
+        ctx.strokeStyle = '#9a8a5a';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(w.x, w.y, w.w, w.h);
+        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+        ctx.fillRect(w.x, w.y, w.w, Math.min(3, w.h));
+      });
+      // torches flanking the gate so the one way in/out reads clearly
+      const g = fort.gate;
+      ['#ff9800','#ff9800'].forEach((c,i)=>{
+        const tx = i===0 ? g.x : g.x+g.w;
+        ctx.font = '18px Arial';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('🔥', tx, g.y+g.h/2);
+      });
+      ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+    }
+
+    // armory weapon pickups — real gear on the ground inside the fort. Walking
+    // over one (see the pickup loop in tick()) really swaps the player's combat
+    // stats, so these are rendered as clearly distinct items, not decoration.
+    weaponPickups.forEach(wp=>{
+      const wt = WEAPON_TYPES[wp.type];
+      const bobY = wp.y + Math.sin(performance.now()/280 + wp.x)*3;
+      ctx.strokeStyle = wt.color;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(wp.x, bobY, wp.r+6, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle = 'rgba(20,20,30,0.85)';
+      ctx.beginPath(); ctx.arc(wp.x, bobY, wp.r, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = wt.color; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.font = '19px Arial';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(wt.emoji, wp.x, bobY);
+    });
+    ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+
+    // food pickups — real items the player must walk over to collect. Drawn as a solid
+    // glowing disc (always visible, matches the theme's gold/orange accent) with the
+    // emoji rendered on top as a bonus detail on systems that have a color-emoji font.
+    foods.forEach(f=>{
+      const bobY = f.y + Math.sin(performance.now()/300 + f.bob)*4;
+      ctx.strokeStyle = 'rgba(255,215,0,0.6)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(f.x, bobY, f.r+6, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle = '#ffb74d';
+      ctx.beginPath(); ctx.arc(f.x, bobY, f.r, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#8a5a1e';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.font = '20px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(f.emoji, f.x, bobY);
+    });
+    ctx.textAlign = 'start';
+    ctx.textBaseline = 'alphabetic';
+
+    // enemies + their HP bars
+    enemies.forEach(e=>{
+      ctx.fillStyle = e.hitFlash>0 ? '#ffffff' : e.color;
+      ctx.beginPath(); ctx.arc(e.x,e.y,e.r,0,Math.PI*2); ctx.fill();
+      const bw = e.r*2;
+      ctx.fillStyle = '#222';
+      ctx.fillRect(e.x-bw/2, e.y-e.r-11, bw, 4);
+      const pct = e.hp/e.maxHp;
+      ctx.fillStyle = pct>0.5 ? '#00e676' : pct>0.25 ? '#FFD700' : '#ff4444';
+      ctx.fillRect(e.x-bw/2, e.y-e.r-11, bw*Math.max(0,pct), 4);
+    });
+
+    // attack swing arc
+    if(attackVisual.timer>0){
+      const alpha = attackVisual.timer/0.15;
+      ctx.strokeStyle = `rgba(233,69,96,${alpha})`;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.atkRange, attackVisual.angle-player.atkArcHalf, attackVisual.angle+player.atkArcHalf);
+      ctx.stroke();
+    }
+
+    // player (flickers while invincible)
+    const flicker = player.invulnTimer>0 && Math.floor(performance.now()/90)%2===0;
+    ctx.save();
+    ctx.globalAlpha = flicker ? 0.35 : 1;
+    ctx.fillStyle = '#e94560';
+    ctx.beginPath(); ctx.arc(player.x,player.y,player.r,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(player.x+Math.cos(player.facingAngle)*player.r*0.85, player.y+Math.sin(player.facingAngle)*player.r*0.85, 3.5, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    // particles
+    particles.forEach(p=>{
+      ctx.globalAlpha = Math.max(0, p.life/p.maxLife);
+      ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.arc(p.x,p.y,3,0,Math.PI*2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ── HUD / NOTIFICATIONS ──────────────────────────────────────────────────────
+function updateHUD(){
+  document.getElementById('waveNum').textContent  = game.wave;
+  document.getElementById('scoreNum').textContent = Math.floor(game.score);
+  document.getElementById('killNum').textContent  = game.kills;
+  const wpEl = document.getElementById('weaponPill');
+  if(equippedWeapon){
+    const wt = WEAPON_TYPES[equippedWeapon];
+    wpEl.innerHTML = wt.emoji + ' ' + wt.name;
+  } else {
+    wpEl.innerHTML = '🖐 Fists';
+  }
+  const pct = Math.max(0, player.hp/player.maxHp);
+  document.getElementById('healthFill').style.width = (pct*100)+'%';
+  document.getElementById('healthFill').style.background = pct>0.5 ? '#00e676' : pct>0.25 ? '#FFD700' : '#ff4444';
+  document.getElementById('healthLabel').textContent = '❤️ ' + Math.max(0,Math.ceil(player.hp)) + ' / ' + player.maxHp;
+
+  const hpct = Math.max(0, player.hunger/HUNGER_MAX);
+  document.getElementById('hungerFill').style.width = (hpct*100)+'%';
+  document.getElementById('hungerFill').style.background = hpct>0.5 ? '#ffa726' : hpct>0.2 ? '#ff7b00' : '#ff3b3b';
+  document.getElementById('hungerLabel').textContent = '🍗 ' + Math.max(0,Math.ceil(player.hunger)) + ' / ' + HUNGER_MAX + (player.starving ? ' (STARVING!)' : '');
+
+  const spct = Math.max(0, player.stamina/STAMINA_MAX);
+  document.getElementById('staminaFill').style.width = (spct*100)+'%';
+  document.getElementById('staminaFill').style.background = player.exhausted ? '#ff3b3b' : '#29b6f6';
+  document.getElementById('staminaLabel').textContent = '⚡ ' + Math.max(0,Math.ceil(player.stamina)) + ' / ' + STAMINA_MAX + (player.exhausted ? ' (EXHAUSTED)' : '');
+}
+let notifTimer=null;
+function showNotif(text){
+  const el=document.getElementById('notif');
+  el.textContent=text; el.style.opacity=1;
+  clearTimeout(notifTimer);
+  notifTimer=setTimeout(()=>{ el.style.opacity=0; }, 2000);
+}
+let flashTimer=null;
+function flashDamage(){
+  const el=document.getElementById('hitFlash');
+  el.style.background='rgba(255,0,0,0.35)';
+  clearTimeout(flashTimer);
+  flashTimer=setTimeout(()=>{ el.style.background='rgba(255,0,0,0)'; }, 120);
+}
+
+// ── FLOW: START / END ────────────────────────────────────────────────────────
+function startGame(){
+  document.getElementById('startScreen').style.display='none';
+  document.getElementById('gameOverScreen').style.display='none';
+  document.getElementById('hud').style.display='block';
+  document.getElementById('mobileControls').style.display = isTouchDevice ? 'block' : 'none';
+  resize();
+  resetGame();
+  spawnWave(1);
+  updateHUD();
+  lastT=0;
+  if(animId) cancelAnimationFrame(animId);
+  animId=requestAnimationFrame(loop);
+}
+function endRun(){
+  game.state='gameover';
+  if(animId) cancelAnimationFrame(animId);
+  const wavesCleared = Math.max(0, game.wave-1);
+  const sip = computeReward(wavesCleared, game.kills, player.foodEaten);
+  awardSip(sip);
+  document.getElementById('goWave').textContent  = game.wave;
+  document.getElementById('goKills').textContent = game.kills;
+  document.getElementById('goFood').textContent  = player.foodEaten;
+  document.getElementById('goScore').textContent = Math.floor(game.score);
+  document.getElementById('goSip').textContent   = sip;
+  document.getElementById('hud').style.display='none';
+  document.getElementById('mobileControls').style.display='none';
+  document.getElementById('gameOverScreen').style.display='flex';
+}
+
+// ── GAME LOOP ────────────────────────────────────────────────────────────────
+function loop(t){
+  animId=requestAnimationFrame(loop);
+  const dt=Math.min((t-(lastT||t))/1000, 0.05);
+  lastT=t;
+  tick(dt);
+  draw();
+}
+
+// ── INPUT: KEYBOARD ──────────────────────────────────────────────────────────
+document.addEventListener('keydown', e=>{
+  keys[e.code]=true;
+  if(e.code==='Space'){ e.preventDefault(); if(player) performAttack(player.facingAngle); }
+});
+document.addEventListener('keyup', e=>{ keys[e.code]=false; });
+window.addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; });
+
+// ── INPUT: MOUSE (click toward the cursor to attack) ────────────────────────
+canvas.addEventListener('mousedown', e=>{
+  if(isTouchDevice || game.state!=='playing' || !player) return;
+  const rect=canvas.getBoundingClientRect();
+  performAttack(angleToPoint(e.clientX-rect.left, e.clientY-rect.top));
+});
+
+// ── INPUT: TOUCH ──────────────────────────────────────────────────────────────
+// Joystick drags set the same `keys[...]` flags WASD already sets (movement code
+// above reads those either way); the attack button swings toward wherever the
+// player is currently facing, same as pressing SPACE.
+(function setupTouchControls(){
+  const joyBase = document.getElementById('joyBase');
+  const joyStick = document.getElementById('joyStick');
+  const attackBtn = document.getElementById('mobileAttackBtn');
+  if(!joyBase) return;
+  let joyTouchId=null, joyCenterX=0, joyCenterY=0;
+  function updateJoy(cx,cy){
+    const r=45;
+    const dx=cx-joyCenterX, dy=cy-joyCenterY;
+    const dist=Math.min(Math.hypot(dx,dy), r);
+    const angle=Math.atan2(dy,dx);
+    const sx=Math.cos(angle)*dist, sy=Math.sin(angle)*dist;
+    joyStick.style.transform=`translate(${sx}px,${sy}px)`;
+    const nx=sx/r, ny=sy/r, th=0.3;
+    keys['KeyW']=ny<-th; keys['KeyS']=ny>th; keys['KeyA']=nx<-th; keys['KeyD']=nx>th;
+    // pushing the joystick near full extension sprints, same as holding SHIFT on desktop
+    mobileSprint = dist >= r*0.82;
+  }
+  function resetJoy(){ keys['KeyW']=keys['KeyA']=keys['KeyS']=keys['KeyD']=false; mobileSprint=false; joyStick.style.transform='translate(0px,0px)'; }
+  joyBase.addEventListener('touchstart', e=>{
+    e.preventDefault();
+    const t=e.changedTouches[0]; joyTouchId=t.identifier;
+    const r=joyBase.getBoundingClientRect(); joyCenterX=r.left+r.width/2; joyCenterY=r.top+r.height/2;
+    updateJoy(t.clientX,t.clientY);
+  }, {passive:false});
+  document.addEventListener('touchmove', e=>{
+    for(const t of e.changedTouches){ if(t.identifier===joyTouchId) updateJoy(t.clientX,t.clientY); }
+  }, {passive:true});
+  document.addEventListener('touchend', e=>{
+    for(const t of e.changedTouches){ if(t.identifier===joyTouchId){ joyTouchId=null; resetJoy(); } }
+  });
+  if(attackBtn){
+    attackBtn.addEventListener('touchstart', e=>{ e.preventDefault(); if(player) performAttack(player.facingAngle); });
+  }
+})();
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+window.addEventListener('resize', resize);
+resize();
+draw(); // paint the arena background behind the start screen before any run begins
+</script>
+</body>
+</html>

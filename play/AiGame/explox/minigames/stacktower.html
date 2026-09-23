@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explox — Stack Tower</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0a0a1a; overflow:hidden; font-family:Arial,sans-serif; touch-action:none; }
+  canvas { display:block; }
+  #ui {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; z-index:10;
+    pointer-events:none;
+  }
+  #startScreen, #endScreen {
+    background:rgba(10,10,26,0.92); border:2px solid #e94560;
+    border-radius:18px; padding:32px 40px; text-align:center;
+    max-width:380px; width:90%;
+    pointer-events:auto;
+  }
+  #startScreen h1 { color:#e94560; font-size:2em; margin-bottom:6px; text-shadow:0 0 18px #e94560; }
+  #startScreen p  { color:#aaa; margin-bottom:14px; font-size:0.92em; line-height:1.6; }
+  .bestLine { color:#FFD700; font-size:15px; margin-bottom:18px; }
+  .bigBtn {
+    padding:14px 40px; font-size:16px; font-weight:bold;
+    background:#e94560; border:none; border-radius:14px; color:#fff;
+    cursor:pointer; letter-spacing:2px; box-shadow:0 0 16px #e9456066;
+    margin:6px; min-height:44px; min-width:44px;
+  }
+  .bigBtn:active { transform:scale(0.96); }
+  .backBtn {
+    padding:10px 24px; font-size:13px; background:transparent;
+    border:1px solid #555; border-radius:8px; color:#888; cursor:pointer;
+    min-height:44px; pointer-events:auto;
+  }
+  .backBtn:active { border-color:#e94560; color:#fff; }
+
+  #endScreen { display:none; border-color:#ff4444; }
+  #endScreen h1 { color:#ff4444; font-size:2em; margin-bottom:8px; }
+  #newBestTag { color:#00e676; font-size:14px; font-weight:bold; margin-bottom:6px; display:none; }
+  .statLine { font-size:16px; color:#ddd; margin:4px 0; }
+  #sipEarned { color:#FFD700; font-size:20px; font-weight:bold; margin:12px 0; }
+
+  #hud {
+    position:fixed; top:14px; left:50%; transform:translateX(-50%);
+    color:#FFD700; font-size:26px; font-weight:bold;
+    background:rgba(0,0,0,0.55); padding:8px 24px; border-radius:12px;
+    z-index:5; display:none; text-shadow:0 0 10px #FFD700;
+    pointer-events:none; /* a tap here must still reach the canvas's drop handler underneath */
+  }
+  #tapHint {
+    position:fixed; bottom:18px; left:50%; transform:translateX(-50%);
+    color:#666; font-size:13px; z-index:5; display:none;
+    pointer-events:none;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">Height: 0</div>
+<div id="tapHint">TAP anywhere to drop the block</div>
+<div id="ui">
+  <div id="startScreen">
+    <h1>🧱 STACK TOWER</h1>
+    <p>A block slides back and forth above your tower. Tap to drop it! Only the overlapping part sticks — the rest falls away. Line it up perfectly to keep your tower wide, or watch it shrink. Miss completely and it's over!</p>
+    <div class="bestLine" id="startBest">🏆 Best Height: --</div>
+    <button class="bigBtn" onclick="startGame()">▶ START</button>
+    <button class="backBtn" onclick="history.back()">← Back to City</button>
+  </div>
+  <div id="endScreen">
+    <h1>💥 TOWER DOWN!</h1>
+    <div id="newBestTag">🌟 NEW BEST!</div>
+    <div class="statLine" id="endHeight">Height: 0</div>
+    <div class="bestLine" id="endBest">🏆 Best Height: 0</div>
+    <div id="sipEarned">+0 S.I.P.</div>
+    <button class="bigBtn" onclick="startGame()">🔄 Play Again</button>
+    <button class="backBtn" onclick="history.back()">← Back to City</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+window.addEventListener('resize', () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+});
+
+// ── S.I.P. BRIDGE ──────────────────────────────────────────────────────────
+function awardSip(amount) {
+  try {
+    const user = localStorage.getItem('explox_current_user');
+    if(!user) return;
+    const data = JSON.parse(localStorage.getItem('explox_user_' + user) || '{}');
+    data.sip = (data.sip || 0) + amount;
+    localStorage.setItem('explox_user_' + user, JSON.stringify(data));
+  } catch(e) {}
+}
+
+// ── BEST PERSISTENCE ─────────────────────────────────────────────────────────
+function loadBest() {
+  try { return parseInt(localStorage.getItem('explox_stacktower_best') || '0', 10) || 0; }
+  catch(e) { return 0; }
+}
+function saveBest(v) {
+  try { localStorage.setItem('explox_stacktower_best', String(v)); } catch(e) {}
+}
+
+// ── CONSTANTS ─────────────────────────────────────────────────────────────────
+const BLOCK_H = 32;
+const GRAVITY = 1400; // px/s^2, for falling debris chunks
+const BASE_SPEED = 150; // px/s
+const SPEED_STEP = 9;
+const MAX_SPEED = 480;
+
+// ── GAME STATE ────────────────────────────────────────────────────────────────
+let running = false;
+let stack = [];        // { x, width, hue }
+let debris = [];        // falling chunks: { x, y, width, vy, hue, life }
+let movingBlock = null; // { x, width, vx, hue }
+let topIndex = 0;       // index of the current top of stack (base = 0)
+let minWidth = 10;       // minimum overlap width allowed before game-over
+let initialWidth = 0;
+let lastFrameT = 0;
+let animId = null;
+
+function computeSip(height) {
+  if (height <= 0) return 0;
+  return Math.max(15, Math.min(200, Math.round(height * 8)));
+}
+
+function hueFor(i) { return (198 + i * 17) % 360; }
+
+// ── GEOMETRY HELPERS (recomputed live so resize just works) ──────────────────
+function baseY() { return canvas.height - 60; }               // world-y of the base block's TOP surface
+function pinTopY() { return canvas.height * 0.55; }            // screen-y we pin the current top block to once tower grows tall
+function worldTopY(i) { return baseY() - i * BLOCK_H; }        // world-y of block index i's top surface
+function cameraShift() { return Math.max(0, pinTopY() - worldTopY(topIndex)); }
+function playLeft() { return canvas.width * 0.08; }
+function playRight() { return canvas.width * 0.92; }
+
+// ── STACK / BLOCK LOGIC ───────────────────────────────────────────────────────
+function spawnMovingBlock() {
+  const width = stack[stack.length - 1].width;
+  const speed = Math.min(MAX_SPEED, BASE_SPEED + topIndex * SPEED_STEP);
+  const fromLeft = topIndex % 2 === 0;
+  const x = fromLeft ? playLeft() : playRight() - width;
+  movingBlock = {
+    x, width,
+    vx: fromLeft ? speed : -speed,
+    hue: hueFor(topIndex + 1)
+  };
+}
+
+function spawnDebris(x, width, hue) {
+  if (width <= 0) return;
+  debris.push({
+    x, y: worldTopY(topIndex + 1), width,
+    vy: 0, hue, life: 3
+  });
+}
+
+function dropBlock() {
+  if (!running || !movingBlock) return;
+  const below = stack[stack.length - 1];
+  const moving = movingBlock;
+
+  const left = Math.max(moving.x, below.x);
+  const right = Math.min(moving.x + moving.width, below.x + below.width);
+  const overlapWidth = right - left;
+
+  if (overlapWidth <= 0) { gameOver('miss'); return; }
+  if (overlapWidth < minWidth) { gameOver('narrow'); return; }
+
+  // the leftover, non-overlapping chunk(s) really fall away
+  if (moving.x < left) spawnDebris(moving.x, left - moving.x, moving.hue);
+  if (moving.x + moving.width > right) spawnDebris(right, (moving.x + moving.width) - right, moving.hue);
+
+  stack.push({ x: left, width: overlapWidth, hue: moving.hue });
+  topIndex++;
+  updateHUD();
+  spawnMovingBlock();
+}
+
+// ── INPUT ─────────────────────────────────────────────────────────────────────
+canvas.addEventListener('pointerdown', () => dropBlock());
+document.addEventListener('keydown', e => {
+  if ((e.code === 'Space' || e.code === 'ArrowUp') && running) { e.preventDefault(); dropBlock(); }
+});
+
+// ── HUD ───────────────────────────────────────────────────────────────────────
+function updateHUD() {
+  document.getElementById('hud').textContent = `Height: ${topIndex}`;
+}
+
+// ── FLOW ──────────────────────────────────────────────────────────────────────
+function startGame() {
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('endScreen').style.display = 'none';
+  document.getElementById('hud').style.display = 'block';
+  document.getElementById('tapHint').style.display = 'block';
+
+  const baseWidth = canvas.width * 0.34;
+  initialWidth = baseWidth;
+  minWidth = Math.max(8, baseWidth * 0.12);
+  stack = [{ x: (canvas.width - baseWidth) / 2, width: baseWidth, hue: hueFor(0) }];
+  debris = [];
+  topIndex = 0;
+  running = true;
+  updateHUD();
+  spawnMovingBlock();
+
+  lastFrameT = performance.now();
+  if (animId) cancelAnimationFrame(animId);
+  animate();
+}
+
+function gameOver(reason) {
+  running = false;
+  if (animId) cancelAnimationFrame(animId);
+  // let the missed/too-narrow block fall away for real instead of freezing mid-air
+  if (movingBlock) spawnDebris(movingBlock.x, movingBlock.width, movingBlock.hue);
+  movingBlock = null;
+  draw();
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('tapHint').style.display = 'none';
+
+  const height = topIndex;
+  const best = loadBest();
+  const isNew = height > best;
+  if (isNew) saveBest(height);
+
+  const sip = computeSip(height);
+  awardSip(sip);
+
+  document.getElementById('newBestTag').style.display = isNew ? 'block' : 'none';
+  document.getElementById('endHeight').textContent = `Height: ${height}`;
+  document.getElementById('endBest').textContent = `🏆 Best Height: ${isNew ? height : best}`;
+  document.getElementById('sipEarned').textContent = `+${sip} S.I.P.`;
+  document.getElementById('endScreen').style.display = 'block';
+}
+
+// ── DRAW ──────────────────────────────────────────────────────────────────────
+function drawBlock(x, screenY, width, hue) {
+  const grad = ctx.createLinearGradient(x, screenY, x + width, screenY + BLOCK_H);
+  grad.addColorStop(0, `hsl(${hue},75%,60%)`);
+  grad.addColorStop(1, `hsl(${hue},75%,42%)`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(x, screenY, width, BLOCK_H);
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x + 1, screenY + 1, width - 2, BLOCK_H - 2);
+}
+
+function draw() {
+  const W = canvas.width, H = canvas.height;
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#0a0a1a');
+  bg.addColorStop(1, '#151530');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  const shift = cameraShift();
+
+  // stacked blocks
+  for (let i = 0; i < stack.length; i++) {
+    const b = stack[i];
+    const screenY = worldTopY(i) + shift;
+    if (screenY > H + BLOCK_H || screenY < -BLOCK_H) continue;
+    drawBlock(b.x, screenY, b.width, b.hue);
+  }
+
+  // falling debris
+  for (const d of debris) {
+    const screenY = d.y + shift;
+    ctx.globalAlpha = Math.max(0, Math.min(1, d.life / 1.2));
+    drawBlock(d.x, screenY, d.width, d.hue);
+    ctx.globalAlpha = 1;
+  }
+
+  // moving block
+  if (movingBlock && running) {
+    const screenY = worldTopY(topIndex + 1) + shift;
+    drawBlock(movingBlock.x, screenY, movingBlock.width, movingBlock.hue);
+  }
+}
+
+// ── MAIN LOOP ─────────────────────────────────────────────────────────────────
+function animate() {
+  const now = performance.now();
+  const dt = Math.min((now - lastFrameT) / 1000, 0.05);
+  lastFrameT = now;
+
+  if (running && movingBlock) {
+    movingBlock.x += movingBlock.vx * dt;
+    const L = playLeft(), R = playRight();
+    if (movingBlock.x <= L) { movingBlock.x = L; movingBlock.vx = Math.abs(movingBlock.vx); }
+    if (movingBlock.x + movingBlock.width >= R) { movingBlock.x = R - movingBlock.width; movingBlock.vx = -Math.abs(movingBlock.vx); }
+  }
+
+  for (const d of debris) {
+    d.vy += GRAVITY * dt;
+    d.y += d.vy * dt;
+    d.life -= dt;
+  }
+  debris = debris.filter(d => d.life > 0);
+
+  draw();
+  animId = requestAnimationFrame(animate);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+document.getElementById('startBest').textContent = `🏆 Best Height: ${loadBest() || '--'}`;
+(function initialDraw() {
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+})();
+</script>
+</body>
+</html>

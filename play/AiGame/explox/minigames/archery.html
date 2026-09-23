@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explox — Archery Range</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0a0a1a; font-family:Arial,sans-serif; color:#fff;
+    min-height:100vh; overflow-x:hidden;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .screen {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    background:linear-gradient(135deg,#1a1a2e,#0f3460);
+    padding:20px; text-align:center; z-index:20;
+  }
+  .screen h1 { font-size:32px; color:#e94560; letter-spacing:2px; margin-bottom:8px; text-shadow:0 0 18px #e94560; }
+  .screen p { color:#aaa; font-size:14px; max-width:400px; line-height:1.6; margin-bottom:14px; }
+  .bestLine { color:#FFD700; font-size:15px; margin-bottom:20px; }
+  .bigBtn {
+    padding:14px 46px; font-size:17px; font-weight:bold;
+    background:#e94560; border:none; border-radius:14px; color:#fff;
+    cursor:pointer; letter-spacing:2px; box-shadow:0 0 16px #e9456066;
+    margin:6px; min-height:44px; min-width:44px;
+  }
+  .bigBtn:active { transform:scale(0.96); }
+  .backBtn {
+    padding:10px 24px; font-size:13px; background:transparent;
+    border:1px solid #555; border-radius:8px; color:#888; cursor:pointer;
+    min-height:44px;
+  }
+  .backBtn:active { border-color:#e94560; color:#fff; }
+
+  #gameScreen {
+    display:none; width:100%; min-height:100vh;
+    flex-direction:column; align-items:center; justify-content:flex-start;
+    padding:10px 10px 16px;
+  }
+  #topHud {
+    width:100%; max-width:820px; display:flex; justify-content:space-between;
+    align-items:center; padding:6px 10px; font-weight:bold; font-size:14px;
+  }
+  .hudBox { background:rgba(0,0,0,0.55); border-radius:10px; padding:7px 14px; }
+  #scoreHud { color:#FFD700; }
+  #arrowHud { color:#fff; border:2px solid #e94560; }
+  #windHud { color:#8fd6ff; }
+
+  #canvasWrap { margin-top:6px; }
+  canvas { display:block; background:#000; border-radius:14px; border:2px solid #333; touch-action:none; }
+
+  #shotMsg {
+    min-height:26px; font-size:18px; font-weight:bold; margin-top:8px;
+    color:#FFD700; text-shadow:0 0 8px rgba(255,215,0,0.6);
+  }
+
+  #aimPad {
+    margin-top:10px; width:min(90vw,600px); height:130px;
+    background:rgba(255,255,255,0.05); border:2px solid #e94560; border-radius:16px;
+    position:relative; touch-action:none;
+  }
+  #aimPad .padLabel {
+    position:absolute; top:6px; left:0; right:0; text-align:center;
+    color:#888; font-size:11px; letter-spacing:1px; pointer-events:none;
+  }
+  #aimKnob {
+    position:absolute; width:26px; height:26px; margin:-13px 0 0 -13px;
+    border-radius:50%; background:#FFD700; box-shadow:0 0 14px #FFD700;
+    pointer-events:none; left:50%; top:70%;
+  }
+  #aimReadout {
+    margin-top:8px; font-size:13px; color:#aaa;
+  }
+  #aimReadout b { color:#00e676; }
+
+  #endScreen { display:none; }
+  .statLine { font-size:16px; color:#ddd; margin:4px 0; }
+  #newBestTag { color:#00e676; font-size:14px; font-weight:bold; margin-bottom:6px; display:none; }
+  #sipEarned { color:#FFD700; font-size:22px; font-weight:bold; margin:12px 0; }
+  .bigScore { font-size:46px; font-weight:bold; color:#FFD700; text-shadow:0 0 20px #FFD700; margin:6px 0; }
+  #shotBreakdown { font-size:13px; color:#888; margin-top:6px; max-width:340px; line-height:1.6; }
+</style>
+</head>
+<body>
+
+<!-- START SCREEN -->
+<div id="startScreen" class="screen">
+  <h1>🎯 ARCHERY RANGE</h1>
+  <p>Drag on the pad below the range to draw your bow — left/right sets the angle, up/down sets the power. Release to fire! Watch the wind before every shot — it really pushes your arrow off course. 5 arrows, aim for the gold!</p>
+  <div class="bestLine" id="startBest">🏆 Best Score: --</div>
+  <button class="bigBtn" onclick="startGame()">▶ START</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<!-- GAME SCREEN -->
+<div id="gameScreen">
+  <div id="topHud">
+    <div class="hudBox" id="scoreHud">Score: 0</div>
+    <div class="hudBox" id="arrowHud">Arrow 1 / 5</div>
+    <div class="hudBox" id="windHud">💨 Wind: 0.0</div>
+  </div>
+  <div id="canvasWrap"><canvas id="c" width="800" height="450"></canvas></div>
+  <div id="shotMsg">Drag the pad to aim!</div>
+  <div id="aimPad">
+    <div class="padLabel">← angle · power ↑ — drag &amp; release to shoot</div>
+    <div id="aimKnob"></div>
+  </div>
+  <div id="aimReadout">Power: <b id="powerReadout">0%</b> &nbsp; Angle: <b id="angleReadout">0°</b></div>
+</div>
+
+<!-- END SCREEN -->
+<div id="endScreen" class="screen">
+  <h1>🏹 RANGE COMPLETE!</h1>
+  <div id="newBestTag">🌟 NEW BEST!</div>
+  <div class="bigScore" id="endScore">0 / 500</div>
+  <div id="shotBreakdown"></div>
+  <div class="bestLine" id="endBest">🏆 Best Score: 0</div>
+  <div id="sipEarned">+0 S.I.P.</div>
+  <button class="bigBtn" onclick="startGame()">🔄 Play Again</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<script>
+// ── S.I.P. BRIDGE ──────────────────────────────────────────────────────────
+function awardSip(amount) {
+  try {
+    const user = localStorage.getItem('explox_current_user');
+    if(!user) return;
+    const data = JSON.parse(localStorage.getItem('explox_user_' + user) || '{}');
+    data.sip = (data.sip || 0) + amount;
+    localStorage.setItem('explox_user_' + user, JSON.stringify(data));
+  } catch(e) {}
+}
+
+// ── BEST PERSISTENCE ─────────────────────────────────────────────────────────
+function loadBest() {
+  try { return parseInt(localStorage.getItem('explox_archery_best') || '0', 10) || 0; }
+  catch(e) { return 0; }
+}
+function saveBest(v) {
+  try { localStorage.setItem('explox_archery_best', String(v)); } catch(e) {}
+}
+
+// ── CANVAS / RESPONSIVE SCALING ───────────────────────────────────────────────
+// Fixed logical resolution keeps the physics constants identical on every
+// device; the canvas is just scaled up/down visually with CSS to fit.
+const LOGICAL_W = 800, LOGICAL_H = 450;
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+function resizeCanvas() {
+  const availW = Math.min(window.innerWidth - 20, 820);
+  const availH = window.innerHeight * 0.55;
+  const scale = Math.min(availW / LOGICAL_W, availH / LOGICAL_H, 1.15);
+  canvas.style.width = (LOGICAL_W * scale) + 'px';
+  canvas.style.height = (LOGICAL_H * scale) + 'px';
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// ── PHYSICS CONSTANTS (tuned + verified offline) ──────────────────────────────
+const BOW_X = 70, BOW_Y = 330;
+const TARGET_X = 680, TARGET_CENTER_Y = 300;
+const GROUND_Y = 400;
+const GRAVITY = 600;          // px/s^2
+const MIN_POWER = 550, MAX_POWER = 800; // px/s
+const ANGLE_MIN = 20, ANGLE_MAX = 60;   // degrees
+const MAX_WIND = 50;          // px/s^2, horizontal
+const RING_R   = [16, 32, 48, 66, 86];
+const RING_PTS = [100, 75, 50, 25, 10];
+const TOTAL_ARROWS = 5;
+
+// ── GAME STATE ────────────────────────────────────────────────────────────────
+let running = false;
+let arrowsLeft = TOTAL_ARROWS;
+let totalScore = 0;
+let shotHistory = [];
+let currentWind = 0;
+let arrowInFlight = false;
+let pendingPower = MIN_POWER, pendingAngle = (ANGLE_MIN + ANGLE_MAX) / 2;
+let flight = null; // { vx0, vy0, wind, startTime, sim, onDone }
+
+function computeSip(score) {
+  if (score <= 0) return 0;
+  return Math.max(15, Math.min(200, Math.round(score / 2.5)));
+}
+
+// ── AIM PAD (real drag input, mouse + touch via Pointer Events) ──────────────
+const pad = document.getElementById('aimPad');
+const knob = document.getElementById('aimKnob');
+let aiming = false;
+
+function updateFromPad(clientX, clientY) {
+  const rect = pad.getBoundingClientRect();
+  let px = (clientX - rect.left) / rect.width;
+  let py = (clientY - rect.top) / rect.height;
+  px = Math.max(0, Math.min(1, px));
+  py = Math.max(0, Math.min(1, py));
+  pendingAngle = ANGLE_MIN + px * (ANGLE_MAX - ANGLE_MIN);
+  pendingPower = MIN_POWER + (1 - py) * (MAX_POWER - MIN_POWER);
+  knob.style.left = (px * 100) + '%';
+  knob.style.top = (py * 100) + '%';
+  const powerPct = Math.round(((pendingPower - MIN_POWER) / (MAX_POWER - MIN_POWER)) * 100);
+  document.getElementById('powerReadout').textContent = powerPct + '%';
+  document.getElementById('angleReadout').textContent = Math.round(pendingAngle) + '°';
+}
+
+pad.addEventListener('pointerdown', e => {
+  if (!running || arrowInFlight) return;
+  aiming = true;
+  pad.setPointerCapture(e.pointerId);
+  updateFromPad(e.clientX, e.clientY);
+});
+pad.addEventListener('pointermove', e => {
+  if (!aiming) return;
+  updateFromPad(e.clientX, e.clientY);
+});
+function releasePad(e) {
+  if (!aiming) return;
+  aiming = false;
+  fireArrow(pendingPower, pendingAngle);
+}
+pad.addEventListener('pointerup', releasePad);
+pad.addEventListener('pointercancel', () => { aiming = false; });
+
+// ── SHOOTING / PHYSICS SIMULATION ─────────────────────────────────────────────
+function newWind() {
+  currentWind = (Math.random() * 2 - 1) * MAX_WIND;
+  const mag = (Math.abs(currentWind) / 10).toFixed(1);
+  const arrow = currentWind >= 0 ? '→' : '←';
+  document.getElementById('windHud').textContent = `💨 Wind: ${mag} ${arrow}`;
+}
+
+// Real projectile simulation: fine time-stepping finds exactly where/when the
+// arrow crosses the target's x-plane (or hits the ground first).
+function simulateFlight(vx0, vy0, wind) {
+  const dt = 0.002;
+  let t = 0, prevX = BOW_X, prevY = BOW_Y;
+  for (let i = 0; i < 4000; i++) {
+    t += dt;
+    const x = BOW_X + vx0 * t + 0.5 * wind * t * t;
+    const y = BOW_Y + vy0 * t + 0.5 * GRAVITY * t * t;
+    if (x >= TARGET_X && prevX < TARGET_X) {
+      const frac = (TARGET_X - prevX) / (x - prevX);
+      const hitY = prevY + (y - prevY) * frac;
+      const hitT = (t - dt) + dt * frac;
+      return { outcome: 'hit', hitY, flightTime: hitT };
+    }
+    if (y >= GROUND_Y) return { outcome: 'short', flightTime: t };
+    prevX = x; prevY = y;
+  }
+  return { outcome: 'offscreen', flightTime: t };
+}
+
+function ringFor(absOffset) {
+  for (let i = 0; i < RING_R.length; i++) {
+    if (absOffset <= RING_R[i]) return { idx: i, pts: RING_PTS[i] };
+  }
+  return { idx: -1, pts: 0 };
+}
+
+function fireArrow(power, angleDeg) {
+  arrowInFlight = true;
+  document.getElementById('shotMsg').textContent = '🏹 Flying...';
+  const angleRad = angleDeg * Math.PI / 180;
+  const vx0 = power * Math.cos(angleRad);
+  const vy0 = -power * Math.sin(angleRad);
+  const wind = currentWind;
+  const sim = simulateFlight(vx0, vy0, wind);
+  flight = { vx0, vy0, wind, startTime: performance.now(), sim };
+}
+
+function resolveShot(sim) {
+  let pts = 0, label = '';
+  if (sim.outcome === 'hit') {
+    const offset = sim.hitY - TARGET_CENTER_Y;
+    const r = ringFor(Math.abs(offset));
+    pts = r.pts;
+    if (r.idx === 0) label = '🎯 BULLSEYE! +100';
+    else if (r.idx === 1) label = '🟡 Great shot! +75';
+    else if (r.idx === 2) label = '🔵 Nice! +50';
+    else if (r.idx === 3) label = '⚪ On the board +25';
+    else if (r.idx === 4) label = '⚪ Edge hit +10';
+    else label = '💨 Miss! (off the board)';
+  } else if (sim.outcome === 'short') {
+    label = '💨 Miss! (fell short)';
+  } else {
+    label = '💨 Miss! (flew wide)';
+  }
+  totalScore += pts;
+  shotHistory.push(pts);
+  document.getElementById('shotMsg').textContent = label;
+  document.getElementById('scoreHud').textContent = `Score: ${totalScore}`;
+
+  arrowsLeft--;
+  arrowInFlight = false;
+
+  if (arrowsLeft <= 0) {
+    setTimeout(endGame, 900);
+  } else {
+    document.getElementById('arrowHud').textContent = `Arrow ${TOTAL_ARROWS - arrowsLeft + 1} / ${TOTAL_ARROWS}`;
+    newWind();
+    setTimeout(() => { document.getElementById('shotMsg').textContent = 'Drag the pad to aim!'; }, 900);
+  }
+}
+
+// ── DRAW ──────────────────────────────────────────────────────────────────────
+function drawScene(arrowPos) {
+  const W = LOGICAL_W, H = LOGICAL_H;
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, '#0a0a2a');
+  sky.addColorStop(1, '#1a2a4a');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+
+  // ground
+  ctx.fillStyle = '#16281a';
+  ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+  ctx.strokeStyle = '#2a4a2a';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, GROUND_Y); ctx.lineTo(W, GROUND_Y); ctx.stroke();
+
+  // target stand
+  ctx.strokeStyle = '#7a5a3a';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(TARGET_X, TARGET_CENTER_Y + RING_R[4]);
+  ctx.lineTo(TARGET_X, GROUND_Y);
+  ctx.stroke();
+
+  // target rings — classic gold/red/blue/black/white bands
+  const colors = ['#FFD700', '#e94560', '#3399ff', '#222', '#f0f0f0'];
+  for (let i = RING_R.length - 1; i >= 0; i--) {
+    ctx.beginPath();
+    ctx.arc(TARGET_X, TARGET_CENTER_Y, RING_R[i], 0, Math.PI * 2);
+    ctx.fillStyle = colors[i];
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  // archer (simple stylized figure + bow)
+  ctx.strokeStyle = '#e0c090';
+  ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(BOW_X - 8, GROUND_Y); ctx.lineTo(BOW_X - 8, BOW_Y - 5); ctx.stroke();
+  ctx.beginPath(); ctx.arc(BOW_X - 8, BOW_Y - 18, 12, 0, Math.PI * 2); ctx.fillStyle = '#e0c090'; ctx.fill();
+  ctx.strokeStyle = '#8a5a2a';
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(BOW_X, BOW_Y, 26, -Math.PI * 0.6, Math.PI * 0.6); ctx.stroke();
+
+  // in-flight (or resting) arrow
+  if (arrowPos) {
+    ctx.save();
+    ctx.translate(arrowPos.x, arrowPos.y);
+    ctx.rotate(arrowPos.angle);
+    ctx.strokeStyle = '#c8a060';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-16, 0); ctx.lineTo(10, 0); ctx.stroke();
+    ctx.fillStyle = '#ddd';
+    ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(2, -4); ctx.lineTo(2, 4); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  // wind visual hint (small drifting particles)
+  const windDir = currentWind >= 0 ? 1 : -1;
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  const time = performance.now() / 1000;
+  for (let i = 0; i < 5; i++) {
+    const px = ((time * 60 * windDir + i * 140) % (W + 60)) - 30;
+    const py = 60 + i * 22;
+    ctx.fillRect(windDir > 0 ? px : W - px, py, 14, 2);
+  }
+}
+
+// ── ANIMATION LOOP (real elapsed time drives the arrow along the exact
+//    trajectory formula used by the simulation, so what you see is what
+//    was actually computed) ─────────────────────────────────────────────────
+function renderLoop() {
+  if (flight) {
+    const t = Math.min((performance.now() - flight.startTime) / 1000, flight.sim.flightTime);
+    const x = BOW_X + flight.vx0 * t + 0.5 * flight.wind * t * t;
+    const y = BOW_Y + flight.vy0 * t + 0.5 * GRAVITY * t * t;
+    const vx = flight.vx0 + flight.wind * t;
+    const vy = flight.vy0 + GRAVITY * t;
+    drawScene({ x, y, angle: Math.atan2(vy, vx) });
+    if (t >= flight.sim.flightTime) {
+      const sim = flight.sim;
+      flight = null;
+      resolveShot(sim);
+    }
+  } else {
+    drawScene(null);
+  }
+  requestAnimationFrame(renderLoop);
+}
+
+// ── FLOW ──────────────────────────────────────────────────────────────────────
+function startGame() {
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('endScreen').style.display = 'none';
+  document.getElementById('gameScreen').style.display = 'flex';
+
+  running = true;
+  arrowsLeft = TOTAL_ARROWS;
+  totalScore = 0;
+  shotHistory = [];
+  arrowInFlight = false;
+  flight = null;
+  pendingAngle = (ANGLE_MIN + ANGLE_MAX) / 2;
+  pendingPower = MIN_POWER;
+
+  document.getElementById('scoreHud').textContent = 'Score: 0';
+  document.getElementById('arrowHud').textContent = `Arrow 1 / ${TOTAL_ARROWS}`;
+  document.getElementById('shotMsg').textContent = 'Drag the pad to aim!';
+  knob.style.left = '50%'; knob.style.top = '70%';
+  document.getElementById('powerReadout').textContent = '0%';
+  document.getElementById('angleReadout').textContent = Math.round(pendingAngle) + '°';
+
+  newWind();
+  resizeCanvas();
+}
+
+function endGame() {
+  running = false;
+  document.getElementById('gameScreen').style.display = 'none';
+
+  const best = loadBest();
+  const isNew = totalScore > best;
+  if (isNew) saveBest(totalScore);
+
+  const sip = computeSip(totalScore);
+  awardSip(sip);
+
+  document.getElementById('newBestTag').style.display = isNew ? 'block' : 'none';
+  document.getElementById('endScore').textContent = `${totalScore} / 500`;
+  document.getElementById('shotBreakdown').textContent = 'Arrows: ' + shotHistory.map(p => p + 'pt').join(' · ');
+  document.getElementById('endBest').textContent = `🏆 Best Score: ${isNew ? totalScore : best}`;
+  document.getElementById('sipEarned').textContent = `+${sip} S.I.P.`;
+  document.getElementById('endScreen').style.display = 'flex';
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+document.getElementById('startBest').textContent = `🏆 Best Score: ${loadBest() || '--'}`;
+renderLoop();
+</script>
+</body>
+</html>

@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explox — Fishing Derby</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0a0a1a; font-family:Arial,sans-serif; color:#fff;
+    min-height:100vh; overflow-x:hidden;
+    -webkit-user-select:none; user-select:none;
+  }
+  .screen {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    background:linear-gradient(135deg,#1a1a2e,#0f3460);
+    padding:20px; text-align:center; z-index:20;
+  }
+  .screen h1 { font-size:32px; color:#e94560; letter-spacing:2px; margin-bottom:8px; text-shadow:0 0 18px #e94560; }
+  .screen p { color:#aaa; font-size:14px; max-width:400px; line-height:1.6; margin-bottom:14px; }
+  .bestLine { color:#FFD700; font-size:15px; margin-bottom:20px; }
+  .bigBtn {
+    padding:14px 46px; font-size:17px; font-weight:bold;
+    background:#e94560; border:none; border-radius:14px; color:#fff;
+    cursor:pointer; letter-spacing:2px; box-shadow:0 0 16px #e9456066;
+    margin:6px; min-height:44px; min-width:44px;
+  }
+  .bigBtn:active { transform:scale(0.96); }
+  .backBtn {
+    padding:10px 24px; font-size:13px; background:transparent;
+    border:1px solid #555; border-radius:8px; color:#888; cursor:pointer;
+    min-height:44px;
+  }
+  .backBtn:active { border-color:#e94560; color:#fff; }
+
+  #gameScreen {
+    display:none; min-height:100vh; flex-direction:column; align-items:center;
+    padding:10px 12px 20px;
+  }
+  #topHud {
+    width:100%; max-width:520px; display:flex; justify-content:space-between;
+    align-items:center; padding:6px 4px; font-weight:bold; font-size:14px;
+  }
+  .hudBox { background:rgba(0,0,0,0.55); border-radius:10px; padding:7px 14px; }
+  #timeHud { color:#fff; border:2px solid #FFD700; }
+  #sipHud { color:#FFD700; }
+  #catchHud { color:#00e676; }
+
+  #pondArea {
+    position:relative; width:100%; max-width:520px; height:180px; margin-top:10px;
+    background:linear-gradient(180deg,#1a4a6a,#0d2a3f); border-radius:16px;
+    border:2px solid #2a6a8a; overflow:hidden;
+  }
+  #pondArea::before {
+    content:''; position:absolute; inset:0;
+    background:repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0 2px, transparent 2px 30px);
+  }
+  #dock { position:absolute; left:0; top:0; bottom:0; width:26px; background:#5a3a20; }
+  #line { position:absolute; top:0; width:2px; background:rgba(255,255,255,0.5); transform-origin:top center; }
+  #bobber {
+    position:absolute; font-size:26px; transform:translate(-50%,-50%);
+    filter:drop-shadow(0 2px 3px rgba(0,0,0,0.5));
+  }
+  #biteIndicator {
+    position:absolute; font-size:22px; transform:translate(-50%,-120%);
+    display:none; animation:popIndicator 0.4s ease infinite alternate;
+  }
+  @keyframes popIndicator { from{ transform:translate(-50%,-120%) scale(1);} to{ transform:translate(-50%,-140%) scale(1.3);} }
+
+  #reelArea { display:none; width:100%; max-width:340px; margin-top:14px; text-align:center; }
+  #fishLabel { color:#FFD700; font-weight:bold; font-size:15px; margin-bottom:8px; }
+  #reelTrack {
+    position:relative; width:70px; height:260px; margin:0 auto;
+    background:rgba(255,255,255,0.06); border:2px solid #444; border-radius:12px;
+    overflow:hidden;
+  }
+  #catchBar {
+    position:absolute; left:0; right:0; background:rgba(0,230,118,0.35);
+    border-top:3px solid #00e676; border-bottom:3px solid #00e676;
+  }
+  #fishIcon { position:absolute; left:50%; font-size:26px; transform:translate(-50%,-50%); }
+  #progressOuter {
+    width:70px; height:14px; margin:10px auto 0; background:#222; border-radius:7px; overflow:hidden;
+    border:1px solid #444;
+  }
+  #progressFill { height:100%; width:25%; background:linear-gradient(90deg,#e94560,#FFD700); }
+
+  #statusMsg { margin-top:14px; font-size:16px; font-weight:bold; min-height:24px; color:#fff; text-align:center; }
+  #actionBtn {
+    margin-top:14px; padding:16px 40px; font-size:18px; font-weight:bold;
+    background:#e94560; border:none; border-radius:14px; color:#fff;
+    cursor:pointer; letter-spacing:1px; box-shadow:0 0 16px #e9456066;
+    min-height:52px; min-width:180px;
+  }
+  #actionBtn:disabled { background:#333; color:#777; box-shadow:none; cursor:default; }
+  #actionBtn.urgent { animation:urgentPulse 0.35s ease infinite alternate; }
+  @keyframes urgentPulse { from{ box-shadow:0 0 10px #FFD700; border:2px solid #FFD700;} to{ box-shadow:0 0 26px #FFD700; border:2px solid #fff;} }
+
+  #tallyBox { margin-top:16px; font-size:12px; color:#888; text-align:center; line-height:1.7; }
+
+  #endScreen { display:none; }
+  .statLine { font-size:16px; color:#ddd; margin:4px 0; }
+  #newBestTag { color:#00e676; font-size:14px; font-weight:bold; margin-bottom:6px; display:none; }
+  #sipEarned { color:#FFD700; font-size:22px; font-weight:bold; margin:12px 0; }
+  #endTallyList { font-size:13px; color:#ccc; margin-top:8px; line-height:1.8; }
+</style>
+</head>
+<body>
+
+<!-- START SCREEN -->
+<div id="startScreen" class="screen">
+  <h1>🎣 FISHING DERBY</h1>
+  <p>Cast your line, watch for the bite, then REEL! Keep the fish inside the green zone to fill your catch meter — hold to pull it up, release to let it fall. 90 seconds to catch as much as you can. Rarer fish pay more S.I.P. but need sharper timing!</p>
+  <div class="bestLine" id="startBest">🏆 Best Haul: --</div>
+  <button class="bigBtn" onclick="startGame()">▶ START</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<!-- GAME SCREEN -->
+<div id="gameScreen">
+  <div id="topHud">
+    <div class="hudBox" id="timeHud">⏱ 90s</div>
+    <div class="hudBox" id="catchHud">🐟 0</div>
+    <div class="hudBox" id="sipHud">💰 0</div>
+  </div>
+
+  <div id="pondArea">
+    <div id="dock"></div>
+    <div id="line"></div>
+    <div id="bobber">🔴</div>
+    <div id="biteIndicator">❗</div>
+  </div>
+
+  <div id="reelArea">
+    <div id="fishLabel">🐟 Common Fish</div>
+    <div id="reelTrack">
+      <div id="catchBar"></div>
+      <div id="fishIcon">🐟</div>
+    </div>
+    <div id="progressOuter"><div id="progressFill"></div></div>
+  </div>
+
+  <div id="statusMsg">Cast your line to begin!</div>
+  <button id="actionBtn">🎣 Cast Line</button>
+
+  <div id="tallyBox">No catches yet</div>
+</div>
+
+<!-- END SCREEN -->
+<div id="endScreen" class="screen">
+  <h1>🎣 DERBY OVER!</h1>
+  <div id="newBestTag">🌟 NEW BEST!</div>
+  <div class="statLine" id="endCatches">Fish Caught: 0</div>
+  <div class="statLine" id="endValue">Total Haul: 0</div>
+  <div id="endTallyList"></div>
+  <div class="bestLine" id="endBest">🏆 Best Haul: 0</div>
+  <div id="sipEarned">+0 S.I.P.</div>
+  <button class="bigBtn" onclick="startGame()">🔄 Play Again</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<script>
+// ── S.I.P. BRIDGE ──────────────────────────────────────────────────────────
+function awardSip(amount) {
+  try {
+    const user = localStorage.getItem('explox_current_user');
+    if(!user) return;
+    const data = JSON.parse(localStorage.getItem('explox_user_' + user) || '{}');
+    data.sip = (data.sip || 0) + amount;
+    localStorage.setItem('explox_user_' + user, JSON.stringify(data));
+  } catch(e) {}
+}
+
+// ── BEST PERSISTENCE ─────────────────────────────────────────────────────────
+function loadBest() {
+  try { return parseInt(localStorage.getItem('explox_fishingderby_best') || '0', 10) || 0; }
+  catch(e) { return 0; }
+}
+function saveBest(v) {
+  try { localStorage.setItem('explox_fishingderby_best', String(v)); } catch(e) {}
+}
+
+// ── FISH TYPES (rarer = smaller catch zone + faster movement = harder) ───────
+const FISH_TYPES = [
+  { name:'Common Fish',   emoji:'🐟', value:5,  weight:50, barFrac:0.34, retMin:1.0, retMax:1.4, speed:2.2 },
+  { name:'Tropical Fish', emoji:'🐠', value:10, weight:25, barFrac:0.27, retMin:0.8, retMax:1.1, speed:2.8 },
+  { name:'Pufferfish',    emoji:'🐡', value:16, weight:14, barFrac:0.21, retMin:0.6, retMax:0.9, speed:3.4 },
+  { name:'Lobster',       emoji:'🦞', value:24, weight:8,  barFrac:0.16, retMin:0.5, retMax:0.7, speed:4.0 },
+  { name:'Golden Fish',   emoji:'🌟', value:35, weight:3,  barFrac:0.12, retMin:0.35,retMax:0.55,speed:4.8 },
+];
+function pickFish() {
+  const totalWeight = FISH_TYPES.reduce((s, f) => s + f.weight, 0);
+  let r = Math.random() * totalWeight;
+  for (const f of FISH_TYPES) { if (r < f.weight) return f; r -= f.weight; }
+  return FISH_TYPES[0];
+}
+
+// ── REEL PHYSICS CONSTANTS (verified: always-correct fills ~3.75s,
+//    always-wrong drains ~1.25s — real, active timing is required) ───────────
+const TRACK_H = 260;
+const ACCEL_FRAC = 3.6;   // 1/s^2 while holding (pulls bar up)
+const GRAVITY_FRAC = 2.8; // 1/s^2 while released (bar falls)
+const MAX_BAR_V = 2.2;    // frac/s
+const FILL_RATE = 26;     // progress/sec while fish is inside the bar
+const DRAIN_RATE = 13;    // progress/sec while fish is outside the bar
+const MAX_REEL_TIME = 12; // seconds before the fish just gets away
+const REACTION_WINDOW = 1.8; // seconds to react to a bite before it's missed
+
+// ── GAME STATE ────────────────────────────────────────────────────────────────
+let state = 'idle'; // idle | waiting | biting | reeling | ended
+let stateElapsed = 0;
+let sessionTimeLeft = 90;
+let running = false;
+
+let biteDelay = 0;
+let castX = 50, bobberY = 90;
+let castStartX = 8;
+
+let currentFish = null;
+let holding = false;
+let barPosFrac = 0.5, barVelFrac = 0;
+let fishPosFrac = 0.5, fishTargetFrac = 0.5, fishRetargetT = 0, fishRetargetInterval = 1;
+let progress = 25;
+let reelElapsed = 0;
+
+let totalCatches = 0;
+let totalValue = 0;
+let catchCounts = {}; // name -> count
+
+let lastFrameT = 0;
+let animId = null;
+
+function computeSip(value) {
+  if (value <= 0) return 0;
+  return Math.min(200, value);
+}
+
+// ── DOM REFS ──────────────────────────────────────────────────────────────────
+const bobberEl = document.getElementById('bobber');
+const lineEl = document.getElementById('line');
+const biteEl = document.getElementById('biteIndicator');
+const reelAreaEl = document.getElementById('reelArea');
+const pondAreaEl = document.getElementById('pondArea');
+const catchBarEl = document.getElementById('catchBar');
+const fishIconEl = document.getElementById('fishIcon');
+const progressFillEl = document.getElementById('progressFill');
+const fishLabelEl = document.getElementById('fishLabel');
+const statusEl = document.getElementById('statusMsg');
+const actionBtn = document.getElementById('actionBtn');
+const tallyEl = document.getElementById('tallyBox');
+
+// ── ACTION BUTTON (cast / react-to-bite / hold-to-reel, one tap target) ──────
+actionBtn.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  if (!running) return;
+  if (state === 'idle') { cast(); }
+  else if (state === 'biting') { beginReeling(); holding = true; }
+  else if (state === 'reeling') { holding = true; }
+});
+['pointerup', 'pointercancel', 'pointerleave'].forEach(evt => {
+  actionBtn.addEventListener(evt, () => { holding = false; });
+});
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && running) {
+    e.preventDefault();
+    if (state === 'biting') { beginReeling(); holding = true; }
+    else if (state === 'reeling') { holding = true; }
+    else if (state === 'idle') { cast(); }
+  }
+});
+document.addEventListener('keyup', e => { if (e.code === 'Space') holding = false; });
+
+function updateActionButton() {
+  actionBtn.classList.remove('urgent');
+  if (state === 'idle') { actionBtn.disabled = false; actionBtn.textContent = '🎣 Cast Line'; }
+  else if (state === 'waiting') { actionBtn.disabled = true; actionBtn.textContent = '⏳ Waiting for a bite...'; }
+  else if (state === 'biting') { actionBtn.disabled = false; actionBtn.textContent = '❗ REEL NOW!'; actionBtn.classList.add('urgent'); }
+  else if (state === 'reeling') { actionBtn.disabled = false; actionBtn.textContent = '🎣 HOLD TO REEL!'; }
+}
+
+// ── CASTING ───────────────────────────────────────────────────────────────────
+function cast() {
+  state = 'waiting';
+  stateElapsed = 0;
+  biteDelay = 2 + Math.random() * 4;
+  castX = 30 + Math.random() * 60; // % across the pond
+  biteEl.style.display = 'none';
+  statusEl.textContent = 'Line\'s out... waiting for a bite.';
+  updateActionButton();
+}
+
+function updateBobberVisual() {
+  const pondW = pondAreaEl.clientWidth;
+  let px;
+  if (state === 'waiting' && stateElapsed < 0.5) {
+    const t = stateElapsed / 0.5;
+    px = castStartX + (castX - castStartX) * t;
+  } else {
+    px = castX;
+  }
+  const bobAmount = (state === 'biting') ? 10 : 4;
+  const bobSpeed = (state === 'biting') ? 14 : 2.4;
+  const y = bobberY + Math.sin(performance.now() / 1000 * bobSpeed) * bobAmount;
+  const x = (px / 100) * pondW;
+  bobberEl.style.left = x + 'px';
+  bobberEl.style.top = y + 'px';
+  lineEl.style.left = x + 'px';
+  lineEl.style.height = y + 'px';
+  biteEl.style.left = x + 'px';
+  biteEl.style.top = y + 'px';
+}
+
+// ── REELING ───────────────────────────────────────────────────────────────────
+function beginReeling() {
+  state = 'reeling';
+  stateElapsed = 0;
+  reelElapsed = 0;
+  progress = 25;
+  barPosFrac = 0.5 - currentFish.barFrac / 2;
+  barVelFrac = 0;
+  fishPosFrac = 0.5;
+  fishTargetFrac = Math.random();
+  fishRetargetT = 0;
+  fishRetargetInterval = currentFish.retMin + Math.random() * (currentFish.retMax - currentFish.retMin);
+
+  fishLabelEl.textContent = `${currentFish.emoji} ${currentFish.name}`;
+  reelAreaEl.style.display = 'block';
+  catchBarEl.style.height = (currentFish.barFrac * TRACK_H) + 'px';
+  statusEl.textContent = 'Keep it in the green zone!';
+  updateActionButton();
+}
+
+function updateReel(dt) {
+  reelElapsed += dt;
+
+  // fish drifts to new random spots at a pace set by its difficulty
+  fishRetargetT += dt;
+  if (fishRetargetT >= fishRetargetInterval) {
+    fishRetargetT = 0;
+    fishTargetFrac = Math.random();
+    fishRetargetInterval = currentFish.retMin + Math.random() * (currentFish.retMax - currentFish.retMin);
+  }
+  const lerpF = 1 - Math.exp(-currentFish.speed * dt);
+  fishPosFrac += (fishTargetFrac - fishPosFrac) * lerpF;
+
+  // catch bar: real hold-to-rise / release-to-fall physics
+  barVelFrac += (holding ? ACCEL_FRAC : -GRAVITY_FRAC) * dt;
+  barVelFrac = Math.max(-MAX_BAR_V, Math.min(MAX_BAR_V, barVelFrac));
+  barPosFrac += barVelFrac * dt;
+  const maxBarPos = 1 - currentFish.barFrac;
+  if (barPosFrac <= 0) { barPosFrac = 0; barVelFrac = 0; }
+  if (barPosFrac >= maxBarPos) { barPosFrac = maxBarPos; barVelFrac = 0; }
+
+  const inZone = fishPosFrac >= barPosFrac && fishPosFrac <= barPosFrac + currentFish.barFrac;
+  progress += (inZone ? FILL_RATE : -DRAIN_RATE) * dt;
+  progress = Math.max(0, Math.min(100, progress));
+
+  // render
+  fishIconEl.style.top = ((1 - fishPosFrac) * TRACK_H) + 'px';
+  fishIconEl.textContent = currentFish.emoji;
+  catchBarEl.style.top = ((1 - (barPosFrac + currentFish.barFrac)) * TRACK_H) + 'px';
+  progressFillEl.style.width = progress + '%';
+  progressFillEl.style.background = inZone
+    ? 'linear-gradient(90deg,#00e676,#FFD700)'
+    : 'linear-gradient(90deg,#e94560,#FFD700)';
+
+  if (progress >= 100) { resolveReel(true, 'caught'); return; }
+  if (progress <= 0) { resolveReel(false, 'snapped'); return; }
+  if (reelElapsed >= MAX_REEL_TIME) { resolveReel(false, 'timeout'); return; }
+}
+
+function resolveReel(success, reason) {
+  reelAreaEl.style.display = 'none';
+  if (success) {
+    totalCatches++;
+    totalValue += currentFish.value;
+    catchCounts[currentFish.name] = (catchCounts[currentFish.name] || 0) + 1;
+    statusEl.textContent = `Caught a ${currentFish.name}! +${currentFish.value}`;
+    updateHud();
+    updateTally();
+  } else {
+    statusEl.textContent = reason === 'timeout' ? 'The fish got away...' : 'The line snapped — it got away!';
+  }
+  state = 'idle';
+  stateElapsed = 0;
+  updateActionButton();
+}
+
+// ── HUD ───────────────────────────────────────────────────────────────────────
+function updateHud() {
+  document.getElementById('catchHud').textContent = `🐟 ${totalCatches}`;
+  document.getElementById('sipHud').textContent = `💰 ${totalValue}`;
+}
+function updateTally() {
+  const parts = FISH_TYPES.filter(f => catchCounts[f.name]).map(f => `${f.emoji} ${f.name} x${catchCounts[f.name]}`);
+  tallyEl.textContent = parts.length ? parts.join('  ·  ') : 'No catches yet';
+}
+
+// ── MAIN LOOP ─────────────────────────────────────────────────────────────────
+function tick() {
+  const now = performance.now();
+  const dt = Math.min((now - lastFrameT) / 1000, 0.05);
+  lastFrameT = now;
+
+  if (running) {
+    sessionTimeLeft -= dt;
+    if (sessionTimeLeft <= 0) { sessionTimeLeft = 0; updateTimeHud(); endGame(); return; }
+    updateTimeHud();
+
+    stateElapsed += dt;
+
+    if (state === 'waiting') {
+      updateBobberVisual();
+      if (stateElapsed >= biteDelay) {
+        state = 'biting';
+        stateElapsed = 0;
+        currentFish = pickFish();
+        biteEl.style.display = 'block';
+        statusEl.textContent = 'BITE! React fast!';
+        updateActionButton();
+      }
+    } else if (state === 'biting') {
+      updateBobberVisual();
+      if (stateElapsed >= REACTION_WINDOW) {
+        biteEl.style.display = 'none';
+        statusEl.textContent = 'Too slow — it got away!';
+        state = 'idle';
+        stateElapsed = 0;
+        updateActionButton();
+      }
+    } else if (state === 'reeling') {
+      updateReel(dt);
+    }
+  }
+
+  animId = requestAnimationFrame(tick);
+}
+
+function updateTimeHud() {
+  const secs = Math.max(0, Math.ceil(sessionTimeLeft));
+  const box = document.getElementById('timeHud');
+  box.textContent = `⏱ ${secs}s`;
+  box.style.color = sessionTimeLeft <= 10 ? '#ff4444' : '#fff';
+  box.style.borderColor = sessionTimeLeft <= 10 ? '#ff4444' : '#FFD700';
+}
+
+// ── FLOW ──────────────────────────────────────────────────────────────────────
+function startGame() {
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('endScreen').style.display = 'none';
+  document.getElementById('gameScreen').style.display = 'flex';
+
+  running = true;
+  state = 'idle';
+  stateElapsed = 0;
+  sessionTimeLeft = 90;
+  totalCatches = 0;
+  totalValue = 0;
+  catchCounts = {};
+  holding = false;
+  biteEl.style.display = 'none';
+  reelAreaEl.style.display = 'none';
+
+  updateHud();
+  updateTally();
+  updateActionButton();
+  updateTimeHud();
+  statusEl.textContent = 'Cast your line to begin!';
+
+  lastFrameT = performance.now();
+  if (animId) cancelAnimationFrame(animId);
+  tick();
+}
+
+function endGame() {
+  running = false;
+  state = 'ended';
+  if (animId) cancelAnimationFrame(animId);
+  document.getElementById('gameScreen').style.display = 'none';
+
+  const best = loadBest();
+  const isNew = totalValue > best;
+  if (isNew) saveBest(totalValue);
+
+  const sip = computeSip(totalValue);
+  awardSip(sip);
+
+  const breakdown = FISH_TYPES.filter(f => catchCounts[f.name])
+    .map(f => `${f.emoji} ${f.name}: ${catchCounts[f.name]}`).join('<br>');
+
+  document.getElementById('newBestTag').style.display = isNew ? 'block' : 'none';
+  document.getElementById('endCatches').textContent = `Fish Caught: ${totalCatches}`;
+  document.getElementById('endValue').textContent = `Total Haul: ${totalValue}`;
+  document.getElementById('endTallyList').innerHTML = breakdown || 'No catches this run.';
+  document.getElementById('endBest').textContent = `🏆 Best Haul: ${isNew ? totalValue : best}`;
+  document.getElementById('sipEarned').textContent = `+${sip} S.I.P.`;
+  document.getElementById('endScreen').style.display = 'flex';
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+document.getElementById('startBest').textContent = `🏆 Best Haul: ${loadBest() || '--'}`;
+</script>
+</body>
+</html>

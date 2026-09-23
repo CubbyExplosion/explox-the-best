@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explox — Pong</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  body { background:#0a0a1a; overflow:hidden; font-family:Arial,sans-serif; color:#fff; }
+  canvas { display:block; touch-action:none; }
+
+  #ui {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; z-index:10; pointer-events:none;
+  }
+  #startScreen, #endScreen {
+    background:rgba(10,10,26,0.92); border:2px solid #e94560;
+    border-radius:18px; padding:32px 40px; text-align:center;
+    max-width:380px; width:90%; pointer-events:auto;
+  }
+  #startScreen h1 { color:#e94560; font-size:2em; margin-bottom:10px; text-shadow:0 0 20px #e94560; }
+  #startScreen p { color:#aaa; margin-bottom:20px; font-size:0.95em; line-height:1.55; }
+  .actionBtn {
+    padding:14px 38px; font-size:16px; font-weight:bold; min-height:44px;
+    background:#e94560; border:none; border-radius:12px; color:#fff;
+    cursor:pointer; letter-spacing:1px; box-shadow:0 0 16px #e9456066;
+    margin:6px; transition:transform 0.1s;
+  }
+  .actionBtn:hover, .actionBtn:active { transform:scale(1.05); }
+  .backBtn {
+    padding:10px 26px; font-size:13px; background:transparent; min-height:44px;
+    border:1px solid #555; border-radius:8px; color:#888; cursor:pointer;
+    box-shadow:none; margin-top:12px;
+  }
+  .backBtn:hover, .backBtn:active { border-color:#e94560; color:#fff; }
+
+  #endScreen { display:none; }
+  #endScreen h1 { font-size:2em; margin-bottom:10px; }
+  #endScreen h1.win  { color:#00e676; text-shadow:0 0 20px #00e676; }
+  #endScreen h1.lose { color:#ff4444; text-shadow:0 0 20px #ff4444; }
+  #sipEarned { color:#FFD700; font-size:1.3em; font-weight:bold; margin-bottom:14px; min-height:1.3em; }
+
+  #hud {
+    position:fixed; top:16px; left:0; right:0; display:none;
+    justify-content:center; align-items:center; gap:26px; z-index:5; pointer-events:none;
+  }
+  #hud .scoreNum { font-size:34px; font-weight:bold; }
+  #hud .you { color:#3399ff; }
+  #hud .ai  { color:#e94560; }
+  #hud .sep { color:#555; font-size:24px; }
+  #hint {
+    position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
+    color:#555; font-size:12px; z-index:5; pointer-events:none;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"><span class="scoreNum you" id="scoreYou">0</span><span class="sep">—</span><span class="scoreNum ai" id="scoreAI">0</span></div>
+<div id="hint">Drag / Arrow Up-Down / W-S to move your paddle</div>
+<div id="ui">
+  <div id="startScreen">
+    <h1>🏓 PONG</h1>
+    <p>Classic Pong vs a real AI paddle. First to 7 points wins. Drag up/down, use the arrow keys, or W/S. Win to earn S.I.P.!</p>
+    <button class="actionBtn" onclick="startGame()">▶ Start</button>
+    <br>
+    <button class="backBtn" onclick="history.back()">← Back to City</button>
+  </div>
+  <div id="endScreen">
+    <h1 id="resultTitle">RESULT</h1>
+    <div id="sipEarned"></div>
+    <button class="actionBtn" onclick="startGame()">🔄 Play Again</button>
+    <br>
+    <button class="backBtn" onclick="history.back()">← Back to City</button>
+  </div>
+</div>
+
+<script>
+function awardSip(amount) {
+  try {
+    const user = localStorage.getItem('explox_current_user');
+    if(!user) return;
+    const data = JSON.parse(localStorage.getItem('explox_user_' + user) || '{}');
+    data.sip = (data.sip || 0) + amount;
+    localStorage.setItem('explox_user_' + user, JSON.stringify(data));
+  } catch(e) {}
+}
+const SIP_REWARD = 100;
+const WIN_SCORE = 7;
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── ENTITIES ──────────────────────────────────────────────────────────────
+const PADDLE_W = 14;
+let paddleH;
+let player, ai, ball;
+let scoreYou = 0, scoreAI = 0;
+let running = false;
+let animId = null;
+
+const BASE_SPEED = 6.5;
+const MAX_SPEED = 16;
+const SPEED_INCREASE = 1.06;
+const MAX_BOUNCE_ANGLE = Math.PI/3; // 60 degrees
+
+function resetEntities() {
+  paddleH = Math.max(70, canvas.height * 0.16);
+  player = { x:26, y:canvas.height/2 - paddleH/2, w:PADDLE_W, h:paddleH, targetY:canvas.height/2 - paddleH/2 };
+  ai     = { x:canvas.width-26-PADDLE_W, y:canvas.height/2 - paddleH/2, w:PADDLE_W, h:paddleH };
+  serveBall();
+}
+
+function serveBall(towardPlayer) {
+  const dir = towardPlayer===undefined ? (Math.random()<0.5?1:-1) : (towardPlayer? -1 : 1);
+  const angle = (Math.random()*0.6 - 0.3); // slight random vertical component at serve
+  ball = {
+    x: canvas.width/2, y: canvas.height/2, r:9,
+    vx: dir * BASE_SPEED * Math.cos(angle),
+    vy: BASE_SPEED * Math.sin(angle),
+    speed: BASE_SPEED
+  };
+}
+
+// ── PADDLE REFLECTION PHYSICS ────────────────────────────────────────────
+// Real angle-based bounce: where the ball hits the paddle (relative to its
+// center) determines the outgoing angle; each hit speeds the ball up a bit.
+function reflectOffPaddle(paddle, movingRight) {
+  const paddleCenter = paddle.y + paddle.h/2;
+  let rel = (ball.y - paddleCenter) / (paddle.h/2);
+  rel = Math.max(-1, Math.min(1, rel));
+  const bounceAngle = rel * MAX_BOUNCE_ANGLE;
+  const speed = Math.min(ball.speed * SPEED_INCREASE, MAX_SPEED);
+  ball.vx = (movingRight ? 1 : -1) * speed * Math.cos(bounceAngle);
+  ball.vy = speed * Math.sin(bounceAngle);
+  ball.speed = speed;
+}
+
+// ── AI (imperfect tracking, genuinely beatable) ──────────────────────────
+const AI_MAX_SPEED = 6.6;         // px/frame paddle can move — slower than the ball can get
+const AI_REACTION_INTERVAL = 0.14; // seconds between "looks" at the ball
+const AI_ERROR = 26;               // px of aim imprecision
+let aiTargetY = 0, aiReactionTimer = 0;
+
+function updateAI(dt) {
+  aiReactionTimer -= dt;
+  if(aiReactionTimer <= 0) {
+    const error = (Math.random()-0.5) * 2 * AI_ERROR;
+    aiTargetY = ball.y + error;
+    aiReactionTimer = AI_REACTION_INTERVAL;
+  }
+  const center = ai.y + ai.h/2;
+  const diff = aiTargetY - center;
+  const move = Math.sign(diff) * Math.min(Math.abs(diff), AI_MAX_SPEED);
+  ai.y += move;
+  ai.y = Math.max(0, Math.min(canvas.height - ai.h, ai.y));
+}
+
+// ── PLAYER CONTROLS ───────────────────────────────────────────────────────
+const keys = {};
+// Normalize both e.code (real keyboards) and e.key (covers input methods/tools
+// that don't populate a physical key code) to the same small set of flags.
+function keyFlag(e) {
+  const code = e.code || '';
+  const key = (e.key || '').toLowerCase();
+  if(code === 'ArrowUp'   || key === 'arrowup')    return 'up';
+  if(code === 'ArrowDown' || key === 'arrowdown')  return 'down';
+  if(code === 'KeyW'      || key === 'w')          return 'up';
+  if(code === 'KeyS'      || key === 's')          return 'down';
+  return null;
+}
+document.addEventListener('keydown', e => {
+  const f = keyFlag(e);
+  if(f) { e.preventDefault(); keys[f] = true; }
+});
+document.addEventListener('keyup', e => {
+  const f = keyFlag(e);
+  if(f) keys[f] = false;
+});
+
+function setPlayerYFromClient(clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const y = clientY - rect.top;
+  player.targetY = y - player.h/2;
+}
+canvas.addEventListener('mousemove', e => { if(running) setPlayerYFromClient(e.clientY); });
+canvas.addEventListener('touchmove', e => {
+  if(running && e.touches.length) { setPlayerYFromClient(e.touches[0].clientY); }
+  e.preventDefault();
+}, { passive:false });
+canvas.addEventListener('touchstart', e => {
+  if(running && e.touches.length) { setPlayerYFromClient(e.touches[0].clientY); }
+  e.preventDefault();
+}, { passive:false });
+
+const PLAYER_KEY_SPEED = 8;
+function updatePlayer() {
+  if(keys['up'])   player.targetY = player.y - PLAYER_KEY_SPEED;
+  if(keys['down']) player.targetY = player.y + PLAYER_KEY_SPEED;
+  // ease toward the target (drag/touch sets an exact target; keys nudge it) for smooth motion
+  player.y += (player.targetY - player.y) * 0.55;
+  player.y = Math.max(0, Math.min(canvas.height - player.h, player.y));
+  player.targetY = Math.max(0, Math.min(canvas.height - player.h, player.targetY));
+}
+
+// ── MAIN LOOP ─────────────────────────────────────────────────────────────
+let lastT = 0;
+function loop(t=0) {
+  if(!running) return;
+  const dt = Math.min((t - lastT)/1000, 0.05) || 0.016;
+  lastT = t;
+
+  updatePlayer();
+  updateAI(dt * 60); // AI timers are in seconds; frame-based movement above assumes ~60fps steps
+
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+
+  if(ball.y - ball.r <= 0) { ball.y = ball.r; ball.vy = Math.abs(ball.vy); }
+  if(ball.y + ball.r >= canvas.height) { ball.y = canvas.height - ball.r; ball.vy = -Math.abs(ball.vy); }
+
+  // player paddle collision (left)
+  if(ball.vx < 0 && ball.x - ball.r <= player.x + player.w &&
+     ball.x - ball.r >= player.x && ball.y >= player.y && ball.y <= player.y + player.h) {
+    ball.x = player.x + player.w + ball.r;
+    reflectOffPaddle(player, true);
+  }
+  // AI paddle collision (right)
+  if(ball.vx > 0 && ball.x + ball.r >= ai.x && ball.x + ball.r <= ai.x + ai.w &&
+     ball.y >= ai.y && ball.y <= ai.y + ai.h) {
+    ball.x = ai.x - ball.r;
+    reflectOffPaddle(ai, false);
+  }
+
+  // scoring
+  if(ball.x < -30) { scoreAI++; updateHud(); afterScore(false); return; }
+  if(ball.x > canvas.width + 30) { scoreYou++; updateHud(); afterScore(true); return; }
+
+  draw();
+  animId = requestAnimationFrame(loop);
+}
+
+function afterScore(playerScored) {
+  if(scoreYou >= WIN_SCORE || scoreAI >= WIN_SCORE) { endGame(scoreYou > scoreAI); return; }
+  serveBall(!playerScored); // serve toward whoever just got scored on
+  draw();
+  animId = requestAnimationFrame(loop);
+}
+
+function updateHud() {
+  document.getElementById('scoreYou').textContent = scoreYou;
+  document.getElementById('scoreAI').textContent = scoreAI;
+}
+
+// ── DRAW ──────────────────────────────────────────────────────────────────
+function draw() {
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.setLineDash([10,14]);
+  ctx.beginPath();
+  ctx.moveTo(canvas.width/2, 0);
+  ctx.lineTo(canvas.width/2, canvas.height);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = '#3399ff';
+  ctx.fillRect(player.x, player.y, player.w, player.h);
+  ctx.fillStyle = '#e94560';
+  ctx.fillRect(ai.x, ai.y, ai.w, ai.h);
+
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
+  ctx.fill();
+}
+
+// ── START / END ───────────────────────────────────────────────────────────
+function startGame() {
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('endScreen').style.display = 'none';
+  document.getElementById('hud').style.display = 'flex';
+  document.getElementById('hint').style.display = 'block';
+  scoreYou = 0; scoreAI = 0;
+  updateHud();
+  resetEntities();
+  running = true;
+  lastT = 0;
+  if(animId) cancelAnimationFrame(animId);
+  animId = requestAnimationFrame(loop);
+}
+
+function endGame(playerWon) {
+  running = false;
+  if(animId) cancelAnimationFrame(animId);
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('hint').style.display = 'none';
+  const title = document.getElementById('resultTitle');
+  title.className = playerWon ? 'win' : 'lose';
+  title.textContent = playerWon ? '🏆 YOU WIN!' : '💀 YOU LOSE';
+  let sip = 0;
+  if(playerWon) { sip = SIP_REWARD; awardSip(sip); }
+  document.getElementById('sipEarned').textContent = sip > 0 ? ('+' + sip + ' S.I.P.') : '';
+  document.getElementById('endScreen').style.display = 'block';
+}
+
+// initial background paint
+resetEntities();
+draw();
+</script>
+</body>
+</html>

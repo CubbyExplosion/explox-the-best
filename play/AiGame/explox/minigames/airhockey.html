@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explox — Air Hockey</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  body { background:#0a0a1a; overflow:hidden; font-family:Arial,sans-serif; color:#fff; }
+  canvas { display:block; touch-action:none; }
+
+  #ui {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; z-index:10; pointer-events:none;
+  }
+  #startScreen, #endScreen {
+    background:rgba(10,10,26,0.92); border:2px solid #e94560;
+    border-radius:18px; padding:32px 40px; text-align:center;
+    max-width:380px; width:90%; pointer-events:auto;
+  }
+  #startScreen h1 { color:#e94560; font-size:2em; margin-bottom:10px; text-shadow:0 0 20px #e94560; }
+  #startScreen p { color:#aaa; margin-bottom:20px; font-size:0.95em; line-height:1.55; }
+  .actionBtn {
+    padding:14px 38px; font-size:16px; font-weight:bold; min-height:44px;
+    background:#e94560; border:none; border-radius:12px; color:#fff;
+    cursor:pointer; letter-spacing:1px; box-shadow:0 0 16px #e9456066;
+    margin:6px; transition:transform 0.1s;
+  }
+  .actionBtn:hover, .actionBtn:active { transform:scale(1.05); }
+  .backBtn {
+    padding:10px 26px; font-size:13px; background:transparent; min-height:44px;
+    border:1px solid #555; border-radius:8px; color:#888; cursor:pointer;
+    box-shadow:none; margin-top:12px;
+  }
+  .backBtn:hover, .backBtn:active { border-color:#e94560; color:#fff; }
+
+  #endScreen { display:none; }
+  #endScreen h1 { font-size:2em; margin-bottom:10px; }
+  #endScreen h1.win  { color:#00e676; text-shadow:0 0 20px #00e676; }
+  #endScreen h1.lose { color:#ff4444; text-shadow:0 0 20px #ff4444; }
+  #sipEarned { color:#FFD700; font-size:1.3em; font-weight:bold; margin-bottom:14px; min-height:1.3em; }
+
+  #hud {
+    position:fixed; top:16px; left:0; right:0; display:none;
+    justify-content:center; align-items:center; gap:26px; z-index:5; pointer-events:none;
+  }
+  #hud .scoreNum { font-size:34px; font-weight:bold; }
+  #hud .ai   { color:#e94560; }
+  #hud .you  { color:#3399ff; }
+  #hud .sep  { color:#555; font-size:24px; }
+  #hint {
+    position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
+    color:#555; font-size:12px; z-index:5; pointer-events:none;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"><span class="scoreNum ai" id="scoreAI">0</span><span class="sep">—</span><span class="scoreNum you" id="scoreYou">0</span></div>
+<div id="hint">Drag your mallet (bottom half) to hit the puck</div>
+<div id="ui">
+  <div id="startScreen">
+    <h1>🏒 AIR HOCKEY</h1>
+    <p>Real top-down air hockey vs a real AI. Drag your mallet around your half of the table to hit the puck into the AI's goal. First to 5 goals wins!</p>
+    <button class="actionBtn" onclick="startGame()">▶ Start</button>
+    <br>
+    <button class="backBtn" onclick="history.back()">← Back to City</button>
+  </div>
+  <div id="endScreen">
+    <h1 id="resultTitle">RESULT</h1>
+    <div id="sipEarned"></div>
+    <button class="actionBtn" onclick="startGame()">🔄 Play Again</button>
+    <br>
+    <button class="backBtn" onclick="history.back()">← Back to City</button>
+  </div>
+</div>
+
+<script>
+function awardSip(amount) {
+  try {
+    const user = localStorage.getItem('explox_current_user');
+    if(!user) return;
+    const data = JSON.parse(localStorage.getItem('explox_user_' + user) || '{}');
+    data.sip = (data.sip || 0) + amount;
+    localStorage.setItem('explox_user_' + user, JSON.stringify(data));
+  } catch(e) {}
+}
+const SIP_REWARD = 90;
+const WIN_SCORE = 5;
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, CENTER_Y, GOAL_W, MALLET_R, PUCK_R;
+
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  CENTER_Y = H / 2;
+  GOAL_W = Math.min(W * 0.34, 220);
+  MALLET_R = Math.max(26, Math.min(W, H) * 0.045);
+  PUCK_R = Math.max(12, Math.min(W, H) * 0.022);
+  if(table) layoutEntities();
+}
+
+// ── ENTITIES ──────────────────────────────────────────────────────────────
+let player, ai, puck;
+let scoreYou = 0, scoreAI = 0;
+let running = false;
+let animId = null;
+let table = false;
+
+const FRICTION = 0.991;
+const WALL_DAMP = 0.9;
+const MAX_PUCK_SPEED = 22;
+
+function layoutEntities() {
+  if(!player) player = { x:W/2, y:H - MALLET_R - 24, r:MALLET_R, prevX:W/2, prevY:H - MALLET_R - 24, vx:0, vy:0 };
+  else { player.r = MALLET_R; player.x = Math.min(Math.max(player.x, MALLET_R), W-MALLET_R); player.y = Math.min(Math.max(player.y, CENTER_Y+MALLET_R), H-MALLET_R); }
+  if(!ai) ai = { x:W/2, y:MALLET_R + 24, r:MALLET_R, homeX:W/2, homeY:MALLET_R + 40 };
+  else { ai.r = MALLET_R; ai.homeX = W/2; ai.homeY = MALLET_R + 40; }
+}
+
+function resetPositions() {
+  layoutEntities();
+  player.x = W/2; player.y = H - MALLET_R - 24; player.prevX = player.x; player.prevY = player.y; player.vx = 0; player.vy = 0;
+  ai.x = W/2; ai.y = MALLET_R + 40;
+  puck = { x: W/2, y: CENTER_Y, vx: (Math.random()<0.5?1:-1) * 3, vy: (Math.random()<0.5?1:-1) * 3 };
+}
+
+// ── PHYSICS STEP ──────────────────────────────────────────────────────────
+// Returns 'ai' | 'you' | null if a goal was scored this step.
+function stepPuckPhysics() {
+  puck.x += puck.vx;
+  puck.y += puck.vy;
+  puck.vx *= FRICTION;
+  puck.vy *= FRICTION;
+
+  // side walls always bounce
+  if(puck.x - PUCK_R <= 0) { puck.x = PUCK_R; puck.vx = Math.abs(puck.vx) * WALL_DAMP; }
+  if(puck.x + PUCK_R >= W) { puck.x = W - PUCK_R; puck.vx = -Math.abs(puck.vx) * WALL_DAMP; }
+
+  const goalLeft = W/2 - GOAL_W/2, goalRight = W/2 + GOAL_W/2;
+
+  // top wall / AI goal
+  if(puck.y - PUCK_R <= 0) {
+    if(puck.x > goalLeft && puck.x < goalRight) {
+      return 'you'; // puck fully entered the AI's goal — player scores
+    }
+    puck.y = PUCK_R; puck.vy = Math.abs(puck.vy) * WALL_DAMP;
+  }
+  // bottom wall / player goal
+  if(puck.y + PUCK_R >= H) {
+    if(puck.x > goalLeft && puck.x < goalRight) {
+      return 'ai';
+    }
+    puck.y = H - PUCK_R; puck.vy = -Math.abs(puck.vy) * WALL_DAMP;
+  }
+
+  const speed = Math.hypot(puck.vx, puck.vy);
+  if(speed > MAX_PUCK_SPEED) {
+    const s = MAX_PUCK_SPEED / speed;
+    puck.vx *= s; puck.vy *= s;
+  }
+  return null;
+}
+
+// real circle-circle collision between a mallet and the puck, with the
+// mallet's own recent velocity transferred into the puck (so a fast swing
+// really sends it flying, not just a fixed bounce)
+function resolveMalletCollision(mallet) {
+  const dx = puck.x - mallet.x, dy = puck.y - mallet.y;
+  const dist = Math.hypot(dx, dy);
+  const minDist = mallet.r + PUCK_R;
+  if(dist === 0 || dist >= minDist) return false;
+  const nx = dx / dist, ny = dy / dist;
+  // push puck out of overlap
+  const overlap = minDist - dist;
+  puck.x += nx * overlap;
+  puck.y += ny * overlap;
+  // reflect puck velocity along the normal and add mallet velocity for feel
+  const relVx = puck.vx - (mallet.vx||0), relVy = puck.vy - (mallet.vy||0);
+  const dot = relVx*nx + relVy*ny;
+  let outVx = puck.vx - 2*dot*nx;
+  let outVy = puck.vy - 2*dot*ny;
+  outVx += (mallet.vx||0) * 0.7;
+  outVy += (mallet.vy||0) * 0.7;
+  // guarantee the puck moves away from the mallet (avoid re-sticking)
+  const outSpeed = Math.hypot(outVx, outVy);
+  const minOut = 3.5;
+  if(outSpeed < minOut) { outVx = nx*minOut; outVy = ny*minOut; }
+  puck.vx = outVx; puck.vy = outVy;
+  return true;
+}
+
+// ── AI ────────────────────────────────────────────────────────────────────
+const AI_MAX_SPEED = 7.2;
+const AI_REACTION_INTERVAL = 0.12;
+const AI_ERROR = 14;
+let aiTarget = { x:0, y:0 };
+let aiReactionTimer = 0;
+
+function computeAITarget() {
+  const margin = MALLET_R + 6;
+  if(puck.y < CENTER_Y - PUCK_R) {
+    // puck is in the AI's half — go attack it, approaching from the side
+    // that pushes it toward the player's goal (downward)
+    const tx = Math.min(Math.max(puck.x, margin), W - margin);
+    const ty = Math.min(Math.max(puck.y - MALLET_R * 0.5, margin), CENTER_Y - margin);
+    return { x: tx, y: ty };
+  }
+  // puck is in the player's half — fall back toward the goal, shading toward the puck's x
+  const tx = Math.min(Math.max(puck.x, margin), W - margin);
+  const ty = ai.homeY;
+  return { x: tx, y: ty };
+}
+
+function updateAI(dt) {
+  aiReactionTimer -= dt;
+  if(aiReactionTimer <= 0) {
+    const t = computeAITarget();
+    aiTarget = { x: t.x + (Math.random()-0.5)*2*AI_ERROR, y: t.y + (Math.random()-0.5)*2*AI_ERROR };
+    aiReactionTimer = AI_REACTION_INTERVAL;
+  }
+  const dx = aiTarget.x - ai.x, dy = aiTarget.y - ai.y;
+  const dist = Math.hypot(dx, dy);
+  if(dist > 0.01) {
+    const move = Math.min(dist, AI_MAX_SPEED);
+    ai.x += (dx/dist) * move;
+    ai.y += (dy/dist) * move;
+  }
+  const margin = MALLET_R + 4;
+  ai.x = Math.max(margin, Math.min(W - margin, ai.x));
+  ai.y = Math.max(margin, Math.min(CENTER_Y - margin, ai.y));
+}
+
+// ── PLAYER CONTROLS (drag, confined to bottom half) ─────────────────────
+function setPlayerFromClient(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  let x = clientX - rect.left, y = clientY - rect.top;
+  const margin = MALLET_R + 4;
+  x = Math.max(margin, Math.min(W - margin, x));
+  y = Math.max(CENTER_Y + margin, Math.min(H - margin, y));
+  player.x = x; player.y = y;
+}
+canvas.addEventListener('mousemove', e => { if(running) setPlayerFromClient(e.clientX, e.clientY); });
+canvas.addEventListener('touchmove', e => {
+  if(running && e.touches.length) setPlayerFromClient(e.touches[0].clientX, e.touches[0].clientY);
+  e.preventDefault();
+}, { passive:false });
+canvas.addEventListener('touchstart', e => {
+  if(running && e.touches.length) setPlayerFromClient(e.touches[0].clientX, e.touches[0].clientY);
+  e.preventDefault();
+}, { passive:false });
+
+// ── MAIN LOOP ─────────────────────────────────────────────────────────────
+let lastT = 0;
+function loop(t=0) {
+  if(!running) return;
+  const dt = Math.min((t - lastT)/1000, 0.05) || 0.016;
+  lastT = t;
+
+  player.vx = (player.x - player.prevX);
+  player.vy = (player.y - player.prevY);
+  player.prevX = player.x; player.prevY = player.y;
+
+  updateAI(dt * 60);
+
+  const goal = stepPuckPhysics();
+  resolveMalletCollision(player);
+  resolveMalletCollision(ai);
+
+  if(goal) {
+    if(goal === 'you') scoreYou++; else scoreAI++;
+    updateHud();
+    if(scoreYou >= WIN_SCORE || scoreAI >= WIN_SCORE) { endGame(scoreYou > scoreAI); return; }
+    resetPositions();
+  }
+
+  draw();
+  animId = requestAnimationFrame(loop);
+}
+
+function updateHud() {
+  document.getElementById('scoreYou').textContent = scoreYou;
+  document.getElementById('scoreAI').textContent = scoreAI;
+}
+
+// ── DRAW ──────────────────────────────────────────────────────────────────
+function draw() {
+  ctx.fillStyle = '#0a1a2a';
+  ctx.fillRect(0,0,W,H);
+  if(!player || !ai || !puck) return; // nothing to draw yet — start screen covers the canvas anyway
+
+  // table markings
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(6,6,W-12,H-12);
+  ctx.setLineDash([10,12]);
+  ctx.beginPath(); ctx.moveTo(0, CENTER_Y); ctx.lineTo(W, CENTER_Y); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath(); ctx.arc(W/2, CENTER_Y, Math.min(W,H)*0.12, 0, Math.PI*2); ctx.stroke();
+
+  // goal mouths
+  const goalLeft = W/2 - GOAL_W/2, goalRight = W/2 + GOAL_W/2;
+  ctx.strokeStyle = '#e94560'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(goalLeft, 4); ctx.lineTo(goalRight, 4); ctx.stroke();
+  ctx.strokeStyle = '#3399ff';
+  ctx.beginPath(); ctx.moveTo(goalLeft, H-4); ctx.lineTo(goalRight, H-4); ctx.stroke();
+
+  // mallets
+  ctx.fillStyle = '#e94560';
+  ctx.beginPath(); ctx.arc(ai.x, ai.y, ai.r, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.beginPath(); ctx.arc(ai.x, ai.y, ai.r*0.4, 0, Math.PI*2); ctx.fill();
+
+  ctx.fillStyle = '#3399ff';
+  ctx.beginPath(); ctx.arc(player.x, player.y, player.r, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.beginPath(); ctx.arc(player.x, player.y, player.r*0.4, 0, Math.PI*2); ctx.fill();
+
+  // puck
+  ctx.fillStyle = '#111';
+  ctx.beginPath(); ctx.arc(puck.x, puck.y, PUCK_R, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+// ── START / END ───────────────────────────────────────────────────────────
+function startGame() {
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('endScreen').style.display = 'none';
+  document.getElementById('hud').style.display = 'flex';
+  document.getElementById('hint').style.display = 'block';
+  scoreYou = 0; scoreAI = 0;
+  updateHud();
+  table = true;
+  resize();
+  resetPositions();
+  running = true;
+  lastT = 0;
+  if(animId) cancelAnimationFrame(animId);
+  animId = requestAnimationFrame(loop);
+}
+
+function endGame(playerWon) {
+  running = false;
+  if(animId) cancelAnimationFrame(animId);
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('hint').style.display = 'none';
+  const title = document.getElementById('resultTitle');
+  title.className = playerWon ? 'win' : 'lose';
+  title.textContent = playerWon ? '🏆 YOU WIN!' : '💀 YOU LOSE';
+  let sip = 0;
+  if(playerWon) { sip = SIP_REWARD; awardSip(sip); }
+  document.getElementById('sipEarned').textContent = sip > 0 ? ('+' + sip + ' S.I.P.') : '';
+  document.getElementById('endScreen').style.display = 'block';
+}
+
+window.addEventListener('resize', resize);
+resize();
+draw();
+</script>
+</body>
+</html>

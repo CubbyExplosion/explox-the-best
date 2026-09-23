@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explox — Minesweeper</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  body { background:#0a0a1a; font-family:Arial,sans-serif; color:#fff; overflow-x:hidden; touch-action:manipulation; }
+
+  .screen {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center;
+    background:linear-gradient(135deg,#1a1a2e,#0f3460);
+    padding:20px; z-index:30; overflow-y:auto;
+  }
+  .screen h1 { font-size:2.1em; color:#e94560; letter-spacing:2px; margin-bottom:10px; text-shadow:0 0 20px #e94560; }
+  .screen p { color:#aaa; max-width:380px; line-height:1.6; margin-bottom:18px; font-size:0.92em; }
+  .diffBtns { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-bottom:16px; }
+  .diffBtn {
+    width:150px; padding:16px 10px; background:rgba(255,255,255,0.06);
+    border:2px solid #333; border-radius:14px; cursor:pointer; transition:border-color .2s, background .2s;
+    min-height:44px;
+  }
+  .diffBtn:hover, .diffBtn:active { border-color:#e94560; background:rgba(233,69,96,0.12); }
+  .diffBtn .dName { font-size:16px; font-weight:bold; color:#fff; margin-bottom:4px; }
+  .diffBtn .dInfo { font-size:11px; color:#aaa; }
+  .diffBtn .dSip  { font-size:11px; color:#FFD700; margin-top:4px; }
+  .backBtn {
+    padding:10px 24px; font-size:13px; background:transparent;
+    border:1px solid #555; border-radius:10px; color:#888; cursor:pointer;
+    margin-top:6px; min-height:44px;
+  }
+  .backBtn:hover { border-color:#e94560; color:#fff; }
+  .bigBtn {
+    padding:13px 36px; font-size:1em; font-weight:bold;
+    background:#e94560; border:none; border-radius:14px; color:#fff;
+    cursor:pointer; letter-spacing:1px; box-shadow:0 0 16px #e9456066;
+    margin:5px; min-height:44px;
+  }
+  #winScreen h1 { color:#00e676; text-shadow:0 0 20px #00e676; }
+  #loseScreen h1 { color:#ff4444; text-shadow:0 0 20px #ff4444; }
+  .statLine { color:#ccc; font-size:1.05em; margin:3px 0; }
+  .statLine b { color:#FFD700; }
+
+  /* ── GAME SCREEN ── */
+  #gameScreen { display:none; flex-direction:column; align-items:center; padding:10px; }
+  #hud {
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    width:100%; max-width:640px; margin-bottom:8px; flex-wrap:wrap;
+  }
+  .hudBox { background:#16213e; border-radius:10px; padding:6px 14px; text-align:center; min-width:60px; }
+  .hudBox .lbl { font-size:10px; color:#888; letter-spacing:1px; }
+  .hudBox .val { font-size:17px; font-weight:bold; color:#FFD700; }
+  #ctrlRow { display:flex; gap:8px; width:100%; max-width:640px; margin-bottom:10px; flex-wrap:wrap; }
+  #ctrlRow button {
+    flex:1; padding:9px; font-size:12px; background:#16213e; border:2px solid #e94560;
+    border-radius:10px; color:#fff; cursor:pointer; min-height:44px; min-width:80px;
+  }
+  #flagModeBtn.active { background:#e94560; border-color:#FFD700; box-shadow:0 0 10px #e9456099; }
+  #ctrlRow button:active { filter:brightness(1.2); }
+
+  #boardScroll { max-width:96vw; max-height:70vh; overflow:auto; border-radius:10px; background:#0d0d20; padding:6px; }
+  #board { display:grid; gap:2px; }
+  .cell {
+    display:flex; align-items:center; justify-content:center;
+    background:#3a4a6a; border-radius:3px; cursor:pointer;
+    font-weight:bold; user-select:none;
+  }
+  .cell.hidden:active { background:#4a5a7a; }
+  .cell.revealed { background:#1a1a2e; cursor:default; }
+  .cell.mine.revealed { background:#ff4444; }
+  .cell.mine.exploded { background:#ff0000; box-shadow:0 0 8px #fff; }
+  .cell.flagged { background:#3a4a2a; }
+  .n1{color:#5b9bff;} .n2{color:#00e676;} .n3{color:#ff6b6b;} .n4{color:#b450ff;}
+  .n5{color:#ff9d00;} .n6{color:#00d4d4;} .n7{color:#fff;} .n8{color:#aaa;}
+
+  #msgBox {
+    margin-top:10px; font-size:12px; color:#666; text-align:center; max-width:400px;
+  }
+</style>
+</head>
+<body>
+
+<!-- START -->
+<div id="startScreen" class="screen">
+  <h1>💣 MINESWEEPER</h1>
+  <p>Tap to reveal a cell. Flag suspected mines with a long-press, right-click, or the 🚩 Flag Mode button. Clear every safe cell to win — your very first tap is always safe!</p>
+  <div class="diffBtns">
+    <div class="diffBtn" onclick="startGame('easy')">
+      <div class="dName">🟢 Easy</div>
+      <div class="dInfo">9×9 · 10 mines</div>
+      <div class="dSip">40 S.I.P.</div>
+    </div>
+    <div class="diffBtn" onclick="startGame('medium')">
+      <div class="dName">🟡 Medium</div>
+      <div class="dInfo">16×16 · 40 mines</div>
+      <div class="dSip">80 S.I.P.</div>
+    </div>
+    <div class="diffBtn" onclick="startGame('hard')">
+      <div class="dName">🔴 Hard</div>
+      <div class="dInfo">16×24 · 76 mines</div>
+      <div class="dSip">150 S.I.P.</div>
+    </div>
+  </div>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<!-- GAME -->
+<div id="gameScreen">
+  <div id="hud">
+    <div class="hudBox"><div class="lbl">MINES</div><div class="val" id="mineCount">0</div></div>
+    <div class="hudBox"><div class="lbl">TIME</div><div class="val" id="timeVal">0</div></div>
+    <div class="hudBox"><div class="lbl">DIFFICULTY</div><div class="val" id="diffVal" style="font-size:13px;">Easy</div></div>
+  </div>
+  <div id="ctrlRow">
+    <button id="flagModeBtn" onclick="toggleFlagMode()">🚩 Flag Mode</button>
+    <button onclick="startGame(currentDiff)">🔄 Restart</button>
+    <button onclick="history.back()">← Back to City</button>
+  </div>
+  <div id="boardScroll"><div id="board"></div></div>
+  <div id="msgBox">Tap a cell to reveal. Long-press or use Flag Mode to flag.</div>
+</div>
+
+<!-- WIN -->
+<div id="winScreen" class="screen" style="display:none">
+  <h1>🎉 YOU WIN!</h1>
+  <div class="statLine">Board cleared in <b id="winTime">0</b>s</div>
+  <div class="statLine">Difficulty: <b id="winDiff">Easy</b></div>
+  <div class="statLine">+<b id="winSip">0</b> S.I.P. earned!</div>
+  <button class="bigBtn" onclick="showStart()">🎮 Play Again</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<!-- LOSE -->
+<div id="loseScreen" class="screen" style="display:none">
+  <h1>💥 BOOM!</h1>
+  <p>You hit a mine.</p>
+  <button class="bigBtn" onclick="startGame(currentDiff)">🔄 Try Again</button>
+  <button class="bigBtn" style="background:#333;box-shadow:none;" onclick="showStart()">↩ Change Difficulty</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<script>
+// ── S.I.P. bridge (verbatim) ────────────────────────────────────────────────
+function awardSip(amount) {
+  try {
+    const user = localStorage.getItem('explox_current_user');
+    if(!user) return;
+    const data = JSON.parse(localStorage.getItem('explox_user_' + user) || '{}');
+    data.sip = (data.sip || 0) + amount;
+    localStorage.setItem('explox_user_' + user, JSON.stringify(data));
+  } catch(e) {}
+}
+
+// ── DIFFICULTIES ─────────────────────────────────────────────────────────────
+const DIFFS = {
+  easy:   { rows:9,  cols:9,  mines:10, sip:40,  label:'Easy'   },
+  medium: { rows:16, cols:16, mines:40, sip:80,  label:'Medium' },
+  hard:   { rows:16, cols:24, mines:76, sip:150, label:'Hard'   },
+};
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let currentDiff = 'easy';
+let rows=9, cols=9, mineCount=10;
+let board = [];          // board[r][c] = { mine, count, revealed, flagged }
+let minesPlaced = false; // mines aren't placed until the first real click (first-click-safe)
+let running = false;
+let flagMode = false;
+let timerId = null;
+let seconds = 0;
+let revealedSafeCount = 0;
+let totalSafeCount = 0;
+
+// ── BOARD GENERATION ─────────────────────────────────────────────────────────
+function makeEmptyBoard(r,c) {
+  const b = [];
+  for (let i=0;i<r;i++) {
+    const row = [];
+    for (let j=0;j<c;j++) row.push({ mine:false, count:0, revealed:false, flagged:false });
+    b.push(row);
+  }
+  return b;
+}
+
+function placeMines(safeR, safeC) {
+  const safeSet = new Set();
+  for (let dr=-1; dr<=1; dr++) for (let dc=-1; dc<=1; dc++) {
+    const rr = safeR+dr, cc = safeC+dc;
+    if (rr>=0 && rr<rows && cc>=0 && cc<cols) safeSet.add(rr + ',' + cc);
+  }
+  let candidates = [];
+  for (let r=0;r<rows;r++) for (let c=0;c<cols;c++) if (!safeSet.has(r+','+c)) candidates.push([r,c]);
+  if (candidates.length < mineCount) {
+    candidates = [];
+    for (let r=0;r<rows;r++) for (let c=0;c<cols;c++) if (!(r===safeR && c===safeC)) candidates.push([r,c]);
+  }
+  // Fisher–Yates shuffle
+  for (let i=candidates.length-1; i>0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+  }
+  candidates.slice(0, mineCount).forEach(([r,c]) => { board[r][c].mine = true; });
+
+  for (let r=0;r<rows;r++) for (let c=0;c<cols;c++) {
+    if (board[r][c].mine) continue;
+    let cnt = 0;
+    for (let dr=-1; dr<=1; dr++) for (let dc=-1; dc<=1; dc++) {
+      if (dr===0 && dc===0) continue;
+      const rr=r+dr, cc=c+dc;
+      if (rr>=0 && rr<rows && cc>=0 && cc<cols && board[rr][cc].mine) cnt++;
+    }
+    board[r][c].count = cnt;
+  }
+  minesPlaced = true;
+}
+
+// ── FLOOD FILL REVEAL (verified) ────────────────────────────────────────────
+function revealCell(r, c) {
+  const stack = [[r,c]];
+  const revealedNow = [];
+  while (stack.length) {
+    const [cr, cc] = stack.pop();
+    const cell = board[cr][cc];
+    if (cell.revealed || cell.flagged) continue;
+    cell.revealed = true;
+    revealedNow.push([cr,cc]);
+    if (cell.count === 0 && !cell.mine) {
+      for (let dr=-1; dr<=1; dr++) for (let dc=-1; dc<=1; dc++) {
+        if (dr===0 && dc===0) continue;
+        const rr=cr+dr, ccx=cc+dc;
+        if (rr>=0 && rr<rows && ccx>=0 && ccx<cols && !board[rr][ccx].revealed && !board[rr][ccx].flagged) {
+          stack.push([rr,ccx]);
+        }
+      }
+    }
+  }
+  return revealedNow;
+}
+
+// ── RENDER ───────────────────────────────────────────────────────────────────
+let cellSize = 30;
+function computeCellSize() {
+  const availW = Math.min(window.innerWidth - 24, 680);
+  const availH = Math.min(window.innerHeight - 260, 600);
+  const byW = Math.floor(availW / cols);
+  const byH = Math.floor(availH / rows);
+  cellSize = Math.max(14, Math.min(34, byW, byH));
+}
+
+function buildBoardDOM() {
+  computeCellSize();
+  const boardEl = document.getElementById('board');
+  boardEl.style.gridTemplateColumns = `repeat(${cols}, ${cellSize}px)`;
+  boardEl.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  for (let r=0;r<rows;r++) for (let c=0;c<cols;c++) {
+    const el = document.createElement('div');
+    el.className = 'cell hidden';
+    el.style.width = cellSize + 'px';
+    el.style.height = cellSize + 'px';
+    el.style.fontSize = Math.max(10, cellSize - 12) + 'px';
+    el.dataset.r = r; el.dataset.c = c;
+    frag.appendChild(el);
+  }
+  boardEl.appendChild(frag);
+}
+
+function cellEl(r,c) {
+  return document.getElementById('board').children[r*cols + c];
+}
+
+function renderCell(r,c) {
+  const cell = board[r][c];
+  const el = cellEl(r,c);
+  el.className = 'cell';
+  el.textContent = '';
+  if (cell.flagged && !cell.revealed) {
+    el.classList.add('hidden','flagged');
+    el.textContent = '🚩';
+    return;
+  }
+  if (!cell.revealed) {
+    el.classList.add('hidden');
+    return;
+  }
+  el.classList.add('revealed');
+  if (cell.mine) {
+    el.classList.add('mine');
+    el.textContent = '💣';
+  } else if (cell.count > 0) {
+    el.classList.add('n'+cell.count);
+    el.textContent = cell.count;
+  }
+}
+
+function renderAll() {
+  for (let r=0;r<rows;r++) for (let c=0;c<cols;c++) renderCell(r,c);
+}
+
+function updateHud() {
+  const flagged = countFlags();
+  document.getElementById('mineCount').textContent = mineCount - flagged;
+  document.getElementById('timeVal').textContent = seconds;
+}
+function countFlags() {
+  let n=0;
+  for (let r=0;r<rows;r++) for (let c=0;c<cols;c++) if (board[r][c].flagged) n++;
+  return n;
+}
+
+// ── TIMER ────────────────────────────────────────────────────────────────────
+function startTimer() {
+  stopTimer();
+  seconds = 0;
+  timerId = setInterval(() => { seconds++; updateHud(); }, 1000);
+}
+function stopTimer() { if (timerId) { clearInterval(timerId); timerId = null; } }
+
+// ── FLOW ─────────────────────────────────────────────────────────────────────
+function showStart() {
+  document.getElementById('startScreen').style.display = 'flex';
+  document.getElementById('gameScreen').style.display = 'none';
+  document.getElementById('winScreen').style.display = 'none';
+  document.getElementById('loseScreen').style.display = 'none';
+  stopTimer();
+  running = false;
+}
+
+function startGame(diff) {
+  currentDiff = diff;
+  const d = DIFFS[diff];
+  rows = d.rows; cols = d.cols; mineCount = d.mines;
+  board = makeEmptyBoard(rows, cols);
+  minesPlaced = false;
+  running = true;
+  flagMode = false;
+  document.getElementById('flagModeBtn').classList.remove('active');
+  revealedSafeCount = 0;
+  totalSafeCount = rows*cols - mineCount;
+
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('winScreen').style.display = 'none';
+  document.getElementById('loseScreen').style.display = 'none';
+  document.getElementById('gameScreen').style.display = 'flex';
+  document.getElementById('diffVal').textContent = d.label;
+
+  stopTimer();
+  seconds = 0;
+  buildBoardDOM();
+  updateHud();
+}
+
+function toggleFlagMode() {
+  flagMode = !flagMode;
+  document.getElementById('flagModeBtn').classList.toggle('active', flagMode);
+}
+
+function doReveal(r, c) {
+  if (!running) return;
+  const cell = board[r][c];
+  if (cell.revealed || cell.flagged) return;
+
+  if (!minesPlaced) {
+    placeMines(r, c);
+    startTimer();
+  }
+
+  if (cell.mine) {
+    cell.revealed = true;
+    lose(r, c);
+    return;
+  }
+
+  const revealedNow = revealCell(r, c);
+  revealedNow.forEach(([rr,cc]) => { renderCell(rr,cc); if (!board[rr][cc].mine) revealedSafeCount++; });
+
+  if (revealedSafeCount >= totalSafeCount) {
+    win();
+  }
+}
+
+function doFlag(r, c) {
+  if (!running) return;
+  const cell = board[r][c];
+  if (cell.revealed) return;
+  cell.flagged = !cell.flagged;
+  renderCell(r, c);
+  updateHud();
+}
+
+function win() {
+  running = false;
+  stopTimer();
+  // reveal remaining mines as flagged, for a satisfying final board
+  for (let r=0;r<rows;r++) for (let c=0;c<cols;c++) {
+    if (board[r][c].mine && !board[r][c].flagged) { board[r][c].flagged = true; renderCell(r,c); }
+  }
+  const sip = DIFFS[currentDiff].sip;
+  awardSip(sip);
+  document.getElementById('winTime').textContent = seconds;
+  document.getElementById('winDiff').textContent = DIFFS[currentDiff].label;
+  document.getElementById('winSip').textContent = sip;
+  document.getElementById('gameScreen').style.display = 'none';
+  document.getElementById('winScreen').style.display = 'flex';
+}
+
+function lose(hitR, hitC) {
+  running = false;
+  stopTimer();
+  for (let r=0;r<rows;r++) for (let c=0;c<cols;c++) {
+    if (board[r][c].mine) { board[r][c].revealed = true; renderCell(r,c); }
+  }
+  const el = cellEl(hitR, hitC);
+  el.classList.add('exploded');
+  document.getElementById('gameScreen').style.display = 'none';
+  document.getElementById('loseScreen').style.display = 'flex';
+}
+
+// ── INPUT (mouse: left=reveal/right=flag; touch: tap=reveal or flag-mode, long-press=flag) ──
+const boardEl = document.getElementById('board');
+
+boardEl.addEventListener('click', e => {
+  const cellDiv = e.target.closest('.cell');
+  if (!cellDiv) return;
+  const r = +cellDiv.dataset.r, c = +cellDiv.dataset.c;
+  if (flagMode) doFlag(r, c); else doReveal(r, c);
+});
+
+boardEl.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const cellDiv = e.target.closest('.cell');
+  if (!cellDiv) return;
+  const r = +cellDiv.dataset.r, c = +cellDiv.dataset.c;
+  doFlag(r, c);
+});
+
+// Long-press-to-flag for touch, distinguished from a scroll-drag by movement distance.
+let touchTimer = null, touchStartX = 0, touchStartY = 0, touchMoved = false, longPressFired = false, activeTouchCell = null;
+boardEl.addEventListener('touchstart', e => {
+  const cellDiv = e.target.closest('.cell');
+  if (!cellDiv) return;
+  activeTouchCell = cellDiv;
+  touchMoved = false;
+  longPressFired = false;
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+  touchTimer = setTimeout(() => {
+    if (!touchMoved && activeTouchCell) {
+      longPressFired = true;
+      const r = +activeTouchCell.dataset.r, c = +activeTouchCell.dataset.c;
+      doFlag(r, c);
+      if (navigator.vibrate) navigator.vibrate(20);
+    }
+  }, 450);
+}, { passive:true });
+
+boardEl.addEventListener('touchmove', e => {
+  if (!activeTouchCell) return;
+  const dx = e.touches[0].clientX - touchStartX;
+  const dy = e.touches[0].clientY - touchStartY;
+  if (Math.sqrt(dx*dx + dy*dy) > 10) {
+    touchMoved = true;
+    clearTimeout(touchTimer);
+  }
+}, { passive:true });
+
+boardEl.addEventListener('touchend', e => {
+  clearTimeout(touchTimer);
+  if (activeTouchCell && !touchMoved && !longPressFired) {
+    const r = +activeTouchCell.dataset.r, c = +activeTouchCell.dataset.c;
+    if (flagMode) doFlag(r, c); else doReveal(r, c);
+  }
+  activeTouchCell = null;
+}, { passive:true });
+
+// Since touch also fires a synthetic 'click' after touchend, suppress the double-trigger.
+boardEl.addEventListener('touchend', e => { e.preventDefault(); }, { passive:false });
+</script>
+</body>
+</html>

@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explox — Fruit Catch</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0a0a1a; overflow:hidden; font-family:Arial,sans-serif; }
+  canvas { display:block; touch-action:none; }
+  #ui {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; z-index:10;
+    pointer-events:none;
+  }
+  #startScreen, #overScreen {
+    background:rgba(10,10,26,0.92); border:2px solid #e94560;
+    border-radius:18px; padding:30px 34px; text-align:center;
+    max-width:380px; width:88%;
+    pointer-events:auto;
+  }
+  #startScreen h1 { color:#e94560; font-size:1.9em; margin-bottom:8px; }
+  #startScreen p { color:#aaa; margin-bottom:18px; font-size:0.92em; line-height:1.5; }
+  #bestLine { color:#FFD700; font-weight:bold; margin-bottom:16px; }
+  .bigBtn {
+    padding:14px 40px; border:2px solid #e94560; border-radius:12px;
+    background:#16213e; color:#fff; font-size:1.1em; cursor:pointer;
+    transition:all 0.15s; min-height:48px; font-weight:bold;
+  }
+  .bigBtn:hover { background:#e94560; }
+  .backBtn {
+    display:block; margin:16px auto 0; padding:9px 24px; font-size:13px;
+    background:transparent; border:1px solid #555; border-radius:8px;
+    color:#888; cursor:pointer; min-height:40px;
+  }
+  .backBtn:hover { border-color:#e94560; color:#fff; }
+  #overScreen { display:none; }
+  #overScreen h1 { color:#ff4444; font-size:1.7em; margin-bottom:10px; }
+  .scoreLine { color:#fff; font-size:1.2em; margin:6px 0; }
+  .scoreLine b { color:#FFD700; }
+  #newBest { color:#00e676; font-weight:bold; margin:6px 0 4px; display:none; }
+  #sipEarned { color:#FFD700; font-size:1.25em; font-weight:bold; margin:10px 0 4px; }
+  #savedNote { color:#666; font-size:11px; margin-bottom:16px; }
+
+  #hud {
+    position:fixed; top:0; left:0; right:0; display:none;
+    justify-content:space-between; align-items:center;
+    padding:12px 16px; z-index:5; pointer-events:none;
+  }
+  #hudScore { color:#FFD700; font-size:20px; font-weight:bold; }
+  #hudLives { font-size:20px; }
+
+  #flash {
+    position:fixed; inset:0; background:#ff4444; opacity:0;
+    pointer-events:none; z-index:6; transition:opacity 0.08s;
+  }
+
+  #touchControls { display:none; }
+  @media (pointer: coarse) { #touchControls { display:block; } }
+  .touchBtn {
+    position:fixed; bottom:26px; width:70px; height:70px; border-radius:50%;
+    background:rgba(255,255,255,0.12); border:2px solid rgba(255,255,255,0.4);
+    color:#fff; font-size:28px; font-weight:bold; display:flex;
+    align-items:center; justify-content:center; z-index:25;
+    touch-action:none; user-select:none; pointer-events:auto;
+  }
+  #btnLeft { left:24px; }
+  #btnRight { right:24px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="flash"></div>
+<div id="hud">
+  <div id="hudScore">0</div>
+  <div id="hudLives">❤️❤️❤️</div>
+</div>
+<div id="touchControls">
+  <div class="touchBtn" id="btnLeft">◀️</div>
+  <div class="touchBtn" id="btnRight">▶️</div>
+</div>
+<div id="ui">
+  <div id="startScreen">
+    <h1>🧺 FRUIT CATCH</h1>
+    <p>Move the basket with ◀️▶️ / A-D / arrow keys, or drag. Catch falling fruit for points — but dodge the 💣 bombs and 🍄 rotten ones, they cost a life!</p>
+    <div id="bestLine">🏆 Best: 0</div>
+    <button class="bigBtn" onclick="startGame()">▶ Start</button>
+    <button class="backBtn" onclick="history.back()">← Back to City</button>
+  </div>
+  <div id="overScreen">
+    <h1>💀 GAME OVER</h1>
+    <div class="scoreLine">Score: <b id="finalScore">0</b></div>
+    <div id="newBest">🌟 New Best!</div>
+    <div class="scoreLine" style="font-size:0.85em;color:#aaa;">Best: <span id="finalBest">0</span></div>
+    <div id="sipEarned">+0 S.I.P.</div>
+    <div id="savedNote">Saved to your Explox account!</div>
+    <button class="bigBtn" onclick="startGame()">🔄 Play Again</button>
+    <button class="backBtn" onclick="history.back()">← Back to City</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+// ── S.I.P. bridge (verbatim) ──────────────────────────────────────────────
+function awardSip(amount) {
+  try {
+    const user = localStorage.getItem('explox_current_user');
+    if(!user) return;
+    const data = JSON.parse(localStorage.getItem('explox_user_' + user) || '{}');
+    data.sip = (data.sip || 0) + amount;
+    localStorage.setItem('explox_user_' + user, JSON.stringify(data));
+  } catch(e) {}
+}
+
+// ── best score persistence ───────────────────────────────────────────────
+const BEST_FIELD = 'fruitcatch_best';
+function loadBest() {
+  try {
+    const user = localStorage.getItem('explox_current_user');
+    if(user) { const d = JSON.parse(localStorage.getItem('explox_user_'+user) || '{}'); return d[BEST_FIELD] || 0; }
+    return parseInt(localStorage.getItem(BEST_FIELD) || '0', 10) || 0;
+  } catch(e) { return 0; }
+}
+function saveBest(v) {
+  try {
+    const user = localStorage.getItem('explox_current_user');
+    if(user) { const d = JSON.parse(localStorage.getItem('explox_user_'+user) || '{}'); d[BEST_FIELD] = v; localStorage.setItem('explox_user_'+user, JSON.stringify(d)); }
+    else localStorage.setItem(BEST_FIELD, String(v));
+  } catch(e) {}
+}
+
+// ── constants ──────────────────────────────────────────────────────────────
+const BASKET_W = 84, BASKET_H = 46;
+const BASKET_SPEED = 8;
+const BASKET_BOTTOM_MARGIN = 20;
+const GOOD_ITEMS = [
+  { sym:'🍎', pts:10, w:0.24 },
+  { sym:'🍌', pts:15, w:0.20 },
+  { sym:'🍇', pts:20, w:0.18 },
+  { sym:'🍉', pts:25, w:0.15 },
+  { sym:'🍓', pts:30, w:0.13 },
+  { sym:'🍍', pts:45, w:0.06 },
+];
+const BAD_ITEMS = [ { sym:'💣' }, { sym:'🍄' } ];
+const BAD_CHANCE = 0.22;
+
+let running = false, basket, items, score = 0, lives = 3, elapsed = 0, spawnTimer = 0, animId, lastT = 0;
+let keyLeft=false, keyRight=false, dragX=null;
+
+function showScreen(id) {
+  document.getElementById('startScreen').style.display = id==='start' ? 'block' : 'none';
+  document.getElementById('overScreen').style.display   = id==='over'  ? 'block' : 'none';
+  document.getElementById('hud').style.display           = id==='game'  ? 'flex' : 'none';
+}
+function refreshBestLine() { document.getElementById('bestLine').textContent = '🏆 Best: ' + loadBest(); }
+
+function startGame() {
+  basket = { x: canvas.width/2 - BASKET_W/2, y: canvas.height - BASKET_BOTTOM_MARGIN - BASKET_H };
+  items = [];
+  score = 0; lives = 3; elapsed = 0; spawnTimer = 0;
+  running = true;
+  showScreen('game');
+  updateHud();
+  lastT = 0;
+  if (animId) cancelAnimationFrame(animId);
+  animId = requestAnimationFrame(loop);
+}
+function updateHud() {
+  document.getElementById('hudScore').textContent = score;
+  document.getElementById('hudLives').textContent = '❤️'.repeat(Math.max(0,lives)) + '🖤'.repeat(Math.max(0,3-lives));
+}
+
+// ── difficulty curve — real, driven by elapsed time ─────────────────────────
+function spawnIntervalMs(t) { return Math.max(320, 1000 - t * 14); }
+function fallSpeed(t) { return Math.min(8.5, 2.4 + t * 0.09); }
+
+document.addEventListener('keydown', e => {
+  if (e.code==='ArrowLeft'||e.code==='KeyA') keyLeft = true;
+  if (e.code==='ArrowRight'||e.code==='KeyD') keyRight = true;
+});
+document.addEventListener('keyup', e => {
+  if (e.code==='ArrowLeft'||e.code==='KeyA') keyLeft = false;
+  if (e.code==='ArrowRight'||e.code==='KeyD') keyRight = false;
+});
+canvas.addEventListener('pointerdown', e => { dragX = e.clientX; });
+canvas.addEventListener('pointermove', e => { if (dragX !== null) dragX = e.clientX; });
+window.addEventListener('pointerup', () => { dragX = null; });
+
+function bindHold(el, onDown, onUp) {
+  if (!el) return;
+  el.addEventListener('touchstart', e => { e.preventDefault(); onDown(); }, {passive:false});
+  el.addEventListener('touchend',   e => { e.preventDefault(); onUp(); }, {passive:false});
+  el.addEventListener('touchcancel',e => { e.preventDefault(); onUp(); }, {passive:false});
+  el.addEventListener('mousedown', onDown);
+  el.addEventListener('mouseup', onUp);
+  el.addEventListener('mouseleave', onUp);
+}
+bindHold(document.getElementById('btnLeft'),  ()=>keyLeft=true,  ()=>keyLeft=false);
+bindHold(document.getElementById('btnRight'), ()=>keyRight=true, ()=>keyRight=false);
+
+function pickGood() {
+  const r = Math.random();
+  let acc = 0;
+  for (const g of GOOD_ITEMS) { acc += g.w; if (r <= acc) return g; }
+  return GOOD_ITEMS[0];
+}
+
+function spawnItem() {
+  const bad = Math.random() < BAD_CHANCE;
+  const def = bad ? BAD_ITEMS[Math.floor(Math.random()*BAD_ITEMS.length)] : pickGood();
+  const size = 34;
+  items.push({
+    x: 20 + Math.random() * (canvas.width - 40 - size), y: -size,
+    w: size, h: size, sym: def.sym, pts: def.pts || 0, bad
+  });
+}
+
+function overlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function flash() {
+  const el = document.getElementById('flash');
+  el.style.opacity = '0.45';
+  setTimeout(() => { el.style.opacity = '0'; }, 120);
+}
+
+function loop(t) {
+  if (!running) return;
+  const dt = lastT ? Math.min((t-lastT)/16.67, 2.5) : 1;
+  lastT = t;
+  elapsed += dt * 16.67/1000;
+
+  // basket movement
+  if (dragX !== null) {
+    basket.x += Math.max(-BASKET_SPEED*dt, Math.min(BASKET_SPEED*dt, dragX - (basket.x+BASKET_W/2)));
+  }
+  if (keyLeft) basket.x -= BASKET_SPEED*dt;
+  if (keyRight) basket.x += BASKET_SPEED*dt;
+  basket.x = Math.max(0, Math.min(canvas.width - BASKET_W, basket.x));
+
+  // spawn
+  spawnTimer -= dt*16.67;
+  if (spawnTimer <= 0) {
+    spawnItem();
+    spawnTimer = spawnIntervalMs(elapsed) * (0.75 + Math.random()*0.5);
+  }
+
+  // move items
+  const speed = fallSpeed(elapsed);
+  for (const it of items) it.y += speed * dt * (it.bad ? 1.15 : 1);
+
+  // real overlap detection for catches
+  const basketRect = { x: basket.x, y: basket.y, w: BASKET_W, h: BASKET_H };
+  for (const it of items) {
+    if (it.caught || it.y + it.h < basket.y) continue;
+    if (overlap(basketRect, it)) {
+      it.caught = true;
+      if (it.bad) {
+        lives--;
+        flash();
+        updateHud();
+        if (lives <= 0) { items = items.filter(i => !i.caught); endGame(); return; }
+      } else {
+        score += it.pts;
+        updateHud();
+      }
+    }
+  }
+
+  items = items.filter(it => !it.caught && it.y < canvas.height + 50);
+
+  draw();
+  animId = requestAnimationFrame(loop);
+}
+
+function draw() {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+  const bg = ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#0a0a1a'); bg.addColorStop(1,'#1a0f2e');
+  ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
+
+  ctx.font = '30px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const it of items) {
+    ctx.fillText(it.sym, it.x + it.w/2, it.y + it.h/2);
+  }
+
+  // basket
+  ctx.fillStyle = '#8a5a2b';
+  ctx.beginPath();
+  ctx.moveTo(basket.x, basket.y);
+  ctx.lineTo(basket.x + BASKET_W, basket.y);
+  ctx.lineTo(basket.x + BASKET_W - 10, basket.y + BASKET_H);
+  ctx.lineTo(basket.x + 10, basket.y + BASKET_H);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1.5;
+  for (let i=1;i<4;i++) {
+    ctx.beginPath();
+    ctx.moveTo(basket.x + 6 + i*(BASKET_W-12)/4, basket.y+4);
+    ctx.lineTo(basket.x + 2 + i*(BASKET_W-4)/4, basket.y+BASKET_H-4);
+    ctx.stroke();
+  }
+}
+
+function endGame() {
+  running = false;
+  if (animId) cancelAnimationFrame(animId);
+
+  const best = loadBest();
+  const isNew = score > best;
+  if (isNew) saveBest(score);
+
+  const sip = Math.max(15, Math.min(200, Math.round(score/4) + 10));
+  awardSip(sip);
+
+  document.getElementById('finalScore').textContent = score;
+  document.getElementById('finalBest').textContent = isNew ? score : best;
+  document.getElementById('newBest').style.display = isNew ? 'block' : 'none';
+  document.getElementById('sipEarned').textContent = '+' + sip + ' S.I.P.';
+  showScreen('over');
+}
+
+refreshBestLine();
+(function() { ctx.fillStyle = '#0a0a1a'; ctx.fillRect(0,0,canvas.width,canvas.height); })();
+</script>
+</body>
+</html>

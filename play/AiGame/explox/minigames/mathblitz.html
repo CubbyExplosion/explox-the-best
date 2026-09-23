@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explox — Math Blitz</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0a0a1a; overflow:hidden; font-family:Arial,sans-serif;
+    height:100vh; width:100vw; color:#fff;
+    -webkit-user-select:none; user-select:none;
+  }
+  .screen {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    background:linear-gradient(135deg,#1a1a2e,#0f3460);
+    padding:20px; text-align:center;
+  }
+  .screen h1 { font-size:38px; color:#e94560; letter-spacing:2px; margin-bottom:8px; text-shadow:0 0 18px #e94560; }
+  .screen p { color:#aaa; font-size:14px; max-width:340px; line-height:1.6; margin-bottom:14px; }
+  .bestLine { color:#FFD700; font-size:15px; margin-bottom:20px; }
+  .bigBtn {
+    padding:14px 46px; font-size:17px; font-weight:bold;
+    background:#e94560; border:none; border-radius:14px; color:#fff;
+    cursor:pointer; letter-spacing:2px; box-shadow:0 0 16px #e9456066;
+    margin:6px; min-height:44px; min-width:44px;
+  }
+  .bigBtn:active { transform:scale(0.96); }
+  .backBtn {
+    padding:10px 24px; font-size:13px; background:transparent;
+    border:1px solid #555; border-radius:8px; color:#888; cursor:pointer;
+    min-height:44px;
+  }
+  .backBtn:active { border-color:#e94560; color:#fff; }
+
+  #gameScreen { display:none; }
+  #hud {
+    position:fixed; top:0; left:0; right:0; display:flex;
+    justify-content:space-between; align-items:center;
+    padding:14px 18px; z-index:5;
+  }
+  .hudBox { background:rgba(0,0,0,0.55); border-radius:10px; padding:8px 14px; font-weight:bold; }
+  #timerBox { color:#fff; font-size:20px; border:2px solid #FFD700; }
+  #timerBox.low { color:#ff4444; border-color:#ff4444; }
+  #scoreBox { color:#FFD700; font-size:16px; }
+  #streakBox { color:#00e676; font-size:16px; }
+
+  #problemArea {
+    margin-top:70px; display:flex; flex-direction:column; align-items:center;
+  }
+  #problemText { font-size:min(11vw,56px); font-weight:bold; color:#fff; letter-spacing:2px; }
+  #answerDisplay {
+    margin-top:14px; font-size:32px; font-weight:bold; color:#FFD700;
+    min-height:44px; min-width:120px; border-bottom:3px solid #e94560;
+    padding:2px 18px;
+  }
+
+  #keypad {
+    position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
+    display:grid; grid-template-columns:repeat(3,64px); gap:8px;
+    width:auto;
+  }
+  .key {
+    width:64px; height:56px; border-radius:12px; border:2px solid #333;
+    background:#16213e; color:#fff; font-size:22px; font-weight:bold;
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .key:active { background:#e94560; border-color:#e94560; }
+  .key.wide { grid-column:span 1; }
+  .key.back { color:#ff8888; }
+  .key.submit { color:#00e676; }
+
+  #endScreen { display:none; }
+  #endScreen h1 { font-size:32px; }
+  .statLine { font-size:16px; color:#ddd; margin:4px 0; }
+  #sipEarned { color:#FFD700; font-size:22px; font-weight:bold; margin:12px 0; }
+  #newBestTag { color:#00e676; font-size:14px; font-weight:bold; margin-bottom:6px; display:none; }
+</style>
+</head>
+<body>
+
+<!-- START SCREEN -->
+<div id="startScreen" class="screen">
+  <h1>🔢 MATH BLITZ</h1>
+  <p>Solve as many problems as you can before time runs out! Every correct answer adds a little time back and ramps up the difficulty. One wrong answer — or the clock hitting zero — ends your run.</p>
+  <div class="bestLine" id="startBest">🏆 Best Score: --</div>
+  <button class="bigBtn" onclick="startGame()">▶ START</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<!-- GAME SCREEN -->
+<div id="gameScreen">
+  <div id="hud">
+    <div class="hudBox" id="timerBox">⏱ 60s</div>
+    <div class="hudBox" id="scoreBox">0 pts</div>
+    <div class="hudBox" id="streakBox">🔥 0</div>
+  </div>
+  <div id="problemArea">
+    <div id="problemText">? + ?</div>
+    <div id="answerDisplay">&nbsp;</div>
+  </div>
+  <div id="keypad">
+    <div class="key" data-k="7">7</div><div class="key" data-k="8">8</div><div class="key" data-k="9">9</div>
+    <div class="key" data-k="4">4</div><div class="key" data-k="5">5</div><div class="key" data-k="6">6</div>
+    <div class="key" data-k="1">1</div><div class="key" data-k="2">2</div><div class="key" data-k="3">3</div>
+    <div class="key back" data-k="back">⌫</div><div class="key" data-k="0">0</div><div class="key submit" data-k="submit">✓</div>
+  </div>
+</div>
+
+<!-- END SCREEN -->
+<div id="endScreen" class="screen">
+  <h1 id="endTitle">⏱ TIME'S UP!</h1>
+  <div id="newBestTag">🌟 NEW BEST!</div>
+  <div class="statLine" id="endScore">Score: 0</div>
+  <div class="statLine" id="endStreak">Best Streak: 0</div>
+  <div class="bestLine" id="endBest">🏆 Best Score: 0</div>
+  <div id="sipEarned">+0 S.I.P.</div>
+  <button class="bigBtn" onclick="startGame()">🔄 Play Again</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<script>
+// ── S.I.P. BRIDGE ──────────────────────────────────────────────────────────
+function awardSip(amount) {
+  try {
+    const user = localStorage.getItem('explox_current_user');
+    if(!user) return;
+    const data = JSON.parse(localStorage.getItem('explox_user_' + user) || '{}');
+    data.sip = (data.sip || 0) + amount;
+    localStorage.setItem('explox_user_' + user, JSON.stringify(data));
+  } catch(e) {}
+}
+
+// ── BEST SCORE PERSISTENCE ───────────────────────────────────────────────────
+function loadBest() {
+  try { return parseInt(localStorage.getItem('explox_mathblitz_best') || '0', 10) || 0; }
+  catch(e) { return 0; }
+}
+function saveBest(v) {
+  try { localStorage.setItem('explox_mathblitz_best', String(v)); } catch(e) {}
+}
+
+// ── PROBLEM GENERATION ───────────────────────────────────────────────────────
+function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+function generateProblem(streak) {
+  let maxNum, ops;
+  if (streak < 5)       { maxNum = 10;  ops = ['+', '-']; }
+  else if (streak < 10)  { maxNum = 20;  ops = ['+', '-', '×']; }
+  else if (streak < 18)  { maxNum = 50;  ops = ['+', '-', '×', '÷']; }
+  else                    { maxNum = 100; ops = ['+', '-', '×', '÷']; }
+
+  const op = ops[Math.floor(Math.random() * ops.length)];
+  let a, b, answer;
+
+  if (op === '+') {
+    a = randInt(1, maxNum); b = randInt(1, maxNum); answer = a + b;
+  } else if (op === '-') {
+    a = randInt(1, maxNum); b = randInt(1, maxNum);
+    if (b > a) { const tmp = a; a = b; b = tmp; }
+    answer = a - b;
+  } else if (op === '×') {
+    const mmax = streak < 10 ? 10 : (streak < 18 ? 12 : 15);
+    a = randInt(1, mmax); b = randInt(1, mmax); answer = a * b;
+  } else { // ÷ — always divides evenly
+    const mmax = streak < 18 ? 10 : 15;
+    b = randInt(2, mmax); answer = randInt(1, mmax); a = b * answer;
+  }
+  return { a, b, op, answer, text: `${a} ${op} ${b}` };
+}
+
+// ── GAME STATE ────────────────────────────────────────────────────────────────
+let running = false;
+let timeLeft = 60;
+let score = 0;
+let streak = 0;
+let bestStreak = 0;
+let curProblem = null;
+let typedAnswer = '';
+let timerInterval = null;
+let lastTick = 0;
+
+function computeSip(finalScore) {
+  if (finalScore <= 0) return 0;
+  return Math.max(25, Math.min(200, Math.round(finalScore / 6)));
+}
+
+function updateHUD() {
+  const secs = Math.max(0, Math.ceil(timeLeft));
+  const timerBox = document.getElementById('timerBox');
+  timerBox.textContent = `⏱ ${secs}s`;
+  timerBox.classList.toggle('low', timeLeft <= 10);
+  document.getElementById('scoreBox').textContent = `${score} pts`;
+  document.getElementById('streakBox').textContent = `🔥 ${streak}`;
+}
+
+function nextProblem() {
+  curProblem = generateProblem(streak);
+  typedAnswer = '';
+  document.getElementById('problemText').textContent = curProblem.text;
+  document.getElementById('answerDisplay').innerHTML = '&nbsp;';
+}
+
+function pressKey(k) {
+  if (!running) return;
+  if (k === 'back') {
+    typedAnswer = typedAnswer.slice(0, -1);
+  } else if (k === 'submit') {
+    submitAnswer();
+    return;
+  } else {
+    if (typedAnswer.length < 6) typedAnswer += k;
+  }
+  document.getElementById('answerDisplay').innerHTML = typedAnswer.length ? typedAnswer : '&nbsp;';
+}
+
+function submitAnswer() {
+  if (!running || typedAnswer === '') return;
+  const val = parseInt(typedAnswer, 10);
+  if (val === curProblem.answer) {
+    const points = 10 + streak;
+    score += points;
+    streak++;
+    bestStreak = Math.max(bestStreak, streak);
+    timeLeft = timeLeft + 2; // a bit of time back
+    nextProblem();
+    updateHUD();
+  } else {
+    endGame('wrong');
+  }
+}
+
+// ── ON-SCREEN KEYPAD (tap/click friendly) ────────────────────────────────────
+document.getElementById('keypad').addEventListener('click', e => {
+  const key = e.target.closest('.key');
+  if (key) pressKey(key.dataset.k);
+});
+
+// ── PHYSICAL KEYBOARD (bonus convenience) ────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (!running) return;
+  if (e.key >= '0' && e.key <= '9') pressKey(e.key);
+  else if (e.key === 'Backspace') pressKey('back');
+  else if (e.key === 'Enter') pressKey('submit');
+});
+
+// ── TIMER ─────────────────────────────────────────────────────────────────────
+function startTimer() {
+  lastTick = Date.now();
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    const now = Date.now();
+    const delta = (now - lastTick) / 1000;
+    lastTick = now;
+    if (!running) return;
+    timeLeft -= delta;
+    if (timeLeft <= 0) {
+      timeLeft = 0;
+      updateHUD();
+      endGame('timeout');
+    } else {
+      updateHUD();
+    }
+  }, 100);
+}
+
+// ── FLOW ──────────────────────────────────────────────────────────────────────
+function startGame() {
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('endScreen').style.display = 'none';
+  document.getElementById('gameScreen').style.display = 'block';
+
+  running = true;
+  timeLeft = 60;
+  score = 0;
+  streak = 0;
+  bestStreak = 0;
+  nextProblem();
+  updateHUD();
+  startTimer();
+}
+
+function endGame(reason) {
+  running = false;
+  clearInterval(timerInterval);
+  document.getElementById('gameScreen').style.display = 'none';
+
+  const best = loadBest();
+  const isNew = score > best;
+  if (isNew) saveBest(score);
+
+  const sip = computeSip(score);
+  awardSip(sip);
+
+  document.getElementById('endTitle').textContent = reason === 'wrong' ? '❌ WRONG ANSWER!' : "⏱ TIME'S UP!";
+  document.getElementById('newBestTag').style.display = isNew ? 'block' : 'none';
+  document.getElementById('endScore').textContent = `Score: ${score} pts`;
+  document.getElementById('endStreak').textContent = `Best Streak: ${bestStreak}`;
+  document.getElementById('endBest').textContent = `🏆 Best Score: ${isNew ? score : best}`;
+  document.getElementById('sipEarned').textContent = `+${sip} S.I.P.`;
+  document.getElementById('endScreen').style.display = 'flex';
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+document.getElementById('startBest').textContent = `🏆 Best Score: ${loadBest() || '--'}`;
+</script>
+</body>
+</html>

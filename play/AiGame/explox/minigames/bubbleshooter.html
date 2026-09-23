@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explox — Bubble Shooter</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0a0a1a; overflow:hidden; font-family:Arial,sans-serif; }
+  canvas { display:block; touch-action:none; }
+  #ui {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; z-index:10;
+    pointer-events:none;
+  }
+  #startScreen, #overScreen {
+    background:rgba(10,10,26,0.92); border:2px solid #e94560;
+    border-radius:18px; padding:30px 34px; text-align:center;
+    max-width:380px; width:88%;
+    pointer-events:auto;
+  }
+  #startScreen h1 { color:#e94560; font-size:1.8em; margin-bottom:8px; }
+  #startScreen p { color:#aaa; margin-bottom:18px; font-size:0.92em; line-height:1.5; }
+  #bestLine { color:#FFD700; font-weight:bold; margin-bottom:16px; }
+  .bigBtn {
+    padding:14px 40px; border:2px solid #e94560; border-radius:12px;
+    background:#16213e; color:#fff; font-size:1.1em; cursor:pointer;
+    transition:all 0.15s; min-height:48px; font-weight:bold;
+  }
+  .bigBtn:hover { background:#e94560; }
+  .backBtn {
+    display:block; margin:16px auto 0; padding:9px 24px; font-size:13px;
+    background:transparent; border:1px solid #555; border-radius:8px;
+    color:#888; cursor:pointer; min-height:40px;
+  }
+  .backBtn:hover { border-color:#e94560; color:#fff; }
+  #overScreen { display:none; }
+  #overTitle { font-size:1.6em; margin-bottom:10px; color:#ff4444; }
+  .scoreLine { color:#fff; font-size:1.2em; margin:6px 0; }
+  .scoreLine b { color:#FFD700; }
+  #newBest { color:#00e676; font-weight:bold; margin:6px 0 4px; display:none; }
+  #sipEarned { color:#FFD700; font-size:1.25em; font-weight:bold; margin:10px 0 4px; }
+  #savedNote { color:#666; font-size:11px; margin-bottom:16px; }
+
+  #hud {
+    position:fixed; top:14px; left:50%; transform:translateX(-50%);
+    display:none; z-index:5; pointer-events:none;
+    color:#FFD700; font-size:24px; font-weight:bold; text-shadow:0 0 8px rgba(0,0,0,0.6);
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">0</div>
+<div id="ui">
+  <div id="startScreen">
+    <h1>🫧 BUBBLE SHOOTER</h1>
+    <p>Move the mouse or drag your finger to aim (shots bounce off the walls), click/tap to fire. Match 3+ same-colored bubbles to pop them — clear the whole board before the bubbles reach the red line!</p>
+    <div id="bestLine">🏆 Best Score: 0</div>
+    <button class="bigBtn" onclick="startGame()">▶ Start</button>
+    <button class="backBtn" onclick="history.back()">← Back to City</button>
+  </div>
+  <div id="overScreen">
+    <h1 id="overTitle">💥 GAME OVER</h1>
+    <div class="scoreLine">Score: <b id="finalScore">0</b></div>
+    <div id="newBest">🌟 New Best!</div>
+    <div class="scoreLine" style="font-size:0.85em;color:#aaa;">Best: <span id="finalBest">0</span></div>
+    <div id="sipEarned">+0 S.I.P.</div>
+    <div id="savedNote">Saved to your Explox account!</div>
+    <button class="bigBtn" onclick="startGame()">🔄 Play Again</button>
+    <button class="backBtn" onclick="history.back()">← Back to City</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+// ── S.I.P. bridge (verbatim) ──────────────────────────────────────────────
+function awardSip(amount) {
+  try {
+    const user = localStorage.getItem('explox_current_user');
+    if(!user) return;
+    const data = JSON.parse(localStorage.getItem('explox_user_' + user) || '{}');
+    data.sip = (data.sip || 0) + amount;
+    localStorage.setItem('explox_user_' + user, JSON.stringify(data));
+  } catch(e) {}
+}
+
+// ── best score persistence ───────────────────────────────────────────────
+const BEST_FIELD = 'bubbleshooter_best';
+function loadBest() {
+  try {
+    const user = localStorage.getItem('explox_current_user');
+    if(user) { const d = JSON.parse(localStorage.getItem('explox_user_'+user) || '{}'); return d[BEST_FIELD] || 0; }
+    return parseInt(localStorage.getItem(BEST_FIELD) || '0', 10) || 0;
+  } catch(e) { return 0; }
+}
+function saveBest(v) {
+  try {
+    const user = localStorage.getItem('explox_current_user');
+    if(user) { const d = JSON.parse(localStorage.getItem('explox_user_'+user) || '{}'); d[BEST_FIELD] = v; localStorage.setItem('explox_user_'+user, JSON.stringify(d)); }
+    else localStorage.setItem(BEST_FIELD, String(v));
+  } catch(e) {}
+}
+
+// ── grid constants — hexagonal offset grid (odd rows shifted right by R) ────
+const EVEN_COLS = 9;               // columns in even rows (0..EVEN_COLS-1)
+const INITIAL_ROWS = 6;
+const PALETTE = ['#e94560', '#FFD700', '#00e676', '#00c8ff', '#b450ff'];
+const BUBBLE_SPEED = 12;
+const GRID_TOP_Y = 54;
+
+let R = 18;
+let MAX_ROWS = 20; // recomputed in startGame() from the real canvas size, so the
+                    // danger line is always reachable within the grid's row capacity
+let grid = [];
+let running = false, score = 0, animId, lastT = 0;
+let movingBubble = null, currentColor = null, nextColor = null;
+let aimX = 0, aimY = 0;
+
+function showScreen(id) {
+  document.getElementById('startScreen').style.display = id==='start' ? 'block' : 'none';
+  document.getElementById('overScreen').style.display   = id==='over'  ? 'block' : 'none';
+  document.getElementById('hud').style.display           = id==='game'  ? 'block' : 'none';
+}
+function refreshBestLine() { document.getElementById('bestLine').textContent = '🏆 Best Score: ' + loadBest(); }
+function updateHud() { document.getElementById('hud').textContent = score; }
+
+// ── grid geometry ─────────────────────────────────────────────────────────
+function maxColFor(row) { return row % 2 === 0 ? EVEN_COLS - 1 : EVEN_COLS - 2; }
+function inBounds(row, col) { return row >= 0 && row < MAX_ROWS && col >= 0 && col <= maxColFor(row); }
+function gridOffsetX() { return (canvas.width - EVEN_COLS * 2 * R) / 2; }
+function cellPos(row, col) {
+  const evenRow = row % 2 === 0;
+  const x = gridOffsetX() + col * 2 * R + R + (evenRow ? 0 : R);
+  const y = GRID_TOP_Y + row * (R * Math.sqrt(3)) + R;
+  return { x, y };
+}
+// verified hex-offset neighbor table: every returned cell sits exactly 2R
+// away from (row,col), i.e. a real touching bubble, not an approximation.
+function neighborsOf(row, col) {
+  const even = row % 2 === 0;
+  const deltas = even
+    ? [[0,-1],[0,1],[-1,-1],[-1,0],[1,-1],[1,0]]
+    : [[0,-1],[0,1],[-1,0],[-1,1],[1,0],[1,1]];
+  return deltas.map(([dr,dc]) => [row+dr, col+dc]);
+}
+function launcherX() { return canvas.width / 2; }
+function launcherY() { return canvas.height - 70; }
+function dangerLineY() { return canvas.height - 150; }
+
+// ── grid state helpers ────────────────────────────────────────────────────
+function initGrid() {
+  grid = [];
+  for (let r=0; r<MAX_ROWS; r++) grid.push(new Array(EVEN_COLS).fill(null));
+  for (let r=0; r<INITIAL_ROWS; r++) {
+    for (let c=0; c<=maxColFor(r); c++) grid[r][c] = PALETTE[Math.floor(Math.random()*PALETTE.length)];
+  }
+}
+function colorsInGrid() {
+  const set = new Set();
+  for (let r=0;r<MAX_ROWS;r++) for (let c=0;c<=maxColFor(r);c++) if (grid[r][c]) set.add(grid[r][c]);
+  return Array.from(set);
+}
+function pickColor() {
+  const pool = colorsInGrid();
+  const src = pool.length ? pool : PALETTE;
+  return src[Math.floor(Math.random()*src.length)];
+}
+function isGridEmpty() {
+  for (let r=0;r<MAX_ROWS;r++) for (let c=0;c<=maxColFor(r);c++) if (grid[r][c]) return false;
+  return true;
+}
+function checkDanger() {
+  const line = dangerLineY();
+  for (let r=0;r<MAX_ROWS;r++) {
+    for (let c=0;c<=maxColFor(r);c++) {
+      if (grid[r][c]) { const p = cellPos(r,c); if (p.y + R >= line) return true; }
+    }
+  }
+  return false;
+}
+
+// ── real flood-fill: same-color connected cluster ───────────────────────────
+function floodSameColor(startRow, startCol) {
+  const color = grid[startRow][startCol];
+  if (!color) return [];
+  const seen = new Set();
+  const stack = [[startRow, startCol]];
+  const cluster = [];
+  while (stack.length) {
+    const [r,c] = stack.pop();
+    const key = r+','+c;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (!inBounds(r,c)) continue;
+    if (grid[r][c] !== color) continue;
+    cluster.push([r,c]);
+    for (const n of neighborsOf(r,c)) stack.push(n);
+  }
+  return cluster;
+}
+
+// ── real flood-fill: which bubbles are still connected to the ceiling row ──
+function connectedFloaters() {
+  const reachable = new Set();
+  const stack = [];
+  for (let c=0;c<EVEN_COLS;c++) if (grid[0][c]) stack.push([0,c]);
+  while (stack.length) {
+    const [r,c] = stack.pop();
+    const key = r+','+c;
+    if (reachable.has(key)) continue;
+    if (!inBounds(r,c)) continue;
+    if (!grid[r][c]) continue;
+    reachable.add(key);
+    for (const n of neighborsOf(r,c)) if (!reachable.has(n[0]+','+n[1])) stack.push(n);
+  }
+  const floating = [];
+  for (let r=0;r<MAX_ROWS;r++) {
+    for (let c=0;c<=maxColFor(r);c++) {
+      if (grid[r][c] && !reachable.has(r+','+c)) floating.push([r,c]);
+    }
+  }
+  return floating;
+}
+
+// ── landing-cell resolution ───────────────────────────────────────────────
+function findLandingCell(collidedRow, collidedCol, bx, by) {
+  let candidates = neighborsOf(collidedRow, collidedCol).filter(([r,c]) => inBounds(r,c) && !grid[r][c]);
+  if (!candidates.length) {
+    candidates = [];
+    for (let r=0;r<MAX_ROWS;r++) {
+      for (let c=0;c<=maxColFor(r);c++) {
+        if (grid[r][c]) continue;
+        const hasOccNeighbor = neighborsOf(r,c).some(([nr,nc]) => inBounds(nr,nc) && grid[nr] && grid[nr][nc]);
+        if (hasOccNeighbor) candidates.push([r,c]);
+      }
+    }
+  }
+  if (!candidates.length) {
+    for (let r=0;r<MAX_ROWS;r++) for (let c=0;c<=maxColFor(r);c++) if (!grid[r][c]) return [r,c];
+    return [0,0];
+  }
+  let best = candidates[0], bestDist = Infinity;
+  for (const [r,c] of candidates) {
+    const p = cellPos(r,c);
+    const d = Math.hypot(p.x-bx, p.y-by);
+    if (d < bestDist) { bestDist = d; best = [r,c]; }
+  }
+  return best;
+}
+function findCeilingLandingCell(bx) {
+  let best = null, bestDist = Infinity;
+  for (let c=0; c<EVEN_COLS; c++) {
+    if (grid[0][c]) continue;
+    const p = cellPos(0,c);
+    const d = Math.abs(p.x - bx);
+    if (d < bestDist) { bestDist = d; best = [0,c]; }
+  }
+  if (best) return best;
+  return findLandingCell(0, 0, bx, GRID_TOP_Y);
+}
+
+function resolvePlacement(row, col, color) {
+  grid[row][col] = color;
+  movingBubble = null;
+
+  const cluster = floodSameColor(row, col);
+  if (cluster.length >= 3) {
+    for (const [r,c] of cluster) grid[r][c] = null;
+    const floating = connectedFloaters();
+    for (const [r,c] of floating) grid[r][c] = null;
+    score += cluster.length * 10 + floating.length * 20;
+    updateHud();
+  }
+
+  if (isGridEmpty()) { finish(true); return; }
+  if (checkDanger()) { finish(false); return; }
+
+  currentColor = nextColor;
+  nextColor = pickColor();
+}
+
+// ── aiming ────────────────────────────────────────────────────────────────
+function aimAngle() {
+  const lx = launcherX(), ly = launcherY() - 10;
+  const dx = aimX - lx, dy = aimY - ly;
+  let angle = Math.atan2(dy, dx);
+  const minA = -Math.PI + 0.12, maxA = -0.12;
+  return Math.max(minA, Math.min(maxA, angle));
+}
+function setAimFromClient(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  aimX = clientX - rect.left;
+  aimY = clientY - rect.top;
+}
+canvas.addEventListener('pointermove', e => setAimFromClient(e.clientX, e.clientY));
+canvas.addEventListener('pointerdown', e => setAimFromClient(e.clientX, e.clientY));
+canvas.addEventListener('click', () => fire());
+
+function fire() {
+  if (!running || movingBubble || !currentColor) return;
+  const angle = aimAngle();
+  movingBubble = {
+    x: launcherX(), y: launcherY() - 10,
+    vx: Math.cos(angle) * BUBBLE_SPEED, vy: Math.sin(angle) * BUBBLE_SPEED,
+    color: currentColor
+  };
+}
+
+// ── game flow ─────────────────────────────────────────────────────────────
+function startGame() {
+  R = Math.max(14, Math.min(24, Math.floor((canvas.width - 20) / (EVEN_COLS * 2))));
+  // enough rows that the danger line always sits inside the grid's bounds,
+  // regardless of viewport height, plus a comfortable buffer past it
+  const rowHeight = R * Math.sqrt(3);
+  MAX_ROWS = Math.max(20, Math.ceil((dangerLineY() - GRID_TOP_Y) / rowHeight) + 6);
+  initGrid();
+  score = 0;
+  movingBubble = null;
+  currentColor = pickColor();
+  nextColor = pickColor();
+  aimX = canvas.width/2; aimY = canvas.height*0.35;
+  running = true;
+  showScreen('game');
+  updateHud();
+  lastT = 0;
+  if (animId) cancelAnimationFrame(animId);
+  animId = requestAnimationFrame(loop);
+}
+
+function updateMovingBubble(dt) {
+  const b = movingBubble;
+  b.x += b.vx * dt;
+  b.y += b.vy * dt;
+
+  const W = canvas.width;
+  if (b.x - R < 0) { b.x = R + (R - b.x); b.vx = -b.vx; }
+  else if (b.x + R > W) { b.x = W - R - ((b.x + R) - W); b.vx = -b.vx; }
+
+  if (b.y - R <= GRID_TOP_Y) {
+    const [r,c] = findCeilingLandingCell(b.x);
+    resolvePlacement(r, c, b.color);
+    return;
+  }
+
+  let collided = null, collidedDist = Infinity;
+  for (let r=0; r<MAX_ROWS; r++) {
+    for (let c=0; c<=maxColFor(r); c++) {
+      if (!grid[r][c]) continue;
+      const p = cellPos(r,c);
+      const d = Math.hypot(p.x - b.x, p.y - b.y);
+      if (d < R * 1.9 && d < collidedDist) { collided = [r,c]; collidedDist = d; }
+    }
+  }
+  if (collided) {
+    const [lr,lc] = findLandingCell(collided[0], collided[1], b.x, b.y);
+    resolvePlacement(lr, lc, b.color);
+    return;
+  }
+
+  if (b.y > canvas.height + 60) { // safety net, shouldn't normally trigger since aim is always upward
+    movingBubble = null;
+    currentColor = nextColor;
+    nextColor = pickColor();
+  }
+}
+
+function loop(t) {
+  if (!running) return;
+  const dt = lastT ? Math.min((t-lastT)/16.67, 2.5) : 1;
+  lastT = t;
+  if (movingBubble) updateMovingBubble(dt);
+  draw();
+  if (running) animId = requestAnimationFrame(loop);
+}
+
+function drawBubble(x, y, color, scale) {
+  scale = scale || 1;
+  const rr = R * scale;
+  const grad = ctx.createRadialGradient(x-rr*0.3, y-rr*0.3, rr*0.15, x, y, rr);
+  grad.addColorStop(0, '#fff');
+  grad.addColorStop(0.28, color);
+  grad.addColorStop(1, color);
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(x, y, rr*0.92, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1.5; ctx.stroke();
+}
+
+function drawAimGuide() {
+  const lx = launcherX(), ly = launcherY() - 10;
+  const angle = aimAngle();
+  let x = lx, y = ly;
+  let vx = Math.cos(angle)*10, vy = Math.sin(angle)*10;
+  const W = canvas.width;
+  ctx.setLineDash([5,7]);
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x,y);
+  for (let i=0; i<40; i++) {
+    x += vx; y += vy;
+    if (x - R < 0) { x = R + (R - x); vx = -vx; }
+    else if (x + R > W) { x = W - R - ((x+R) - W); vx = -vx; }
+    ctx.lineTo(x,y);
+    if (y - R <= GRID_TOP_Y) break;
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function draw() {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+  const bg = ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0, '#0a0a1a'); bg.addColorStop(1, '#12102a');
+  ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
+
+  ctx.strokeStyle = 'rgba(255,68,68,0.4)';
+  ctx.setLineDash([8,8]);
+  ctx.beginPath(); ctx.moveTo(0, dangerLineY()); ctx.lineTo(W, dangerLineY()); ctx.stroke();
+  ctx.setLineDash([]);
+
+  for (let r=0; r<MAX_ROWS; r++) {
+    for (let c=0; c<=maxColFor(r); c++) {
+      const color = grid[r][c];
+      if (!color) continue;
+      const p = cellPos(r,c);
+      drawBubble(p.x, p.y, color);
+    }
+  }
+
+  if (running && !movingBubble) drawAimGuide();
+  if (movingBubble) drawBubble(movingBubble.x, movingBubble.y, movingBubble.color);
+
+  const lx = launcherX(), ly = launcherY();
+  ctx.fillStyle = '#16213e';
+  ctx.strokeStyle = '#e94560'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.roundRect(lx-30, ly-6, 60, 40, 10); ctx.fill(); ctx.stroke();
+  if (!movingBubble && currentColor) drawBubble(lx, ly-10, currentColor);
+
+  if (nextColor) {
+    ctx.fillStyle = '#aaa'; ctx.font = '11px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('NEXT', lx+56, ly-26);
+    drawBubble(lx+56, ly-8, nextColor, 0.7);
+  }
+}
+
+function finish(won) {
+  running = false;
+  if (animId) cancelAnimationFrame(animId);
+
+  const best = loadBest();
+  const isNew = score > best;
+  if (isNew) saveBest(score);
+
+  const sip = Math.max(20, Math.min(200, Math.round(score/12) + (won ? 60 : 0)));
+  awardSip(sip);
+
+  const titleEl = document.getElementById('overTitle');
+  titleEl.textContent = won ? '🏆 BOARD CLEARED!' : '💥 BUBBLES REACHED THE LINE';
+  titleEl.style.color = won ? '#00e676' : '#ff4444';
+  document.getElementById('finalScore').textContent = score;
+  document.getElementById('finalBest').textContent = isNew ? score : best;
+  document.getElementById('newBest').style.display = isNew ? 'block' : 'none';
+  document.getElementById('sipEarned').textContent = '+' + sip + ' S.I.P.';
+  draw();
+  showScreen('over');
+}
+
+refreshBestLine();
+(function() { ctx.fillStyle = '#0a0a1a'; ctx.fillRect(0,0,canvas.width,canvas.height); })();
+</script>
+</body>
+</html>

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explox — Color Rush</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  body { background:#0a0a1a; font-family:Arial,sans-serif; color:#fff; overflow:hidden; touch-action:manipulation; }
+
+  .screen {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center;
+    background:linear-gradient(135deg,#1a1a2e,#0f3460);
+    padding:20px; z-index:30;
+  }
+  .screen h1 { font-size:2.1em; color:#e94560; letter-spacing:2px; margin-bottom:10px; text-shadow:0 0 20px #e94560; }
+  .screen p { color:#aaa; max-width:380px; line-height:1.6; margin-bottom:20px; font-size:0.95em; }
+  .bigBtn {
+    padding:14px 40px; font-size:1.1em; font-weight:bold;
+    background:#e94560; border:none; border-radius:14px; color:#fff;
+    cursor:pointer; letter-spacing:1px; box-shadow:0 0 16px #e9456066;
+    margin:6px; min-height:44px;
+  }
+  .backBtn {
+    padding:10px 24px; font-size:13px; background:transparent;
+    border:1px solid #555; border-radius:10px; color:#888; cursor:pointer;
+    margin-top:8px; min-height:44px;
+  }
+  .backBtn:hover { border-color:#e94560; color:#fff; }
+  #loseScreen h1 { color:#ff4444; text-shadow:0 0 20px #ff4444; }
+  .statLine { color:#ccc; font-size:1.15em; margin:5px 0; }
+  .statLine b { color:#FFD700; }
+  .newBest { color:#00e676; font-weight:bold; margin-top:6px; }
+
+  /* ── GAME SCREEN ── */
+  #gameScreen { display:none; flex-direction:column; align-items:center; height:100%; padding:16px; justify-content:flex-start; }
+  #hud { display:flex; gap:10px; width:100%; max-width:420px; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .hudBox { background:#16213e; border-radius:10px; padding:6px 16px; text-align:center; }
+  .hudBox .lbl { font-size:10px; color:#888; letter-spacing:1px; }
+  .hudBox .val { font-size:18px; font-weight:bold; color:#FFD700; }
+  #backBtnTop { padding:8px 14px; font-size:11px; background:#16213e; border:1px solid #555; border-radius:8px; color:#888; cursor:pointer; min-height:40px; }
+
+  #timerBarWrap { width:100%; max-width:420px; height:10px; background:#222; border-radius:5px; overflow:hidden; margin-bottom:30px; }
+  #timerBar { height:100%; background:#e94560; width:100%; }
+
+  #wordDisplay {
+    font-size:clamp(36px,12vw,64px); font-weight:bold; letter-spacing:3px;
+    margin-bottom:40px; text-transform:uppercase; text-shadow:0 0 20px currentColor;
+  }
+  #wordDisplay.wrongFlash { animation:flashRed 0.3s; }
+  @keyframes flashRed { 0%,100%{ opacity:1; } 50%{ opacity:0.2; } }
+
+  #colorBtns { display:grid; grid-template-columns:repeat(2, 1fr); gap:12px; width:100%; max-width:360px; }
+  .colorBtn {
+    padding:18px 10px; border-radius:14px; border:none; font-size:16px; font-weight:bold;
+    color:#fff; cursor:pointer; min-height:56px; text-transform:uppercase; letter-spacing:1px;
+    box-shadow:0 3px 0 rgba(0,0,0,0.3);
+  }
+  .colorBtn:active { transform:translateY(2px); box-shadow:0 1px 0 rgba(0,0,0,0.3); }
+
+  #milestoneToast {
+    position:fixed; top:16px; left:50%; transform:translateX(-50%);
+    background:rgba(0,0,0,0.9); border:2px solid #FFD700; border-radius:12px;
+    padding:10px 20px; color:#FFD700; font-weight:bold; font-size:13px;
+    z-index:40; display:none;
+  }
+</style>
+</head>
+<body>
+
+<!-- START -->
+<div id="startScreen" class="screen">
+  <h1>🌈 COLOR RUSH</h1>
+  <p>A color word appears — but it's usually painted in the <b>wrong</b> color! Tap the button matching the <b>actual color</b> of the text, not the word itself. Answer fast before the bar runs out. One mistake or timeout ends the run!</p>
+  <button class="bigBtn" onclick="startGame()">▶ Start</button>
+  <div class="statLine">🏆 Best: <b id="startBest">0</b></div>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<!-- GAME -->
+<div id="gameScreen">
+  <div id="hud">
+    <div class="hudBox"><div class="lbl">SCORE</div><div class="val" id="scoreVal">0</div></div>
+    <button id="backBtnTop" onclick="history.back()">← City</button>
+    <div class="hudBox"><div class="lbl">BEST</div><div class="val" id="bestVal">0</div></div>
+  </div>
+  <div id="timerBarWrap"><div id="timerBar"></div></div>
+  <div id="wordDisplay"></div>
+  <div id="colorBtns"></div>
+</div>
+
+<div id="milestoneToast"></div>
+
+<!-- END (wrong answer or timeout) -->
+<div id="loseScreen" class="screen" style="display:none">
+  <h1 id="endTitle">⏱️ TIME'S UP!</h1>
+  <div class="statLine">Final Score: <b id="endScore">0</b></div>
+  <div class="statLine">🏆 Best: <b id="endBest">0</b></div>
+  <div class="newBest" id="newBestMsg" style="display:none">🌟 New Best!</div>
+  <button class="bigBtn" onclick="startGame()">🎮 Play Again</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<script>
+// ── S.I.P. bridge (verbatim) ────────────────────────────────────────────────
+function awardSip(amount) {
+  try {
+    const user = localStorage.getItem('explox_current_user');
+    if(!user) return;
+    const data = JSON.parse(localStorage.getItem('explox_user_' + user) || '{}');
+    data.sip = (data.sip || 0) + amount;
+    localStorage.setItem('explox_user_' + user, JSON.stringify(data));
+  } catch(e) {}
+}
+
+// ── BEST SCORE PERSISTENCE ──────────────────────────────────────────────────
+function loadBest() {
+  try { return parseInt(localStorage.getItem('explox_colorrush_best') || '0', 10) || 0; }
+  catch(e) { return 0; }
+}
+function saveBest(v) { try { localStorage.setItem('explox_colorrush_best', String(v)); } catch(e) {} }
+let best = loadBest();
+document.getElementById('startBest').textContent = best;
+
+// ── COLORS ───────────────────────────────────────────────────────────────────
+const COLORS = [
+  { name:'RED',    hex:'#ff4444' },
+  { name:'BLUE',   hex:'#4488ff' },
+  { name:'GREEN',  hex:'#00e676' },
+  { name:'YELLOW', hex:'#FFD700' },
+  { name:'PURPLE', hex:'#b450ff' },
+  { name:'ORANGE', hex:'#ff8c00' },
+];
+
+// ── MILESTONES (award real S.I.P. for real reachable score thresholds) ──────
+const MILESTONES = [
+  { score:10,  sip:30  },
+  { score:25,  sip:50  },
+  { score:50,  sip:80  },
+  { score:100, sip:150 },
+];
+let milestonesHit = new Set();
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let score = 0;
+let running = false;
+let roundTimeoutId = null;
+let currentColorHex = '';
+let barResetRaf = null;
+
+function buildColorButtons() {
+  const wrap = document.getElementById('colorBtns');
+  wrap.innerHTML = '';
+  COLORS.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'colorBtn';
+    btn.style.background = c.hex;
+    btn.textContent = c.name;
+    btn.dataset.hex = c.hex;
+    btn.onclick = () => handleAnswer(c.hex);
+    wrap.appendChild(btn);
+  });
+}
+
+function roundDuration() {
+  // speeds up as score climbs, floors out so it never becomes unplayable
+  return Math.max(700, 2500 - score*55);
+}
+
+function nextRound() {
+  if (!running) return;
+  const wordObj = COLORS[Math.floor(Math.random()*COLORS.length)];
+  let colorObj;
+  // "usually mismatched" — 80% chance the render color differs from the word's own color
+  if (Math.random() < 0.8) {
+    const others = COLORS.filter(c => c.name !== wordObj.name);
+    colorObj = others[Math.floor(Math.random()*others.length)];
+  } else {
+    colorObj = wordObj;
+  }
+  currentColorHex = colorObj.hex;
+
+  const disp = document.getElementById('wordDisplay');
+  disp.textContent = wordObj.name;
+  disp.style.color = colorObj.hex;
+
+  const dur = roundDuration();
+  const bar = document.getElementById('timerBar');
+  bar.style.transition = 'none';
+  bar.style.width = '100%';
+  // force reflow so the transition below actually animates from 100% -> 0%
+  void bar.offsetWidth;
+  bar.style.transition = `width ${dur}ms linear`;
+  bar.style.width = '0%';
+
+  clearTimeout(roundTimeoutId);
+  roundTimeoutId = setTimeout(() => { if (running) endGame('timeout'); }, dur);
+}
+
+function handleAnswer(pickedHex) {
+  if (!running) return;
+  clearTimeout(roundTimeoutId);
+  if (pickedHex === currentColorHex) {
+    score++;
+    document.getElementById('scoreVal').textContent = score;
+    checkMilestones();
+    nextRound();
+  } else {
+    const disp = document.getElementById('wordDisplay');
+    disp.classList.remove('wrongFlash'); void disp.offsetWidth; disp.classList.add('wrongFlash');
+    endGame('wrong');
+  }
+}
+
+function checkMilestones() {
+  MILESTONES.forEach(m => {
+    if (score >= m.score && !milestonesHit.has(m.score)) {
+      milestonesHit.add(m.score);
+      awardSip(m.sip);
+      showMilestoneToast(`🎉 ${m.score} correct! +${m.sip} S.I.P.`);
+    }
+  });
+}
+let toastTimer = null;
+function showMilestoneToast(text) {
+  const el = document.getElementById('milestoneToast');
+  el.textContent = text;
+  el.style.display = 'block';
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.style.display = 'none'; }, 1600);
+}
+
+// ── FLOW ─────────────────────────────────────────────────────────────────────
+function startGame() {
+  score = 0;
+  milestonesHit = new Set();
+  running = true;
+  document.getElementById('scoreVal').textContent = 0;
+  document.getElementById('bestVal').textContent = best;
+
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('loseScreen').style.display = 'none';
+  document.getElementById('gameScreen').style.display = 'flex';
+
+  buildColorButtons();
+  nextRound();
+}
+
+function endGame(reason) {
+  running = false;
+  clearTimeout(roundTimeoutId);
+  document.getElementById('timerBar').style.transition = 'none';
+  document.getElementById('timerBar').style.width = '0%';
+
+  const isNewBest = score > best;
+  if (isNewBest) { best = score; saveBest(best); }
+
+  document.getElementById('endTitle').textContent = reason === 'timeout' ? "⏱️ TIME'S UP!" : '❌ WRONG COLOR!';
+  document.getElementById('endScore').textContent = score;
+  document.getElementById('endBest').textContent = best;
+  document.getElementById('newBestMsg').style.display = isNewBest ? 'block' : 'none';
+
+  document.getElementById('gameScreen').style.display = 'none';
+  document.getElementById('loseScreen').style.display = 'flex';
+}
+</script>
+</body>
+</html>

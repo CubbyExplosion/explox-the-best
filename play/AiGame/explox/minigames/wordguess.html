@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explox — Word Guess</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  body { background:#0a0a1a; font-family:Arial,sans-serif; color:#fff; overflow:hidden; touch-action:manipulation; }
+
+  .screen {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center;
+    background:linear-gradient(135deg,#1a1a2e,#0f3460);
+    padding:20px; z-index:30;
+  }
+  .screen h1 { font-size:2em; color:#e94560; letter-spacing:2px; margin-bottom:10px; text-shadow:0 0 20px #e94560; }
+  .screen p { color:#aaa; max-width:380px; line-height:1.6; margin-bottom:20px; font-size:0.92em; }
+  .bigBtn {
+    padding:14px 40px; font-size:1.1em; font-weight:bold;
+    background:#e94560; border:none; border-radius:14px; color:#fff;
+    cursor:pointer; letter-spacing:1px; box-shadow:0 0 16px #e9456066;
+    margin:6px; min-height:44px;
+  }
+  .backBtn {
+    padding:10px 24px; font-size:13px; background:transparent;
+    border:1px solid #555; border-radius:10px; color:#888; cursor:pointer;
+    margin-top:8px; min-height:44px;
+  }
+  .backBtn:hover { border-color:#e94560; color:#fff; }
+  #winScreen h1 { color:#00e676; text-shadow:0 0 20px #00e676; }
+  #loseScreen h1 { color:#ff4444; text-shadow:0 0 20px #ff4444; }
+  .statLine { color:#ccc; font-size:1.05em; margin:4px 0; }
+  .statLine b { color:#FFD700; }
+  .answerWord { font-size:1.6em; letter-spacing:4px; color:#FFD700; font-weight:bold; margin:10px 0; }
+
+  .legend { display:flex; gap:14px; justify-content:center; margin-top:10px; font-size:11px; color:#aaa; flex-wrap:wrap; }
+  .legend span { display:inline-flex; align-items:center; gap:4px; }
+  .swatch { width:14px; height:14px; border-radius:3px; display:inline-block; }
+
+  /* ── GAME SCREEN ── */
+  #gameScreen { display:none; flex-direction:column; align-items:center; padding:10px; height:100%; justify-content:space-between; }
+  #topBar { display:flex; justify-content:space-between; align-items:center; width:100%; max-width:420px; padding:6px 4px; }
+  #topBar h2 { color:#e94560; font-size:1.1em; letter-spacing:2px; }
+  #topBar button {
+    padding:8px 14px; font-size:11px; background:#16213e; border:1px solid #555;
+    border-radius:8px; color:#888; cursor:pointer; min-height:40px;
+  }
+
+  #msgBar { min-height:22px; color:#FFD700; font-size:13px; font-weight:bold; margin:4px 0; text-align:center; }
+
+  #guessGrid { display:grid; grid-template-rows:repeat(6, 1fr); gap:6px; margin:6px auto; }
+  .guessRow { display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; }
+  .guessRow.shake { animation:shake 0.4s; }
+  @keyframes shake {
+    10%,90% { transform:translateX(-6px); }
+    20%,80% { transform:translateX(6px); }
+    30%,50%,70% { transform:translateX(-8px); }
+    40%,60% { transform:translateX(8px); }
+  }
+  .letterBox {
+    width:min(13vw,50px); height:min(13vw,50px);
+    display:flex; align-items:center; justify-content:center;
+    border:2px solid #333; border-radius:8px; font-size:clamp(16px,5vw,24px);
+    font-weight:bold; color:#fff; background:#111;
+    text-transform:uppercase; transition:transform 0.15s;
+  }
+  .letterBox.filled { border-color:#666; }
+  .letterBox.green  { background:#00a86b; border-color:#00a86b; }
+  .letterBox.yellow { background:#c9a227; border-color:#c9a227; }
+  .letterBox.grey   { background:#3a3a3a; border-color:#3a3a3a; }
+  .letterBox.flip { animation:flipIn 0.3s ease; }
+  @keyframes flipIn { from{ transform:rotateX(90deg); } to{ transform:rotateX(0); } }
+
+  #keyboard { width:100%; max-width:480px; margin-top:8px; }
+  .kbRow { display:flex; justify-content:center; gap:5px; margin-bottom:6px; }
+  .key {
+    flex:1; max-width:40px; min-width:26px; height:46px;
+    display:flex; align-items:center; justify-content:center;
+    background:#3a3a4a; border-radius:6px; font-size:13px; font-weight:bold;
+    color:#fff; cursor:pointer; text-transform:uppercase; border:none;
+  }
+  .key.wide { max-width:64px; font-size:10px; }
+  .key.green  { background:#00a86b; }
+  .key.yellow { background:#c9a227; }
+  .key.grey   { background:#222; color:#666; }
+  .key:active { filter:brightness(1.3); }
+</style>
+</head>
+<body>
+
+<!-- START -->
+<div id="startScreen" class="screen">
+  <h1>🔤 WORD GUESS</h1>
+  <p>Guess the secret 5-letter word in 6 tries! After each guess, tiles show how close you were.</p>
+  <div class="legend">
+    <span><span class="swatch" style="background:#00a86b"></span>Right letter, right spot</span>
+    <span><span class="swatch" style="background:#c9a227"></span>Right letter, wrong spot</span>
+    <span><span class="swatch" style="background:#3a3a3a"></span>Not in the word</span>
+  </div>
+  <br>
+  <button class="bigBtn" onclick="startGame()">▶ Start</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<!-- GAME -->
+<div id="gameScreen">
+  <div id="topBar">
+    <h2>WORD GUESS</h2>
+    <button onclick="history.back()">← City</button>
+  </div>
+  <div id="msgBar"></div>
+  <div id="guessGrid"></div>
+  <div id="keyboard"></div>
+</div>
+
+<!-- WIN -->
+<div id="winScreen" class="screen" style="display:none">
+  <h1>🎉 YOU GOT IT!</h1>
+  <div class="answerWord" id="winWord"></div>
+  <div class="statLine">Solved in <b id="winTries">0</b>/6 tries</div>
+  <div class="statLine">+<b id="winSip">0</b> S.I.P. earned!</div>
+  <button class="bigBtn" onclick="startGame()">🎮 Play Again</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<!-- LOSE -->
+<div id="loseScreen" class="screen" style="display:none">
+  <h1>💀 OUT OF TRIES</h1>
+  <p>The word was:</p>
+  <div class="answerWord" id="loseWord"></div>
+  <button class="bigBtn" onclick="startGame()">🔄 Try Again</button>
+  <button class="backBtn" onclick="history.back()">← Back to City</button>
+</div>
+
+<script>
+// ── S.I.P. bridge (verbatim) ────────────────────────────────────────────────
+function awardSip(amount) {
+  try {
+    const user = localStorage.getItem('explox_current_user');
+    if(!user) return;
+    const data = JSON.parse(localStorage.getItem('explox_user_' + user) || '{}');
+    data.sip = (data.sip || 0) + amount;
+    localStorage.setItem('explox_user_' + user, JSON.stringify(data));
+  } catch(e) {}
+}
+
+// ── WORD LIST — 562 unique, verified 5-letter words. Used as BOTH the answer
+//    pool and the valid-guess dictionary. ────────────────────────────────────
+const WORDS = [
+  'about','above','abuse','actor','acute','admit','adopt','adult','after','again',
+  'agent','agree','ahead','alarm','album','alert','alike','alive','allow','alone',
+  'along','alter','among','anger','angle','angry','apart','apple','apply','arena',
+  'argue','arise','array','aside','asset','avoid','awake','award','aware','badly',
+  'baker','basic','basis','beach','began','begin','being','below','bench','birth',
+  'black','blade','blame','blank','blast','blend','blind','block','blood','board',
+  'boast','bonus','boost','booth','bound','brain','brand','brass','brave','bread',
+  'break','breed','brick','brief','bring','broad','broke','brown','brush','build',
+  'built','bunch','burst','cabin','cable','candy','cargo','carry','carve','catch',
+  'cause','chain','chair','chalk','chaos','charm','chart','chase','cheap','check',
+  'chest','chief','child','chose','civil','claim','class','clean','clear','click',
+  'cliff','climb','clock','close','cloth','cloud','clown','coach','coast','could',
+  'count','court','cover','crack','craft','crash','crazy','cream','crime','cross',
+  'crowd','crown','crude','curve','cycle','daily','dance','dealt','death','debut',
+  'delay','depth','doubt','dozen','draft','drama','drank','drawn','dream','dress',
+  'dried','drill','drink','drive','drove','drunk','dying','eager','early','earth',
+  'eight','elder','elect','elite','empty','enemy','enjoy','enter','entry','equal',
+  'error','event','every','exact','exist','extra','faith','false','fault','favor',
+  'feast','fence','fever','fiber','field','fifth','fifty','fight','final','first',
+  'fixed','flame','flash','fleet','flesh','float','flood','floor','flour','fluid',
+  'focus','force','forth','forty','forum','found','frame','fraud','fresh','front',
+  'frost','fruit','fully','funny','giant','glass','globe','glory','going','grace',
+  'grade','grand','grant','graph','grasp','grass','grave','great','green','greet',
+  'grief','gross','group','grown','guard','guess','guest','guide','habit','happy',
+  'harsh','heart','heavy','hence','horse','hotel','house','human','humor','ideal',
+  'image','imply','index','inner','input','issue','joint','judge','juice','knife',
+  'known','label','labor','large','laser','later','laugh','layer','learn','least',
+  'leave','legal','level','light','limit','local','logic','loose','lower','loyal',
+  'lucky','lunch','lying','magic','major','maker','march','match','meant','medal',
+  'media','merit','metal','might','minor','minus','mixed','model','money','month',
+  'moral','motor','mount','mouse','mouth','movie','music','naked','nasty','nerve',
+  'never','newly','night','noble','noise','novel','nurse','occur','ocean','offer',
+  'often','order','other','ought','outer','owner','paint','panel','panic','paper',
+  'party','pasta','patch','pause','peace','phase','phone','photo','piano','piece',
+  'pilot','pitch','place','plain','plane','plant','plate','point','pound','power',
+  'press','price','pride','prime','print','prior','prize','proof','proud','prove',
+  'queen','quick','quiet','quite','radio','raise','range','rapid','ratio','reach',
+  'ready','realm','rebel','refer','relax','reply','right','rival','river','robot',
+  'rough','round','route','royal','rural','sadly','safer','salad','sales','sauce',
+  'scale','scene','scope','score','sense','serve','seven','shade','shake','shape',
+  'share','sharp','sheep','sheet','shelf','shell','shift','shine','shirt','shock',
+  'shoot','short','shown','sight','silly','since','sixth','sixty','skill','sleep',
+  'slice','slide','small','smart','smell','smile','smoke','snake','solar','solid',
+  'solve','sorry','sound','south','space','spare','speak','speed','spell','spend',
+  'spent','split','spoke','sport','staff','stage','stair','stake','stand','start',
+  'state','steam','steel','steep','steer','stick','stiff','still','stock','stone',
+  'store','storm','story','strip','stuck','study','stuff','style','sugar','suite',
+  'super','sweet','swift','swing','table','taken','taste','teach','teeth','thank',
+  'theft','their','theme','there','these','thick','thing','think','third','those',
+  'three','threw','throw','thumb','tight','tired','title','today','token','topic',
+  'total','touch','tough','tower','trace','track','trade','train','treat','trend',
+  'trial','tribe','trick','tried','truck','truly','trunk','trust','truth','twice',
+  'under','union','unity','until','upper','upset','urban','usage','usual','valid',
+  'value','video','virus','visit','vital','vocal','voice','waste','watch','water',
+  'wheat','wheel','where','which','while','white','whole','whose','woman','women',
+  'world','worry','worse','worst','worth','would','wound','write','wrong','yield',
+  'young','youth',
+];
+const WORD_SET = new Set(WORDS);
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let answer = '';
+let curGuess = '';
+let guesses = [];       // array of { letters:[...], results:[...] }
+let running = false;
+const MAX_TRIES = 6;
+const keyStatus = {};   // letter -> 'green'|'yellow'|'grey'
+
+// ── COLOR FEEDBACK (two-pass algorithm — correctly handles duplicate letters) ─
+function scoreGuess(guess, ans) {
+  const result = new Array(5).fill('grey');
+  const ansLetters = ans.split('');
+  const guessLetters = guess.split('');
+  const remaining = {};
+  // pass 1: exact matches
+  for (let i=0;i<5;i++) {
+    if (guessLetters[i] === ansLetters[i]) {
+      result[i] = 'green';
+    } else {
+      remaining[ansLetters[i]] = (remaining[ansLetters[i]] || 0) + 1;
+    }
+  }
+  // pass 2: right letter, wrong spot
+  for (let i=0;i<5;i++) {
+    if (result[i] === 'green') continue;
+    const l = guessLetters[i];
+    if (remaining[l] > 0) {
+      result[i] = 'yellow';
+      remaining[l]--;
+    }
+  }
+  return result;
+}
+
+// ── RENDER ───────────────────────────────────────────────────────────────────
+function buildGrid() {
+  const grid = document.getElementById('guessGrid');
+  grid.innerHTML = '';
+  for (let r=0;r<MAX_TRIES;r++) {
+    const row = document.createElement('div');
+    row.className = 'guessRow';
+    row.id = 'row'+r;
+    for (let c=0;c<5;c++) {
+      const box = document.createElement('div');
+      box.className = 'letterBox';
+      box.id = 'box'+r+'_'+c;
+      row.appendChild(box);
+    }
+    grid.appendChild(row);
+  }
+}
+
+function renderCurrentRow() {
+  const r = guesses.length;
+  for (let c=0;c<5;c++) {
+    const box = document.getElementById('box'+r+'_'+c);
+    if (!box) continue;
+    const ch = curGuess[c] || '';
+    box.textContent = ch;
+    box.classList.toggle('filled', !!ch);
+  }
+}
+
+function renderSubmittedRow(rowIdx, letters, results) {
+  for (let c=0;c<5;c++) {
+    const box = document.getElementById('box'+rowIdx+'_'+c);
+    box.textContent = letters[c];
+    box.classList.add(results[c], 'flip');
+    box.style.animationDelay = (c*0.08)+'s';
+  }
+}
+
+const KB_ROWS = [
+  ['q','w','e','r','t','y','u','i','o','p'],
+  ['a','s','d','f','g','h','j','k','l'],
+  ['ENTER','z','x','c','v','b','n','m','BACK'],
+];
+function buildKeyboard() {
+  const kb = document.getElementById('keyboard');
+  kb.innerHTML = '';
+  KB_ROWS.forEach(rowKeys => {
+    const row = document.createElement('div');
+    row.className = 'kbRow';
+    rowKeys.forEach(k => {
+      const btn = document.createElement('button');
+      btn.className = 'key' + (k==='ENTER'||k==='BACK' ? ' wide' : '');
+      btn.textContent = k==='ENTER' ? 'ENTER' : (k==='BACK' ? '⌫' : k);
+      btn.dataset.key = k;
+      btn.onclick = () => handleKey(k);
+      row.appendChild(btn);
+    });
+    kb.appendChild(row);
+  });
+}
+function refreshKeyboardColors() {
+  const priority = { grey:0, yellow:1, green:2 };
+  document.querySelectorAll('.key').forEach(btn => {
+    const k = btn.dataset.key;
+    if (k==='ENTER' || k==='BACK') return;
+    btn.classList.remove('green','yellow','grey');
+    const st = keyStatus[k];
+    if (st) btn.classList.add(st);
+  });
+}
+
+// ── MESSAGES / SHAKE ─────────────────────────────────────────────────────────
+let msgTimer = null;
+function showMsg(text, ms=1300) {
+  const el = document.getElementById('msgBar');
+  el.textContent = text;
+  if (msgTimer) clearTimeout(msgTimer);
+  if (ms > 0) msgTimer = setTimeout(() => { el.textContent = ''; }, ms);
+}
+function shakeCurrentRow() {
+  const row = document.getElementById('row'+guesses.length);
+  if (!row) return;
+  row.classList.remove('shake');
+  void row.offsetWidth; // restart animation
+  row.classList.add('shake');
+}
+
+// ── INPUT HANDLING ───────────────────────────────────────────────────────────
+function handleKey(k) {
+  if (!running) return;
+  if (k === 'ENTER') { submitGuess(); return; }
+  if (k === 'BACK') { curGuess = curGuess.slice(0,-1); renderCurrentRow(); return; }
+  if (/^[a-z]$/.test(k) && curGuess.length < 5) {
+    curGuess += k;
+    renderCurrentRow();
+  }
+}
+
+function submitGuess() {
+  if (curGuess.length < 5) {
+    showMsg('Not enough letters');
+    shakeCurrentRow();
+    return;
+  }
+  if (!WORD_SET.has(curGuess)) {
+    showMsg('Not in word list');
+    shakeCurrentRow();
+    return;
+  }
+  const results = scoreGuess(curGuess, answer);
+  const letters = curGuess.split('');
+  const rowIdx = guesses.length;
+  guesses.push({ letters, results });
+  renderSubmittedRow(rowIdx, letters, results);
+
+  // update per-key colors, never downgrading a better-known status
+  const priority = { grey:0, yellow:1, green:2 };
+  letters.forEach((l,i) => {
+    const st = results[i];
+    if (!keyStatus[l] || priority[st] > priority[keyStatus[l]]) keyStatus[l] = st;
+  });
+  refreshKeyboardColors();
+
+  const won = results.every(r => r === 'green');
+  const guessedWord = curGuess;
+  curGuess = '';
+
+  if (won) {
+    running = false;
+    const tries = guesses.length;
+    const sip = Math.max(50, 100 - (tries-1)*10);
+    awardSip(sip);
+    setTimeout(() => {
+      document.getElementById('winWord').textContent = answer.toUpperCase();
+      document.getElementById('winTries').textContent = tries;
+      document.getElementById('winSip').textContent = sip;
+      document.getElementById('gameScreen').style.display = 'none';
+      document.getElementById('winScreen').style.display = 'flex';
+    }, 700);
+  } else if (guesses.length >= MAX_TRIES) {
+    running = false;
+    setTimeout(() => {
+      document.getElementById('loseWord').textContent = answer.toUpperCase();
+      document.getElementById('gameScreen').style.display = 'none';
+      document.getElementById('loseScreen').style.display = 'flex';
+    }, 700);
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (!running) return;
+  const k = e.key.toLowerCase();
+  if (k === 'enter') { e.preventDefault(); handleKey('ENTER'); }
+  else if (k === 'backspace') { e.preventDefault(); handleKey('BACK'); }
+  else if (/^[a-z]$/.test(k)) { handleKey(k); }
+});
+
+// ── FLOW ─────────────────────────────────────────────────────────────────────
+function startGame() {
+  answer = WORDS[Math.floor(Math.random()*WORDS.length)];
+  curGuess = '';
+  guesses = [];
+  running = true;
+  for (const k in keyStatus) delete keyStatus[k];
+
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('winScreen').style.display = 'none';
+  document.getElementById('loseScreen').style.display = 'none';
+  document.getElementById('gameScreen').style.display = 'flex';
+
+  buildGrid();
+  buildKeyboard();
+  refreshKeyboardColors();
+  document.getElementById('msgBar').textContent = '';
+}
+</script>
+</body>
+</html>
