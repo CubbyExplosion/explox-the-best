@@ -433,15 +433,47 @@ function openCityShopModal(id) {
     <div style="text-align:center;color:#ffd54a;font-style:italic;font-size:12px;margin-bottom:12px;">"${shop.ad}"</div>
     <button ${shopBusy ? 'disabled' : ''} onclick="${workingHere ? "quitJob('Stopped working.')" : `startShopJob('${shop.id}')`};closeCityShopModal()" style="width:100%;padding:8px;margin-bottom:12px;background:${workingHere ? '#7a1a1a' : shopBusy ? '#333' : '#1a5a7a'};border:none;border-radius:8px;color:#fff;font-weight:bold;font-size:12px;cursor:${shopBusy ? 'not-allowed' : 'pointer'};opacity:${shopBusy ? '0.5' : '1'};">${workingHere ? '⏹ Stop Working Here' : `💼 Work Here (+${shopJobPay(shop)} S.I.P./task)`}</button>
     <div style="font-size:12px;color:#ccc;margin-bottom:6px;"><b>What they sell:</b></div>
-    ${shop.items.map(it => `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid #2a3a3a;">
-        <span style="color:#ddd;font-size:12px;">${it.name}</span>
-        <span style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-          <span style="color:#ffd54a;font-size:11px;">💰${it.price}</span>
-          <button onclick="buyItem('${it.name.replace(/'/g, "\\'")}',${it.price})" style="padding:3px 10px;background:#2a5a4a;border:1px solid #4a8a6a;border-radius:6px;color:#eee;font-size:11px;cursor:pointer;">Buy</button>
-        </span>
-      </div>`).join('')}`;
+    ${shop.items.map(it => {
+      const safeName = it.name.replace(/'/g, "\\'");
+      // Same id-derivation buyItem() already uses (special ITEM_INFO entry, else a slugified
+      // name) — keeps the craft recipe's hash seed identical to the id the item is actually
+      // granted under, so a player looking it up in their inventory finds the same real item.
+      const special = ITEM_INFO[it.name];
+      const craftId = (special && special.id) || it.name.toLowerCase().replace(/\s+/g,'_');
+      const craftCost = craftCostForPrice(it.price, craftId);
+      const canCraft = canAffordCraftCost(craftCost);
+      return `
+      <div style="padding:5px 0;border-bottom:1px solid #2a3a3a;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <span style="color:#ddd;font-size:12px;">${it.name}</span>
+          <span style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+            <span style="color:#ffd54a;font-size:11px;">💰${it.price}</span>
+            <button onclick="buyItem('${safeName}',${it.price})" style="padding:3px 10px;background:#2a5a4a;border:1px solid #4a8a6a;border-radius:6px;color:#eee;font-size:11px;cursor:pointer;">Buy</button>
+          </span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:3px;">
+          <span style="color:#8ac9ff;font-size:10px;flex:1;text-align:right;">🔨 ${craftCostForPriceText(craftCost)}</span>
+          <button onclick="craftMallItem('${safeName}',${it.price})" style="padding:3px 10px;background:${canCraft?'#2a4a6a':'#333'};border:1px solid #4a7aaa;border-radius:6px;color:#eee;font-size:11px;cursor:${canCraft?'pointer':'not-allowed'};" ${canCraft?'':'disabled'}>🔨 Craft</button>
+        </div>
+      </div>`;
+    }).join('')}`;
   document.getElementById('cityShopModal').style.display = 'flex';
+}
+// "Craft but hard" path for the ~300 real mall/city-shop item names (SHOP_ITEM_EMOJI), priced via
+// priceForItem() above — same real granting code buyItem() uses (addToInventory + saveCurrentUser),
+// paid for with craftCostForPrice()'s real wood/scrap/material recipe (game-housing.js) instead of
+// S.I.P. These items are all well under the Elite Coin threshold, so this never asks for 💎.
+function craftMallItem(name, cost) {
+  const special = ITEM_INFO[name];
+  const emoji = (special && special.emoji) || SHOP_ITEM_EMOJI[name] || '📦';
+  const id = (special && special.id) || name.toLowerCase().replace(/\s+/g,'_');
+  const craftCost = craftCostForPrice(cost, id);
+  if(!canAffordCraftCost(craftCost)) { sfx.nope(); showNotif(`❌ Need ${craftCostForPriceText(craftCost)}`); return; }
+  spendCraftCost(craftCost);
+  addToInventory(id, name, emoji);
+  saveCurrentUser();
+  sfx.buy();
+  showNotif(`🔨 Crafted ${emoji} ${name}!`);
 }
 function closeCityShopModal() {
   document.getElementById('cityShopModal').style.display = 'none';

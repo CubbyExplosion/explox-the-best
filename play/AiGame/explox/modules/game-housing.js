@@ -1136,6 +1136,8 @@ function closeCrafting() {
 function renderCraftItems() {
   document.getElementById('craftWood').textContent = woodCount;
   const cs = document.getElementById('craftScrap'); if(cs) cs.textContent = scrapMetal;
+  const ce = document.getElementById('craftElite'); if(ce) ce.textContent = eliteCoins;
+  const csip = document.getElementById('craftSip'); if(csip) csip.textContent = sipDollars;
   const list = document.getElementById('craftItems');
   list.innerHTML = '';
   CRAFT_RECIPES.forEach((r,i) => {
@@ -1169,6 +1171,95 @@ function craftItem(i) {
   sfx.buy();
   showNotif(`🔨 Crafted ${r.emoji} ${r.name}!`);
   renderCraftItems();
+}
+
+// ── "Craft but hard" — a real formula-driven craft path for the ~5000 WEAPONS, ~86 ARMOR, and
+// ~300 mall SHOP_ITEM_EMOJI entries (game-shops.js/game-district.js), none of which get their own
+// hand-authored CRAFT_RECIPES entry above (that stays exactly as it is — 12 recipes, untouched).
+// Same "derive from an existing number instead of hand-typing a table" convention this codebase
+// already uses (eliteThresholdForLevel() in game-customization.js, buildWeaponLevels()'s
+// `w.cost = Math.round(dmg*17/5)*5` in game-social.js, generateArmorBatch()'s Math.pow cost curve
+// above) — every recipe here is deterministically derived from the item's own existing S.I.P.
+// price and its own id/name, so the SAME item produces the SAME recipe for every player, forever,
+// with zero authored data and nothing re-rolled on render.
+
+// FNV-1a — fast, good bit distribution, no external dependency. Only used to seed a recipe, never
+// anything security-sensitive.
+function craftHash(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+// mulberry32 — deterministic PRNG seeded from craftHash() so "randomly" picking 2-4 materials
+// still comes out identical every time for the same item id (never Math.random() at render time).
+function craftRng(seed) {
+  let a = seed >>> 0;
+  return function() {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+// Past this real S.I.P. price, an item's craft recipe also needs Elite Coins. Calibrated against
+// the real price spread of both big generated catalogs: WEAPONS tops out around 85,000 S.I.P.
+// (buildWeaponLevels() re-derives every weapon's cost from its rank — ~5,000 weapons / 10-per-level
+// × 170 S.I.P./level), ARMOR tops out at 250,000 (generateArmorBatch()) — 70,000 sits right at the
+// top ~20% of BOTH catalogs, so only genuinely top-tier gear crosses it. Mall items (SHOP_ITEM_EMOJI,
+// priced via priceForItem()) cap at 150 S.I.P. and never reach it — ordinary goods stay
+// Elite-Coin-free, matching Elite Coins being "deliberately NOT earnable by just walking around"
+// (game-engine.js) — only tough robots (Elite/Tank/Guard/Spider) drop any at all.
+const CRAFT_ELITE_THRESHOLD = 70000;
+function craftCostForPrice(sipPrice, itemId) {
+  const price = Math.max(1, Math.round(sipPrice) || 1);
+  const rng = craftRng(craftHash(itemId));
+  // Wood is the easy/fast resource (unlimited respawning trees, 1-3 per chop) — scales up the
+  // most aggressively since a player can always just farm more of it.
+  const wood = Math.max(2, Math.round(Math.sqrt(price) * 2.2));
+  // Scrap requires real robot kills + a Grinder trip (+3 scrap per wreckage pile) — scales up
+  // slower than wood since each unit costs real combat, not just walking to a tree.
+  const scrap = Math.max(1, Math.round(Math.sqrt(price) * 0.6));
+  // 2-4 real materials from the 100-entry MATERIAL_DEFS catalog, picked by a stable hash of the
+  // item's own id so it's always the same set for that item — never re-randomized on render.
+  const matCount = 2 + Math.floor(rng() * 3); // 2, 3, or 4
+  const mats = {};
+  let guard = 0;
+  while (Object.keys(mats).length < matCount && guard < 25) {
+    guard++;
+    const m = MATERIALS[Math.floor(rng() * MATERIALS.length)];
+    if (mats[m.id]) continue;
+    const weight = 0.6 + rng() * 1.0; // 0.6x-1.6x per material so same-priced items don't all need identical qty
+    mats[m.id] = Math.max(1, Math.round(Math.sqrt(price) * 0.05 * weight));
+  }
+  // Genuinely expensive gear also needs Elite Coins — the scarce currency — scaling up smoothly
+  // past the threshold so the single most expensive item in the game (250,000 S.I.P. armor) asks
+  // for a real but survivable ~30 coins, not hundreds.
+  const elite = price > CRAFT_ELITE_THRESHOLD
+    ? Math.max(1, Math.round(1 + (price - CRAFT_ELITE_THRESHOLD) / CRAFT_ELITE_THRESHOLD * 8))
+    : 0;
+  return { wood, scrap, mats, elite };
+}
+function craftCostForPriceText(cost) {
+  const parts = [`🪵 ${cost.wood} Wood`, `🔩 ${cost.scrap} Scrap`];
+  Object.entries(cost.mats).forEach(([id, qty]) => {
+    const m = MATERIALS.find(x => x.id === id);
+    if (m) parts.push(`${m.emoji} ${qty}x ${m.name}`);
+  });
+  if (cost.elite) parts.push(`💎 ${cost.elite}`);
+  return parts.join(' + ');
+}
+// Same real affordability-gating pattern canAffordRecipe() already uses above, just extended to
+// also check Elite Coins.
+function canAffordCraftCost(cost) {
+  return woodCount >= cost.wood && scrapMetal >= cost.scrap && eliteCoins >= (cost.elite || 0) && hasMats(cost.mats);
+}
+// Same real deduction pattern craftItem() already uses above (spendMats()'s exact
+// decrement/delete-at-zero pattern), just extended to wood/scrap/Elite Coins too.
+function spendCraftCost(cost) {
+  woodCount -= cost.wood; updateWood();
+  scrapMetal -= cost.scrap; updateScrapMetal();
+  if (cost.elite) { eliteCoins -= cost.elite; updateElite(); }
+  spendMats(cost.mats);
 }
 
 // ── Training Dummy — safe target to feel out weapon damage, zero risk to the player ──

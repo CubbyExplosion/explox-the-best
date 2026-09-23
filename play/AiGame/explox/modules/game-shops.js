@@ -643,11 +643,15 @@ function openShop(type) {
       const equipped = playerArmor === a.id;
       const d = document.createElement('div'); d.className='shopItem';
       const safeName = a.name.replace(/'/g, "\\'");
+      const craftCost = craftCostForPrice(a.cost, a.id);
+      const canCraft = !owned && canAffordCraftCost(craftCost);
       d.innerHTML=`<div class="siName">${a.name}</div>
         <div class="siCost">${owned ? (equipped?'✅ Equipped':'✔ Owned') : '💰 '+a.cost+' S.I.P.'} — blocks ${Math.round(a.reduction*100)}% damage</div>
-        <div style="display:flex;gap:6px;">
+        ${owned ? '' : `<div class="siCost" style="color:#8ac9ff;">🔨 ${craftCostForPriceText(craftCost)}</div>`}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="shopBtn" onclick="renderShopPreview({armor:'${a.id}'},'${safeName}')" style="background:#2a4a5a;">👁 Preview</button>
           <button class="shopBtn" onclick="buyArmor(${realIdx})" ${equipped?'disabled':''}>${owned?(equipped?'Equipped':'Equip'):'Buy'}</button>
+          ${owned ? '' : `<button class="shopBtn" style="background:#3a6a4a;" onclick="craftArmorHard(${realIdx})" ${canCraft?'':'disabled'}>🔨 Craft</button>`}
         </div>`;
       items.appendChild(d);
     });
@@ -681,11 +685,15 @@ function openShop(type) {
       const locked = need > eliteLevel;
       const d = document.createElement('div'); d.className='shopItem';
       const safeName = w.name.replace(/'/g, "\\'");
+      const craftCost = craftCostForPrice(w.cost, w.id);
+      const canCraft = !owned && !locked && canAffordCraftCost(craftCost);
       d.innerHTML=`<div class="siName">${w.name}</div>
         <div class="siCost">${owned ? (equipped?'✅ Equipped':'✔ Owned') : '💰 '+w.cost+' S.I.P.'} — ${WEAPON_DAMAGE[w.id]} dmg to people, 🤖 ${ROBOT_BONUS_DAMAGE[w.id]} dmg to robots${need>0?` — 🔒 Lv.${need}`:''}</div>
-        <div style="display:flex;gap:6px;">
+        ${owned ? '' : `<div class="siCost" style="color:#8ac9ff;">🔨 ${craftCostForPriceText(craftCost)}</div>`}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="shopBtn" onclick="renderShopPreview({weapon:'${w.id}'},'${safeName}')" style="background:#2a4a5a;">👁 Preview</button>
           <button class="shopBtn" onclick="buyWeapon(${realIdx})" ${(equipped||locked)?'disabled':''}>${locked?`Requires Lv.${need}`:(owned?(equipped?'Equipped':'Equip'):'Buy')}</button>
+          ${owned ? '' : `<button class="shopBtn" style="background:#3a6a4a;" onclick="craftWeaponHard(${realIdx})" ${(locked||!canCraft)?'disabled':''}>${locked?`🔒 Lv.${need}`:'🔨 Craft'}</button>`}
         </div>`;
       items.appendChild(d);
     });
@@ -710,11 +718,15 @@ function openShop(type) {
       const locked = need > eliteLevel;
       const d = document.createElement('div'); d.className='shopItem';
       const safeName = w.name.replace(/'/g, "\\'");
+      const craftCost = craftCostForPrice(w.cost, w.id);
+      const canCraft = !owned && !locked && canAffordCraftCost(craftCost);
       d.innerHTML=`<div class="siName">${w.name}</div>
         <div class="siCost">${owned ? (equipped?'✅ Equipped':'✔ Owned') : '💰 '+w.cost+' S.I.P.'}${need>0?` — 🔒 Requires Lv.${need}`:''}</div>
-        <div style="display:flex;gap:6px;">
+        ${owned ? '' : `<div class="siCost" style="color:#8ac9ff;">🔨 ${craftCostForPriceText(craftCost)}</div>`}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="shopBtn" onclick="renderShopPreview({weapon:'${w.id}'},'${safeName}')" style="background:#2a4a5a;">👁 Preview</button>
           <button class="shopBtn" onclick="buyWeapon(${realIdx})" ${(equipped||locked)?'disabled':''}>${locked?`Requires Lv.${need}`:(owned?(equipped?'Equipped':'Equip'):'Buy')}</button>
+          ${owned ? '' : `<button class="shopBtn" style="background:#3a6a4a;" onclick="craftWeaponHard(${realIdx})" ${(locked||!canCraft)?'disabled':''}>${locked?`🔒 Lv.${need}`:'🔨 Craft'}</button>`}
         </div>`;
       items.appendChild(d);
     });
@@ -729,6 +741,22 @@ function buyArmor(i) {
   ownedArmor.push(a.id);
   equipArmor(a.id);
   showNotif(`✅ Got ${a.name}!`);
+  openShop('armor');
+}
+// "Craft but hard" path for any non-craftOnly ARMOR entry — same real granting code buyArmor()
+// uses (ownedArmor.push + equipArmor), just paid for with craftCostForPrice()'s real
+// wood/scrap/material/Elite-Coin recipe (game-housing.js) instead of S.I.P.
+function craftArmorHard(i) {
+  const a = ARMOR[i];
+  if(a.craftOnly) return; // already has its own real CRAFT_RECIPES entry — don't double-grant
+  if(ownedArmor.includes(a.id)) { equipArmor(a.id); openShop('armor'); return; }
+  const cost = craftCostForPrice(a.cost, a.id);
+  if(!canAffordCraftCost(cost)) { showNotif(`❌ Need ${craftCostForPriceText(cost)}`); return; }
+  spendCraftCost(cost);
+  ownedArmor.push(a.id);
+  equipArmor(a.id);
+  sfx.buy();
+  showNotif(`🔨 Crafted ${a.name}!`);
   openShop('armor');
 }
 function equipArmor(id) {
@@ -1954,6 +1982,26 @@ function buyWeapon(i) {
   ownedWeapons.push(w.id);
   equipWeapon(w.id);
   showNotif(`✅ Got ${w.name}!`);
+  closeShop();
+}
+// "Craft but hard" path for any non-craftOnly WEAPONS entry — same real granting code buyWeapon()
+// uses (ownedWeapons.push + equipWeapon), paid for with craftCostForPrice()'s real wood/scrap/
+// material/Elite-Coin recipe (game-housing.js) instead of S.I.P., and respecting the exact same
+// weaponRequiredLevel() Robot-Level gate buyWeapon() already enforces — crafting can't bypass a
+// level lock buying can't bypass either.
+function craftWeaponHard(i) {
+  const w = WEAPONS[i];
+  if(w.craftOnly) return; // already has its own real CRAFT_RECIPES entry — don't double-grant
+  const need = weaponRequiredLevel(w.id);
+  if (need > eliteLevel) { showNotif(`🔒 ${w.name} requires Robot Level ${need} to craft (you're Lv.${eliteLevel}) — level up in the Quests tab!`); return; }
+  if(ownedWeapons.includes(w.id)) { equipWeapon(w.id); closeShop(); return; }
+  const cost = craftCostForPrice(w.cost, w.id);
+  if(!canAffordCraftCost(cost)) { showNotif(`❌ Need ${craftCostForPriceText(cost)}`); return; }
+  spendCraftCost(cost);
+  ownedWeapons.push(w.id);
+  equipWeapon(w.id);
+  sfx.buy();
+  showNotif(`🔨 Crafted ${w.name}!`);
   closeShop();
 }
 
