@@ -2570,11 +2570,11 @@ function defeatWarNpc(npc, terr) {
 }
 // ─── WAR DEATH RESPAWN CHOICE — see knockoutPlayer()'s currentWarZone branch, which flips
 // warAlive false and opens this instead of just healing you back up in place.
-function showWarDeathModal(terr, lostSip) {
+function showWarDeathModal(terr, lootText) {
   if (document.pointerLockElement) document.exitPointerLock();
   isPointerLocked = false;
   document.getElementById('warDeathLossText').textContent =
-    `Downed by ${terr.name}'s defenders — lost ${lostSip.toLocaleString()} S.I.P.`;
+    `Downed by ${terr.name}'s defenders — lost everything you were carrying (${lootText}). It's on the ground where you fell.`;
   document.getElementById('warDeathModal').style.display = 'flex';
 }
 function respawnFromWarDeath(where) {

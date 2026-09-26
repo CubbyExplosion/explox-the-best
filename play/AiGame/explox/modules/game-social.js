@@ -1048,8 +1048,129 @@ function damagePlayer(amount, sourceLabel) {
   sfx.hit();
   if(playerHealth <= 0) knockoutPlayer();
 }
+// ─── DEATH PENALTY — user's explicit multi-turn rule: dying (HP hits 0) for ANY reason/context
+// loses everything the player is carrying/owns EXCEPT: cosmetic customizations (hat/hair/shirt/
+// pants/shoes/skin — always free to change anyway), the Bank (bankBalance/bankEliteBalance), the
+// Safe (safeBalance/safeInventory), the Trash Safe (trashSafeSip/trashSafeItems), Houses (ownedLand/
+// plotBuildings), Vehicles (ownedCars, ALL of them), and anything flagged premiumOnly in a shop
+// catalog (real-money items — WEAPONS/ARMOR's own premiumOnly flag, e.g. Super Armor; the other
+// known real-money items — Super Tank/Jet/Motorcycle/Future Jet — are vehicles, so ownedCars'
+// blanket exemption already protects them). Everything else — wallet sipDollars/eliteCoins, cash,
+// playerInventory, non-premium ownedWeapons/ownedArmor, wood/scrap — is genuinely lost, dropped as
+// a real lootable pile at the exact death spot (same CITY_ZONES walk-up-and-E convention as
+// spawnJunkPile()/pickUpJunk() in game-land.js) so the player can walk back and reclaim it after
+// respawning. NOT persisted, same ambient "session only" category JUNK_PILES already uses.
+function isPremiumWeaponId(id) { const w = WEAPONS.find(w => w.id === id); return !!(w && w.premiumOnly); }
+function isPremiumArmorId(id)  { const a = ARMOR.find(a => a.id === id);  return !!(a && a.premiumOnly); }
+
+let DEATH_DROP_PILES = []; // {x,z,mesh,zone,loot,owner} — NOT persisted, same category as JUNK_PILES
+
+function buildDeathDropMesh(x, z) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.26, 8, 6), new THREE.MeshLambertMaterial({ color: 0xf2f2ea }));
+  skull.position.set(0, 0.32, 0); g.add(skull);
+  [[-0.22,0.15,-0.12],[0.2,0.12,0.15],[0,0.05,0.22],[0.15,0.08,-0.22],[-0.18,0.06,0.15]].forEach(([dx,dy,dz]) => {
+    const coin = new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,0.05,10), new THREE.MeshLambertMaterial({ color: 0xffcc33 }));
+    coin.rotation.x = Math.PI/2 + (Math.random()-0.5)*0.6;
+    coin.position.set(dx,dy,dz); g.add(coin);
+  });
+  return g;
+}
+function lootIsEmpty(loot) {
+  return loot.sip<=0 && loot.elite<=0 && loot.cash<=0 && loot.wood<=0 && loot.scrap<=0 &&
+    Object.keys(loot.items||{}).length===0 && (loot.weapons||[]).length===0 && (loot.armor||[]).length===0;
+}
+function describeDeathLoot(loot) {
+  const parts = [];
+  if (loot.sip > 0)   parts.push(`${loot.sip.toLocaleString()} S.I.P.`);
+  if (loot.elite > 0) parts.push(`${loot.elite.toLocaleString()} 💎 Elite Coins`);
+  if (loot.cash > 0)  parts.push(`$${loot.cash.toLocaleString()} cash`);
+  const itemCount = Object.keys(loot.items||{}).reduce((n,k)=>n+((loot.items[k]&&loot.items[k].qty)||0), 0);
+  if (itemCount > 0) parts.push(`${itemCount} item${itemCount===1?'':'s'}`);
+  if ((loot.weapons||[]).length) parts.push(`${loot.weapons.length} weapon${loot.weapons.length===1?'':'s'}`);
+  if ((loot.armor||[]).length)   parts.push(`${loot.armor.length} armor piece${loot.armor.length===1?'':'s'}`);
+  if (loot.wood > 0)  parts.push(`${loot.wood} 🪵 wood`);
+  if (loot.scrap > 0) parts.push(`${loot.scrap} 🔩 scrap`);
+  return parts.join(', ') || 'nothing';
+}
+function spawnDeathDropPile(x, z, loot, ownerName) {
+  if (lootIsEmpty(loot)) return;
+  const mesh = buildDeathDropMesh(x, z);
+  const pile = { x, z, mesh, loot, owner: ownerName, zone: null };
+  const zone = { x, z, r: 2.5, label: `💀 Reclaim Lost Stuff (${describeDeathLoot(loot)})`, action: () => reclaimDeathDrop(pile) };
+  pile.zone = zone;
+  // unshift, not push: the E-interact loop (game-zones.js) fires the FIRST zone in CITY_ZONES
+  // whose radius contains the player, in array order — a death can easily land right next to an
+  // existing zone (an ATM, a shop door, the Bank...) whose bigger radius would otherwise always
+  // win and make a freshly-lost pile impossible to reach until that other zone is dealt with.
+  // Reclaiming your own death drop should always take priority over anything else nearby.
+  CITY_ZONES.unshift(zone);
+  DEATH_DROP_PILES.push(pile);
+}
+function reclaimDeathDrop(pile) {
+  if (!pile.mesh) return; // already collected
+  const loot = pile.loot;
+  if (loot.sip > 0)   { sipDollars += loot.sip; updateSIP(); }
+  if (loot.elite > 0) { eliteCoins += loot.elite; updateElite(); }
+  if (loot.cash > 0)  { cash += loot.cash; updateCash(); }
+  if (loot.wood > 0)  { woodCount += loot.wood; updateWood(); }
+  if (loot.scrap > 0) { scrapMetal += loot.scrap; updateScrapMetal(); }
+  Object.keys(loot.items || {}).forEach(id => {
+    const it = loot.items[id];
+    for (let n=0; n<(it.qty||0); n++) addToInventory(id, it.name, it.emoji);
+  });
+  (loot.weapons || []).forEach(id => { if(!ownedWeapons.includes(id)) ownedWeapons.push(id); });
+  (loot.armor   || []).forEach(id => { if(!ownedArmor.includes(id))   ownedArmor.push(id); });
+  refreshInventory();
+  saveCurrentUser();
+  scene.remove(pile.mesh); pile.mesh = null;
+  const zi = CITY_ZONES.indexOf(pile.zone); if(zi>-1) CITY_ZONES.splice(zi,1);
+  pile.zone = null;
+  const di = DEATH_DROP_PILES.indexOf(pile); if(di>-1) DEATH_DROP_PILES.splice(di,1);
+  showNotif(`💀 Reclaimed: ${describeDeathLoot(loot)}!`);
+  sfx.click();
+}
+// The real death-penalty application: wipes everything lose-able from the account's live state,
+// drops it as a real pile at (x,z) — captured by knockoutPlayer() BEFORE any respawn teleport, so
+// this is always the exact spot the player died at, no matter which branch below runs next — and
+// returns the loot manifest so a caller with its own dedicated UI (e.g. the War Death modal) can
+// build its own message instead of the generic delayed showNotif() (pass suppressNotif=true).
+function applyDeathLossAndDrop(x, z, suppressNotif) {
+  const loot = {
+    sip: sipDollars, elite: eliteCoins, cash: cash,
+    items: JSON.parse(JSON.stringify(playerInventory || {})),
+    weapons: ownedWeapons.filter(id => !isPremiumWeaponId(id)),
+    armor: ownedArmor.filter(id => !isPremiumArmorId(id)),
+    wood: woodCount, scrap: scrapMetal,
+  };
+  if (lootIsEmpty(loot)) return loot; // nothing at risk — don't spawn an empty pile or notif
+
+  sipDollars = 0; updateSIP();
+  eliteCoins = 0; updateElite();
+  cash = 0; updateCash();
+  woodCount = 0; updateWood();
+  scrapMetal = 0; updateScrapMetal();
+  playerInventory = {};
+  ownedWeapons = ownedWeapons.filter(isPremiumWeaponId);
+  ownedArmor   = ownedArmor.filter(isPremiumArmorId);
+  if (!ownedWeapons.includes(playerWeapon)) { playerWeapon = 'none'; if (typeof updateWeaponMesh === 'function') updateWeaponMesh(); }
+  if (!ownedArmor.includes(playerArmor))    { playerArmor  = 'none'; if (typeof updateArmorMesh  === 'function') updateArmorMesh();  }
+  refreshInventory();
+  saveCurrentUser();
+  spawnDeathDropPile(x, z, loot, currentUser);
+  if (!suppressNotif) {
+    // Delayed like every other "second notification right after a knockout" call in this file —
+    // showNotif() shares one on-screen element, so firing this immediately would overwrite
+    // whichever context-specific "you were knocked out" message the branch below already showed.
+    setTimeout(() => showNotif(`☠️ You lost everything you were carrying: ${describeDeathLoot(loot)} — it's on the ground where you died!`), 2400);
+  }
+  return loot;
+}
 function knockoutPlayer() {
   if(wrathActive) endWrathAfterDeath(); // "attacks until you die" — the chase always ends here, never by outrunning it
+  // Captured BEFORE any branch below teleports the player away, so the death-drop pile always
+  // lands at the real spot the knockout happened, in every context.
+  const deathX = playerGroup.position.x, deathZ = playerGroup.position.z;
   if(lastHitmanAttacker) {
     // A real hired-killer death, not a duel/arena loss — the hirer only finds out once we
     // confirm it ourselves, since they have no way to know our HP directly (see
@@ -1058,6 +1179,7 @@ function knockoutPlayer() {
     lastHitmanAttacker = null;
     sendMail(hirer, 'hitman_kill_confirmed', { targetName: currentUser });
     showNotif(`💀 A killer hired by ${hirer} got you! Waking up at home...`);
+    applyDeathLossAndDrop(deathX, deathZ);
     playerGroup.position.set(HOUSE_DOOR.x, 0, HOUSE_DOOR.z + 3);
     yaw = 0;
     playerHealth = playerMaxHealth;
@@ -1069,6 +1191,7 @@ function knockoutPlayer() {
     dueling = null;
     sendMail(opponent, 'duel_end', { result: 'you_won' });
     showNotif(`😵 You lost the duel to ${opponent}!`);
+    applyDeathLossAndDrop(deathX, deathZ);
     playerHealth = playerMaxHealth;
     updateHealthBar();
     return; // a friendly duel loss doesn't send you home
@@ -1080,6 +1203,7 @@ function knockoutPlayer() {
     lastFfaAttacker = null;
     if(attacker) sendMail(attacker, 'ffa_kill');
     showNotif(`💀 Knocked out${attacker ? ' by '+attacker : ''}! Respawning in ${FFA_RESPAWN_SECONDS}s...`);
+    applyDeathLossAndDrop(deathX, deathZ);
     playerHealth = playerMaxHealth;
     updateHealthBar();
     return; // arena knockouts don't send you home either — you just sit out the cooldown
@@ -1089,13 +1213,14 @@ function knockoutPlayer() {
     // where to respawn." warAlive stays false (can't fight, can't be hit) until a choice is
     // actually made in warDeathModal; picking "Right Here" keeps the original no-travel-penalty
     // territory grind possible, the other two are a real trip in exchange for safety.
+    // Old behavior lost a flat 10% of the wallet (WAR_DEATH_SIP_LOSS_PCT, game-world.js) — now
+    // superseded by the same full-loss death penalty every other context uses.
     warAlive = false;
-    const lostSip = Math.round(sipDollars * WAR_DEATH_SIP_LOSS_PCT);
-    sipDollars = Math.max(0, sipDollars - lostSip);
-    updateSIP();
+    const terr = currentWarZone;
+    const lostLoot = applyDeathLossAndDrop(deathX, deathZ, true); // suppress the generic notif — the modal below shows its own message
     playerHealth = playerMaxHealth;
     updateHealthBar();
-    showWarDeathModal(currentWarZone, lostSip);
+    showWarDeathModal(terr, describeDeathLoot(lostLoot));
     return;
   }
   if(activeJob || activeBankJob) {
@@ -1104,6 +1229,7 @@ function knockoutPlayer() {
     // teleport-home would undo the whole point of standing your ground against them. Same "just a
     // breather in place" pattern as the War Zone/Arena cases above, just for any active job.
     showNotif('💀 Knocked out on the job! Shake it off and get back to it.');
+    applyDeathLossAndDrop(deathX, deathZ);
     playerHealth = playerMaxHealth;
     updateHealthBar();
     return;
@@ -1120,25 +1246,9 @@ function knockoutPlayer() {
   yaw = Math.PI;
   playerHealth = playerMaxHealth;
   updateHealthBar();
-  // Cash/ATM feature — real risk for carrying physical cash instead of leaving it all bank-safe:
-  // an ordinary open-city knockout (this default branch only — every special-case branch above
-  // already returned before reaching here) costs a real chunk of whatever cash you had on you.
-  // sipDollars is completely untouched — that's the entire point of the cash-vs-bank tradeoff.
-  // 30%-70% lost (steeper than a Robber's own 15%-25% steal roll, see robMoney()/game-land.js —
-  // getting fully knocked out is a much worse beat than a robber catching up to you).
-  if (cash > 0) {
-    const lostPct = 0.3 + Math.random() * 0.4; // 30%-70%
-    const lostCash = Math.round(cash * lostPct);
-    if (lostCash > 0) {
-      cash -= lostCash;
-      updateCash();
-      // Delayed like every other "second notification right after a knockout/event" call in the
-      // game (see holiday/reminder/Satan's Reign notifs elsewhere) — showNotif() shares one on-
-      // screen element, so firing this immediately would silently overwrite "Rushed to City
-      // Hospital..." above before the player ever reads it.
-      setTimeout(() => showNotif(`💸 You lost $${lostCash.toLocaleString()} in the chaos!`), 2200);
-    }
-  }
+  // Old behavior only cost 30%-70% of carried cash (sipDollars/inventory/gear were untouched) —
+  // now superseded by the same full-loss death penalty every other context uses above.
+  applyDeathLossAndDrop(deathX, deathZ);
   resetAllBossAggro(); // the "die" end condition for a boss chase — it doesn't just resume hunting you the instant you wake up across the map
   if (inMovieFight) cleanupMovieFight(); // same "no orphaned interior state after a teleport-home" concern — the room/boss don't stay half-active behind you
   // Real bug found live while testing the Robot Arena's new active-attacking robots: the Arena
