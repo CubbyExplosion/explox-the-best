@@ -604,70 +604,109 @@ function applyEmotePose(b, familyId, elapsed, params) {
   switch(familyId){
     case 'wave': {
       const raise = Math.min(1, et/0.3);
+      const swayPhase = et*Math.PI*repeat*0.9;
       leadSh.rotation.x = -1.3*raise;
-      leadSh.rotation.z = -side*(0.3 + Math.sin(et*Math.PI*repeat*0.9)*0.35*amp*raise);
+      leadSh.rotation.z = -side*(0.3 + Math.sin(swayPhase)*0.35*amp*raise);
       head.rotation.y = Math.sin(et*2)*0.05*amp;
+      // Hip sway / body lean riding the same wave beat — bigger `flourish` waves put more of the
+      // whole body into it instead of just the arm.
+      hips.rotation.z = side*flourish*0.15*Math.sin(swayPhase)*raise;
+      spine.rotation.z = side*flourish*0.08*Math.sin(swayPhase - 0.4)*raise;
       break;
     }
     case 'dance': {
       const beat = et*2*Math.PI*0.9; // keeps climbing the whole time it's active — a real loop, not a one-shot
+      // A secondary wiggle layered on top of the main beat, whose rate depends on `repeat` — low-repeat
+      // variants dance smooth and simple, high-repeat variants get a busier, fidgetier style.
+      const styleBeat = Math.sin(beat*(0.5 + repeat*0.25));
       hips.rotation.y = Math.sin(beat)*0.25*amp*side;
       hips.position.y = hips._emoteRestY + Math.abs(Math.sin(beat))*0.12*amp + flourish*0.05;
-      spine.rotation.z = Math.sin(beat*0.5)*0.12*amp;
-      lSh.rotation.x = Math.sin(beat+Math.PI)*0.9*amp - 0.3;
-      rSh.rotation.x = Math.sin(beat)*0.9*amp - 0.3;
+      spine.rotation.z = Math.sin(beat*0.5)*0.12*amp + styleBeat*0.06*amp;
+      lSh.rotation.x = Math.sin(beat+Math.PI)*0.9*amp - 0.3 + styleBeat*0.15*amp;
+      rSh.rotation.x = Math.sin(beat)*0.9*amp - 0.3 - styleBeat*0.15*amp;
       lSh.rotation.z = Math.cos(beat)*0.2*amp;
       rSh.rotation.z = -Math.cos(beat)*0.2*amp;
       lHip.rotation.x = Math.sin(beat)*0.3*amp;
       rHip.rotation.x = -Math.sin(beat)*0.3*amp;
       head.rotation.z = Math.sin(beat*0.5)*0.15*amp;
+      head.rotation.y = styleBeat*0.08*flourish;
       break;
     }
     case 'sit': {
       // Legs swing forward at the hip (no knee joint on this rig, so a straight-leg seated
       // silhouette — same simplification makeNPC()'s def.seated pose already uses), held until cancelled.
+      // The idle fidget below runs on REAL `elapsed` time (not `et`), since a hold pose never
+      // finishes and shouldn't visibly speed up just because a variant's `speed` is higher.
+      const fidget = Math.sin(elapsed*0.35*repeat)*flourish;
       lHip.rotation.x = -1.4; rHip.rotation.x = -1.4;
       hips.position.y = hips._emoteRestY - 0.35;
-      spine.rotation.x = 0.15;
-      lSh.rotation.x = 0.1*amp; rSh.rotation.x = 0.1*amp;
+      // Amplified from the first pass — measured too subtle in testing (a seated pose has no
+      // other structural difference between variants, so the fidget IS the whole distinction).
+      spine.rotation.x = 0.15 + fidget*0.18*amp;
+      spine.rotation.z = Math.sin(elapsed*0.22*repeat + 1.1)*flourish*0.15*amp;
+      head.rotation.x = fidget*0.22*amp;
+      head.rotation.z = Math.cos(elapsed*0.3*repeat)*flourish*0.15*amp;
+      lSh.rotation.x = 0.1*amp + fidget*0.12; rSh.rotation.x = 0.1*amp - fidget*0.12;
+      lHip.rotation.z = flourish*0.1*Math.sin(elapsed*0.18*repeat); rHip.rotation.z = -flourish*0.1*Math.sin(elapsed*0.18*repeat);
       break;
     }
     case 'laugh': {
       const bob = Math.sin(et*Math.PI*2*(repeat/dur));
-      head.rotation.x = -0.15 + bob*0.15*amp;
-      spine.rotation.x = -0.08 + Math.abs(bob)*0.08*amp;
+      const hunch = flourish*0.2; // how much the body leans/hunches into the laugh
+      head.rotation.x = -0.15 + bob*0.15*amp - hunch*0.3;
+      spine.rotation.x = -0.08 + Math.abs(bob)*0.08*amp + hunch;
       spine.rotation.z = side*0.04*amp;
-      lSh.rotation.x = -0.4 + bob*0.2*amp;
-      rSh.rotation.x = -0.4 - bob*0.2*amp;
+      lSh.rotation.x = -0.4 + bob*0.2*amp - hunch*0.15;
+      rSh.rotation.x = -0.4 - bob*0.2*amp - hunch*0.15;
       break;
     }
     case 'salute': {
       const raise = Math.min(1, et/0.25);
-      leadSh.rotation.x = -1.75*raise;
+      // Raise-drop-raise: `repeat` crisp salute bumps front-loaded early in the gesture, decaying
+      // out so the arm settles into a held salute well before the emote's real end.
+      const bumpWindow = Math.min(1, et/(dur*0.7));
+      const bump = Math.sin(bumpWindow*Math.PI*repeat) * (1-bumpWindow) * 0.3*amp;
+      leadSh.rotation.x = -1.75*raise + bump;
       leadSh.rotation.z = side*0.5*raise;
       head.rotation.x = -0.05*raise;
       head.rotation.y = -side*0.08*raise*amp;
+      // Heel-click/heel-dip synced to the first bump, sized by `flourish`.
+      const heel = Math.max(0, Math.sin(bumpWindow*Math.PI*2)) * flourish;
+      hips.position.y = hips._emoteRestY - heel*0.05;
+      lHip.rotation.x = -heel*0.15; rHip.rotation.x = -heel*0.15;
       break;
     }
     case 'facepalm': {
       const raise = Math.min(1, et/0.3);
-      leadSh.rotation.x = -1.9*raise;
+      // Bigger `flourish` = a harder, more dramatic palm-drop with a brief overshoot past the
+      // resting pose before it settles.
+      const overshoot = Math.sin(raise*Math.PI)*flourish*0.35;
+      leadSh.rotation.x = -1.9*raise - overshoot;
       leadSh.rotation.z = -side*0.35*raise;
-      head.rotation.x = 0.25*raise*amp;
+      head.rotation.x = 0.25*raise*amp + overshoot*0.4;
       head.rotation.z = -side*0.1*raise;
+      // Slow head-shake once the palm has landed — `repeat` sets how many shakes fit in the rest
+      // of the gesture's real duration.
+      const afterDur = Math.max(0.1, dur-0.3);
+      const afterT = Math.max(0, et-0.3);
+      head.rotation.y = Math.sin(afterT*Math.PI*2*(repeat/afterDur))*0.12*amp*Math.min(1, afterT*3);
       break;
     }
     case 'cry': {
       const shake = Math.sin(et*Math.PI*2*(repeat/Math.max(dur,1)))*0.06*amp;
-      head.rotation.x = 0.35;
+      const hunch = flourish*0.25; // how much the body leans/hunches into the crying
+      head.rotation.x = 0.35 + hunch*0.3;
       head.rotation.z = shake*1.5;
-      lSh.rotation.x = -0.15 + shake; rSh.rotation.x = -0.15 - shake;
+      spine.rotation.x = hunch;
+      lSh.rotation.x = -0.15 + shake - hunch*0.2; rSh.rotation.x = -0.15 - shake - hunch*0.2;
       lSh.rotation.z = shake*1.5; rSh.rotation.z = -shake*1.5;
       break;
     }
     case 'bow': {
       const pr = Math.min(1, et/dur);
-      const arc = Math.sin(pr*Math.PI)*amp; // down, then back up
+      // Higher `repeat` variants do a full double-bow (bow-rise-bow) instead of a single bow.
+      const bowCount = repeat >= 4 ? 2 : 1;
+      const arc = Math.sin(pr*Math.PI*bowCount)*amp; // down, then back up (x bowCount)
       spine.rotation.x = arc*1.0;
       hips.rotation.x = arc*0.15;
       hips.rotation.y = flourish*0.3*arc*side;
@@ -676,19 +715,26 @@ function applyEmotePose(b, familyId, elapsed, params) {
     }
     case 'point': {
       const raise = Math.min(1, et/0.25);
+      // Accusatory side-to-side wag once the arm is up — `repeat` sets how many wags, `flourish`
+      // sets how big each wag is.
+      const wag = Math.sin(et*Math.PI*2*(repeat/Math.max(dur,1)))*0.12*flourish*raise;
       leadSh.rotation.x = -1.5*raise;
-      leadSh.rotation.z = -side*0.15;
-      head.rotation.y = -side*0.15*raise;
+      leadSh.rotation.z = -side*0.15 + wag;
+      head.rotation.y = -side*0.15*raise + wag*0.5;
       break;
     }
     case 'clap': {
       const beat = Math.sin(et*Math.PI*2*(repeat/dur));
       const raise = Math.min(1, et/0.2);
+      // Head-bob / torso bounce synced to each clap, sized by `flourish`.
+      const bounce = Math.max(0, beat)*flourish;
       lSh.rotation.x = (-1.1 + beat*0.2*amp)*raise;
       rSh.rotation.x = (-1.1 - beat*0.2*amp)*raise;
       lSh.rotation.z = (0.5 + beat*0.25*amp)*raise;
       rSh.rotation.z = (-0.5 - beat*0.25*amp)*raise;
-      head.rotation.x = -0.05*raise;
+      head.rotation.x = -0.05*raise - bounce*0.08;
+      hips.position.y = hips._emoteRestY + bounce*0.05*raise;
+      spine.rotation.x = -bounce*0.05*raise;
       break;
     }
     case 'spin': {
@@ -696,32 +742,49 @@ function applyEmotePose(b, familyId, elapsed, params) {
       // touching playerGroup.rotation.y — so the character's actual facing/movement direction is
       // untouched once the emote ends.
       hips.rotation.y = et*Math.PI*2*(repeat/dur)*side;
-      lSh.rotation.x = -0.15; rSh.rotation.x = -0.15;
+      // Higher `flourish` twirls with arms raised overhead instead of held at the sides.
+      const armsUp = flourish;
+      lSh.rotation.x = -0.15 - armsUp*1.6; rSh.rotation.x = -0.15 - armsUp*1.6;
+      lSh.rotation.z = armsUp*0.4; rSh.rotation.z = -armsUp*0.4;
       break;
     }
     case 'flex': {
-      const raise = Math.min(1, et/0.3);
+      // Flex-relax-flex pump: `repeat` full pumps fit inside the family's real duration window.
+      const pump = Math.abs(Math.sin(et*Math.PI*(repeat/Math.max(dur,1))));
       const shake = et>0.3 ? Math.sin(et*10)*0.03*amp : 0;
-      lSh.rotation.x = -1.4*raise*amp + shake; rSh.rotation.x = -1.4*raise*amp - shake;
-      lSh.rotation.z = 0.6*raise; rSh.rotation.z = -0.6*raise;
-      head.rotation.x = -0.1*raise;
+      // Higher `flourish` does a single-arm flex (the acting `side` arm) instead of a double-arm flex.
+      const singleArm = flourish > 0.5;
+      const lAmt = singleArm && side<0 ? 0.15 : pump;
+      const rAmt = singleArm && side>=0 ? 0.15 : pump;
+      lSh.rotation.x = -1.4*lAmt*amp + shake; rSh.rotation.x = -1.4*rAmt*amp - shake;
+      lSh.rotation.z = 0.6*lAmt; rSh.rotation.z = -0.6*rAmt;
+      head.rotation.x = -0.1*pump;
+      head.rotation.y = singleArm ? side*0.12*pump : 0;
       break;
     }
     case 'shrug': {
       const pr = Math.min(1, et/dur);
-      const arc = Math.sin(pr*Math.PI)*amp;
+      // Multi-shrug: shrug-drop-shrug — more `repeat` means more shrugs (capped at 3 so it never
+      // gets too frantic for the family's short baseDuration).
+      const shrugCount = Math.min(3, Math.max(1, repeat-1));
+      const arc = Math.sin(pr*Math.PI*shrugCount)*amp;
       lSh.rotation.z = 0.5*arc; rSh.rotation.z = -0.5*arc;
       lSh.rotation.x = -0.3*arc; rSh.rotation.x = -0.3*arc;
-      head.rotation.z = Math.sin(pr*Math.PI*2)*0.05*arc;
+      // Questioning head tilt — how far it tilts is sized by `flourish`.
+      head.rotation.z = Math.sin(pr*Math.PI*2)*0.05*arc + flourish*0.15*Math.sin(pr*Math.PI);
+      head.rotation.x = flourish*0.1*Math.sin(pr*Math.PI);
       hips.position.y = hips._emoteRestY + arc*0.03;
       break;
     }
     case 'cheer': {
       const beat = Math.sin(et*Math.PI*2*(repeat/dur));
       const raise = Math.min(1, et/0.25);
+      // `flourish` adds extra jump height on top of the base bounce.
+      const jump = Math.max(0,beat)*(0.1 + flourish*0.15)*amp*raise;
       lSh.rotation.x = (-2.4 + beat*0.3*amp)*raise;
       rSh.rotation.x = (-2.4 - beat*0.3*amp)*raise;
-      hips.position.y = hips._emoteRestY + Math.max(0,beat)*0.1*amp*raise;
+      hips.position.y = hips._emoteRestY + jump;
+      spine.rotation.x = -jump*0.3; // leans back slightly at the peak of a bigger jump
       head.rotation.x = -0.1*raise;
       break;
     }
