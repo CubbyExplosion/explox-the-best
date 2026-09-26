@@ -1269,9 +1269,8 @@ function hitDummy() {
   if(DUMMY.defeated) { showNotif('🪵 The dummy is down — repairing itself...'); return; }
   const dmg = getWeaponDamage();
   DUMMY.hp -= dmg;
-  triggerSwing();
+  swingAndHit(DUMMY.x, DUMMY.z, () => sfx.hit());
   startDummyKnockback();
-  sfx.hit();
   if(DUMMY.hp <= 0) {
     DUMMY.defeated = true;
     DUMMY.mesh.rotation.z = Math.PI/2.2;

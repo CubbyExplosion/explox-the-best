@@ -1568,8 +1568,7 @@ function tryDuelInteract() {
     if(d > 25) return false; // opponent is far off - don't block unrelated interactions
     if(d > 8) { showNotif(`Get closer to ${dueling} to swing!`); return true; } // real players found this too tight at 6 - loosened, and now says why instead of silently doing nothing
     const dmg = getWeaponDamage();
-    triggerSwing();
-    sfx.hit();
+    swingAndHit(rp.mesh.position.x, rp.mesh.position.z, () => sfx.hit());
     sendMail(dueling, 'duel_hit', { damage: dmg });
     startKnockback(playerGroup.position.x, playerGroup.position.z, rp.mesh.position.x, rp.mesh.position.z,
       (x, z) => { rp.mesh.position.x = x; rp.mesh.position.z = z; });
@@ -1627,8 +1626,7 @@ function tryFfaInteract() {
   // truly no PvP target, letting the caller fall through to check everything else first.
   if(!target) { return false; }
   const dmg = getWeaponDamage();
-  triggerSwing();
-  sfx.hit();
+  swingAndHit(targetRp.mesh.position.x, targetRp.mesh.position.z, () => sfx.hit());
   sendMail(target, 'ffa_hit', { damage: dmg });
   startKnockback(playerGroup.position.x, playerGroup.position.z, targetRp.mesh.position.x, targetRp.mesh.position.z,
     (x, z) => { targetRp.mesh.position.x = x; targetRp.mesh.position.z = z; });
@@ -1685,10 +1683,9 @@ function attackNPC(npc) {
 
   const dmg = getWeaponDamage();
   npc.combatHp -= dmg;
-  triggerSwing();
+  swingAndHit(npc.group.position.x, npc.group.position.z, () => sfx.hit());
   startKnockback(playerGroup.position.x, playerGroup.position.z, npc.group.position.x, npc.group.position.z,
     (x, z) => { npc.group.position.x = x; npc.group.position.z = z; });
-  sfx.hit();
 
   if(npc.combatHp > 0) {
     // NPC fights back — real risk for the player, not a free hit each time.

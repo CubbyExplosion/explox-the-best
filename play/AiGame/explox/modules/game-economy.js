@@ -580,6 +580,21 @@ let playerSwingPower = 1; // 0-1, how charged the swing currently animating was 
 let pendingSwingPower = 1; // set right before the charge-release handleInteract() call, consumed once by the next triggerSwing()
 const SWING_DURATION = 0.25;
 function triggerSwing() { if(clock){ playerSwingStart = clock.getElapsedTime(); playerSwingPower = pendingSwingPower; } }
+// Guns get their own real feedback — a visible tracer round (fireWarShot, game-world.js — same
+// one war NPCs/the Bank wall already fire) plus the gunshot sound, instead of the melee
+// clang/hit noise. Every combat function below routes its swing+sound through here rather than
+// calling triggerSwing()+its own sfx directly, so equipping any gun (WEAPON_VISUALS archetype,
+// game-shops.js) changes every fight the same way at once instead of needing a per-fight check.
+function isGunEquipped() { const v = WEAPON_VISUALS[playerWeapon]; return !!v && v.archetype === 'gun'; }
+function swingAndHit(targetX, targetZ, meleeSfxFn) {
+  triggerSwing();
+  if (isGunEquipped()) {
+    fireWarShot(playerGroup.position.x, 1.6, playerGroup.position.z, targetX, targetZ);
+    sfx.laser();
+  } else if (meleeSfxFn) {
+    meleeSfxFn();
+  }
+}
 
 // Charge-and-release punch: holding E winds the arm back, releasing throws the punch —
 // the longer it was held (up to PUNCH_MAX_CHARGE seconds), the harder it lands.

@@ -1454,8 +1454,7 @@ function fightRobot(robot) {
   if(!robot.alive) { showNotif('That robot is already scrap.'); return; }
   const dmg = getRobotDamage();
   robot.hp -= dmg;
-  triggerSwing();
-  sfx.clang();
+  swingAndHit(robot.x, robot.z, () => sfx.clang());
   startKnockback(playerGroup.position.x, playerGroup.position.z, robot.x, robot.z,
     (x, z) => { robot.x = x; robot.z = z; robot.mesh.position.set(x, 0, z); });
 
@@ -1553,10 +1552,9 @@ function fightRogueRobot(robot) {
   if (!robot.alive) return;
   const dmg = getRobotDamage();
   robot.hp -= dmg;
-  triggerSwing();
+  swingAndHit(robot.x, robot.z, () => sfx.clang());
   startKnockback(playerGroup.position.x, playerGroup.position.z, robot.x, robot.z,
     (x, z) => { robot.x = x; robot.z = z; robot.mesh.position.set(x, 0, z); });
-  sfx.clang();
   if (robot.hp > 0) {
     showNotif(`⚔️ Hit the rogue ${robot.type.name} for ${dmg}! (${robot.hp} HP left)`);
     return;
@@ -1669,10 +1667,9 @@ function fightKillerSupreme(killer) {
   if (!killer.alive) return;
   const dmg = getWeaponDamage();
   killer.hp -= dmg;
-  triggerSwing();
+  swingAndHit(killer.x, killer.z, () => sfx.clang());
   startKnockback(playerGroup.position.x, playerGroup.position.z, killer.x, killer.z,
     (x, z) => { killer.x = x; killer.z = z; killer.mesh.position.set(x, 0, z); });
-  sfx.clang();
   if (killer.hp > 0) {
     showNotif(`👑 Hit Killer Supreme for ${dmg}! (${killer.hp}/${killer.maxHp} HP left)`);
     return;
@@ -2107,10 +2104,9 @@ function fightRobber(k) {
   if (!k.alive) return;
   const dmg = getWeaponDamage();
   k.hp -= dmg;
-  triggerSwing();
+  swingAndHit(k.x, k.z, () => sfx.clang());
   startKnockback(playerGroup.position.x, playerGroup.position.z, k.x, k.z,
     (x, z) => { k.x = x; k.z = z; k.mesh.position.set(x, 0, z); });
-  sfx.clang();
   if (k.hp > 0) { showNotif(`⚔️ Hit the robber for ${dmg}! (${k.hp}/${k.maxHp} HP left)`); return; }
   defeatRobber(k);
 }
@@ -2382,10 +2378,9 @@ function fightKiller(killer) {
   if (!killer.alive) return;
   const dmg = getWeaponDamage();
   killer.hp -= dmg;
-  triggerSwing();
+  swingAndHit(killer.x, killer.z, () => sfx.clang());
   startKnockback(playerGroup.position.x, playerGroup.position.z, killer.x, killer.z,
     (x, z) => { killer.x = x; killer.z = z; killer.mesh.position.set(x, 0, z); });
-  sfx.clang();
   if (killer.hp > 0) {
     showNotif(`⚔️ Hit the killer for ${dmg}! (${killer.hp}/${killer.maxHp} HP left)`);
     return;
@@ -2445,10 +2440,9 @@ function fightDemon(demon) {
   if (!demon.alive) return;
   const dmg = getWeaponDamage();
   demon.hp -= dmg;
-  triggerSwing();
+  swingAndHit(demon.x, demon.z, () => sfx.clang());
   startKnockback(playerGroup.position.x, playerGroup.position.z, demon.x, demon.z,
     (x, z) => { demon.x = x; demon.z = z; demon.mesh.position.set(x, 0, z); });
-  sfx.clang();
   if (demon.hp > 0) {
     showNotif(`⚔️ Hit ${demon.demonDef.name} for ${dmg}! (${demon.hp}/${demon.maxHp} HP left)`);
     return;
@@ -2536,10 +2530,9 @@ function fightSatanBoss(satan) {
   if (!satan.alive) return;
   const dmg = getWeaponDamage();
   satan.hp -= dmg;
-  triggerSwing();
+  swingAndHit(satan.x, satan.z, () => sfx.clang());
   startKnockback(playerGroup.position.x, playerGroup.position.z, satan.x, satan.z,
     (x, z) => { satan.x = x; satan.z = z; satan.mesh.position.x = x; satan.mesh.position.z = z; });
-  sfx.clang();
   if (satan.hp > 0) {
     showNotif(`⚔️ Struck Satan for ${dmg}! (${satan.hp.toLocaleString()}/${satan.maxHp.toLocaleString()} HP left)`);
     return;
@@ -3052,10 +3045,9 @@ function fightArenaRobot(robot) {
   if (!robot.alive || !arenaRunning) return;
   const dmg = getRobotDamage();
   robot.hp -= dmg;
-  triggerSwing();
+  swingAndHit(robot.x, robot.z, () => sfx.clang());
   startKnockback(playerGroup.position.x, playerGroup.position.z, robot.x, robot.z,
     (x, z) => { robot.x = x; robot.z = z; robot.mesh.position.set(x, 0, z); robot.zone.x = x; robot.zone.z = z; });
-  sfx.clang();
   robot.attackTimer = 0; // landing a hit resets its swing timer, same as a real fight would
   if (robot.hp > 0) {
     // No counter-hit here anymore — tickArenaRobots() already attacks on its own timer whenever
@@ -5249,8 +5241,7 @@ function fightMovieBoss() {
   const mb = movieBossFight;
   const dmg = getWeaponDamage();
   mb.hp = Math.max(0, mb.hp - dmg); // no server involved here at all — always a real, immediate 0, same as an offline solo boss fight (item 209's fix)
-  triggerSwing();
-  sfx.clang();
+  swingAndHit(mb.curX, mb.curZ, () => sfx.clang());
   mb.attackTimer = 0;
   if (mb.hp <= 0) { defeatMovieBoss(); return; }
   showNotif(`⚔️ Hit ${mb.def.name} for ${dmg}! (${mb.hp}/${mb.maxHp} HP left)`);

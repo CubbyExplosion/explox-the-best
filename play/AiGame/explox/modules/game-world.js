@@ -464,7 +464,7 @@ function fightWorldEventNpc(npc, ev) {
   if (!npc.alive || !activeWorldEvent || activeWorldEvent.startedAt !== ev.startedAt) { showNotif('That fight is over.'); return; }
   const dmg = getRobotDamage();
   npc.hp -= dmg;
-  triggerSwing(); sfx.clang();
+  swingAndHit(npc.x, npc.z, () => sfx.clang());
   startKnockback(playerGroup.position.x, playerGroup.position.z, npc.x, npc.z,
     (x, z) => { npc.x = x; npc.z = z; npc.mesh.position.set(x, 0, z); });
   if (npc.hp > 0) {
@@ -1793,8 +1793,7 @@ async function fightBoss(def) {
     return;
   }
   const dmg = getWeaponDamage();
-  triggerSwing();
-  sfx.clang();
+  swingAndHit(st.curX, st.curZ, () => sfx.clang());
   // Real pre-existing bug found while verifying the new chase feature: this floor used to be
   // Math.max(1, ...) UNCONDITIONALLY, even in offline mode — which meant an offline solo boss
   // fight could NEVER actually reach 0 HP, so the boss could never be won against without a
@@ -2599,7 +2598,7 @@ function fightWarNpc(npc, terr) {
   if (!warAlive) { showNotif('⏳ Still down — pick where to respawn first!'); return; }
   const dmg = getRobotDamage();
   npc.hp -= dmg;
-  triggerSwing(); sfx.clang();
+  swingAndHit(npc.x, npc.z, () => sfx.clang());
   startKnockback(playerGroup.position.x, playerGroup.position.z, npc.x, npc.z,
     (x, z) => { npc.x = x; npc.z = z; npc.mesh.position.set(x, 0, z); });
   lifetimeWarHits++;
@@ -2729,7 +2728,7 @@ function hitWarWall(terr) {
   if (!w || !w.alive) { showNotif('The wall is already down — go fight for the territory!'); return; }
   const dmg = getRobotDamage();
   w.hp -= dmg;
-  triggerSwing(); sfx.clang();
+  swingAndHit(w.zone.x, w.zone.z, () => sfx.clang());
   if (w.hp > 0) { showNotif(`🧱 Hit the wall for ${dmg}! (${w.hp}/${w.maxHp} HP left)`); return; }
   clearWallStructure(w);
   breachedWarWalls.add(terr.name);
