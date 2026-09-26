@@ -314,6 +314,14 @@ function toggleGameFullscreen(){
 
 // ─── GAME LOOP ────────────────────────────────────────────────────────────────
 const SPEED=8;
+// Brisk/professional walk-cycle tuning — shared by the player's own base walk (below, in the
+// "Walk animation" block) AND the Doctor NPC's patrol (buildHospitalInterior(), game-land.js;
+// ticked further down in this same animate() loop) so both use one real, identical gait, not two
+// copies of the formula that could drift apart. Was cadence x8 / amplitude 0.4 (a looser, more
+// casual stroll); brisker pace = faster stride frequency (more steps per second) with a tighter,
+// more contained arm/leg swing (less loose flailing) — upright, purposeful, efficient, not a swagger.
+const WALK_CYCLE_CADENCE = 11;    // was 8 — ~37% faster stride frequency
+const WALK_CYCLE_SWING_AMP = 0.28; // was 0.4 — ~30% smaller, more contained swing
 let _frames = 0;
 function animate(){
   requestAnimationFrame(animate);
@@ -331,7 +339,7 @@ function animate(){
   const sitePlayersHud = document.getElementById('sitePlayersHud');
   if (sitePlayersHud && sitePlayersHud.style.display === 'none') sitePlayersHud.style.display = 'block';
   if(t - _lastSitePlayersSync > SITE_PLAYERS_SYNC_INTERVAL) { _lastSitePlayersSync = t; syncSitePlayerCount(); }
-  updateRemotePlayers(dt);
+  updateRemotePlayers(dt, t);
   updateRemoteKillers(dt);
   updateRemoteBuddies(dt);
   updateRemoteBodyguards(dt);
@@ -359,11 +367,33 @@ function animate(){
     });
   }
 
+  // Doctor NPC — real bone-rigged patrol (doctorRig, built once by buildHospitalInterior(),
+  // game-land.js) using the SAME brisk WALK_CYCLE_CADENCE/WALK_CYCLE_SWING_AMP bone-rotation
+  // formula as the player's own walk cycle further down — one real gait, reused, not reinvented.
+  // Only bothers animating while actually inside the hospital to go watch it. Paces a short real
+  // lane back and forth along X (DOCTOR_PATROL_RANGE either side of DOCTOR_SPOT.x, game-land.js)
+  // using a triangle wave — constant walking speed, a real turn-and-reverse at each end, not an
+  // easing sine drift that would read as decelerating like a pendulum.
+  if (inHospital && doctorRig && doctorRig.hipsBone) {
+    const docLane = 4 * DOCTOR_PATROL_RANGE;
+    const docPhase = (t * DOCTOR_PATROL_SPEED) % docLane;
+    let docX, docDir;
+    if (docPhase < 2*DOCTOR_PATROL_RANGE) { docX = -DOCTOR_PATROL_RANGE + docPhase; docDir = 1; }
+    else { docX = DOCTOR_PATROL_RANGE - (docPhase - 2*DOCTOR_PATROL_RANGE); docDir = -1; }
+    doctorRig.position.x = DOCTOR_SPOT.x + docX;
+    doctorRig.rotation.y = docDir > 0 ? Math.PI/2 : -Math.PI/2; // faces the direction it's actually walking
+    const docSwing = Math.sin(t*WALK_CYCLE_CADENCE) * WALK_CYCLE_SWING_AMP;
+    doctorRig.leftShoulderBone.rotation.x = docSwing;
+    doctorRig.rightShoulderBone.rotation.x = -docSwing;
+    doctorRig.leftHipBone.rotation.x = -docSwing;
+    doctorRig.rightHipBone.rotation.x = docSwing;
+  }
+
   // Arena free-for-all: enter/exit detection, knockout-cooldown timer, leaderboard sync
   {
     const wasInArena = inArena;
     const dArena = Math.hypot(playerGroup.position.x - ARENA_CENTER.x, playerGroup.position.z - ARENA_CENTER.z);
-    inArena = dArena < ARENA_RADIUS && !inHouse && !inMall && !inCar;
+    inArena = dArena < ARENA_RADIUS && !inHouse && !inMall && !inCar && !inShopInterior;
     if(inArena && !wasInArena) { ffaAlive = true; showNotif('⚔️ Fight Arena — anyone here can hit anyone! Press E to swing.'); }
     if(!inArena && wasInArena) { updateFfaLeaderboardUI(); }
     if(inArena && !ffaAlive && t >= ffaRespawnAt) { ffaAlive = true; showNotif('💪 Back in the fight!'); }
@@ -376,7 +406,6 @@ function animate(){
   tickWar(t);
   tickWarCombat(dt);
   if(serverMode === 'online' && t - _lastBossSync > BOSS_SYNC_INTERVAL) { _lastBossSync = t; syncBosses(); }
-  if(t - _lastEarningsCheck > EARNINGS_CHECK_INTERVAL) { _lastEarningsCheck = t; tickEarnings(); }
   tickBossHud();
   tickBossChase(dt);
   tickMovieBossFight(dt);
@@ -400,6 +429,10 @@ function animate(){
     if(moveState.d) dir.add(right);
     if(moveState.a) dir.sub(right);
     moving=dir.length()>0;
+    // Starting to move (real WASD or the mobile joystick — both just set moveState.* before this
+    // runs) cancels any active emote, same "can't do this while moving" rule the rest of this
+    // codebase already applies to other stationary states.
+    if(moving && activeEmote) cancelEmote();
     if(!rollerVel) rollerVel = new THREE.Vector3();
     if(moving){
       dir.normalize();
@@ -424,7 +457,7 @@ function animate(){
       // movement key press inside either one snapped the player straight back to x=11000 in the
       // real outdoor city, since 130000/140000 is always outside WORLD_BOUND. Fixed here (and in
       // the 5 other copies of this same "am I outdoors" check) alongside adding Sea's own flag.
-      if(!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inVisitStore){
+      if(!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inVisitStore && !inShopInterior){
         playerGroup.position.x=Math.max(-WORLD_BOUND,Math.min(WORLD_BOUND,playerGroup.position.x));
         playerGroup.position.z=Math.max(-WORLD_BOUND,Math.min(WORLD_BOUND,playerGroup.position.z));
         const _px=playerGroup.position.x, _pz=playerGroup.position.z;
@@ -575,8 +608,8 @@ function animate(){
   // is unchanged from before this rig existed — only WHICH object gets the rotation changed, from
   // e.g. player.lArm (the rigid mesh) to player.leftShoulderBone (the real joint it now hangs from).
   if(!inCar){
-    const swingAmp = activeAddOns.includes('noodlearms') ? 1.3 : 0.4;
-    const swing=moving?Math.sin(t*8)*swingAmp:0;
+    const swingAmp = activeAddOns.includes('noodlearms') ? 1.3 : WALK_CYCLE_SWING_AMP;
+    const swing=moving?Math.sin(t*WALK_CYCLE_CADENCE)*swingAmp:0;
     if(player.leftShoulderBone) player.leftShoulderBone.rotation.x= swing;
     if(player.rightShoulderBone) player.rightShoulderBone.rotation.x=-swing;
     // Real bug the user caught: strafing (A/D with no W/S held) used this exact same front-to-
@@ -759,7 +792,7 @@ function animate(){
     // no-op for every ground vehicle (y stays ~0, same as the old hardcoded value).
     camera.lookAt(activeCar.group.position.x,activeCar.group.position.y+2,activeCar.group.position.z);
   } else {
-    const interior = inHotel || inHouse || inMall || inStore || inArcade || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inBankInterior || inVisitStore;
+    const interior = inHotel || inHouse || inMall || inStore || inArcade || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inBankInterior || inVisitStore || inShopInterior;
     const camDist = interior ? 4 : 9;
     const camHeight = interior ? 2.5 : 4;
     const camX=playerGroup.position.x-Math.sin(yaw)*camDist;
@@ -775,6 +808,7 @@ function animate(){
   if(inStore && playerGroup.position.z > 8.5)  exitStore();
   if(inFriendHouse && playerGroup.position.z > FRIEND_HOUSE_SPAWN.z + 7.5) leaveFriendHouse();
   if(inVisitStore && playerGroup.position.z > VISIT_STORE_SPAWN.z + 7.5) exitVisitStore();
+  if(inShopInterior && playerGroup.position.z > SHOP_INTERIOR_EXIT.z) exitShopInterior();
   if(inLandHouse && playerGroup.position.z > LAND_HOUSE_SPAWN.z + 5.5) exitLandHouse();
   if(inCountryHotel && playerGroup.position.z > COUNTRY_HOTEL_SPAWN.z + 4.5) checkoutCountryHotel();
   if(inAirportLounge && playerGroup.position.z > AIRPORT_LOUNGE_SPAWN.z + 7.5) exitAirportLounge();
@@ -881,6 +915,8 @@ function animate(){
     document.getElementById('location').textContent='🏬 City Mall';
   } else if(inArcade) {
     document.getElementById('location').textContent='🕹️ Pixel Palace Arcade';
+  } else if(inShopInterior) {
+    document.getElementById('location').textContent='🏪 Shop';
   } else {
     const px2=playerGroup.position.x, pz=playerGroup.position.z;
     let loc='Explox City';

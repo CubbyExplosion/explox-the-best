@@ -623,16 +623,21 @@ function openShop(type) {
     OUTFITS.forEach((o,i) => {
       const d = document.createElement('div'); d.className='shopItem';
       const safeName = o.name.replace(/'/g, "\\'");
+      const craftId = 'outfit_' + o.name.toLowerCase().replace(/\s+/g,'_');
+      const craftCost = craftCostForPrice(o.cost, craftId);
+      const canCraft = canAffordCraftCost(craftCost);
       d.innerHTML=`<div class="siName">${o.name}</div>
         <div class="siCost">💰 ${o.cost} S.I.P.</div>
+        <div class="siCost" style="color:#8ac9ff;">🔨 ${craftCostForPriceText(craftCost)}</div>
         <div class="siSwatch" style="display:flex;gap:4px;margin:4px 0">
           <div style="width:18px;height:18px;background:${o.shirt};border-radius:3px"></div>
           <div style="width:18px;height:18px;background:${o.pants};border-radius:3px"></div>
           <div style="width:18px;height:18px;background:${o.shoes};border-radius:3px"></div>
         </div>
-        <div style="display:flex;gap:6px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="shopBtn" onclick="renderShopPreview({shirt:'${o.shirt}',pants:'${o.pants}',shoes:'${o.shoes}'},'${safeName}')" style="background:#2a4a5a;">👁 Preview</button>
           <button class="shopBtn" onclick="buyOutfit(${i})">Buy</button>
+          <button class="shopBtn" onclick="craftOutfit(${i})" style="background:${canCraft?'#2a4a6a':'#333'};" ${canCraft?'':'disabled'}>🔨 Craft</button>
         </div>`;
       items.appendChild(d);
     });
@@ -735,13 +740,33 @@ function openShop(type) {
 function closeShop() { document.getElementById('shopOverlay').style.display='none'; stopShopPreviewLoop(); }
 function buyArmor(i) {
   const a = ARMOR[i];
-  if(ownedArmor.includes(a.id)) { equipArmor(a.id); openShop('armor'); return; }
+  // !inShopInterior guard — buyArmor()/craftArmorHard() were both written to refresh the old flat
+  // #shopOverlay list after a purchase, but they're now also called directly from the new walkable
+  // Armory interior (game-shopinteriors.js), where popping that old 2D modal open on top of the 3D
+  // room would be a real regression, not a refresh.
+  if(ownedArmor.includes(a.id)) { equipArmor(a.id); if(!inShopInterior) openShop('armor'); return; }
   if(sipDollars < a.cost) { showNotif(`❌ Need ${a.cost} S.I.P.`); return; }
   spendSip(a.cost); updateSIP();
   ownedArmor.push(a.id);
   equipArmor(a.id);
   showNotif(`✅ Got ${a.name}!`);
-  openShop('armor');
+  if(!inShopInterior) openShop('armor');
+}
+// "Craft but hard" path for any non-craftOnly ARMOR entry — same real granting code buyArmor()
+// uses (ownedArmor.push + equipArmor), just paid for with craftCostForPrice()'s real
+// wood/scrap/material/Elite-Coin recipe (game-housing.js) instead of S.I.P.
+function craftArmorHard(i) {
+  const a = ARMOR[i];
+  if(a.craftOnly) return; // already has its own real CRAFT_RECIPES entry — don't double-grant
+  if(ownedArmor.includes(a.id)) { equipArmor(a.id); if(!inShopInterior) openShop('armor'); return; }
+  const cost = craftCostForPrice(a.cost, a.id);
+  if(!canAffordCraftCost(cost)) { showNotif(`❌ Need ${craftCostForPriceText(cost)}`); return; }
+  spendCraftCost(cost);
+  ownedArmor.push(a.id);
+  equipArmor(a.id);
+  sfx.buy();
+  showNotif(`🔨 Crafted ${a.name}!`);
+  if(!inShopInterior) openShop('armor');
 }
 // "Craft but hard" path for any non-craftOnly ARMOR entry — same real granting code buyArmor()
 // uses (ownedArmor.push + equipArmor), just paid for with craftCostForPrice()'s real
@@ -805,7 +830,7 @@ function buyBodyPaint(i) {
   repaintSkin(p.color);
   sfx.buy();
   showNotif(`🎨 Painted ${p.name}!`);
-  openShop('paint');
+  if(!inShopInterior) openShop('paint');
 }
 function repaintSkin(hexColor) {
   playerColors.skin = hexColor;
@@ -1972,6 +1997,23 @@ function buyOutfit(i) {
   showNotif(`✅ Wearing ${o.name}!`);
   closeShop();
 }
+// "Craft but hard" path for the starter OUTFITS list — same craftCostForPrice() formula every
+// other catalog uses now, keyed off a stable 'outfit_<slug>' id since these entries have no id
+// field of their own.
+function craftOutfit(i) {
+  const o = OUTFITS[i];
+  const craftId = 'outfit_' + o.name.toLowerCase().replace(/\s+/g,'_');
+  const cost = craftCostForPrice(o.cost, craftId);
+  if(!canAffordCraftCost(cost)) { sfx.nope(); showNotif(`❌ Need ${craftCostForPriceText(cost)}`); return; }
+  spendCraftCost(cost);
+  playerColors.shirt = o.shirt; playerColors.pants = o.pants; playerColors.shoes = o.shoes;
+  document.getElementById('shirtColor').value = o.shirt;
+  document.getElementById('pantsColor').value = o.pants;
+  document.getElementById('shoeColor').value  = o.shoes;
+  sfx.buy();
+  showNotif(`🔨 Crafted ${o.name}!`);
+  closeShop();
+}
 function buyWeapon(i) {
   const w = WEAPONS[i];
   const need = weaponRequiredLevel(w.id);
@@ -1982,6 +2024,26 @@ function buyWeapon(i) {
   ownedWeapons.push(w.id);
   equipWeapon(w.id);
   showNotif(`✅ Got ${w.name}!`);
+  closeShop();
+}
+// "Craft but hard" path for any non-craftOnly WEAPONS entry — same real granting code buyWeapon()
+// uses (ownedWeapons.push + equipWeapon), paid for with craftCostForPrice()'s real wood/scrap/
+// material/Elite-Coin recipe (game-housing.js) instead of S.I.P., and respecting the exact same
+// weaponRequiredLevel() Robot-Level gate buyWeapon() already enforces — crafting can't bypass a
+// level lock buying can't bypass either.
+function craftWeaponHard(i) {
+  const w = WEAPONS[i];
+  if(w.craftOnly) return; // already has its own real CRAFT_RECIPES entry — don't double-grant
+  const need = weaponRequiredLevel(w.id);
+  if (need > eliteLevel) { showNotif(`🔒 ${w.name} requires Robot Level ${need} to craft (you're Lv.${eliteLevel}) — level up in the Quests tab!`); return; }
+  if(ownedWeapons.includes(w.id)) { equipWeapon(w.id); closeShop(); return; }
+  const cost = craftCostForPrice(w.cost, w.id);
+  if(!canAffordCraftCost(cost)) { showNotif(`❌ Need ${craftCostForPriceText(cost)}`); return; }
+  spendCraftCost(cost);
+  ownedWeapons.push(w.id);
+  equipWeapon(w.id);
+  sfx.buy();
+  showNotif(`🔨 Crafted ${w.name}!`);
   closeShop();
 }
 // "Craft but hard" path for any non-craftOnly WEAPONS entry — same real granting code buyWeapon()
@@ -2277,7 +2339,7 @@ function buildOutfitShopWing() {
     buildLogoSign(shop.name, shop.emoji, '#'+theme.wall.toString(16).padStart(6,'0'), '#'+theme.accent.toString(16).padStart(6,'0'), x + 2.7, 5, z, -Math.PI / 2);
 
     addCol(MALL_COLS, x, z, 3, 3.8);
-    MALL_ZONES.push({ x: x + 3, z, r: 3.2, label: `${shop.emoji} ${shop.name}`, action: () => openOutfitBoutique(shop.id) });
+    MALL_ZONES.push({ x: x + 3, z, r: 3.2, label: `${shop.emoji} ${shop.name}`, action: () => enterShopInterior('boutique', shop.id) });
   });
 
   for (let r = 0; r < 10; r++) {
@@ -2305,16 +2367,21 @@ function openOutfitBoutique(id) {
   shop.outfits.forEach((o, i) => {
     const d = document.createElement('div'); d.className = 'shopItem';
     const safeName = o.name.replace(/'/g, "\\'");
+    const craftId = 'boutique_' + shop.id + '_' + o.name.toLowerCase().replace(/\s+/g,'_');
+    const craftCost = craftCostForPrice(o.cost, craftId);
+    const canCraft = canAffordCraftCost(craftCost);
     d.innerHTML = `<div class="siName">${o.name}</div>
       <div class="siCost">💰 ${o.cost} S.I.P.</div>
+      <div class="siCost" style="color:#8ac9ff;">🔨 ${craftCostForPriceText(craftCost)}</div>
       <div class="siSwatch" style="display:flex;gap:4px;margin:4px 0">
         <div style="width:18px;height:18px;background:${o.shirt};border-radius:3px"></div>
         <div style="width:18px;height:18px;background:${o.pants};border-radius:3px"></div>
         <div style="width:18px;height:18px;background:${o.shoes};border-radius:3px"></div>
       </div>
-      <div style="display:flex;gap:6px;">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
         <button class="shopBtn" onclick="renderShopPreview({shirt:'${o.shirt}',pants:'${o.pants}',shoes:'${o.shoes}'},'${safeName}')" style="background:#2a4a5a;">👁 Preview</button>
         <button class="shopBtn" onclick="buyBoutiqueOutfit('${shop.id}',${i})">Buy</button>
+        <button class="shopBtn" onclick="craftBoutiqueOutfit('${shop.id}',${i})" style="background:${canCraft?'#2a4a6a':'#333'};" ${canCraft?'':'disabled'}>🔨 Craft</button>
       </div>`;
     items.appendChild(d);
   });
@@ -2330,6 +2397,25 @@ function buyBoutiqueOutfit(shopId, i) {
   document.getElementById('pantsColor').value = o.pants;
   document.getElementById('shoeColor').value  = o.shoes;
   showNotif(`✅ Wearing ${o.name}!`);
+  saveCurrentUser();
+  closeShop();
+}
+// "Craft but hard" path for every boutique's outfit list — same craftCostForPrice() formula as
+// the starter Outfit Shop above, keyed by shop id + outfit name so every boutique's version of
+// a same-named outfit still gets its own stable (but different) recipe.
+function craftBoutiqueOutfit(shopId, i) {
+  const shop = OUTFIT_SHOPS.find(s => s.id === shopId);
+  if (!shop) return;
+  const o = shop.outfits[i];
+  const craftId = 'boutique_' + shop.id + '_' + o.name.toLowerCase().replace(/\s+/g,'_');
+  const cost = craftCostForPrice(o.cost, craftId);
+  if(!canAffordCraftCost(cost)) { sfx.nope(); showNotif(`❌ Need ${craftCostForPriceText(cost)}`); return; }
+  spendCraftCost(cost);
+  playerColors.shirt = o.shirt; playerColors.pants = o.pants; playerColors.shoes = o.shoes;
+  document.getElementById('shirtColor').value = o.shirt;
+  document.getElementById('pantsColor').value = o.pants;
+  document.getElementById('shoeColor').value  = o.shoes;
+  showNotif(`🔨 Crafted ${o.name}!`);
   saveCurrentUser();
   closeShop();
 }

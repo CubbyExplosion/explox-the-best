@@ -740,7 +740,6 @@ let bossState  = {}; // name -> {hp, maxHp, alive, level, defeats} — local mir
 let bossMeshes = {}; // name -> {mesh, col}
 let currentNearBoss = null;
 let _lastBossSync = -999;
-let _lastEarningsCheck = -999;
 const BOSS_SYNC_INTERVAL = 5;
 function initBossState() {
   BOSS_DEFS.forEach(def => { if (!bossState[def.name]) bossState[def.name] = { hp: def.maxHp, maxHp: def.maxHp, alive: true, level: 0, defeats: 0, attackTimer: 0, curX: def.x, curZ: def.z, aggro: false }; });
@@ -763,7 +762,7 @@ function bossHitDamage(def, st) { return Math.round(def.damage * Math.min(3, 1 +
 const BOSS_DETECT_RANGE = 20, BOSS_DEAGGRO_RANGE = 55, BOSS_ATTACK_RANGE = 6, BOSS_ATTACK_INTERVAL = 1.8;
 const BOSS_CHASE_SPEED = 9.5; // faster than the player's 8 walk speed, slower than 14.8 run — outrunnable, not out-walkable
 function tickBossChase(dt) {
-  if (!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inVisitStore) {
+  if (!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inVisitStore && !inShopInterior) {
     BOSS_DEFS.forEach(def => {
       const st = bossState[def.name];
       if (!st || !st.alive) return;
@@ -833,7 +832,7 @@ function triggerWrath() {
 function tickWrath(dt) {
   if (!wrathActive || !wrath || !playerGroup) return;
   // Same "can't reach you through a wall/interior" gate every other outdoor threat already uses.
-  if (inHouse || inMall || inHotel || inStore || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inPrison || inArcade || inCar || inArenaBattle || inMovieFight || inBankInterior || inSportsPark || inHospital || inSea || inVisitStore) return;
+  if (inHouse || inMall || inHotel || inStore || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inPrison || inArcade || inCar || inArenaBattle || inMovieFight || inBankInterior || inSportsPark || inHospital || inSea || inVisitStore || inShopInterior) return;
   const dx = playerGroup.position.x-wrath.curX, dz = playerGroup.position.z-wrath.curZ, dist = Math.hypot(dx,dz);
   if (dist > WRATH_ATTACK_RANGE) {
     wrath.attackTimer = 0;
@@ -1493,7 +1492,7 @@ const SPY_APPEAR_DIST_MIN = 15, SPY_APPEAR_DIST_MAX = 26; // spawn near the play
 const SPY_FLEE_MAX = 6;     // real seconds given to actually get clear before force-despawning
 let spyNextInterval = SPY_APPEAR_MIN + Math.random()*(SPY_APPEAR_MAX-SPY_APPEAR_MIN);
 function tickSpies(dt) {
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore && !inShopInterior;
   spyTimer += dt;
   if (outdoors && spies.length < SPY_MAX_ACTIVE && spyTimer >= spyNextInterval) {
     spyTimer = 0;
@@ -1599,7 +1598,7 @@ function tickSpyAmbushWatch() {
   if (Date.now() - spyDiscoveredAt < SPY_AMBUSH_MIN_DELAY_MS) return;
   const zone = LOC_ZONES.find(z => z.name === spyFavoriteSpot);
   if (!zone) { spyFavoriteSpot = null; return; } // safety net — shouldn't happen
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore && !inShopInterior;
   if (!outdoors) return;
   const dist = Math.hypot(playerGroup.position.x-zone.x, playerGroup.position.z-zone.z);
   if (dist < zone.r) triggerSpyAmbush(zone);
@@ -1806,7 +1805,7 @@ async function fightBoss(def) {
   st.hp = Math.max(serverMode === 'online' ? 1 : 0, st.hp - dmg);
   showBossHud(def);
   showNotif(`${def.emoji} Hit ${def.name} for ${dmg}!`);
-  queueEarning(def.hitSip, def.hitElite, def.name); // small per-hit ticks merge into one Earnings row (EARNING_MERGE_WINDOW_MS) instead of flooding it during a long fight
+  queueEarning(def.hitSip, def.hitElite, def.name);
   updateSIP(); if (def.hitElite) updateElite();
   // No counter-hit here anymore — tickBossAttacks() already swings at the player on its own
   // timer whenever they're in range, attacking or not. A guaranteed extra hit every time you
@@ -1998,7 +1997,7 @@ function tickMysteries(dt) {
   // Same outdoors gate tickSpies() uses just above — a mystery notification popping while the
   // player's mid-conversation in a shop interior would be a jarring interruption for no reason,
   // since every case's own clues/suspects live outdoors in the city anyway.
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore && !inShopInterior;
   if (!outdoors) return;
   if (Date.now() < mysteryNextTriggerAt) return;
   const pool = eligibleMysteryCases();
@@ -2261,7 +2260,7 @@ function getCompanionCombatTarget() {
     });
     if (target) return { type:'ffa', name: target };
   }
-  if (!inHouse && !inMall && !inArcade && !inStore) {
+  if (!inHouse && !inMall && !inArcade && !inStore && !inShopInterior) {
     let closestKiller = null, closestKillerDist = Infinity;
     for (const k of killers) {
       if (!k.alive || !k.revealed) continue;
@@ -2413,6 +2412,9 @@ let currentWarZone = null; // the WAR_TERRITORIES entry I'm currently near, or n
 // interruption (can't fight, can't be hit) until warDeathModal's choice is made, plus a real
 // S.I.P. loss either way. See knockoutPlayer()'s currentWarZone branch / showWarDeathModal().
 let warAlive = true;
+// Superseded by the game-wide full-loss death penalty (applyDeathLossAndDrop(), game-social.js) —
+// War Zone deaths now lose everything carried, same as every other context, not just a flat cut
+// of the wallet. Left defined in case anything else ever wants the old ratio; no longer read here.
 const WAR_DEATH_SIP_LOSS_PCT = 0.1; // lose 10% of your CURRENT wallet — lost gear, not a bank deposit
 
 function buildWarRoom() {

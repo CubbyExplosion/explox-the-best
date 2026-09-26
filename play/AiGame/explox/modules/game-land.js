@@ -3543,6 +3543,13 @@ function leaveHospital() {
   showNotif('Leaving the hospital...');
 }
 const DOCTOR_SPOT = { x:HOSPITAL_SPAWN.x, z:HOSPITAL_SPAWN.z-6 };
+// Real bone-rigged Doctor NPC (built once by buildHospitalInterior() below) — set here so
+// animate()'s per-frame patrol/walk-cycle code (game-controls.js) can reach its bones without a
+// separate lookup. Patrols a short real lane along X centered on DOCTOR_SPOT, using the exact
+// same WALK_CYCLE_CADENCE/WALK_CYCLE_SWING_AMP brisk-gait formula the player's own walk uses.
+let doctorRig = null;
+const DOCTOR_PATROL_RANGE = 1.8; // half-width of the pacing lane (units either side of DOCTOR_SPOT.x) — short, stays clear of the exam table/sign
+const DOCTOR_PATROL_SPEED = 2.6; // units/sec the lane position advances — brisk, not a shuffle
 const HOSPITAL_ZONES = [
   { x:DOCTOR_SPOT.x, z:DOCTOR_SPOT.z, r:3.5, label:`🩺 See the Doctor (${DOCTOR_VISIT_COST} S.I.P.)`, action: () => seeDoctor()},
   { x:HOSPITAL_SPAWN.x, z:HOSPITAL_SPAWN.z+10, r:4, label:'🚪 Leave Hospital', action: () => leaveHospital()},
@@ -3571,17 +3578,37 @@ function buildHospitalInterior() {
   buildSign('🏥 CITY HOSPITAL', hx, 6.6, hz-17.7);
   box(8,3,0.4, 0x8B5E3C, hx, 1.5, hz+18); // exit door marker
 
-  // Doctor's exam area — a real table + a doctor NPC-style figure, not just an empty room
+  // Doctor's exam area — a real table + a doctor NPC-style figure, not just an empty room.
+  // Real THREE.Bone rig below (hipsBone/spineBone/headBone/leftShoulderBone/rightShoulderBone/
+  // leftHipBone/rightHipBone) — the SAME bone names/hierarchy buildPlayer()/buildOtherPlayerAvatar()
+  // already use (game-character.js), just re-scaled to this figure's own box proportions — so the
+  // brisk walk-cycle bone-rotation code in animate() (game-controls.js) has real joints to swing
+  // instead of rotating a raw mesh around its own center.
   box(3,0.9,1.6, 0xffffff, DOCTOR_SPOT.x, 0.45, DOCTOR_SPOT.z-3); // exam table
   box(3,0.15,1.6, 0xddeeff, DOCTOR_SPOT.x, 0.92, DOCTOR_SPOT.z-3); // table pad
   const doc = new THREE.Group();
-  const mk = (w,h,d,color,px,py,pz) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color})); m.position.set(px,py,pz); doc.add(m); return m; };
-  mk(0.8,0.8,0.8, 0xd9b38c, 0,2.6,0); // head
-  mk(0.9,1.1,0.5, 0xffffff, 0,1.65,0); // white coat torso
-  mk(0.35,0.9,0.35, 0xffffff,-0.6,1.65,0); mk(0.35,0.9,0.35, 0xffffff,0.6,1.65,0); // arms
-  mk(0.38,0.9,0.38, 0x2244aa,-0.2,0.7,0); mk(0.38,0.9,0.38, 0x2244aa,0.2,0.7,0); // scrub pants
+  const DOC_SPINE_Y = 1.65, DOC_HEAD_Y = 2.2, DOC_SHOULDER_X = 0.6, DOC_SHOULDER_Y = 2.1, DOC_HIP_X = 0.2, DOC_HIP_Y = 1.15;
+  const docHips = new THREE.Bone(); docHips.position.set(0, DOC_SPINE_Y, 0); doc.add(docHips);
+  const docSpine = new THREE.Bone(); docHips.add(docSpine); // same local-origin-as-hips simplification buildPlayer() uses
+  const docHead = new THREE.Bone(); docHead.position.set(0, DOC_HEAD_Y-DOC_SPINE_Y, 0); docSpine.add(docHead);
+  const docLSh = new THREE.Bone(); docLSh.position.set(-DOC_SHOULDER_X, DOC_SHOULDER_Y-DOC_SPINE_Y, 0); docSpine.add(docLSh);
+  const docRSh = new THREE.Bone(); docRSh.position.set(DOC_SHOULDER_X, DOC_SHOULDER_Y-DOC_SPINE_Y, 0); docSpine.add(docRSh);
+  const docLHip = new THREE.Bone(); docLHip.position.set(-DOC_HIP_X, DOC_HIP_Y-DOC_SPINE_Y, 0); docHips.add(docLHip);
+  const docRHip = new THREE.Bone(); docRHip.position.set(DOC_HIP_X, DOC_HIP_Y-DOC_SPINE_Y, 0); docHips.add(docRHip);
+  doc.hipsBone=docHips; doc.spineBone=docSpine; doc.headBone=docHead;
+  doc.leftShoulderBone=docLSh; doc.rightShoulderBone=docRSh;
+  doc.leftHipBone=docLHip; doc.rightHipBone=docRHip;
+  doc.skeleton = new THREE.Skeleton([docHips, docSpine, docHead, docLSh, docRSh, docLHip, docRHip]);
+  const mkDoc = (bone,bwx,bwy,bwz,w,h,d,color,px,py,pz) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color})); m.position.set(px-bwx,py-bwy,pz-bwz); bone.add(m); return m; };
+  mkDoc(docHead,0,DOC_HEAD_Y,0, 0.8,0.8,0.8, 0xd9b38c, 0,2.6,0); // head
+  mkDoc(docSpine,0,DOC_SPINE_Y,0, 0.9,1.1,0.5, 0xffffff, 0,1.65,0); // white coat torso
+  mkDoc(docLSh,-DOC_SHOULDER_X,DOC_SHOULDER_Y,0, 0.35,0.9,0.35, 0xffffff,-0.6,1.65,0); // arms
+  mkDoc(docRSh,DOC_SHOULDER_X,DOC_SHOULDER_Y,0, 0.35,0.9,0.35, 0xffffff,0.6,1.65,0);
+  mkDoc(docLHip,-DOC_HIP_X,DOC_HIP_Y,0, 0.38,0.9,0.38, 0x2244aa,-0.2,0.7,0); // scrub pants
+  mkDoc(docRHip,DOC_HIP_X,DOC_HIP_Y,0, 0.38,0.9,0.38, 0x2244aa,0.2,0.7,0);
   doc.position.set(DOCTOR_SPOT.x, 0, DOCTOR_SPOT.z+2);
   scene.add(doc);
+  doctorRig = doc; // hands the rig to animate()'s real patrol/walk-cycle tick (game-controls.js)
   buildSign('🩺 SEE THE DOCTOR', DOCTOR_SPOT.x, 4.2, DOCTOR_SPOT.z+3.5);
 
   // A couple of waiting-room chairs near the entrance, for real furnished feel
@@ -4874,8 +4901,7 @@ function renderSchoolDismissalUI() {
 
 // ─── HOMEWORK — assigned at dismissal above, doable any time before the next school day from a
 // real always-available HUD tab (only shown while genuinely pending) rather than requiring a trip
-// back to School — same "toggle panel, hide/show its own tab" pattern toggleEarningsPanel()
-// (game-customization.js) already uses.
+// back to School.
 function assignSchoolHomework(bandId) {
   const subjects = ['Math','Reading','Science','Social','Art'];
   const subject = subjects[Math.floor(Math.random()*subjects.length)];

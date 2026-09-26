@@ -763,116 +763,20 @@ function renderContractsPanel() {
   }).join('');
 }
 
-// ─── EARNINGS TAB — user's own ask: "when you earn money it goes there click the earning to
-// get the earning ... if you let it sit for more than 30 min you get a notification and a big
-// red ! on the tab." EVERY real S.I.P./Elite Coin reward in the game now queues here via
-// queueEarning() instead of landing in the wallet instantly — collecting is a real, separate
-// action. Persisted (it's real money owed to the player, shouldn't vanish on logout) with a
-// real Date.now() timestamp per entry so the 30-minute check survives a relog, unlike the
-// clock.getElapsedTime()-based timers used elsewhere in this file that reset every page load.
-let pendingEarnings = []; // {id, sip, elite, source, ts} — persisted
-const EARNING_OVERDUE_MS = 30 * 60 * 1000; // 30 real minutes
-let _earningsOverdueNotified = new Set(); // which overdue ids already got their one nag — not persisted, fine to re-nag once after a relog
-const EARNING_MERGE_WINDOW_MS = 6000; // rapid same-source earnings (boss hitSip per swing, gathering-event's 5s ticks) stack into one row instead of flooding the tab
+// ─── EARNINGS — the Earnings tab (a real "queue rewards, click to collect" system) was removed
+// per the user's own ask ("get rid of the earnings tab"). queueEarning() is still called from
+// ~90 real reward sites across the codebase, so it stays as the one shared chokepoint — it now
+// just credits the wallet immediately instead of queuing, matching how every other reward in
+// the game already lands instantly.
 function queueEarning(sip, elite, source) {
   sip = sip || 0; elite = elite || 0;
   if (!sip && !elite) return;
-  const now = Date.now();
-  const last = pendingEarnings[pendingEarnings.length - 1];
-  if (last && last.source === source && now - last.ts <= EARNING_MERGE_WINDOW_MS) {
-    last.sip += sip; last.elite += elite; last.ts = now; // extends its own 30-minute clock from the latest addition, same as a real running total would
-  } else {
-    pendingEarnings.push({ id:'earn'+now+'_'+Math.floor(Math.random()*99999), sip, elite, source, ts:now });
-  }
-  updateEarningsBadge();
-  renderEarningsPanel();
-  saveCurrentUser();
-}
-function collectEarning(id) {
-  const idx = pendingEarnings.findIndex(e => e.id === id);
-  if (idx < 0) return;
-  const e = pendingEarnings[idx];
-  pendingEarnings.splice(idx, 1);
-  if (e.sip)   { sipDollars += e.sip; updateSIP(); }
-  if (e.elite) { eliteCoins += e.elite; updateElite(); }
-  sfx.coin();
-  const parts = [e.sip ? `${e.sip.toLocaleString()} S.I.P.` : '', e.elite ? `${e.elite.toLocaleString()} 💎` : ''].filter(Boolean).join(' + ');
-  showNotif(`💰 Collected ${parts} from ${e.source}!`);
-  _earningsOverdueNotified.delete(id);
-  saveCurrentUser();
-  renderEarningsPanel();
-  updateEarningsBadge();
-}
-function collectAllEarnings() {
-  if (!pendingEarnings.length) return;
-  let sip = 0, elite = 0;
-  pendingEarnings.forEach(e => { sip += e.sip; elite += e.elite; });
-  pendingEarnings = [];
-  _earningsOverdueNotified.clear();
   if (sip)   { sipDollars += sip; updateSIP(); }
   if (elite) { eliteCoins += elite; updateElite(); }
   sfx.coin();
-  showNotif(`💰 Collected everything: +${sip.toLocaleString()} S.I.P. +${elite.toLocaleString()} 💎!`);
+  const parts = [sip ? `${sip.toLocaleString()} S.I.P.` : '', elite ? `${elite.toLocaleString()} 💎` : ''].filter(Boolean).join(' + ');
+  showNotif(`💰 +${parts} from ${source}!`);
   saveCurrentUser();
-  renderEarningsPanel();
-  updateEarningsBadge();
-}
-function updateEarningsBadge() {
-  const countEl = document.getElementById('earningsCount');
-  if (countEl) { countEl.textContent = pendingEarnings.length; countEl.style.display = pendingEarnings.length ? 'flex' : 'none'; }
-  const now = Date.now();
-  const hasOverdue = pendingEarnings.some(e => now - e.ts >= EARNING_OVERDUE_MS);
-  const badge = document.getElementById('earningsBadge');
-  if (badge) badge.style.display = hasOverdue ? 'flex' : 'none';
-}
-// Checked every real EARNINGS_CHECK_INTERVAL seconds (not every frame — a Date.now() diff over a
-// small array is cheap, but there's no reason to touch the DOM 60x/sec for a 30-MINUTE threshold).
-const EARNINGS_CHECK_INTERVAL = 5;
-function tickEarnings() {
-  if (!pendingEarnings.length) return;
-  const now = Date.now();
-  pendingEarnings.forEach(e => {
-    if (now - e.ts >= EARNING_OVERDUE_MS && !_earningsOverdueNotified.has(e.id)) {
-      _earningsOverdueNotified.add(e.id);
-      showNotif(`🔔 ${e.source}'s earning has been sitting for 30+ min — go collect it!`);
-      sfx.notify();
-    }
-  });
-  updateEarningsBadge();
-}
-function toggleEarningsPanel() {
-  const panel = document.getElementById('earningsPanel');
-  if (panel.style.display === 'none') {
-    if (document.pointerLockElement) document.exitPointerLock();
-    isPointerLocked = false;
-    renderEarningsPanel();
-    panel.style.display = 'flex';
-    document.getElementById('earningsTab').style.display = 'none';
-  } else { closeEarningsPanel(); }
-}
-function closeEarningsPanel() {
-  document.getElementById('earningsPanel').style.display = 'none';
-  document.getElementById('earningsTab').style.display = 'block';
-  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
-}
-function renderEarningsPanel() {
-  const list = document.getElementById('earningsList');
-  const btn = document.getElementById('earningsCollectAllBtn');
-  if (btn) btn.style.display = pendingEarnings.length ? 'block' : 'none';
-  if (!pendingEarnings.length) {
-    list.innerHTML = `<div style="color:#555;font-size:12px;text-align:center;padding:24px 10px;">No pending earnings yet —<br>go earn some S.I.P. or 💎!</div>`;
-    return;
-  }
-  const now = Date.now();
-  list.innerHTML = pendingEarnings.slice().reverse().map(e => {
-    const ageMin = Math.floor((now - e.ts) / 60000);
-    const overdue = now - e.ts >= EARNING_OVERDUE_MS;
-    const amountTxt = [e.sip ? `${e.sip.toLocaleString()} S.I.P.` : '', e.elite ? `${e.elite.toLocaleString()} 💎` : ''].filter(Boolean).join(' + ');
-    return `<div onclick="collectEarning('${e.id}')" style="cursor:pointer;background:rgba(255,255,255,0.05);border:2px solid ${overdue ? '#ff3333' : '#333'};border-radius:10px;padding:10px;margin-bottom:8px;">
-      <div style="color:#fff;font-size:12px;font-weight:bold;margin-bottom:3px;">💰 +${amountTxt}</div>
-      <div style="color:${overdue ? '#ff6666' : '#888'};font-size:10px;">from ${e.source} — ${ageMin < 1 ? 'just now' : ageMin + 'm ago'}${overdue ? ' ⚠️ OVERDUE' : ''}</div>
-    </div>`;
-  }).join('');
 }
 
 // ─── GROWTH — a real, shared "age up" system driven by accumulated real PLAY seconds (same

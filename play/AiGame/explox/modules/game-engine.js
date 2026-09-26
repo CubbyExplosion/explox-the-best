@@ -183,6 +183,16 @@ const TASTE_REACTION = {
   bitter: {face:'🤢', word:'Bitter — yuck!',  rating:'BAD',  col:'120,200,60'},
 };
 let _eatBusy = false;
+let _eatingArmActive = false; // true only while a real eatFood() bite animation is in flight — lets game-controls.js's per-frame render loop raise the real right arm toward the mouth without fighting the walk/punch-swing animations that also own that same shoulder bone
+// ─── OVEREATING → VOMIT — a real, felt mechanic: eating once at full Hunger does nothing extra
+// today (restoreHunger() already just no-ops past 100), but eating several times in a row while
+// already full now builds toward a real vomit via the same vomit() used for bad food/sickness
+// below. 95 = "genuinely full" (not simply "at exactly 100", so a meal landing you at 96-99
+// still counts), and 3 CONSECUTIVE over-full eats (not 1) so a single accidental extra meal
+// isn't punished this hard — it resets to 0 the moment an eat happens below the threshold.
+let overeatStreak = 0;
+const HUNGER_FULL_THRESHOLD = 95;
+const OVEREAT_VOMIT_STREAK = 3;
 // Real, discrete bites — the food visibly loses a chunk each time instead of just uniformly
 // shrinking in place. Each bite punches a permanent hole out of the emoji (alternating sides,
 // working inward) via 'destination-out' compositing, redrawn fresh every frame so the hole
@@ -191,13 +201,32 @@ const EAT_BITES = 4;
 function eatFood(emoji,name,taste,restoreAmt){
   if(_eatBusy || _iceCreamBusy) return;
   _eatBusy = true;
+  _eatingArmActive = true;
+  // Overeating tracker — checked against Hunger BEFORE this bite's own restore, so a meal that
+  // itself tops the player off (e.g. 90 -> 100) doesn't retroactively count as "eating while full".
+  const wasFull = hunger >= HUNGER_FULL_THRESHOLD;
   restoreHunger(restoreAmt || 35);
+  overeatStreak = wasFull ? overeatStreak + 1 : 0;
+  const overeating = wasFull && overeatStreak >= OVEREAT_VOMIT_STREAK;
+  if (overeating) overeatStreak = 0; // consumed this trip — starts counting fresh toward the next one
   const cv=document.createElement('canvas'); cv.width=240; cv.height=240;
   cv.style.cssText='position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:9998;pointer-events:none;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.5));';
   document.body.appendChild(cv);
   const ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
   const dur=1400, start=performance.now();
   let bitesTaken=0;
+  // Real 3D food prop — same buildThrownItemSprite() emoji-canvas-on-a-Sprite technique thrown
+  // items already use (game-land.js), reused here rather than inventing a new sprite approach.
+  // Travels from real hand/chest height up to the LIVE headBone world position every frame (not
+  // a hardcoded number, so it's correct at any life-stage/add-on scale), shrinking down as if
+  // being bitten to nothing right as it reaches the mouth — over the exact same duration/bite
+  // timing as the 2D chomp canvas above.
+  let foodSprite = null;
+  if (player.headBone) {
+    foodSprite = buildThrownItemSprite(emoji);
+    foodSprite.position.copy(player.headBone.getWorldPosition(new THREE.Vector3()));
+    scene.add(foodSprite);
+  }
   function frame(now){
     const p=Math.min(1,(now-start)/dur), remaining=1-p, within=(p*EAT_BITES)%1, squash=1+Math.sin(within*Math.PI)*0.14;
     const biteIndex=Math.min(EAT_BITES-1, Math.floor(p*EAT_BITES));
@@ -220,8 +249,21 @@ function eatFood(emoji,name,taste,restoreAmt){
     ctx.globalCompositeOperation='source-over';
     ctx.restore();
     for(let i=0;i<6;i++){ const a=now*0.01+i, cr=p*W*0.42; ctx.fillStyle='rgba(210,170,90,'+remaining+')'; ctx.beginPath(); ctx.arc(W/2+Math.cos(a)*cr,H*0.55+Math.sin(a)*cr,3,0,Math.PI*2); ctx.fill(); }
+    if (foodSprite && player.headBone) {
+      const mouthPos = player.headBone.getWorldPosition(new THREE.Vector3());
+      const handPos = (player.rightShoulderBone || player.headBone).getWorldPosition(new THREE.Vector3());
+      handPos.y -= 0.7; handPos.z += 0.3; // roughly real hand/chest height, out in front of the body
+      foodSprite.position.lerpVectors(handPos, mouthPos, Math.min(1, p*1.15)); // reaches the mouth a beat before the last bite finishes chewing, not exactly on the final frame
+      const s = 0.5 * Math.max(0.05, remaining); // shrinks toward nothing as it's bitten down — same "remaining" the 2D chomp above already tracks
+      foodSprite.scale.set(s,s,s);
+    }
     if(p<1) requestAnimationFrame(frame);
-    else { cv.remove(); _eatBusy=false; tasteReaction(taste,name); }
+    else {
+      cv.remove(); _eatBusy=false; _eatingArmActive=false;
+      if (foodSprite) { scene.remove(foodSprite); foodSprite.material.map.dispose(); foodSprite.material.dispose(); }
+      tasteReaction(taste,name);
+      if (overeating) setTimeout(() => vomit('eating too much'), 1600); // same real delay tasteReaction() already uses before its own bad-food vomit, so _eatBusy is guaranteed clear again by the time this fires
+    }
   }
   requestAnimationFrame(frame);
 }
@@ -248,6 +290,21 @@ function vomit(reason) {
   updateHungerHud();
   showNotif(`🤮 You threw up${reason ? ' from ' + reason : ''}! Lost ${lostHunger} Hunger.`);
   sfx.nope();
+  // Real 3D visual — a burst of green particles falling away from the real mouth position
+  // (headBone's LIVE world position, correct at any life-stage/scale), using the same generic
+  // spawnParticle() pool movement trails already use (game-controls.js/game-customization.js)
+  // rather than a bespoke particle system just for this. Applies to every real vomit() trigger —
+  // bad food, sickness, and overeating — automatically, since they all funnel through this one function.
+  if (player.headBone) {
+    const mouthPos = player.headBone.getWorldPosition(new THREE.Vector3());
+    for (let i=0;i<12;i++){
+      const ang = Math.random()*Math.PI*2, spd = 0.3+Math.random()*0.9;
+      spawnParticle(mouthPos, 0x6fbf3a, {
+        vx: Math.cos(ang)*spd, vz: Math.sin(ang)*spd, vy: -1.0-Math.random()*1.0, gravity:true,
+        life: 0.5+Math.random()*0.35, size: 0.06+Math.random()*0.05
+      });
+    }
+  }
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;z-index:9999;pointer-events:none;background:radial-gradient(circle at 50% 60%, rgba(120,200,60,0) 25%, rgba(120,200,60,0.45) 100%);transition:opacity .5s;';
   ov.innerHTML = '<div style="position:absolute;top:56%;left:50%;transform:translate(-50%,-50%);font-size:64px;">🤮</div>';
@@ -328,7 +385,7 @@ function addCol(arr, cx, cz, hw, hd, roofY) {
 
 function isBlocked(nx, nz, rOverride, py) {
   const r = rOverride !== undefined ? rOverride : 0.65; // real optional radius — cars (item 159 fix) pass a bigger one
-  const cols = inMovieFight ? MOVIE_FIGHT_COLS : inArenaBattle ? ROBOT_ARENA_COLS : inPrison ? [] : inFriendHouse ? [] : inLandHouse ? LAND_HOUSE_COLS : inCountryHotel ? COUNTRY_HOTEL_COLS : inAirportLounge ? AIRPORT_LOUNGE_COLS : inArcade ? ARCADE_COLS : inHotel ? HOTEL_COLS : inHouse ? HOUSE_COLS : inMall ? MALL_COLS : inStore ? STORE_COLS : inVisitStore ? [] : inBankInterior ? BANK_INTERIOR_COLS : CITY_COLS;
+  const cols = inMovieFight ? MOVIE_FIGHT_COLS : inArenaBattle ? ROBOT_ARENA_COLS : inPrison ? [] : inFriendHouse ? [] : inLandHouse ? LAND_HOUSE_COLS : inCountryHotel ? COUNTRY_HOTEL_COLS : inAirportLounge ? AIRPORT_LOUNGE_COLS : inArcade ? ARCADE_COLS : inHotel ? HOTEL_COLS : inHouse ? HOUSE_COLS : inMall ? MALL_COLS : inStore ? STORE_COLS : inVisitStore ? [] : inBankInterior ? BANK_INTERIOR_COLS : inShopInterior ? SHOP_INTERIOR_COLS : CITY_COLS;
   for(const c of cols) {
     if(nx+r > c.cx-c.hw && nx-r < c.cx+c.hw &&
        nz+r > c.cz-c.hd && nz-r < c.cz+c.hd) {

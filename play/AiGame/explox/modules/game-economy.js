@@ -574,6 +574,7 @@ let playerPants = 'long';
 let playerShoes   = 'sneakers';
 let playerWeapon  = 'none';
 let ownedWeapons  = [];
+let ownedEmotes   = []; // variant ids from EMOTE_CATALOG (game-character.js) actually bought with real S.I.P. — only these are playable
 let playerSwingStart = -999; // 't' (clock.getElapsedTime()) when the last swing began, read every frame in animate()
 let playerSwingPower = 1; // 0-1, how charged the swing currently animating was — read alongside playerSwingStart
 let pendingSwingPower = 1; // set right before the charge-release handleInteract() call, consumed once by the next triggerSwing()

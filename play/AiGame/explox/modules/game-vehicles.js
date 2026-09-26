@@ -514,9 +514,19 @@ function refreshCarShopUI() {
     const d = document.createElement('div');
     d.className = 'shopItem';
     const eliteCost = def.priceElite ? ` + 💎 ${def.priceElite.toLocaleString()}` : '';
+    // "Craft but hard" — same shared formula as weapons/armor/mall items, plus the car's own
+    // existing priceElite premium (special vehicles) layered on top so crafting one never skips
+    // the Elite Coin gate buyCarItem() already enforces for them.
+    const craftCost = craftCostForPrice(def.price, def.id);
+    craftCost.elite = (craftCost.elite || 0) + (def.priceElite || 0);
+    const canCraft = !owned && canAffordCraftCost(craftCost);
     d.innerHTML = `<div class="siName">${def.emoji} ${def.name}</div>
       <div class="siCost">💰 ${def.price.toLocaleString()} S.I.P.${eliteCost} &nbsp;|&nbsp; 🏎 Speed: ${def.speed}</div>
-      <button class="shopBtn" ${owned?'disabled':''} onclick="buyCarItem(${i})">${owned?'✅ Owned':'Buy'}</button>`;
+      ${owned ? '' : `<div class="siCost" style="color:#8ac9ff;">🔨 ${craftCostForPriceText(craftCost)}</div>`}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="shopBtn" ${owned?'disabled':''} onclick="buyCarItem(${i})">${owned?'✅ Owned':'Buy'}</button>
+        <button class="shopBtn" ${owned?'disabled':''} onclick="craftCarItem(${i})" style="background:${canCraft?'#2a4a6a':'#333'};" ${canCraft?'':'disabled'}>🔨 Craft</button>
+      </div>`;
     list.appendChild(d);
   });
   // Super Tank's real-money listing lives in the sidebar 🛍️ SHOP tab instead (the Currency Shop
@@ -539,6 +549,23 @@ function buyCarItem(idx) {
   spawnOwnedCars();
   sfx.buy();
   showNotif(`${def.emoji} ${def.name} purchased! Find it parked at the Car Shop!`);
+  refreshCarShopUI();
+}
+// "Craft but hard" path for CAR_CATALOG — same real granting code buyCarItem() uses
+// (ownedCars.push + spawnOwnedCars), paid for with craftCostForPrice()'s wood/scrap/material
+// recipe instead of S.I.P., plus the car's own priceElite premium if it has one.
+function craftCarItem(idx) {
+  const def = CAR_CATALOG[idx];
+  if(ownedCars.includes(def.id)) { showNotif('You already own this car!'); return; }
+  const cost = craftCostForPrice(def.price, def.id);
+  cost.elite = (cost.elite || 0) + (def.priceElite || 0);
+  if(!canAffordCraftCost(cost)) { sfx.nope(); showNotif(`❌ Need ${craftCostForPriceText(cost)}`); return; }
+  spendCraftCost(cost);
+  ownedCars.push(def.id);
+  saveCurrentUser();
+  spawnOwnedCars();
+  sfx.buy();
+  showNotif(`🔨 Crafted ${def.emoji} ${def.name}! Find it parked at the Car Shop!`);
   refreshCarShopUI();
 }
 // All three "Super" vehicles (Tank/Jet/Motorcycle) are real-money 🛍️ SHOP tab listings
@@ -1144,9 +1171,15 @@ function refreshFurnitureCounterUI() {
     const owned = ownedFurniture.includes(def.id);
     const d = document.createElement('div');
     d.className = 'shopItem';
+    const craftCost = craftCostForPrice(def.price, def.id);
+    const canCraft = !owned && canAffordCraftCost(craftCost);
     d.innerHTML = `<div class="siName">${def.emoji} ${def.name}</div>
       <div class="siCost">💰 ${def.price} S.I.P.</div>
-      <button class="shopBtn" ${owned?'disabled':''} onclick="buyFurniture(${i})">${owned?'✅ Placed':'Buy'}</button>`;
+      ${owned ? '' : `<div class="siCost" style="color:#8ac9ff;">🔨 ${craftCostForPriceText(craftCost)}</div>`}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="shopBtn" ${owned?'disabled':''} onclick="buyFurniture(${i})">${owned?'✅ Placed':'Buy'}</button>
+        <button class="shopBtn" ${owned?'disabled':''} onclick="craftFurniture(${i})" style="background:${canCraft?'#2a4a6a':'#333'};" ${canCraft?'':'disabled'}>🔨 Craft</button>
+      </div>`;
     list.appendChild(d);
   });
 }
@@ -1160,6 +1193,20 @@ function buyFurniture(idx) {
   saveCurrentUser();
   sfx.buy();
   showNotif(`${def.emoji} ${def.name} placed in your store!`);
+  buildStoreInterior();
+}
+// "Craft but hard" path for FURNITURE_CATALOG — same real granting code buyFurniture() uses,
+// paid for with craftCostForPrice()'s wood/scrap/material recipe instead of S.I.P.
+function craftFurniture(idx) {
+  const def = FURNITURE_CATALOG[idx];
+  if(ownedFurniture.includes(def.id)) { showNotif('You already have this!'); return; }
+  const cost = craftCostForPrice(def.price, def.id);
+  if(!canAffordCraftCost(cost)) { sfx.nope(); showNotif(`❌ Need ${craftCostForPriceText(cost)}`); return; }
+  spendCraftCost(cost);
+  ownedFurniture.push(def.id);
+  saveCurrentUser();
+  sfx.buy();
+  showNotif(`🔨 Crafted ${def.emoji} ${def.name} for your store!`);
   buildStoreInterior();
   refreshFurnitureCounterUI();
 }
@@ -1454,9 +1501,15 @@ function refreshComputerShopUI() {
     const cost  = def.price;
     const d = document.createElement('div');
     d.className = 'shopItem';
+    const craftCost = craftCostForPrice(cost, def.id);
+    const canCraft = !owned && canAffordCraftCost(craftCost);
     d.innerHTML = `<div class="siName">${def.emoji} ${def.name} <span style="color:#888;font-size:10px;">${def.full}</span></div>
       <div class="siCost">💰 ${cost.toLocaleString()} S.I.P.</div>
-      <button class="shopBtn" ${owned?'disabled':''} onclick="buyComputer(${i})">${owned?'✅ Owned':'Buy'}</button>`;
+      ${owned ? '' : `<div class="siCost" style="color:#8ac9ff;">🔨 ${craftCostForPriceText(craftCost)}</div>`}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="shopBtn" ${owned?'disabled':''} onclick="buyComputer(${i})">${owned?'✅ Owned':'Buy'}</button>
+        <button class="shopBtn" ${owned?'disabled':''} onclick="craftComputer(${i})" style="background:${canCraft?'#2a4a6a':'#333'};" ${canCraft?'':'disabled'}>🔨 Craft</button>
+      </div>`;
     list.appendChild(d);
   });
 }
@@ -1471,6 +1524,20 @@ function buyComputer(idx) {
   saveCurrentUser();
   sfx.buy();
   showNotif(`${def.emoji} ${def.name} delivered to your house! Use it from the computer desk.`);
+  refreshComputerShopUI();
+}
+// "Craft but hard" path for COMPUTER_CATALOG — same real granting code buyComputer() uses,
+// paid for with craftCostForPrice()'s wood/scrap/material recipe instead of S.I.P.
+function craftComputer(idx) {
+  const def = COMPUTER_CATALOG[idx];
+  if(ownedComputers.includes(def.id)) { showNotif('You already own this computer!'); return; }
+  const cost = craftCostForPrice(def.price, def.id);
+  if(!canAffordCraftCost(cost)) { sfx.nope(); showNotif(`❌ Need ${craftCostForPriceText(cost)}`); return; }
+  spendCraftCost(cost);
+  ownedComputers.push(def.id);
+  saveCurrentUser();
+  sfx.buy();
+  showNotif(`🔨 Crafted ${def.emoji} ${def.name}! Use it from the computer desk.`);
   refreshComputerShopUI();
 }
 
@@ -1926,9 +1993,17 @@ function renderSibPage() {
       <div style="display:flex;flex-direction:column;gap:8px;">`;
     items.forEach((it,i) => {
       const realIdx = SIB_SHOP_ITEMS.indexOf(it);
-      html += `<div style="background:#fff;border-radius:8px;padding:10px;display:flex;justify-content:space-between;align-items:center;border:1px solid #eee;">
-        <div><span style="font-size:18px;">${it.emoji}</span> <b style="font-size:12px;">${it.name}</b></div>
-        <button onclick="buySibItem(${realIdx})" style="padding:5px 12px;background:#00aacc;border:none;border-radius:6px;color:#fff;font-size:11px;cursor:pointer;">💰 ${it.cost}</button>
+      const craftCost = craftCostForPrice(it.cost, it.id);
+      const canCraft = canAffordCraftCost(craftCost);
+      html += `<div style="background:#fff;border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px;border:1px solid #eee;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div><span style="font-size:18px;">${it.emoji}</span> <b style="font-size:12px;">${it.name}</b></div>
+          <button onclick="buySibItem(${realIdx})" style="padding:5px 12px;background:#00aacc;border:none;border-radius:6px;color:#fff;font-size:11px;cursor:pointer;">💰 ${it.cost}</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="color:#2a6a9a;font-size:10px;">🔨 ${craftCostForPriceText(craftCost)}</span>
+          <button onclick="craftSibItem(${realIdx})" style="padding:5px 12px;background:${canCraft?'#2a6a9a':'#ccc'};border:none;border-radius:6px;color:#fff;font-size:11px;cursor:${canCraft?'pointer':'not-allowed'};" ${canCraft?'':'disabled'}>🔨 Craft</button>
+        </div>
       </div>`;
     });
     if(items.length === 0) html += `<div style="color:#aaa;text-align:center;padding:20px;">Upgrade your computer to unlock more items!</div>`;
@@ -1989,5 +2064,19 @@ function buySibItem(idx) {
   saveCurrentUser();
   sfx.buy();
   showNotif(`${it.emoji} ${it.name} delivered to your inventory!`);
+}
+// "Craft but hard" path for SIB_SHOP_ITEMS — same real granting code buySibItem() uses
+// (addToInventory), paid for with craftCostForPrice()'s wood/scrap/material recipe instead of S.I.P.
+function craftSibItem(idx) {
+  const it = SIB_SHOP_ITEMS[idx];
+  if(!it) return;
+  const cost = craftCostForPrice(it.cost, it.id);
+  if(!canAffordCraftCost(cost)) { sfx.nope(); showNotif(`❌ Need ${craftCostForPriceText(cost)}`); return; }
+  spendCraftCost(cost);
+  addToInventory(it.id, it.name, it.emoji);
+  saveCurrentUser();
+  sfx.buy();
+  showNotif(`🔨 Crafted ${it.emoji} ${it.name}!`);
+  sibNavigate('shop');
 }
 

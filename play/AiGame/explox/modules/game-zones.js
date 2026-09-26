@@ -12,8 +12,8 @@ const CITY_ZONES = [
   // and the Shopkeeper zone still works completely normally everywhere outside those two shops.
   { x:58,  z:54,  r:8,  label:'☕ Coffee Shop',  action: ()=>shopOrRob('Coffee Shop', 8,35),  isShop:true },
   { x:44,  z:54,  r:8,  label:'🧸 Toy Store',    action: ()=>shopOrRob('Toy Store',  15,50),  isShop:true },
-  { x:70,  z:54,  r:8,  label:'👗 Outfit Shop',  action: ()=>{ alignment==='bad'?robShop('Outfit Shop',65):openShop('outfits'); }, isShop:true },
-  { x:84,  z:54,  r:8,  label:'⚔️ Weapon Shop',  action: ()=>{ alignment==='bad'?robShop('Weapon Shop',80):openShop('weapons'); }, isShop:true },
+  { x:70,  z:54,  r:8,  label:'👗 Outfit Shop',  action: ()=>{ alignment==='bad'?robShop('Outfit Shop',65):enterShopInterior('outfitshop'); }, isShop:true },
+  { x:84,  z:54,  r:8,  label:'⚔️ Weapon Shop',  action: ()=>{ alignment==='bad'?robShop('Weapon Shop',80):enterShopInterior('armory'); }, isShop:true },
   { x:20,  z:88,  r:8,  label:'🍕 Pizza Place',  action: ()=>shopOrRob('Pizza Place', 10,30), isShop:true },
   { x:65,  z:48,  r:16, label:'Work as Shopkeeper (+5 S.I.P./task)',           action: ()=>toggleJob('Shopkeeper',5,'📦 A customer needs help!'), isJobZone:true, jobType:'Shopkeeper' },
   { x:12,  z:92,  r:3,  label:'🧊 Get Ingredients from Fridge',                action: () => getIngredients(),    isFridge:true },
@@ -128,8 +128,8 @@ const HOTEL_ZONES = [
 ];
 const MALL_ZONES = [
   { x:MALL_EXIT.x, z:MALL_EXIT.z, r:5,  label:'Exit Mall',           action: () => exitMall()},
-  { x:MALL_SPAWN.x-27, z:-16,      r:7,  label:'👗 Outfit Shop',       action: ()=>openShop('outfits') },
-  { x:MALL_SPAWN.x+27, z:-16,      r:7,  label:'⚔️ Weapon Shop',       action: ()=>openShop('weapons') },
+  { x:MALL_SPAWN.x-27, z:-16,      r:7,  label:'👗 Outfit Shop',       action: ()=>enterShopInterior('outfitshop') },
+  { x:MALL_SPAWN.x+27, z:-16,      r:7,  label:'⚔️ Weapon Shop',       action: ()=>enterShopInterior('armory') },
   { x:MALL_SPAWN.x-27, z:-3,       r:7,  label:'💍 Buy Jewelry (30)',   action: ()=>buyItem('Jewelry',30) },
   { x:MALL_SPAWN.x+27, z:-3,       r:7,  label:'📱 Buy Phone (45)',     action: ()=>buyItem('Phone',45) },
   { x:MALL_SPAWN.x+27, z:10,       r:7,  label:'🍦 Buy Ice Cream (8)', action: ()=>buyItem('Ice Cream',8) },
@@ -150,11 +150,11 @@ function isNearCombatTarget() {
   const px = playerGroup.position.x, pz = playerGroup.position.z;
   if(dueling) return true;
   if(inArena && ffaAlive) return true;
-  if(!inArena && !inHouse && !inMall && !inArcade && !inStore && serverMode === 'online' && nearestRemotePlayer(35)) return true;
-  if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade) {
+  if(!inArena && !inHouse && !inMall && !inArcade && !inStore && !inShopInterior && serverMode === 'online' && nearestRemotePlayer(35)) return true;
+  if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade && !inShopInterior) {
     for(const npc of npcs) { if(Math.hypot(px-npc.group.position.x, pz-npc.group.position.z) < 3.5) return true; }
   }
-  if(!inHouse && !inMall && !inArcade && !inStore && !inMovieFight) {
+  if(!inHouse && !inMall && !inArcade && !inStore && !inMovieFight && !inShopInterior) {
     for(const r of rogueRobots) { if(r.alive && Math.hypot(px-r.x, pz-r.z) < 3) return true; }
     for(const k of killers) { if(k.alive && k.revealed && Math.hypot(px-k.x, pz-k.z) < 3) return true; }
     for(const def of BOSS_DEFS) { const st = bossState[def.name]; if(st && st.alive && Math.hypot(px-st.curX, pz-st.curZ) < 4.5) return true; }
@@ -165,7 +165,10 @@ function isNearCombatTarget() {
 }
 function onInteractDown() {
   if(chargingPunch) return; // already charging — a stray repeat/duplicate event, ignore
-  if(isNearCombatTarget()) { chargingPunch = true; punchChargeStart = clock.getElapsedTime(); }
+  if(isNearCombatTarget()) {
+    if(activeEmote) cancelEmote(); // starting combat cancels any active emote, same rule as moving
+    chargingPunch = true; punchChargeStart = clock.getElapsedTime();
+  }
   else handleInteract();
 }
 function onInteractUp() {
@@ -242,9 +245,9 @@ function handleInteract() {
   // Arena free-for-all takes priority over open-world 1v1 duels while standing in it
   if(inArena && serverMode === 'online' && tryFfaInteract()) return;
   // PvP duel: swing at your opponent if one's active, else challenge whoever's nearby
-  if(!inArena && !inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && !inMovieFight && serverMode === 'online' && tryDuelInteract()) return;
+  if(!inArena && !inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && !inMovieFight && !inShopInterior && serverMode === 'online' && tryDuelInteract()) return;
   // Bad guy with weapon: NPC attack takes priority over zone actions
-  if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade && !inArenaBattle && !inMovieFight) {
+  if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade && !inArenaBattle && !inMovieFight && !inShopInterior) {
     let closest = null, closestDist = 3.5;
     for(const npc of npcs) {
       const d = Math.sqrt((px2-npc.group.position.x)**2+(pz-npc.group.position.z)**2);
@@ -260,7 +263,7 @@ function handleInteract() {
     const d = Math.sqrt((px2-movieBossFight.curX)**2+(pz-movieBossFight.curZ)**2);
     if (d < 4.5) { fightMovieBoss(); return; }
   }
-  if (!inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital && !inSchool) {
+  if (!inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital && !inSchool && !inShopInterior) {
     let closestRogue = null, closestRogueDist = 3;
     for (const r of rogueRobots) {
       if (!r.alive) continue;
@@ -287,11 +290,11 @@ function handleInteract() {
     }
     if (closestBoss) { fightBoss(closestBoss); return; }
   }
-  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inVisitStore ? VISIT_STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : inSea ? SEA_ZONES : inSchool ? SCHOOL_ZONES : CITY_ZONES;
+  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inVisitStore ? VISIT_STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : inSea ? SEA_ZONES : inSchool ? SCHOOL_ZONES : inShopInterior ? SHOP_INTERIOR_ZONES : CITY_ZONES;
   for(const z of zones) {
     if(Math.sqrt((px2-z.x)**2+(pz-z.z)**2) < z.r) { z.action(); return; }
   }
-  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore) {
+  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore && !inShopInterior) {
     const neighbor = findNearestNeighbor(px2, pz, 3);
     if(neighbor) { openNeighborModal(neighbor.name); return; }
   }
@@ -347,7 +350,7 @@ function updatePrompt() {
     const dx=px2-dealershipCab.group.position.x, dz=pz-dealershipCab.group.position.z;
     if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent = isAdmin() ? `[E] ${dealershipCab.def.emoji} Get in ${dealershipCab.def.name}` : `❓ Unknown — locked`; el.style.display='block'; return; }
   }
-  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inVisitStore ? VISIT_STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : inSea ? SEA_ZONES : inSchool ? SCHOOL_ZONES : CITY_ZONES;
+  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inVisitStore ? VISIT_STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : inSea ? SEA_ZONES : inSchool ? SCHOOL_ZONES : inShopInterior ? SHOP_INTERIOR_ZONES : CITY_ZONES;
   for(const z of zones) {
     if(Math.sqrt((px2-z.x)**2+(pz-z.z)**2) < z.r) {
       if(z.isComputer) {
@@ -412,14 +415,14 @@ function updatePrompt() {
     }
   }
   // NPC attack prompt — checked after zones so zones still take priority
-  if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade) {
+  if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade && !inShopInterior) {
     for(const npc of npcs) {
       const d = Math.sqrt((px2-npc.group.position.x)**2+(pz-npc.group.position.z)**2);
       if(d < 3.5) { el.textContent=`[E] 💥 Attack ${npc.name}`; el.style.display='block'; return; }
     }
   }
   // Talk to a nearby neighbor — lowest priority, only out in the open city
-  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore) {
+  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore && !inShopInterior) {
     const neighbor = findNearestNeighbor(px2, pz, 3);
     if(neighbor) { el.textContent = `[E] 👋 Talk to ${neighbor.name}`; el.style.display='block'; return; }
   }
@@ -822,6 +825,7 @@ function _startGameInner() {
   _dbg('buildDump', buildDump);
   _dbg('buildMallShopWing', buildMallShopWing);
   _dbg('buildOutfitShopWing', buildOutfitShopWing);
+  _dbg('buildShopInteriorShell', buildShopInteriorShell); // walkable shop interiors — one shared pocket room, reskinned per shop on entry (game-shopinteriors.js)
   _dbg('buildCountryZones', buildCountryZones);
   _dbg('buildSpaceZone', buildSpaceZone);
   _dbg('buildHillTerrain', buildHillTerrain); // real hills — after buildCity (groundMesh color) and every region's own content (Woods/Plains/countries) is built
@@ -1225,7 +1229,7 @@ let _wasInSpaceZone = false; // tracks the zone→no-zone transition so leaving 
 // dark at night is normal), but these are actual roofed buildings, so they're the ones a real
 // day/night cycle shouldn't be allowed to darken. Used by updateDayNight() below.
 function isPlayerIndoors() {
-  return inHouse || inMall || inHotel || inStore || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inPrison || inArcade || inArenaBattle || inMovieFight || inBankInterior || inSportsPark || inHospital || inSchool || inVisitStore;
+  return inHouse || inMall || inHotel || inStore || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inPrison || inArcade || inArenaBattle || inMovieFight || inBankInterior || inSportsPark || inHospital || inSchool || inVisitStore || inShopInterior;
 }
 // ─── TIME ZONES — user's own ask: "and time zones". Each real Earth country gets a real-ish UTC
 // offset matching its actual real-world zone, so the SAME moment of real playtime looks like a

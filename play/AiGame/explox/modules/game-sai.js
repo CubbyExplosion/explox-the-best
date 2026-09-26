@@ -66,6 +66,7 @@ function toggleSAI() {
   if(panel.style.display === 'none') {
     if(document.pointerLockElement) document.exitPointerLock();
     isPointerLocked = false;
+    if(activeEmote) cancelEmote(); // opening another overlay cancels any active emote
     panel.style.display = 'block';
     document.getElementById('saiTab').style.display = 'none';
     saiSwitchTab('chat');

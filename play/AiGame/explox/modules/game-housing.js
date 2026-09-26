@@ -4,6 +4,7 @@ function toggleInventory() {
   if(panel.style.display === 'none') {
     if(document.pointerLockElement) document.exitPointerLock();
     isPointerLocked = false;
+    if(activeEmote) cancelEmote(); // opening another overlay cancels any active emote
     refreshInventory();
     panel.style.display = 'block';
     document.getElementById('inventoryTab').style.display = 'none';

@@ -316,7 +316,7 @@ function buildCityShops() {
     }
 
     addCol(CITY_COLS, x, z, 4.5, 4);
-    CITY_ZONES.push({ x, z: z - 4.5, r: 4, label: `${shop.emoji} ${shop.name}`, action: () => openCityShopModal(shop.id) });
+    CITY_ZONES.push({ x, z: z - 4.5, r: 4, label: `${shop.emoji} ${shop.name}`, action: () => enterShopInterior('mall', shop.id) });
   });
 }
 // Same 25 categories, the OTHER 8 name variations each (k=4..11 — nameWords/nameTemplates only
@@ -394,7 +394,7 @@ function buildMallShopWing() {
     buildLogoSign(shop.name, shop.emoji, '#'+theme.wall.toString(16).padStart(6,'0'), '#'+theme.accent.toString(16).padStart(6,'0'), x, 5, z - 2.7);
 
     addCol(MALL_COLS, x, z, 3.8, 3);
-    MALL_ZONES.push({ x, z: z - 3, r: 3.2, label: `${shop.emoji} ${shop.name}`, action: () => openCityShopModal(shop.id) });
+    MALL_ZONES.push({ x, z: z - 3, r: 3.2, label: `${shop.emoji} ${shop.name}`, action: () => enterShopInterior('mall', shop.id) });
   });
 
   // Ceiling lights down the wing, one per row

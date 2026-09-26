@@ -1327,6 +1327,7 @@ function saveCurrentUser() {
     tubeLikes:tubeLikes, tubeViews:tubeViews, tubeBaseComments:tubeBaseComments, myUploads:myUploads, mySubscribers:mySubscribers, carLocation:carLocation, installedApps:installedApps,
     weapon:playerWeapon, ownedWeapons:ownedWeapons, ownedItems:ownedItems, ownedSkins:ownedSkins,
     armor:playerArmor, ownedArmor:ownedArmor,
+    ownedEmotes: ownedEmotes,
     alignment:alignment, wanted:wantedLevel,
     birthday: playerBirthday, ownedCars: ownedCars, ownedComputers: ownedComputers,
     ownedStore: ownedStore, ownedFurniture: ownedFurniture, ownedHouseFurniture: ownedHouseFurniture,
@@ -1354,7 +1355,7 @@ function saveCurrentUser() {
     myStocks: myStocks, ffaKills: ffaKills, eatingCompBests: eatingCompBests,
     eliteLevel: eliteLevel, activeQuests: activeQuests, mobDifficulty: mobDifficulty,
     lifetimeRobotKills: lifetimeRobotKills, lifetimeRogueKills: lifetimeRogueKills, lifetimeWarHits: lifetimeWarHits,
-    killerDefeats: killerDefeats, pendingEarnings: pendingEarnings,
+    killerDefeats: killerDefeats,
     totalKills: totalKills, wrathTriggerCount: wrathTriggerCount, divineJudgmentServed: divineJudgmentServed,
     divineSentenceStartedAt: divineSentenceStartedAt, divineRedemptionGranted: divineRedemptionGranted,
     lastSatanBossFightAt: lastSatanBossFightAt, lastKillerSupremeFightAt: lastKillerSupremeFightAt, lastEventOfDayClaim: lastEventOfDayClaim,
@@ -1809,6 +1810,7 @@ async function doLogin(name) {
   ownedArmor    = d.ownedArmor   || [];
   ownedItems    = d.ownedItems   || [];
   ownedSkins    = d.ownedSkins   || [];
+  ownedEmotes   = Array.isArray(d.ownedEmotes) ? d.ownedEmotes : [];
   alignment     = d.alignment    || 'good';
   wantedLevel   = d.wanted      || 0;
   ownedCars     = d.ownedCars     || [];
@@ -1910,9 +1912,6 @@ async function doLogin(name) {
   peakElite = Math.max(d.peakElite !== undefined ? d.peakElite : 0, eliteCoins);
   totalQuestsCompleted = d.totalQuestsCompleted !== undefined ? d.totalQuestsCompleted : 0;
   totalBossesDefeated  = d.totalBossesDefeated !== undefined ? d.totalBossesDefeated : 0;
-  pendingEarnings    = Array.isArray(d.pendingEarnings) ? d.pendingEarnings : [];
-  _earningsOverdueNotified = new Set(); // fresh per login — a still-overdue earning just nags again once, not a bug
-  updateEarningsBadge();
   ensureQuests();
   activeContracts = Array.isArray(d.activeContracts) ? d.activeContracts : [];
   lifetimeShopsRobbed = d.lifetimeShopsRobbed !== undefined ? d.lifetimeShopsRobbed : 0;

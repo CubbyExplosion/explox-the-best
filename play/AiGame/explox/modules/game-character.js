@@ -473,6 +473,351 @@ function buildPlayer() {
   scene.add(playerGroup);
 }
 
+// ─── EMOTES ────────────────────────────────────────────────────────────────────
+// Coordinator's own scope expansion: "MORE THAN 100 distinct emotes, each purchasable with real
+// S.I.P." — hand-authoring 100+ fully separate animation routines isn't realistic, so this follows
+// the exact same "derive variety from a formula/seed, don't hand-type a huge table" rule the rest of
+// this codebase already uses for its huge generated catalogs (buildWeaponLevels()'s cost curve,
+// game-social.js; generateArmorBatch()'s Math.pow cost curve; craftCostForPrice()'s per-item recipe,
+// game-housing.js — craftHash()/craftRng() are reused directly below rather than redefined).
+//
+// 14 real bone-driven animation FAMILIES below (Wave/Dance/Sit/Laugh/Salute/Facepalm/Cry/Bow/Point/
+// Clap/Spin/Flex/Shrug/Cheer) are the genuine building blocks — each is a distinct per-frame
+// rotation routine over the real skeletal rig (buildPlayer()'s hipsBone/spineBone/headBone/
+// leftShoulderBone/rightShoulderBone/leftHipBone/rightHipBone), same sine-eased style as the
+// walk-cycle/punch-swing code in game-controls.js's animate(). Every emote a player can actually buy
+// is a NAMED VARIANT of one family: the SAME real animation function (applyEmotePose below), just
+// parametrized differently (speed/amplitude/repeat-count/which-side/flourish) by a seeded PRNG, so
+// e.g. "Friendly Wave" and "Cosmic Wave" are genuinely different playbacks of the same wave rig-
+// motion, not identical motion with a different label. 14 families x 4 rarity tiers x 2 variants per
+// tier = 112 real, distinct, purchasable emotes.
+const EMOTE_FAMILIES = {
+  wave:     { name:'Wave',     baseDuration:2.2 },
+  dance:    { name:'Dance',    baseDuration:0   }, // loops for as long as it's active
+  sit:      { name:'Sit',      baseDuration:0   }, // holds a seated pose until cancelled
+  laugh:    { name:'Laugh',    baseDuration:2.0 },
+  salute:   { name:'Salute',   baseDuration:1.8 },
+  facepalm: { name:'Facepalm', baseDuration:1.8 },
+  cry:      { name:'Cry',      baseDuration:2.4 },
+  bow:      { name:'Bow',      baseDuration:1.8 },
+  point:    { name:'Point',    baseDuration:1.6 },
+  clap:     { name:'Clap',     baseDuration:2.0 },
+  spin:     { name:'Spin',     baseDuration:1.4 },
+  flex:     { name:'Flex',     baseDuration:2.0 },
+  shrug:    { name:'Shrug',    baseDuration:1.6 },
+  cheer:    { name:'Cheer',    baseDuration:1.8 },
+};
+const EMOTE_FAMILY_EMOJI = {
+  wave:'👋', dance:'💃', sit:'🧘', laugh:'😂', salute:'🫡', facepalm:'🤦', cry:'😢', bow:'🙇',
+  point:'👉', clap:'👏', spin:'🌀', flex:'💪', shrug:'🤷', cheer:'🙌',
+};
+// Rarity tiers — same "bigger number = rarer/pricier" idea as WEAPON tiers/ARMOR tiers elsewhere,
+// just applied to emotes. basePrice feeds craftEmotePriceFor() below (real S.I.P., not a craft recipe).
+const EMOTE_TIERS = {
+  common:    { label:'Common',    color:'#9aa0a6', basePrice:120  },
+  rare:      { label:'Rare',      color:'#4fc3f7', basePrice:500  },
+  epic:      { label:'Epic',      color:'#c77dff', basePrice:2000 },
+  legendary: { label:'Legendary', color:'#ffd700', basePrice:8000 },
+};
+const EMOTE_TIER_ORDER = ['common','rare','epic','legendary'];
+// Adjective pools variants draw their display name from — 4 per tier is plenty since each
+// family+tier only ever needs 2 (EMOTE_VARIANTS_PER_TIER below), and craftRng() shuffles which 2
+// a given family gets so e.g. "Wave" and "Bow" don't always show the exact same 2 words.
+const EMOTE_ADJ = {
+  common:    ['Friendly','Quick','Casual','Classic'],
+  rare:      ['Smooth','Confident','Stylish','Sharp'],
+  epic:      ['Dramatic','Grand','Electric','Fierce'],
+  legendary: ['Legendary','Mythic','Cosmic','Ultimate'],
+};
+const EMOTE_VARIANTS_PER_TIER = 2; // x14 families x4 tiers = 112 real purchasable emotes
+// Deterministically generated ONCE at load — every player's game generates the exact identical 112
+// variants (same ids/names/prices/params forever), since craftHash()/craftRng() are seeded purely
+// from the family+tier+index strings below, never Math.random().
+const EMOTE_CATALOG = (function(){
+  const out = [];
+  Object.keys(EMOTE_FAMILIES).forEach(famId => {
+    const fam = EMOTE_FAMILIES[famId];
+    EMOTE_TIER_ORDER.forEach(tierId => {
+      const tier = EMOTE_TIERS[tierId];
+      // Shuffle this family+tier's own copy of the adjective pool (Fisher-Yates, seeded) so
+      // different families reliably get different adjectives for the same tier.
+      const shuffleRng = craftRng(craftHash('emoteadj:'+famId+':'+tierId));
+      const pool = EMOTE_ADJ[tierId].slice();
+      for(let i=pool.length-1;i>0;i--){ const j=Math.floor(shuffleRng()*(i+1)); const tmp=pool[i]; pool[i]=pool[j]; pool[j]=tmp; }
+      for(let v=0; v<EMOTE_VARIANTS_PER_TIER; v++){
+        const id = 'emote_'+famId+'_'+tierId+'_'+v;
+        const name = `${pool[v % pool.length]} ${fam.name}`;
+        const rng = craftRng(craftHash(id));
+        const params = {
+          speed:    0.8 + rng()*0.7,             // 0.8x-1.5x playback speed (also scales a one-shot's real finish time)
+          amp:      0.8 + rng()*0.8,              // 0.8x-1.6x motion amplitude
+          repeat:   2 + Math.floor(rng()*3),      // 2-4 repeats, for the families that oscillate (wave/clap/cheer/laugh/cry/spin)
+          side:     rng() < 0.5 ? 1 : -1,         // mirrors one-armed emotes left/right
+          flourish: rng(),                         // 0-1 dial a few families use for a bonus flick/hop/twist
+        };
+        const price = Math.max(50, Math.round(tier.basePrice * (0.85 + rng()*0.3) / 5) * 5); // jittered +/-15%, same "derive off a base, don't hand-type" spirit as craftCostForPrice()'s material weights
+        out.push({ id, family:famId, tier:tierId, name, price, params, emoji: EMOTE_FAMILY_EMOJI[famId] });
+      }
+    });
+  });
+  return out;
+})();
+const EMOTE_CATALOG_BY_ID = {};
+EMOTE_CATALOG.forEach(v => { EMOTE_CATALOG_BY_ID[v.id] = v; });
+
+// Resets every bone an emote could ever touch back to rest — called once whenever an emote ends or
+// is cancelled so it can never leave an arm/head/hip stuck mid-gesture. Works on either the local
+// player object or a remote player's mesh group — both expose the identical bone names.
+function resetEmotePose(b) {
+  if(!b || !b.hipsBone) return;
+  b.hipsBone.rotation.set(0,0,0);
+  if(b.hipsBone._emoteRestY !== undefined) b.hipsBone.position.y = b.hipsBone._emoteRestY;
+  b.spineBone.rotation.set(0,0,0);
+  b.headBone.rotation.set(0,0,0);
+  b.leftShoulderBone.rotation.set(0,0,0);
+  b.rightShoulderBone.rotation.set(0,0,0);
+  b.leftHipBone.rotation.set(0,0,0);
+  b.rightHipBone.rotation.set(0,0,0);
+}
+// Drives ONE frame of the given emote FAMILY on the given bone-set, parametrized by `params`
+// (speed/amp/repeat/side/flourish — see EMOTE_CATALOG above). `b` is either the local `player`
+// object (game-controls.js's animate() calls this with `player`) or a remote player's mesh group
+// (buildOtherPlayerAvatar() builds the identical bone names onto it) — the SAME function plays the
+// SAME real motion on either, just aimed at different bones, so there's no duplicated animation
+// logic between local and remote playback. `elapsed` is real seconds since the emote started.
+function applyEmotePose(b, familyId, elapsed, params) {
+  if(!b || !b.hipsBone) return;
+  const hips=b.hipsBone, spine=b.spineBone, head=b.headBone, lSh=b.leftShoulderBone, rSh=b.rightShoulderBone, lHip=b.leftHipBone, rHip=b.rightHipBone;
+  if(hips._emoteRestY === undefined) hips._emoteRestY = hips.position.y;
+  // Every branch below only sets the joints it actually uses — starting from a clean rest pose each
+  // frame means switching families/variants (or ending one) never leaves a stray rotation behind.
+  hips.rotation.set(0,0,0); hips.position.y = hips._emoteRestY;
+  spine.rotation.set(0,0,0); head.rotation.set(0,0,0);
+  lSh.rotation.set(0,0,0); rSh.rotation.set(0,0,0);
+  lHip.rotation.set(0,0,0); rHip.rotation.set(0,0,0);
+  const p = params || {speed:1,amp:1,repeat:3,side:1,flourish:0};
+  const speed=p.speed||1, amp=p.amp||1, repeat=p.repeat||3, side=p.side>=0?1:-1, flourish=p.flourish||0;
+  const et = elapsed*speed; // "logical" time — a faster variant simply reaches every stage sooner
+  const fam = EMOTE_FAMILIES[familyId];
+  const dur = fam ? fam.baseDuration : 0;
+  const leadSh = side>=0 ? rSh : lSh; // the "acting" arm for one-armed emotes — flips per-variant via `side`
+  switch(familyId){
+    case 'wave': {
+      const raise = Math.min(1, et/0.3);
+      leadSh.rotation.x = -1.3*raise;
+      leadSh.rotation.z = -side*(0.3 + Math.sin(et*Math.PI*repeat*0.9)*0.35*amp*raise);
+      head.rotation.y = Math.sin(et*2)*0.05*amp;
+      break;
+    }
+    case 'dance': {
+      const beat = et*2*Math.PI*0.9; // keeps climbing the whole time it's active — a real loop, not a one-shot
+      hips.rotation.y = Math.sin(beat)*0.25*amp*side;
+      hips.position.y = hips._emoteRestY + Math.abs(Math.sin(beat))*0.12*amp + flourish*0.05;
+      spine.rotation.z = Math.sin(beat*0.5)*0.12*amp;
+      lSh.rotation.x = Math.sin(beat+Math.PI)*0.9*amp - 0.3;
+      rSh.rotation.x = Math.sin(beat)*0.9*amp - 0.3;
+      lSh.rotation.z = Math.cos(beat)*0.2*amp;
+      rSh.rotation.z = -Math.cos(beat)*0.2*amp;
+      lHip.rotation.x = Math.sin(beat)*0.3*amp;
+      rHip.rotation.x = -Math.sin(beat)*0.3*amp;
+      head.rotation.z = Math.sin(beat*0.5)*0.15*amp;
+      break;
+    }
+    case 'sit': {
+      // Legs swing forward at the hip (no knee joint on this rig, so a straight-leg seated
+      // silhouette — same simplification makeNPC()'s def.seated pose already uses), held until cancelled.
+      lHip.rotation.x = -1.4; rHip.rotation.x = -1.4;
+      hips.position.y = hips._emoteRestY - 0.35;
+      spine.rotation.x = 0.15;
+      lSh.rotation.x = 0.1*amp; rSh.rotation.x = 0.1*amp;
+      break;
+    }
+    case 'laugh': {
+      const bob = Math.sin(et*Math.PI*2*(repeat/dur));
+      head.rotation.x = -0.15 + bob*0.15*amp;
+      spine.rotation.x = -0.08 + Math.abs(bob)*0.08*amp;
+      spine.rotation.z = side*0.04*amp;
+      lSh.rotation.x = -0.4 + bob*0.2*amp;
+      rSh.rotation.x = -0.4 - bob*0.2*amp;
+      break;
+    }
+    case 'salute': {
+      const raise = Math.min(1, et/0.25);
+      leadSh.rotation.x = -1.75*raise;
+      leadSh.rotation.z = side*0.5*raise;
+      head.rotation.x = -0.05*raise;
+      head.rotation.y = -side*0.08*raise*amp;
+      break;
+    }
+    case 'facepalm': {
+      const raise = Math.min(1, et/0.3);
+      leadSh.rotation.x = -1.9*raise;
+      leadSh.rotation.z = -side*0.35*raise;
+      head.rotation.x = 0.25*raise*amp;
+      head.rotation.z = -side*0.1*raise;
+      break;
+    }
+    case 'cry': {
+      const shake = Math.sin(et*Math.PI*2*(repeat/Math.max(dur,1)))*0.06*amp;
+      head.rotation.x = 0.35;
+      head.rotation.z = shake*1.5;
+      lSh.rotation.x = -0.15 + shake; rSh.rotation.x = -0.15 - shake;
+      lSh.rotation.z = shake*1.5; rSh.rotation.z = -shake*1.5;
+      break;
+    }
+    case 'bow': {
+      const pr = Math.min(1, et/dur);
+      const arc = Math.sin(pr*Math.PI)*amp; // down, then back up
+      spine.rotation.x = arc*1.0;
+      hips.rotation.x = arc*0.15;
+      hips.rotation.y = flourish*0.3*arc*side;
+      lSh.rotation.x = arc*0.2; rSh.rotation.x = arc*0.2;
+      break;
+    }
+    case 'point': {
+      const raise = Math.min(1, et/0.25);
+      leadSh.rotation.x = -1.5*raise;
+      leadSh.rotation.z = -side*0.15;
+      head.rotation.y = -side*0.15*raise;
+      break;
+    }
+    case 'clap': {
+      const beat = Math.sin(et*Math.PI*2*(repeat/dur));
+      const raise = Math.min(1, et/0.2);
+      lSh.rotation.x = (-1.1 + beat*0.2*amp)*raise;
+      rSh.rotation.x = (-1.1 - beat*0.2*amp)*raise;
+      lSh.rotation.z = (0.5 + beat*0.25*amp)*raise;
+      rSh.rotation.z = (-0.5 - beat*0.25*amp)*raise;
+      head.rotation.x = -0.05*raise;
+      break;
+    }
+    case 'spin': {
+      // Spins the WHOLE rig (hipsBone is the root every other bone hangs from) in place, without
+      // touching playerGroup.rotation.y — so the character's actual facing/movement direction is
+      // untouched once the emote ends.
+      hips.rotation.y = et*Math.PI*2*(repeat/dur)*side;
+      lSh.rotation.x = -0.15; rSh.rotation.x = -0.15;
+      break;
+    }
+    case 'flex': {
+      const raise = Math.min(1, et/0.3);
+      const shake = et>0.3 ? Math.sin(et*10)*0.03*amp : 0;
+      lSh.rotation.x = -1.4*raise*amp + shake; rSh.rotation.x = -1.4*raise*amp - shake;
+      lSh.rotation.z = 0.6*raise; rSh.rotation.z = -0.6*raise;
+      head.rotation.x = -0.1*raise;
+      break;
+    }
+    case 'shrug': {
+      const pr = Math.min(1, et/dur);
+      const arc = Math.sin(pr*Math.PI)*amp;
+      lSh.rotation.z = 0.5*arc; rSh.rotation.z = -0.5*arc;
+      lSh.rotation.x = -0.3*arc; rSh.rotation.x = -0.3*arc;
+      head.rotation.z = Math.sin(pr*Math.PI*2)*0.05*arc;
+      hips.position.y = hips._emoteRestY + arc*0.03;
+      break;
+    }
+    case 'cheer': {
+      const beat = Math.sin(et*Math.PI*2*(repeat/dur));
+      const raise = Math.min(1, et/0.25);
+      lSh.rotation.x = (-2.4 + beat*0.3*amp)*raise;
+      rSh.rotation.x = (-2.4 - beat*0.3*amp)*raise;
+      hips.position.y = hips._emoteRestY + Math.max(0,beat)*0.1*amp*raise;
+      head.rotation.x = -0.1*raise;
+      break;
+    }
+  }
+}
+// A loop/hold family (Dance/Sit — baseDuration:0) never auto-finishes; every other family is a real
+// one-shot that ends once its (speed-scaled) real duration has elapsed.
+function emoteIsFinished(variant, elapsed) {
+  const fam = EMOTE_FAMILIES[variant.family];
+  if (!fam || !fam.baseDuration) return false;
+  return elapsed >= fam.baseDuration / (variant.params.speed || 1);
+}
+
+let activeEmote = null; // {id, startT} or null — real per-frame animation, driven every frame in animate() (game-controls.js) via applyEmotePose(player, ...)
+// Plays an OWNED emote on the local player. Switching straight to a new emote while one's already
+// playing just replaces activeEmote — the very next frame's applyEmotePose() call re-poses every
+// bone it touches from a clean rest state (see above), so there's no stacking/glitching between them.
+function playEmote(id) {
+  const v = EMOTE_CATALOG_BY_ID[id];
+  if (!v) return;
+  if (!ownedEmotes.includes(id)) { showNotif(`🔒 Buy the ${v.name} emote first — ${v.price.toLocaleString()} S.I.P.`); return; }
+  if (!player || !player.hipsBone) return;
+  if (inCar || playerSeated || chargingPunch) { showNotif('❌ Can\'t emote right now.'); return; }
+  activeEmote = { id, startT: clock.getElapsedTime() };
+  // Refresh the panel immediately if it's open, so the "Stop <name>" bar and the "Playing" state
+  // on this row show up right away instead of only appearing the next time the panel is reopened.
+  const panelEl = document.getElementById('emotesPanel');
+  if (panelEl && panelEl.style.display !== 'none') renderEmotesPanel();
+}
+function cancelEmote() {
+  if (!activeEmote) return;
+  activeEmote = null;
+  const panelEl = document.getElementById('emotesPanel');
+  if (panelEl && panelEl.style.display !== 'none') renderEmotesPanel();
+  resetEmotePose(player);
+}
+// Real S.I.P. purchase — same spendSip()/showNotif()/saveCurrentUser() pattern buyArmor()/
+// buyWeapon() already use (game-shops.js), just granting into ownedEmotes instead of ownedArmor/
+// ownedWeapons. Already-owned just plays it instead of trying to buy it again.
+function buyEmoteVariant(id) {
+  const v = EMOTE_CATALOG_BY_ID[id];
+  if (!v) return;
+  if (ownedEmotes.includes(id)) { playEmote(id); return; }
+  if (sipDollars < v.price) { showNotif(`❌ Need ${v.price.toLocaleString()} S.I.P.`); return; }
+  spendSip(v.price); updateSIP();
+  ownedEmotes.push(id);
+  saveCurrentUser();
+  sfx.buy();
+  showNotif(`✅ Got the ${v.name} emote!`);
+  playEmote(id); // start it BEFORE re-rendering, so the panel's "Stop <name>" button reflects the emote just bought, not whichever was active before this purchase
+  renderEmotesPanel();
+}
+// ── EMOTES PANEL (rightTabStack's #emotesTab / #emotesPanel, EXPLOX.html) — same toggle/close/
+// render trio every other side-panel in this game already follows (see toggleQuestsPanel() /
+// closeQuestsPanel() / renderQuestsPanel(), game-customization.js).
+function toggleEmotesPanel() {
+  const panel = document.getElementById('emotesPanel');
+  if (!panel) return;
+  if (panel.style.display === 'none') {
+    if (document.pointerLockElement) document.exitPointerLock();
+    isPointerLocked = false;
+    renderEmotesPanel();
+    panel.style.display = 'flex';
+    document.getElementById('emotesTab').style.display = 'none';
+  } else { closeEmotesPanel(); }
+}
+function closeEmotesPanel() {
+  document.getElementById('emotesPanel').style.display = 'none';
+  document.getElementById('emotesTab').style.display = 'block';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function renderEmotesPanel() {
+  const list = document.getElementById('emotesList');
+  if (!list) return;
+  let html = '';
+  if (activeEmote) {
+    const activeV = EMOTE_CATALOG_BY_ID[activeEmote.id];
+    html += `<button class="shopBtn" style="width:100%;background:#5a1a1a;margin-bottom:8px;" onclick="cancelEmote();renderEmotesPanel();">⏹ Stop ${activeV ? activeV.name : 'Emote'}</button>`;
+  }
+  Object.keys(EMOTE_FAMILIES).forEach(famId => {
+    const fam = EMOTE_FAMILIES[famId];
+    html += `<div style="color:#ff8ecf;font-weight:bold;font-size:12px;margin:10px 0 4px;border-bottom:1px solid #442233;padding-bottom:3px;">${EMOTE_FAMILY_EMOJI[famId]} ${fam.name.toUpperCase()}</div>`;
+    EMOTE_CATALOG.filter(v => v.family === famId).forEach(v => {
+      const owned = ownedEmotes.includes(v.id);
+      const tier = EMOTE_TIERS[v.tier];
+      const playing = activeEmote && activeEmote.id === v.id;
+      html += `<div class="shopItem" style="margin-bottom:6px;border-color:${tier.color};${playing?'box-shadow:0 0 8px '+tier.color+';':''}">
+        <div class="siName">${v.emoji} ${v.name} <span style="color:${tier.color};font-size:10px;">${tier.label}</span></div>
+        <div class="siCost">${owned ? '✅ Owned' : `💰 ${v.price.toLocaleString()} S.I.P.`}</div>
+        <button class="shopBtn" onclick="${owned ? `playEmote('${v.id}')` : `buyEmoteVariant('${v.id}')`}">${owned ? (playing?'▶ Playing':'▶ Play') : '🔒 Buy'}</button>
+      </div>`;
+    });
+  });
+  list.innerHTML = html;
+}
+
 // ─── MULTIPLAYER: OTHER PLAYERS ──────────────────────────────────────────────
 // A simplified, parameterized cousin of buildPlayer() — builds into its OWN
 // group instead of the global playerGroup, so it never touches the local
@@ -800,6 +1145,7 @@ async function syncPresence(t) {
       skin: playerColors.skin, shirtColor: playerColors.shirt, pantsColor: playerColors.pants,
       shoesColor: playerColors.shoes, hairColor: playerColors.hair,
       weapon: playerWeapon, armor: playerArmor, profilePic: playerProfilePic, sip: sipDollars,
+      emote: activeEmote ? activeEmote.id : null,
       killers: visibleKillers,
       buddy: (buddyOwned && buddySpecies) ? { species: buddySpecies, colors: buddyColors } : null,
       bodyguardCount: bodyguards.length
@@ -829,7 +1175,7 @@ async function syncPresence(t) {
         const mesh = wantCar ? buildRemotePlayerCar(o) : buildOtherPlayerAvatar(o);
         mesh.position.set(o.x, o.y, o.z);
         if(!wantCar) scene.add(mesh);
-        rp = remotePlayers[o.name] = { mesh, targetX:o.x, targetY:o.y, targetZ:o.z, targetYaw:o.yaw||0, inCar:wantCar, carId:o.carId||null };
+        rp = remotePlayers[o.name] = { mesh, targetX:o.x, targetY:o.y, targetZ:o.z, targetYaw:o.yaw||0, inCar:wantCar, carId:o.carId||null, emote:o.emote||null, emoteStartT:t };
       } else {
         if(wantCar !== rp.inCar || (wantCar && o.carId !== rp.carId)) {
           // they just got in/out of a car (or swapped cars) - rebuild as the right mesh type
@@ -863,6 +1209,17 @@ async function syncPresence(t) {
           }
         }
         rp.targetX = o.x; rp.targetY = o.y; rp.targetZ = o.z; rp.targetYaw = o.yaw||0;
+        // Emotes — real bone animation, reusing the exact same applyEmotePose()/resetEmotePose()
+        // functions the local player uses (this file), just driven by THIS remote player's own
+        // synced emote id/start-time instead of local input (see updateRemotePlayers() below, which
+        // actually calls applyEmotePose() every frame while rp.emote is set). Independent of the
+        // position/yaw lerp just above — an emoting remote player might not be moving at all.
+        const oEmote = o.emote || null;
+        if (oEmote !== rp.emote) {
+          rp.emote = oEmote;
+          rp.emoteStartT = t;
+          if (!oEmote && !wantCar) resetEmotePose(rp.mesh);
+        }
       }
       (o.killers || []).forEach(k => {
         const key = o.name + ':' + k.id;
@@ -922,7 +1279,7 @@ async function syncPresence(t) {
   } catch(e) { /* a dropped sync just means they'll look stale for a beat - not worth surfacing */ }
 }
 
-function updateRemotePlayers(dt) {
+function updateRemotePlayers(dt, t) {
   Object.values(remotePlayers).forEach(rp => {
     rp.mesh.position.x += (rp.targetX - rp.mesh.position.x) * Math.min(1, dt*6);
     rp.mesh.position.y += (rp.targetY - rp.mesh.position.y) * Math.min(1, dt*6);
@@ -931,6 +1288,18 @@ function updateRemotePlayers(dt) {
     while(dYaw > Math.PI) dYaw -= Math.PI*2;
     while(dYaw < -Math.PI) dYaw += Math.PI*2;
     rp.mesh.rotation.y += dYaw * Math.min(1, dt*6);
+    // Emotes — independent of the position/yaw lerp above (an emoting remote player might be
+    // standing perfectly still), driven off the SAME real applyEmotePose() function the local
+    // player uses, aimed at this remote avatar's own bones and this remote player's own synced
+    // emote id/start-time (set in syncPresence() above).
+    if (rp.emote && rp.mesh.hipsBone) {
+      const variant = EMOTE_CATALOG_BY_ID[rp.emote];
+      if (variant) {
+        const elapsed = t - rp.emoteStartT;
+        if (emoteIsFinished(variant, elapsed)) resetEmotePose(rp.mesh);
+        else applyEmotePose(rp.mesh, variant.family, elapsed, variant.params);
+      }
+    }
   });
 }
 
