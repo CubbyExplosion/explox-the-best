@@ -306,118 +306,154 @@ function buildPlayer() {
   const skin=c3(playerColors.skin), shirt=c3(playerColors.shirt);
   const pants=c3(playerColors.pants), shoes=c3(playerColors.shoes), hairC=c3(playerColors.hair);
 
+  // ── REAL SKELETAL RIG ── actual THREE.Bone objects (real THREE.Object3D subclasses), parented
+  // into a real joint hierarchy, with a real THREE.Skeleton registered over them. Every body/
+  // cosmetic mesh below now hangs off the bone for its body part instead of sitting flat under
+  // playerGroup, so game-controls.js's walk/punch/etc. animation can rotate the BONE (a real
+  // joint) instead of the raw box mesh — a swinging arm now pivots from the shoulder instead of
+  // spinning around its own geometric center. Bone world-Y values below are in playerGroup space
+  // (none of these bones sit rotated away from identity here, so "world" == "rest-pose local sum"
+  // for every number already hand-tuned into the branches further down).
+  const SPINE_Y = 1.75;   // torso vertical center — hips sit at the same height in this simplified rig
+  const HEAD_Y = 2.3;     // neck / base of the head box (head box is 1 unit tall, centered at 2.8)
+  const SHOULDER_X = 0.65, SHOULDER_Y = 2.2; // top of the arm box (0.9 tall, centered at 1.75)
+  const legH = playerPants==='shorts' ? 0.5 : playerPants==='capri' ? 0.75 : 0.9;
+  const legY = playerPants==='shorts' ? 0.9 : playerPants==='capri' ? 0.72 : 0.75;
+  const HIP_X = 0.22, HIP_Y = legY + legH/2; // top of the leg box — the real hip joint
+
+  const hipsBone = new THREE.Bone(); hipsBone.position.set(0, SPINE_Y, 0); playerGroup.add(hipsBone);
+  const spineBone = new THREE.Bone(); hipsBone.add(spineBone); // stays at local (0,0,0) — same point as hips here
+  const headBone = new THREE.Bone(); headBone.position.set(0, HEAD_Y-SPINE_Y, 0); spineBone.add(headBone);
+  const leftShoulderBone = new THREE.Bone(); leftShoulderBone.position.set(-SHOULDER_X, SHOULDER_Y-SPINE_Y, 0); spineBone.add(leftShoulderBone);
+  const rightShoulderBone = new THREE.Bone(); rightShoulderBone.position.set(SHOULDER_X, SHOULDER_Y-SPINE_Y, 0); spineBone.add(rightShoulderBone);
+  const leftHipBone = new THREE.Bone(); leftHipBone.position.set(-HIP_X, HIP_Y-SPINE_Y, 0); hipsBone.add(leftHipBone);
+  const rightHipBone = new THREE.Bone(); rightHipBone.position.set(HIP_X, HIP_Y-SPINE_Y, 0); hipsBone.add(rightHipBone);
+  player.hipsBone=hipsBone; player.spineBone=spineBone; player.headBone=headBone;
+  player.leftShoulderBone=leftShoulderBone; player.rightShoulderBone=rightShoulderBone;
+  player.leftHipBone=leftHipBone; player.rightHipBone=rightHipBone;
+  player.skeleton = new THREE.Skeleton([hipsBone, spineBone, headBone, leftShoulderBone, rightShoulderBone, leftHipBone, rightHipBone]);
+
   const skinMeshes = [];
-  const mk=(w,h,d,color,x,y,z)=>{
+  // mkOn(bone, boneWX,boneWY,boneWZ, w,h,d,color,x,y,z) — same box-mesh builder as the old flat
+  // mk(), but every branch below still passes the SAME playerGroup-relative x,y,z it always used;
+  // this just re-expresses that position relative to the target bone by subtracting the bone's
+  // own world offset, so none of the ~150 hand-tuned coordinate literals below had to change.
+  const mkOn=(bone,bwx,bwy,bwz,w,h,d,color,x,y,z)=>{
     const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color}));
-    m.position.set(x,y,z); m.castShadow=true; playerGroup.add(m);
+    m.position.set(x-bwx,y-bwy,z-bwz); m.castShadow=true; bone.add(m);
     if(color===skin) skinMeshes.push(m); // tags every skin-colored part real-time body paint can recolor live
     return m;
   };
+  const mkHead=(w,h,d,color,x,y,z)=>mkOn(headBone,0,HEAD_Y,0,w,h,d,color,x,y,z);
+  const mkTorso=(w,h,d,color,x,y,z)=>mkOn(spineBone,0,SPINE_Y,0,w,h,d,color,x,y,z);
+  const mkHips=(w,h,d,color,x,y,z)=>mkOn(hipsBone,0,SPINE_Y,0,w,h,d,color,x,y,z);
+  const mkArmL=(w,h,d,color,x,y,z)=>mkOn(leftShoulderBone,-SHOULDER_X,SHOULDER_Y,0,w,h,d,color,x,y,z);
+  const mkArmR=(w,h,d,color,x,y,z)=>mkOn(rightShoulderBone,SHOULDER_X,SHOULDER_Y,0,w,h,d,color,x,y,z);
+  const mkLegL=(w,h,d,color,x,y,z)=>mkOn(leftHipBone,-HIP_X,HIP_Y,0,w,h,d,color,x,y,z);
+  const mkLegR=(w,h,d,color,x,y,z)=>mkOn(rightHipBone,HIP_X,HIP_Y,0,w,h,d,color,x,y,z);
 
   // Head & eyes
-  player.headMesh = mk(1,1,1, skin, 0,2.8,0);
+  player.headMesh = mkHead(1,1,1, skin, 0,2.8,0);
   const em=new THREE.MeshBasicMaterial({color:0x111111});
-  [-0.22,0.22].forEach(ex=>{const e=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.05),em);e.position.set(ex,2.85,0.51);playerGroup.add(e);});
+  [-0.22,0.22].forEach(ex=>{const e=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.05),em);e.position.set(ex,2.85-HEAD_Y,0.51);headBone.add(e);});
 
   // Hair
-  if(playerHair==='short')    { mk(1.08,0.3,0.95,hairC,0,3.35,0); mk(0.25,0.5,0.9,hairC,-0.6,3.1,0); mk(0.25,0.5,0.9,hairC,0.6,3.1,0); }
-  else if(playerHair==='long'){ mk(1.08,0.3,0.95,hairC,0,3.35,0); mk(0.28,1.4,0.9,hairC,-0.6,2.4,0); mk(0.28,1.4,0.9,hairC,0.6,2.4,0); mk(0.9,1.4,0.28,hairC,0,2.4,-0.5); }
-  else if(playerHair==='spiky'){ mk(1.1,0.2,1.0,hairC,0,3.35,0); [-0.35,-0.17,0,0.17,0.35].forEach((sx,i)=>mk(0.18,0.5+i%2*0.2,0.18,hairC,sx,3.7+i%2*0.1,0)); }
-  else if(playerHair==='afro') { mk(1.5,1.4,1.4,hairC,0,3.1,0); }
-  else if(playerHair==='ponytail'){ mk(1.08,0.3,0.95,hairC,0,3.35,0); mk(0.25,0.5,0.9,hairC,-0.6,3.1,0); mk(0.28,1.8,0.28,hairC,0,2.2,-0.5); }
-  else if(playerHair==='curly'){ [-0.3,0,0.3].forEach(cx2=>mk(0.5,0.55,0.5,hairC,cx2,3.4,0)); mk(0.28,1.2,0.28,hairC,-0.6,2.7,0); mk(0.28,1.2,0.28,hairC,0.6,2.7,0); }
+  if(playerHair==='short')    { mkHead(1.08,0.3,0.95,hairC,0,3.35,0); mkHead(0.25,0.5,0.9,hairC,-0.6,3.1,0); mkHead(0.25,0.5,0.9,hairC,0.6,3.1,0); }
+  else if(playerHair==='long'){ mkHead(1.08,0.3,0.95,hairC,0,3.35,0); mkHead(0.28,1.4,0.9,hairC,-0.6,2.4,0); mkHead(0.28,1.4,0.9,hairC,0.6,2.4,0); mkHead(0.9,1.4,0.28,hairC,0,2.4,-0.5); }
+  else if(playerHair==='spiky'){ mkHead(1.1,0.2,1.0,hairC,0,3.35,0); [-0.35,-0.17,0,0.17,0.35].forEach((sx,i)=>mkHead(0.18,0.5+i%2*0.2,0.18,hairC,sx,3.7+i%2*0.1,0)); }
+  else if(playerHair==='afro') { mkHead(1.5,1.4,1.4,hairC,0,3.1,0); }
+  else if(playerHair==='ponytail'){ mkHead(1.08,0.3,0.95,hairC,0,3.35,0); mkHead(0.25,0.5,0.9,hairC,-0.6,3.1,0); mkHead(0.28,1.8,0.28,hairC,0,2.2,-0.5); }
+  else if(playerHair==='curly'){ [-0.3,0,0.3].forEach(cx2=>mkHead(0.5,0.55,0.5,hairC,cx2,3.4,0)); mkHead(0.28,1.2,0.28,hairC,-0.6,2.7,0); mkHead(0.28,1.2,0.28,hairC,0.6,2.7,0); }
 
   // Hat
-  if(playerHat==='cap')     { mk(1.2,0.15,1.2,0xee4444,0,3.35,0); mk(0.9,0.5,0.8,0xee4444,0,3.63,-0.05); mk(0.5,0.12,0.4,0xee4444,0,3.28,0.7); }
-  else if(playerHat==='cowboy'){ mk(1.7,0.12,1.7,0x8B4513,0,3.32,0); mk(0.9,0.7,0.9,0x8B4513,0,3.72,0); }
-  else if(playerHat==='crown'){ mk(1.1,0.28,1.1,0xFFD700,0,3.35,0); [-0.35,0,0.35].forEach((cx2,i)=>mk(0.22,0.4+i%2*0.15,0.22,0xFFD700,cx2,3.7,0)); }
-  else if(playerHat==='helmet'){ mk(1.15,0.85,1.15,0x555555,0,3.48,0); mk(0.7,0.3,0.15,0x88ccff,0,3.22,0.56); }
-  else if(playerHat==='tophat'){ mk(1.35,0.1,1.35,0x111111,0,3.32,0); mk(0.9,0.9,0.9,0x111111,0,3.8,0); mk(0.92,0.08,0.92,0x333333,0,3.38,0); }
-  else if(playerHat==='beanie'){ mk(1.05,0.7,1.05,shirt,0,3.5,0); mk(0.35,0.35,0.35,0xffffff,0,3.92,0); }
-  else if(playerHat==='fedora'){ mk(1.5,0.1,1.5,0x7a5c3a,0,3.32,0); mk(0.9,0.65,0.9,0x7a5c3a,0,3.65,0); mk(0.91,0.08,0.91,0x333333,0,3.37,0); }
-  else if(playerHat==='wizard'){ const w=new THREE.Mesh(new THREE.ConeGeometry(0.6,1.8,8),new THREE.MeshLambertMaterial({color:0x4444aa}));w.position.set(0,3.9,0);playerGroup.add(w); mk(1.3,0.12,1.3,0x4444aa,0,3.32,0); }
-  else if(playerHat==='pirate'){ mk(1.4,0.1,1.4,0x111111,0,3.32,0); mk(0.9,0.6,0.5,0x111111,0,3.66,0); mk(0.3,0.3,0.15,0xffffff,0,3.7,0.3); }
-  else if(playerHat==='santa') { mk(1.1,0.2,1.1,0xffffff,0,3.32,0); const cn=new THREE.Mesh(new THREE.ConeGeometry(0.5,1.0,8),new THREE.MeshLambertMaterial({color:0xdd2222}));cn.position.set(0.1,3.88,0);playerGroup.add(cn); mk(0.25,0.25,0.25,0xffffff,0.45,4.32,0); }
+  if(playerHat==='cap')     { mkHead(1.2,0.15,1.2,0xee4444,0,3.35,0); mkHead(0.9,0.5,0.8,0xee4444,0,3.63,-0.05); mkHead(0.5,0.12,0.4,0xee4444,0,3.28,0.7); }
+  else if(playerHat==='cowboy'){ mkHead(1.7,0.12,1.7,0x8B4513,0,3.32,0); mkHead(0.9,0.7,0.9,0x8B4513,0,3.72,0); }
+  else if(playerHat==='crown'){ mkHead(1.1,0.28,1.1,0xFFD700,0,3.35,0); [-0.35,0,0.35].forEach((cx2,i)=>mkHead(0.22,0.4+i%2*0.15,0.22,0xFFD700,cx2,3.7,0)); }
+  else if(playerHat==='helmet'){ mkHead(1.15,0.85,1.15,0x555555,0,3.48,0); mkHead(0.7,0.3,0.15,0x88ccff,0,3.22,0.56); }
+  else if(playerHat==='tophat'){ mkHead(1.35,0.1,1.35,0x111111,0,3.32,0); mkHead(0.9,0.9,0.9,0x111111,0,3.8,0); mkHead(0.92,0.08,0.92,0x333333,0,3.38,0); }
+  else if(playerHat==='beanie'){ mkHead(1.05,0.7,1.05,shirt,0,3.5,0); mkHead(0.35,0.35,0.35,0xffffff,0,3.92,0); }
+  else if(playerHat==='fedora'){ mkHead(1.5,0.1,1.5,0x7a5c3a,0,3.32,0); mkHead(0.9,0.65,0.9,0x7a5c3a,0,3.65,0); mkHead(0.91,0.08,0.91,0x333333,0,3.37,0); }
+  else if(playerHat==='wizard'){ const w=new THREE.Mesh(new THREE.ConeGeometry(0.6,1.8,8),new THREE.MeshLambertMaterial({color:0x4444aa}));w.position.set(0,3.9-HEAD_Y,0);headBone.add(w); mkHead(1.3,0.12,1.3,0x4444aa,0,3.32,0); }
+  else if(playerHat==='pirate'){ mkHead(1.4,0.1,1.4,0x111111,0,3.32,0); mkHead(0.9,0.6,0.5,0x111111,0,3.66,0); mkHead(0.3,0.3,0.15,0xffffff,0,3.7,0.3); }
+  else if(playerHat==='santa') { mkHead(1.1,0.2,1.1,0xffffff,0,3.32,0); const cn=new THREE.Mesh(new THREE.ConeGeometry(0.5,1.0,8),new THREE.MeshLambertMaterial({color:0xdd2222}));cn.position.set(0.1,3.88-HEAD_Y,0);headBone.add(cn); mkHead(0.25,0.25,0.25,0xffffff,0.45,4.32,0); }
   // 15 new hats — real distinct meshes, same shape-language as the ones above.
-  else if(playerHat==='bandana')   { mk(1.15,0.15,1.15,0xcc3355,0,3.32,0); mk(0.3,0.3,0.1,0xcc3355,0,3.2,-0.6); }
-  else if(playerHat==='headband')  { mk(1.15,0.15,1.15,0x3388cc,0,3.35,0); }
-  else if(playerHat==='partyhat')  { const ph=new THREE.Mesh(new THREE.ConeGeometry(0.55,1.3,8),new THREE.MeshLambertMaterial({color:0xffcc00}));ph.position.set(0,4.0,0);playerGroup.add(ph); mk(0.15,0.15,0.15,0xff3366,0,4.68,0); }
-  else if(playerHat==='bucket')    { mk(1.5,0.15,1.5,0x4a7a4a,0,3.36,0); mk(0.9,0.5,0.9,0x4a7a4a,0,3.65,0); }
-  else if(playerHat==='jester')    { mk(1.15,0.15,1.15,0x8833cc,0,3.35,0); [-0.35,0,0.35].forEach((jx,i)=>{const jc=new THREE.Mesh(new THREE.ConeGeometry(0.16,0.5+i%2*0.2,4),new THREE.MeshLambertMaterial({color:0x8833cc}));jc.position.set(jx,3.7+i%2*0.1,0);playerGroup.add(jc);}); }
-  else if(playerHat==='viking')    { mk(1.15,0.7,1.15,0x999999,0,3.5,0); const hL=new THREE.Mesh(new THREE.ConeGeometry(0.12,0.6,6),new THREE.MeshLambertMaterial({color:0xeeeecc}));hL.position.set(-0.6,3.9,0);hL.rotation.z=0.5;playerGroup.add(hL); const hR=new THREE.Mesh(new THREE.ConeGeometry(0.12,0.6,6),new THREE.MeshLambertMaterial({color:0xeeeecc}));hR.position.set(0.6,3.9,0);hR.rotation.z=-0.5;playerGroup.add(hR); }
-  else if(playerHat==='graduation'){ mk(1.4,0.1,1.4,0x111111,0,3.6,0); mk(0.9,0.5,0.9,0x111111,0,3.35,0); mk(0.06,0.4,0.06,0xFFD700,0.6,3.5,0); }
-  else if(playerHat==='flower')    { mk(1.15,0.15,1.15,0x2d7a2d,0,3.35,0); ['#ff69b4','#ffcc00','#ff6688','#cc88ff','#ffffff'].forEach((col,i)=>{const a2=i*Math.PI*2/5; mk(0.16,0.16,0.16,parseInt(col.slice(1),16),Math.cos(a2)*0.55,3.4,Math.sin(a2)*0.55);}); }
-  else if(playerHat==='backwards') { mk(1.2,0.5,0.8,0x3355aa,0,3.63,0.05); mk(0.5,0.12,0.4,0x3355aa,0,3.28,-0.7); }
-  else if(playerHat==='sombrero')  { mk(2.2,0.12,2.2,0xd4a860,0,3.35,0); mk(0.9,0.7,0.9,0xd4a860,0,3.75,0); }
-  else if(playerHat==='sunglasses'){ mk(0.9,0.22,0.1,0x111111,0,2.87,0.52); mk(0.15,0.15,0.35,0x222222,-0.5,2.87,0.35); mk(0.15,0.15,0.35,0x222222,0.5,2.87,0.35); }
-  else if(playerHat==='propeller') { mk(1.05,0.7,1.05,0xdd4444,0,3.5,0); mk(0.7,0.06,0.12,0xcccccc,0,3.95,0); mk(0.1,0.15,0.1,0x888888,0,3.9,0); }
-  else if(playerHat==='antlers')   { mk(1.1,0.7,1.1,hairC,0,3.5,0); [-0.4,0.4].forEach(ax=>{ mk(0.1,0.7,0.1,0x8B5A2B,ax,4.0,0); mk(0.3,0.1,0.1,0x8B5A2B,ax-0.15,3.85,0); mk(0.3,0.1,0.1,0x8B5A2B,ax+0.15,4.15,0); }); }
-  else if(playerHat==='headphones'){ mk(0.18,0.5,0.5,0x222222,-0.62,3.15,0); mk(0.18,0.5,0.5,0x222222,0.62,3.15,0); mk(1.3,0.12,0.2,0x222222,0,3.75,0); }
-  else if(playerHat==='chef')      { mk(1.0,0.3,1.0,0xffffff,0,3.45,0); mk(0.8,0.7,0.8,0xffffff,0,3.95,0); }
-  else if(playerHat==='turban')    { mk(1.1,0.7,1.1,0x8833aa,0,3.55,0); mk(0.16,0.16,0.16,0xffcc00,0,3.95,0.4); }
+  else if(playerHat==='bandana')   { mkHead(1.15,0.15,1.15,0xcc3355,0,3.32,0); mkHead(0.3,0.3,0.1,0xcc3355,0,3.2,-0.6); }
+  else if(playerHat==='headband')  { mkHead(1.15,0.15,1.15,0x3388cc,0,3.35,0); }
+  else if(playerHat==='partyhat')  { const ph=new THREE.Mesh(new THREE.ConeGeometry(0.55,1.3,8),new THREE.MeshLambertMaterial({color:0xffcc00}));ph.position.set(0,4.0-HEAD_Y,0);headBone.add(ph); mkHead(0.15,0.15,0.15,0xff3366,0,4.68,0); }
+  else if(playerHat==='bucket')    { mkHead(1.5,0.15,1.5,0x4a7a4a,0,3.36,0); mkHead(0.9,0.5,0.9,0x4a7a4a,0,3.65,0); }
+  else if(playerHat==='jester')    { mkHead(1.15,0.15,1.15,0x8833cc,0,3.35,0); [-0.35,0,0.35].forEach((jx,i)=>{const jc=new THREE.Mesh(new THREE.ConeGeometry(0.16,0.5+i%2*0.2,4),new THREE.MeshLambertMaterial({color:0x8833cc}));jc.position.set(jx,3.7+i%2*0.1-HEAD_Y,0);headBone.add(jc);}); }
+  else if(playerHat==='viking')    { mkHead(1.15,0.7,1.15,0x999999,0,3.5,0); const hL=new THREE.Mesh(new THREE.ConeGeometry(0.12,0.6,6),new THREE.MeshLambertMaterial({color:0xeeeecc}));hL.position.set(-0.6,3.9-HEAD_Y,0);hL.rotation.z=0.5;headBone.add(hL); const hR=new THREE.Mesh(new THREE.ConeGeometry(0.12,0.6,6),new THREE.MeshLambertMaterial({color:0xeeeecc}));hR.position.set(0.6,3.9-HEAD_Y,0);hR.rotation.z=-0.5;headBone.add(hR); }
+  else if(playerHat==='graduation'){ mkHead(1.4,0.1,1.4,0x111111,0,3.6,0); mkHead(0.9,0.5,0.9,0x111111,0,3.35,0); mkHead(0.06,0.4,0.06,0xFFD700,0.6,3.5,0); }
+  else if(playerHat==='flower')    { mkHead(1.15,0.15,1.15,0x2d7a2d,0,3.35,0); ['#ff69b4','#ffcc00','#ff6688','#cc88ff','#ffffff'].forEach((col,i)=>{const a2=i*Math.PI*2/5; mkHead(0.16,0.16,0.16,parseInt(col.slice(1),16),Math.cos(a2)*0.55,3.4,Math.sin(a2)*0.55);}); }
+  else if(playerHat==='backwards') { mkHead(1.2,0.5,0.8,0x3355aa,0,3.63,0.05); mkHead(0.5,0.12,0.4,0x3355aa,0,3.28,-0.7); }
+  else if(playerHat==='sombrero')  { mkHead(2.2,0.12,2.2,0xd4a860,0,3.35,0); mkHead(0.9,0.7,0.9,0xd4a860,0,3.75,0); }
+  else if(playerHat==='sunglasses'){ mkHead(0.9,0.22,0.1,0x111111,0,2.87,0.52); mkHead(0.15,0.15,0.35,0x222222,-0.5,2.87,0.35); mkHead(0.15,0.15,0.35,0x222222,0.5,2.87,0.35); }
+  else if(playerHat==='propeller') { mkHead(1.05,0.7,1.05,0xdd4444,0,3.5,0); mkHead(0.7,0.06,0.12,0xcccccc,0,3.95,0); mkHead(0.1,0.15,0.1,0x888888,0,3.9,0); }
+  else if(playerHat==='antlers')   { mkHead(1.1,0.7,1.1,hairC,0,3.5,0); [-0.4,0.4].forEach(ax=>{ mkHead(0.1,0.7,0.1,0x8B5A2B,ax,4.0,0); mkHead(0.3,0.1,0.1,0x8B5A2B,ax-0.15,3.85,0); mkHead(0.3,0.1,0.1,0x8B5A2B,ax+0.15,4.15,0); }); }
+  else if(playerHat==='headphones'){ mkHead(0.18,0.5,0.5,0x222222,-0.62,3.15,0); mkHead(0.18,0.5,0.5,0x222222,0.62,3.15,0); mkHead(1.3,0.12,0.2,0x222222,0,3.75,0); }
+  else if(playerHat==='chef')      { mkHead(1.0,0.3,1.0,0xffffff,0,3.45,0); mkHead(0.8,0.7,0.8,0xffffff,0,3.95,0); }
+  else if(playerHat==='turban')    { mkHead(1.1,0.7,1.1,0x8833aa,0,3.55,0); mkHead(0.16,0.16,0.16,0xffcc00,0,3.95,0.4); }
   // Cat Ears — real user request (a fan playing the deployed game): "Pls add cat ears... As an hat".
-  else if(playerHat==='catears')   { mk(0.32,0.5,0.14,0x333333,-0.35,3.75,0); mk(0.32,0.5,0.14,0x333333,0.35,3.75,0); mk(0.18,0.3,0.06,0xff88aa,-0.35,3.68,0.06); mk(0.18,0.3,0.06,0xff88aa,0.35,3.68,0.06); }
+  else if(playerHat==='catears')   { mkHead(0.32,0.5,0.14,0x333333,-0.35,3.75,0); mkHead(0.32,0.5,0.14,0x333333,0.35,3.75,0); mkHead(0.18,0.3,0.06,0xff88aa,-0.35,3.68,0.06); mkHead(0.18,0.3,0.06,0xff88aa,0.35,3.68,0.06); }
 
   // Body & arms
   const bCol = playerShirt==='suit' ? 0x222222 : shirt;
   const aCol = playerShirt==='tanktop' ? skin : bCol;
-  player.torsoMesh = mk(0.9,1.1,0.5, bCol, 0,1.75,0);
+  player.torsoMesh = mkTorso(0.9,1.1,0.5, bCol, 0,1.75,0);
   player.torsoBaseColor = bCol;
   refreshShirtPaintTexture();
-  player.lArm = mk(0.35,0.9,0.35, aCol,-0.65,1.75,0);
-  player.rArm = mk(0.35,0.9,0.35, aCol, 0.65,1.75,0);
-  mk(0.37,0.28,0.37, skin,-0.65,1.22,0); mk(0.37,0.28,0.37, skin,0.65,1.22,0);
+  player.lArm = mkArmL(0.35,0.9,0.35, aCol,-0.65,1.75,0);
+  player.rArm = mkArmR(0.35,0.9,0.35, aCol, 0.65,1.75,0);
+  mkArmL(0.37,0.28,0.37, skin,-0.65,1.22,0); mkArmR(0.37,0.28,0.37, skin,0.65,1.22,0);
   // 15 new shirts — real distinct accent meshes on top of the shared torso/arm shape above.
-  if(playerShirt==='crop')          { mk(0.94,0.3,0.54, skin, 0,1.35,0); }
-  else if(playerShirt==='vneck')    { mk(0.15,0.25,0.1, skin, 0,2.15,0.26); }
-  else if(playerShirt==='crewneck') { mk(0.45,0.1,0.45, bCol, 0,2.3,0); }
-  else if(playerShirt==='turtleneck'){ mk(0.5,0.22,0.5, bCol, 0,2.35,0); }
-  else if(playerShirt==='polo')     { mk(0.5,0.1,0.1, 0xffffff, 0,2.15,0.26); }
-  else if(playerShirt==='tuxedo')   { mk(0.5,0.1,0.1, 0xffffff, 0,2.15,0.26); mk(0.12,0.12,0.1, 0x111111, 0,2.2,0.3); }
-  else if(playerShirt==='sweater')  { for(let i=0;i<3;i++) mk(0.92,0.06,0.52, 0x000000, 0,1.5+i*0.25,0.001); }
-  else if(playerShirt==='raincoat') { mk(1.0,1.3,0.56, bCol, 0,1.7,0); mk(0.3,0.12,0.5, 0xffffff, 0,2.3,0); }
-  else if(playerShirt==='denim')    { mk(0.15,0.5,0.05, 0xffdc78, -0.35,1.9,0.26); mk(0.15,0.5,0.05, 0xffdc78, 0.35,1.9,0.26); }
-  else if(playerShirt==='camo')     { mk(0.3,0.3,0.1, 0x2a3a14, -0.2,1.9,0.26); mk(0.25,0.25,0.1, 0x3a4a1a, 0.2,1.6,0.26); }
-  else if(playerShirt==='graphic')  { mk(0.3,0.3,0.05, 0xffcc00, 0,1.7,0.26); }
-  else if(playerShirt==='flannel')  { for(let i=0;i<3;i++) mk(0.92,0.06,0.52, 0x000000, 0,1.5+i*0.25,0.001); mk(0.06,1.0,0.52, 0x000000, -0.2,1.75,0.001); }
-  else if(playerShirt==='buttonup') { for(let i=0;i<4;i++) mk(0.06,0.06,0.06, 0x333333, 0,2.15-i*0.2,0.26); }
-  else if(playerShirt==='crophoodie'){ mk(0.94,0.3,0.54, skin, 0,1.35,0); mk(0.08,0.4,0.08, bCol, -0.15,2.15,0.26); mk(0.08,0.4,0.08, bCol, 0.15,2.15,0.26); }
-  else if(playerShirt==='overshirt'){ mk(0.5,1.1,0.1, skin, 0,1.75,0.26); }
+  if(playerShirt==='crop')          { mkTorso(0.94,0.3,0.54, skin, 0,1.35,0); }
+  else if(playerShirt==='vneck')    { mkTorso(0.15,0.25,0.1, skin, 0,2.15,0.26); }
+  else if(playerShirt==='crewneck') { mkTorso(0.45,0.1,0.45, bCol, 0,2.3,0); }
+  else if(playerShirt==='turtleneck'){ mkTorso(0.5,0.22,0.5, bCol, 0,2.35,0); }
+  else if(playerShirt==='polo')     { mkTorso(0.5,0.1,0.1, 0xffffff, 0,2.15,0.26); }
+  else if(playerShirt==='tuxedo')   { mkTorso(0.5,0.1,0.1, 0xffffff, 0,2.15,0.26); mkTorso(0.12,0.12,0.1, 0x111111, 0,2.2,0.3); }
+  else if(playerShirt==='sweater')  { for(let i=0;i<3;i++) mkTorso(0.92,0.06,0.52, 0x000000, 0,1.5+i*0.25,0.001); }
+  else if(playerShirt==='raincoat') { mkTorso(1.0,1.3,0.56, bCol, 0,1.7,0); mkTorso(0.3,0.12,0.5, 0xffffff, 0,2.3,0); }
+  else if(playerShirt==='denim')    { mkTorso(0.15,0.5,0.05, 0xffdc78, -0.35,1.9,0.26); mkTorso(0.15,0.5,0.05, 0xffdc78, 0.35,1.9,0.26); }
+  else if(playerShirt==='camo')     { mkTorso(0.3,0.3,0.1, 0x2a3a14, -0.2,1.9,0.26); mkTorso(0.25,0.25,0.1, 0x3a4a1a, 0.2,1.6,0.26); }
+  else if(playerShirt==='graphic')  { mkTorso(0.3,0.3,0.05, 0xffcc00, 0,1.7,0.26); }
+  else if(playerShirt==='flannel')  { for(let i=0;i<3;i++) mkTorso(0.92,0.06,0.52, 0x000000, 0,1.5+i*0.25,0.001); mkTorso(0.06,1.0,0.52, 0x000000, -0.2,1.75,0.001); }
+  else if(playerShirt==='buttonup') { for(let i=0;i<4;i++) mkTorso(0.06,0.06,0.06, 0x333333, 0,2.15-i*0.2,0.26); }
+  else if(playerShirt==='crophoodie'){ mkTorso(0.94,0.3,0.54, skin, 0,1.35,0); mkTorso(0.08,0.4,0.08, bCol, -0.15,2.15,0.26); mkTorso(0.08,0.4,0.08, bCol, 0.15,2.15,0.26); }
+  else if(playerShirt==='overshirt'){ mkTorso(0.5,1.1,0.1, skin, 0,1.75,0.26); }
 
   // Legs
-  const legH = playerPants==='shorts' ? 0.5 : playerPants==='capri' ? 0.75 : 0.9;
-  const legY = playerPants==='shorts' ? 0.9 : playerPants==='capri' ? 0.72 : 0.75;
-  player.lLeg = mk(0.38,legH,0.38, pants,-0.22,legY,0);
-  player.rLeg = mk(0.38,legH,0.38, pants, 0.22,legY,0);
-  if(playerPants==='shorts'){mk(0.38,0.45,0.38,skin,-0.22,0.32,0);mk(0.38,0.45,0.38,skin,0.22,0.32,0);}
-  if(playerPants==='cargo'){mk(0.15,0.25,0.4,0x333333,-0.38,0.9,0.1);mk(0.15,0.25,0.4,0x333333,0.38,0.9,0.1);}
+  player.lLeg = mkLegL(0.38,legH,0.38, pants,-0.22,legY,0);
+  player.rLeg = mkLegR(0.38,legH,0.38, pants, 0.22,legY,0);
+  if(playerPants==='shorts'){mkLegL(0.38,0.45,0.38,skin,-0.22,0.32,0);mkLegR(0.38,0.45,0.38,skin,0.22,0.32,0);}
+  if(playerPants==='cargo'){mkLegL(0.15,0.25,0.4,0x333333,-0.38,0.9,0.1);mkLegR(0.15,0.25,0.4,0x333333,0.38,0.9,0.1);}
   // 10 new pants — real distinct accents/shapes on the shared leg meshes above.
-  if(playerPants==='capri')          { mk(0.4,0.2,0.4,skin,-0.22,0.42,0); mk(0.4,0.2,0.4,skin,0.22,0.42,0); }
-  else if(playerPants==='leggings')  { mk(0.06,0.9,0.06,0x000000,-0.22,0.75,0.19); mk(0.06,0.9,0.06,0x000000,0.22,0.75,0.19); }
-  else if(playerPants==='plaid')     { for(let i=0;i<3;i++) mk(0.4,0.06,0.4,0x000000,-0.22,0.5+i*0.25,0); for(let i=0;i<3;i++) mk(0.4,0.06,0.4,0x000000,0.22,0.5+i*0.25,0); }
-  else if(playerPants==='bellbottom'){ mk(0.55,0.2,0.42,pants,-0.22,0.35,0); mk(0.55,0.2,0.42,pants,0.22,0.35,0); }
-  else if(playerPants==='camopants') { mk(0.2,0.2,0.2,0x3a4a1a,-0.22,0.9,0.15); mk(0.2,0.2,0.2,0x2a3a14,0.22,0.6,0.15); }
-  else if(playerPants==='skinny')    { mk(0.06,0.9,0.06,0x000000,-0.24,0.75,0); mk(0.06,0.9,0.06,0x000000,0.24,0.75,0); }
-  else if(playerPants==='sweatpants'){ mk(0.4,0.1,0.4,0xffffff,-0.22,0.32,0); mk(0.4,0.1,0.4,0xffffff,0.22,0.32,0); }
-  else if(playerPants==='overalls')  { mk(0.9,0.6,0.5,pants,0,1.5,0); mk(0.1,0.4,0.1,pants,-0.3,2.0,0); mk(0.1,0.4,0.1,pants,0.3,2.0,0); }
-  else if(playerPants==='skirt' || playerPants==='kilt') { const sk=new THREE.Mesh(new THREE.ConeGeometry(0.55,0.65,4),new THREE.MeshLambertMaterial({color:pants})); sk.position.set(0,0.65,0); sk.rotation.y=Math.PI/4; playerGroup.add(sk); }
+  if(playerPants==='capri')          { mkLegL(0.4,0.2,0.4,skin,-0.22,0.42,0); mkLegR(0.4,0.2,0.4,skin,0.22,0.42,0); }
+  else if(playerPants==='leggings')  { mkLegL(0.06,0.9,0.06,0x000000,-0.22,0.75,0.19); mkLegR(0.06,0.9,0.06,0x000000,0.22,0.75,0.19); }
+  else if(playerPants==='plaid')     { for(let i=0;i<3;i++) mkLegL(0.4,0.06,0.4,0x000000,-0.22,0.5+i*0.25,0); for(let i=0;i<3;i++) mkLegR(0.4,0.06,0.4,0x000000,0.22,0.5+i*0.25,0); }
+  else if(playerPants==='bellbottom'){ mkLegL(0.55,0.2,0.42,pants,-0.22,0.35,0); mkLegR(0.55,0.2,0.42,pants,0.22,0.35,0); }
+  else if(playerPants==='camopants') { mkLegL(0.2,0.2,0.2,0x3a4a1a,-0.22,0.9,0.15); mkLegR(0.2,0.2,0.2,0x2a3a14,0.22,0.6,0.15); }
+  else if(playerPants==='skinny')    { mkLegL(0.06,0.9,0.06,0x000000,-0.24,0.75,0); mkLegR(0.06,0.9,0.06,0x000000,0.24,0.75,0); }
+  else if(playerPants==='sweatpants'){ mkLegL(0.4,0.1,0.4,0xffffff,-0.22,0.32,0); mkLegR(0.4,0.1,0.4,0xffffff,0.22,0.32,0); }
+  else if(playerPants==='overalls')  { mkHips(0.9,0.6,0.5,pants,0,1.5,0); mkLegL(0.1,0.4,0.1,pants,-0.3,2.0,0); mkLegR(0.1,0.4,0.1,pants,0.3,2.0,0); }
+  else if(playerPants==='skirt' || playerPants==='kilt') { const sk=new THREE.Mesh(new THREE.ConeGeometry(0.55,0.65,4),new THREE.MeshLambertMaterial({color:pants})); sk.position.set(0,0.65-SPINE_Y,0); sk.rotation.y=Math.PI/4; hipsBone.add(sk); }
 
   // Shoes
   const shoeC=c3(playerColors.shoes);
   const shH=playerShoes==='boots'?0.45:playerShoes==='rainboots'?0.6:playerShoes==='cowboyboots'?0.55:playerShoes==='platform'?0.3:0.22;
   const shY=playerShoes==='boots'?0.18:playerShoes==='rainboots'?0.28:playerShoes==='cowboyboots'?0.25:playerShoes==='platform'?0.13:0.1;
   const shD=playerShoes==='sandals'?0.6:playerShoes==='flipflops'?0.55:0.52;
-  mk(0.42,shH,shD, shoeC,-0.22,shY,0.05);
-  mk(0.42,shH,shD, shoeC, 0.22,shY,0.05);
-  if(playerShoes==='hightop'){mk(0.43,0.3,0.53,shoeC,-0.22,0.32,0.04);mk(0.43,0.3,0.53,shoeC,0.22,0.32,0.04);}
+  mkLegL(0.42,shH,shD, shoeC,-0.22,shY,0.05);
+  mkLegR(0.42,shH,shD, shoeC, 0.22,shY,0.05);
+  if(playerShoes==='hightop'){mkLegL(0.43,0.3,0.53,shoeC,-0.22,0.32,0.04);mkLegR(0.43,0.3,0.53,shoeC,0.22,0.32,0.04);}
   // 6 more new shoes — real distinct accents (flipflops/rainboots/cowboyboots/platform already
   // handled above via shH/shY/shD).
-  else if(playerShoes==='cleats')   { mk(0.06,0.06,0.06,0x222222,-0.3,0.02,0.2); mk(0.06,0.06,0.06,0x222222,0.3,0.02,0.2); }
-  else if(playerShoes==='slippers') { mk(0.05,0.05,0.2,0xffffff,-0.22,0.2,0.2); mk(0.05,0.05,0.2,0xffffff,0.22,0.2,0.2); }
-  else if(playerShoes==='crocs')    { mk(0.1,0.15,0.1,0x000000,-0.22,0.2,0.15); mk(0.1,0.15,0.1,0x000000,0.22,0.2,0.15); }
-  else if(playerShoes==='wedges')   { mk(0.4,0.15,0.5,shoeC,-0.22,0.02,0.05); mk(0.4,0.15,0.5,shoeC,0.22,0.02,0.05); }
-  else if(playerShoes==='moccasins'){ mk(0.1,0.05,0.4,0x6b4423,-0.22,0.22,0.05); mk(0.1,0.05,0.4,0x6b4423,0.22,0.22,0.05); }
-  else if(playerShoes==='skates')   { mk(0.42,0.1,0.55,0x888888,-0.22,0.02,0.08); mk(0.42,0.1,0.55,0x888888,0.22,0.02,0.08); }
+  else if(playerShoes==='cleats')   { mkLegL(0.06,0.06,0.06,0x222222,-0.3,0.02,0.2); mkLegR(0.06,0.06,0.06,0x222222,0.3,0.02,0.2); }
+  else if(playerShoes==='slippers') { mkLegL(0.05,0.05,0.2,0xffffff,-0.22,0.2,0.2); mkLegR(0.05,0.05,0.2,0xffffff,0.22,0.2,0.2); }
+  else if(playerShoes==='crocs')    { mkLegL(0.1,0.15,0.1,0x000000,-0.22,0.2,0.15); mkLegR(0.1,0.15,0.1,0x000000,0.22,0.2,0.15); }
+  else if(playerShoes==='wedges')   { mkLegL(0.4,0.15,0.5,shoeC,-0.22,0.02,0.05); mkLegR(0.4,0.15,0.5,shoeC,0.22,0.02,0.05); }
+  else if(playerShoes==='moccasins'){ mkLegL(0.1,0.05,0.4,0x6b4423,-0.22,0.22,0.05); mkLegR(0.1,0.05,0.4,0x6b4423,0.22,0.22,0.05); }
+  else if(playerShoes==='skates')   { mkLegL(0.42,0.1,0.55,0x888888,-0.22,0.02,0.08); mkLegR(0.42,0.1,0.55,0x888888,0.22,0.02,0.08); }
 
   player.skinMeshes = skinMeshes;
 
@@ -453,33 +489,58 @@ function buildOtherPlayerAvatar(a) {
   const g = new THREE.Group();
   const skin=c3(a.skin||'#f5c89a'), shirtC=c3(a.shirtColor||'#2196F3');
   const pantsC=c3(a.pantsColor||'#333333'), shoeC=c3(a.shoesColor||'#4e3b2a'), hairC=c3(a.hairColor||'#3a1f0a');
-  const mk=(w,h,d,color,x,y,z)=>{
-    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color}));
-    m.position.set(x,y,z); m.castShadow=true; g.add(m); return m;
-  };
-  mk(1,1,1, skin, 0,2.8,0); // head
-  const em=new THREE.MeshBasicMaterial({color:0x111111});
-  [-0.22,0.22].forEach(ex=>{const e=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.05),em);e.position.set(ex,2.85,0.51);g.add(e);});
-  const hair = a.hair||'none';
-  if(hair==='short')    { mk(1.08,0.3,0.95,hairC,0,3.35,0); mk(0.25,0.5,0.9,hairC,-0.6,3.1,0); mk(0.25,0.5,0.9,hairC,0.6,3.1,0); }
-  else if(hair==='long'){ mk(1.08,0.3,0.95,hairC,0,3.35,0); mk(0.28,1.4,0.9,hairC,-0.6,2.4,0); mk(0.28,1.4,0.9,hairC,0.6,2.4,0); mk(0.9,1.4,0.28,hairC,0,2.4,-0.5); }
-  else if(hair==='spiky'){ mk(1.1,0.2,1.0,hairC,0,3.35,0); [-0.35,-0.17,0,0.17,0.35].forEach((sx,i)=>mk(0.18,0.5+i%2*0.2,0.18,hairC,sx,3.7+i%2*0.1,0)); }
-  else if(hair==='afro') { mk(1.5,1.4,1.4,hairC,0,3.1,0); }
-  else if(hair==='ponytail'){ mk(1.08,0.3,0.95,hairC,0,3.35,0); mk(0.25,0.5,0.9,hairC,-0.6,3.1,0); mk(0.28,1.8,0.28,hairC,0,2.2,-0.5); }
-  else if(hair==='curly'){ [-0.3,0,0.3].forEach(cx2=>mk(0.5,0.55,0.5,hairC,cx2,3.4,0)); mk(0.28,1.2,0.28,hairC,-0.6,2.7,0); mk(0.28,1.2,0.28,hairC,0.6,2.7,0); }
-  const bCol = a.shirt==='suit' ? 0x222222 : shirtC;
-  const aCol = a.shirt==='tanktop' ? skin : bCol;
-  mk(0.9,1.1,0.5, bCol, 0,1.75,0);
-  g.lArm = mk(0.35,0.9,0.35, aCol,-0.65,1.75,0);
-  g.rArm = mk(0.35,0.9,0.35, aCol, 0.65,1.75,0);
-  mk(0.37,0.28,0.37, skin,-0.65,1.22,0); mk(0.37,0.28,0.37, skin,0.65,1.22,0);
+
+  // Same real bone rig as buildPlayer() (see there for the full explanation of the numbers below)
+  // — kept here too, even though remote players aren't animated yet (out of scope for this pass),
+  // so every player in the world shares one real THREE.Bone skeleton shape, not just the local one.
+  const SPINE_Y = 1.75, HEAD_Y = 2.3, SHOULDER_X = 0.65, SHOULDER_Y = 2.2;
   const legH = a.pants==='shorts' ? 0.5 : 0.9;
   const legY = a.pants==='shorts' ? 0.9 : 0.75;
-  g.lLeg = mk(0.38,legH,0.38, pantsC,-0.22,legY,0);
-  g.rLeg = mk(0.38,legH,0.38, pantsC, 0.22,legY,0);
+  const HIP_X = 0.22, HIP_Y = legY + legH/2;
+  const hipsBone = new THREE.Bone(); hipsBone.position.set(0, SPINE_Y, 0); g.add(hipsBone);
+  const spineBone = new THREE.Bone(); hipsBone.add(spineBone);
+  const headBone = new THREE.Bone(); headBone.position.set(0, HEAD_Y-SPINE_Y, 0); spineBone.add(headBone);
+  const leftShoulderBone = new THREE.Bone(); leftShoulderBone.position.set(-SHOULDER_X, SHOULDER_Y-SPINE_Y, 0); spineBone.add(leftShoulderBone);
+  const rightShoulderBone = new THREE.Bone(); rightShoulderBone.position.set(SHOULDER_X, SHOULDER_Y-SPINE_Y, 0); spineBone.add(rightShoulderBone);
+  const leftHipBone = new THREE.Bone(); leftHipBone.position.set(-HIP_X, HIP_Y-SPINE_Y, 0); hipsBone.add(leftHipBone);
+  const rightHipBone = new THREE.Bone(); rightHipBone.position.set(HIP_X, HIP_Y-SPINE_Y, 0); hipsBone.add(rightHipBone);
+  g.hipsBone=hipsBone; g.spineBone=spineBone; g.headBone=headBone;
+  g.leftShoulderBone=leftShoulderBone; g.rightShoulderBone=rightShoulderBone;
+  g.leftHipBone=leftHipBone; g.rightHipBone=rightHipBone;
+  g.skeleton = new THREE.Skeleton([hipsBone, spineBone, headBone, leftShoulderBone, rightShoulderBone, leftHipBone, rightHipBone]);
+
+  const mkOn=(bone,bwx,bwy,bwz,w,h,d,color,x,y,z)=>{
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color}));
+    m.position.set(x-bwx,y-bwy,z-bwz); m.castShadow=true; bone.add(m); return m;
+  };
+  const mkHead=(w,h,d,color,x,y,z)=>mkOn(headBone,0,HEAD_Y,0,w,h,d,color,x,y,z);
+  const mkTorso=(w,h,d,color,x,y,z)=>mkOn(spineBone,0,SPINE_Y,0,w,h,d,color,x,y,z);
+  const mkArmL=(w,h,d,color,x,y,z)=>mkOn(leftShoulderBone,-SHOULDER_X,SHOULDER_Y,0,w,h,d,color,x,y,z);
+  const mkArmR=(w,h,d,color,x,y,z)=>mkOn(rightShoulderBone,SHOULDER_X,SHOULDER_Y,0,w,h,d,color,x,y,z);
+  const mkLegL=(w,h,d,color,x,y,z)=>mkOn(leftHipBone,-HIP_X,HIP_Y,0,w,h,d,color,x,y,z);
+  const mkLegR=(w,h,d,color,x,y,z)=>mkOn(rightHipBone,HIP_X,HIP_Y,0,w,h,d,color,x,y,z);
+
+  mkHead(1,1,1, skin, 0,2.8,0); // head
+  const em=new THREE.MeshBasicMaterial({color:0x111111});
+  [-0.22,0.22].forEach(ex=>{const e=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.05),em);e.position.set(ex,2.85-HEAD_Y,0.51);headBone.add(e);});
+  const hair = a.hair||'none';
+  if(hair==='short')    { mkHead(1.08,0.3,0.95,hairC,0,3.35,0); mkHead(0.25,0.5,0.9,hairC,-0.6,3.1,0); mkHead(0.25,0.5,0.9,hairC,0.6,3.1,0); }
+  else if(hair==='long'){ mkHead(1.08,0.3,0.95,hairC,0,3.35,0); mkHead(0.28,1.4,0.9,hairC,-0.6,2.4,0); mkHead(0.28,1.4,0.9,hairC,0.6,2.4,0); mkHead(0.9,1.4,0.28,hairC,0,2.4,-0.5); }
+  else if(hair==='spiky'){ mkHead(1.1,0.2,1.0,hairC,0,3.35,0); [-0.35,-0.17,0,0.17,0.35].forEach((sx,i)=>mkHead(0.18,0.5+i%2*0.2,0.18,hairC,sx,3.7+i%2*0.1,0)); }
+  else if(hair==='afro') { mkHead(1.5,1.4,1.4,hairC,0,3.1,0); }
+  else if(hair==='ponytail'){ mkHead(1.08,0.3,0.95,hairC,0,3.35,0); mkHead(0.25,0.5,0.9,hairC,-0.6,3.1,0); mkHead(0.28,1.8,0.28,hairC,0,2.2,-0.5); }
+  else if(hair==='curly'){ [-0.3,0,0.3].forEach(cx2=>mkHead(0.5,0.55,0.5,hairC,cx2,3.4,0)); mkHead(0.28,1.2,0.28,hairC,-0.6,2.7,0); mkHead(0.28,1.2,0.28,hairC,0.6,2.7,0); }
+  const bCol = a.shirt==='suit' ? 0x222222 : shirtC;
+  const aCol = a.shirt==='tanktop' ? skin : bCol;
+  mkTorso(0.9,1.1,0.5, bCol, 0,1.75,0);
+  g.lArm = mkArmL(0.35,0.9,0.35, aCol,-0.65,1.75,0);
+  g.rArm = mkArmR(0.35,0.9,0.35, aCol, 0.65,1.75,0);
+  mkArmL(0.37,0.28,0.37, skin,-0.65,1.22,0); mkArmR(0.37,0.28,0.37, skin,0.65,1.22,0);
+  g.lLeg = mkLegL(0.38,legH,0.38, pantsC,-0.22,legY,0);
+  g.rLeg = mkLegR(0.38,legH,0.38, pantsC, 0.22,legY,0);
   const shH=a.shoes==='boots'?0.45:0.22, shY=a.shoes==='boots'?0.18:0.1;
-  mk(0.42,shH,a.shoes==='sandals'?0.6:0.52, shoeC,-0.22,shY,0.05);
-  mk(0.42,shH,a.shoes==='sandals'?0.6:0.52, shoeC, 0.22,shY,0.05);
+  mkLegL(0.42,shH,a.shoes==='sandals'?0.6:0.52, shoeC,-0.22,shY,0.05);
+  mkLegR(0.42,shH,a.shoes==='sandals'?0.6:0.52, shoeC, 0.22,shY,0.05);
 
   g.weaponMesh = buildWeaponVisual(a.weapon);
   if(g.weaponMesh) g.add(g.weaponMesh);

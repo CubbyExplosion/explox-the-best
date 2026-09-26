@@ -569,30 +569,36 @@ function animate(){
     }
   }
 
-  // Walk animation
+  // Walk animation — drives the real skeletal rig's BONES (buildPlayer() in game-character.js),
+  // not the raw box meshes anymore, so a swinging arm pivots from the shoulder joint instead of
+  // spinning around its own geometric center. Every formula below (amplitude, timing, which axis)
+  // is unchanged from before this rig existed — only WHICH object gets the rotation changed, from
+  // e.g. player.lArm (the rigid mesh) to player.leftShoulderBone (the real joint it now hangs from).
   if(!inCar){
     const swingAmp = activeAddOns.includes('noodlearms') ? 1.3 : 0.4;
     const swing=moving?Math.sin(t*8)*swingAmp:0;
-    if(player.lArm) player.lArm.rotation.x= swing;
-    if(player.rArm) player.rArm.rotation.x=-swing;
+    if(player.leftShoulderBone) player.leftShoulderBone.rotation.x= swing;
+    if(player.rightShoulderBone) player.rightShoulderBone.rotation.x=-swing;
     // Real bug the user caught: strafing (A/D with no W/S held) used this exact same front-to-
     // back leg swing as walking forward, so sidestepping looked identical to walking straight
     // ahead. Pure strafing (no forward/back component at all) now swings the legs apart
     // side-to-side (rotation.z) instead of front-to-back (rotation.x) — a real, visually
     // distinct side-step shuffle. Forward/backward, and any diagonal that still has a
-    // forward/back component, keep the original walk cycle. Legs only (not arms) — rArm's
-    // rotation.z is already owned by the attack-swing animation just below and would get
-    // stomped back to 0 every frame if reused here.
+    // forward/back component, keep the original walk cycle. Legs only (not arms) — the right
+    // shoulder bone's rotation.z is already owned by the attack-swing animation just below and
+    // would get stomped back to 0 every frame if reused here.
     const strafingOnly = moving && !moveState.w && !moveState.s && (moveState.a || moveState.d);
     if(strafingOnly){
-      if(player.lLeg) { player.lLeg.rotation.x = 0; player.lLeg.rotation.z = -swing; }
-      if(player.rLeg) { player.rLeg.rotation.x = 0; player.rLeg.rotation.z =  swing; }
+      if(player.leftHipBone) { player.leftHipBone.rotation.x = 0; player.leftHipBone.rotation.z = -swing; }
+      if(player.rightHipBone) { player.rightHipBone.rotation.x = 0; player.rightHipBone.rotation.z =  swing; }
     } else {
-      if(player.lLeg) { player.lLeg.rotation.x = -swing; player.lLeg.rotation.z = 0; }
-      if(player.rLeg) { player.rLeg.rotation.x =  swing; player.rLeg.rotation.z = 0; }
+      if(player.leftHipBone) { player.leftHipBone.rotation.x = -swing; player.leftHipBone.rotation.z = 0; }
+      if(player.rightHipBone) { player.rightHipBone.rotation.x =  swing; player.rightHipBone.rotation.z = 0; }
+    }
+    if(player.headBone) {
+      player.headBone.rotation.z = (moving && activeAddOns.includes('bobblehead')) ? Math.sin(t*10)*0.25 : 0;
     }
     if(player.headMesh) {
-      player.headMesh.rotation.z = (moving && activeAddOns.includes('bobblehead')) ? Math.sin(t*10)*0.25 : 0;
       player.headMesh.scale.setScalar(activeAddOns.includes('bighead') ? 1.7 : 1);
     }
   }
@@ -636,7 +642,7 @@ function animate(){
   if(chargingPunch) {
     const heldT = Math.min(t - punchChargeStart, PUNCH_MAX_CHARGE);
     const chargeFrac = heldT / PUNCH_MAX_CHARGE;
-    if(player.rArm) { player.rArm.rotation.x = -0.3 - chargeFrac*1.1; player.rArm.rotation.z = -chargeFrac*0.35; }
+    if(player.rightShoulderBone) { player.rightShoulderBone.rotation.x = -0.3 - chargeFrac*1.1; player.rightShoulderBone.rotation.z = -chargeFrac*0.35; }
     if(player.weaponGroup) { player.weaponGroup.rotation.z = -0.2 + chargeFrac*0.3; player.weaponGroup.rotation.x = -chargeFrac*0.3; }
     const chargeHud = document.getElementById('punchChargeHud');
     if(chargeHud) { chargeHud.style.display = 'block'; document.getElementById('punchChargeFill').style.width = (chargeFrac*100) + '%'; }
@@ -647,9 +653,9 @@ function animate(){
     const swingWindow = SWING_DURATION + playerSwingPower*0.15;
     const swingActive = swingElapsed >= 0 && swingElapsed < swingWindow;
     const arc = swingActive ? Math.sin((swingElapsed/swingWindow)*Math.PI) : 0; // 0 -> 1 -> 0, smooth in and out
-    if(player.rArm) {
-      if(swingActive) { player.rArm.rotation.x = -0.3 + arc*(1.0 + playerSwingPower*0.9); player.rArm.rotation.z = -0.1 + arc*0.25; }
-      else player.rArm.rotation.z = 0; // rotation.x while idle/walking is already owned by the walk cycle above
+    if(player.rightShoulderBone) {
+      if(swingActive) { player.rightShoulderBone.rotation.x = -0.3 + arc*(1.0 + playerSwingPower*0.9); player.rightShoulderBone.rotation.z = -0.1 + arc*0.25; }
+      else player.rightShoulderBone.rotation.z = 0; // rotation.x while idle/walking is already owned by the walk cycle above
     }
     if(player.weaponGroup) {
       player.weaponGroup.rotation.z = -0.2 - arc*(1.3 + playerSwingPower*0.8);
