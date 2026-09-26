@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>EXGUN — Explox City in Ruins</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body { width:100%; height:100%; overflow:hidden; background:#0a0a0c; font-family:Arial,Helvetica,sans-serif; }
+canvas { display:block; }
+button { font-family:inherit; }
+::selection { background:#ff5522; color:#fff; }
+
+/* ───────── shared overlay screens ───────── */
+.screen { position:fixed; inset:0; display:none; flex-direction:column; align-items:center; z-index:40; }
+.screen.active { display:flex; }
+#authScreen, #mapSelectScreen { background:radial-gradient(ellipse at 50% 0%, #241a14 0%, #0a0a0c 70%); overflow-y:auto; padding:24px 14px 50px; }
+
+.logo { font-size:44px; font-weight:900; letter-spacing:6px; color:#ff5522; text-shadow:0 0 18px rgba(255,85,34,0.55); margin-top:26px; }
+.tagline { color:#9a8a80; font-size:13px; letter-spacing:2px; margin:6px 0 26px; text-align:center; }
+
+/* auth */
+#authBox { width:min(92vw,340px); background:rgba(20,16,14,0.85); border:1px solid #4a3428; border-radius:14px; padding:22px; }
+#authBox h2 { color:#ffb088; font-size:18px; letter-spacing:1px; margin-bottom:14px; text-align:center; }
+#authBox input { width:100%; padding:11px 12px; margin-bottom:10px; background:#171310; border:1px solid #4a3428; border-radius:8px; color:#eee; font-size:14px; }
+#authBox input:focus { outline:none; border-color:#ff5522; }
+#authBox button.primary { width:100%; padding:12px; margin-top:6px; background:linear-gradient(180deg,#ff6a33,#e2481a); border:none; border-radius:8px; color:#fff; font-weight:bold; font-size:15px; letter-spacing:1px; cursor:pointer; }
+#authBox button.primary:active { filter:brightness(0.9); }
+#authSwitch { text-align:center; margin-top:14px; color:#8a7a70; font-size:12.5px; cursor:pointer; }
+#authSwitch b { color:#ff8855; }
+#authErr { color:#ff6666; font-size:12.5px; margin-top:8px; min-height:16px; text-align:center; }
+#authLoading { color:#ffaa77; font-size:12px; text-align:center; margin-top:8px; display:none; }
+
+/* map select */
+#mapSelectTop { width:min(96vw,920px); display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+#msUserBlock { display:flex; align-items:center; gap:10px; }
+#msName { color:#ffd9b0; font-weight:bold; font-size:15px; }
+#msLevelPill { background:rgba(255,85,34,0.18); border:1px solid #ff5522; color:#ff9966; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:bold; }
+#msXpWrap { width:130px; height:7px; background:#241a14; border-radius:5px; overflow:hidden; margin-top:3px; }
+#msXpFill { height:100%; background:linear-gradient(90deg,#ff5522,#ffaa55); width:0%; transition:width .3s; }
+#msScrapPill { background:rgba(180,180,180,0.1); border:1px solid #555; color:#ccc; padding:5px 12px; border-radius:20px; font-size:13px; font-weight:bold; }
+.msBtn { padding:9px 18px; border-radius:8px; border:1px solid #4a3428; background:#1c1512; color:#eee; font-size:13px; cursor:pointer; font-weight:bold; }
+.msBtn:hover { border-color:#ff5522; color:#ff9966; }
+.msBtn.logout { border-color:#663322; color:#cc7755; }
+
+#mapGridWrap { width:min(96vw,920px); }
+#mapGridTitle { color:#8a7a70; font-size:12px; letter-spacing:1px; margin:10px 0 8px; }
+#mapGrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+.mapCard { background:rgba(255,255,255,0.04); border:1px solid #33261e; border-radius:10px; padding:11px; cursor:pointer; transition:border-color .15s,background .15s; }
+.mapCard:hover { border-color:#ff5522; background:rgba(255,85,34,0.07); }
+.mapCard.hidden-map { border-color:#7a4aff; background:rgba(122,74,255,0.06); }
+.mapNum { font-size:11px; color:#776; opacity:0.8; }
+.mapTheme { font-size:13px; font-weight:bold; color:#ffd9b0; margin:2px 0 4px; line-height:1.25; }
+.mapMeta { font-size:10.5px; color:#8a8; }
+.mapMeta.hiddenTag { color:#b39cff; }
+
+/* armory */
+#armoryModal { position:fixed; inset:0; background:rgba(4,3,2,0.85); z-index:60; display:none; align-items:center; justify-content:center; padding:18px; }
+#armoryModal.active { display:flex; }
+#armoryBox { width:min(96vw,760px); max-height:88vh; overflow-y:auto; background:#151110; border:1px solid #4a3428; border-radius:14px; padding:18px 20px 22px; }
+#armoryBox h2 { color:#ff9966; font-size:20px; letter-spacing:1px; }
+#armorySub { color:#8a7a70; font-size:12px; margin:4px 0 14px; }
+#armoryClose { float:right; background:none; border:1px solid #4a3428; color:#ccc; border-radius:8px; padding:6px 12px; cursor:pointer; font-size:12px; }
+.wepCard { display:flex; align-items:center; justify-content:space-between; gap:10px; background:rgba(255,255,255,0.03); border:1px solid #2a201a; border-radius:10px; padding:10px 12px; margin-bottom:8px; flex-wrap:wrap; }
+.wepCard.equipped { border-color:#4ad07a; background:rgba(74,208,122,0.06); }
+.wepInfo b { color:#ffd9b0; font-size:14px; }
+.wepCat { color:#ff8855; font-size:10.5px; letter-spacing:1px; margin-left:6px; }
+.wepStats { color:#8a8; font-size:11px; margin-top:3px; }
+.wepActions { display:flex; gap:6px; align-items:center; }
+.wepBtn { padding:7px 14px; border-radius:7px; border:1px solid #4a3428; background:#231a15; color:#eee; font-size:12px; cursor:pointer; font-weight:bold; white-space:nowrap; }
+.wepBtn.buy { border-color:#ff8855; color:#ffb088; }
+.wepBtn.buy:disabled { opacity:0.35; cursor:not-allowed; }
+.wepBtn.equip { border-color:#4ad07a; color:#7de8a3; }
+.wepBtn.equipped-lbl { border-color:#4ad07a; color:#4ad07a; cursor:default; }
+
+/* ───────── game screen ───────── */
+#gameScreen { background:#000; }
+#gameCanvasWrap { position:fixed; inset:0; }
+#hud { position:fixed; inset:0; pointer-events:none; z-index:15; }
+#crosshair { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:18px; height:18px; }
+#crosshair:before, #crosshair:after { content:''; position:absolute; background:rgba(255,255,255,0.85); }
+#crosshair:before { left:8px; top:0; width:2px; height:18px; }
+#crosshair:after { top:8px; left:0; height:2px; width:18px; }
+
+#hudTop { position:fixed; top:10px; left:10px; display:flex; flex-direction:column; gap:5px; z-index:16; }
+.hudPill { background:rgba(0,0,0,0.55); border-radius:8px; padding:5px 10px; color:#fff; font-size:12px; font-weight:bold; border:1px solid rgba(255,255,255,0.15); }
+#hudMapName { color:#ffb088; }
+#hudLevel { color:#88ccff; }
+#hudScrap { color:#ffd54a; }
+
+#hudBottom { position:fixed; bottom:14px; left:50%; transform:translateX(-50%); width:min(90vw,360px); z-index:16; }
+#hudHpLabel, #hudXpLabel { color:#eee; font-size:10.5px; margin-bottom:2px; display:flex; justify-content:space-between; }
+#hpTrack { background:rgba(0,0,0,0.5); border:1px solid #ff3344; border-radius:5px; height:11px; margin-bottom:6px; overflow:hidden; }
+#hpFill { background:linear-gradient(90deg,#ff2233,#ff6644); height:100%; width:100%; transition:width .12s; }
+#xpTrack { background:rgba(0,0,0,0.5); border:1px solid #4499ff; border-radius:5px; height:7px; overflow:hidden; }
+#xpFill { background:linear-gradient(90deg,#3377ff,#77bbff); height:100%; width:0%; transition:width .2s; }
+#hudWeaponName { text-align:center; margin-top:6px; color:#ffcc88; font-size:12px; font-weight:bold; text-shadow:0 1px 3px #000; }
+
+#exitBtn { position:fixed; top:10px; right:10px; z-index:17; background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.25); color:#ddd; padding:7px 12px; border-radius:8px; font-size:12px; cursor:pointer; pointer-events:auto; }
+#lockHint { position:fixed; bottom:70px; left:50%; transform:translateX(-50%); color:#ccc; font-size:12px; background:rgba(0,0,0,0.5); padding:6px 14px; border-radius:8px; z-index:16; pointer-events:none; }
+
+#killFeed { position:fixed; top:60px; left:10px; z-index:16; display:flex; flex-direction:column; gap:3px; max-width:230px; }
+.killMsg { background:rgba(0,0,0,0.55); border-left:3px solid #ff5522; padding:4px 8px; color:#ffcc99; font-size:11.5px; border-radius:4px; opacity:1; transition:opacity .4s; }
+
+#levelUpToast { position:fixed; top:32%; left:50%; transform:translate(-50%,-50%); text-align:center; color:#ffd54a; z-index:20; opacity:0; pointer-events:none; transition:opacity .3s; }
+#levelUpToast.show { opacity:1; }
+#levelUpToast .big { font-size:30px; font-weight:900; text-shadow:0 0 16px rgba(255,213,74,0.7); letter-spacing:2px; }
+#levelUpToast .sm { font-size:13px; color:#ffe9a8; margin-top:4px; }
+
+#hitFlash { position:fixed; inset:0; background:rgba(255,0,0,0); pointer-events:none; transition:background .1s; z-index:14; }
+
+#deathOverlay { position:fixed; inset:0; background:rgba(10,0,0,0.88); z-index:30; display:none; align-items:center; justify-content:center; flex-direction:column; }
+#deathOverlay.active { display:flex; }
+#deathOverlay h1 { color:#ff3333; font-size:34px; letter-spacing:4px; }
+#deathOverlay p { color:#ccc; font-size:13px; margin:10px 0 20px; }
+#respawnBtn { padding:12px 30px; background:#ff5522; border:none; border-radius:8px; color:#fff; font-weight:bold; font-size:15px; cursor:pointer; }
+
+/* mobile controls */
+#mobileControls { display:none; }
+@media (pointer:coarse) {
+  #lockHint { display:none; }
+  #mobileControls { display:block; }
+}
+#joyBase { position:fixed; left:22px; bottom:26px; width:96px; height:96px; border-radius:50%; background:rgba(255,255,255,0.10); border:2px solid rgba(255,255,255,0.3); touch-action:none; z-index:25; pointer-events:auto; }
+#joyStick { position:absolute; left:50%; top:50%; width:42px; height:42px; margin-left:-21px; margin-top:-21px; border-radius:50%; background:rgba(255,255,255,0.5); border:2px solid rgba(255,255,255,0.75); pointer-events:none; }
+#fireBtn { position:fixed; right:24px; bottom:36px; width:76px; height:76px; border-radius:50%; background:rgba(255,60,20,0.5); border:2px solid #ff5522; color:#fff; font-weight:bold; font-size:13px; display:flex; align-items:center; justify-content:center; z-index:25; touch-action:none; user-select:none; pointer-events:auto; }
+#fireBtn.active { background:rgba(255,60,20,0.85); }
+
+@media (max-width:520px) {
+  .logo { font-size:32px; }
+  #authBox { padding:16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ AUTH SCREEN ═══════════════════ -->
+<div id="authScreen" class="screen active">
+  <div class="logo">EXGUN</div>
+  <div class="tagline">EXPLOX CITY IN RUINS</div>
+  <div id="authBox">
+    <h2 id="authTitle">Log In</h2>
+    <input id="authName" type="text" placeholder="Callsign" autocomplete="off" maxlength="20">
+    <input id="authPw" type="password" placeholder="Password" autocomplete="off" maxlength="40">
+    <button class="primary" id="authSubmitBtn">Log In</button>
+    <div id="authSwitch">No account? <b>Sign up</b></div>
+    <div id="authErr"></div>
+    <div id="authLoading">Contacting server…</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ MAP SELECT SCREEN ═══════════════════ -->
+<div id="mapSelectScreen" class="screen">
+  <div class="logo" style="font-size:26px;margin-top:10px;">EXGUN</div>
+  <div id="mapSelectTop">
+    <div id="msUserBlock">
+      <div>
+        <div id="msName">—</div>
+        <div id="msXpWrap"><div id="msXpFill"></div></div>
+      </div>
+      <div id="msLevelPill">Lv 1</div>
+      <div id="msScrapPill">⚙️ 0 Scrap</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="msBtn" id="openArmoryBtn">🔫 ARMORY</button>
+      <button class="msBtn logout" id="logoutBtn">Log Out</button>
+    </div>
+  </div>
+  <div id="mapGridWrap">
+    <div id="mapGridTitle">SELECT A SECTOR — <span id="mapCountLbl">0</span> AVAILABLE</div>
+    <div id="mapGrid"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ ARMORY MODAL ═══════════════════ -->
+<div id="armoryModal">
+  <div id="armoryBox">
+    <button id="armoryClose">✕ Close</button>
+    <h2>🔫 THE ARMORY</h2>
+    <div id="armorySub">Buy weapons with Scrap earned from kills. Equip one to use it in the field.</div>
+    <div id="wepList"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ GAME SCREEN ═══════════════════ -->
+<div id="gameScreen" class="screen">
+  <div id="gameCanvasWrap"></div>
+  <div id="hitFlash"></div>
+  <div id="hud">
+    <div id="crosshair"></div>
+    <div id="hudTop">
+      <div class="hudPill" id="hudMapName">Sector —</div>
+      <div class="hudPill" id="hudLevel">Lv 1</div>
+      <div class="hudPill" id="hudScrap">⚙️ 0</div>
+    </div>
+    <div id="hudBottom">
+      <div id="hudHpLabel"><span>HP</span><span id="hpText">100/100</span></div>
+      <div id="hpTrack"><div id="hpFill"></div></div>
+      <div id="hudXpLabel"><span>XP</span><span id="xpText">0</span></div>
+      <div id="xpTrack"><div id="xpFill"></div></div>
+      <div id="hudWeaponName">Pistol Mk1</div>
+    </div>
+    <div id="killFeed"></div>
+    <div id="levelUpToast"><div class="big">LEVEL UP!</div><div class="sm" id="levelUpSub"></div></div>
+    <div id="lockHint">Click to aim &amp; shoot · WASD move · Shift run · Esc to release mouse</div>
+  </div>
+  <button id="exitBtn">✕ Exit to Map Select</button>
+  <div id="deathOverlay">
+    <h1>YOU DIED</h1>
+    <p id="deathSub">Lost some scrap in the chaos.</p>
+    <button id="respawnBtn">Respawn</button>
+  </div>
+  <div id="mobileControls">
+    <div id="joyBase"><div id="joyStick"></div></div>
+    <div id="fireBtn">FIRE</div>
+  </div>
+</div>
+
+<script src="../play/AiGame/explox/three.min.js"></script>
+<script>
+'use strict';
+
+/* ══════════════════════════ CONSTANTS / FORMULAS ══════════════════════════ */
+const EXGUN_SERVER = 'https://explox-server.onrender.com';
+const CURRENT_USER_KEY = 'exgun_current_user';
+const AUTOSAVE_MS = 20000;
+const PRESENCE_SYNC_INTERVAL = 1; // seconds, matches Explox's own poll cadence
+
+function fetchWithTimeout(url, opts, ms) {
+  ms = ms || 5000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return fetch(url, Object.assign({}, opts, { signal: controller.signal })).finally(() => clearTimeout(timer));
+}
+
+// FNV-1a hash + mulberry32 PRNG — same deterministic-seed pattern as
+// craftHash()/craftRng() in game-housing.js. Same map index -> same everything, forever.
+function fnv1aHash(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function rngForMap(i) { return mulberry32(fnv1aHash('exgun_map_' + i)); }
+
+// ─── 8-theme catalog, chosen by i % themes.length ───
+// 15 genuinely distinct settings (Pixel Gun 3D-style variety, not one reskinned "ruins" theme) —
+// each gets its own sky/fog/ground palette AND its own prop silhouette (see buildThemeProp()),
+// not just a recolored box. Still chosen deterministically by i % THEMES.length, so map variety
+// stays formula-driven rather than 100 hand-authored maps.
+const THEMES = [
+  { name: 'Ruined Downtown',       style: 'ruin',      sky: 0x2a2a35, ground: 0x35353d, colors: [0x55555f, 0x44444c, 0x666670] },
+  { name: 'Desert Wasteland',      style: 'dune',       sky: 0xd9a066, ground: 0xc8944e, colors: [0xe0b878, 0xd4a668, 0xc79a5c], accent: 0x3a6b3a },
+  { name: 'Arctic Snow Base',      style: 'ice',        sky: 0xbfe3f0, ground: 0xe8f4f8, colors: [0xffffff, 0xdff3fa, 0xb8e0ee] },
+  { name: 'Jungle Outpost',        style: 'foliage',    sky: 0x2e4a2e, ground: 0x2c3a1e, colors: [0x2e6b34, 0x3c7a3c, 0x255c2b], accent: 0x5a3a20 },
+  { name: 'Industrial Warehouse',  style: 'warehouse',  sky: 0x40342a, ground: 0x3a3226, colors: [0x8a5a30, 0x7a4a26, 0x9a6a3a] },
+  { name: 'Sewer Tunnels',         style: 'tunnel',     sky: 0x1a2018, ground: 0x22281e, colors: [0x3a4a38, 0x2e3a2c, 0x445542] },
+  { name: 'Rooftop Skyline',       style: 'skyline',    sky: 0x1c2740, ground: 0x232c3c, colors: [0x556080, 0x475070, 0x66739a] },
+  { name: 'Space Station Wreck',   style: 'wreck',      sky: 0x05050a, ground: 0x1a1a22, colors: [0x8a8a96, 0x6a6a76, 0xaeb0c0] },
+  { name: 'Volcanic Crater',       style: 'lava',       sky: 0x3a120a, ground: 0x241008, colors: [0x2a1a14, 0x201410, 0x352018], accent: 0xff5522 },
+  { name: 'Harbor Wreckage',       style: 'dock',       sky: 0x1a2a35, ground: 0x1e2e3a, colors: [0x3a5a6a, 0x2a4a5a, 0x4a6a7a] },
+  { name: 'Highway Overpass Ruins',style: 'overpass',   sky: 0x30302a, ground: 0x33332c, colors: [0x707065, 0x606055, 0x808075] },
+  { name: 'Subway Ruins',          style: 'subway',     sky: 0x14141a, ground: 0x1c1c22, colors: [0x3a3a44, 0x2e2e38, 0x46465a] },
+  { name: 'Farmland Ashfall',      style: 'farm',       sky: 0x5a4a3a, ground: 0x4a3f2e, colors: [0x8a6a4a, 0x7a5a3a, 0x9a7a5a] },
+  { name: 'Mall Collapse',         style: 'mall',       sky: 0x2a3540, ground: 0x2c3a40, colors: [0x4a6a7a, 0x3a5a6a, 0x5a7a8a] },
+  { name: 'Military Bunker',       style: 'bunker',     sky: 0x2e3324, ground: 0x2a2e20, colors: [0x4a5238, 0x3e442e, 0x5a6244], accent: 0xb0a070 }
+];
+function themeForMap(i) { return THEMES[i % THEMES.length]; }
+function isHiddenMap(i) { return i % 5 === 0; }
+function requiredLevelForMap(i) { return isHiddenMap(i) ? Math.round(5 + (i / 5) * 4) : 1; }
+function mapNameForMap(i) { return themeForMap(i).name + ' ' + i; }
+
+// ─── enemy roster: 3 common archetypes + 1 rare elite, scaled per-map by formula ───
+const ENEMY_ARCHETYPES = [
+  { id: 'rogue_robot',  emoji: '🤖', name: 'Rogue Robot',  tier: 1, color: 0x9a9aa0 },
+  { id: 'raider',       emoji: '🦴', name: 'Raider',       tier: 1, color: 0xaa6644 },
+  { id: 'mutant_hound', emoji: '🐺', name: 'Mutant Hound', tier: 2, color: 0x553322 },
+  { id: 'elite',        emoji: '👹', name: 'Elite',        tier: 4, color: 0xdd2222 }
+];
+function enemyHp(tier, mapIndex)     { return Math.round((30 + tier * 20) * (1 + mapIndex * 0.06)); }
+function enemyDamage(tier, mapIndex) { return Math.round((4 + tier * 3) * (1 + mapIndex * 0.05)); }
+function enemyCountForMap(mapIndex)  { return 5 + Math.floor(mapIndex / 12); }
+function xpForKill(tier, mapIndex)    { return Math.round((10 + tier * 8) * (1 + mapIndex * 0.08)); }
+function scrapForKill(tier, mapIndex) { return Math.round((5 + tier * 4) * (1 + mapIndex * 0.07)); }
+
+// ─── XP / leveling ───
+function xpForLevel(n) { return Math.round(80 * Math.pow(n, 1.4)); } // cumulative XP to REACH level n
+function levelForXp(xp) { let lvl = 1; while (xpForLevel(lvl + 1) <= xp) lvl++; return lvl; }
+function maxHpForLevel(lvl) { return 100 + (lvl - 1) * 8; }
+
+// ─── Armory catalog: hand-written distinct guns, price from a tier formula ───
+const WEAPON_CATALOG = [
+  { id: 'pistol_mk1',        name: 'Pistol Mk1',        cat: 'Pistol',   tier: 1,  dmg: 12,  fireRate: 2.5, range: 35,  spread: 0.010 },
+  { id: 'pistol_mk2',        name: 'Pistol Mk2',        cat: 'Pistol',   tier: 2,  dmg: 16,  fireRate: 2.8, range: 38,  spread: 0.009 },
+  { id: 'smg_ripper',        name: 'SMG Ripper',        cat: 'SMG',      tier: 3,  dmg: 9,   fireRate: 9.0, range: 28,  spread: 0.026 },
+  { id: 'smg_vortex',        name: 'SMG Vortex',        cat: 'SMG',      tier: 4,  dmg: 11,  fireRate: 10.5,range: 30,  spread: 0.022 },
+  { id: 'shotgun_buster',    name: 'Shotgun Buster',    cat: 'Shotgun',  tier: 5,  dmg: 8,   fireRate: 1.2, range: 15,  spread: 0.10, pellets: 8 },
+  { id: 'shotgun_reaper',    name: 'Shotgun Reaper',    cat: 'Shotgun',  tier: 6,  dmg: 10,  fireRate: 1.4, range: 17,  spread: 0.09, pellets: 9 },
+  { id: 'rifle_falcon',      name: 'Rifle Falcon',      cat: 'Rifle',    tier: 7,  dmg: 28,  fireRate: 4.5, range: 60,  spread: 0.006 },
+  { id: 'rifle_sentinel',    name: 'Rifle Sentinel',    cat: 'Rifle',    tier: 8,  dmg: 34,  fireRate: 5.0, range: 65,  spread: 0.005 },
+  { id: 'sniper_ghost',      name: 'Sniper Ghost',      cat: 'Sniper',   tier: 9,  dmg: 110, fireRate: 0.8, range: 140, spread: 0.001 },
+  { id: 'sniper_wraith',     name: 'Sniper Wraith',     cat: 'Sniper',   tier: 10, dmg: 140, fireRate: 0.9, range: 160, spread: 0.001 },
+  { id: 'launcher_havoc',    name: 'Launcher Havoc',    cat: 'Launcher', tier: 11, dmg: 200, fireRate: 0.5, range: 50,  spread: 0.02 },
+  { id: 'launcher_apocalypse',name:'Launcher Apocalypse',cat: 'Launcher', tier: 12, dmg: 260, fireRate: 0.6, range: 55,  spread: 0.018 }
+];
+function weaponCost(tier) { return tier === 1 ? 0 : Math.round(150 * Math.pow(tier, 1.8)); }
+function weaponById(id) { return WEAPON_CATALOG.find(w => w.id === id) || WEAPON_CATALOG[0]; }
+
+/* ══════════════════════════ STATE ══════════════════════════ */
+let currentUser = null;
+let userState = null; // {xp,level,scrap,ownedWeapons,equippedWeapon,kills,deaths,highestMapUnlocked,createdAt}
+let currentMapIndex = null;
+let inGame = false;
+
+let scene, camera, renderer, clock, raycaster;
+let currentBuildings = [];
+let enemies = [];
+let remotePlayers = {};
+let playerHp = 100, playerMaxHp = 100;
+let playerPos = { x: 0, z: 0 };
+let yaw = 0, pitch = 0;
+let moveState = { w: false, a: false, s: false, d: false, run: false };
+let isLocked = false;
+let fireHeld = false;
+let lastShotTime = -999;
+let waveRespawnAt = null;
+let _lastPresenceSync = -999;
+let _lastAutosave = 0;
+const EYE_HEIGHT = 1.7;
+const ARENA_HALF = 66;
+const GRID = 10, CELL = 14;
+
+const IS_TOUCH = matchMedia('(pointer: coarse)').matches;
+
+function defaultUserState() {
+  return { xp: 0, level: 1, scrap: 0, ownedWeapons: ['pistol_mk1'], equippedWeapon: 'pistol_mk1', kills: 0, deaths: 0, highestMapUnlocked: 1, createdAt: Date.now() };
+}
+
+/* ══════════════════════════ SCREEN MANAGEMENT ══════════════════════════ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+/* ══════════════════════════ AUTH ══════════════════════════ */
+let authMode = 'login';
+const authName = document.getElementById('authName');
+const authPw = document.getElementById('authPw');
+const authErr = document.getElementById('authErr');
+const authLoading = document.getElementById('authLoading');
+const authTitle = document.getElementById('authTitle');
+const authSubmitBtn = document.getElementById('authSubmitBtn');
+const authSwitch = document.getElementById('authSwitch');
+
+authSwitch.addEventListener('click', () => {
+  authMode = authMode === 'login' ? 'signup' : 'login';
+  authTitle.textContent = authMode === 'login' ? 'Log In' : 'Sign Up';
+  authSubmitBtn.textContent = authMode === 'login' ? 'Log In' : 'Sign Up';
+  authSwitch.innerHTML = authMode === 'login' ? 'No account? <b>Sign up</b>' : 'Have an account? <b>Log in</b>';
+  authErr.textContent = '';
+});
+
+authSubmitBtn.addEventListener('click', submitAuth);
+authPw.addEventListener('keydown', e => { if (e.key === 'Enter') submitAuth(); });
+
+async function submitAuth() {
+  const name = authName.value.trim();
+  const pw = authPw.value;
+  authErr.textContent = '';
+  if (!name || !pw) { authErr.textContent = 'Enter a callsign and password.'; return; }
+  authLoading.style.display = 'block';
+  authSubmitBtn.disabled = true;
+  try {
+    if (authMode === 'signup') {
+      const r = await fetchWithTimeout(EXGUN_SERVER + '/api/exgun/signup', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, pw })
+      }, 8000);
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || !data.ok) {
+        authErr.textContent = data.error === 'taken' ? 'That callsign is already taken.' : 'Signup failed — try again.';
+        return;
+      }
+      await finishLogin(name);
+    } else {
+      const r = await fetchWithTimeout(EXGUN_SERVER + '/api/exgun/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, pw })
+      }, 8000);
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || !data.ok) { authErr.textContent = 'Wrong callsign or password.'; return; }
+      await finishLogin(name);
+    }
+  } catch (e) {
+    authErr.textContent = 'Could not reach the server — try again.';
+  } finally {
+    authLoading.style.display = 'none';
+    authSubmitBtn.disabled = false;
+  }
+}
+
+async function finishLogin(name) {
+  currentUser = name;
+  localStorage.setItem(CURRENT_USER_KEY, name);
+  let blob = null;
+  try {
+    const r = await fetchWithTimeout(EXGUN_SERVER + '/api/exgun/user/' + encodeURIComponent(name), {}, 8000);
+    if (r.ok) blob = await r.json();
+  } catch (e) {}
+  if (!blob || typeof blob !== 'object' || blob.error) {
+    const cached = localStorage.getItem('exgun_user_' + name);
+    blob = cached ? JSON.parse(cached) : null;
+  }
+  userState = Object.assign(defaultUserState(), blob || {});
+  playerMaxHp = maxHpForLevel(userState.level);
+  playerHp = playerMaxHp;
+  goToMapSelect();
+}
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  currentUser = null; userState = null;
+  localStorage.removeItem(CURRENT_USER_KEY);
+  authName.value = ''; authPw.value = '';
+  showScreen('authScreen');
+});
+
+/* ══════════════════════════ SAVE / AUTOSAVE ══════════════════════════ */
+function saveUserData() {
+  if (!currentUser || !userState) return;
+  const blob = {
+    xp: userState.xp, level: userState.level, scrap: userState.scrap,
+    ownedWeapons: userState.ownedWeapons, equippedWeapon: userState.equippedWeapon,
+    kills: userState.kills, deaths: userState.deaths,
+    highestMapUnlocked: userState.highestMapUnlocked, createdAt: userState.createdAt
+  };
+  localStorage.setItem('exgun_user_' + currentUser, JSON.stringify(blob));
+  fetchWithTimeout(EXGUN_SERVER + '/api/exgun/user/' + encodeURIComponent(currentUser), {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(blob)
+  }, 6000).catch(() => {});
+}
+setInterval(() => { if (currentUser) saveUserData(); }, AUTOSAVE_MS);
+
+/* ══════════════════════════ MAP SELECT UI ══════════════════════════ */
+function goToMapSelect() {
+  inGame = false;
+  document.getElementById('msName').textContent = currentUser;
+  renderMapSelectHud();
+  renderMapGrid();
+  showScreen('mapSelectScreen');
+}
+function renderMapSelectHud() {
+  document.getElementById('msLevelPill').textContent = 'Lv ' + userState.level;
+  document.getElementById('msScrapPill').textContent = '⚙️ ' + userState.scrap + ' Scrap';
+  const curLevelXp = xpForLevel(userState.level), nextLevelXp = xpForLevel(userState.level + 1);
+  const pct = Math.max(0, Math.min(100, ((userState.xp - curLevelXp) / (nextLevelXp - curLevelXp)) * 100));
+  document.getElementById('msXpFill').style.width = pct + '%';
+}
+function renderMapGrid() {
+  const grid = document.getElementById('mapGrid');
+  grid.innerHTML = '';
+  let shown = 0;
+  for (let i = 1; i <= 100; i++) {
+    const hidden = isHiddenMap(i);
+    const reqLevel = requiredLevelForMap(i);
+    if (hidden && userState.level < reqLevel) continue; // completely omitted until unlocked
+    shown++;
+    const card = document.createElement('div');
+    card.className = 'mapCard' + (hidden ? ' hidden-map' : '');
+    const theme = themeForMap(i);
+    card.innerHTML = `<div class="mapNum">SECTOR ${i}${hidden ? ' · HIDDEN' : ''}</div>
+      <div class="mapTheme">${mapNameForMap(i)}</div>
+      <div class="mapMeta${hidden ? ' hiddenTag' : ''}">${theme.name}${hidden ? ' · Unlocked at Lv ' + reqLevel : ''}</div>`;
+    card.addEventListener('click', () => enterMap(i));
+    grid.appendChild(card);
+  }
+  document.getElementById('mapCountLbl').textContent = shown;
+}
+document.getElementById('openArmoryBtn').addEventListener('click', openArmory);
+
+/* ══════════════════════════ ARMORY UI ══════════════════════════ */
+function openArmory() {
+  renderArmory();
+  document.getElementById('armoryModal').classList.add('active');
+}
+document.getElementById('armoryClose').addEventListener('click', () => {
+  document.getElementById('armoryModal').classList.remove('active');
+});
+function renderArmory() {
+  const wrap = document.getElementById('wepList');
+  wrap.innerHTML = '';
+  WEAPON_CATALOG.forEach(w => {
+    const owned = userState.ownedWeapons.includes(w.id);
+    const equipped = userState.equippedWeapon === w.id;
+    const cost = weaponCost(w.tier);
+    const card = document.createElement('div');
+    card.className = 'wepCard' + (equipped ? ' equipped' : '');
+    const statsLine = `DMG ${w.dmg}${w.pellets ? ' x' + w.pellets : ''} · Rate ${w.fireRate}/s · Range ${w.range}m`;
+    let actionsHtml = '';
+    if (!owned) {
+      const afford = userState.scrap >= cost;
+      actionsHtml = `<button class="wepBtn buy" ${afford ? '' : 'disabled'} data-buy="${w.id}">Buy ⚙️${cost}</button>`;
+    } else if (equipped) {
+      actionsHtml = `<button class="wepBtn equipped-lbl" disabled>Equipped</button>`;
+    } else {
+      actionsHtml = `<button class="wepBtn equip" data-equip="${w.id}">Equip</button>`;
+    }
+    card.innerHTML = `<div class="wepInfo"><b>${w.name}</b><span class="wepCat">${w.cat.toUpperCase()}</span>
+        <div class="wepStats">${statsLine}</div></div>
+      <div class="wepActions">${actionsHtml}</div>`;
+    wrap.appendChild(card);
+  });
+  wrap.querySelectorAll('[data-buy]').forEach(btn => btn.addEventListener('click', () => buyWeapon(btn.getAttribute('data-buy'))));
+  wrap.querySelectorAll('[data-equip]').forEach(btn => btn.addEventListener('click', () => equipWeapon(btn.getAttribute('data-equip'))));
+}
+function buyWeapon(id) {
+  const w = weaponById(id);
+  const cost = weaponCost(w.tier);
+  if (userState.ownedWeapons.includes(id) || userState.scrap < cost) return;
+  userState.scrap -= cost;
+  userState.ownedWeapons.push(id);
+  userState.equippedWeapon = id;
+  saveUserData();
+  renderArmory();
+  renderMapSelectHud();
+  if (inGame) updateGameHud();
+}
+function equipWeapon(id) {
+  if (!userState.ownedWeapons.includes(id)) return;
+  userState.equippedWeapon = id;
+  saveUserData();
+  renderArmory();
+  if (inGame) updateGameHud();
+}
+
+/* ══════════════════════════ THREE.JS SETUP ══════════════════════════ */
+function ensureRenderer() {
+  if (renderer) return;
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 500);
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  document.getElementById('gameCanvasWrap').appendChild(renderer.domElement);
+  clock = new THREE.Clock();
+  raycaster = new THREE.Raycaster();
+  raycaster.camera = camera; // Sprite.raycast() (used by every enemy/remote-player health-bar/nametag) needs this set, or intersectObjects() throws on any sprite it walks through — a real bug found live: every shot silently no-opped because tryFire()'s raycast threw before it could ever apply damage.
+  window.addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+  setupDesktopControls();
+  setupTouchControls();
+  animate();
+}
+
+/* ══════════════════════════ MAP GENERATION ══════════════════════════ */
+function clearMapScene() {
+  enemies.forEach(e => { if (e.mesh) scene.remove(e.mesh); });
+  enemies = [];
+  Object.values(remotePlayers).forEach(rp => scene.remove(rp.mesh));
+  remotePlayers = {};
+  // remove everything except camera
+  while (scene.children.length) scene.remove(scene.children[0]);
+  currentBuildings = [];
+}
+
+function pick(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
+
+// One real starfield for the Space Station Wreck theme — a scatter of small bright points at
+// large radius, added once per map build (not per-cell, unlike every other theme's props).
+function addStarfield(rng) {
+  const count = 300;
+  const positions = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    const r = 140 + rng() * 60;
+    const theta = rng() * Math.PI * 2, phi = rng() * Math.PI * 0.5;
+    positions[i * 3] = Math.cos(theta) * Math.cos(phi) * r;
+    positions[i * 3 + 1] = 20 + Math.sin(phi) * r;
+    positions[i * 3 + 2] = Math.sin(theta) * Math.cos(phi) * r;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 1.4, sizeAttenuation: false });
+  scene.add(new THREE.Points(geo, mat));
+}
+
+// Builds one cell's prop(s) in a silhouette specific to the theme's style — desert dunes+cacti,
+// arctic ice blocks+shards, jungle trunk+canopy, space wreckage tilted at odd angles, lava rock
+// with glowing pools, etc. — instead of every theme just being a recolored box. Still just simple
+// low-poly primitives (Box/Cone/Cylinder/Sphere), still deterministic via the same per-cell rng()
+// draw sequence so every theme stays exactly as reproducible as the original ruin style was.
+// Returns the footprint used for movement collision, or null if nothing solid was placed.
+function buildThemeProp(theme, rng, cx, cz) {
+  const palette = theme.colors;
+  const mat = () => new THREE.MeshLambertMaterial({ color: pick(rng, palette) });
+  switch (theme.style) {
+    case 'dune': {
+      const r = 2.6 + rng() * 3.2, h = 1.4 + rng() * 2.2;
+      const dune = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 6), mat());
+      dune.scale.y = 0.35; dune.position.set(cx, h * 0.35, cz);
+      scene.add(dune);
+      if (rng() < 0.6) {
+        const ch = 2 + rng() * 3;
+        const cactus = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.34, ch, 6), new THREE.MeshLambertMaterial({ color: theme.accent }));
+        cactus.position.set(cx + (rng() - 0.5) * 3, ch / 2, cz + (rng() - 0.5) * 3);
+        scene.add(cactus);
+      }
+      return { x: cx, z: cz, hw: r, hd: r };
+    }
+    case 'ice': {
+      const w = 5 + rng() * 4, d = 5 + rng() * 4, h = 4 + rng() * 9;
+      const block = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat());
+      block.position.set(cx, h / 2, cz);
+      scene.add(block);
+      const shard = new THREE.Mesh(new THREE.ConeGeometry(Math.min(w, d) / 3, 2 + rng() * 3, 5), new THREE.MeshLambertMaterial({ color: 0xdff3fa }));
+      shard.position.set(cx, h + 1, cz);
+      scene.add(shard);
+      return { x: cx, z: cz, hw: w / 2 + 0.5, hd: d / 2 + 0.5 };
+    }
+    case 'foliage': {
+      const h = 3 + rng() * 5;
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.42, h, 6), new THREE.MeshLambertMaterial({ color: theme.accent }));
+      trunk.position.set(cx, h / 2, cz);
+      scene.add(trunk);
+      const canopyCount = 1 + Math.floor(rng() * 3);
+      for (let c = 0; c < canopyCount; c++) {
+        const cr = 1.4 + rng() * 1.6;
+        const canopy = new THREE.Mesh(new THREE.SphereGeometry(cr, 7, 6), mat());
+        canopy.position.set(cx + (rng() - 0.5) * 2, h + cr * 0.6 + rng(), cz + (rng() - 0.5) * 2);
+        scene.add(canopy);
+      }
+      return { x: cx, z: cz, hw: 1.8, hd: 1.8 };
+    }
+    case 'warehouse': {
+      const w = 8 + rng() * 5, d = 8 + rng() * 5, h = 5 + rng() * 6;
+      const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat());
+      box.position.set(cx, h / 2, cz);
+      scene.add(box);
+      const crateCount = 1 + Math.floor(rng() * 3);
+      for (let c = 0; c < crateCount; c++) {
+        const cs = 1 + rng() * 1.3;
+        const crate = new THREE.Mesh(new THREE.BoxGeometry(cs, cs, cs), mat());
+        const ang = rng() * Math.PI * 2, rad = w / 2 + rng() * 3;
+        crate.position.set(cx + Math.cos(ang) * rad, cs / 2, cz + Math.sin(ang) * rad);
+        crate.rotation.y = rng() * Math.PI;
+        scene.add(crate);
+      }
+      return { x: cx, z: cz, hw: w / 2 + 0.6, hd: d / 2 + 0.6 };
+    }
+    case 'tunnel': {
+      const w = 5 + rng() * 3, d = 5 + rng() * 3, h = 3.2 + rng() * 2.4;
+      const seg = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat());
+      seg.position.set(cx, h / 2, cz);
+      scene.add(seg);
+      const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, w + 2, 7), new THREE.MeshLambertMaterial({ color: pick(rng, palette) }));
+      pipe.rotation.z = Math.PI / 2;
+      pipe.position.set(cx, h + 0.6, cz + (rng() - 0.5) * 2);
+      scene.add(pipe);
+      return { x: cx, z: cz, hw: w / 2 + 0.5, hd: d / 2 + 0.5 };
+    }
+    case 'skyline': {
+      const w = 4 + rng() * 2.5, d = 4 + rng() * 2.5, h = 20 + rng() * 42;
+      const tower = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat());
+      tower.position.set(cx, h / 2, cz);
+      scene.add(tower);
+      const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 4 + rng() * 4, 5), new THREE.MeshLambertMaterial({ color: 0x333333 }));
+      antenna.position.set(cx, h + 2, cz);
+      scene.add(antenna);
+      return { x: cx, z: cz, hw: w / 2 + 0.5, hd: d / 2 + 0.5 };
+    }
+    case 'wreck': {
+      const w = 4 + rng() * 5, d = 4 + rng() * 5, h = 3 + rng() * 8;
+      const chunk = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat());
+      chunk.position.set(cx, h / 2 + rng() * 2, cz);
+      chunk.rotation.set((rng() - 0.5) * 1.1, rng() * Math.PI, (rng() - 0.5) * 1.1);
+      scene.add(chunk);
+      return { x: cx, z: cz, hw: w / 2 + 0.6, hd: d / 2 + 0.6 };
+    }
+    case 'lava': {
+      const r = 2 + rng() * 3, h = 3 + rng() * 8;
+      const rock = new THREE.Mesh(new THREE.ConeGeometry(r, h, 6), mat());
+      rock.position.set(cx, h / 2, cz);
+      rock.rotation.y = rng() * Math.PI;
+      scene.add(rock);
+      if (rng() < 0.5) {
+        const pool = new THREE.Mesh(new THREE.CircleGeometry(1.6 + rng() * 2, 10), new THREE.MeshBasicMaterial({ color: theme.accent }));
+        pool.rotation.x = -Math.PI / 2;
+        pool.position.set(cx + (rng() - 0.5) * 4, 0.05, cz + (rng() - 0.5) * 4);
+        scene.add(pool);
+      }
+      return { x: cx, z: cz, hw: r, hd: r };
+    }
+    case 'dock': {
+      const w = 5 + rng() * 4, d = 5 + rng() * 4, h = 5 + rng() * 20;
+      const container = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat());
+      container.position.set(cx, h / 2, cz);
+      scene.add(container);
+      if (rng() < 0.4) {
+        const plank = new THREE.Mesh(new THREE.BoxGeometry(w + 2, 0.3, 1.2), new THREE.MeshLambertMaterial({ color: 0x4a3a2a }));
+        plank.position.set(cx, 0.15, cz + d / 2 + 1);
+        scene.add(plank);
+      }
+      return { x: cx, z: cz, hw: w / 2 + 0.6, hd: d / 2 + 0.6 };
+    }
+    case 'overpass': {
+      const w = 10 + rng() * 6, d = 4 + rng() * 3, h = 5 + rng() * 3;
+      const pillar = new THREE.Mesh(new THREE.CylinderGeometry(1, 1.2, h, 8), mat());
+      pillar.position.set(cx, h / 2, cz);
+      scene.add(pillar);
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(w, 1.4, d), mat());
+      slab.position.set(cx, h + 0.7, cz);
+      scene.add(slab);
+      return { x: cx, z: cz, hw: w / 2 + 0.5, hd: d / 2 + 0.5 };
+    }
+    case 'subway': {
+      const w = 5 + rng() * 4, d = 5 + rng() * 4, h = 4 + rng() * 3;
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat());
+      wall.position.set(cx, h / 2, cz);
+      scene.add(wall);
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(w + 3, 0.15, 0.4), new THREE.MeshLambertMaterial({ color: 0x555555 }));
+      rail.position.set(cx, 0.08, cz + d / 2 + 1.5);
+      scene.add(rail);
+      return { x: cx, z: cz, hw: w / 2 + 0.5, hd: d / 2 + 0.5 };
+    }
+    case 'farm': {
+      if (rng() < 0.5) {
+        const h = 6 + rng() * 8;
+        const silo = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, h, 10), mat());
+        silo.position.set(cx, h / 2, cz);
+        scene.add(silo);
+        const cap = new THREE.Mesh(new THREE.ConeGeometry(1.7, 1.6, 10), new THREE.MeshLambertMaterial({ color: pick(rng, palette) }));
+        cap.position.set(cx, h + 0.8, cz);
+        scene.add(cap);
+        return { x: cx, z: cz, hw: 2, hd: 2 };
+      }
+      const w = 6 + rng() * 3, d = 5 + rng() * 3, h = 3.5 + rng() * 2;
+      const barn = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat());
+      barn.position.set(cx, h / 2, cz);
+      scene.add(barn);
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) / 1.4, 2, 4), new THREE.MeshLambertMaterial({ color: pick(rng, palette) }));
+      roof.rotation.y = Math.PI / 4;
+      roof.position.set(cx, h + 1, cz);
+      scene.add(roof);
+      return { x: cx, z: cz, hw: w / 2 + 0.5, hd: d / 2 + 0.5 };
+    }
+    case 'mall': {
+      const w = 7 + rng() * 6, d = 7 + rng() * 6, h = 4 + rng() * 10;
+      const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat());
+      box.position.set(cx, h / 2, cz);
+      scene.add(box);
+      return { x: cx, z: cz, hw: w / 2 + 0.6, hd: d / 2 + 0.6 };
+    }
+    case 'bunker': {
+      const w = 6 + rng() * 4, d = 6 + rng() * 4, h = 2.4 + rng() * 2.2;
+      const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat());
+      box.position.set(cx, h / 2, cz);
+      scene.add(box);
+      const bagCount = 1 + Math.floor(rng() * 3);
+      for (let b = 0; b < bagCount; b++) {
+        const bs = 0.7 + rng() * 0.6;
+        const bag = new THREE.Mesh(new THREE.BoxGeometry(bs * 1.6, bs, bs), new THREE.MeshLambertMaterial({ color: theme.accent }));
+        const ang = rng() * Math.PI * 2, rad = w / 2 + rng() * 2.5;
+        bag.position.set(cx + Math.cos(ang) * rad, bs / 2, cz + Math.sin(ang) * rad);
+        bag.rotation.y = rng() * Math.PI;
+        scene.add(bag);
+      }
+      if (rng() < 0.3) {
+        const th = 9 + rng() * 5;
+        const tower = new THREE.Mesh(new THREE.BoxGeometry(1.6, th, 1.6), mat());
+        tower.position.set(cx + 4, th / 2, cz + 4);
+        scene.add(tower);
+      }
+      return { x: cx, z: cz, hw: w / 2 + 0.6, hd: d / 2 + 0.6 };
+    }
+    case 'ruin':
+    default: {
+      const h = 6 + rng() * 34;
+      const w = 5.5 + rng() * 4;
+      const d = 5.5 + rng() * 4;
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat());
+      mesh.position.set(cx, h / 2, cz);
+      if (rng() < 0.3) { mesh.rotation.z = (rng() - 0.5) * 0.12; mesh.rotation.x = (rng() - 0.5) * 0.07; }
+      scene.add(mesh);
+      const rubbleCount = 1 + Math.floor(rng() * 3);
+      for (let r = 0; r < rubbleCount; r++) {
+        const rs = 0.7 + rng() * 1.6;
+        const rmesh = new THREE.Mesh(new THREE.BoxGeometry(rs, rs * 0.7, rs), mat());
+        const ang = rng() * Math.PI * 2, rad = w / 2 + rng() * 3.5;
+        rmesh.position.set(cx + Math.cos(ang) * rad, rs * 0.35, cz + Math.sin(ang) * rad);
+        rmesh.rotation.y = rng() * Math.PI;
+        scene.add(rmesh);
+      }
+      return { x: cx, z: cz, hw: w / 2 + 0.6, hd: d / 2 + 0.6 };
+    }
+  }
+}
+
+function buildMapScene(mapIndex) {
+  clearMapScene();
+  const rng = rngForMap(mapIndex);
+  const theme = themeForMap(mapIndex);
+
+  scene.background = new THREE.Color(theme.sky);
+  scene.fog = new THREE.Fog(theme.sky, 24, 150);
+
+  const ambient = new THREE.AmbientLight(0xffffff, 0.55);
+  scene.add(ambient);
+  const sun = new THREE.DirectionalLight(0xffeecc, 0.85);
+  sun.position.set(40, 60, 20);
+  scene.add(sun);
+
+  const groundGeo = new THREE.PlaneGeometry(GRID * CELL + 40, GRID * CELL + 40);
+  const groundMat = new THREE.MeshLambertMaterial({ color: theme.ground });
+  const ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  scene.add(ground);
+
+  if (theme.style === 'wreck') addStarfield(rng);
+
+  // procedural prop grid — deterministic per mapIndex via rng(), shape driven by theme.style
+  for (let gx = 0; gx < GRID; gx++) {
+    for (let gz = 0; gz < GRID; gz++) {
+      const cx = (gx - GRID / 2) * CELL + CELL / 2;
+      const cz = (gz - GRID / 2) * CELL + CELL / 2;
+      const roll = rng(); // always draw, so downstream cells stay deterministic regardless of this branch
+      const spawnSafe = (gx === 4 || gx === 5) && (gz === 4 || gz === 5); // keep the player spawn clear
+      if (spawnSafe || roll < 0.28) continue; // empty lot
+      const footprint = buildThemeProp(theme, rng, cx, cz);
+      if (footprint) currentBuildings.push(footprint);
+    }
+  }
+
+  spawnWave(mapIndex, rng);
+}
+
+function blockedAt(x, z) {
+  const r = 0.5;
+  if (Math.abs(x) > ARENA_HALF - 1 || Math.abs(z) > ARENA_HALF - 1) return true;
+  for (const b of currentBuildings) {
+    if (x > b.x - b.hw - r && x < b.x + b.hw + r && z > b.z - b.hd - r && z < b.z + b.hd + r) return true;
+  }
+  return false;
+}
+
+/* ══════════════════════════ ENEMIES ══════════════════════════ */
+function buildEnemyMesh(def) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshLambertMaterial({ color: def.color });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.5, 0.7), mat);
+  body.position.y = 0.85;
+  g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), mat);
+  head.position.y = 1.85;
+  g.add(head);
+  const cv = document.createElement('canvas'); cv.width = 64; cv.height = 8;
+  const ctx = cv.getContext('2d');
+  const tex = new THREE.CanvasTexture(cv);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
+  sprite.scale.set(1.3, 0.16, 1);
+  sprite.position.y = 2.45;
+  g.add(sprite);
+  g.userData.isEnemyRoot = true;
+  g.userData.hbCv = cv; g.userData.hbCtx = ctx; g.userData.hbTex = tex;
+  return g;
+}
+function updateEnemyHealthBar(enemy) {
+  const { hbCv: cv, hbCtx: ctx, hbTex: tex } = enemy.mesh.userData;
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.fillStyle = '#222'; ctx.fillRect(0, 0, cv.width, cv.height);
+  const pct = Math.max(0, enemy.hp / enemy.maxHp);
+  ctx.fillStyle = pct > 0.5 ? '#44ff44' : pct > 0.25 ? '#ffaa00' : '#ff2200';
+  ctx.fillRect(0, 0, cv.width * pct, cv.height);
+  tex.needsUpdate = true;
+}
+function findRootEnemy(obj) {
+  let o = obj;
+  while (o && !o.userData.isEnemyRoot) o = o.parent;
+  if (!o) return null;
+  return enemies.find(e => e.mesh === o) || null;
+}
+function spawnWave(mapIndex, rng) {
+  const count = enemyCountForMap(mapIndex);
+  for (let k = 0; k < count; k++) {
+    const isElite = rng() < 0.08;
+    const arche = isElite ? ENEMY_ARCHETYPES[3] : ENEMY_ARCHETYPES[Math.floor(rng() * 3)];
+    const hp = enemyHp(arche.tier, mapIndex);
+    const dmg = enemyDamage(arche.tier, mapIndex);
+    let x, z, tries = 0;
+    do {
+      const ang = rng() * Math.PI * 2, rad = 14 + rng() * (ARENA_HALF - 18);
+      x = Math.cos(ang) * rad; z = Math.sin(ang) * rad;
+      tries++;
+    } while (blockedAt(x, z) && tries < 20);
+    const mesh = buildEnemyMesh(arche);
+    mesh.position.set(x, 0, z);
+    scene.add(mesh);
+    const enemy = {
+      mesh, def: arche, tier: arche.tier, hp, maxHp: hp, damage: dmg,
+      speed: 1.5 + arche.tier * 0.2, aggroRange: 24, attackRange: 2.3,
+      atkInterval: 1.1, atkCooldown: rng() * 1.1, alive: true
+    };
+    mesh.userData.enemy = enemy;
+    updateEnemyHealthBar(enemy);
+    enemies.push(enemy);
+  }
+}
+function tickEnemyAI(dt) {
+  enemies.forEach(enemy => {
+    if (!enemy.alive) return;
+    const mesh = enemy.mesh;
+    const dx = playerPos.x - mesh.position.x, dz = playerPos.z - mesh.position.z;
+    const dist = Math.sqrt(dx * dx + dz * dz) || 0.0001;
+    if (dist < enemy.aggroRange) {
+      mesh.rotation.y = Math.atan2(dx, dz);
+      if (dist > enemy.attackRange) {
+        const nx = mesh.position.x + (dx / dist) * enemy.speed * dt;
+        const nz = mesh.position.z + (dz / dist) * enemy.speed * dt;
+        if (!blockedAt(nx, mesh.position.z)) mesh.position.x = nx;
+        if (!blockedAt(mesh.position.x, nz)) mesh.position.z = nz;
+      } else {
+        enemy.atkCooldown -= dt;
+        if (enemy.atkCooldown <= 0 && playerHp > 0) {
+          enemy.atkCooldown = enemy.atkInterval;
+          applyDamageToPlayer(enemy.damage);
+        }
+      }
+    }
+  });
+  if (waveRespawnAt !== null && performance.now() >= waveRespawnAt) {
+    waveRespawnAt = null;
+    spawnWave(currentMapIndex, rngForMap(currentMapIndex + performance.now())); // fresh non-deterministic re-roll for a respawned wave
+  }
+}
+function killEnemy(enemy) {
+  enemy.alive = false;
+  scene.remove(enemy.mesh);
+  const xp = xpForKill(enemy.tier, currentMapIndex);
+  const scrap = scrapForKill(enemy.tier, currentMapIndex);
+  userState.xp += xp;
+  userState.scrap += scrap;
+  userState.kills++;
+  showKillToast(enemy.def, xp, scrap);
+  checkLevelUp();
+  updateGameHud();
+  saveUserData();
+  if (enemies.every(e => !e.alive) && waveRespawnAt === null) waveRespawnAt = performance.now() + 6000;
+}
+function applyDamageToEnemy(enemy, dmg) {
+  if (!enemy.alive) return;
+  enemy.hp -= dmg;
+  updateEnemyHealthBar(enemy);
+  if (enemy.hp <= 0) killEnemy(enemy);
+}
+function applyDamageToPlayer(dmg) {
+  playerHp = Math.max(0, playerHp - dmg);
+  flashHit();
+  updateGameHud();
+  if (playerHp <= 0) handlePlayerDeath();
+}
+
+/* ══════════════════════════ XP / LEVEL UP ══════════════════════════ */
+function checkLevelUp() {
+  const newLevel = levelForXp(userState.xp);
+  if (newLevel > userState.level) {
+    const oldLevel = userState.level;
+    const oldMax = maxHpForLevel(oldLevel);
+    userState.level = newLevel;
+    const newMax = maxHpForLevel(newLevel);
+    playerMaxHp = newMax;
+    playerHp = Math.min(newMax, playerHp + (newMax - oldMax));
+    showLevelUpToast(oldLevel, newLevel);
+    saveUserData();
+  }
+}
+function showLevelUpToast(oldLevel, newLevel) {
+  const toast = document.getElementById('levelUpToast');
+  document.getElementById('levelUpSub').textContent = `Level ${oldLevel} → ${newLevel} · Max HP now ${playerMaxHp}`;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2400);
+}
+
+/* ══════════════════════════ COMBAT / FIRING ══════════════════════════ */
+function tryFire(nowSec) {
+  const w = weaponById(userState.equippedWeapon);
+  const interval = 1 / w.fireRate;
+  if (nowSec - lastShotTime < interval) return;
+  lastShotTime = nowSec;
+  const pellets = w.pellets || 1;
+  camera.updateMatrixWorld(); // force-sync before reading world position/direction — tryFire() runs before this frame's renderer.render() would otherwise do this, so without it every shot aims from the PREVIOUS frame's rotation
+  const origin = new THREE.Vector3();
+  camera.getWorldPosition(origin);
+  const forward = new THREE.Vector3();
+  camera.getWorldDirection(forward);
+  for (let p = 0; p < pellets; p++) {
+    const dir = forward.clone();
+    dir.x += (Math.random() - 0.5) * w.spread;
+    dir.y += (Math.random() - 0.5) * w.spread;
+    dir.z += (Math.random() - 0.5) * w.spread;
+    dir.normalize();
+    raycaster.set(origin, dir);
+    raycaster.far = w.range;
+    const aliveMeshes = enemies.filter(e => e.alive).map(e => e.mesh);
+    const hits = raycaster.intersectObjects(aliveMeshes, true);
+    if (hits.length) {
+      const enemy = findRootEnemy(hits[0].object);
+      if (enemy) applyDamageToEnemy(enemy, w.dmg);
+    }
+  }
+}
+
+/* ══════════════════════════ PLAYER DEATH / RESPAWN ══════════════════════════ */
+function handlePlayerDeath() {
+  userState.deaths++;
+  const penalty = Math.round(userState.scrap * 0.1);
+  userState.scrap = Math.max(0, userState.scrap - penalty);
+  saveUserData();
+  document.getElementById('deathSub').textContent = penalty > 0 ? `Lost ⚙️${penalty} scrap in the chaos.` : 'No scrap lost this time.';
+  document.getElementById('deathOverlay').classList.add('active');
+  if (document.pointerLockElement) document.exitPointerLock();
+}
+document.getElementById('respawnBtn').addEventListener('click', () => {
+  document.getElementById('deathOverlay').classList.remove('active');
+  playerHp = playerMaxHp;
+  playerPos.x = 0; playerPos.z = 0;
+  updateGameHud();
+  exitToMapSelect();
+});
+
+/* ══════════════════════════ ENTER / EXIT MAP ══════════════════════════ */
+function enterMap(mapIndex) {
+  ensureRenderer();
+  currentMapIndex = mapIndex;
+  playerPos.x = 0; playerPos.z = 0;
+  yaw = 0; pitch = 0;
+  playerMaxHp = maxHpForLevel(userState.level);
+  playerHp = playerMaxHp;
+  waveRespawnAt = null;
+  buildMapScene(mapIndex);
+  document.getElementById('hudMapName').textContent = mapNameForMap(mapIndex);
+  updateGameHud();
+  userState.highestMapUnlocked = Math.max(userState.highestMapUnlocked || 1, mapIndex);
+  inGame = true;
+  showScreen('gameScreen');
+  saveUserData();
+}
+document.getElementById('exitBtn').addEventListener('click', exitToMapSelect);
+function exitToMapSelect() {
+  inGame = false;
+  if (document.pointerLockElement) document.exitPointerLock();
+  saveUserData();
+  goToMapSelect();
+}
+
+/* ══════════════════════════ HUD ══════════════════════════ */
+function updateGameHud() {
+  document.getElementById('hudLevel').textContent = 'Lv ' + userState.level;
+  document.getElementById('hudScrap').textContent = '⚙️ ' + userState.scrap;
+  document.getElementById('hpText').textContent = Math.max(0, Math.round(playerHp)) + '/' + playerMaxHp;
+  document.getElementById('hpFill').style.width = Math.max(0, (playerHp / playerMaxHp) * 100) + '%';
+  const curLevelXp = xpForLevel(userState.level), nextLevelXp = xpForLevel(userState.level + 1);
+  const pct = Math.max(0, Math.min(100, ((userState.xp - curLevelXp) / (nextLevelXp - curLevelXp)) * 100));
+  document.getElementById('xpFill').style.width = pct + '%';
+  document.getElementById('xpText').textContent = userState.xp;
+  const w = weaponById(userState.equippedWeapon);
+  document.getElementById('hudWeaponName').textContent = w.name;
+}
+function flashHit() {
+  const el = document.getElementById('hitFlash');
+  el.style.background = 'rgba(255,0,0,0.35)';
+  setTimeout(() => { el.style.background = 'rgba(255,0,0,0)'; }, 120);
+}
+function showKillToast(def, xp, scrap) {
+  const feed = document.getElementById('killFeed');
+  const msg = document.createElement('div');
+  msg.className = 'killMsg';
+  msg.textContent = `${def.emoji} ${def.name} down · +${xp} XP +${scrap}⚙️`;
+  feed.appendChild(msg);
+  setTimeout(() => { msg.style.opacity = '0'; setTimeout(() => msg.remove(), 400); }, 2600);
+  while (feed.children.length > 5) feed.removeChild(feed.firstChild);
+}
+
+/* ══════════════════════════ DESKTOP CONTROLS ══════════════════════════ */
+function setupDesktopControls() {
+  renderer.domElement.addEventListener('click', () => {
+    if (!inGame) return;
+    if (!isLocked && !IS_TOUCH) { renderer.domElement.requestPointerLock(); return; }
+  });
+  document.addEventListener('pointerlockchange', () => { isLocked = document.pointerLockElement === renderer.domElement; });
+  document.addEventListener('mousemove', e => {
+    if (!isLocked) return;
+    yaw -= e.movementX * 0.0022;
+    pitch -= e.movementY * 0.0020;
+    pitch = Math.max(-1.3, Math.min(1.3, pitch));
+  });
+  document.addEventListener('mousedown', e => {
+    if (!inGame) return;
+    if (isLocked && (e.button === 0 || e.button === 2)) fireHeld = true;
+  });
+  document.addEventListener('mouseup', () => { fireHeld = false; });
+  document.addEventListener('contextmenu', e => { if (inGame) e.preventDefault(); });
+  document.addEventListener('keydown', e => {
+    if (!inGame) return;
+    if (e.code === 'KeyW') moveState.w = true;
+    if (e.code === 'KeyS') moveState.s = true;
+    if (e.code === 'KeyA') moveState.a = true;
+    if (e.code === 'KeyD') moveState.d = true;
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') moveState.run = true;
+  });
+  document.addEventListener('keyup', e => {
+    if (e.code === 'KeyW') moveState.w = false;
+    if (e.code === 'KeyS') moveState.s = false;
+    if (e.code === 'KeyA') moveState.a = false;
+    if (e.code === 'KeyD') moveState.d = false;
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') moveState.run = false;
+  });
+}
+
+/* ══════════════════════════ TOUCH CONTROLS ══════════════════════════ */
+function setupTouchControls() {
+  const joyBase = document.getElementById('joyBase');
+  const joyStick = document.getElementById('joyStick');
+  const fireBtn = document.getElementById('fireBtn');
+  let joyTouchId = null, joyCenterX = 0, joyCenterY = 0;
+  let lookTouchId = null, lookLastX = 0, lookLastY = 0;
+
+  function updateJoy(cx, cy) {
+    const r = 46;
+    const dx = cx - joyCenterX, dy = cy - joyCenterY;
+    const dist = Math.min(Math.sqrt(dx * dx + dy * dy), r);
+    const angle = Math.atan2(dy, dx);
+    const sx = Math.cos(angle) * dist, sy = Math.sin(angle) * dist;
+    joyStick.style.transform = `translate(${sx}px,${sy}px)`;
+    const nx = sx / r, ny = sy / r, th = 0.28;
+    moveState.w = ny < -th; moveState.s = ny > th; moveState.a = nx < -th; moveState.d = nx > th;
+  }
+  function resetJoy() { moveState.w = moveState.a = moveState.s = moveState.d = false; joyStick.style.transform = 'translate(0px,0px)'; }
+
+  joyBase.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    joyTouchId = e.pointerId;
+    const r = joyBase.getBoundingClientRect();
+    joyCenterX = r.left + r.width / 2; joyCenterY = r.top + r.height / 2;
+    updateJoy(e.clientX, e.clientY);
+  });
+  window.addEventListener('pointermove', e => {
+    if (!inGame) return;
+    if (e.pointerId === joyTouchId) updateJoy(e.clientX, e.clientY);
+    else if (e.pointerId === lookTouchId) {
+      const dx = e.clientX - lookLastX, dy = e.clientY - lookLastY;
+      yaw -= dx * 0.0044; pitch -= dy * 0.004;
+      pitch = Math.max(-1.3, Math.min(1.3, pitch));
+      lookLastX = e.clientX; lookLastY = e.clientY;
+    }
+  });
+  window.addEventListener('pointerup', e => {
+    if (e.pointerId === joyTouchId) { joyTouchId = null; resetJoy(); }
+    if (e.pointerId === lookTouchId) { lookTouchId = null; }
+  });
+
+  // any touch that lands on the canvas itself (not the joystick or fire button) becomes the look-around touch
+  document.getElementById('gameCanvasWrap').addEventListener('pointerdown', e => {
+    if (!inGame || !IS_TOUCH) return;
+    if (e.pointerId === joyTouchId) return;
+    if (lookTouchId === null) { lookTouchId = e.pointerId; lookLastX = e.clientX; lookLastY = e.clientY; }
+  });
+
+  function bindTap(btn, onDown) { if (!btn) return; btn.addEventListener('pointerdown', e => { e.preventDefault(); onDown(); }); }
+  function bindHold(btn, onDown, onUp) {
+    if (!btn) return;
+    let held = false;
+    btn.addEventListener('pointerdown', e => { e.preventDefault(); held = true; onDown(); });
+    const release = () => { if (held) { held = false; onUp(); } };
+    window.addEventListener('pointerup', release);
+    window.addEventListener('pointercancel', release);
+  }
+  bindHold(fireBtn, () => { fireHeld = true; fireBtn.classList.add('active'); }, () => { fireHeld = false; fireBtn.classList.remove('active'); });
+}
+
+/* ══════════════════════════ PLAYER MOVEMENT ══════════════════════════ */
+function updatePlayerMovement(dt) {
+  const speed = moveState.run ? 7 : 4.2;
+  let mx = 0, mz = 0;
+  if (moveState.w) mz -= 1;
+  if (moveState.s) mz += 1;
+  if (moveState.a) mx -= 1;
+  if (moveState.d) mx += 1;
+  if (mx || mz) {
+    const len = Math.sqrt(mx * mx + mz * mz); mx /= len; mz /= len;
+    const sinY = Math.sin(yaw), cosY = Math.cos(yaw);
+    const wx = mx * cosY - mz * sinY;
+    const wz = mx * sinY + mz * cosY;
+    const nx = playerPos.x + wx * speed * dt;
+    const nz = playerPos.z + wz * speed * dt;
+    if (!blockedAt(nx, playerPos.z)) playerPos.x = nx;
+    if (!blockedAt(playerPos.x, nz)) playerPos.z = nz;
+  }
+  camera.position.set(playerPos.x, EYE_HEIGHT, playerPos.z);
+  camera.rotation.order = 'YXZ';
+  camera.rotation.y = yaw;
+  camera.rotation.x = pitch;
+}
+
+/* ══════════════════════════ REMOTE PLAYERS (real online presence) ══════════════════════════ */
+function buildRemotePlayerMesh(o) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshLambertMaterial({ color: 0x3388ff });
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 1.3, 8), mat);
+  body.position.y = 0.9;
+  g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 8, 8), mat);
+  head.position.y = 1.75;
+  g.add(head);
+  const gunMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+  const gun = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.6), gunMat);
+  gun.position.set(0.3, 1.0, -0.4);
+  g.add(gun);
+  g.userData.gunMesh = gun;
+  const cv = document.createElement('canvas'); cv.width = 160; cv.height = 34;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center';
+  ctx.fillText(o.name || '?', 80, 24);
+  const tex = new THREE.CanvasTexture(cv);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
+  sprite.scale.set(2.2, 0.5, 1);
+  sprite.position.y = 2.25;
+  g.add(sprite);
+  return g;
+}
+async function syncExgunPresence(elapsed) {
+  if (!currentUser || !inGame || elapsed - _lastPresenceSync < PRESENCE_SYNC_INTERVAL) return;
+  _lastPresenceSync = elapsed;
+  const mapIdStr = String(currentMapIndex); // server compares GET query (always a string) against the POSTed value with ===, so both sides must be strings
+  const body = {
+    name: currentUser, mapId: mapIdStr,
+    x: playerPos.x, y: 0, z: playerPos.z, yaw,
+    hp: Math.round(playerHp), maxHp: playerMaxHp, level: userState.level,
+    weapon: userState.equippedWeapon, firing: !!fireHeld
+  };
+  fetchWithTimeout(EXGUN_SERVER + '/api/exgun/presence', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  }, 4000).catch(() => {});
+  try {
+    const r = await fetchWithTimeout(EXGUN_SERVER + '/api/exgun/presence?mapId=' + encodeURIComponent(mapIdStr) + '&exclude=' + encodeURIComponent(currentUser), {}, 4000);
+    if (!r.ok) return;
+    const others = await r.json();
+    if (!inGame) return; // left the map while the request was in flight
+    const seen = new Set();
+    others.forEach(o => {
+      seen.add(o.name);
+      let rp = remotePlayers[o.name];
+      if (!rp) {
+        const mesh = buildRemotePlayerMesh(o);
+        mesh.position.set(o.x, o.y || 0, o.z);
+        scene.add(mesh);
+        rp = remotePlayers[o.name] = { mesh, targetX: o.x, targetY: o.y || 0, targetZ: o.z, targetYaw: o.yaw || 0 };
+      } else {
+        rp.targetX = o.x; rp.targetY = o.y || 0; rp.targetZ = o.z; rp.targetYaw = o.yaw || 0;
+      }
+      if (rp.mesh.userData.gunMesh) rp.mesh.userData.gunMesh.material.color.set(o.firing ? 0xff5522 : 0x222222);
+    });
+    Object.keys(remotePlayers).forEach(name => {
+      if (!seen.has(name)) { scene.remove(remotePlayers[name].mesh); delete remotePlayers[name]; }
+    });
+  } catch (e) {}
+}
+function updateRemotePlayers(dt) {
+  Object.values(remotePlayers).forEach(rp => {
+    const lerpAmt = Math.min(1, dt * 6);
+    rp.mesh.position.x += (rp.targetX - rp.mesh.position.x) * lerpAmt;
+    rp.mesh.position.y += (rp.targetY - rp.mesh.position.y) * lerpAmt;
+    rp.mesh.position.z += (rp.targetZ - rp.mesh.position.z) * lerpAmt;
+    let dyaw = rp.targetYaw - rp.mesh.rotation.y;
+    while (dyaw > Math.PI) dyaw -= Math.PI * 2;
+    while (dyaw < -Math.PI) dyaw += Math.PI * 2;
+    rp.mesh.rotation.y += dyaw * lerpAmt;
+  });
+}
+
+/* ══════════════════════════ MAIN LOOP ══════════════════════════ */
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.1);
+  const elapsed = clock.getElapsedTime();
+  if (inGame) {
+    updatePlayerMovement(dt);
+    tickEnemyAI(dt);
+    updateRemotePlayers(dt);
+    if (fireHeld) tryFire(elapsed);
+    syncExgunPresence(elapsed);
+  }
+  if (renderer) renderer.render(scene, camera);
+}
+
+/* ══════════════════════════ BOOT ══════════════════════════ */
+(function boot() {
+  const saved = localStorage.getItem(CURRENT_USER_KEY);
+  if (saved) {
+    authName.value = saved;
+    finishLogin(saved).catch(() => { showScreen('authScreen'); });
+  }
+})();
+</script>
+</body>
+</html>
