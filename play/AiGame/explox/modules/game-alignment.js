@@ -344,7 +344,7 @@ function finishCounterRound(correct) {
   if (correct && stillCounting) {
     payBankJob(activeBankJob.job, activeBankJob.currency, 1/COUNTER_ROUNDS);
     sfx.coin();
-    showNotif(`🧮 Correct — $${counterAnswer.toLocaleString()}! Payout added to Earnings.`);
+    showNotif(`🧮 Correct — $${counterAnswer.toLocaleString()}! Payout added to your wallet.`);
   } else if (stillCounting) {
     sfx.nope();
     showNotif(`🧮 Wrong! It was $${counterAnswer.toLocaleString()}. No pay this round.`);
@@ -696,7 +696,7 @@ function completeJobTask() {
   jobTaskActive = false;
   jobNextTaskIn = 3 + Math.random()*4;
   queueEarning(activeJobPay, 0, activeJob);
-  showNotif(`✅ Nice work! +${activeJobPay} S.I.P. pending in Earnings`);
+  showNotif(`✅ Nice work! +${activeJobPay} S.I.P. added to your wallet`);
 }
 
 function tickJob(dt) {
@@ -777,7 +777,7 @@ function serveAtTable(idx) {
   cookSubPresses = 0;
   const dish = tableOrders[idx];
   queueEarning(20, 0, 'Diner Job');
-  showNotif(`✅ ${dish} delivered! +20 S.I.P. pending in Earnings`);
+  showNotif(`✅ ${dish} delivered! +20 S.I.P. added to your wallet`);
   document.getElementById('jobHud').textContent = '💼 No Job';
   document.getElementById('jobHud').style.color = '#fff';
   tableOrders[idx] = '✅ Thank you!';
@@ -991,6 +991,6 @@ function robShop(shopName, gain) {
   robbedCooldowns[shopName] = 60;
   increaseWanted(1);
   lifetimeShopsRobbed++;
-  showNotif(`🔫 Robbed ${shopName}! +${gain} S.I.P. pending in Earnings`);
+  showNotif(`🔫 Robbed ${shopName}! +${gain} S.I.P. added to your wallet`);
 }
 

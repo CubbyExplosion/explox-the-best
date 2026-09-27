@@ -1245,7 +1245,7 @@ function tickGrowth(dt) {
       if (cStage.id === 'adult' && familyKidSmarts > 0) {
         const payout = Math.round(familyKidSmarts * 5);
         queueEarning(payout, 0, `${familyKidName} graduated`);
-        showNotif(`🎓 ${familyKidName} graduated and got a great job — they gave you ${payout.toLocaleString()} S.I.P. to say thanks! (pending in Earnings)`);
+        showNotif(`🎓 ${familyKidName} graduated and got a great job — they gave you ${payout.toLocaleString()} S.I.P. to say thanks! (already in your wallet)`);
         sfx.cheer && sfx.cheer();
       } else {
         showNotif(`${cStage.emoji} ${familyKidName} grew into a ${cStage.label}!`);
@@ -1372,7 +1372,7 @@ function prayAtChurch() {
       } else {
         const gift = PRAY_GRANT_SIP_MIN + Math.floor(Math.random() * (PRAY_GRANT_SIP_MAX - PRAY_GRANT_SIP_MIN));
         queueEarning(gift, 0, 'Prayer Granted');
-        showNotif(`✨ Your prayer for "${prayerText}" is granted! Fully healed, +${gift.toLocaleString()} S.I.P. pending in Earnings.`);
+        showNotif(`✨ Your prayer for "${prayerText}" is granted! Fully healed, +${gift.toLocaleString()} S.I.P. added to your wallet.`);
       }
     }
     sfx.coin();
@@ -1471,7 +1471,7 @@ function participateInSchoolEvent() {
   const smartsBonus = 30 + Math.round(Math.random() * 40);
   familyKidSmarts += smartsBonus;
   queueEarning(sipReward, 0, `${def.name} at ${familyKidName}'s school`);
-  showNotif(`${def.emoji} You helped out at the ${def.name}! +${smartsBonus} Smarts, ${sipReward} S.I.P. pending in Earnings.`);
+  showNotif(`${def.emoji} You helped out at the ${def.name}! +${smartsBonus} Smarts, ${sipReward} S.I.P. added to your wallet.`);
   sfx.cheer ? sfx.cheer() : sfx.buy();
   schoolEventActive = null;
   scheduleNextSchoolEvent();

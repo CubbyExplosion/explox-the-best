@@ -318,7 +318,7 @@ function sellHouseFurniture(idx) {
   queueEarning(refund, 0, `Sold ${def.name}`);
   saveCurrentUser();
   sfx.buy();
-  showNotif(`Sold ${def.emoji} ${def.name} for ${refund} S.I.P. (pending in Earnings)!`);
+  showNotif(`Sold ${def.emoji} ${def.name} for ${refund} S.I.P. (added to your wallet)!`);
   renderHouseFurniture();
   renderHouseFurniturePanel();
 }
@@ -696,7 +696,7 @@ function attackOwner(idx, ownerName) {
   });
   if(lost>0) queueEarning(lost, 0, `Looted ${ownerName}`);
   sfx.boom();
-  showNotif(lost>0 ? `⚔️ You defeated ${ownerName} and looted ${lost.toLocaleString()} S.I.P.! (pending in Earnings)` : `⚔️ You defeated ${ownerName}, but their wallet was empty!`);
+  showNotif(lost>0 ? `⚔️ You defeated ${ownerName} and looted ${lost.toLocaleString()} S.I.P.! (added to your wallet)` : `⚔️ You defeated ${ownerName}, but their wallet was empty!`);
   closeVisitLand();
 }
 // Shown right when a fresh world finishes loading — real "while you were away" reports
@@ -4759,7 +4759,7 @@ function answerSchoolQuiz(choiceIdx) {
     const reward = SCHOOL_SIP_PER_CORRECT * (st.isExamDay ? SCHOOL_EXAM_SIP_MULT : 1);
     st.correctThisPeriod++; st.correctTotal++; st.sipEarned += reward;
     queueEarning(reward, 0, st.isExamDay ? '📝 Exam' : '🏫 School');
-    feedback.innerHTML = `<span style="color:#4CAF50;">✅ Correct! +${reward} S.I.P. pending in Earnings.</span>`;
+    feedback.innerHTML = `<span style="color:#4CAF50;">✅ Correct! +${reward} S.I.P. added to your wallet.</span>`;
     sfx.cheer ? sfx.cheer() : sfx.buy();
   } else {
     st.wrongTotal++;
@@ -4885,7 +4885,7 @@ function renderSchoolDismissalUI() {
   box2.innerHTML = `
     ${examLine}
     <div style="margin-bottom:6px;">🎒 School's out! You got ${st.correctTotal} out of 10 real quiz questions right.</div>
-    <div style="color:${st.sipEarned>0?'#4CAF50':'#aaa'};margin-bottom:10px;">${st.sipEarned>0 ? `Earned ${st.sipEarned} S.I.P. total today — pending in Earnings!` : 'No S.I.P. today — better luck next visit.'}</div>
+    <div style="color:${st.sipEarned>0?'#4CAF50':'#aaa'};margin-bottom:10px;">${st.sipEarned>0 ? `Earned ${st.sipEarned} S.I.P. total today — already in your wallet!` : 'No S.I.P. today — better luck next visit.'}</div>
     <div style="color:#FFD700;font-size:11px;">📝 Homework assigned: ${schoolHomework.subject}. Finish it before your next school day (📝 H.WORK tab, top of screen) or it'll cost you ${SCHOOL_HOMEWORK_MISS_PENALTY} S.I.P.!</div>
   `;
   schoolDayState = null; // day is fully resolved — reopening the modal now shows the picker (still cooldown-gated by schoolLastQuizAt, set back in startSchoolDay())
@@ -5136,7 +5136,7 @@ function answerScienceTest(choiceIdx) {
     st.correctCount++;
     st.sipEarned += SCIENCE_SIP_PER_CORRECT;
     queueEarning(SCIENCE_SIP_PER_CORRECT, 0, '🧪 Science Test');
-    feedback.innerHTML = `<span style="color:#4CAF50;">✅ Correct! +${SCIENCE_SIP_PER_CORRECT} S.I.P. pending in Earnings.</span>`;
+    feedback.innerHTML = `<span style="color:#4CAF50;">✅ Correct! +${SCIENCE_SIP_PER_CORRECT} S.I.P. added to your wallet.</span>`;
     sfx.cheer ? sfx.cheer() : sfx.buy();
   } else {
     feedback.innerHTML = `<span style="color:#ff8888;">❌ Not quite — the answer was "${q.c[q.a]}".</span>`;
@@ -5157,7 +5157,7 @@ function renderScienceResults() {
   document.getElementById('scienceLabQuestion').textContent = `You got ${st.correctCount} out of ${st.questions.length} right!`;
   document.getElementById('scienceLabChoices').innerHTML = '';
   document.getElementById('scienceLabFeedback').innerHTML = st.sipEarned > 0
-    ? `<span style="color:#4CAF50;">🎉 Earned ${st.sipEarned} S.I.P. total this visit — pending in your Earnings tab!</span>`
+    ? `<span style="color:#4CAF50;">🎉 Earned ${st.sipEarned} S.I.P. total this visit — already in your wallet!</span>`
     : `<span style="color:#aaa;">No S.I.P. this time — come back after the cooldown for another shot.</span>`;
   document.getElementById('scienceLabNextBtn').style.display = 'none';
 }

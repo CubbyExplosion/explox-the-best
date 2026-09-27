@@ -498,7 +498,7 @@ function endEatingCompetition() {
   if (won) {
     payout = EATCOMP_WIN_PAYOUT + (isNewBest ? EATCOMP_BEST_BONUS : 0);
     queueEarning(payout, 0, `Eating Competition win vs ${opp.name}`);
-    resultLine = `🏆 YOU WIN! ${eatingCompPlayerCount} vs ${eatingCompOpponentCount} — +${payout} S.I.P. pending in Earnings!`;
+    resultLine = `🏆 YOU WIN! ${eatingCompPlayerCount} vs ${eatingCompOpponentCount} — +${payout} S.I.P. added to your wallet!`;
     sfx.cheer();
   } else {
     payout = EATCOMP_LOSS_CONSOLATION;
@@ -513,7 +513,7 @@ function endEatingCompetition() {
       <div class="siName">${won ? '🏆 Victory!' : '😅 Defeat'}</div>
       <div class="siCost">You: ${eatingCompPlayerCount} items — ${opp.name}: ${eatingCompOpponentCount} items</div>
       ${isNewBest ? `<div style="color:#ffd700;font-size:12px;margin-top:4px;">🏅 New personal best!</div>` : ''}
-      <div style="color:${won ? '#88dd88' : '#ff8888'};font-size:13px;margin-top:6px;">+${payout} S.I.P. ${won ? '(pending in Earnings)' : 'consolation'}</div>
+      <div style="color:${won ? '#88dd88' : '#ff8888'};font-size:13px;margin-top:6px;">+${payout} S.I.P. ${won ? '(added to your wallet)' : 'consolation'}</div>
     </div>
     <button class="shopBtn" style="width:100%;margin-top:6px;" onclick="openEatingCompetitionPicker()">🔁 Compete Again</button>
     <button class="shopBtn" style="background:#555;width:100%;margin-top:6px;" onclick="renderBuffet()">← Back to Buffet</button>`;
@@ -1446,7 +1446,7 @@ function handleMailboxMessage(msg) {
       dueling = null;
       if(msg.data && msg.data.result === 'you_won') {
         queueEarning(50, 0, `Duel win vs ${msg.from}`);
-        showNotif(`🏆 You won the duel against ${msg.from}! +50 S.I.P. pending in Earnings`);
+        showNotif(`🏆 You won the duel against ${msg.from}! +50 S.I.P. added to your wallet`);
       } else {
         showNotif(`Duel with ${msg.from} ended.`);
       }
@@ -1732,7 +1732,7 @@ function defeatNPC(npc) {
     queueEarning(10, 0, `Defeated ${npc.name}`);
     increaseWanted(1);
     lifetimeCitizensDefeated++;
-    showNotif(`💥 Defeated ${npc.name}! +10 S.I.P. pending in Earnings`);
+    showNotif(`💥 Defeated ${npc.name}! +10 S.I.P. added to your wallet`);
     setTimeout(() => {
       npc.isDown = false;
       npc.group.rotation.z = 0;
@@ -1949,7 +1949,7 @@ function completeHiredHitOnPlayer(targetName) {
   totalKills++; checkWrathTrigger(); checkDivineJudgment();
   const wealth = npcWealth(targetName);
   queueEarning(wealth, 0, `Hit on ${targetName}`);
-  showNotif(`🗡️ Your hired killer got ${targetName}! ${wealth} S.I.P. pending in Earnings.`);
+  showNotif(`🗡️ Your hired killer got ${targetName}! ${wealth} S.I.P. added to your wallet.`);
   const delaySec = 20 + Math.random()*25;
   setTimeout(() => {
     increaseWanted(1);
@@ -1996,7 +1996,7 @@ function completeHiredHit(target) {
   saveCurrentUser();
   buildGrave(target.name, x, z);
   queueEarning(wealth, 0, `Hit on ${target.name}`);
-  showNotif(`🗡️ ${hitFlavorText(target.name)} ${wealth} S.I.P. pending in Earnings.`);
+  showNotif(`🗡️ ${hitFlavorText(target.name)} ${wealth} S.I.P. added to your wallet.`);
   const delaySec = 20 + Math.random()*25;
   setTimeout(() => {
     increaseWanted(1);
@@ -2059,7 +2059,7 @@ function tickCelebrities(dt) {
       if(dist < CELEBRITY_GIVEAWAY_RADIUS) {
         const sip = 200 + Math.floor(Math.random()*300), elite = 1 + Math.floor(Math.random()*3);
         queueEarning(sip, elite, `${npc.name}'s Giveaway`);
-        showNotif(`💰 You caught ${npc.name}'s giveaway! Check Earnings.`);
+        showNotif(`💰 You caught ${npc.name}'s giveaway! Added to your wallet.`);
         st.activeEvent = null; st.nextEventAt = celebNextEventAt();
       }
     } else { // challenge
@@ -2072,7 +2072,7 @@ function tickCelebrities(dt) {
         if(st.activeEvent.playerTime >= CELEBRITY_CHALLENGE_DURATION) {
           const sip = 500 + Math.floor(Math.random()*500), elite = 3 + Math.floor(Math.random()*3);
           queueEarning(sip, elite, `${npc.name}'s Challenge`);
-          showNotif(`🏆 You won ${npc.name}'s challenge! Check Earnings.`);
+          showNotif(`🏆 You won ${npc.name}'s challenge! Added to your wallet.`);
           st.activeEvent = null; st.nextEventAt = celebNextEventAt();
         }
       } else if(st.activeEvent.playerTime > 0) {
@@ -2127,7 +2127,7 @@ function tickPresidents(dt) {
     presidentVisitState[npc.name] = playTimeSeconds;
     const sip = 300 + Math.floor(Math.random()*400), elite = 2 + Math.floor(Math.random()*3);
     queueEarning(sip, elite, `State visit with ${npc.name}`);
-    showNotif(`🤝 ${npc.name} welcomes you! A diplomatic gift has been added to Earnings.`);
+    showNotif(`🤝 ${npc.name} welcomes you! A diplomatic gift of ${sip} S.I.P. has been added to your wallet.`);
   }
 }
 
@@ -2177,7 +2177,7 @@ function buyBlackMarketItem(idx) {
   const item = BLACK_MARKET_ITEMS[idx];
   if(sipDollars < item.cost) { showNotif('❌ Not enough S.I.P.!'); return; }
   spendSip(item.cost);
-  if(item.sipReward) { queueEarning(item.sipReward, 0, 'Black Market'); showNotif(`💰 Laundered! +${item.sipReward} S.I.P. pending in Earnings`); }
+  if(item.sipReward) { queueEarning(item.sipReward, 0, 'Black Market'); showNotif(`💰 Laundered! +${item.sipReward} S.I.P. added to your wallet`); }
   if(item.weaponId) {
     if(!ownedWeapons.includes(item.weaponId)) ownedWeapons.push(item.weaponId);
     playerWeapon = item.weaponId;

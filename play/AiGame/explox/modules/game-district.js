@@ -973,7 +973,7 @@ function askForAllowance(name) {
   const amount = 10 + Math.floor(Math.random() * 16); // 10-25 S.I.P.
   queueEarning(amount, 0, `${name}'s Allowance`);
   sfx.buy();
-  showNotif(`💰 ${name} gave you ${amount} S.I.P. allowance! (pending in Earnings)`);
+  showNotif(`💰 ${name} gave you ${amount} S.I.P. allowance! (already in your wallet)`);
   saveCurrentUser();
   closeNeighborModal();
 }

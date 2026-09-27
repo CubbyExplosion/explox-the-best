@@ -92,7 +92,16 @@ function shopDecor(meshOrGroup) { shopInteriorDecorMeshes.push(meshOrGroup); ret
 // (world-positioned/rotated), `itemLocal` is where the caller should position the actual item
 // prop (weapon mesh / armor mesh / mannequin / emoji-box) as a CHILD of that group, so it inherits
 // the furniture's own position/rotation for free.
-function buildShelfUnit(x, z, ry, wallColor, accent) {
+// Named buildShopShelfUnit (not buildShelfUnit) — game-world.js already has its own unrelated
+// buildShelfUnit(g, x, z, ing, count) for the player's own Store's ingredient shelves. Both files
+// are plain <script> tags sharing one global scope, and game-world.js loads AFTER this file, so an
+// identically-named function here would get silently overwritten by that one — which is exactly
+// what happened before this fix: buildFurnitureByKind()'s default case ended up calling the Store's
+// version with completely mismatched arguments (a number where it expected a THREE.Group), throwing
+// "g.add is not a function" partway through a shop's items.forEach() and aborting the whole loop —
+// so every item after the first 'shelf'-kind one in that shop never got a SHOP_INTERIOR_ZONES entry
+// at all. Real bug found live: "most of the hitboxes aren't working in store."
+function buildShopShelfUnit(x, z, ry, wallColor, accent) {
   const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry;
   scene.add(g); shopDecor(g);
   const back = new THREE.Mesh(new THREE.BoxGeometry(1.9, 2.3, 0.1), new THREE.MeshLambertMaterial({ color: wallColor }));
@@ -147,7 +156,7 @@ function buildFurnitureByKind(kind, x, z, ry, wallColor, accent) {
     case 'rack':       return buildClothingRackFurniture(x, z, ry, wallColor, accent);
     case 'weaponrack': return buildWeaponRackFurniture(x, z, ry, wallColor, accent);
     case 'armorstand': return buildArmorStandFurniture(x, z, ry, wallColor, accent);
-    default:           return buildShelfUnit(x, z, ry, wallColor, accent);
+    default:           return buildShopShelfUnit(x, z, ry, wallColor, accent);
   }
 }
 // A simple low-poly mannequin (cylinder torso + box legs/shoes + sphere head), recolored per real

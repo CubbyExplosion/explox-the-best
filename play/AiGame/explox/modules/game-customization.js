@@ -597,7 +597,7 @@ function claimQuest(id) {
   const q = activeQuests[idx];
   if (questProgress(q) < q.target) return;
   queueEarning(0, q.rewardElite, 'Quest');
-  showNotif(`✅ Quest complete! Check Earnings to collect +${q.rewardElite} 💎`);
+  showNotif(`✅ Quest complete! +${q.rewardElite} 💎 added to your wallet`);
   sfx.buy();
   totalQuestsCompleted++;
   activeQuests.splice(idx, 1);
@@ -715,7 +715,7 @@ function claimContract(id) {
   const c = activeContracts[idx];
   if (contractProgress(c) < c.target) return;
   queueEarning(c.rewardSip, 0, 'Crime Contract');
-  showNotif(`✅ Contract complete! Check Earnings to collect +${c.rewardSip} S.I.P.`);
+  showNotif(`✅ Contract complete! +${c.rewardSip} S.I.P. added to your wallet`);
   sfx.buy();
   totalContractsCompleted++;
   activeContracts.splice(idx, 1);

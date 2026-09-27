@@ -2198,7 +2198,7 @@ function accuseMysterySuspect(caseId, suspectId) {
   if (correct) {
     st.status = 'solved';
     queueEarning(def.reward, 0, def.name);
-    showNotif(`🎉 Case Closed — ${def.name}! You correctly accused ${suspect.name}. ${def.solutionRecap} +${def.reward} S.I.P. pending in Earnings!`);
+    showNotif(`🎉 Case Closed — ${def.name}! You correctly accused ${suspect.name}. ${def.solutionRecap} +${def.reward} S.I.P. added to your wallet!`);
     sfx.cheer();
     scheduleNextMystery();
   } else {

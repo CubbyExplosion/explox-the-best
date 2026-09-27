@@ -1132,7 +1132,7 @@ function giveShopperTip(){
     const tip = 1 + Math.floor(Math.random()*100); // 1-100 S.I.P.
     queueEarning(tip, 0, 'Store Tip');
     sfx.cheer();
-    showNotif(`🎉 A happy customer left you a ${tip} S.I.P. tip! (pending in Earnings)`);
+    showNotif(`🎉 A happy customer left you a ${tip} S.I.P. tip! (added to your wallet)`);
   }
 }
 // Builds/updates the OPEN or CLOSED sign on the front of the building
