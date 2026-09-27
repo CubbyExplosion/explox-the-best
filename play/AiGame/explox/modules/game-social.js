@@ -808,7 +808,16 @@ function buildWeaponLevels() {
 }
 function weaponRequiredLevel(id) {
   buildWeaponLevels();
-  return _weaponLevels[id] || 1;
+  // Real bug found live ("i cant buy in explox armory"): buildWeaponLevels() never assigns a
+  // weapon level 0 (its own comment above explains why — a literal level-0 weapon would deal
+  // 0 damage under the level×10 damage curve, so every real tier starts at 1). But a brand-new
+  // account's eliteLevel (Robot Level) itself starts at 0 — so the CHEAPEST weapon in the entire
+  // game required "Robot Level 1" while a fresh account could never be higher than 0, an
+  // unbuyable-forever catch-22 for every new player. Subtracting 1 here shifts the PURCHASE
+  // REQUIREMENT down by one step (the weapon's real tier/damage/cost above is untouched) so the
+  // baseline starter tier needs Robot Level 0 (always true) and each level you actually earn
+  // unlocks the next real tier, same relative gating as before.
+  return Math.max(0, (_weaponLevels[id] || 1) - 1);
 }
 // Same derive-don't-duplicate approach as weaponRequiredLevel() above — the tier is already
 // encoded in every batch weapon's own id ('wood_club' -> 'Wood'), so grouping the shop by
