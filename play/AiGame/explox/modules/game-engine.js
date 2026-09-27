@@ -162,12 +162,105 @@ function addToBag(food){
   updateBagHud();
   showNotif(food.emoji+' '+food.name+' added to bag! (C to eat)');
 }
+// Real per-food bite count — bigger/heartier foods take more bites than a quick snack, derived
+// deterministically from the food's own name (same craftHash()-seeded approach weapons/emotes
+// already use, game-housing.js) so a given food always takes the same number of bites without
+// needing a hand-typed `bites` field added to every one of the dozen+ scattered food catalogs
+// across the game (restaurants, cinema concessions, transit meals, the store, etc.).
+function bitesForFood(name) { return 2 + (craftHash(name) % 4); } // 2-5 bites
+const BITE_DURATION = 1000; // ms — one real bite per C press, not the whole meal at once
+// The bag food currently being eaten, across however many separate C presses/bites it takes —
+// null once fully finished. Kept completely separate from eatFood() below (used by restaurants,
+// the Eating Contest, prison food, school lunches, flight meals, food bombs...) since ALL of those
+// need one call to play one complete, automatically-timed bite sequence — turning eatFood() itself
+// into a multi-press mechanic would break the Eating Contest's real-time pacing against its
+// simulated opponent (game-social.js) and every other one-shot caller.
+let _activeFood = null;
 function eatFromBag(){
   if(_eatBusy||_iceCreamBusy) return;
+  if(_activeFood){ takeBagBite(); return; } // still chewing through the last item you pulled out — finish it before grabbing the next
   if(playerBag.length===0){ showNotif('🎒 Bag is empty — buy food first!'); return; }
   const food=playerBag.shift();
   updateBagHud();
-  eatFood(food.emoji,food.name,food.taste);
+  startBagFood(food.emoji,food.name,food.taste,food.restoreAmt);
+}
+function startBagFood(emoji,name,taste,restoreAmt){
+  // Overeat-streak decision made once per ITEM (matching eatFood()'s own rule below), using the
+  // Hunger value from before any of this item's bites land — a 3-bite snack shouldn't count as 3
+  // separate "ate while full" strikes just because it takes 3 presses to finish.
+  const wasFull = hunger >= HUNGER_FULL_THRESHOLD;
+  overeatStreak = wasFull ? overeatStreak + 1 : 0;
+  const overeating = wasFull && overeatStreak >= OVEREAT_VOMIT_STREAK;
+  if (overeating) overeatStreak = 0;
+  let sprite = null;
+  if (player.headBone) {
+    sprite = buildThrownItemSprite(emoji);
+    sprite.position.copy(player.headBone.getWorldPosition(new THREE.Vector3()));
+    scene.add(sprite);
+  }
+  _activeFood = { emoji, name, taste, restoreAmt: restoreAmt||35, bites: bitesForFood(name), bitesTaken: 0, sprite, overeating };
+  takeBagBite();
+}
+// One real bite, one real second, one C press — a real 3D food prop (same buildThrownItemSprite()
+// technique thrown items use) travels hand-to-mouth and shrinks a further 1/bites of the way down
+// each time, punching one more visible chunk out of the 2D chomp canvas, until the food's own bite
+// count (bitesForFood() above) runs out.
+function takeBagBite(){
+  if(!_activeFood || _eatBusy) return;
+  _eatBusy = true; _eatingArmActive = true;
+  const food = _activeFood;
+  const cv=document.createElement('canvas'); cv.width=240; cv.height=240;
+  cv.style.cssText='position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:9998;pointer-events:none;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.5));';
+  document.body.appendChild(cv);
+  const ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
+  const start = performance.now();
+  const holesAlready = food.bitesTaken; // chunks carved out by earlier presses, redrawn fresh every frame same as eatFood() below
+  function frame(now){
+    const p = Math.min(1, (now-start)/BITE_DURATION);
+    const remaining = Math.max(0, 1 - (holesAlready+p)/food.bites); // shrinks toward 0 across the WHOLE food's remaining lifetime, not just this one bite
+    const squash = 1 + Math.sin(p*Math.PI)*0.14;
+    ctx.clearRect(0,0,W,H);
+    const base = H*0.55*(0.45+0.55*remaining);
+    ctx.save(); ctx.translate(W/2,H*0.55); ctx.scale(squash,2-squash);
+    ctx.globalAlpha = Math.max(0.15, Math.min(1, remaining*1.3));
+    ctx.font = base+'px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(food.emoji,0,0);
+    ctx.globalCompositeOperation='destination-out';
+    ctx.globalAlpha=1;
+    const holesShown = holesAlready + (p>=1?1:0); // this bite's own hole only appears once it actually lands
+    for(let b=0;b<holesShown;b++){
+      const angle=b*(Math.PI*2/food.bites); // spread evenly around the food, however many bites it takes
+      const dist=0.30*base, r=0.28*base;
+      ctx.beginPath(); ctx.arc(Math.cos(angle)*dist, Math.sin(angle)*dist, r, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalCompositeOperation='source-over';
+    ctx.restore();
+    for(let i=0;i<6;i++){ const a=now*0.01+i, cr=p*W*0.42; ctx.fillStyle='rgba(210,170,90,'+remaining+')'; ctx.beginPath(); ctx.arc(W/2+Math.cos(a)*cr,H*0.55+Math.sin(a)*cr,3,0,Math.PI*2); ctx.fill(); }
+    if (food.sprite && player.headBone) {
+      const mouthPos = player.headBone.getWorldPosition(new THREE.Vector3());
+      const handPos = (player.rightShoulderBone || player.headBone).getWorldPosition(new THREE.Vector3());
+      handPos.y -= 0.7; handPos.z += 0.3;
+      food.sprite.position.lerpVectors(handPos, mouthPos, Math.min(1, p*1.15));
+      const s = 0.5 * Math.max(0.05, remaining);
+      food.sprite.scale.set(s,s,s);
+    }
+    if(p<1) requestAnimationFrame(frame);
+    else {
+      cv.remove(); _eatBusy=false; _eatingArmActive=false;
+      food.bitesTaken++;
+      restoreHunger(food.restoreAmt/food.bites);
+      if(food.bitesTaken >= food.bites){
+        if (food.sprite) { scene.remove(food.sprite); food.sprite.material.map.dispose(); food.sprite.material.dispose(); }
+        tasteReaction(food.taste, food.name);
+        if (food.overeating) setTimeout(() => vomit('eating too much'), 1600);
+        _activeFood = null;
+      } else {
+        const left = food.bites - food.bitesTaken;
+        showNotif(`${food.emoji} ${left} bite${left===1?'':'s'} left — press C to keep eating.`);
+      }
+    }
+  }
+  requestAnimationFrame(frame);
 }
 function updateBagHud(){
   const el=document.getElementById('bagItems');
