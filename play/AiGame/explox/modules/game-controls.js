@@ -36,10 +36,17 @@ function tryCityJump(){
 function setupControls(){
   setupMobileControls();
   document.addEventListener('keydown',e=>{
-    if(e.code==='KeyW') moveState.w=true;
-    if(e.code==='KeyS') moveState.s=true;
-    if(e.code==='KeyA') moveState.a=true;
-    if(e.code==='KeyD') moveState.d=true;
+    // Guarded off while typing (chat, etc.) — otherwise typing a message containing w/a/s/d would
+    // also drive the character around underneath you, same letter-key-vs-typing guard already used
+    // for I/C/B/T/G/M/Y/F below.
+    const typingNow = () => { const ae=document.activeElement; return !!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA')); };
+    if(e.code==='KeyW' && !typingNow()) moveState.w=true;
+    if(e.code==='KeyS' && !typingNow()) moveState.s=true;
+    if(e.code==='KeyA' && !typingNow()) moveState.a=true;
+    if(e.code==='KeyD' && !typingNow()) moveState.d=true;
+    // Enter — Minecraft-style: opens the chat input from anywhere (not already typing somewhere
+    // else); once open, the input's own onkeydown handles Enter as "send" instead (game-social.js).
+    if(e.code==='Enter' && !e.repeat && !typingNow()) openGameChat();
     if(e.code==='KeyE' && !e.repeat) onInteractDown();
     if(e.code==='KeyQ' && !e.repeat) throwCombatGrenade();
     if(e.code==='KeyF' && !e.repeat) { fireTankCannon(); fireJetGuns(); fireMotorcycleRockets(); if(!inCar){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) tryFightKey(); } } // the three vehicle-fire calls each self-gate on inCar/their own def flag and no-op on foot; tryFightKey() is F's real "attack now, any time" swing (game-zones.js) — guarded off while typing (e.g. chat), same as the other letter-key actions above
@@ -58,6 +65,7 @@ function setupControls(){
     if(e.code==='KeyP' && placingStore) confirmStorePlacement();
     if(e.code==='Escape' && placingStore) cancelStorePlacement();
     if(e.code==='Escape' && aimingThrow) cancelAimThrow(true); // back out of an item throw without releasing it
+    if(e.code==='Escape' && chatOpen) closeGameChat(); // cancel out of chat without sending — chatInput's own onkeydown also handles Escape while it's actually focused, this covers Escape pressed anywhere else while chat is open
     // Shift = run faster; Space = jump (ignore Space while typing in a text field)
     if(e.code==='ShiftLeft'||e.code==='ShiftRight') moveState.run=true;
     if(e.code==='Space'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))){ e.preventDefault(); tryCityJump(); jetThrustHeld=true; } }

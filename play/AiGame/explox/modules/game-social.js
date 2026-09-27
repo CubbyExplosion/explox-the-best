@@ -1364,6 +1364,7 @@ function sendChatMessage() {
   const text = input.value.trim();
   if(!text) return;
   input.value = '';
+  closeGameChat(); // Minecraft-style: Enter (or the send button) both submits AND closes chat back to normal play
   if(serverMode !== 'online') { showNotif('💬 Chat needs ONLINE mode!'); return; }
   if(chatMode === 'devtalk') {
     chatAddMsg('You → Dev', text, true);
@@ -1401,36 +1402,88 @@ async function syncChatMessages() {
 // to shove the real Close button off-screen). This is even more important HERE since chat text
 // comes from OTHER real players, not just your own typed commands — one person spamming a long
 // unbroken string could otherwise break the chat panel's layout on EVERYONE's screen who sees it.
+// Minecraft-style: a single semi-transparent black bar per line, sender name colored, always
+// left-aligned (no more isMine right-alignment — Minecraft's own log never does that either).
+// Fades on its own via scheduleMsgFade() below unless chat is currently open (chatOpen).
 function chatAddMsg(label, text, isMine) {
   const box = document.getElementById('chatMessages');
   if(!box) return;
   const div = document.createElement('div');
-  div.style.cssText = (isMine
-    ? 'background:rgba(255,255,255,0.07);border-radius:6px;padding:6px 8px;font-size:11px;color:#ccc;text-align:right;margin-bottom:6px;'
-    : 'background:rgba(68,204,255,0.1);border-radius:6px;padding:6px 8px;font-size:11px;color:#66ddff;margin-bottom:6px;')
-    + 'max-width:100%;word-break:break-word;overflow-wrap:break-word;';
+  div.style.cssText = 'background:rgba(0,0,0,0.5);border-radius:2px;padding:2px 6px;font-size:13px;color:#fff;max-width:100%;word-break:break-word;overflow-wrap:break-word;transition:opacity 0.6s;';
   const name = document.createElement('b');
+  name.style.color = isMine ? '#ffff88' : '#55ffff'; // "You"/"You -> Dev" in yellow, other players in aqua — same two-color split Minecraft itself uses for self vs. system/other text
   name.textContent = label; // caller passes the exact label ('You', 'You → Dev', or the sender's real name)
   div.appendChild(name);
   div.appendChild(document.createTextNode(': ' + text)); // createTextNode, never innerHTML — this is another real player's typed text
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
+  if (!chatOpen) scheduleMsgFade(div);
 }
-function toggleGameChat() {
-  const panel = document.getElementById('chatPanel');
-  if(panel.style.display === 'none') {
-    if(document.pointerLockElement) document.exitPointerLock();
-    isPointerLocked = false;
-    panel.style.display = 'flex';
-    document.getElementById('chatTab').style.display = 'none';
-  } else {
-    closeGameChat();
-  }
+// Whether the chat input is currently open (Enter or the CHAT tab — openGameChat() below). While
+// true, every line sits at full opacity with no fade timer, matching Minecraft showing its full
+// live scrollback while you're actively chatting.
+let chatOpen = false;
+const CHAT_FADE_DELAY = 8000; // ms a line sits fully visible before it starts fading, same idle window Minecraft's own chat uses
+const CHAT_FADE_DURATION = 600; // ms fade-out itself, matches the CSS transition set on each line above
+function scheduleMsgFade(div) {
+  clearTimeout(div._fadeTimer);
+  div._fadeTimer = setTimeout(() => {
+    div.style.opacity = '0';
+    setTimeout(() => { div.style.display = 'none'; }, CHAT_FADE_DURATION);
+  }, CHAT_FADE_DELAY);
+}
+// Minecraft-style open/close: "open" just means the input bar is visible and the recent
+// scrollback is pinned at full opacity — the message log itself (chatMessages) is ALWAYS in the
+// DOM and always rendering over the game world, never hidden outright like the old side panel.
+function toggleGameChat() { if (chatOpen) closeGameChat(); else openGameChat(); }
+function openGameChat() {
+  if (chatOpen) { document.getElementById('chatInput').focus(); return; }
+  chatOpen = true;
+  if(document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('chatInputBar').style.display = 'block';
+  document.getElementById('chatTab').style.display = 'none';
+  const preview = document.getElementById('chatTabPreview'); if (preview) preview.style.display = 'none'; // element only exists where the chat-tab-preview feature has actually landed
+  const box = document.getElementById('chatMessages');
+  box.style.maxHeight = '260px';
+  box.style.overflowY = 'auto';
+  // Un-fade every line currently in the log (cancel pending fade timers, restore full opacity) —
+  // opening chat shows the whole live scrollback the same way Minecraft does, not just whatever
+  // hadn't faded yet.
+  [...box.children].forEach(div => { clearTimeout(div._fadeTimer); div.style.opacity = '1'; div.style.display = ''; });
+  box.scrollTop = box.scrollHeight;
+  document.getElementById('chatInput').focus();
 }
 function closeGameChat() {
-  document.getElementById('chatPanel').style.display = 'none';
+  chatOpen = false;
+  document.getElementById('chatInputBar').style.display = 'none';
+  document.getElementById('chatInput').blur();
+  document.getElementById('chatEmojiPicker').style.display = 'none';
   document.getElementById('chatTab').style.display = 'block';
+  const box = document.getElementById('chatMessages');
+  box.style.maxHeight = '132px';
+  box.style.overflowY = 'hidden';
+  box.scrollTop = box.scrollHeight;
+  // Back to normal play — every currently-visible line starts fading again from now, same as a
+  // freshly-posted message would.
+  [...box.children].forEach(div => scheduleMsgFade(div));
   if(renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+// "also add emojis" — user's own ask, right after the Minecraft-chat rework above. A plain grid
+// (#chatEmojiPicker, index.html) toggled by the 😀 button next to Send; picking one inserts it at
+// the real cursor position (not just appended to the end) so it works mid-sentence too, then puts
+// the cursor right after it and refocuses the input so you can keep typing or send immediately.
+function toggleEmojiPicker() {
+  const p = document.getElementById('chatEmojiPicker');
+  p.style.display = p.style.display === 'none' ? 'grid' : 'none';
+}
+function insertChatEmoji(emoji) {
+  const input = document.getElementById('chatInput');
+  const start = input.selectionStart ?? input.value.length, end = input.selectionEnd ?? input.value.length;
+  input.value = input.value.slice(0, start) + emoji + input.value.slice(end);
+  const pos = start + emoji.length;
+  input.focus();
+  input.setSelectionRange(pos, pos);
 }
 
 function handleMailboxMessage(msg) {

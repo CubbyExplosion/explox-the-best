@@ -1740,7 +1740,7 @@
       <div id="navHudDist" style="color:#888;font-size:10px;"></div>
     </div>
   </div>
-  <div id="controls">WASD — Move &nbsp;|&nbsp; Shift — Run &nbsp;|&nbsp; Space — Jump &nbsp;|&nbsp; Mouse — Look &nbsp;|&nbsp; E — Interact &nbsp;|&nbsp; F — Fight &nbsp;|&nbsp; Q — Grenade &nbsp;|&nbsp; B — Bag &nbsp;|&nbsp; T — SAI &nbsp;|&nbsp; M — Music &nbsp;|&nbsp; G — Add Ons &nbsp;|&nbsp; Click screen to start</div>
+  <div id="controls">WASD — Move &nbsp;|&nbsp; Shift — Run &nbsp;|&nbsp; Space — Jump &nbsp;|&nbsp; Mouse — Look &nbsp;|&nbsp; E — Interact &nbsp;|&nbsp; F — Fight &nbsp;|&nbsp; Enter — Chat &nbsp;|&nbsp; Q — Grenade &nbsp;|&nbsp; B — Bag &nbsp;|&nbsp; T — SAI &nbsp;|&nbsp; M — Music &nbsp;|&nbsp; G — Add Ons &nbsp;|&nbsp; Click screen to start</div>
 
   <!-- MOBILE TOUCH CONTROLS — only visible on touch-primary devices -->
   <div id="mobileControls">
@@ -1774,22 +1774,57 @@
   <button id="musicBtn" onclick="toggleBgMusic()" title="Toggle music" style="position:fixed;top:278px;right:14px;z-index:20;pointer-events:auto;background:rgba(0,0,0,0.5);border:1px solid #555;border-radius:8px;color:#fff;font-size:16px;padding:5px 10px;cursor:pointer;line-height:1;">🎵</button>
   <div id="seasonHud" onclick="openCalendar()" style="position:fixed;top:240px;right:14px;color:#fff;font-size:12px;background:rgba(0,0,0,0.5);padding:7px 12px;border-radius:8px;cursor:pointer;pointer-events:auto;white-space:nowrap;"></div>
 
-  <!-- CHAT PANEL — "a normal chat so u can talk", a real shared chat everyone online can see and
+  <!-- CHAT PANEL — Minecraft-style: an always-present overlay in the bottom-left corner (not a
+       panel you have to open first). Recent lines sit semi-transparent over the game world and
+       fade out on their own (chatAddMsg()/scheduleMsgFade(), game-social.js) unless chat is
+       actively open (Enter key or the CHAT tab — openGameChat()), which shows the full scrollback
+       at full opacity plus the input bar. Still a real shared chat everyone online can see and
        post to, separate from SAI (a bot) and Admin Chat (commands only, 2 accounts only). Needs
        ONLINE mode — sendChatMessage()/syncChatMessages() explain why if you try offline. -->
-  <div id="chatPanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#050f18,#081828);border:2px solid #44ccff;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:320px;pointer-events:auto;max-height:85vh;overflow:hidden;">
-    <div style="color:#44ccff;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:2px;">💬 CHAT</div>
-    <p style="color:#555;font-size:9px;text-align:center;margin-bottom:8px;letter-spacing:1px;">TALK TO EVERYONE ONLINE</p>
-    <div style="display:flex;gap:4px;margin-bottom:8px;">
-      <button id="chatModePublic" onclick="setChatMode('public')" style="flex:1;padding:5px;background:#44ccff33;border:1px solid #44ccff;border-radius:6px;color:#44ccff;font-size:10px;cursor:pointer;font-weight:bold;">💬 Public</button>
-      <button id="chatModeDev" onclick="setChatMode('devtalk')" style="flex:1;padding:5px;background:none;border:1px solid #444;border-radius:6px;color:#888;font-size:10px;cursor:pointer;">📨 Dev Talk</button>
+  <div id="chatPanel" style="position:fixed;left:14px;bottom:104px;z-index:21;width:420px;max-width:44vw;pointer-events:none;">
+    <div id="chatMessages" style="display:flex;flex-direction:column;gap:1px;max-height:132px;overflow:hidden;font-family:'Courier New',monospace;"></div>
+    <div id="chatInputBar" style="display:none;margin-top:4px;pointer-events:auto;">
+      <div style="display:flex;gap:4px;margin-bottom:4px;">
+        <button id="chatModePublic" onclick="setChatMode('public')" style="flex:1;padding:4px;background:#44ccff33;border:1px solid #44ccff;border-radius:3px;color:#44ccff;font-size:10px;cursor:pointer;font-weight:bold;">💬 Public</button>
+        <button id="chatModeDev" onclick="setChatMode('devtalk')" style="flex:1;padding:4px;background:none;border:1px solid #444;border-radius:3px;color:#888;font-size:10px;cursor:pointer;">📨 Dev Talk</button>
+        <button onclick="closeGameChat()" style="padding:4px 10px;background:rgba(0,0,0,0.55);border:1px solid #666;border-radius:3px;color:#aaa;font-size:10px;cursor:pointer;">✕</button>
+      </div>
+      <!-- Emoji picker — "also add emojis", user's own ask. A plain grid of common emojis;
+           clicking one inserts it at the cursor (insertChatEmoji(), game-social.js) and keeps
+           focus + selection in the input so you can keep typing or send right away. -->
+      <div id="chatEmojiPicker" style="display:none;grid-template-columns:repeat(8,1fr);gap:2px;background:rgba(0,0,0,0.75);border:1px solid #ffffff55;border-radius:3px;padding:5px;margin-bottom:4px;">
+        <button type="button" onclick="insertChatEmoji('😀')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">😀</button>
+        <button type="button" onclick="insertChatEmoji('😂')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">😂</button>
+        <button type="button" onclick="insertChatEmoji('😍')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">😍</button>
+        <button type="button" onclick="insertChatEmoji('😎')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">😎</button>
+        <button type="button" onclick="insertChatEmoji('😭')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">😭</button>
+        <button type="button" onclick="insertChatEmoji('😡')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">😡</button>
+        <button type="button" onclick="insertChatEmoji('🤔')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">🤔</button>
+        <button type="button" onclick="insertChatEmoji('😴')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">😴</button>
+        <button type="button" onclick="insertChatEmoji('👍')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">👍</button>
+        <button type="button" onclick="insertChatEmoji('👎')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">👎</button>
+        <button type="button" onclick="insertChatEmoji('❤️')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">❤️</button>
+        <button type="button" onclick="insertChatEmoji('🔥')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">🔥</button>
+        <button type="button" onclick="insertChatEmoji('💯')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">💯</button>
+        <button type="button" onclick="insertChatEmoji('🎉')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">🎉</button>
+        <button type="button" onclick="insertChatEmoji('💀')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">💀</button>
+        <button type="button" onclick="insertChatEmoji('🥳')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">🥳</button>
+        <button type="button" onclick="insertChatEmoji('🤣')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">🤣</button>
+        <button type="button" onclick="insertChatEmoji('😱')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">😱</button>
+        <button type="button" onclick="insertChatEmoji('🙄')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">🙄</button>
+        <button type="button" onclick="insertChatEmoji('👀')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">👀</button>
+        <button type="button" onclick="insertChatEmoji('🙏')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">🙏</button>
+        <button type="button" onclick="insertChatEmoji('👋')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">👋</button>
+        <button type="button" onclick="insertChatEmoji('💰')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">💰</button>
+        <button type="button" onclick="insertChatEmoji('⚔️')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">⚔️</button>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <input id="chatInput" placeholder="Say something..." maxlength="200" onkeydown="if(event.key==='Enter'){event.stopPropagation();sendChatMessage();} if(event.key==='Escape'){event.stopPropagation();closeGameChat();}" style="flex:1;padding:7px 9px;background:rgba(0,0,0,0.55);border:1px solid #ffffff55;border-radius:2px;color:#fff;font-size:13px;font-family:'Courier New',monospace;outline:none;" onfocus="this.style.borderColor='#fff'" onblur="this.style.borderColor='#ffffff55'">
+        <button type="button" onclick="toggleEmojiPicker()" style="padding:7px 10px;background:rgba(0,0,0,0.55);border:1px solid #ffffff55;border-radius:2px;color:#fff;font-size:14px;cursor:pointer;">😀</button>
+        <button onclick="sendChatMessage()" style="padding:7px 12px;background:rgba(0,0,0,0.55);border:1px solid #ffffff55;border-radius:2px;color:#fff;font-size:13px;cursor:pointer;font-weight:bold;">→</button>
+      </div>
     </div>
-    <div id="chatMessages" style="height:220px;overflow-y:auto;overflow-x:hidden;background:rgba(68,204,255,0.04);border:1px solid #44ccff33;border-radius:8px;padding:8px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px;"></div>
-    <div style="display:flex;gap:6px;">
-      <input id="chatInput" placeholder="Say something..." maxlength="200" onkeydown="if(event.key==='Enter')sendChatMessage()" style="flex:1;padding:7px;background:rgba(255,255,255,0.06);border:1px solid #44ccff66;border-radius:6px;color:#fff;font-size:11px;outline:none;" onfocus="this.style.borderColor='#44ccff'" onblur="this.style.borderColor='#44ccff66'">
-      <button onclick="sendChatMessage()" style="padding:7px 12px;background:#0a3a5a;border:1px solid #44ccff;border-radius:6px;color:#44ccff;font-size:13px;cursor:pointer;font-weight:bold;">→</button>
-    </div>
-    <button onclick="closeGameChat()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:10px;">✕ Close</button>
+  </div>
   </div>
 
   <!-- SAI TAB -->
@@ -2812,30 +2847,30 @@ function closeMgPanel(){
 <!-- game.js (24,500 lines) was split into these files, in this exact order, so the game still
      runs identically — each file is one coherent subsystem instead of one giant file. See
      AiGame/explox/modules/README.md for how this was done and how to keep it split going forward. -->
-<script src="AiGame/explox/modules/game-core.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-economy.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-customization.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-engine.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-alignment.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-cinema.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-transit.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-social.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-shops.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-vehicles.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-housing.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-land.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-zones.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-buildings.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-character.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-district.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-shopinteriors.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-world.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-controls.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-sai.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-admin.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-bible.js?v=20260927f"></script>
-<script src="AiGame/explox/modules/game-library.js?v=20260927f"></script>
-<script src="AiGame/explox/game-builder.js?v=20260927f"></script>
+<script src="AiGame/explox/modules/game-core.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-economy.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-customization.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-engine.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-alignment.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-cinema.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-transit.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-social.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-shops.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-vehicles.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-housing.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-land.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-zones.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-buildings.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-character.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-district.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-shopinteriors.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-world.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-controls.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-sai.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-admin.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-bible.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-library.js?v=20260927h"></script>
+<script src="AiGame/explox/game-builder.js?v=20260927h"></script>
 <script>
 window.addEventListener('load', function() {
   var btn = document.getElementById('createAccBtn');
