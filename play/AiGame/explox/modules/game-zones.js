@@ -184,6 +184,81 @@ function onInteractUp() {
   pendingSwingPower = 1;
 }
 
+// Shared combat-target search used by both handleInteract() (E, after isNearCombatTarget() lets a
+// charge start — see onInteractDown() above) and tryFightKey() (F, below — no charge, no proximity
+// pre-check, works any time). Same priority order either way so E and F never disagree about what's
+// actually fightable right now. Returns true if a real target was found and attacked.
+function tryCombatSwing() {
+  const px2 = playerGroup.position.x, pz = playerGroup.position.z;
+  // A duel you've already committed to (accepted a real challenge) always takes
+  // priority, even inside the arena - real bug found live: without this, walking
+  // into the arena mid-duel silently switched your E-press over to generic FFA
+  // targeting instead of your actual opponent, with no way to keep fighting them.
+  if(dueling && serverMode === 'online' && tryDuelInteract()) return true;
+  // Arena free-for-all takes priority over open-world 1v1 duels while standing in it
+  if(inArena && serverMode === 'online' && tryFfaInteract()) return true;
+  // PvP duel: swing at your opponent if one's active, else challenge whoever's nearby
+  if(!inArena && !inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && !inMovieFight && !inShopInterior && serverMode === 'online' && tryDuelInteract()) return true;
+  // Bad guy with weapon: NPC attack takes priority over zone actions
+  if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade && !inArenaBattle && !inMovieFight && !inShopInterior) {
+    let closest = null, closestDist = 3.5;
+    for(const npc of npcs) {
+      const d = Math.sqrt((px2-npc.group.position.x)**2+(pz-npc.group.position.z)**2);
+      if(d < closestDist) { closestDist = d; closest = npc; }
+    }
+    if(closest) { attackNPC(closest); return true; }
+  }
+  // Rogue robots (item 156) roam freely into the city and can be fought back any time, same
+  // priority tier as attacking an NPC — they aren't tied to a fixed CITY_ZONES position since they move.
+  // The Movie Fight Room's single boss is its own dedicated combat target — none of the outdoor
+  // rogue robot/killer/boss systems apply inside this pocket interior.
+  if (inMovieFight && movieBossFight && movieBossFight.alive) {
+    const d = Math.sqrt((px2-movieBossFight.curX)**2+(pz-movieBossFight.curZ)**2);
+    if (d < 4.5) { fightMovieBoss(); return true; }
+  }
+  if (!inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital && !inSchool && !inShopInterior) {
+    let closestRogue = null, closestRogueDist = 3;
+    for (const r of rogueRobots) {
+      if (!r.alive) continue;
+      const d = Math.sqrt((px2-r.x)**2+(pz-r.z)**2);
+      if (d < closestRogueDist) { closestRogueDist = d; closestRogue = r; }
+    }
+    if (closestRogue) { fightRogueRobot(closestRogue); return true; }
+    // Killers (only once revealed — you can't fight what you haven't even seen yet), same tier.
+    let closestKiller = null, closestKillerDist = 3;
+    for (const k of killers) {
+      if (!k.alive || !k.revealed) continue;
+      const d = Math.sqrt((px2-k.x)**2+(pz-k.z)**2);
+      if (d < closestKillerDist) { closestKillerDist = d; closestKiller = k; }
+    }
+    if (closestKiller) { if (closestKiller.robber) fightRobber(closestKiller); else if (closestKiller.demon) fightDemon(closestKiller); else if (closestKiller.satanBoss) fightSatanBoss(closestKiller); else if (closestKiller.killerSupreme) fightKillerSupreme(closestKiller); else fightKiller(closestKiller); return true; }
+    // Bosses now chase (see tickBossChase) instead of sitting at a fixed CITY_ZONES spot, so
+    // fighting one has to be a live proximity check off its real curX/curZ, same as the two above.
+    let closestBoss = null, closestBossDist = 4.5;
+    for (const def of BOSS_DEFS) {
+      const st = bossState[def.name];
+      if (!st || !st.alive) continue;
+      const d = Math.sqrt((px2-st.curX)**2+(pz-st.curZ)**2);
+      if (d < closestBossDist) { closestBossDist = d; closestBoss = def; }
+    }
+    if (closestBoss) { fightBoss(closestBoss); return true; }
+  }
+  // Training dummy (Whispering Woods) — same real target isNearCombatTarget() already treats as
+  // fightable, checked here too so F/E both connect with it without waiting for the generic zone
+  // loop below (which only runs from handleInteract(), not from the F-key path).
+  for(const z of CITY_ZONES) { if(z.action === hitDummy && Math.hypot(px2-z.x, pz-z.z) < z.r) { hitDummy(); return true; } }
+  return false;
+}
+// F — a dedicated "just attack" key: always available, no charge, no need to already be lined up
+// with isNearCombatTarget() the instant you press it (that's only how E decides whether to START
+// charging). Reuses tryCombatSwing() so it's always looking at the exact same targets E can hit.
+// Still throws a real swing (triggerSwing()) even when nothing's in range — a genuine whiff, not a
+// silent no-op — so pressing F always visibly fights, any time, whether or not it lands.
+function tryFightKey() {
+  if (playerSeated || inCar || chargingPunch) return;
+  if (!tryCombatSwing()) triggerSwing();
+}
+
 function handleInteract() {
   const px2 = playerGroup.position.x, pz = playerGroup.position.z;
   // Stand up if seated — takes priority over everything else, same as exiting a car
@@ -237,59 +312,10 @@ function handleInteract() {
     if(carriedBoxes.length && tryPlaceBox()) return;
     if(tryPickUpBox()) return;
   }
-  // A duel you've already committed to (accepted a real challenge) always takes
-  // priority, even inside the arena - real bug found live: without this, walking
-  // into the arena mid-duel silently switched your E-press over to generic FFA
-  // targeting instead of your actual opponent, with no way to keep fighting them.
-  if(dueling && serverMode === 'online' && tryDuelInteract()) return;
-  // Arena free-for-all takes priority over open-world 1v1 duels while standing in it
-  if(inArena && serverMode === 'online' && tryFfaInteract()) return;
-  // PvP duel: swing at your opponent if one's active, else challenge whoever's nearby
-  if(!inArena && !inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && !inMovieFight && !inShopInterior && serverMode === 'online' && tryDuelInteract()) return;
-  // Bad guy with weapon: NPC attack takes priority over zone actions
-  if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade && !inArenaBattle && !inMovieFight && !inShopInterior) {
-    let closest = null, closestDist = 3.5;
-    for(const npc of npcs) {
-      const d = Math.sqrt((px2-npc.group.position.x)**2+(pz-npc.group.position.z)**2);
-      if(d < closestDist) { closestDist = d; closest = npc; }
-    }
-    if(closest) { attackNPC(closest); return; }
-  }
-  // Rogue robots (item 156) roam freely into the city and can be fought back any time, same
-  // priority tier as attacking an NPC — they aren't tied to a fixed CITY_ZONES position since they move.
-  // The Movie Fight Room's single boss is its own dedicated combat target — none of the outdoor
-  // rogue robot/killer/boss systems apply inside this pocket interior.
-  if (inMovieFight && movieBossFight && movieBossFight.alive) {
-    const d = Math.sqrt((px2-movieBossFight.curX)**2+(pz-movieBossFight.curZ)**2);
-    if (d < 4.5) { fightMovieBoss(); return; }
-  }
-  if (!inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital && !inSchool && !inShopInterior) {
-    let closestRogue = null, closestRogueDist = 3;
-    for (const r of rogueRobots) {
-      if (!r.alive) continue;
-      const d = Math.sqrt((px2-r.x)**2+(pz-r.z)**2);
-      if (d < closestRogueDist) { closestRogueDist = d; closestRogue = r; }
-    }
-    if (closestRogue) { fightRogueRobot(closestRogue); return; }
-    // Killers (only once revealed — you can't fight what you haven't even seen yet), same tier.
-    let closestKiller = null, closestKillerDist = 3;
-    for (const k of killers) {
-      if (!k.alive || !k.revealed) continue;
-      const d = Math.sqrt((px2-k.x)**2+(pz-k.z)**2);
-      if (d < closestKillerDist) { closestKillerDist = d; closestKiller = k; }
-    }
-    if (closestKiller) { if (closestKiller.robber) fightRobber(closestKiller); else if (closestKiller.demon) fightDemon(closestKiller); else if (closestKiller.satanBoss) fightSatanBoss(closestKiller); else if (closestKiller.killerSupreme) fightKillerSupreme(closestKiller); else fightKiller(closestKiller); return; }
-    // Bosses now chase (see tickBossChase) instead of sitting at a fixed CITY_ZONES spot, so
-    // fighting one has to be a live proximity check off its real curX/curZ, same as the two above.
-    let closestBoss = null, closestBossDist = 4.5;
-    for (const def of BOSS_DEFS) {
-      const st = bossState[def.name];
-      if (!st || !st.alive) continue;
-      const d = Math.sqrt((px2-st.curX)**2+(pz-st.curZ)**2);
-      if (d < closestBossDist) { closestBossDist = d; closestBoss = def; }
-    }
-    if (closestBoss) { fightBoss(closestBoss); return; }
-  }
+  // Every combat branch (duels, arena FFA, bad-alignment NPC attacks, rogue robots, killers/
+  // robbers/demons/bosses, the movie boss, the training dummy) now lives in tryCombatSwing()
+  // above, shared with the F key, so E and F always agree on what's fightable right now.
+  if (tryCombatSwing()) return;
   const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inVisitStore ? VISIT_STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : inSea ? SEA_ZONES : inSchool ? SCHOOL_ZONES : inShopInterior ? SHOP_INTERIOR_ZONES : CITY_ZONES;
   for(const z of zones) {
     if(Math.sqrt((px2-z.x)**2+(pz-z.z)**2) < z.r) { z.action(); return; }

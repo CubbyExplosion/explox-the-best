@@ -42,7 +42,7 @@ function setupControls(){
     if(e.code==='KeyD') moveState.d=true;
     if(e.code==='KeyE' && !e.repeat) onInteractDown();
     if(e.code==='KeyQ' && !e.repeat) throwCombatGrenade();
-    if(e.code==='KeyF' && !e.repeat) { fireTankCannon(); fireJetGuns(); fireMotorcycleRockets(); } // each self-gates on its own vehicle's def flag, so only one ever actually fires
+    if(e.code==='KeyF' && !e.repeat) { fireTankCannon(); fireJetGuns(); fireMotorcycleRockets(); if(!inCar){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) tryFightKey(); } } // the three vehicle-fire calls each self-gate on inCar/their own def flag and no-op on foot; tryFightKey() is F's real "attack now, any time" swing (game-zones.js) — guarded off while typing (e.g. chat), same as the other letter-key actions above
     if(e.code==='KeyV' && !e.repeat) dropJetBomb();
     if(e.code==='KeyH' && !e.repeat) toggleJetAutopilot();
     if(e.code==='KeyI'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) eatIceCream(); }

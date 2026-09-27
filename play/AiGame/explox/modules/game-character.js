@@ -554,6 +554,10 @@ const EMOTE_CATALOG = (function(){
           repeat:   2 + Math.floor(rng()*3),      // 2-4 repeats, for the families that oscillate (wave/clap/cheer/laugh/cry/spin)
           side:     rng() < 0.5 ? 1 : -1,         // mirrors one-armed emotes left/right
           flourish: rng(),                         // 0-1 dial a few families use for a bonus flick/hop/twist
+          // 0-7, unique per family (4 tiers x 2 variants) — lets a family with real distinct
+          // sub-styles (currently just 'dance') pick a genuinely different choreography per variant
+          // instead of just remixing speed/amp/flourish on one shared motion.
+          styleIndex: EMOTE_TIER_ORDER.indexOf(tierId)*EMOTE_VARIANTS_PER_TIER + v,
         };
         const price = Math.max(50, Math.round(tier.basePrice * (0.85 + rng()*0.3) / 5) * 5); // jittered +/-15%, same "derive off a base, don't hand-type" spirit as craftCostForPrice()'s material weights
         out.push({ id, family:famId, tier:tierId, name, price, params, emoji: EMOTE_FAMILY_EMOJI[famId] });
@@ -596,7 +600,7 @@ function applyEmotePose(b, familyId, elapsed, params) {
   lSh.rotation.set(0,0,0); rSh.rotation.set(0,0,0);
   lHip.rotation.set(0,0,0); rHip.rotation.set(0,0,0);
   const p = params || {speed:1,amp:1,repeat:3,side:1,flourish:0};
-  const speed=p.speed||1, amp=p.amp||1, repeat=p.repeat||3, side=p.side>=0?1:-1, flourish=p.flourish||0;
+  const speed=p.speed||1, amp=p.amp||1, repeat=p.repeat||3, side=p.side>=0?1:-1, flourish=p.flourish||0, styleIndex=p.styleIndex||0;
   const et = elapsed*speed; // "logical" time — a faster variant simply reaches every stage sooner
   const fam = EMOTE_FAMILIES[familyId];
   const dur = fam ? fam.baseDuration : 0;
@@ -616,20 +620,88 @@ function applyEmotePose(b, familyId, elapsed, params) {
     }
     case 'dance': {
       const beat = et*2*Math.PI*0.9; // keeps climbing the whole time it's active — a real loop, not a one-shot
-      // A secondary wiggle layered on top of the main beat, whose rate depends on `repeat` — low-repeat
-      // variants dance smooth and simple, high-repeat variants get a busier, fidgetier style.
-      const styleBeat = Math.sin(beat*(0.5 + repeat*0.25));
-      hips.rotation.y = Math.sin(beat)*0.25*amp*side;
-      hips.position.y = hips._emoteRestY + Math.abs(Math.sin(beat))*0.12*amp + flourish*0.05;
-      spine.rotation.z = Math.sin(beat*0.5)*0.12*amp + styleBeat*0.06*amp;
-      lSh.rotation.x = Math.sin(beat+Math.PI)*0.9*amp - 0.3 + styleBeat*0.15*amp;
-      rSh.rotation.x = Math.sin(beat)*0.9*amp - 0.3 - styleBeat*0.15*amp;
-      lSh.rotation.z = Math.cos(beat)*0.2*amp;
-      rSh.rotation.z = -Math.cos(beat)*0.2*amp;
-      lHip.rotation.x = Math.sin(beat)*0.3*amp;
-      rHip.rotation.x = -Math.sin(beat)*0.3*amp;
-      head.rotation.z = Math.sin(beat*0.5)*0.15*amp;
-      head.rotation.y = styleBeat*0.08*flourish;
+      // 8 genuinely different dance choreographies (one per family+tier variant, via styleIndex —
+      // see EMOTE_CATALOG above) instead of one shared motion remixed by speed/amp/flourish. Each
+      // style moves a different set of joints in a different pattern, so variants are distinguishable
+      // by silhouette alone, not just by how big/fast the same wiggle plays.
+      switch(styleIndex % 8){
+        case 0: { // Robot — phase quantized to 90-degree steps for a jerky, isolated snap
+          const snap = Math.round(beat/(Math.PI/2))*(Math.PI/2);
+          const armPhase = Math.sin(snap);
+          lSh.rotation.x = -0.7 + armPhase*0.7*amp; rSh.rotation.x = -0.7 - armPhase*0.7*amp;
+          lSh.rotation.z = Math.cos(snap)*0.5*amp; rSh.rotation.z = -Math.cos(snap)*0.5*amp;
+          head.rotation.y = Math.sign(Math.sin(snap*0.5))*0.2*(0.3+flourish);
+          hips.rotation.y = Math.sign(Math.sin(snap*0.5))*0.08*side;
+          break;
+        }
+        case 1: { // Disco Point — alternating overhead point, hip sway underneath
+          const rPoint = Math.sin(beat);
+          lSh.rotation.x = -0.3 - Math.max(0,-rPoint)*1.6*amp;
+          rSh.rotation.x = -0.3 - Math.max(0, rPoint)*1.6*amp;
+          lSh.rotation.z = Math.max(0,-rPoint)*0.5; rSh.rotation.z = -Math.max(0,rPoint)*0.5;
+          hips.rotation.z = Math.sin(beat*0.5)*0.15*amp*side;
+          head.rotation.y = Math.sin(beat*0.5)*0.1;
+          break;
+        }
+        case 2: { // Floss — arms swing opposite front/back past the hips, hips counter-twist
+          const swing = Math.sin(beat*1.3);
+          lSh.rotation.x = -0.4 + swing*1.1*amp; rSh.rotation.x = -0.4 - swing*1.1*amp;
+          lSh.rotation.z = 0.25; rSh.rotation.z = -0.25;
+          hips.rotation.y = -swing*0.25*amp*side;
+          hips.rotation.x = Math.abs(swing)*0.05;
+          spine.rotation.y = swing*0.1*flourish;
+          break;
+        }
+        case 3: { // Headbang — fast head bang + one-arm fist pump on the beat
+          const bang = Math.abs(Math.sin(beat*1.5));
+          head.rotation.x = -0.1 + bang*0.5*amp;
+          spine.rotation.x = bang*0.15;
+          leadSh.rotation.x = -1.2*bang; leadSh.rotation.z = -side*0.1;
+          const otherSh = side>=0 ? lSh : rSh;
+          otherSh.rotation.x = -0.3;
+          hips.position.y = hips._emoteRestY + bang*0.05*(0.3+flourish);
+          break;
+        }
+        case 4: { // Hip-Bump Shuffle — side-to-side hip bump, arms counter-sway
+          const bump = Math.sin(beat);
+          hips.rotation.z = bump*0.35*amp;
+          hips.position.y = hips._emoteRestY + Math.abs(Math.sin(beat*2))*0.03;
+          spine.rotation.z = -bump*0.15;
+          lSh.rotation.z = -bump*0.2; rSh.rotation.z = bump*0.2;
+          lSh.rotation.x = -0.25; rSh.rotation.x = -0.25;
+          head.rotation.z = bump*0.1*flourish;
+          break;
+        }
+        case 5: { // Moonwalk Groove — smooth backward lean with a slow gliding arm roll
+          const glide = Math.sin(beat*0.6);
+          spine.rotation.x = -0.12 - Math.abs(glide)*0.08*amp;
+          hips.rotation.x = -0.08*amp;
+          hips.position.y = hips._emoteRestY - Math.abs(Math.sin(beat*1.2))*0.04;
+          lSh.rotation.x = -0.5 + Math.sin(beat*1.2)*0.3*amp;
+          rSh.rotation.x = -0.5 + Math.sin(beat*1.2+Math.PI)*0.3*amp;
+          lSh.rotation.z = 0.15*flourish; rSh.rotation.z = -0.15*flourish;
+          head.rotation.z = Math.sin(beat*0.5)*0.05;
+          break;
+        }
+        case 6: { // Body-Roll Wave — a wave travels head -> spine -> hips with phase offsets
+          head.rotation.x = Math.sin(beat)*0.15*amp;
+          spine.rotation.x = Math.sin(beat-0.6)*0.18*amp;
+          hips.rotation.x = Math.sin(beat-1.2)*0.15*amp;
+          hips.position.y = hips._emoteRestY + Math.sin(beat-1.2)*0.03;
+          lSh.rotation.x = -0.4 + Math.sin(beat-0.3)*0.2*amp;
+          rSh.rotation.x = -0.4 + Math.sin(beat-0.3)*0.2*amp;
+          lSh.rotation.z = flourish*0.15*Math.sin(beat); rSh.rotation.z = -flourish*0.15*Math.sin(beat);
+          break;
+        }
+        case 7: { // Spin-Shimmy — fast shoulder shimmy layered on a slow continuous turn
+          const shimmy = Math.sin(beat*6)*0.12*amp;
+          lSh.rotation.z = 0.3 + shimmy; rSh.rotation.z = -0.3 - shimmy;
+          lSh.rotation.x = -0.5; rSh.rotation.x = -0.5;
+          hips.rotation.y = beat*0.15*side;
+          head.rotation.y = shimmy*0.5;
+          break;
+        }
+      }
       break;
     }
     case 'sit': {
