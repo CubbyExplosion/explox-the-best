@@ -217,12 +217,59 @@ function setMobDifficulty(diff) {
   // MOB_DIFFICULTY_MULT[diff] is 0 for 'peaceful' — a falsy `if(!MOB_DIFFICULTY_MULT[diff])` guard
   // would wrongly reject picking it, so this checks for the KEY existing, not a truthy value.
   if (MOB_DIFFICULTY_MULT[diff] === undefined) return;
+  const oldMult = mobDifficultyMult();
   mobDifficulty = diff;
+  const newMult = mobDifficultyMult();
   saveCurrentUser();
   renderMobDifficultyPanel();
+  const affected = applyMobDifficultyInstantly(oldMult, newMult);
   showNotif(diff === 'peaceful'
-    ? `🕊️ Peaceful mode on — Killers, Robots, Robbers, and Demons will stop spawning from here on. Anything already out there stays until you deal with it.`
-    : `⚔️ Mob difficulty set to ${MOB_DIFFICULTY_LABELS[diff]} — new mobs use it from here on (won't retroactively change anything already on the field).`);
+    ? `🕊️ Peaceful mode on — ${affected} Killer${affected===1?'':'s'}/Robot${affected===1?'':'s'} already out there just vanished, and none will spawn again until you leave Peaceful.`
+    : `⚔️ Mob difficulty set to ${MOB_DIFFICULTY_LABELS[diff]} — ${affected ? `${affected} mob${affected===1?'':'s'} already out there just got rescaled to match, and n` : 'n'}ew mobs use it from here on.`);
+}
+// Real user ask: "make it so when you go to peaceful or any other make it so they instantly
+// change" — mob difficulty used to only affect FUTURE spawns; anything already alive stayed at
+// its old HP/tier until the player dealt with it (see the old notification text this replaced).
+// Outgoing mob damage already read mobDifficultyMult() LIVE at hit-time everywhere it's dealt
+// (damagePlayer(...*mobDifficultyMult()) throughout game-land.js/game-world.js), so that part was
+// always instant — only each mob's already-spawned HP (baked in once at spawn via KILLER_HP()/
+// ROBBER_HP()/DEMON_HP()/robotPowerMult(), never recomputed) needed catching up here. Covers every
+// array mob difficulty actually applies to: `killers` (the ambient Killer/Robber/Demon/Killer
+// Supreme/Spy Ambusher/Guard Killer subtypes all share this one array, distinguished by their own
+// boolean flags — none of them store a powerMult since their HP fns read mobDifficultyMult()
+// directly), `robots` and `rogueRobots` (both DO store `powerMult` = robotPowerMult() = an
+// eliteLevel-based factor times mobDifficultyMult() — but since eliteLevel hasn't changed here,
+// the ratio between the OLD and NEW mobDifficultyMult() alone is still the exact right scale
+// factor for their HP too). War Territory NPCs are a deliberately separate system (their own
+// getRobotDamage()/getWeaponDamage() scaling, nothing to do with mobDifficulty) and are NOT
+// touched here, matching this feature's existing spawn-gate scope (isPeacefulMode() call sites).
+function applyMobDifficultyInstantly(oldMult, newMult) {
+  const pools = [killers, robots, rogueRobots];
+  let affected = 0;
+  if (newMult === 0) {
+    // Peaceful — remove the mob properly (mesh + any real CITY_ZONES/CITY_COLS entry) instead of
+    // leaving a 0-HP corpse standing around; same alive:false + scene.remove(mesh) convention
+    // clearGuardKillers() (game-land.js) already uses for a mass-despawn. No reward/drop — the
+    // player didn't defeat these, they just chose not to fight tonight.
+    pools.forEach(pool => pool.forEach(m => {
+      if (!m.alive) return;
+      m.alive = false;
+      if (m.mesh) scene.remove(m.mesh);
+      if (m.zone) { const zi = CITY_ZONES.indexOf(m.zone); if (zi > -1) CITY_ZONES.splice(zi, 1); } // robots only — killers/rogueRobots are checked by live array proximity, no zone entry to clean up
+      if (m.col) { const ci = CITY_COLS.indexOf(m.col); if (ci > -1) CITY_COLS.splice(ci, 1); }
+      affected++;
+    }));
+    return affected;
+  }
+  if (oldMult === 0 || oldMult === newMult) return 0; // nothing alive to rescale coming out of Peaceful (everything was just cleared above), or no real change
+  const ratio = newMult / oldMult;
+  pools.forEach(pool => pool.forEach(m => {
+    if (!m.alive) return;
+    m.maxHp = Math.max(1, Math.round(m.maxHp * ratio));
+    m.hp = Math.max(1, Math.round(m.hp * ratio));
+    affected++;
+  }));
+  return affected;
 }
 function renderMobDifficultyPanel() {
   const list = document.getElementById('mobDifficultyList');
