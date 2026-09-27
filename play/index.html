@@ -4,6 +4,25 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Explox</title>
+  <!-- GOOGLE H5 GAMES ADS (Ad Placement API) — "get ads so they watch them, others advertise" +
+       "make the rewarded and the break thing" (user's own asks). Loaded as early as possible per
+       Google's own guidance so ad-preloading has time to work. adBreak()/adConfig() are pushed
+       onto the adsbygoogle queue immediately (real Google shim, not something we wrote) — safe to
+       call before the real script below even finishes loading.
+       *** ca-pub-XXXXXXXXXXXXXXXX is a PLACEHOLDER — replace it with your real AdSense publisher
+       ID once you've signed up at adsense.google.com and been approved, THEN remove
+       data-adbreak-test="on" to serve real (paying) ads instead of Google's test creative. Until
+       then this shows real Google test ads, which is genuinely useful for verifying the whole
+       flow works before you're earning real money from it. ***
+       Docs: https://developers.google.com/ad-placement -->
+  <script async
+    data-adbreak-test="on"
+    src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"
+    crossorigin="anonymous"></script>
+  <script>
+    window.adsbygoogle = window.adsbygoogle || [];
+    var adBreak = window.adBreak = window.adConfig = function(o) { window.adsbygoogle.push(o); };
+  </script>
   <!-- TOUCH DETECTION — runs before first paint so the on-screen controls are already showing when
        the page renders. Adds `touch` (or `no-touch`) to <html>; the CSS below keys the mobile
        controls / arcade pads / shrunk side-tabs off that class in addition to @media(pointer:coarse),
@@ -189,6 +208,11 @@
        value down by 38px — this whole stack is fixed pixel positions, not a flex stack, so
        inserting it near #sipHud would mean touching ~10 unrelated rules for no functional gain. */
     #cashHud       { position:fixed; top:544px; right:14px; color:#7CFC8A; font-size:13px; font-weight:bold; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; }
+    /* Watch Ad button — "get ads so they watch them" + "make the rewarded and the break thing"
+       (user's own asks). Same append-at-the-end-of-the-stack convention as #cashHud's own comment
+       above, next free 38px slot after it. */
+    #watchAdHud    { position:fixed; top:582px; right:14px; color:#ffb3ec; font-size:12px; font-weight:bold; background:rgba(50,0,50,0.55); border:1px solid #cc44aa; padding:7px 12px; border-radius:8px; cursor:pointer; }
+    #watchAdHud:hover { background:rgba(70,0,70,0.7); }
     #healthHud     { position:fixed; top:60px; left:14px; z-index:15; background:rgba(0,0,0,0.5); padding:8px 12px; border-radius:8px; }
     #healthBarBg   { width:150px; height:14px; background:#330000; border:1px solid #ff4444; border-radius:7px; overflow:hidden; }
     #healthBarFill { width:100%; height:100%; background:linear-gradient(90deg,#ff4444,#ff8844); transition:width 0.2s; }
@@ -1686,6 +1710,7 @@
   <div id="sitePlayersHud" style="display:none;">🌍 <span id="sitePlayerCount">1</span> people play Explox</div>
   <div id="sipHud">💰 <span id="sipAmount">500</span> S.I.P.</div>
   <div id="cashHud">💵 $<span id="cashAmount">0</span> Cash</div>
+  <div id="watchAdHud" onclick="watchRewardAd()">📺 Watch Ad +150 S.I.P.</div>
   <div id="bagHud">🎒 <span id="bagItems">empty</span></div>
   <div id="jobHud">💼 No Job</div>
   <div id="alignmentHud">😈 BAD GUY MODE</div>
@@ -2847,30 +2872,30 @@ function closeMgPanel(){
 <!-- game.js (24,500 lines) was split into these files, in this exact order, so the game still
      runs identically — each file is one coherent subsystem instead of one giant file. See
      AiGame/explox/modules/README.md for how this was done and how to keep it split going forward. -->
-<script src="AiGame/explox/modules/game-core.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-economy.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-customization.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-engine.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-alignment.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-cinema.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-transit.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-social.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-shops.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-vehicles.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-housing.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-land.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-zones.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-buildings.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-character.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-district.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-shopinteriors.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-world.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-controls.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-sai.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-admin.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-bible.js?v=20260927h"></script>
-<script src="AiGame/explox/modules/game-library.js?v=20260927h"></script>
-<script src="AiGame/explox/game-builder.js?v=20260927h"></script>
+<script src="AiGame/explox/modules/game-core.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-economy.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-customization.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-engine.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-alignment.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-cinema.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-transit.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-social.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-shops.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-vehicles.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-housing.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-land.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-zones.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-buildings.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-character.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-district.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-shopinteriors.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-world.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-controls.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-sai.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-admin.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-bible.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-library.js?v=20260927i"></script>
+<script src="AiGame/explox/game-builder.js?v=20260927i"></script>
 <script>
 window.addEventListener('load', function() {
   var btn = document.getElementById('createAccBtn');

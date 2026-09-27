@@ -1176,6 +1176,12 @@ function applyDeathLossAndDrop(x, z, suppressNotif) {
   return loot;
 }
 function knockoutPlayer() {
+  // "make the ... break thing" (user's own ask) — a real Google H5 Games Ads interstitial
+  // (adBreak(), game-customization.js sets up adConfig()) at the one real choke point EVERY
+  // knockout/respawn already passes through, regardless of which branch below actually runs.
+  // Google's own overlay covers the whole screen while an ad shows, so nothing else here needs to
+  // pause — same "a natural break between game states" placement Google's own docs recommend.
+  adBreak({ type: 'start', name: 'respawn-break' });
   if(wrathActive) endWrathAfterDeath(); // "attacks until you die" — the chase always ends here, never by outrunning it
   // Captured BEFORE any branch below teleports the player away, so the death-drop pile always
   // lands at the real spot the knockout happened, in every context.

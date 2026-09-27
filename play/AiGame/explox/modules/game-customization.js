@@ -826,6 +826,35 @@ function queueEarning(sip, elite, source) {
   saveCurrentUser();
 }
 
+// ─── WATCH-AD REWARD — "get ads so they watch them, others advertise" + "make the rewarded and
+// the break thing" (user's own asks). Uses Google's real H5 Games Ads Ad Placement API
+// (adBreak()/adConfig(), loaded in index.html's <head> — see the setup comment there for the
+// placeholder publisher ID you need to swap in). One-time config call, tells the ad SDK this game
+// has audio and to start preloading ad breaks in the background.
+adConfig({ preloadAdBreaks: 'on', sound: 'on' });
+const REWARD_AD_SIP = 150; // a modest bonus — comparable to a Common-tier emote's price, not a way to bypass the real economy
+const REWARD_AD_COOLDOWN_MS = 5 * 60 * 1000; // 5 real minutes between claims, on top of whatever frequency capping Google's own ad delivery already applies
+let nextRewardAdAt = 0;
+// Called by the 📺 Watch Ad HUD button (index.html). type:'reward' is Google's real opt-in ad
+// format — beforeReward hands back showAdFn(); calling it immediately is fine here since the
+// player's own click on the HUD button IS the real opt-in gesture Google requires, so there's no
+// need for a second confirm step on top of it (unlike Google's own doc example, which adds one
+// because ITS ad break isn't already behind a dedicated button).
+function watchRewardAd() {
+  const remaining = nextRewardAdAt - Date.now();
+  if (remaining > 0) { showNotif(`📺 Next ad bonus available in ${Math.ceil(remaining / 1000)}s.`); return; }
+  adBreak({
+    type: 'reward',
+    name: 'sip-bonus',
+    beforeReward: (showAdFn) => { showAdFn(); },
+    adViewed: () => {
+      nextRewardAdAt = Date.now() + REWARD_AD_COOLDOWN_MS;
+      queueEarning(REWARD_AD_SIP, 0, 'watching an ad');
+    },
+    adDismissed: () => { showNotif('📺 Ad skipped — no bonus this time.'); },
+  });
+}
+
 // ─── GROWTH — a real, shared "age up" system driven by accumulated real PLAY seconds (same
 // convention as elderLifespans below: only ticks while actually playing, not wall-clock time).
 // Used by the player's own body AND by adopted/baby children so "growing up" means the same
