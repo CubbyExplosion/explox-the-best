@@ -579,7 +579,36 @@ let playerSwingStart = -999; // 't' (clock.getElapsedTime()) when the last swing
 let playerSwingPower = 1; // 0-1, how charged the swing currently animating was — read alongside playerSwingStart
 let pendingSwingPower = 1; // set right before the charge-release handleInteract() call, consumed once by the next triggerSwing()
 const SWING_DURATION = 0.25;
-function triggerSwing() { if(clock){ playerSwingStart = clock.getElapsedTime(); playerSwingPower = pendingSwingPower; } }
+// 10 real fight-move choreographies (FIGHT_MOVE_CATALOG, game-character.js) come free with every
+// account — no S.I.P. cost, always "owned". Listed here (not derived from the catalog) so this file
+// has a zero-dependency fallback list even though the full 30-move catalog + applySwingMove() live in
+// game-character.js (which loads AFTER this file — see EXPLOX.html's <script> order). Keep this in
+// sync with the 10 FIGHT_MOVE_CATALOG entries whose tier is 'free'.
+const FIGHT_MOVES = ['jab','cross','hook','uppercut','roundhouse','overhead_slam','thrust','spin_slash','knee_strike','haymaker'];
+// Up to 20 more moves cost real S.I.P. to unlock (buyFightMove(), game-character.js) — variant ids
+// live in FIGHT_MOVE_CATALOG there. ownedFightMoves only ever needs to record the PAID ones (the 10
+// free ones above are always considered owned — see isFightMoveOwned(), game-character.js), same
+// "don't bother persisting what's free by default" shortcut ownedEmotes doesn't get to take (emotes
+// are never free) but fits fine here.
+let ownedFightMoves = []; // paid FIGHT_MOVE_CATALOG ids actually bought — persisted in saveCurrentUser()/doLogin() (game-core.js), same shape as ownedEmotes
+// Which owned moves (free or paid) are actually active in combat right now — capped at 3
+// (enforced by equipFightMove(), game-character.js). triggerSwing() below picks a real random move
+// from THIS array, not from the full 30-move catalog, so buying a move does nothing in a real fight
+// until it's actually equipped. Seeded to the first 3 free moves for a brand-new account by doLogin()
+// (game-core.js) so combat is never broken out of the box.
+let equippedMoves = [];
+let activeSwingMove = FIGHT_MOVES[0]; // real move id the swing currently animating is playing — set by triggerSwing() below, read every frame by animate() (game-controls.js)
+function triggerSwing() {
+  if(clock){
+    playerSwingStart = clock.getElapsedTime();
+    playerSwingPower = pendingSwingPower;
+    // Real random pick from whatever's actually equipped — every one of the ~14 existing combat call
+    // sites gets this for free since they all just call triggerSwing()/swingAndHit() unchanged.
+    // equippedMoves should never be empty in practice (doLogin() seeds it), but a hardcoded fallback
+    // keeps a fight working even in that edge case rather than erroring or freezing the swing pose.
+    activeSwingMove = (equippedMoves && equippedMoves.length) ? equippedMoves[Math.floor(Math.random()*equippedMoves.length)] : 'jab';
+  }
+}
 // Guns get their own real feedback — a visible tracer round (fireWarShot, game-world.js — same
 // one war NPCs/the Bank wall already fire) plus the gunshot sound, instead of the melee
 // clang/hit noise. Every combat function below routes its swing+sound through here rather than

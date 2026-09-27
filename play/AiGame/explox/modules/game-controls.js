@@ -672,6 +672,7 @@ function animate(){
   // fire-and-forget setTimeout chain that could drift out of sync with the render loop. A
   // harder charge (playerSwingPower, baked in by triggerSwing() at release time) swings both
   // the arm and any held weapon further and a touch slower, so it reads as heavier landing.
+  let swingActive = false; // hoisted so the eating-arm block below can check it too, without recomputing the swing-window math a second time
   if(chargingPunch) {
     const heldT = Math.min(t - punchChargeStart, PUNCH_MAX_CHARGE);
     const chargeFrac = heldT / PUNCH_MAX_CHARGE;
@@ -684,15 +685,55 @@ function animate(){
     if(chargeHud) chargeHud.style.display = 'none';
     const swingElapsed = t - playerSwingStart;
     const swingWindow = SWING_DURATION + playerSwingPower*0.15;
-    const swingActive = swingElapsed >= 0 && swingElapsed < swingWindow;
+    swingActive = swingElapsed >= 0 && swingElapsed < swingWindow;
     const arc = swingActive ? Math.sin((swingElapsed/swingWindow)*Math.PI) : 0; // 0 -> 1 -> 0, smooth in and out
-    if(player.rightShoulderBone) {
-      if(swingActive) { player.rightShoulderBone.rotation.x = -0.3 + arc*(1.0 + playerSwingPower*0.9); player.rightShoulderBone.rotation.z = -0.1 + arc*0.25; }
-      else player.rightShoulderBone.rotation.z = 0; // rotation.x while idle/walking is already owned by the walk cycle above
+    // 30 real distinct fight-move choreographies (FIGHT_MOVE_CATALOG/applySwingMove(), game-character.js)
+    // now share this one swing window instead of every attack playing the same single animation —
+    // activeSwingMove (game-economy.js) is (re)picked by triggerSwing() every time a hit lands, from
+    // whatever the player currently has equipped. applySwingMove() only ever sets bones as bare
+    // multiples of `arc`, so it's always at (or essentially at) rest right as swingActive flips true.
+    if(swingActive) {
+      applySwingMove(activeSwingMove, player, arc, playerSwingPower);
+    } else {
+      // Not swinging — clean up every bone a fight move could have touched that NOTHING else resets
+      // this frame. rotation.x on rightShoulderBone/leftShoulderBone and BOTH axes on
+      // leftHipBone/rightHipBone are already fully re-set every frame by the walk cycle above (it
+      // runs earlier in this same animate() call), so touching those here would fight the walk cycle
+      // and freeze the legs/off-arm mid-stride — left alone on purpose, same as the original single-
+      // swing code already only reset rightShoulderBone.rotation.z and nothing else. hipsBone,
+      // spineBone, and BOTH shoulders' rotation.z are never touched by the walk cycle (or by the
+      // eating-arm / activeEmote blocks right below, which are mutually exclusive with swingActive
+      // anyway), so a fight move that used them would otherwise leave a stray pose stuck forever
+      // once the very short (0.25s+) swing window ends.
+      if(player.rightShoulderBone) player.rightShoulderBone.rotation.z = 0;
+      if(player.leftShoulderBone) player.leftShoulderBone.rotation.z = 0;
+      if(player.hipsBone) player.hipsBone.rotation.set(0,0,0);
+      if(player.spineBone) player.spineBone.rotation.set(0,0,0);
+      if(player.weaponGroup) { player.weaponGroup.rotation.z = -0.2; player.weaponGroup.rotation.x = 0; player.weaponGroup.rotation.y = 0; }
     }
-    if(player.weaponGroup) {
-      player.weaponGroup.rotation.z = -0.2 - arc*(1.3 + playerSwingPower*0.8);
-      player.weaponGroup.rotation.x = arc*(0.5 + playerSwingPower*0.4);
+  }
+  // Eating — raises the real right arm/hand up toward the mouth while a real eatFood() bite
+  // animation is in flight (game-engine.js's _eatingArmActive, set/cleared over the exact same
+  // real duration the 3D food sprite travels for). Guarded off whenever the punch-charge or
+  // swing animations above are using this same shoulder bone this frame — same "don't fight
+  // the walk cycle" guard style the charge/swing code above already uses — so eating never
+  // stomps a fight in progress (in practice the two inputs can't fire at the same time anyway).
+  if (typeof _eatingArmActive !== 'undefined' && _eatingArmActive && !chargingPunch && !swingActive && player.rightShoulderBone) {
+    player.rightShoulderBone.rotation.x = -2.05 + Math.sin(t*13)*0.12; // held up near the mouth with a small real chewing bob
+    player.rightShoulderBone.rotation.z = -0.15;
+  }
+  // Emotes — real per-frame bone animation (EMOTE_CATALOG/applyEmotePose, game-character.js),
+  // started from the ☰ Menu's Emotes panel via playEmote()/buyEmoteVariant(). Same "don't fight the
+  // walk cycle" guard the eating block just above already uses — combat/eating this exact frame
+  // keeps owning the shoulder/head bones, and a one-shot emote auto-ends once its real
+  // (speed-scaled) duration elapses.
+  if (activeEmote && !chargingPunch && !swingActive && !(typeof _eatingArmActive !== 'undefined' && _eatingArmActive)) {
+    const emoteVariant = EMOTE_CATALOG_BY_ID[activeEmote.id];
+    if (!emoteVariant) { activeEmote = null; }
+    else {
+      const emoteElapsed = t - activeEmote.startT;
+      if (emoteIsFinished(emoteVariant, emoteElapsed)) cancelEmote();
+      else applyEmotePose(player, emoteVariant.family, emoteElapsed, emoteVariant.params);
     }
   }
   // Training dummy — tips away from the hit and springs back upright (same

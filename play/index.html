@@ -1557,6 +1557,14 @@
       <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🎭</span>EMOTES
     </button>
   </div>
+    <!-- MOVES TAB — 30 real bone-driven fight moves (game-character.js's FIGHT_MOVE_CATALOG/
+         applySwingMove()), 10 free + 20 real S.I.P. unlocks, 3 equippable at once. Auto-discovered by
+         buildTabMenu() (game-controls.js) same as every other rail tab. -->
+    <div id="movesTab">
+    <button onclick="toggleMovesPanel()" style="display:block;background:linear-gradient(180deg,#2a1a0a,#4a2f0f);border:2px solid #ff9933;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
+      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🥊</span>MOVES
+    </button>
+  </div>
     <div id="testLabTab">
     <button onclick="toggleTestLabPanel()" style="display:block;background:linear-gradient(180deg,#2a1400,#4a2800);border:2px solid #ff8833;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
       <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🛠️</span>TEST LAB
@@ -1972,6 +1980,17 @@
     <p style="color:#555;font-size:9px;text-align:center;margin-bottom:8px;letter-spacing:1px;">BUY WITH REAL S.I.P. — OWNED ONES ARE PLAYABLE</p>
     <div id="emotesList" style="overflow-y:auto;flex:1;padding-right:4px;"></div>
     <button onclick="closeEmotesPanel()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:10px;">✕ Close</button>
+  </div>
+
+  <!-- FIGHT MOVES PANEL — 30 real bone-driven fight moves (game-character.js's FIGHT_MOVE_CATALOG),
+       grouped by tier; 10 free (always owned), 20 real S.I.P. unlocks (buyFightMove()). Only 3 owned
+       moves can be equipped at once (equipFightMove()/unequipFightMove()) — those are the only ones
+       triggerSwing() (game-economy.js) will actually pick for a real fight. -->
+  <div id="movesPanel" style="display:none;position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#1a1005,#2a1c08);border:2px solid #ff9933;border-right:none;border-radius:14px 0 0 14px;padding:14px 12px;width:300px;pointer-events:auto;max-height:85vh;overflow:hidden;flex-direction:column;">
+    <div style="color:#ff9933;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:4px;">🥊 FIGHT MOVES</div>
+    <p style="color:#555;font-size:9px;text-align:center;margin-bottom:8px;letter-spacing:1px;">10 FREE + 20 REAL S.I.P. UNLOCKS — EQUIP UP TO 3</p>
+    <div id="movesList" style="overflow-y:auto;flex:1;padding-right:4px;"></div>
+    <button onclick="closeMovesPanel()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:10px;">✕ Close</button>
   </div>
 
   <!-- JOB TAB — hire on for ANY job in the game from one menu instead of having to walk to

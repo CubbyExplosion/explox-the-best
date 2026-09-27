@@ -1328,6 +1328,7 @@ function saveCurrentUser() {
     weapon:playerWeapon, ownedWeapons:ownedWeapons, ownedItems:ownedItems, ownedSkins:ownedSkins,
     armor:playerArmor, ownedArmor:ownedArmor,
     ownedEmotes: ownedEmotes,
+    ownedFightMoves: ownedFightMoves, equippedMoves: equippedMoves,
     alignment:alignment, wanted:wantedLevel,
     birthday: playerBirthday, ownedCars: ownedCars, ownedComputers: ownedComputers,
     ownedStore: ownedStore, ownedFurniture: ownedFurniture, ownedHouseFurniture: ownedHouseFurniture,
@@ -1811,6 +1812,14 @@ async function doLogin(name) {
   ownedItems    = d.ownedItems   || [];
   ownedSkins    = d.ownedSkins   || [];
   ownedEmotes   = Array.isArray(d.ownedEmotes) ? d.ownedEmotes : [];
+  ownedFightMoves = Array.isArray(d.ownedFightMoves) ? d.ownedFightMoves : [];
+  equippedMoves   = Array.isArray(d.equippedMoves) ? d.equippedMoves : [];
+  // Brand-new account (or an existing one that's never equipped a move) — auto-equip 3 free moves
+  // picked for maximum visual variety (a punch, a kick, a two-handed overhead slam) rather than just
+  // the first 3 in FIGHT_MOVE_DEFS' declaration order (jab/cross/hook, which are all similar-looking
+  // arm punches and gave a brand-new player almost no visible variety by default — real feedback).
+  // Real persisted state from here on; saveCurrentUser() picks this up like anything else next run.
+  if (!equippedMoves.length) equippedMoves = ['cross', 'roundhouse', 'overhead_slam'];
   alignment     = d.alignment    || 'good';
   wantedLevel   = d.wanted      || 0;
   ownedCars     = d.ownedCars     || [];

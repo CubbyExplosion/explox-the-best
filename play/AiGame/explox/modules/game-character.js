@@ -798,6 +798,454 @@ function emoteIsFinished(variant, elapsed) {
   return elapsed >= fam.baseDuration / (variant.params.speed || 1);
 }
 
+// ─── FIGHT MOVES ─────────────────────────────────────────────────────────────
+// Same real "many hand-authored choreographies sharing one function over the same rig" idea as the
+// emote system just above, aimed at combat instead of idle animation. Every attack in the game
+// (attackNPC/fightKiller/fightRobot/fightBoss/hitDummy/hitWarWall/PvP duels/FFA, etc. — ~14 real
+// combat functions across game-land.js/game-social.js/game-world.js/game-housing.js) already just
+// calls triggerSwing()/swingAndHit() (game-economy.js), which now picks a real random move id from
+// whatever the player currently has EQUIPPED and stores it in activeSwingMove — animate()
+// (game-controls.js) reads that and calls applySwingMove() below once per frame while the swing is
+// active. None of those ~14 call sites (or swingAndHit() itself) needed to change at all.
+//
+// 10 moves are free (FIGHT_MOVE_CATALOG tier:'free' — every account owns all 10, no S.I.P. needed,
+// isFightMoveOwned() below never even checks ownedFightMoves for these). The other 20 cost real
+// S.I.P. to unlock (buyFightMove()) into ownedFightMoves (game-economy.js — persisted the exact same
+// way ownedEmotes is, see saveCurrentUser()/doLogin() in game-core.js). Prices aren't hand-typed —
+// same craftHash()/craftRng()-seeded +/-15% jitter off a per-tier base price EMOTE_CATALOG above
+// already uses, just with FIGHT_MOVE_TIERS' own base prices (moves cost a bit more than emotes since
+// they actually affect combat, not just cosmetics).
+//
+// Only 3 owned moves can be EQUIPPED at once (FIGHT_MOVE_EQUIP_CAP) — equipFightMove()/
+// unequipFightMove() below manage the persisted `equippedMoves` array (game-economy.js) that
+// triggerSwing() actually draws from. doLogin() (game-core.js) auto-fills it with the first 3 free
+// moves for a brand-new account so combat is never broken out of the box.
+const FIGHT_MOVE_TIERS = {
+  free:      { label:'Free',      color:'#9aa0a6', basePrice:0     },
+  rare:      { label:'Rare',      color:'#4fc3f7', basePrice:700   },
+  epic:      { label:'Epic',      color:'#c77dff', basePrice:2500  },
+  legendary: { label:'Legendary', color:'#ffd700', basePrice:7000  },
+  mythic:    { label:'Mythic',    color:'#ff5555', basePrice:16000 },
+};
+const FIGHT_MOVE_TIER_ORDER = ['free','rare','epic','legendary','mythic'];
+// id/name/tier only — price is derived below so nobody has to hand-maintain 20 numbers in sync with
+// the tiers above. Order here is purely presentational (panel groups by tier anyway).
+const FIGHT_MOVE_DEFS = [
+  // ── 10 FREE — every account owns these from the start ──
+  { id:'jab',              name:'Jab',               tier:'free' },
+  { id:'cross',            name:'Cross',             tier:'free' },
+  { id:'hook',             name:'Hook',              tier:'free' },
+  { id:'uppercut',         name:'Uppercut',          tier:'free' },
+  { id:'roundhouse',       name:'Roundhouse Kick',   tier:'free' },
+  { id:'overhead_slam',    name:'Overhead Slam',     tier:'free' },
+  { id:'thrust',           name:'Thrust',            tier:'free' },
+  { id:'spin_slash',       name:'Spin Slash',        tier:'free' },
+  { id:'knee_strike',      name:'Knee Strike',       tier:'free' },
+  { id:'haymaker',         name:'Haymaker',          tier:'free' },
+  // ── 20 PREMIUM — real S.I.P. unlock via buyFightMove() ──
+  { id:'elbow_strike',     name:'Elbow Strike',      tier:'rare' },
+  { id:'backfist',         name:'Backfist',          tier:'rare' },
+  { id:'double_jab',       name:'Double Jab',        tier:'rare' },
+  { id:'shoulder_ram',     name:'Shoulder Ram',      tier:'rare' },
+  { id:'low_sweep',        name:'Low Sweep',         tier:'rare' },
+  { id:'flying_knee',      name:'Flying Knee',       tier:'epic' },
+  { id:'axe_kick',         name:'Axe Kick',          tier:'epic' },
+  { id:'heel_kick',        name:'Heel Kick',         tier:'epic' },
+  { id:'twin_strike',      name:'Twin Strike',       tier:'epic' },
+  { id:'spinning_backfist',name:'Spinning Backfist', tier:'epic' },
+  { id:'rising_elbow',     name:'Rising Elbow',      tier:'legendary' },
+  { id:'body_slam',        name:'Body Slam',         tier:'legendary' },
+  { id:'whirlwind_kick',   name:'Whirlwind Kick',    tier:'legendary' },
+  { id:'serpent_thrust',   name:'Serpent Thrust',    tier:'legendary' },
+  { id:'thunder_clap',     name:'Thunder Clap',      tier:'legendary' },
+  { id:'dragon_rise',      name:'Dragon Rise',       tier:'mythic' },
+  { id:'meteor_slam',      name:'Meteor Slam',       tier:'mythic' },
+  { id:'phoenix_spin',     name:'Phoenix Spin',      tier:'mythic' },
+  { id:'storm_fist',       name:'Storm Fist',        tier:'mythic' },
+  { id:'grand_finisher',   name:'Grand Finisher',    tier:'mythic' },
+];
+const FIGHT_MOVE_CATALOG = FIGHT_MOVE_DEFS.map(def => {
+  if (def.tier === 'free') return Object.assign({ price: 0 }, def);
+  const tier = FIGHT_MOVE_TIERS[def.tier];
+  const rng = craftRng(craftHash('fightmove:' + def.id));
+  const price = Math.max(50, Math.round(tier.basePrice * (0.85 + rng() * 0.3) / 5) * 5); // jittered +/-15%, same spirit as EMOTE_CATALOG's price line above
+  return Object.assign({ price }, def);
+});
+const FIGHT_MOVE_CATALOG_BY_ID = {};
+FIGHT_MOVE_CATALOG.forEach(v => { FIGHT_MOVE_CATALOG_BY_ID[v.id] = v; });
+const FIGHT_MOVE_EQUIP_CAP = 3;
+// The 10 free moves are always "owned" — ownedFightMoves (game-economy.js) only ever needs to record
+// the paid ones actually bought.
+function isFightMoveOwned(id) {
+  const v = FIGHT_MOVE_CATALOG_BY_ID[id];
+  return !!v && (v.tier === 'free' || ownedFightMoves.includes(id));
+}
+// Real S.I.P. purchase — same spendSip()/updateSIP()/saveCurrentUser()/sfx.buy() pattern
+// buyEmoteVariant() above already uses, just granting into ownedFightMoves instead of ownedEmotes.
+// Buying a move does NOT equip it — equipFightMove() below is a separate, capped step, same as
+// owning a weapon doesn't auto-wield it.
+function buyFightMove(id) {
+  const v = FIGHT_MOVE_CATALOG_BY_ID[id];
+  if (!v || v.tier === 'free' || ownedFightMoves.includes(id)) return;
+  if (sipDollars < v.price) { showNotif(`❌ Need ${v.price.toLocaleString()} S.I.P.`); return; }
+  spendSip(v.price); updateSIP();
+  ownedFightMoves.push(id);
+  saveCurrentUser();
+  sfx.buy();
+  showNotif(`✅ Unlocked the ${v.name} fight move! Equip it to use it in combat.`);
+  renderMovesPanel();
+}
+// Adds an OWNED move to the real combat rotation (equippedMoves, game-economy.js — triggerSwing()
+// there picks randomly from exactly this array). Capped at FIGHT_MOVE_EQUIP_CAP — trying to equip a
+// 4th while already full gives a real, explicit message instead of silently failing or silently
+// bumping something else off.
+function equipFightMove(id) {
+  const v = FIGHT_MOVE_CATALOG_BY_ID[id];
+  if (!v) return;
+  if (!isFightMoveOwned(id)) { showNotif(`🔒 Buy the ${v.name} move first — ${v.price.toLocaleString()} S.I.P.`); return; }
+  if (equippedMoves.includes(id)) return;
+  if (equippedMoves.length >= FIGHT_MOVE_EQUIP_CAP) { showNotif(`❌ Already have ${FIGHT_MOVE_EQUIP_CAP} moves equipped — unequip one first!`); return; }
+  equippedMoves.push(id);
+  saveCurrentUser();
+  showNotif(`⚔️ Equipped ${v.name}!`);
+  renderMovesPanel();
+}
+function unequipFightMove(id) {
+  const idx = equippedMoves.indexOf(id);
+  if (idx === -1) return;
+  equippedMoves.splice(idx, 1);
+  saveCurrentUser();
+  renderMovesPanel();
+}
+// ── FIGHT MOVES PANEL (rightTabStack's #movesTab / #movesPanel, EXPLOX.html) — same
+// toggle/close/render trio the EMOTES panel above already follows. ──
+function toggleMovesPanel() {
+  const panel = document.getElementById('movesPanel');
+  if (!panel) return;
+  if (panel.style.display === 'none') {
+    if (document.pointerLockElement) document.exitPointerLock();
+    isPointerLocked = false;
+    renderMovesPanel();
+    panel.style.display = 'flex';
+    document.getElementById('movesTab').style.display = 'none';
+  } else { closeMovesPanel(); }
+}
+function closeMovesPanel() {
+  document.getElementById('movesPanel').style.display = 'none';
+  document.getElementById('movesTab').style.display = 'block';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function renderMovesPanel() {
+  const list = document.getElementById('movesList');
+  if (!list) return;
+  let html = `<div style="color:#aaa;font-size:9px;text-align:center;margin-bottom:8px;letter-spacing:1px;">⚔️ EQUIPPED ${equippedMoves.length}/${FIGHT_MOVE_EQUIP_CAP} — ONLY EQUIPPED MOVES PLAY IN A REAL FIGHT</div>`;
+  FIGHT_MOVE_TIER_ORDER.forEach(tierId => {
+    const tier = FIGHT_MOVE_TIERS[tierId];
+    html += `<div style="color:${tier.color};font-weight:bold;font-size:12px;margin:10px 0 4px;border-bottom:1px solid #442233;padding-bottom:3px;">${tier.label.toUpperCase()}</div>`;
+    FIGHT_MOVE_CATALOG.filter(v => v.tier === tierId).forEach(v => {
+      const owned = isFightMoveOwned(v.id);
+      const equipped = equippedMoves.includes(v.id);
+      let btn;
+      if (!owned) btn = `<button class="shopBtn" onclick="buyFightMove('${v.id}')">🔒 Buy — ${v.price.toLocaleString()} S.I.P.</button>`;
+      else if (equipped) btn = `<button class="shopBtn" style="background:#5a1a1a;" onclick="unequipFightMove('${v.id}')">⏹ Unequip</button>`;
+      else btn = `<button class="shopBtn" onclick="equipFightMove('${v.id}')">▶ Equip</button>`;
+      html += `<div class="shopItem" style="margin-bottom:6px;border-color:${tier.color};${equipped?'box-shadow:0 0 8px '+tier.color+';':''}">
+        <div class="siName">🥊 ${v.name}</div>
+        <div class="siCost">${owned ? (tierId==='free' ? 'Free' : '✅ Owned') : `💰 ${v.price.toLocaleString()} S.I.P.`}</div>
+        ${btn}
+      </div>`;
+    });
+  });
+  list.innerHTML = html;
+}
+// Drives ONE frame of the given fight move on the given bone-set — the combat equivalent of
+// applyEmotePose() above, called every frame animate() (game-controls.js) has swingActive true.
+// `b` follows the same generic bone-set shape applyEmotePose() takes (only `player` actually calls
+// this today — remote players don't need to see an attacker's swing pose — but keeping the same
+// shape costs nothing and leaves the door open). `arc` is the existing 0->1->0 eased swing-progress
+// value animate() already computes from SWING_DURATION/playerSwingPower — EVERY term below is a bare
+// multiple of `arc` (or of a sine built from it), never a constant added on top, so every move is
+// guaranteed to sit at (or essentially at) the rest pose whenever arc is 0 — i.e. right as a swing
+// starts and right as it ends — instead of snapping into a mid-swing pose. `swingPower` (0-1, how
+// charged the punch was) scales each move's amplitude up a bit further, same "harder charge reads as
+// a bigger movement" idea the old single swing animation already had.
+//
+// Only the bones a given move actually cares about are set — anything else is left exactly as the
+// walk cycle (leftShoulderBone/rightShoulderBone rotation.x, leftHipBone/rightHipBone rotation.x/z)
+// or the caller's own reset branch (hipsBone, spineBone, the OTHER shoulder's rotation.z, weaponGroup
+// — game-controls.js's animate(), right where this is called) already left it earlier this exact
+// frame — see the comment there for exactly which bones each system owns.
+function applySwingMove(moveId, b, arc, swingPower) {
+  if (!b || !b.rightShoulderBone) return;
+  const hips = b.hipsBone, spine = b.spineBone, lSh = b.leftShoulderBone, rSh = b.rightShoulderBone,
+        lHip = b.leftHipBone, rHip = b.rightHipBone, wg = b.weaponGroup;
+  const a = arc, p = swingPower;
+  switch (moveId) {
+    // ── 10 FREE ──
+    case 'jab': { // fast, sharp, minimal body rotation — closest to the original single swing animation
+      rSh.rotation.x = -a * (1.1 + p * 0.6);
+      rSh.rotation.z = -a * 0.12;
+      if (wg) { wg.rotation.z = -0.2 - a * (1.1 + p * 0.6); wg.rotation.x = a * (0.3 + p * 0.25); }
+      break;
+    }
+    case 'cross': { // straight punch — the power comes from a real hip/spine twist behind it
+      hips.rotation.y = a * (0.4 + p * 0.3);
+      spine.rotation.y = a * (0.28 + p * 0.22);
+      rSh.rotation.x = -a * (1.05 + p * 0.7);
+      rSh.rotation.z = -a * 0.08;
+      if (wg) { wg.rotation.z = -0.2 - a * (1.15 + p * 0.65); wg.rotation.y = a * (0.4 + p * 0.3); }
+      break;
+    }
+    case 'hook': { // wide sideways swing with a body lean into it
+      rSh.rotation.z = -a * (1.2 + p * 0.6);
+      rSh.rotation.x = -a * 0.35;
+      spine.rotation.z = a * (0.3 + p * 0.2);
+      hips.rotation.z = a * (0.18 + p * 0.12);
+      if (wg) { wg.rotation.y = -a * (1.1 + p * 0.6); wg.rotation.z = -0.2 - a * 0.3; }
+      break;
+    }
+    case 'uppercut': { // arm arcs upward, hips/spine coil into the drive
+      rSh.rotation.x = -a * (1.4 + p * 0.5);
+      rSh.rotation.z = a * 0.3;
+      hips.rotation.x = -a * (0.2 + p * 0.15);
+      spine.rotation.x = a * (0.1 + p * 0.1);
+      if (wg) { wg.rotation.x = -a * (1.0 + p * 0.6); wg.rotation.z = -0.2 + a * 0.2; }
+      break;
+    }
+    case 'roundhouse': { // leg kicks out to the side, body leans the opposite way for balance, arms out
+      rHip.rotation.z = -a * (0.9 + p * 0.5);
+      rHip.rotation.x = -a * 0.3;
+      spine.rotation.z = -a * (0.35 + p * 0.2);
+      lSh.rotation.z = a * 0.5; rSh.rotation.z = -a * 0.5; rSh.rotation.x = -a * 0.2;
+      if (wg) wg.rotation.z = -0.2 - a * 0.15;
+      break;
+    }
+    case 'overhead_slam': { // both arms (+ weapon) raise overhead then slam down, big forward spine bend at impact
+      lSh.rotation.x = -a * (1.8 + p * 0.6); rSh.rotation.x = -a * (1.8 + p * 0.6);
+      spine.rotation.x = a * (0.4 + p * 0.3);
+      hips.rotation.x = a * (0.1 + p * 0.1);
+      if (wg) { wg.rotation.x = -a * (1.6 + p * 0.7); wg.rotation.z = -0.2; }
+      break;
+    }
+    case 'thrust': { // straight forward lunge — spine/hip lean forward, arm/weapon extends straight out
+      spine.rotation.x = a * (0.3 + p * 0.2);
+      hips.rotation.x = a * (0.15 + p * 0.15);
+      rSh.rotation.x = -a * (0.9 + p * 0.5);
+      if (wg) { wg.rotation.x = -a * (0.2 + p * 0.1); wg.rotation.z = -0.2 - a * (1.4 + p * 0.6); }
+      break;
+    }
+    case 'spin_slash': { // the whole body spins around once mid-swing before the arm/weapon lands
+      hips.rotation.y = a * (Math.PI * 2 + p * Math.PI * 0.5); // a full turn is visually a no-op, so this still reads clean at the landing frame
+      rSh.rotation.x = -a * (1.0 + p * 0.5);
+      rSh.rotation.z = -a * 0.4;
+      if (wg) { wg.rotation.y = a * (Math.PI * 2 + p * 0.6); wg.rotation.z = -0.2 - a * 0.5; }
+      break;
+    }
+    case 'knee_strike': { // one hip/leg drives up and forward, other leg planted
+      rHip.rotation.x = -a * (1.3 + p * 0.5);
+      spine.rotation.x = a * (0.25 + p * 0.15);
+      hips.rotation.x = a * 0.1;
+      rSh.rotation.x = -a * 0.4; lSh.rotation.x = -a * 0.4;
+      if (wg) wg.rotation.z = -0.2 - a * 0.3;
+      break;
+    }
+    case 'haymaker': { // the biggest/widest of the free 10 — heavy wind-up-feeling wide swing, full spine twist
+      hips.rotation.y = a * (0.6 + p * 0.4);
+      spine.rotation.y = a * (0.7 + p * 0.4);
+      rSh.rotation.z = -a * (1.6 + p * 0.8);
+      rSh.rotation.x = -a * 0.5;
+      lSh.rotation.z = a * 0.3;
+      if (wg) { wg.rotation.y = -a * (1.8 + p * 0.8); wg.rotation.z = -0.2 - a * 0.4; }
+      break;
+    }
+    // ── 20 PREMIUM ──
+    case 'elbow_strike': { // sharp, close-range elbow drive — snappier easing (a*a) than a jab's straight-line arc
+      const a2 = a * a;
+      rSh.rotation.z = -a2 * (1.3 + p * 0.6);
+      rSh.rotation.x = -a * 0.35;
+      spine.rotation.y = a * 0.1;
+      if (wg) { wg.rotation.z = -0.2 - a * 0.6; wg.rotation.x = a2 * (0.8 + p * 0.4); }
+      break;
+    }
+    case 'backfist': { // body rotates away then whips a reverse-hand strike back
+      hips.rotation.y = -a * (0.5 + p * 0.3);
+      spine.rotation.y = -a * (0.2 + p * 0.15);
+      rSh.rotation.z = a * (1.1 + p * 0.6);
+      rSh.rotation.x = -a * 0.25;
+      if (wg) { wg.rotation.y = a * (1.0 + p * 0.5); wg.rotation.z = -0.2; }
+      break;
+    }
+    case 'double_jab': { // two quick same-hand jabs — a real double pulse from one sine, not two separate timers
+      const pulse = Math.abs(Math.sin(a * Math.PI * 2));
+      rSh.rotation.x = -pulse * (1.0 + p * 0.5);
+      rSh.rotation.z = -a * 0.1;
+      if (wg) { wg.rotation.z = -0.2 - pulse * (1.0 + p * 0.5); wg.rotation.x = pulse * (0.3 + p * 0.2); }
+      break;
+    }
+    case 'shoulder_ram': { // a real tackle — spine+hips drive forward hard, both shoulders lead the charge
+      spine.rotation.x = a * (0.5 + p * 0.3);
+      hips.rotation.x = a * (0.3 + p * 0.2);
+      rSh.rotation.x = -a * (0.6 + p * 0.3); lSh.rotation.x = -a * (0.6 + p * 0.3);
+      if (wg) { wg.rotation.x = -a * (0.5 + p * 0.3); wg.rotation.z = -0.2; }
+      break;
+    }
+    case 'low_sweep': { // low wide leg sweep, body leans low, arms out for balance
+      rHip.rotation.z = -a * (1.2 + p * 0.6);
+      rHip.rotation.x = -a * 0.2;
+      spine.rotation.x = a * (0.35 + p * 0.15);
+      spine.rotation.z = a * 0.15;
+      lSh.rotation.z = a * 0.4; rSh.rotation.z = -a * 0.4;
+      if (wg) wg.rotation.z = -0.2 - a * 0.2;
+      break;
+    }
+    case 'flying_knee': { // big hip/leg drive up with a real spine arch, arms pull up into the jump
+      rHip.rotation.x = -a * (1.6 + p * 0.6);
+      spine.rotation.x = -a * (0.3 + p * 0.2);
+      hips.rotation.x = -a * 0.15;
+      rSh.rotation.x = -a * 0.5; lSh.rotation.x = -a * 0.5;
+      if (wg) wg.rotation.z = -0.2 - a * 0.25;
+      break;
+    }
+    case 'axe_kick': { // leg raises high, body slams the axe-kick down at the same time
+      rHip.rotation.x = -a * (1.7 + p * 0.5);
+      spine.rotation.x = a * (0.45 + p * 0.25);
+      hips.rotation.x = a * 0.1;
+      if (wg) { wg.rotation.x = a * (0.4 + p * 0.2); wg.rotation.z = -0.2 - a * 0.2; }
+      break;
+    }
+    case 'heel_kick': { // leg kicks backward (opposite sign from the forward kicks), spine leans into it
+      rHip.rotation.x = a * (1.3 + p * 0.5);
+      spine.rotation.x = a * (0.3 + p * 0.15);
+      rSh.rotation.z = a * 0.3; lSh.rotation.z = -a * 0.3;
+      if (wg) wg.rotation.z = -0.2 + a * 0.15;
+      break;
+    }
+    case 'twin_strike': { // both arms strike forward at once in a crossing X pattern
+      rSh.rotation.x = -a * (1.1 + p * 0.5); lSh.rotation.x = -a * (1.1 + p * 0.5);
+      rSh.rotation.z = -a * 0.4; lSh.rotation.z = a * 0.4;
+      spine.rotation.x = a * 0.15;
+      if (wg) { wg.rotation.x = -a * (0.9 + p * 0.4); wg.rotation.z = -0.2; }
+      break;
+    }
+    case 'spinning_backfist': { // like Spin Slash but the opposite rotation direction, arm led by the shoulder's z axis
+      hips.rotation.y = -a * (Math.PI * 2 + p * Math.PI * 0.5);
+      rSh.rotation.z = a * (1.3 + p * 0.6);
+      rSh.rotation.x = -a * 0.3;
+      if (wg) { wg.rotation.y = -a * (Math.PI * 2 + p * 0.5); wg.rotation.z = -0.2 - a * 0.3; }
+      break;
+    }
+    case 'rising_elbow': { // an elbow strike that rises — z-axis dominant instead of Uppercut's x-axis
+      rSh.rotation.x = -a * (1.5 + p * 0.5);
+      rSh.rotation.z = -a * (0.6 + p * 0.3);
+      hips.rotation.x = -a * (0.15 + p * 0.1);
+      spine.rotation.x = -a * 0.1;
+      if (wg) { wg.rotation.x = -a * (1.1 + p * 0.5); wg.rotation.z = -0.2; }
+      break;
+    }
+    case 'body_slam': { // a real full-body forward drive — hips+spine+both arms all lead into the weapon slam
+      hips.rotation.x = a * (0.4 + p * 0.25);
+      spine.rotation.x = a * (0.6 + p * 0.3);
+      rSh.rotation.x = -a * (1.0 + p * 0.5); lSh.rotation.x = -a * (1.0 + p * 0.5);
+      if (wg) { wg.rotation.x = -a * (1.3 + p * 0.6); wg.rotation.z = -0.2 - a * 0.3; }
+      break;
+    }
+    case 'whirlwind_kick': { // both legs sweep through a real hip spin, arms out wide, bigger than Roundhouse
+      hips.rotation.y = a * (Math.PI * 1.3 + p * Math.PI * 0.4);
+      rHip.rotation.z = -a * (1.0 + p * 0.4);
+      lHip.rotation.z = a * (0.6 + p * 0.3);
+      spine.rotation.z = -a * 0.3;
+      rSh.rotation.z = -a * 0.6; lSh.rotation.z = a * 0.6;
+      if (wg) { wg.rotation.y = a * (1.2 + p * 0.4); wg.rotation.z = -0.2; }
+      break;
+    }
+    case 'serpent_thrust': { // a quick low thrust riding a real snake-like spine/hip wiggle
+      const wig = Math.sin(a * Math.PI * 3);
+      spine.rotation.z = wig * 0.2;
+      spine.rotation.x = a * (0.25 + p * 0.15);
+      hips.rotation.z = wig * 0.12;
+      rSh.rotation.x = -a * (1.2 + p * 0.5);
+      if (wg) { wg.rotation.x = -a * (0.3 + p * 0.15); wg.rotation.z = -0.2 - a * (1.1 + p * 0.5); }
+      break;
+    }
+    case 'thunder_clap': { // both shoulders swing inward at once, like a clap landing on the target
+      rSh.rotation.z = -a * (0.9 + p * 0.4); lSh.rotation.z = a * (0.9 + p * 0.4);
+      rSh.rotation.x = -a * (0.8 + p * 0.4); lSh.rotation.x = -a * (0.8 + p * 0.4);
+      spine.rotation.x = a * (0.2 + p * 0.1);
+      hips.rotation.x = a * 0.1;
+      if (wg) { wg.rotation.x = -a * (0.7 + p * 0.3); wg.rotation.z = -0.2; }
+      break;
+    }
+    case 'dragon_rise': { // an uppercut fused with a rising body spin and a spine arch
+      rSh.rotation.x = -a * (1.6 + p * 0.6);
+      hips.rotation.y = a * (0.8 + p * 0.4);
+      spine.rotation.x = -a * (0.2 + p * 0.15);
+      spine.rotation.y = a * (0.3 + p * 0.15);
+      if (wg) { wg.rotation.x = -a * (1.3 + p * 0.6); wg.rotation.y = a * (0.6 + p * 0.3); wg.rotation.z = -0.2; }
+      break;
+    }
+    case 'meteor_slam': { // Overhead Slam's raise fused with a body spin and a much bigger forward slam
+      lSh.rotation.x = -a * (1.9 + p * 0.6); rSh.rotation.x = -a * (1.9 + p * 0.6);
+      hips.rotation.y = a * (0.5 + p * 0.3);
+      spine.rotation.x = a * (0.55 + p * 0.3);
+      if (wg) { wg.rotation.x = -a * (1.8 + p * 0.7); wg.rotation.y = a * (0.5 + p * 0.3); wg.rotation.z = -0.2; }
+      break;
+    }
+    case 'phoenix_spin': { // a real two-full-rotation spin (double Spin Slash), arms held wide the whole way
+      hips.rotation.y = a * (Math.PI * 4 + p * Math.PI * 0.8);
+      rSh.rotation.x = -a * 0.9; lSh.rotation.x = -a * 0.9;
+      rSh.rotation.z = a * 0.5; lSh.rotation.z = -a * 0.5;
+      if (wg) { wg.rotation.y = a * (Math.PI * 4 + p * 0.8); wg.rotation.z = -0.2 - a * 0.4; }
+      break;
+    }
+    case 'storm_fist': { // a real alternating left/right punch flurry from one sine (positive half = right, negative half = left)
+      const flurry = Math.sin(a * Math.PI * 4);
+      rSh.rotation.x = -Math.max(0, flurry) * (1.2 + p * 0.6);
+      lSh.rotation.x = -Math.max(0, -flurry) * (1.2 + p * 0.6);
+      spine.rotation.x = a * 0.15;
+      if (wg) { wg.rotation.z = -0.2 - Math.abs(flurry) * (1.2 + p * 0.6); wg.rotation.x = Math.abs(flurry) * (0.3 + p * 0.2); }
+      break;
+    }
+    case 'grand_finisher': { // the biggest of all 30 — full body spin + overhead raise + forward slam combined
+      hips.rotation.y = a * (Math.PI * 2 + p * Math.PI * 0.6);
+      spine.rotation.x = a * (0.5 + p * 0.35);
+      spine.rotation.y = a * (0.4 + p * 0.25);
+      lSh.rotation.x = -a * (2.0 + p * 0.7); rSh.rotation.x = -a * (2.0 + p * 0.7);
+      rSh.rotation.z = -a * 0.4; lSh.rotation.z = a * 0.4;
+      if (wg) { wg.rotation.x = -a * (1.9 + p * 0.8); wg.rotation.y = a * (1.0 + p * 0.5); wg.rotation.z = -0.2 - a * 0.3; }
+      break;
+    }
+  }
+  // ENERGY PASS — real user feedback: at their original hand-tuned amplitudes the 30 moves read as
+  // too similar/subdued in actual play (small fractions of a radian are hard to read at normal camera
+  // distance in the ~0.25-0.4s swing window). Rather than re-hand-tune 30 formulas individually
+  // (which would risk quietly reintroducing near-duplicates), every move's already-distinct
+  // per-bone/per-axis CHOREOGRAPHY (which joints move, which sign, which shape) is scaled up
+  // uniformly here, clamped per bone-type so no joint ever rotates into an anatomically-broken range.
+  // Spin moves' hips/weapon Y rotation is exempt from the clamp — those are real multi-turn spins
+  // (Math.PI*2+) where a big raw number is correct, not a bug, and clamping it would just stop the
+  // character from actually completing the turn.
+  const ENERGY = 1.6;
+  const clamp = (v, max) => Math.max(-max, Math.min(max, v * ENERGY));
+  spine.rotation.x = clamp(spine.rotation.x, 1.15);
+  spine.rotation.z = clamp(spine.rotation.z, 0.95);
+  spine.rotation.y *= ENERGY; // torque-twist moves (cross/haymaker/dragon_rise/...) — bounded well under a full turn already, no clamp needed
+  hips.rotation.x = clamp(hips.rotation.x, 0.85);
+  hips.rotation.z = clamp(hips.rotation.z, 0.85);
+  hips.rotation.y *= ENERGY;
+  lSh.rotation.x = clamp(lSh.rotation.x, 2.7); rSh.rotation.x = clamp(rSh.rotation.x, 2.7);
+  lSh.rotation.z = clamp(lSh.rotation.z, 2.4); rSh.rotation.z = clamp(rSh.rotation.z, 2.4);
+  lHip.rotation.x = clamp(lHip.rotation.x, 2.1); rHip.rotation.x = clamp(rHip.rotation.x, 2.1);
+  lHip.rotation.z = clamp(lHip.rotation.z, 1.7); rHip.rotation.z = clamp(rHip.rotation.z, 1.7);
+  if (wg) {
+    // wg.rotation.z rests at -0.2 (not 0, see buildPlayer()) whenever a weapon is held — only the
+    // DELTA from that rest tilt is the actual swing motion, so only that delta gets scaled/clamped,
+    // not the whole raw value (which would otherwise drift the rest tilt itself on every real swing).
+    wg.rotation.z = clamp(wg.rotation.z + 0.2, 2.6) - 0.2;
+    wg.rotation.x = clamp(wg.rotation.x, 2.6);
+    wg.rotation.y *= ENERGY;
+  }
+}
+
 let activeEmote = null; // {id, startT} or null — real per-frame animation, driven every frame in animate() (game-controls.js) via applyEmotePose(player, ...)
 // Plays an OWNED emote on the local player. Switching straight to a new emote while one's already
 // playing just replaces activeEmote — the very next frame's applyEmotePose() call re-poses every
