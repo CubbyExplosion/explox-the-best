@@ -855,14 +855,15 @@ function watchRewardAd() {
   });
 }
 
-// User's own ask: "every min there's a 10% chance they can happen" — a periodic interstitial ON
-// TOP OF the existing respawn-triggered one (knockoutPlayer(), game-social.js), so ad breaks
-// aren't gated only on dying. Rolled once a real minute by the setInterval in
-// _startGameInner() (game-zones.js), same cadence convention as the bank/calendar/Heaven-invite
-// timers already started there. Guards on currentUser so it can never fire from the login screen.
+// User's own ask: "every min there's a 10% chance they can happen" (bumped to 20% same day) — a
+// periodic interstitial ON TOP OF the existing respawn-triggered one (knockoutPlayer(),
+// game-social.js), so ad breaks aren't gated only on dying. Rolled once a real minute by the
+// setInterval in _startGameInner() (game-zones.js), same cadence convention as the
+// bank/calendar/Heaven-invite timers already started there. Guards on currentUser so it can never
+// fire from the login screen.
 function maybeTriggerPeriodicAdBreak() {
   if (!currentUser) return;
-  if (Math.random() >= 0.10) return;
+  if (Math.random() >= 0.20) return;
   adBreak({ type: 'start', name: 'periodic-break' });
 }
 
