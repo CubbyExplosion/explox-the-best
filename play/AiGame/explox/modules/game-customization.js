@@ -855,6 +855,17 @@ function watchRewardAd() {
   });
 }
 
+// User's own ask: "every min there's a 10% chance they can happen" — a periodic interstitial ON
+// TOP OF the existing respawn-triggered one (knockoutPlayer(), game-social.js), so ad breaks
+// aren't gated only on dying. Rolled once a real minute by the setInterval in
+// _startGameInner() (game-zones.js), same cadence convention as the bank/calendar/Heaven-invite
+// timers already started there. Guards on currentUser so it can never fire from the login screen.
+function maybeTriggerPeriodicAdBreak() {
+  if (!currentUser) return;
+  if (Math.random() >= 0.10) return;
+  adBreak({ type: 'start', name: 'periodic-break' });
+}
+
 // ─── GROWTH — a real, shared "age up" system driven by accumulated real PLAY seconds (same
 // convention as elderLifespans below: only ticks while actually playing, not wall-clock time).
 // Used by the player's own body AND by adopted/baby children so "growing up" means the same

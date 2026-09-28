@@ -748,6 +748,10 @@ function _startGameInner() {
   // ask someone who already said yes.
   setInterval(maybeShowHeavenInvite, 300000);
 
+  // User's own ask: "every min there's a 10% chance they can happen" — periodic ad break, see
+  // maybeTriggerPeriodicAdBreak() (game-customization.js) for the actual roll + adBreak() call.
+  setInterval(maybeTriggerPeriodicAdBreak, 60000);
+
   // Check WebGL is available
   const _tc = document.createElement('canvas');
   const _gl = _tc.getContext('webgl') || _tc.getContext('experimental-webgl');
