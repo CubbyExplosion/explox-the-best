@@ -832,7 +832,7 @@ function queueEarning(sip, elite, source) {
 // placeholder publisher ID you need to swap in). One-time config call, tells the ad SDK this game
 // has audio and to start preloading ad breaks in the background.
 adConfig({ preloadAdBreaks: 'on', sound: 'on' });
-const REWARD_AD_SIP = 150; // a modest bonus — comparable to a Common-tier emote's price, not a way to bypass the real economy
+const REWARD_AD_SIP = 5; // user's own ask, lowered from the original 150 — a token thank-you, not meant to be a real income source
 const REWARD_AD_COOLDOWN_MS = 5 * 60 * 1000; // 5 real minutes between claims, on top of whatever frequency capping Google's own ad delivery already applies
 let nextRewardAdAt = 0;
 // Called by the 📺 Watch Ad HUD button (index.html). type:'reward' is Google's real opt-in ad
