@@ -244,6 +244,10 @@
       border:2px solid #e94560; border-right:none;
       border-radius:14px 0 0 14px; padding:16px 14px;
       z-index:20; pointer-events:auto; display:none;
+      /* User's own ask: "the minigames tab is way to large" — ~30 cards no longer fit on any
+         real screen at once now that the 22-game batch was added. Capped + scrollable instead of
+         growing past the viewport; still centered vertically via the top:50%/translateY above. */
+      max-height:82vh; overflow-y:auto;
     }
     #miniGamesPanel h3 { color:#e94560; font-size:13px; letter-spacing:2px; margin-bottom:12px; text-align:center; }
     .mgCard {
