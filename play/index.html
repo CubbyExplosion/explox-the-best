@@ -1680,6 +1680,17 @@
       <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🗡️</span>KILLER
     </button>
   </div>
+    <!-- KARAOKE TAB -- user's own ask: "move the karaoke tab into menu". It used to be its own
+         standalone position:fixed button OUTSIDE this rail, which meant #leftTabStack's blanket
+         display:none!important (the "remove the tab system" mobile overhaul) never hid it, and
+         buildTabMenu() (game-controls.js, scans this rail's own buttons live) never picked it up
+         either -- it kept floating on screen as a stray button instead of living in the Menu like
+         every other tab. Now a normal rail child, same as KILLER/DAILY EVENTS around it. -->
+    <div id="karaokeTabBtn">
+    <button onclick="openKaraokePanel()" style="display:block;background:linear-gradient(180deg,#2a0a1a,#4a0a2a);border:2px solid #ff88cc;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🎤</span>KARAOKE
+    </button>
+  </div>
     <!-- "no in a tab called daily events" — real user correction: the walk-to-a-board version got
          replaced with this always-available tab, same left-side vertical-tab family as SHOP/JOB/
          HELP etc. above. Opens the exact same openEventOfDay() (game-world.js), unchanged. -->
@@ -1943,13 +1954,6 @@
     <button onclick="closeMusicPanel()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:10px;">✕ Close</button>
   </div>
 
-  <!-- KARAOKE TAB — user's own ask: a real, easy-to-find way in, not a small icon buried in the
-       Music list. Own tab, own panel, next free left-side slot after Hire Killer's +562. -->
-  <div id="karaokeTabBtn" style="position:fixed;top:calc(50% + 642px);left:0;transform:translateY(-50%);z-index:20;pointer-events:auto;">
-    <button onclick="openKaraokePanel()" style="display:block;background:linear-gradient(180deg,#2a0a1a,#4a0a2a);border:2px solid #ff88cc;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
-      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🎤</span>KARAOKE
-    </button>
-  </div>
 
   <!-- KARAOKE PANEL -->
   <div id="karaokePanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#1a0a1a,#2a0a1e);border:2px solid #ff88cc;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:260px;pointer-events:auto;max-height:85vh;overflow:hidden;">
