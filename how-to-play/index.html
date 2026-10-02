@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to Play Explox — Beginner's Guide | Cubby Explosion</title>
+<meta name="description" content="A step-by-step guide to playing Explox, the free 3D city-life browser game: how to start, move, earn S.I.P., keep your money safe, hire other players, and explore the whole world.">
+<meta name="author" content="Cubby Explosion">
+<meta property="og:title" content="How to Play Explox — Beginner's Guide">
+<meta property="og:description" content="Start playing Explox in 60 seconds: controls, earning money, your home, jobs, hiring players, and more.">
+<meta property="og:site_name" content="Explox">
+<meta property="og:type" content="article">
+<style>
+  :root {
+    --bg: #0f111a;
+    --card: #1a1c28;
+    --cyan: #00f2fe;
+    --purple: #9b51e0;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --good: #4ade80;
+    --warn: #fbbf24;
+    --bad: #f87171;
+    --grad: linear-gradient(135deg,var(--cyan),var(--purple));
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior:smooth; scroll-padding-top:84px; }
+  body { font-family:Arial,Helvetica,sans-serif; background:var(--bg); color:var(--text); line-height:1.65; overflow-x:hidden; }
+  a { color:var(--cyan); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  a:focus-visible, summary:focus-visible, button:focus-visible { outline:2px solid var(--cyan); outline-offset:3px; border-radius:4px; }
+
+  /* NAV (same look as the home page) */
+  nav { position:fixed; top:0; left:0; right:0; z-index:50; display:flex; align-items:center; justify-content:space-between;
+        padding:14px 6vw; background:rgba(15,17,26,0.85); backdrop-filter:blur(8px); border-bottom:1px solid rgba(0,242,254,0.25); }
+  .navLogo { font-size:20px; font-weight:bold; letter-spacing:3px; color:var(--cyan); text-shadow:0 0 12px rgba(0,242,254,0.6); }
+  .navLogo:hover { text-decoration:none; }
+  .navRight { display:flex; align-items:center; gap:18px; }
+  .navLink { color:var(--muted); font-size:13px; font-weight:bold; letter-spacing:1px; }
+  .navLink.active { color:var(--cyan); }
+  .navPlay { background:var(--grad); color:#0a0c14; padding:9px 22px; border-radius:6px; font-weight:bold; font-size:13px; letter-spacing:1px; box-shadow:0 4px 14px rgba(0,242,254,0.35); }
+  .navPlay:hover { text-decoration:none; }
+
+  /* HERO */
+  header.hero { padding:130px 6vw 40px; text-align:center; position:relative; }
+  header.hero::before { content:''; position:absolute; inset:0; pointer-events:none;
+    background: radial-gradient(circle at 20% 10%, rgba(0,242,254,0.12), transparent 45%), radial-gradient(circle at 85% 40%, rgba(155,81,224,0.18), transparent 50%); }
+  .eyebrow { position:relative; color:var(--purple); font-size:12px; font-weight:bold; letter-spacing:3px; text-transform:uppercase; }
+  header.hero h1 { position:relative; margin-top:12px; font-size:clamp(34px,6vw,60px); font-weight:900; line-height:1.1;
+    background:var(--grad); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  header.hero p.lead { position:relative; max-width:640px; margin:18px auto 0; color:var(--muted); font-size:clamp(15px,2vw,18px); }
+  .btnPrimary { display:inline-flex; align-items:center; gap:10px; margin-top:28px; padding:15px 34px; border-radius:6px; font-weight:bold; font-size:16px; letter-spacing:1px;
+    background:var(--grad); color:#0a0c14; box-shadow:0 8px 24px rgba(0,242,254,0.35); position:relative; transition:transform .15s, box-shadow .15s; }
+  .btnPrimary:hover { transform:translateY(-2px); box-shadow:0 12px 30px rgba(0,242,254,0.5); text-decoration:none; }
+
+  /* TABLE OF CONTENTS CHIPS */
+  .toc { max-width:900px; margin:34px auto 0; display:flex; flex-wrap:wrap; gap:8px; justify-content:center; position:relative; }
+  .toc a { background:rgba(0,242,254,0.07); border:1px solid rgba(0,242,254,0.25); color:var(--text); font-size:13px; padding:7px 14px; border-radius:999px; }
+  .toc a:hover { background:rgba(0,242,254,0.16); text-decoration:none; }
+
+  /* LAYOUT */
+  main { max-width:900px; margin:0 auto; padding:30px 5vw 60px; }
+  section.step { margin-top:56px; }
+  .stepHead { display:flex; align-items:center; gap:14px; margin-bottom:14px; }
+  .stepNum { flex:none; width:42px; height:42px; border-radius:50%; background:var(--grad); color:#0a0c14; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:19px; }
+  .stepHead h2 { font-size:clamp(22px,3.4vw,30px); font-weight:900; line-height:1.2; }
+  section.step > p, section.step > ul, section.step > ol { color:#cbd5e1; margin-top:12px; }
+  section.step ul, section.step ol { padding-left:22px; }
+  section.step li { margin-top:7px; }
+  strong { color:#fff; }
+
+  /* QUICK START */
+  .quick { background:var(--card); border:1px solid rgba(0,242,254,0.25); border-left:4px solid var(--cyan); border-radius:8px; padding:22px 24px; margin-top:10px; }
+  .quick h2 { font-size:20px; }
+  .quick ol { margin-top:12px; padding-left:22px; color:#cbd5e1; }
+  .quick li { margin-top:8px; }
+
+  /* KEYS + TABLES */
+  kbd { display:inline-block; min-width:26px; text-align:center; padding:2px 8px; font:bold 12px/1.5 Arial,sans-serif; color:#fff;
+        background:#252838; border:1px solid #3b4058; border-bottom-width:3px; border-radius:6px; }
+  .tableWrap { overflow-x:auto; margin-top:14px; border:1px solid rgba(255,255,255,0.08); border-radius:8px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; min-width:420px; }
+  th, td { text-align:left; padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.07); vertical-align:top; }
+  th { background:rgba(0,242,254,0.08); color:var(--cyan); font-size:12px; letter-spacing:1px; text-transform:uppercase; }
+  tr:last-child td { border-bottom:none; }
+  td:first-child { white-space:nowrap; }
+
+  /* CALLOUTS */
+  .note { margin-top:16px; padding:14px 16px; border-radius:8px; font-size:14px; background:var(--card); border-left:4px solid var(--cyan); color:#cbd5e1; }
+  .note b.label { display:block; font-size:11px; letter-spacing:2px; text-transform:uppercase; margin-bottom:4px; color:var(--cyan); }
+  .note.tip { border-left-color:var(--good); } .note.tip b.label { color:var(--good); }
+  .note.warn { border-left-color:var(--warn); } .note.warn b.label { color:var(--warn); }
+  .note.danger { border-left-color:var(--bad); } .note.danger b.label { color:var(--bad); }
+
+  /* SCREENSHOT */
+  figure.shot { margin-top:18px; border-radius:8px; overflow:hidden; border:1px solid rgba(0,242,254,0.2); background:var(--card); }
+  figure.shot img { display:block; width:100%; height:auto; max-height:360px; object-fit:cover; background:#000; }
+  figure.shot figcaption { padding:10px 14px; font-size:13px; color:var(--muted); }
+
+  /* CARDS GRID */
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; margin-top:16px; }
+  .card { background:var(--card); border:1px solid rgba(0,242,254,0.12); border-bottom:3px solid var(--purple); border-radius:8px; padding:16px; }
+  .card h3 { font-size:16px; margin-bottom:6px; }
+  .card p { font-size:14px; color:#cbd5e1; }
+
+  /* FAQ */
+  details { background:var(--card); border:1px solid rgba(255,255,255,0.08); border-radius:8px; margin-top:10px; padding:0 16px; }
+  summary { cursor:pointer; padding:14px 0; font-weight:bold; list-style:none; display:flex; justify-content:space-between; gap:12px; }
+  summary::-webkit-details-marker { display:none; }
+  summary::after { content:'+'; color:var(--cyan); font-size:20px; line-height:1; }
+  details[open] summary::after { content:'–'; }
+  details p { padding:0 0 14px; color:#cbd5e1; font-size:14px; }
+
+  /* CTA + FOOTER */
+  .ctaBand { text-align:center; padding:64px 6vw; background:linear-gradient(135deg,rgba(0,242,254,0.08),rgba(155,81,224,0.12)); border-top:1px solid rgba(0,242,254,0.2); }
+  .ctaBand h2 { font-size:clamp(24px,4vw,36px); font-weight:900; }
+  .ctaBand p { color:var(--muted); margin-top:10px; }
+  footer { text-align:center; padding:26px 6vw 40px; color:var(--muted); font-size:13px; }
+  footer .navLogo { margin-right:8px; font-size:15px; }
+
+  .navLink, .navPlay { white-space:nowrap; }
+  @media (max-width:560px) {
+    .navLink { display:none; }
+    .navPlay { padding:8px 14px; }
+    .quick { padding:18px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="navLogo" href="../">EXPLOX</a>
+  <div class="navRight">
+    <a class="navLink" href="../">Home</a>
+    <a class="navLink active" href="./" aria-current="page">How to Play</a>
+    <a class="navPlay" href="../play/">▶ Play Free</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="eyebrow">Beginner's guide</div>
+  <h1>How to Play Explox</h1>
+  <p class="lead">Explox is a free 3D city-life game that runs in your browser. There's no quest line — you get a life and decide what to do with it. This guide gets you from a blank screen to earning, exploring, and even hiring other players.</p>
+  <a class="btnPrimary" href="../play/">▶ Play Explox Now</a>
+  <nav class="toc" aria-label="Guide sections">
+    <a href="#start">1. Start</a>
+    <a href="#move">2. Move</a>
+    <a href="#interact">3. Interact</a>
+    <a href="#money">4. Earn S.I.P.</a>
+    <a href="#safe">5. Stay safe</a>
+    <a href="#menu">6. Menu</a>
+    <a href="#home">7. Your home</a>
+    <a href="#hire">8. Hire players</a>
+    <a href="#fight">9. Fighting</a>
+    <a href="#explore">10. Explore</a>
+    <a href="#social">11. Friends</a>
+    <a href="#help">Fixes &amp; FAQ</a>
+  </nav>
+</header>
+
+<main>
+
+  <div class="quick" id="quick">
+    <h2>⚡ Start playing in 60 seconds</h2>
+    <ol>
+      <li>Press <strong>▶ Play Free</strong> and pick <strong>ONLINE</strong> (play with others) or <strong>OFFLINE</strong> (just you).</li>
+      <li>Type a name and password, then press <strong>+ CREATE ACCOUNT</strong>.</li>
+      <li>Customize your character and press <strong>PLAY</strong>.</li>
+      <li>Click the screen, then walk with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — or the joystick on a phone.</li>
+      <li>Walk up to anything interesting and press <kbd>E</kbd>. Open the <strong>☰ Menu</strong> (bottom-left) for everything else.</li>
+    </ol>
+  </div>
+
+  <!-- 1 -->
+  <section class="step" id="start">
+    <div class="stepHead"><div class="stepNum">1</div><h2>Start the game</h2></div>
+    <p>Open the <a href="../play/">play page</a>. You'll land on <strong>Select Your Account</strong>. There's nothing to download or install.</p>
+
+    <div class="grid">
+      <div class="card"><h3>🟢 ONLINE</h3><p>A shared world. You can chat, see other players, trade, send S.I.P., hire people, and your progress is saved to your account so it follows you to any device.</p></div>
+      <div class="card"><h3>🔴 OFFLINE</h3><p>Just you. Great for a quiet game. Your progress is saved <strong>in this browser only</strong>, so clearing your browser data erases it.</p></div>
+    </div>
+
+    <ol>
+      <li>Type a <strong>new account name</strong> and a <strong>password</strong>, then press <strong>+ CREATE ACCOUNT</strong>. (Already have one? Just click it in the list and enter your password.)</li>
+      <li>On the <strong>Customize Your Character</strong> screen, pick your hair, hat, skin, shirt, pants and shoes. Some items cost S.I.P., so the free ones are fine for now — you can change your look later.</li>
+      <li>Press <strong>PLAY</strong>. The first time, a short <strong>Welcome</strong> guide pops up — press <strong>Next</strong> or <strong>Skip guide</strong>.</li>
+    </ol>
+
+    <figure class="shot">
+      <img src="../img/customization.jpg" alt="The Explox character customization screen" loading="lazy">
+      <figcaption>Character customization — make it yours, change it any time.</figcaption>
+    </figure>
+
+    <div class="note warn"><b class="label">Heads-up</b>Online mode runs on a free server that "falls asleep" when nobody's around. If login shows a loading bar, give it up to about a minute to wake up. If it still won't connect, try again later or play Offline.</div>
+    <div class="note tip"><b class="label">Remember your password</b>Your name and password are how you get your character back. Write them down somewhere safe.</div>
+  </section>
+
+  <!-- 2 -->
+  <section class="step" id="move">
+    <div class="stepHead"><div class="stepNum">2</div><h2>Move around</h2></div>
+    <p>On a computer, <strong>click the game screen once</strong> to capture your mouse — then moving the mouse looks around. Press <kbd>Esc</kbd> any time to get your cursor back.</p>
+
+    <div class="tableWrap">
+      <table>
+        <thead><tr><th>Key</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></td><td>Walk forward, left, back, right</td></tr>
+          <tr><td><kbd>Shift</kbd></td><td>Run (hold while walking)</td></tr>
+          <tr><td><kbd>Space</kbd></td><td>Jump</td></tr>
+          <tr><td>Mouse</td><td>Look around</td></tr>
+          <tr><td><kbd>E</kbd></td><td>Interact — doors, shop counters, people, objects</td></tr>
+          <tr><td><kbd>F</kbd></td><td>Attack (and fire your vehicle's weapon)</td></tr>
+          <tr><td><kbd>Q</kbd></td><td>Throw a grenade</td></tr>
+          <tr><td><kbd>B</kbd></td><td>Open your Bag (inventory)</td></tr>
+          <tr><td><kbd>C</kbd></td><td>Eat food from your Bag, one bite at a time</td></tr>
+          <tr><td><kbd>T</kbd></td><td>Ask SAI, your in-game helper, a question</td></tr>
+          <tr><td><kbd>G</kbd></td><td>Open Add-Ons (fun extras, bills, buddies)</td></tr>
+          <tr><td><kbd>M</kbd></td><td>Music player</td></tr>
+          <tr><td><kbd>Enter</kbd></td><td>Open chat (online) — <kbd>Esc</kbd> closes it</td></tr>
+          <tr><td><kbd>Y</kbd> / <kbd>P</kbd></td><td>Give S.I.P. to / view the profile of the nearest player (online)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin-top:22px;">📱 On a phone or tablet</h3>
+    <ul>
+      <li>Move with the <strong>joystick</strong> in the bottom-left. <strong>Drag anywhere else</strong> on the screen to look around.</li>
+      <li>Buttons on the right: <strong>⬆</strong> jump, <strong>E</strong> interact, <strong>RUN</strong> sprint. In a Tank, Jet or Motorcycle a <strong>🔥 FIRE</strong> button appears.</li>
+      <li>Tap <strong>⛶ Full</strong> for fullscreen — it makes the game much easier to see.</li>
+    </ul>
+
+    <figure class="shot">
+      <img src="../img/downtown.jpg" alt="Walking down a downtown Explox street" loading="lazy">
+      <figcaption>Downtown — roads, transit and storefronts as far as you can walk.</figcaption>
+    </figure>
+  </section>
+
+  <!-- 3 -->
+  <section class="step" id="interact">
+    <div class="stepHead"><div class="stepNum">3</div><h2>Interact with the world</h2></div>
+    <p>When you stand near something you can use, a prompt like <strong>[E] …</strong> appears on screen. Press <kbd>E</kbd> (or tap the <strong>E</strong> button) to use it — open a door, buy from a shop counter, talk to a neighbor, sit on a sofa, and more.</p>
+    <p>Watch the meters in the corner of your screen:</p>
+    <ul>
+      <li><strong>💰 S.I.P.</strong> — your main money. <strong>💎 Elite Coins</strong> are a rarer currency.</li>
+      <li><strong>🍔 Hunger</strong> — eat from your Bag (<kbd>C</kbd>), buy food, or cook at home. Eating too much too fast can make you throw up!</li>
+      <li><strong>🚽 Bladder</strong> and <strong>😴 sleep</strong> — use the toilet and bed in your house.</li>
+      <li><strong>🪵 Wood</strong> and <strong>🔩 Scrap</strong> — materials you gather and use to craft things.</li>
+      <li><strong>Location, weather and time</strong> — the world has day and night and changing seasons, and everyone online sees the same sky.</li>
+    </ul>
+    <p>Also, <strong>your character grows up</strong> the more you play: Baby, Kid, Teen, then Adult.</p>
+  </section>
+
+  <!-- 4 -->
+  <section class="step" id="money">
+    <div class="stepHead"><div class="stepNum">4</div><h2>Earn S.I.P.</h2></div>
+    <p>There's no single "right" way to make money. Pick whatever sounds fun:</p>
+    <div class="grid">
+      <div class="card"><h3>💼 Get a job</h3><p>Open <strong>💼 JOB</strong> in the Menu, or walk into almost any shop and clock in. Pay depends on what the shop sells. The City Bank even has jobs, including guard duty.</p></div>
+      <div class="card"><h3>🪓 Gather &amp; craft</h3><p>Chop trees in Whispering Woods for wood, defeat robots and grind their wreckage at the Dump for scrap, then craft items instead of buying everything.</p></div>
+      <div class="card"><h3>🏪 Run a store</h3><p>Buy a store, stock the shelves, set your own prices, and hire staff. Other players can visit and buy from you, and you can sell your own stuff — even a car.</p></div>
+      <div class="card"><h3>🤖 Fight robots</h3><p>Tougher robots at the Scrapyard drop rare <strong>💎 Elite Coins</strong>. Bring a weapon from the Armory.</p></div>
+      <div class="card"><h3>🎮 Mini-games &amp; events</h3><p>Open <strong>🎮 MINI GAMES</strong> and <strong>🎁 DAILY EVENTS</strong> in the Menu for fun challenges and daily rewards.</p></div>
+      <div class="card"><h3>👥 Hire or get hired</h3><p>Pay other players to gather for you — or take a job from them. See step 8.</p></div>
+    </div>
+    <div class="note tip"><b class="label">Tip</b>Stuck on what to do first? Get a job downtown for steady S.I.P., then use it to buy a better weapon, a car, or your own land.</div>
+  </section>
+
+  <!-- 5 -->
+  <section class="step" id="safe">
+    <div class="stepHead"><div class="stepNum">5</div><h2>Keep your stuff safe</h2></div>
+    <p>Explox has real consequences. If you get knocked out, <strong>you lose what you were carrying</strong> — wallet S.I.P., cash, inventory, weapons and armor, wood and scrap. It drops as a pile where you fell: walk back and press <kbd>E</kbd> to pick it up again.</p>
+    <div class="note danger"><b class="label">Important</b>Don't carry a fortune around. Deposit S.I.P. at the <strong>City Bank</strong> or keep valuables in your <strong>Safe</strong> at home.</div>
+    <p style="margin-top:14px;">These are always safe and never lost: <strong>bank and safe contents, houses and land, cars, and your outfit and cosmetic unlocks</strong>.</p>
+    <p>Want fewer fights? Open <strong>⚔️ DIFFICULTY</strong> in the Menu. It goes from a gentle <strong>Baby Steps</strong> all the way up to <strong>Apocalypse</strong>, and <strong>Peaceful</strong> mode turns off ambient danger entirely.</p>
+  </section>
+
+  <!-- 6 -->
+  <section class="step" id="menu">
+    <div class="stepHead"><div class="stepNum">6</div><h2>Use the ☰ Menu</h2></div>
+    <p>Almost everything lives in the <strong>☰ Menu</strong> button in the bottom-left corner. Tap it to see a grid of every tab. A few worth knowing:</p>
+    <div class="tableWrap">
+      <table>
+        <thead><tr><th>Tab</th><th>What it's for</th></tr></thead>
+        <tbody>
+          <tr><td>🎒 BAG</td><td>Your items. You can also throw items and eat food.</td></tr>
+          <tr><td>💼 JOB</td><td>Start or stop working a job.</td></tr>
+          <tr><td>🛍️ SHOP</td><td>Optional S.I.P. and 💎 packs that cost real money. You never need them — everything can be earned by playing. <strong>Ask a parent or guardian before buying anything.</strong></td></tr>
+          <tr><td>📜 QUESTS</td><td>Goals to chase for rewards.</td></tr>
+          <tr><td>🎭 EMOTES / 🥊 MOVES</td><td>Dance, sit, wave — and equip fight moves.</td></tr>
+          <tr><td>👤 PROFILE / 📊 STATS</td><td>Your bio, kills and level, plus a full list of your lifetime stats.</td></tr>
+          <tr><td>💼 HIRE</td><td>Hire other players, or see job offers sent to you.</td></tr>
+          <tr><td>🏆 RECORDS</td><td>All-time bests and who holds each record.</td></tr>
+          <tr><td>⚔️ DIFFICULTY</td><td>Choose how dangerous the world is.</td></tr>
+          <tr><td>🤖 SAI</td><td>Ask your in-game helper anything.</td></tr>
+          <tr><td>🎵 MUSIC / 🎤 KARAOKE</td><td>Play and sing along to tracks.</td></tr>
+          <tr><td>❓ HELP</td><td>Replays the Welcome guide.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="step" id="home">
+    <div class="stepHead"><div class="stepNum">7</div><h2>Your home &amp; computer</h2></div>
+    <p>You start with a <strong>free house</strong> in the city. Walk inside and press <kbd>E</kbd> on things to use them: sleep in the bed, sit on the sofa, watch TV, cook a meal, read a book, or use the toilet. There's a <strong>Safe</strong> for your valuables too.</p>
+    <p>Later you can buy <strong>land at Sunset Plains</strong> and build on it. Owning land or a car comes with <strong>recurring bills</strong> — pay them under <strong>🧩 Add-Ons</strong> (<kbd>G</kbd>) before they go late.</p>
+    <h3 style="margin-top:20px;">💻 The computer</h3>
+    <p>Buy a computer at the Computer Shop, then use the one in your house to open a real <strong>Desktop</strong> with separate windows:</p>
+    <ul>
+      <li><strong>🌐 SIB</strong> — a web browser. Type a real address to open a real site, or type a question to run a real web search.</li>
+      <li><strong>📱 App Store</strong> — needs a phone or tablet and is passcode-locked. It holds <strong>100 working apps</strong>: calculators, games, tools, a joke generator, and even a <strong>Shop</strong> app that buys anything for its real price.</li>
+      <li>Install an app and its icon appears on your Desktop.</li>
+    </ul>
+  </section>
+
+  <!-- 8 -->
+  <section class="step" id="hire">
+    <div class="stepHead"><div class="stepNum">8</div><h2>Hire other players</h2></div>
+    <p>Want help gathering? Open <strong>💼 HIRE</strong> in the Menu (needs <strong>ONLINE</strong> mode). You pay real S.I.P., and nobody is ever forced to work for you.</p>
+    <ol>
+      <li>Under <strong>Post a Job</strong>, type the other player's <strong>exact account name</strong>.</li>
+      <li>Pick a task: <strong>🪵 Chop Wood</strong>, <strong>🔩 Kill Robots (Scrap)</strong>, or <strong>✍️ Custom Job</strong> — describe anything you like.</li>
+      <li>Set the <strong>pay per unit</strong> and a <strong>total budget</strong>. The budget is taken from your wallet right away, so there's always real money behind the pay.</li>
+      <li>They get an offer and can <strong>Accept</strong> or <strong>Decline</strong>. If they accept, whatever wood or scrap they gather goes to you and they're paid on the spot from your budget.</li>
+      <li>For a Custom Job, they press <strong>✅ Report Work Done</strong> when they've finished and get paid for it — <em>you</em> decide if the work was good.</li>
+    </ol>
+    <div class="note tip"><b class="label">Not happy with someone?</b>Press <strong>🔥 Fire</strong> any time and your unspent budget is refunded. Workers can <strong>🚪 Quit</strong> whenever they like, too.</div>
+  </section>
+
+  <!-- 9 -->
+  <section class="step" id="fight">
+    <div class="stepHead"><div class="stepNum">9</div><h2>Fighting</h2></div>
+    <p>Killers, rogue robots and robbers roam the world — you choose how much to engage. Press <kbd>F</kbd> to swing or shoot, or <kbd>E</kbd> near an enemy (hold it to charge a stronger hit). <kbd>Q</kbd> throws a grenade.</p>
+    <ul>
+      <li>Buy weapons and armor at the <strong>Armory</strong>. Higher tiers unlock as you level up.</li>
+      <li>Vehicles like Tanks, Jets and Motorcycles have their own weapons — <kbd>F</kbd> fires them.</li>
+      <li>Do crimes and the police will come after you — you can even end up in prison.</li>
+      <li>You can challenge a friend to a <strong>duel</strong>, and the Fight Arena is a free-for-all.</li>
+    </ul>
+    <div class="note warn"><b class="label">Remember</b>Knockouts cost you what you're carrying (see step 5). Bank your S.I.P. before looking for trouble.</div>
+  </section>
+
+  <!-- 10 -->
+  <section class="step" id="explore">
+    <div class="stepHead"><div class="stepNum">10</div><h2>Explore the world</h2></div>
+    <ul>
+      <li><strong>🚗 Cars</strong> — buy one at the Car Dealership and drive it around.</li>
+      <li><strong>🚇 S.I.T.S. Transit</strong> — ride the lines to fast-travel across the city.</li>
+      <li><strong>✈️ The Airport</strong> — fly to 8 real countries, each with its own landmarks and time zone, and beyond Earth to the Moon, Mars and more.</li>
+      <li><strong>🏬 The Mall</strong> — a whole shopping wing with hundreds of themed shops you can walk into.</li>
+      <li><strong>🎬 Cinema &amp; Arcade</strong> — real movies and classic arcade games.</li>
+      <li><strong>🔫 EXGUN</strong> — a separate RPG shooter from the same creator. <a href="../exgun/">Try it</a>.</li>
+    </ul>
+    <figure class="shot">
+      <img src="../img/mall_wing.jpg" alt="The Explox mall shopping wing" loading="lazy">
+      <figcaption>The Mall's shopping wing — walk into any shop.</figcaption>
+    </figure>
+  </section>
+
+  <!-- 11 -->
+  <section class="step" id="social">
+    <div class="stepHead"><div class="stepNum">11</div><h2>Friends &amp; chat</h2></div>
+    <p>In <strong>ONLINE</strong> mode the world is shared:</p>
+    <ul>
+      <li>Press <kbd>Enter</kbd> to chat with everyone. There's an emoji picker, and <kbd>Esc</kbd> closes the chat box.</li>
+      <li>Send S.I.P. to anyone online with <strong>/pay name amount</strong> (for example <code>/pay Sam 50</code>), or stand near them and press <kbd>Y</kbd>.</li>
+      <li>Press <kbd>P</kbd> near someone to see their profile, bio and stats. Edit your own under <strong>👤 PROFILE</strong>.</li>
+      <li>Make friends, get married, and start a family. You can even marry one of the 40 named neighbors in the Suburbs.</li>
+    </ul>
+    <div class="note"><b class="label">Be kind</b>Everyone online is a real person. Don't share your password with anyone, ever.</div>
+  </section>
+
+  <!-- HELP -->
+  <section class="step" id="help">
+    <div class="stepHead"><div class="stepNum">?</div><h2>Fixes &amp; FAQ</h2></div>
+
+    <details><summary>The mouse won't look around</summary><p>Click once on the game screen to capture the mouse. If you pressed <kbd>Esc</kbd>, click again to get it back.</p></details>
+    <details><summary>The game looks old, or a new feature is missing</summary><p>Your browser may be showing a saved copy. Do a hard refresh: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> (or <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> on a Mac). On a phone, close the tab and reopen the site.</p></details>
+    <details><summary>Online says the server is sleeping or won't connect</summary><p>The free server naps when it's quiet and can take up to about a minute to wake. Wait for the loading bar, then try again. You can always play Offline in the meantime.</p></details>
+    <details><summary>I lost my progress</summary><p>Online progress lives on your account — just log in again with the same name and password. Offline progress lives only in that one browser, so clearing site data or switching browsers or devices will not bring it back.</p></details>
+    <details><summary>I died and lost my stuff</summary><p>Go back to where you were knocked out — your items are in a pile there. Walk up and press <kbd>E</kbd> to pick them up. Your bank, safe, houses, cars and outfits are never lost.</p></details>
+    <details><summary>Is Explox free? Do I need to download it?</summary><p>It's free to play and runs right in your browser — no download or install. It works on computers, phones and tablets.</p></details>
+    <details><summary>I'm stuck and don't know what to do</summary><p>Press <kbd>T</kbd> to ask SAI, open <strong>❓ HELP</strong> in the Menu to replay the Welcome guide, or just get a job and start earning.</p></details>
+  </section>
+
+</main>
+
+<div class="ctaBand">
+  <h2>Ready? Go live your Explox life.</h2>
+  <p>Free to play, right in your browser — no download, no install.</p>
+  <a class="btnPrimary" href="../play/">▶ Play Explox Now</a>
+</div>
+
+<footer>
+  <a class="navLogo" href="../">EXPLOX</a>
+  A 3D city-life game, built one feature at a time by Cubby Explosion.
+</footer>
+
+</body>
+</html>

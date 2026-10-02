@@ -79,6 +79,9 @@
     display:flex; align-items:center; justify-content:center; font-family:inherit;
   }
   .navMusicBtn:hover { background:rgba(0,242,254,0.16); }
+  .navLink { color:var(--muted); font-size:13px; font-weight:bold; letter-spacing:1px; }
+  .navLink:hover { color:var(--cyan); }
+  @media (max-width:560px) { .navLink { display:none; } }
 
   /* ── HERO ── */
   .hero {
@@ -322,6 +325,7 @@
   <div class="navLogo">EXPLOX</div>
   <div class="navRight">
     <button class="navMusicBtn" id="themeBtn" type="button" onclick="toggleThemeSong()" title="Play the official Explox theme song">🎵</button>
+    <a class="navLink" href="how-to-play/">How to Play</a>
     <a class="navPlay" href="play/">▶ Play Free</a>
   </div>
 </nav>
@@ -333,6 +337,7 @@
   <p class="tagline">A whole 3D city, a whole life. Work any of 300+ real jobs — even guard the City Bank from robbers — open your own store, make friends, get married, fly around the world, and play 8 mini-games, all running right in your browser.</p>
   <div class="heroCtas">
     <a class="btnPrimary" href="play/">▶ Play Now</a>
+    <a class="btnGhost" href="how-to-play/">📖 How to Play</a>
     <a class="btnGhost" href="#features">See what's inside ↓</a>
   </div>
   <div class="heroNote">Works on desktop and mobile · Your progress saves automatically</div>
@@ -586,6 +591,7 @@
   <h2>Ready to start your Explox life?</h2>
   <p>Free to play, right in your browser — no download, no install.</p>
   <a class="btnPrimary" href="play/">▶ Play Explox Now</a>
+  <p style="margin-top:18px;font-size:14px;">New here? <a href="how-to-play/" style="color:var(--cyan);text-decoration:underline;">Read the How to Play guide</a> first.</p>
 </div>
 
 <footer>
