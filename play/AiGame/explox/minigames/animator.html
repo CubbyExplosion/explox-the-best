@@ -1,0 +1,1818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explox — Animator</title>
+<link rel="manifest" href="animator-manifest.json">
+<meta name="theme-color" content="#e94560">
+<link rel="icon" href="animator-icon-192.png">
+<link rel="apple-touch-icon" href="animator-icon-192.png">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; }
+  body {
+    background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);
+    font-family:Arial,sans-serif; color:#fff;
+    min-height:100vh; padding:10px; padding-bottom:40px;
+  }
+  a { color:inherit; }
+
+  /* ── Top bar ── */
+  #topBar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+  #title { font-size:20px; font-weight:bold; letter-spacing:2px; color:#e94560; text-shadow:0 0 10px rgba(233,69,96,0.6); }
+  .pill { background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.2); border-radius:20px; padding:6px 14px; font-size:12px; font-weight:bold; white-space:nowrap; }
+  #breakPill { border-color:#FFD700; color:#FFD700; cursor:default; }
+
+  /* ── Layout ── */
+  #layout { display:flex; gap:16px; flex-wrap:wrap; justify-content:center; align-items:flex-start; max-width:1000px; margin:0 auto; }
+  .panel { background:rgba(0,0,0,0.5); border:2px solid #e94560; border-radius:14px; padding:14px; }
+  .panelTitle { color:#e94560; font-size:12px; font-weight:bold; letter-spacing:2px; margin-bottom:10px; text-align:center; }
+
+  /* ── Mode tabs ── */
+  #modeTabs { display:flex; gap:6px; justify-content:center; margin-bottom:10px; }
+  .modeTab { padding:7px 16px; border-radius:20px; border:2px solid #555; background:rgba(255,255,255,0.08); color:#ccc; cursor:pointer; font-size:12px; font-weight:bold; }
+  .modeTab.active { border-color:#e94560; background:rgba(233,69,96,0.25); color:#fff; }
+
+  /* ── Canvas stage ── */
+  #stagePanel { flex:0 0 auto; }
+  #canvasWrap { position:relative; width:min(92vw,420px); aspect-ratio:1/1; margin:0 auto; border-radius:10px; overflow:hidden; box-shadow:0 0 0 2px rgba(255,255,255,0.15); background:#000; }
+  #canvasWrap canvas, #canvasWrap video { position:absolute; top:0; left:0; width:100%; height:100%; }
+  #paperCanvas { z-index:0; }
+  #camVideo    { z-index:1; object-fit:cover; display:none; }
+  #belowCanvas { z-index:1; pointer-events:none; }
+  #onionCanvas { z-index:2; pointer-events:none; }
+  #drawCanvas  { z-index:3; touch-action:none; cursor:crosshair; }
+  #aboveCanvas { z-index:4; pointer-events:none; }
+
+  #camControls { display:none; flex-direction:column; align-items:center; gap:8px; margin-top:12px; }
+  #captureBtn { padding:10px 26px; border-radius:10px; border:none; background:#e94560; color:#fff; font-weight:bold; font-size:14px; cursor:pointer; }
+  #captureBtn:hover { background:#c73652; }
+  #camStatus { font-size:11px; color:#FFD700; text-align:center; max-width:340px; margin:0 auto 8px; min-height:14px; }
+
+  /* ── Toolbar ── */
+  #toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center; margin-top:12px; }
+  .swatch { width:24px; height:24px; border-radius:50%; border:2px solid rgba(255,255,255,0.4); cursor:pointer; }
+  .swatch.selected { border-color:#FFD700; box-shadow:0 0 0 2px #FFD700; }
+  #toolbar input[type=color] { width:28px; height:28px; border:none; border-radius:6px; cursor:pointer; background:none; }
+  #toolbar input[type=range] { width:90px; }
+  .toolBtn { padding:6px 12px; border-radius:8px; border:2px solid #555; background:rgba(255,255,255,0.08); color:#fff; cursor:pointer; font-size:12px; }
+  .toolBtn:hover { border-color:#aaa; }
+  .toolBtn.active { border-color:#e94560; background:rgba(233,69,96,0.25); }
+  #brushLabel { font-size:11px; color:#aaa; }
+
+  /* ── Characters panel ── */
+  #charPanel { margin-top:14px; }
+  #charHint { font-size:10px; color:#aaa; text-align:center; margin-bottom:6px; }
+  #charStrip { display:flex; gap:6px; overflow-x:auto; padding:4px 2px; }
+  .charBtn { flex:0 0 auto; width:56px; display:flex; flex-direction:column; align-items:center; gap:2px; background:rgba(255,255,255,0.06); border:2px solid #555; border-radius:8px; padding:4px; cursor:pointer; }
+  .charBtn img { width:40px; height:40px; }
+  .charBtn span { font-size:8px; color:#ccc; text-align:center; line-height:1.1; }
+  .charBtn.selected { border-color:#FFD700; background:rgba(255,215,0,0.12); }
+
+  /* ── Layers panel ── */
+  #layersPanel { margin-top:14px; }
+  #layerList { display:flex; flex-direction:column; gap:4px; max-height:170px; overflow-y:auto; }
+  .layerRow { display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.06); border:2px solid #444; border-radius:6px; padding:4px 6px; cursor:pointer; }
+  .layerRow.selected { border-color:#FFD700; background:rgba(255,215,0,0.1); }
+  .layerRow img { width:28px; height:28px; border-radius:4px; background:#fff; object-fit:cover; flex-shrink:0; }
+  .layerName { flex:1; font-size:11px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .layerBtn { background:rgba(255,255,255,0.1); border:1px solid #555; border-radius:4px; color:#fff; font-size:11px; padding:3px 6px; cursor:pointer; flex-shrink:0; }
+  .layerBtn:disabled { opacity:0.25; cursor:default; }
+  #addLayerBtn { width:100%; margin-top:6px; }
+
+  /* ── Frame strip ── */
+  #framesPanel { flex:0 0 auto; width:min(92vw,420px); }
+  #frameStrip { display:flex; gap:6px; overflow-x:auto; padding:4px 2px; }
+  .frameThumb { flex:0 0 auto; width:52px; height:52px; border-radius:6px; border:2px solid #555; background:#fff; cursor:pointer; position:relative; overflow:hidden; }
+  .frameThumb img { width:100%; height:100%; object-fit:cover; }
+  .frameThumb.selected { border-color:#FFD700; }
+  .frameThumb .delX { position:absolute; top:0; right:0; background:rgba(200,0,0,0.85); color:#fff; font-size:10px; width:15px; height:15px; line-height:15px; text-align:center; border-radius:0 0 0 6px; }
+  #addFrameBtn { flex:0 0 auto; width:52px; height:52px; border-radius:6px; border:2px dashed #e94560; background:rgba(233,69,96,0.1); color:#e94560; font-size:22px; cursor:pointer; }
+  #frameCountLbl { font-size:11px; color:#aaa; text-align:center; margin-top:6px; }
+
+  /* ── Playback ── */
+  #playbackRow { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:12px; flex-wrap:wrap; }
+  #playBtn { padding:8px 18px; border-radius:8px; border:none; background:#e94560; color:#fff; font-weight:bold; cursor:pointer; }
+  #playBtn:hover { background:#c73652; }
+  #fpsRange { width:110px; }
+  #loopLbl { font-size:12px; color:#ccc; display:flex; align-items:center; gap:4px; }
+
+  /* ── Save / Share panel ── */
+  #savePanel { flex:0 0 auto; width:min(92vw,300px); display:flex; flex-direction:column; gap:8px; }
+  #projectName { padding:8px; border-radius:8px; border:2px solid #e94560; background:rgba(255,255,255,0.1); color:#fff; font-size:13px; }
+  #projectName::placeholder { color:#888; }
+  #accountBox { border:1px dashed rgba(255,255,255,0.2); border-radius:8px; padding:8px; margin-bottom:4px; }
+  #accountLoginRow { display:flex; flex-direction:column; gap:6px; }
+  #accountLoginRow input { padding:7px; border-radius:6px; border:1px solid #555; background:rgba(255,255,255,0.08); color:#fff; font-size:12px; }
+  #accountLoggedRow { display:none; align-items:center; justify-content:space-between; font-size:12px; color:#ccc; }
+  #accountLoggedRow b { color:#3ddc71; }
+  #accountLoggedRow button { background:none; border:none; color:#e94560; cursor:pointer; font-size:12px; }
+  #accountStatus { font-size:10.5px; color:#FFD700; margin-top:4px; min-height:13px; line-height:1.4; }
+  .actionBtn { padding:9px; border-radius:8px; border:none; background:#e94560; color:#fff; font-weight:bold; cursor:pointer; font-size:13px; }
+  .actionBtn:hover { background:#c73652; }
+  .actionBtn.secondary { background:rgba(255,255,255,0.1); border:2px solid #555; }
+  .actionBtn.secondary:hover { border-color:#aaa; }
+  #savedList { display:flex; flex-direction:column; gap:6px; max-height:150px; overflow-y:auto; }
+  .savedItem { display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.07); border-radius:8px; padding:6px 10px; font-size:12px; }
+  .savedItem button { background:none; border:none; color:#e94560; cursor:pointer; font-size:12px; }
+  #exportStatus { font-size:12px; color:#FFD700; min-height:16px; text-align:center; }
+  #exportPreview { display:none; width:100%; border-radius:8px; margin-top:4px; }
+  #downloadLink, #shareBtn { display:none; text-align:center; text-decoration:none; }
+
+  /* ── Idea helper panel ── */
+  #ideaPanel { flex:0 0 auto; width:min(92vw,300px); }
+  #ideaBubble { background:rgba(255,255,255,0.08); border-radius:10px; padding:10px; font-size:13px; color:#ffd9a0; min-height:44px; line-height:1.4; margin-bottom:8px; }
+  #tipBubble { background:rgba(255,255,255,0.08); border-radius:10px; padding:10px; font-size:12px; color:#9be89b; line-height:1.4; }
+
+  /* ── Break modal ── */
+  #breakModal { position:fixed; inset:0; background:rgba(0,0,0,0.92); display:none; align-items:center; justify-content:center; z-index:500; text-align:center; padding:20px; }
+  #breakModal.show { display:flex; }
+  #breakModal .box { max-width:360px; }
+  #breakModal h2 { color:#FFD700; font-size:26px; margin-bottom:14px; letter-spacing:1px; }
+  #breakModal p { color:#ccc; font-size:14px; line-height:1.6; margin-bottom:20px; }
+  #breakContinueBtn { padding:12px 30px; border-radius:10px; border:none; background:#FFD700; color:#1a1a2e; font-weight:bold; cursor:pointer; font-size:15px; }
+
+  /* ── Fake Explox "ad" — a joke, not a real ad network: it only ever promotes Explox's own
+     real features, styled like a cheesy full-screen mobile-game ad, unskippable timer and all. ── */
+  #adOverlay {
+    position:fixed; inset:0; z-index:480; display:none; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 30% 20%,#3a2a00,#1a1a2e 70%); padding:20px; text-align:center;
+  }
+  #adOverlay.show { display:flex; }
+  #adOverlay .adBox { max-width:420px; width:100%; }
+  #adBadge2 { display:inline-block; background:#FFD700; color:#1a1a2e; font-size:11px; font-weight:bold; letter-spacing:2px; padding:4px 12px; border-radius:20px; margin-bottom:14px; }
+  #adMuteBtn { position:fixed; top:16px; right:16px; z-index:481; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.35); color:#fff; font-size:16px; width:36px; height:36px; border-radius:50%; cursor:pointer; }
+
+  /* ── Games mode ── */
+  #gamesPanel { display:none; }
+  #gamesSubTabs { display:flex; gap:6px; justify-content:center; margin-bottom:14px; }
+  #gamesList { display:flex; flex-direction:column; gap:6px; }
+  #gameCharStrip { display:flex; gap:6px; overflow-x:auto; padding:4px 2px; margin-bottom:12px; }
+  #gameTypeStrip { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  #gameSpeedRange { width:100%; margin:6px 0 14px; }
+  #gameNameInput { width:100%; padding:8px; border-radius:8px; border:2px solid #e94560; background:rgba(255,255,255,0.1); color:#fff; font-size:13px; margin-bottom:10px; }
+  #gamePlayArea { text-align:center; }
+  #gameHud { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:15px; font-weight:bold; color:#fff; }
+  #gameExitTopBtn { background:none; border:1px solid #555; color:#fff; border-radius:6px; padding:5px 12px; font-size:11px; cursor:pointer; }
+  #gameCanvas { background:#0f1424; border-radius:10px; width:min(92vw,320px); height:auto; aspect-ratio:320/420; touch-action:none; cursor:pointer; display:block; margin:0 auto; }
+  #gameOverBox { margin-top:16px; }
+  #gameOverMsg { font-size:17px; color:#FFD700; font-weight:bold; margin-bottom:12px; }
+  #gameOverBox .actionBtn { display:inline-block; width:auto; padding:10px 22px; margin:0 5px; }
+  #adHeadline { font-size:26px; font-weight:900; color:#FFD700; letter-spacing:1px; text-shadow:0 0 14px rgba(255,215,0,0.5); margin-bottom:16px; }
+  #adBody { display:flex; flex-direction:column; gap:10px; margin-bottom:22px; }
+  .adFeature { background:rgba(255,255,255,0.08); border:1px solid rgba(255,215,0,0.35); border-radius:10px; padding:10px 14px; font-size:13px; color:#fff; text-align:left; line-height:1.4; }
+  .adMgIcon { font-size:44px; margin-bottom:6px; }
+  .adMgName { font-size:19px; font-weight:900; color:#fff; margin-bottom:6px; }
+  .adMgDesc { font-size:13px; color:#ddd; line-height:1.5; max-width:340px; margin:0 auto; }
+  #adVideo { width:100%; border-radius:10px; background:#000; max-height:220px; }
+  .adVideoCap { font-size:11px; color:#aaa; }
+  #adPlayableCanvas { background:#fff; border-radius:10px; touch-action:none; cursor:pointer; }
+  #adPlayableScore { font-size:14px; font-weight:bold; color:#3ddc71; }
+  #adPlayableMsg { font-size:12px; color:#ddd; }
+  #adPlayNowBtn { display:block; background:linear-gradient(135deg,#3ddc71,#2bb85c); color:#0a2e14; text-decoration:none; font-weight:900; font-size:16px; padding:14px; border-radius:10px; letter-spacing:1px; box-shadow:0 6px 18px rgba(61,220,113,0.4); margin-bottom:14px; }
+  #adSkipBtn { padding:10px 20px; border-radius:8px; border:2px solid #666; background:rgba(255,255,255,0.06); color:#888; font-size:12px; cursor:not-allowed; }
+  #adSkipBtn:not(:disabled) { color:#fff; border-color:#e94560; cursor:pointer; background:rgba(233,69,96,0.2); }
+
+  @media (max-width:640px) {
+    #layout { flex-direction:column; align-items:center; }
+  }
+</style>
+</head>
+<body>
+
+<div id="topBar">
+  <div id="title">🎬 EXPLOX ANIMATOR</div>
+  <div class="pill" id="breakPill">⏱ --:--</div>
+</div>
+
+<div id="layout">
+
+  <div class="panel" id="stagePanel">
+    <div class="panelTitle">DRAW YOUR FRAME</div>
+    <div id="modeTabs">
+      <button class="modeTab active" id="drawModeBtn">✏️ Draw</button>
+      <button class="modeTab" id="camModeBtn">📷 Stop Motion</button>
+      <button class="modeTab" id="gamesModeBtn">🎮 Games</button>
+    </div>
+
+    <div id="gamesPanel">
+      <div id="gamesSubTabs">
+        <button class="modeTab active" id="gamesPlayTabBtn">▶ Play</button>
+        <button class="modeTab" id="gamesCreateTabBtn">🛠 Create</button>
+      </div>
+
+      <div id="gamesPlayView">
+        <div id="gamesList"></div>
+      </div>
+
+      <div id="gamesCreateView" style="display:none;">
+        <div class="panelTitle" style="margin-top:0;">PICK A CHARACTER</div>
+        <div id="gameCharStrip"></div>
+        <div class="panelTitle">PICK A GAME TYPE</div>
+        <div id="gameTypeStrip"></div>
+        <div class="panelTitle">SPEED</div>
+        <input type="range" id="gameSpeedRange" min="1" max="5" value="3">
+        <input type="text" id="gameNameInput" placeholder="Name your game..." maxlength="30">
+        <button class="actionBtn" id="createGameBtn">🎮 Create Game</button>
+      </div>
+
+      <div id="gamePlayArea" style="display:none;">
+        <div id="gameHud">
+          <span id="gameScoreLbl">Score: 0</span>
+          <span id="gameLivesLbl">❤️❤️❤️</span>
+          <button id="gameExitTopBtn" type="button">✕ Exit</button>
+        </div>
+        <canvas id="gameCanvas" width="320" height="420"></canvas>
+        <div id="gameOverBox" style="display:none;">
+          <div id="gameOverMsg"></div>
+          <button class="actionBtn" id="gamePlayAgainBtn">▶ Play Again</button>
+          <button class="actionBtn secondary" id="gameBackBtn">↩ Back to Games</button>
+        </div>
+      </div>
+    </div>
+    <div id="camStatus"></div>
+    <div id="canvasWrap">
+      <canvas id="paperCanvas"></canvas>
+      <video id="camVideo" autoplay playsinline muted></video>
+      <canvas id="belowCanvas"></canvas>
+      <canvas id="onionCanvas"></canvas>
+      <canvas id="drawCanvas"></canvas>
+      <canvas id="aboveCanvas"></canvas>
+    </div>
+    <div id="toolbar">
+      <span class="swatch selected" data-color="#000000" style="background:#000"></span>
+      <span class="swatch" data-color="#e94560" style="background:#e94560"></span>
+      <span class="swatch" data-color="#FFD700" style="background:#FFD700"></span>
+      <span class="swatch" data-color="#3ddc71" style="background:#3ddc71"></span>
+      <span class="swatch" data-color="#4488ff" style="background:#4488ff"></span>
+      <span class="swatch" data-color="#ffffff" style="background:#fff"></span>
+      <input type="color" id="customColor" value="#000000" title="Custom color">
+      <span id="brushLabel">Size</span>
+      <input type="range" id="brushSize" min="2" max="28" value="6">
+      <button class="toolBtn" id="eraserBtn">🧽 Eraser</button>
+      <button class="toolBtn" id="fillBtn">🪣 Fill</button>
+      <button class="toolBtn" id="onionBtn">🧅 Onion skin</button>
+      <button class="toolBtn" id="undoBtn">↩ Undo</button>
+      <button class="toolBtn" id="clearBtn">🗑 Clear</button>
+    </div>
+    <div id="camControls">
+      <button id="captureBtn">📸 Capture Frame</button>
+    </div>
+
+    <div id="charPanel">
+      <div class="panelTitle">🎭 CHARACTERS</div>
+      <div id="charHint">Tap a character, then tap the canvas to place it (the Size slider changes how big)</div>
+      <div id="charStrip"></div>
+    </div>
+
+    <div id="layersPanel">
+      <div class="panelTitle">🗂 LAYERS</div>
+      <div id="layerList"></div>
+      <button class="toolBtn" id="addLayerBtn">+ Add Layer</button>
+    </div>
+
+    <div id="framesPanel" style="margin-top:14px;">
+      <div class="panelTitle">FRAMES</div>
+      <div id="frameStrip"></div>
+      <div id="frameCountLbl">1 frame</div>
+    </div>
+
+    <div id="playbackRow">
+      <button id="playBtn">▶ Play</button>
+      <span style="font-size:11px;color:#aaa;">Speed</span>
+      <input type="range" id="fpsRange" min="1" max="20" value="8">
+      <span id="fpsLabel" style="font-size:11px;color:#aaa;">8 fps</span>
+      <label id="loopLbl"><input type="checkbox" id="loopCheck" checked> Loop</label>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:16px;">
+    <div class="panel" id="savePanel">
+      <div class="panelTitle">SAVE &amp; SHARE</div>
+
+      <div id="accountBox">
+        <div id="accountLoginRow">
+          <input type="text" id="accountUser" placeholder="Explox username" autocomplete="username">
+          <input type="password" id="accountPw" placeholder="Password" autocomplete="current-password">
+          <button class="actionBtn secondary" id="accountLoginBtn">🔑 Log in with my Explox account</button>
+        </div>
+        <div id="accountLoggedRow">
+          <span>Logged in as <b id="accountName"></b></span>
+          <button id="accountLogoutBtn">Log out</button>
+        </div>
+        <div id="accountStatus"></div>
+      </div>
+
+      <input type="text" id="projectName" placeholder="Name your animation..." maxlength="40">
+      <button class="actionBtn" id="saveBtn">💾 Save Animation</button>
+      <div id="savedList"></div>
+      <button class="actionBtn secondary" id="exportBtn">🎥 Export &amp; Share Video</button>
+      <div id="exportStatus"></div>
+      <video id="exportPreview" controls loop muted playsinline></video>
+      <a id="downloadLink" class="actionBtn secondary">⬇ Download</a>
+      <button id="shareBtn" class="actionBtn">📤 Share to friends</button>
+    </div>
+
+    <div class="panel" id="ideaPanel">
+      <div class="panelTitle">💡 IDEA HELPER</div>
+      <div id="ideaBubble">Tap "Get an idea" for something fun to animate!</div>
+      <button class="actionBtn secondary" id="ideaBtn" style="margin-bottom:10px;">🎲 Get an idea</button>
+      <div id="tipBubble">Draw a frame to get a tip.</div>
+      <button class="actionBtn secondary" id="tipBtn" style="margin-top:10px;">🔍 Check my last 2 frames</button>
+    </div>
+  </div>
+
+</div>
+
+<div id="breakModal">
+  <div class="box">
+    <h2>🛑 Time for a break!</h2>
+    <p>You've been animating for 50 minutes. Stand up, stretch, look away from the screen, and get some water — your eyes and brain need it!</p>
+    <button id="breakContinueBtn">I took a break — keep animating</button>
+  </div>
+</div>
+
+<div id="adOverlay">
+  <button id="adMuteBtn" type="button" title="Mute/unmute ad voiceover">🔊</button>
+  <div class="adBox">
+    <div id="adBadge2">📣 EXPLOX AD</div>
+    <div id="adHeadline">PLAY EXPLOX TODAY!</div>
+    <div id="adBody"></div>
+    <a id="adPlayNowBtn" href="https://cubbyexplosion.github.io/explox-the-best/" target="_blank" rel="noopener">▶ PLAY EXPLOX NOW — FREE!</a>
+    <button id="adSkipBtn" type="button" disabled>Skip in 10s</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  // Registers the real installable-app pieces (Chrome's "Add to Home Screen"/"Install"
+  // prompt checks for a valid manifest PLUS a registered service worker). Service workers only
+  // run in a "secure context" — https, or http://localhost — and are silently refused on a
+  // plain file:// page (a real browser security rule, not a bug), so this quietly does nothing
+  // when the file is just double-clicked; it works once this page is served over http(s).
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('animator-sw.js').catch(function(){});
+  }
+
+  var CANVAS_SIZE = 420;
+  var paperCanvas = document.getElementById('paperCanvas');
+  var belowCanvas = document.getElementById('belowCanvas');
+  var onionCanvas = document.getElementById('onionCanvas');
+  var drawCanvas  = document.getElementById('drawCanvas');
+  var aboveCanvas = document.getElementById('aboveCanvas');
+  [paperCanvas, belowCanvas, onionCanvas, drawCanvas, aboveCanvas].forEach(function(c){ c.width = CANVAS_SIZE; c.height = CANVAS_SIZE; });
+  var pctx = paperCanvas.getContext('2d');
+  var belowCtx = belowCanvas.getContext('2d');
+  var octx = onionCanvas.getContext('2d');
+  var dctx = drawCanvas.getContext('2d');
+  var aboveCtx = aboveCanvas.getContext('2d');
+  pctx.fillStyle = '#ffffff';
+  pctx.fillRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
+  dctx.lineCap = 'round';
+  dctx.lineJoin = 'round';
+
+  function loadImgP(src){ return new Promise(function(res){ var im = new Image(); im.onload = function(){ res(im); }; im.src = src; }); }
+
+  // ── Drawing state ──
+  var brushColor = '#000000';
+  var brushSize = 6;
+  var erasing = false;
+  var fillMode = false;
+  var stampMode = false;
+  var selectedCharacter = null;
+  var onionOn = true;
+  var drawing = false;
+  var lastX = 0, lastY = 0;
+  var undoStack = [];
+
+  function clearTools(){
+    erasing = false; fillMode = false; stampMode = false; selectedCharacter = null;
+    document.getElementById('eraserBtn').classList.remove('active');
+    document.getElementById('fillBtn').classList.remove('active');
+    document.querySelectorAll('.charBtn').forEach(function(b){ b.classList.remove('selected'); });
+  }
+
+  function canvasPoint(e){
+    var rect = drawCanvas.getBoundingClientRect();
+    var scaleX = CANVAS_SIZE / rect.width;
+    var scaleY = CANVAS_SIZE / rect.height;
+    return { x:(e.clientX-rect.left)*scaleX, y:(e.clientY-rect.top)*scaleY };
+  }
+  function pushUndo(){
+    undoStack.push(drawCanvas.toDataURL());
+    if (undoStack.length > 20) undoStack.shift();
+  }
+
+  // Real iterative (non-recursive, so it can't stack-overflow on a big filled area) flood
+  // fill on the transparent active-layer canvas. Matches with a tolerance so the soft,
+  // partially-transparent pixels along an anti-aliased pen line still count as a "wall" and
+  // stop the fill, instead of only exact-transparent pixels matching and leaking through the edge.
+  function floodFill(startX, startY, hexColor){
+    var w = CANVAS_SIZE, h = CANVAS_SIZE;
+    startX = Math.floor(startX); startY = Math.floor(startY);
+    if (startX < 0 || startY < 0 || startX >= w || startY >= h) return;
+    var imgData = dctx.getImageData(0, 0, w, h);
+    var data = imgData.data;
+    var startIdx = (startY * w + startX) * 4;
+    var sr = data[startIdx], sg = data[startIdx+1], sb = data[startIdx+2], sa = data[startIdx+3];
+    var fr = parseInt(hexColor.slice(1,3),16), fg = parseInt(hexColor.slice(3,5),16), fb = parseInt(hexColor.slice(5,7),16);
+    if (sr===fr && sg===fg && sb===fb && sa===255) return; // already this exact fill color
+    var TOL = 40, TOL2 = TOL*TOL;
+    function matches(idx){
+      var dr=data[idx]-sr, dg=data[idx+1]-sg, db=data[idx+2]-sb, da=data[idx+3]-sa;
+      return (dr*dr+dg*dg+db*db+da*da) <= TOL2;
+    }
+    var visited = new Uint8Array(w*h);
+    var stack = [startX, startY];
+    while (stack.length){
+      var y = stack.pop(), x = stack.pop();
+      if (x < 0 || y < 0 || x >= w || y >= h) continue;
+      var vIdx = y*w + x;
+      if (visited[vIdx]) continue;
+      var idx = vIdx*4;
+      if (!matches(idx)) continue;
+      visited[vIdx] = 1;
+      data[idx] = fr; data[idx+1] = fg; data[idx+2] = fb; data[idx+3] = 255;
+      stack.push(x+1,y, x-1,y, x,y+1, x,y-1);
+    }
+    dctx.putImageData(imgData, 0, 0);
+  }
+
+  // ── Original, simple hand-drawn character stamps (generic archetypes — not copied from
+  //    any other game or real person) — each draws itself centered at (cx,cy) scaled by s. ──
+  var CHARACTERS = [
+    { key:'robot', label:'Robot', draw:function(ctx,cx,cy,s){
+      ctx.save(); ctx.translate(cx,cy); ctx.scale(s,s);
+      ctx.fillStyle='#8899aa'; ctx.strokeStyle='#333'; ctx.lineWidth=3;
+      ctx.fillRect(-30,-10,60,50); ctx.strokeRect(-30,-10,60,50);
+      ctx.fillRect(-22,-45,44,38); ctx.strokeRect(-22,-45,44,38);
+      ctx.fillStyle='#3ddc71';
+      ctx.beginPath(); ctx.arc(-9,-27,5,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(9,-27,5,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#333'; ctx.beginPath(); ctx.moveTo(0,-45); ctx.lineTo(0,-58); ctx.stroke();
+      ctx.fillStyle='#e94560'; ctx.beginPath(); ctx.arc(0,-60,4,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#556677'; ctx.fillRect(-46,-4,14,34); ctx.fillRect(32,-4,14,34);
+      ctx.fillRect(-24,40,18,26); ctx.fillRect(6,40,18,26);
+      ctx.restore();
+    }},
+    { key:'ninja', label:'Ninja', draw:function(ctx,cx,cy,s){
+      ctx.save(); ctx.translate(cx,cy); ctx.scale(s,s);
+      ctx.fillStyle='#222';
+      ctx.beginPath(); ctx.arc(0,-40,20,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#fff';
+      ctx.beginPath(); ctx.arc(-7,-42,3,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(7,-42,3,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#2b2b40';
+      ctx.beginPath(); ctx.moveTo(0,-20); ctx.lineTo(38,55); ctx.lineTo(-38,55); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#e94560'; ctx.fillRect(-38,15,76,8);
+      ctx.restore();
+    }},
+    { key:'dinobot', label:'Dino-Bot', draw:function(ctx,cx,cy,s){
+      ctx.save(); ctx.translate(cx,cy); ctx.scale(s,s);
+      ctx.fillStyle='#6a8a5a'; ctx.strokeStyle='#2c3b26'; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.ellipse(0,10,42,26,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(30,-14); ctx.lineTo(58,10); ctx.lineTo(30,14); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#4e6b41';
+      [-22,-4,14].forEach(function(x){ ctx.beginPath(); ctx.moveTo(x,-14); ctx.lineTo(x+8,-32); ctx.lineTo(x+16,-14); ctx.closePath(); ctx.fill(); });
+      ctx.fillStyle='#6a8a5a'; ctx.strokeStyle='#2c3b26';
+      ctx.beginPath(); ctx.ellipse(-40,0,16,14,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#e94560'; ctx.beginPath(); ctx.arc(-46,-4,3,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }},
+    { key:'rocket', label:'Rocket', draw:function(ctx,cx,cy,s){
+      ctx.save(); ctx.translate(cx,cy); ctx.scale(s,s);
+      ctx.fillStyle='#e6e6e6'; ctx.strokeStyle='#333'; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.moveTo(0,-60); ctx.quadraticCurveTo(24,-10,20,40); ctx.lineTo(-20,40); ctx.quadraticCurveTo(-24,-10,0,-60); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#4488ff'; ctx.beginPath(); ctx.arc(0,-10,10,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#e94560';
+      ctx.beginPath(); ctx.moveTo(-20,20); ctx.lineTo(-42,50); ctx.lineTo(-20,44); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(20,20); ctx.lineTo(42,50); ctx.lineTo(20,44); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#FFD700';
+      ctx.beginPath(); ctx.moveTo(-12,40); ctx.lineTo(12,40); ctx.lineTo(0,62); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }},
+    { key:'hero', label:'Hero', draw:function(ctx,cx,cy,s){
+      ctx.save(); ctx.translate(cx,cy); ctx.scale(s,s);
+      ctx.fillStyle='#4488ff';
+      ctx.beginPath(); ctx.moveTo(-20,-30); ctx.lineTo(20,-30); ctx.lineTo(50,55); ctx.lineTo(-50,55); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#e94560'; ctx.fillRect(-22,-30,44,60);
+      ctx.fillStyle='#ffd9a0'; ctx.beginPath(); ctx.arc(0,-45,20,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#222'; ctx.fillRect(-20,-52,40,10);
+      ctx.fillStyle='#FFD700'; ctx.beginPath(); ctx.arc(0,-2,10,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }},
+    { key:'ghost', label:'Ghost', draw:function(ctx,cx,cy,s){
+      ctx.save(); ctx.translate(cx,cy); ctx.scale(s,s);
+      ctx.fillStyle='rgba(255,255,255,0.95)'; ctx.strokeStyle='#aabbcc'; ctx.lineWidth=2;
+      ctx.beginPath();
+      ctx.arc(0,-10,34,Math.PI,0);
+      ctx.lineTo(34,40);
+      ctx.quadraticCurveTo(22,25,10,40);
+      ctx.quadraticCurveTo(-2,25,-14,40);
+      ctx.quadraticCurveTo(-26,25,-34,40);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#333';
+      ctx.beginPath(); ctx.arc(-12,-12,4,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(12,-12,4,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }}
+  ];
+  var charStrip = document.getElementById('charStrip');
+  CHARACTERS.forEach(function(ch){
+    var btn = document.createElement('div');
+    btn.className = 'charBtn';
+    var thumbCanvas = document.createElement('canvas');
+    thumbCanvas.width = 60; thumbCanvas.height = 60;
+    var tctx = thumbCanvas.getContext('2d');
+    ch.draw(tctx, 30, 38, 0.42);
+    var img = document.createElement('img');
+    img.src = thumbCanvas.toDataURL();
+    btn.appendChild(img);
+    var label = document.createElement('span');
+    label.textContent = ch.label;
+    btn.appendChild(label);
+    btn.addEventListener('click', function(){
+      if (stampMode && selectedCharacter === ch){
+        clearTools();
+        return;
+      }
+      clearTools();
+      stampMode = true;
+      selectedCharacter = ch;
+      btn.classList.add('selected');
+    });
+    charStrip.appendChild(btn);
+  });
+
+  function strokeStart(e){
+    if (stopMotionMode) return;
+    var p = canvasPoint(e);
+    if (stampMode && selectedCharacter){
+      pushUndo();
+      dctx.globalCompositeOperation = 'source-over';
+      selectedCharacter.draw(dctx, p.x, p.y, brushSize/6);
+      autoSaveActiveLayer();
+      return;
+    }
+    if (fillMode){
+      pushUndo();
+      floodFill(p.x, p.y, brushColor);
+      autoSaveActiveLayer();
+      return;
+    }
+    drawing = true;
+    pushUndo();
+    lastX = p.x; lastY = p.y;
+    dctx.globalCompositeOperation = erasing ? 'destination-out' : 'source-over';
+    dctx.strokeStyle = brushColor;
+    dctx.lineWidth = brushSize;
+    dctx.beginPath();
+    dctx.moveTo(p.x, p.y);
+    dctx.lineTo(p.x+0.01, p.y+0.01); // dot for a single tap
+    dctx.stroke();
+  }
+  function strokeMove(e){
+    if (!drawing) return;
+    var p = canvasPoint(e);
+    dctx.beginPath();
+    dctx.moveTo(lastX, lastY);
+    dctx.lineTo(p.x, p.y);
+    dctx.stroke();
+    lastX = p.x; lastY = p.y;
+  }
+  function strokeEnd(){
+    if (!drawing) return;
+    drawing = false;
+    autoSaveActiveLayer();
+  }
+  drawCanvas.addEventListener('pointerdown', function(e){ drawCanvas.setPointerCapture(e.pointerId); strokeStart(e); });
+  drawCanvas.addEventListener('pointermove', strokeMove);
+  drawCanvas.addEventListener('pointerup', strokeEnd);
+  drawCanvas.addEventListener('pointercancel', strokeEnd);
+  drawCanvas.addEventListener('pointerleave', function(){ if (drawing) strokeEnd(); });
+
+  document.querySelectorAll('.swatch').forEach(function(s){
+    s.addEventListener('click', function(){
+      document.querySelectorAll('.swatch').forEach(function(x){ x.classList.remove('selected'); });
+      s.classList.add('selected');
+      brushColor = s.dataset.color;
+      clearTools();
+    });
+  });
+  document.getElementById('customColor').addEventListener('input', function(e){
+    brushColor = e.target.value;
+    document.querySelectorAll('.swatch').forEach(function(x){ x.classList.remove('selected'); });
+    clearTools();
+  });
+  document.getElementById('brushSize').addEventListener('input', function(e){ brushSize = Number(e.target.value); });
+  document.getElementById('eraserBtn').addEventListener('click', function(){
+    var wasOn = erasing;
+    clearTools();
+    erasing = !wasOn;
+    this.classList.toggle('active', erasing);
+  });
+  document.getElementById('fillBtn').addEventListener('click', function(){
+    var wasOn = fillMode;
+    clearTools();
+    fillMode = !wasOn;
+    this.classList.toggle('active', fillMode);
+  });
+  document.getElementById('onionBtn').addEventListener('click', function(){
+    onionOn = !onionOn;
+    this.classList.toggle('active', onionOn);
+    renderOnion();
+  });
+  document.getElementById('onionBtn').classList.add('active');
+  document.getElementById('undoBtn').addEventListener('click', function(){
+    var prev = undoStack.pop();
+    if (!prev) return;
+    var img = new Image();
+    img.onload = function(){
+      dctx.clearRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
+      dctx.globalCompositeOperation = 'source-over';
+      dctx.drawImage(img,0,0);
+      autoSaveActiveLayer();
+    };
+    img.src = prev;
+  });
+  document.getElementById('clearBtn').addEventListener('click', function(){
+    if (!confirm('Clear this whole layer?')) return;
+    pushUndo();
+    dctx.clearRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
+    autoSaveActiveLayer();
+  });
+
+  // ── Layers (each frame owns its own stack: Background, Layer 1, Layer 2, ...) ──
+  function makeBlankLayer(name, opaqueWhite){
+    var tmp = document.createElement('canvas');
+    tmp.width = CANVAS_SIZE; tmp.height = CANVAS_SIZE;
+    var t = tmp.getContext('2d');
+    if (opaqueWhite){ t.fillStyle = '#fff'; t.fillRect(0,0,CANVAS_SIZE,CANVAS_SIZE); }
+    return { name: name, visible: true, data: tmp.toDataURL() };
+  }
+  function makeBlankFrame(){
+    return { layers: [ makeBlankLayer('Background', true) ], activeLayer: 0 };
+  }
+  function activeLayerObj(){
+    var f = frames[currentFrame];
+    return f.layers[f.activeLayer];
+  }
+  function commitActiveLayer(){
+    activeLayerObj().data = drawCanvas.toDataURL();
+  }
+  function loadActiveLayerIntoCanvas(cb){
+    var img = new Image();
+    img.onload = function(){
+      dctx.clearRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
+      dctx.globalCompositeOperation = 'source-over';
+      dctx.drawImage(img,0,0);
+      updateDrawCanvasVisibility();
+      if (cb) cb();
+    };
+    img.src = activeLayerObj().data;
+  }
+  // A hidden layer should genuinely disappear from what you see — including while it's the
+  // one you're actively drawing on — not just from the final composite. The real pixel data
+  // stays intact underneath (toggling back on brings it right back); this only hides the view.
+  function updateDrawCanvasVisibility(){
+    drawCanvas.style.opacity = activeLayerObj().visible ? '1' : '0';
+  }
+  // Flattens a whole frame's visible layers, bottom to top, into one image — used for
+  // thumbnails, onion skin, playback, export, and the pixel-diff tip.
+  function compositeFrame(frameObj){
+    return compositeLayerRange(frameObj, 0, frameObj.layers.length);
+  }
+  function compositeLayerRange(frameObj, fromIdx, toIdx){
+    var slice = frameObj.layers.slice(fromIdx, toIdx);
+    return Promise.all(slice.map(function(l){ return l.visible ? loadImgP(l.data) : Promise.resolve(null); })).then(function(loaded){
+      var tmp = document.createElement('canvas');
+      tmp.width = CANVAS_SIZE; tmp.height = CANVAS_SIZE;
+      var t = tmp.getContext('2d');
+      loaded.forEach(function(img){ if (img) t.drawImage(img,0,0); });
+      return tmp.toDataURL();
+    });
+  }
+  function refreshBelowAbove(){
+    var f = frames[currentFrame];
+    compositeLayerRange(f, 0, f.activeLayer).then(function(url){
+      var img = new Image();
+      img.onload = function(){ belowCtx.clearRect(0,0,CANVAS_SIZE,CANVAS_SIZE); belowCtx.drawImage(img,0,0); };
+      img.src = url;
+    });
+    compositeLayerRange(f, f.activeLayer+1, f.layers.length).then(function(url){
+      var img = new Image();
+      img.onload = function(){ aboveCtx.clearRect(0,0,CANVAS_SIZE,CANVAS_SIZE); aboveCtx.drawImage(img,0,0); };
+      img.src = url;
+    });
+  }
+  function nextLayerName(frame){ return 'Layer ' + frame.layers.length; }
+
+  function selectLayer(i){
+    if (i === frames[currentFrame].activeLayer) return;
+    commitActiveLayer();
+    frames[currentFrame].activeLayer = i;
+    undoStack = [];
+    clearTools();
+    loadActiveLayerIntoCanvas(function(){ refreshBelowAbove(); });
+    renderLayerList();
+  }
+  function swapLayers(i, j){
+    var f = frames[currentFrame];
+    if (j < 1 || j >= f.layers.length) return; // Background (index 0) never moves
+    var tmp = f.layers[i]; f.layers[i] = f.layers[j]; f.layers[j] = tmp;
+    if (f.activeLayer === i) f.activeLayer = j;
+    else if (f.activeLayer === j) f.activeLayer = i;
+    refreshBelowAbove();
+    updateCurrentThumb();
+    renderOnion();
+    renderLayerList();
+  }
+  function deleteLayer(i){
+    var f = frames[currentFrame];
+    if (f.layers.length <= 1) { alert('You need at least 1 layer!'); return; }
+    if (!confirm('Delete "' + f.layers[i].name + '"?')) return;
+    f.layers.splice(i,1);
+    if (f.activeLayer >= f.layers.length) f.activeLayer = f.layers.length-1;
+    else if (f.activeLayer > i) f.activeLayer--;
+    undoStack = [];
+    loadActiveLayerIntoCanvas(function(){ refreshBelowAbove(); });
+    updateCurrentThumb();
+    renderOnion();
+    renderLayerList();
+  }
+  document.getElementById('addLayerBtn').addEventListener('click', function(){
+    commitActiveLayer();
+    var f = frames[currentFrame];
+    f.layers.push(makeBlankLayer(nextLayerName(f), false));
+    f.activeLayer = f.layers.length-1;
+    undoStack = [];
+    clearTools();
+    loadActiveLayerIntoCanvas(function(){ refreshBelowAbove(); });
+    updateCurrentThumb();
+    renderOnion();
+    renderLayerList();
+  });
+  function renderLayerList(){
+    var f = frames[currentFrame];
+    var list = document.getElementById('layerList');
+    list.innerHTML = '';
+    for (var idx = f.layers.length - 1; idx >= 0; idx--){
+      (function(i){
+        var layer = f.layers[i];
+        var row = document.createElement('div');
+        row.className = 'layerRow' + (i === f.activeLayer ? ' selected' : '');
+        var img = document.createElement('img');
+        img.src = layer.data;
+        row.appendChild(img);
+        var name = document.createElement('span');
+        name.className = 'layerName';
+        name.textContent = layer.name;
+        row.appendChild(name);
+        var vis = document.createElement('button');
+        vis.className = 'layerBtn';
+        vis.type = 'button';
+        vis.textContent = layer.visible ? '👁' : '🚫';
+        vis.title = 'Show/hide this layer';
+        vis.addEventListener('click', function(e){
+          e.stopPropagation();
+          layer.visible = !layer.visible;
+          vis.textContent = layer.visible ? '👁' : '🚫';
+          if (i === f.activeLayer) updateDrawCanvasVisibility();
+          refreshBelowAbove();
+          updateCurrentThumb();
+          renderOnion();
+        });
+        row.appendChild(vis);
+        if (i > 0){
+          var up = document.createElement('button');
+          up.className = 'layerBtn'; up.type = 'button'; up.textContent = '⬆️'; up.title = 'Move up';
+          up.disabled = (i === f.layers.length-1);
+          up.addEventListener('click', function(e){ e.stopPropagation(); swapLayers(i, i+1); });
+          row.appendChild(up);
+          var down = document.createElement('button');
+          down.className = 'layerBtn'; down.type = 'button'; down.textContent = '⬇️'; down.title = 'Move down';
+          down.disabled = (i === 1);
+          down.addEventListener('click', function(e){ e.stopPropagation(); swapLayers(i, i-1); });
+          row.appendChild(down);
+          var del = document.createElement('button');
+          del.className = 'layerBtn'; del.type = 'button'; del.textContent = '🗑'; del.title = 'Delete this layer';
+          del.addEventListener('click', function(e){ e.stopPropagation(); deleteLayer(i); });
+          row.appendChild(del);
+        }
+        row.addEventListener('click', function(){ selectLayer(i); });
+        list.appendChild(row);
+      })(idx);
+    }
+  }
+
+  // ── Frames ──
+  var frames = [ makeBlankFrame() ];
+  var currentFrame = 0;
+  var frameThumbImgs = [];
+
+  function updateCurrentThumb(){
+    compositeFrame(frames[currentFrame]).then(function(url){
+      if (frameThumbImgs[currentFrame]) frameThumbImgs[currentFrame].src = url;
+    });
+  }
+  function autoSaveActiveLayer(){
+    commitActiveLayer();
+    refreshBelowAbove();
+    updateCurrentThumb();
+    renderLayerList();
+  }
+  function renderOnion(){
+    octx.clearRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
+    if (!onionOn || currentFrame === 0) return;
+    compositeFrame(frames[currentFrame-1]).then(function(url){
+      var img = new Image();
+      img.onload = function(){
+        octx.globalAlpha = 0.45;
+        octx.drawImage(img,0,0);
+        octx.globalAlpha = 1;
+      };
+      img.src = url;
+    });
+  }
+  function selectFrame(i){
+    commitActiveLayer();
+    currentFrame = i;
+    undoStack = [];
+    clearTools();
+    loadActiveLayerIntoCanvas(function(){ renderOnion(); refreshBelowAbove(); });
+    renderFrameStrip();
+    renderLayerList();
+  }
+  function addFrame(duplicate){
+    commitActiveLayer();
+    var newFrame;
+    if (duplicate){
+      newFrame = { layers: frames[currentFrame].layers.map(function(l){ return { name:l.name, visible:l.visible, data:l.data }; }), activeLayer: frames[currentFrame].activeLayer };
+    } else {
+      newFrame = makeBlankFrame();
+    }
+    frames.splice(currentFrame+1, 0, newFrame);
+    selectFrame(currentFrame+1);
+    compareLastTwoFrames();
+  }
+  function deleteFrame(i){
+    if (frames.length <= 1) { alert("You need at least 1 frame!"); return; }
+    frames.splice(i,1);
+    if (currentFrame >= frames.length) currentFrame = frames.length-1;
+    undoStack = [];
+    clearTools();
+    loadActiveLayerIntoCanvas(function(){ renderOnion(); refreshBelowAbove(); });
+    renderFrameStrip();
+    renderLayerList();
+  }
+  var addFrameBtn = document.createElement('div');
+  addFrameBtn.id = 'addFrameBtn';
+  addFrameBtn.textContent = '+';
+  addFrameBtn.title = 'Add a new frame (hold Shift to duplicate the current one)';
+  addFrameBtn.addEventListener('click', function(e){ addFrame(e.shiftKey); });
+
+  function renderFrameStrip(){
+    var strip = document.getElementById('frameStrip');
+    strip.innerHTML = '';
+    frameThumbImgs = [];
+    frames.forEach(function(frameObj, i){
+      var thumb = document.createElement('div');
+      thumb.className = 'frameThumb' + (i===currentFrame ? ' selected' : '');
+      var img = document.createElement('img');
+      thumb.appendChild(img);
+      frameThumbImgs[i] = img;
+      compositeFrame(frameObj).then(function(url){ img.src = url; });
+      var del = document.createElement('div');
+      del.className = 'delX';
+      del.textContent = '✕';
+      del.addEventListener('click', function(e){ e.stopPropagation(); deleteFrame(i); });
+      thumb.appendChild(del);
+      thumb.addEventListener('click', function(){ if (i!==currentFrame) selectFrame(i); });
+      strip.appendChild(thumb);
+    });
+    strip.appendChild(addFrameBtn);
+    document.getElementById('frameCountLbl').textContent = frames.length + (frames.length===1?' frame':' frames');
+  }
+
+  renderFrameStrip();
+  renderLayerList();
+  loadActiveLayerIntoCanvas(function(){ renderOnion(); refreshBelowAbove(); });
+
+  // ── Stop Motion (real camera capture — photograph a real object frame by frame,
+  //    same trick real stop-motion animators use, e.g. moving a toy a little between shots) ──
+  var stopMotionMode = false;
+  var camStream = null;
+  var camVideo = document.getElementById('camVideo');
+  var camStatus = document.getElementById('camStatus');
+
+  function startCamera(){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      camStatus.textContent = "This browser doesn't support camera access.";
+      return;
+    }
+    camStatus.textContent = 'Asking for camera permission…';
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+      .then(function(stream){
+        commitActiveLayer();
+        camStream = stream;
+        camVideo.srcObject = stream;
+        stopMotionMode = true;
+        document.getElementById('drawModeBtn').classList.remove('active');
+        document.getElementById('camModeBtn').classList.add('active');
+        document.getElementById('toolbar').style.display = 'none';
+        document.getElementById('charPanel').style.display = 'none';
+        document.getElementById('layersPanel').style.display = 'none';
+        belowCanvas.style.display = 'none';
+        drawCanvas.style.display = 'none';
+        aboveCanvas.style.display = 'none';
+        camVideo.style.display = 'block';
+        document.getElementById('camControls').style.display = 'flex';
+        camStatus.textContent = frames.length > 1
+          ? 'Line up your object with the faint ghost image, then capture!'
+          : 'Move your object a tiny bit between each capture — that\'s what makes it animate!';
+      })
+      .catch(function(err){
+        camStatus.textContent = "Couldn't use the camera (" + err.name + "). Stop Motion needs camera permission and a secure (https) connection.";
+      });
+  }
+  function stopCamera(){
+    if (camStream){ camStream.getTracks().forEach(function(t){ t.stop(); }); camStream = null; }
+    stopMotionMode = false;
+    document.getElementById('camModeBtn').classList.remove('active');
+    document.getElementById('drawModeBtn').classList.add('active');
+    document.getElementById('toolbar').style.display = 'flex';
+    document.getElementById('charPanel').style.display = '';
+    document.getElementById('layersPanel').style.display = '';
+    belowCanvas.style.display = '';
+    drawCanvas.style.display = '';
+    aboveCanvas.style.display = '';
+    camVideo.style.display = 'none';
+    document.getElementById('camControls').style.display = 'none';
+    camStatus.textContent = '';
+    loadActiveLayerIntoCanvas(function(){ renderOnion(); refreshBelowAbove(); });
+  }
+  document.getElementById('drawModeBtn').addEventListener('click', function(){ if (gamesMode) exitGamesMode(); if (stopMotionMode) stopCamera(); });
+  document.getElementById('camModeBtn').addEventListener('click', function(){ if (gamesMode) exitGamesMode(); if (!stopMotionMode) startCamera(); });
+  document.getElementById('gamesModeBtn').addEventListener('click', function(){ if (stopMotionMode) stopCamera(); if (!gamesMode) enterGamesMode(); });
+  document.getElementById('captureBtn').addEventListener('click', function(){
+    if (!camStream || !camVideo.videoWidth) { camStatus.textContent = 'Camera is still starting up — try again in a moment.'; return; }
+    var tmp = document.createElement('canvas');
+    tmp.width = CANVAS_SIZE; tmp.height = CANVAS_SIZE;
+    var t = tmp.getContext('2d');
+    var vw = camVideo.videoWidth, vh = camVideo.videoHeight;
+    var scale = Math.max(CANVAS_SIZE/vw, CANVAS_SIZE/vh);
+    var dw = vw*scale, dh = vh*scale;
+    t.drawImage(camVideo, (CANVAS_SIZE-dw)/2, (CANVAS_SIZE-dh)/2, dw, dh);
+    var newFrame = { layers: [ { name:'Background', visible:true, data: tmp.toDataURL() } ], activeLayer: 0 };
+    frames.splice(currentFrame+1, 0, newFrame);
+    currentFrame++;
+    renderFrameStrip();
+    renderLayerList();
+    renderOnion();
+    compareLastTwoFrames();
+    camStatus.textContent = 'Captured! Move your object a little, then capture the next frame.';
+  });
+
+  // ── Games (real playable arcade games, built by picking a character + a game type — not a
+  //    fake preview, a genuine canvas game with real collision detection, scoring, and a
+  //    real increasing-difficulty ramp) ──
+  var gamesMode = false;
+  function enterGamesMode(){
+    gamesMode = true;
+    document.getElementById('drawModeBtn').classList.remove('active');
+    document.getElementById('camModeBtn').classList.remove('active');
+    document.getElementById('gamesModeBtn').classList.add('active');
+    document.getElementById('canvasWrap').style.display = 'none';
+    document.getElementById('toolbar').style.display = 'none';
+    document.getElementById('charPanel').style.display = 'none';
+    document.getElementById('layersPanel').style.display = 'none';
+    document.getElementById('framesPanel').style.display = 'none';
+    document.getElementById('playbackRow').style.display = 'none';
+    document.getElementById('gamesPanel').style.display = 'block';
+    showGamesSubTab('play');
+  }
+  function exitGamesMode(){
+    gamesMode = false;
+    stopMiniGame();
+    document.getElementById('gamesModeBtn').classList.remove('active');
+    document.getElementById('drawModeBtn').classList.add('active');
+    document.getElementById('canvasWrap').style.display = '';
+    document.getElementById('toolbar').style.display = 'flex';
+    document.getElementById('charPanel').style.display = '';
+    document.getElementById('layersPanel').style.display = '';
+    document.getElementById('framesPanel').style.display = '';
+    document.getElementById('playbackRow').style.display = '';
+    document.getElementById('gamesPanel').style.display = 'none';
+  }
+  function showGamesSubTab(tab){
+    document.getElementById('gamesPlayView').style.display = (tab === 'play') ? 'block' : 'none';
+    document.getElementById('gamesCreateView').style.display = (tab === 'create') ? 'block' : 'none';
+    document.getElementById('gamesPlayTabBtn').classList.toggle('active', tab === 'play');
+    document.getElementById('gamesCreateTabBtn').classList.toggle('active', tab === 'create');
+    if (tab === 'play') renderGamesList();
+  }
+  document.getElementById('gamesPlayTabBtn').addEventListener('click', function(){ showGamesSubTab('play'); });
+  document.getElementById('gamesCreateTabBtn').addEventListener('click', function(){ showGamesSubTab('create'); });
+
+  var GAME_TYPES = [
+    { key:'dodge', label:'🌧 Dodge the Falling Things' },
+    { key:'collect', label:'⭐ Collect the Good Stuff' }
+  ];
+  var selectedGameChar = CHARACTERS[0];
+  var selectedGameType = GAME_TYPES[0];
+  var gameCharStrip = document.getElementById('gameCharStrip');
+  CHARACTERS.forEach(function(ch){
+    var btn = document.createElement('div');
+    btn.className = 'charBtn' + (ch === selectedGameChar ? ' selected' : '');
+    var thumbCanvas = document.createElement('canvas');
+    thumbCanvas.width = 60; thumbCanvas.height = 60;
+    ch.draw(thumbCanvas.getContext('2d'), 30, 38, 0.42);
+    var img = document.createElement('img');
+    img.src = thumbCanvas.toDataURL();
+    btn.appendChild(img);
+    var label = document.createElement('span');
+    label.textContent = ch.label;
+    btn.appendChild(label);
+    btn.addEventListener('click', function(){
+      selectedGameChar = ch;
+      gameCharStrip.querySelectorAll('.charBtn').forEach(function(b){ b.classList.remove('selected'); });
+      btn.classList.add('selected');
+    });
+    gameCharStrip.appendChild(btn);
+  });
+  var gameTypeStrip = document.getElementById('gameTypeStrip');
+  GAME_TYPES.forEach(function(gt){
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'toolBtn' + (gt === selectedGameType ? ' active' : '');
+    btn.textContent = gt.label;
+    btn.addEventListener('click', function(){
+      selectedGameType = gt;
+      gameTypeStrip.querySelectorAll('.toolBtn').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+    });
+    gameTypeStrip.appendChild(btn);
+  });
+
+  var GAMES_KEY = 'explox_animator_games_v1';
+  function loadGames(){ try { return JSON.parse(safeGet(GAMES_KEY) || '[]'); } catch(e){ return []; } }
+  function saveGames(list){ safeSet(GAMES_KEY, JSON.stringify(list)); }
+  var BUILTIN_GAMES = [
+    { name:'Robot Dodge', charKey:'robot', type:'dodge', speed:3, builtin:true },
+    { name:'Ninja Star Collector', charKey:'ninja', type:'collect', speed:3, builtin:true }
+  ];
+  function charByKey(key){
+    var found = CHARACTERS.filter(function(c){ return c.key === key; });
+    return found[0] || CHARACTERS[0];
+  }
+  function renderGamesList(){
+    var list = document.getElementById('gamesList');
+    list.innerHTML = '';
+    var all = BUILTIN_GAMES.concat(loadGames());
+    all.forEach(function(g){
+      var ch = charByKey(g.charKey);
+      var row = document.createElement('div');
+      row.className = 'savedItem';
+      var label = document.createElement('span');
+      var typeLabel = (g.type === 'dodge') ? 'Dodge' : 'Collect';
+      label.textContent = (g.builtin ? '⭐ ' : '') + g.name + ' — ' + ch.label + ' ' + typeLabel;
+      row.appendChild(label);
+      var btns = document.createElement('span');
+      var playBtn = document.createElement('button');
+      playBtn.textContent = 'Play';
+      playBtn.addEventListener('click', function(){ launchMiniGame(g); });
+      btns.appendChild(playBtn);
+      if (!g.builtin){
+        var delBtn = document.createElement('button');
+        delBtn.textContent = 'Delete';
+        delBtn.style.color = '#ff6666';
+        delBtn.addEventListener('click', function(){
+          saveGames(loadGames().filter(function(x){ return x.name !== g.name; }));
+          renderGamesList();
+        });
+        btns.appendChild(delBtn);
+      }
+      row.appendChild(btns);
+      list.appendChild(row);
+    });
+  }
+  document.getElementById('createGameBtn').addEventListener('click', function(){
+    var name = document.getElementById('gameNameInput').value.trim();
+    if (!name) { alert('Give your game a name first!'); return; }
+    var games = loadGames();
+    if (games.some(function(x){ return x.name === name; }) || BUILTIN_GAMES.some(function(x){ return x.name === name; })){
+      alert('You already have a game named "' + name + '" — pick a different name.');
+      return;
+    }
+    games.push({ name:name, charKey:selectedGameChar.key, type:selectedGameType.key, speed:Number(document.getElementById('gameSpeedRange').value) });
+    saveGames(games);
+    document.getElementById('gameNameInput').value = '';
+    alert('Created "' + name + '"! Tap Play to try it.');
+    showGamesSubTab('play');
+  });
+
+  // ── The actual game engine — shared by every dodge/collect game, parameterized by
+  //    character + type + speed. Real requestAnimationFrame loop, real circle-distance
+  //    collision, real score/lives, real difficulty ramp (spawn rate + fall speed both scale
+  //    with the chosen 1-5 speed). ──
+  var miniGameRAF = null;
+  var miniGameCleanup = null;
+  var currentGameConfig = null;
+
+  function launchMiniGame(g){
+    currentGameConfig = g;
+    document.getElementById('gamesPlayView').style.display = 'none';
+    document.getElementById('gamesCreateView').style.display = 'none';
+    document.getElementById('gamesSubTabs').style.display = 'none';
+    document.getElementById('gamePlayArea').style.display = 'block';
+    document.getElementById('gameOverBox').style.display = 'none';
+    runMiniGame(g);
+  }
+  function exitMiniGame(){
+    stopMiniGame();
+    document.getElementById('gamePlayArea').style.display = 'none';
+    document.getElementById('gamesSubTabs').style.display = 'flex';
+    showGamesSubTab('play');
+  }
+  function stopMiniGame(){
+    if (miniGameRAF) cancelAnimationFrame(miniGameRAF);
+    miniGameRAF = null;
+    if (miniGameCleanup) { miniGameCleanup(); miniGameCleanup = null; }
+  }
+  document.getElementById('gameExitTopBtn').addEventListener('click', exitMiniGame);
+  document.getElementById('gameBackBtn').addEventListener('click', exitMiniGame);
+  document.getElementById('gamePlayAgainBtn').addEventListener('click', function(){
+    document.getElementById('gameOverBox').style.display = 'none';
+    runMiniGame(currentGameConfig);
+  });
+
+  function runMiniGame(g){
+    stopMiniGame();
+    var ch = charByKey(g.charKey);
+    var canvas = document.getElementById('gameCanvas');
+    var gctx = canvas.getContext('2d');
+    var W = canvas.width, H = canvas.height;
+    var playerScale = 0.55;
+    var playerHalfW = 40 * playerScale;
+    var playerX = W/2, playerY = H - 50;
+    var score = 0, lives = 3;
+    var items = [];
+    var baseSpeed = 1.0 + g.speed * 0.45;
+    var spawnEveryMs = Math.max(280, 950 - g.speed*130);
+    var elapsedMs = 0, sinceSpawn = 0;
+    var running = true;
+
+    function updateHud(){
+      document.getElementById('gameScoreLbl').textContent = 'Score: ' + score;
+      document.getElementById('gameLivesLbl').textContent = '❤️'.repeat(Math.max(0,lives));
+    }
+    updateHud();
+
+    function spawnItem(){
+      var isGood = (g.type === 'collect') ? (Math.random() < 0.65) : false;
+      items.push({ x: 22 + Math.random()*(W-44), y: -20, r: 15, good: isGood, speed: baseSpeed + Math.random()*baseSpeed*0.4 });
+    }
+    function clampPlayerX(x){ return Math.max(playerHalfW, Math.min(W-playerHalfW, x)); }
+    function pointerMove(e){
+      var rect = canvas.getBoundingClientRect();
+      var x = (e.clientX - rect.left) * (W/rect.width);
+      playerX = clampPlayerX(x);
+    }
+    var dragging = false;
+    function onDown(e){ dragging = true; pointerMove(e); }
+    function onMove(e){ if (dragging) pointerMove(e); }
+    function onUp(){ dragging = false; }
+    canvas.addEventListener('pointerdown', onDown);
+    canvas.addEventListener('pointermove', onMove);
+    canvas.addEventListener('pointerup', onUp);
+    canvas.addEventListener('pointerleave', onUp);
+
+    function endGame(){
+      running = false;
+      if (miniGameRAF) cancelAnimationFrame(miniGameRAF);
+      document.getElementById('gameOverMsg').textContent = '💀 Game Over! Final score: ' + score;
+      document.getElementById('gameOverBox').style.display = 'block';
+    }
+
+    var lastTs = null;
+    function frame(ts){
+      if (!running) return;
+      if (lastTs === null) lastTs = ts;
+      var dt = Math.min(60, ts - lastTs);
+      lastTs = ts;
+      elapsedMs += dt;
+      sinceSpawn += dt;
+
+      if (sinceSpawn > spawnEveryMs){ spawnItem(); sinceSpawn = 0; }
+
+      gctx.clearRect(0,0,W,H);
+      gctx.fillStyle = '#0f1424';
+      gctx.fillRect(0,0,W,H);
+
+      for (var i = items.length-1; i>=0; i--){
+        var it = items[i];
+        it.y += it.speed * (dt/16.67);
+        gctx.beginPath();
+        gctx.fillStyle = it.good ? '#FFD700' : '#e94560';
+        gctx.arc(it.x, it.y, it.r, 0, Math.PI*2);
+        gctx.fill();
+        if (it.good){
+          gctx.fillStyle = '#1a1a2e'; gctx.font = 'bold 14px Arial'; gctx.textAlign = 'center';
+          gctx.fillText('★', it.x, it.y+5);
+        }
+        var dx = it.x - playerX, dy = it.y - playerY;
+        var hit = Math.sqrt(dx*dx + dy*dy) < (it.r + playerHalfW*0.85);
+        if (hit){
+          items.splice(i,1);
+          if (g.type === 'collect'){ if (it.good) score++; else lives--; }
+          else { lives--; }
+          updateHud();
+          if (lives <= 0){ endGame(); return; }
+          continue;
+        }
+        if (it.y - it.r > H){
+          items.splice(i,1);
+          if (g.type === 'dodge') { score++; updateHud(); }
+        }
+      }
+
+      ch.draw(gctx, playerX, playerY, playerScale);
+      miniGameRAF = requestAnimationFrame(frame);
+    }
+    miniGameRAF = requestAnimationFrame(frame);
+
+    miniGameCleanup = function(){
+      running = false;
+      canvas.removeEventListener('pointerdown', onDown);
+      canvas.removeEventListener('pointermove', onMove);
+      canvas.removeEventListener('pointerup', onUp);
+      canvas.removeEventListener('pointerleave', onUp);
+    };
+  }
+
+  // ── Playback ──
+  var fps = 8;
+  var playing = false;
+  var playTimer = null;
+  document.getElementById('fpsRange').addEventListener('input', function(e){
+    fps = Number(e.target.value);
+    document.getElementById('fpsLabel').textContent = fps + ' fps';
+  });
+  function stopPlayback(){
+    playing = false;
+    if (playTimer) clearInterval(playTimer);
+    playTimer = null;
+    document.getElementById('playBtn').textContent = '▶ Play';
+    loadActiveLayerIntoCanvas(function(){ renderOnion(); refreshBelowAbove(); });
+  }
+  function startPlayback(){
+    if (frames.length < 2) { alert('Add at least 2 frames to play your animation!'); return; }
+    commitActiveLayer();
+    playing = true;
+    document.getElementById('playBtn').textContent = '⏸ Stop';
+    Promise.all(frames.map(compositeFrame)).then(function(composites){
+      if (!playing) return; // stopped again before composites finished
+      var i = 0;
+      var loop = document.getElementById('loopCheck').checked;
+      playTimer = setInterval(function(){
+        var img = new Image();
+        img.onload = function(){
+          dctx.clearRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
+          dctx.drawImage(img,0,0);
+        };
+        img.src = composites[i];
+        i++;
+        if (i >= composites.length){
+          if (loop) { i = 0; } else { stopPlayback(); }
+        }
+      }, 1000/fps);
+    });
+  }
+  document.getElementById('playBtn').addEventListener('click', function(){
+    if (playing) stopPlayback(); else startPlayback();
+  });
+
+  // ── Safe storage (falls back to an in-memory object if localStorage is blocked —
+  //    private browsing, restricted site settings, or a sandboxed preview all disable it) ──
+  var memoryStore = {};
+  var storageWorks = true;
+  try { localStorage.setItem('__explox_test__','1'); localStorage.removeItem('__explox_test__'); }
+  catch(e){ storageWorks = false; }
+  function safeGet(key){
+    if (storageWorks) { try { return localStorage.getItem(key); } catch(e){} }
+    return Object.prototype.hasOwnProperty.call(memoryStore, key) ? memoryStore[key] : null;
+  }
+  function safeSet(key, val){
+    if (storageWorks) { try { localStorage.setItem(key, val); return true; } catch(e){ return false; } }
+    memoryStore[key] = val;
+    return true;
+  }
+
+  // ── Account (reuses your real Explox game login — same username/password as the game
+  //    itself) — lets your saved animations follow you to any device, not just this browser.
+  //    Uses its OWN separate server collection from the main game save, on purpose: the main
+  //    game overwrites its whole save on every save, so sharing that field would risk a save
+  //    from here racing a save from the game and silently wiping one of them. ──
+  var EXPLOX_SERVER = 'https://explox-server.onrender.com';
+  var ACCOUNT_KEY = 'explox_animator_account_user';
+  var loggedInUser = null;
+  var cloudProjects = {};
+
+  function setAccountStatus(msg){ document.getElementById('accountStatus').textContent = msg; }
+  function refreshAccountUI(){
+    var loggedIn = !!loggedInUser;
+    document.getElementById('accountLoginRow').style.display = loggedIn ? 'none' : 'flex';
+    document.getElementById('accountLoggedRow').style.display = loggedIn ? 'flex' : 'none';
+    document.getElementById('accountName').textContent = loggedInUser || '';
+  }
+  function fetchCloudProjects(){
+    return fetch(EXPLOX_SERVER + '/api/animator/' + encodeURIComponent(loggedInUser))
+      .then(function(r){ if (!r.ok) throw new Error('fetch failed: '+r.status); return r.json(); })
+      .then(function(d){
+        cloudProjects = (d && typeof d === 'object' && !d.error) ? d : {};
+        setAccountStatus('Logged in as ' + loggedInUser + ' — your cloud animations are ready below.');
+        renderSavedList();
+      })
+      .catch(function(){
+        cloudProjects = {};
+        setAccountStatus("Logged in, but couldn't reach the cloud save server right now — your local animations still work fine.");
+      });
+  }
+  function pushCloudProjects(){
+    if (!loggedInUser) return Promise.resolve();
+    return fetch(EXPLOX_SERVER + '/api/animator/' + encodeURIComponent(loggedInUser), {
+      method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(cloudProjects)
+    }).then(function(r){ if (!r.ok) throw new Error('save failed: '+r.status); })
+      .catch(function(){ setAccountStatus("Couldn't reach the cloud save server — this animation is still saved on this device."); });
+  }
+  document.getElementById('accountLoginBtn').addEventListener('click', function(){
+    var name = document.getElementById('accountUser').value.trim();
+    var pw = document.getElementById('accountPw').value;
+    if (!name || !pw) { setAccountStatus('Enter your Explox username and password.'); return; }
+    setAccountStatus('Checking your Explox account… (can take ~30s if the server is asleep)');
+    fetch(EXPLOX_SERVER + '/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name: name, pw: pw }) })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (!d || !d.ok) { setAccountStatus("That username/password doesn't match an Explox account."); return; }
+        loggedInUser = name;
+        safeSet(ACCOUNT_KEY, name);
+        document.getElementById('accountPw').value = '';
+        refreshAccountUI();
+        setAccountStatus('Logged in! Loading your cloud animations…');
+        fetchCloudProjects();
+      })
+      .catch(function(){ setAccountStatus("Couldn't reach the Explox server — try again in a moment."); });
+  });
+  document.getElementById('accountLogoutBtn').addEventListener('click', function(){
+    loggedInUser = null;
+    cloudProjects = {};
+    safeSet(ACCOUNT_KEY, '');
+    setAccountStatus('');
+    refreshAccountUI();
+    renderSavedList();
+  });
+  refreshAccountUI();
+  var rememberedUser = safeGet(ACCOUNT_KEY);
+  if (rememberedUser) {
+    loggedInUser = rememberedUser;
+    refreshAccountUI();
+    setAccountStatus('Reconnecting as ' + loggedInUser + '…');
+    fetchCloudProjects();
+  }
+
+  // ── Save / Load ──
+  var STORE_KEY = 'explox_animator_projects_v2';
+  function loadStore(){
+    try { return JSON.parse(safeGet(STORE_KEY) || '{}'); } catch(e){ return {}; }
+  }
+  function loadProject(name, proj){
+    frames = JSON.parse(JSON.stringify(proj.frames));
+    currentFrame = 0;
+    fps = proj.fps || 8;
+    document.getElementById('fpsRange').value = fps;
+    document.getElementById('fpsLabel').textContent = fps + ' fps';
+    document.getElementById('projectName').value = name;
+    undoStack = [];
+    clearTools();
+    loadActiveLayerIntoCanvas(function(){ renderOnion(); refreshBelowAbove(); });
+    renderFrameStrip();
+    renderLayerList();
+  }
+  function renderSavedList(){
+    var store = loadStore();
+    var allNames = Object.keys(store).concat(Object.keys(cloudProjects)).filter(function(v,i,a){ return a.indexOf(v)===i; }).sort();
+    var list = document.getElementById('savedList');
+    list.innerHTML = '';
+    if (!allNames.length) { list.innerHTML = '<div style="font-size:11px;color:#888;">No saved animations yet.</div>'; return; }
+    allNames.forEach(function(name){
+      var inCloud = Object.prototype.hasOwnProperty.call(cloudProjects, name);
+      var proj = Object.prototype.hasOwnProperty.call(store, name) ? store[name] : cloudProjects[name];
+      var row = document.createElement('div');
+      row.className = 'savedItem';
+      var label = document.createElement('span');
+      label.textContent = name + ' (' + proj.frames.length + 'f)' + (inCloud ? ' ☁' : '');
+      row.appendChild(label);
+      var btns = document.createElement('span');
+      var loadBtn = document.createElement('button');
+      loadBtn.textContent = 'Load';
+      loadBtn.addEventListener('click', function(){ loadProject(name, proj); });
+      var delBtn = document.createElement('button');
+      delBtn.textContent = 'Delete';
+      delBtn.style.color = '#ff6666';
+      delBtn.addEventListener('click', function(){
+        var s = loadStore();
+        delete s[name];
+        safeSet(STORE_KEY, JSON.stringify(s));
+        if (loggedInUser && inCloud){
+          delete cloudProjects[name];
+          pushCloudProjects().then(renderSavedList);
+        } else {
+          renderSavedList();
+        }
+      });
+      btns.appendChild(loadBtn);
+      btns.appendChild(delBtn);
+      row.appendChild(btns);
+      list.appendChild(row);
+    });
+  }
+  document.getElementById('saveBtn').addEventListener('click', function(){
+    var name = document.getElementById('projectName').value.trim();
+    if (!name) { alert('Give your animation a name first!'); return; }
+    commitActiveLayer();
+    var store = loadStore();
+    store[name] = { frames: frames, fps: fps };
+    var savedLocal = safeSet(STORE_KEY, JSON.stringify(store));
+    if (loggedInUser){
+      cloudProjects[name] = { frames: frames, fps: fps };
+      pushCloudProjects().then(function(){
+        renderSavedList();
+        alert('Saved "' + name + '" — on this device AND to your Explox account, so you can reach it from any device!');
+      });
+    } else if (savedLocal) {
+      renderSavedList();
+      alert('Saved "' + name + '" on this device! Log in above with your Explox account to also save it to the cloud.');
+    } else {
+      alert("Couldn't save — storage is full. Try deleting an old animation, fewer layers, or fewer frames.");
+    }
+  });
+  renderSavedList();
+
+  // ── Export & Share (real .webm video via canvas capture + MediaRecorder) ──
+  document.getElementById('exportBtn').addEventListener('click', function(){
+    if (frames.length < 2) { alert('Add at least 2 frames first!'); return; }
+    commitActiveLayer();
+    var statusEl = document.getElementById('exportStatus');
+    if (!window.MediaRecorder) { statusEl.textContent = 'Video export is not supported in this browser.'; return; }
+    statusEl.textContent = 'Preparing your animation…';
+
+    Promise.all(frames.map(compositeFrame)).then(function(composites){
+      var exportCanvas = document.createElement('canvas');
+      exportCanvas.width = CANVAS_SIZE; exportCanvas.height = CANVAS_SIZE;
+      var ectx = exportCanvas.getContext('2d');
+      var stream = exportCanvas.captureStream(fps);
+      var mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
+      var recorder;
+      try { recorder = new MediaRecorder(stream, { mimeType: mimeType }); }
+      catch(e){ statusEl.textContent = 'Video export is not supported in this browser.'; return; }
+      var chunks = [];
+      recorder.ondataavailable = function(e){ if (e.data && e.data.size) chunks.push(e.data); };
+      recorder.onstop = function(){
+        var blob = new Blob(chunks, { type:'video/webm' });
+        var url = URL.createObjectURL(blob);
+        statusEl.textContent = 'Done! Your animation is ready below.';
+        var preview = document.getElementById('exportPreview');
+        preview.src = url;
+        preview.style.display = 'block';
+        var dl = document.getElementById('downloadLink');
+        dl.href = url;
+        dl.download = (document.getElementById('projectName').value.trim() || 'my-animation') + '.webm';
+        dl.style.display = 'block';
+        var shareBtn = document.getElementById('shareBtn');
+        var canShareFiles = !!(navigator.canShare && (function(){
+          try { return navigator.canShare({ files:[ new File([blob],'a.webm',{type:'video/webm'}) ] }); }
+          catch(e){ return false; }
+        })());
+        if (canShareFiles) {
+          shareBtn.style.display = 'block';
+          shareBtn.onclick = function(){
+            var file = new File([blob], (document.getElementById('projectName').value.trim() || 'my-animation') + '.webm', { type:'video/webm' });
+            navigator.share({ files:[file], title:'My Explox Animation', text:'I made this in Explox Animator!' }).catch(function(){});
+          };
+        } else {
+          shareBtn.style.display = 'none';
+        }
+      };
+
+      var loops = 2;
+      var frameImgs = composites.map(function(src){ var im = new Image(); im.src = src; return im; });
+      var totalSteps = composites.length * loops;
+      var stepMs = 1000/fps;
+      statusEl.textContent = 'Recording your animation…';
+      recorder.start();
+
+      Promise.all(frameImgs.map(function(im){
+        return im.complete ? Promise.resolve() : new Promise(function(res){ im.onload = res; });
+      })).then(function(){
+        var i = 0;
+        (function drawStep(){
+          var img = frameImgs[i % composites.length];
+          ectx.clearRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
+          ectx.drawImage(img,0,0,CANVAS_SIZE,CANVAS_SIZE);
+          i++;
+          if (i < totalSteps) setTimeout(drawStep, stepMs);
+          else setTimeout(function(){ recorder.stop(); }, stepMs);
+        })();
+      });
+    });
+  });
+
+  // ── Idea Helper (real random combiner + real pixel-diff tip) ──
+  var SUBJECTS = ['a robot','a ninja','a pizza guard','a rocket ship','a dino-bot','your Explox character','a coin bot','a spy','a superhero','a dragon'];
+  var ACTIONS = ['jumping over a puddle','doing a spin-kick','waving hello','sneaking past a guard','doing a victory dance','transforming into a bigger shape','riding a skateboard','flying through the sky','doing a somersault','high-fiving a friend'];
+  var TWISTS = ['in slow motion','then striking a cool pose at the end','while dodging left and right','with a big bounce at the end','getting faster each frame','then taking a bow'];
+  function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+  document.getElementById('ideaBtn').addEventListener('click', function(){
+    document.getElementById('ideaBubble').textContent = 'Try animating ' + pick(SUBJECTS) + ' ' + pick(ACTIONS) + ', ' + pick(TWISTS) + '.';
+  });
+
+  function compareLastTwoFrames(){
+    var tipEl = document.getElementById('tipBubble');
+    if (frames.length < 2) { tipEl.textContent = 'Draw a second frame so I can compare it to your first!'; return; }
+    Promise.all([compositeFrame(frames[frames.length-2]), compositeFrame(frames[frames.length-1])]).then(function(urls){
+      return Promise.all([loadImgP(urls[0]), loadImgP(urls[1])]);
+    }).then(function(imgs){
+      var tmp = document.createElement('canvas');
+      tmp.width = CANVAS_SIZE; tmp.height = CANVAS_SIZE;
+      var t = tmp.getContext('2d');
+      t.drawImage(imgs[0],0,0);
+      var dataA = t.getImageData(0,0,CANVAS_SIZE,CANVAS_SIZE).data;
+      t.clearRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
+      t.drawImage(imgs[1],0,0);
+      var dataB = t.getImageData(0,0,CANVAS_SIZE,CANVAS_SIZE).data;
+      var diff = 0, total = 0;
+      var step = 16;
+      for (var p=0; p<dataA.length; p+=step){
+        total++;
+        if (Math.abs(dataA[p]-dataB[p])>25 || Math.abs(dataA[p+1]-dataB[p+1])>25 || Math.abs(dataA[p+2]-dataB[p+2])>25){
+          diff++;
+        }
+      }
+      var pct = total ? (diff/total*100) : 0;
+      if (pct < 3) tipEl.textContent = '🔍 Your last 2 frames look almost identical (' + pct.toFixed(1) + '% different). Try moving the pose more so it doesn\'t look choppy when it plays.';
+      else if (pct > 60) tipEl.textContent = '🔍 Your last 2 frames changed a LOT (' + pct.toFixed(0) + '% different) — that can look like a sudden jump. Try adding a pose in between.';
+      else tipEl.textContent = '🔍 Nice — a good amount of change between frames (' + pct.toFixed(0) + '% different). That should animate smoothly!';
+    });
+  }
+  document.getElementById('tipBtn').addEventListener('click', function(){
+    commitActiveLayer();
+    compareLastTwoFrames();
+  });
+
+  // ── 50-minute break timer (real countdown, persists across reloads) ──
+  var BREAK_MS = 50*60*1000;
+  var BREAK_KEY = 'explox_animator_break_start';
+  var breakStart = Number(safeGet(BREAK_KEY));
+  if (!breakStart) { breakStart = Date.now(); safeSet(BREAK_KEY, String(breakStart)); }
+  var breakModal = document.getElementById('breakModal');
+  function beep(){
+    try {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      var actx = new Ctx();
+      var o = actx.createOscillator(), g = actx.createGain();
+      o.connect(g); g.connect(actx.destination);
+      o.type = 'sine'; o.frequency.value = 660;
+      g.gain.setValueAtTime(0.001, actx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.2, actx.currentTime+0.05);
+      g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime+0.6);
+      o.start(); o.stop(actx.currentTime+0.6);
+    } catch(e){}
+  }
+  function tickBreakTimer(){
+    var remain = BREAK_MS - (Date.now() - breakStart);
+    if (remain <= 0){
+      if (!breakModal.classList.contains('show')){
+        breakModal.classList.add('show');
+        stopPlayback();
+        beep();
+      }
+      remain = 0;
+    }
+    var mm = Math.floor(remain/60000);
+    var ss = Math.floor((remain%60000)/1000);
+    document.getElementById('breakPill').textContent = '⏱ Break in ' + mm + ':' + (ss<10?'0':'') + ss;
+  }
+  document.getElementById('breakContinueBtn').addEventListener('click', function(){
+    breakModal.classList.remove('show');
+    breakStart = Date.now();
+    safeSet(BREAK_KEY, String(breakStart));
+  });
+  tickBreakTimer();
+  setInterval(tickBreakTimer, 1000);
+
+  // ── Fake ads — a joke, not a real ad network. Most promote Explox's own real features/
+  //    mini-games (with real working links); one type is a made-up UNRELATED game, parodying
+  //    how real mobile ads often plug a totally different app, not just the one you're in —
+  //    clearly labeled as pretend, and its button explains that instead of "downloading" anything.
+  //    Shows every 5 real minutes, covers the whole screen, and can't be closed until a real
+  //    random 10-100 second countdown finishes — same annoying pattern real mobile ads use. ──
+  var AD_LINES = [
+    '🏪 Own a real store with 10 upgrade tiers — stock real shelves, set real prices!',
+    '🏦 3 real jobs at the City Bank — even guard it during a real robber siege!',
+    '✈️ Fly to 8 real countries — Japan, France, Brazil, Egypt, and more!',
+    '🎬 Explox Cinemas — 14 full movies with real trailers and snacks!',
+    '👋 Meet 40 named neighbors — make friends, get married, start a family!',
+    '🎮 8 mini-games whenever you want a break — all free, no download!',
+    '📚 The Library — 14 original storybooks about Explox\'s own history!',
+    '🎨 You\'re already using the newest one: the Explox Animator!'
+  ];
+  var AD_MINIGAMES = [
+    { name:'Capture the Throne', file:'throne.html', icon:'⚔️', desc:'Fight through waves and hold the throne for 20 seconds to win!' },
+    { name:'Robot War', file:'robotwar.html', icon:'🤖', desc:'Command a robot army through 100 levels, 5 factions, and 5 boss fights!' },
+    { name:'Survival Horde', file:'survivalhorde.html', icon:'🧟', desc:'Endless waves attack from every side — pick your difficulty and survive!' },
+    { name:'Tower Defense Fight', file:'towerdefense.html', icon:'🏯', desc:'Defend your tower with turrets and traps across 18 waves!' },
+    { name:'Olympics Parkour', file:'olympicsparkour.html', icon:'🥇', desc:'4 timed events, real medals, a real podium ceremony!' },
+    { name:'Obby / Parkour', file:'obby.html', icon:'🏃', desc:'Jump across platforms without falling — beat your best time!' },
+    { name:'Rooftop Parkour', file:'parkour.html', icon:'🏙️', desc:'Sprint, wall-jump, and collect coins across city rooftops at night!' },
+    { name:'Geo Dash', file:'geodash.html', icon:'⬛', desc:'Jump over spikes and blocks across 3 levels!' },
+    { name:'SF Special Forces', file:'sf.html', icon:'🎯', desc:'A real tactical special-forces mission mini-game!' }
+  ];
+  var AD_VIDEOS = [
+    { src:'https://cubbyexplosion.github.io/explox-the-best/video/downtown_walk.webm', cap:'Real footage: walking Downtown toward the Transit Hub' },
+    { src:'https://cubbyexplosion.github.io/explox-the-best/video/mall_wing_walk.webm', cap:'Real footage: the Mall Shopping Wing' }
+  ];
+  // Absolute URLs on purpose, not relative paths — a relative link's correctness depends on
+  // exactly how/where this page got opened (a real file://, a hosted page, this test sandbox,
+  // which renders local files as a path-less snapshot where relative links can't resolve at
+  // all). An absolute link to the real live site always works, no matter how this page loads.
+  var MINIGAME_BASE = 'https://cubbyexplosion.github.io/explox-the-best/play/AiGame/explox/minigames/';
+  var AD_TYPES = ['feature','feature','minigame','minigame','video','playable'];
+  var AD_INTERVAL_MS = 5*60*1000;
+  var AD_SKIP_MIN = 10, AD_SKIP_MAX = 100;
+  var adOverlay = document.getElementById('adOverlay');
+  var adSkipBtn = document.getElementById('adSkipBtn');
+  var adCtaBtn = document.getElementById('adPlayNowBtn');
+  var adSkipTimer = null;
+  var adPlayableCleanup = null;
+
+  function pickN(arr, n){
+    var pool = arr.slice(), out = [];
+    while (out.length < n && pool.length) out.push(pool.splice(Math.floor(Math.random()*pool.length), 1)[0]);
+    return out;
+  }
+  function setCta(text, href, onClick){
+    adCtaBtn.textContent = text;
+    if (href) { adCtaBtn.href = href; adCtaBtn.removeAttribute('data-fake'); adCtaBtn.onclick = null; }
+    else { adCtaBtn.removeAttribute('href'); adCtaBtn.setAttribute('data-fake','1'); adCtaBtn.onclick = function(e){ e.preventDefault(); onClick(); }; }
+  }
+
+  // ── Real spoken voiceover (Web Speech API — a real built-in browser voice, no API key,
+  //    works offline) so ads don't just sit there silently. Each ad type builds a script that
+  //    matches exactly what got picked/shown, so the voice is never talking about something
+  //    different from what's on screen. ──
+  var ADMUTE_KEY = 'explox_animator_ad_muted';
+  var adMuted = safeGet(ADMUTE_KEY) === '1';
+  var adMuteBtn = document.getElementById('adMuteBtn');
+  function updateMuteBtn(){ adMuteBtn.textContent = adMuted ? '🔇' : '🔊'; }
+  updateMuteBtn();
+  adMuteBtn.addEventListener('click', function(){
+    adMuted = !adMuted;
+    safeSet(ADMUTE_KEY, adMuted ? '1' : '0');
+    updateMuteBtn();
+    if (adMuted && window.speechSynthesis) window.speechSynthesis.cancel();
+  });
+  function stripEmoji(s){ return s.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/gu, '').trim(); }
+  function speakAd(text){
+    if (adMuted || !window.speechSynthesis) return;
+    try {
+      window.speechSynthesis.cancel();
+      var utter = new SpeechSynthesisUtterance(text);
+      utter.rate = 1.05; utter.pitch = 1.05;
+      window.speechSynthesis.speak(utter);
+    } catch(e){}
+  }
+
+  function renderFeatureAd(body){
+    var lines = pickN(AD_LINES, 4);
+    lines.forEach(function(line){
+      var d = document.createElement('div');
+      d.className = 'adFeature';
+      d.textContent = line;
+      body.appendChild(d);
+    });
+    setCta('▶ PLAY EXPLOX NOW — FREE!', 'https://cubbyexplosion.github.io/explox-the-best/');
+    return 'Explox! ' + lines.map(stripEmoji).join(' ... ');
+  }
+  function renderMinigameAd(body){
+    var g = pick(AD_MINIGAMES);
+    body.innerHTML = '<div class="adMgIcon">'+g.icon+'</div><div class="adMgName">'+g.name+'</div><div class="adMgDesc">'+g.desc+'</div>';
+    setCta('▶ PLAY ' + g.name.toUpperCase(), MINIGAME_BASE + g.file);
+    return g.name + '! ' + stripEmoji(g.desc) + ' Play it now, only in Explox!';
+  }
+  function renderVideoAd(body){
+    var v = pick(AD_VIDEOS);
+    var video = document.createElement('video');
+    video.id = 'adVideo';
+    video.src = v.src; video.controls = true; video.autoplay = true; video.muted = true; video.loop = true; video.playsInline = true;
+    var cap = document.createElement('div');
+    cap.className = 'adVideoCap';
+    cap.textContent = v.cap;
+    video.onerror = function(){
+      body.innerHTML = '<div class="adMgDesc">🎬 (Video couldn\'t load — check your internet connection.)</div>';
+    };
+    body.appendChild(video);
+    body.appendChild(cap);
+    setCta('▶ PLAY EXPLOX NOW — FREE!', 'https://cubbyexplosion.github.io/explox-the-best/');
+    return 'Check out real gameplay from Explox! ' + stripEmoji(v.cap) + '.';
+  }
+  function renderPlayableAd(body){
+    body.innerHTML = '<div id="adPlayableScore">Score: 0</div><canvas id="adPlayableCanvas" width="220" height="170"></canvas><div id="adPlayableMsg">Tap the robot as many times as you can!</div>';
+    var canvas = document.getElementById('adPlayableCanvas');
+    var actx = canvas.getContext('2d');
+    var scoreEl = document.getElementById('adPlayableScore');
+    var msgEl = document.getElementById('adPlayableMsg');
+    var score = 0, active = true;
+    var robotPos = { x:0, y:0 };
+    var robotScale = 0.5;
+    function placeRobot(){
+      robotPos.x = 40 + Math.random()*(canvas.width-80);
+      robotPos.y = 55 + Math.random()*(canvas.height-85);
+      actx.clearRect(0,0,canvas.width,canvas.height);
+      CHARACTERS[0].draw(actx, robotPos.x, robotPos.y, robotScale);
+    }
+    function onTap(e){
+      if (!active) return;
+      var rect = canvas.getBoundingClientRect();
+      var x = (e.clientX-rect.left) * (canvas.width/rect.width);
+      var y = (e.clientY-rect.top) * (canvas.height/rect.height);
+      var dx = x-robotPos.x, dy = y-robotPos.y;
+      if (Math.sqrt(dx*dx+dy*dy) <= 45*robotScale + 12){
+        score++;
+        scoreEl.textContent = 'Score: ' + score;
+        placeRobot();
+      }
+    }
+    canvas.addEventListener('pointerdown', onTap);
+    placeRobot();
+    var doneTimer = setTimeout(function(){
+      active = false;
+      actx.clearRect(0,0,canvas.width,canvas.height);
+      msgEl.textContent = 'Nice — ' + score + ' hit' + (score===1?'':'s') + '! Play the real Robot War for more.';
+      speakAd('Nice! ' + score + ' hit' + (score===1?'':'s') + '! Play the real Robot War for more.');
+    }, 8000);
+    adPlayableCleanup = function(){ clearTimeout(doneTimer); canvas.removeEventListener('pointerdown', onTap); };
+    setCta('▶ PLAY ROBOT WAR', MINIGAME_BASE + 'robotwar.html');
+    return 'Tap the robot as many times as you can!';
+  }
+  var AD_RENDERERS = { feature:renderFeatureAd, minigame:renderMinigameAd, video:renderVideoAd, playable:renderPlayableAd };
+
+  function showAd(){
+    stopPlayback();
+    if (adPlayableCleanup) { adPlayableCleanup(); adPlayableCleanup = null; }
+    var type = pick(AD_TYPES);
+    var body = document.getElementById('adBody');
+    body.innerHTML = '';
+    document.getElementById('adHeadline').textContent = 'PLAY EXPLOX TODAY!';
+    var voiceover = AD_RENDERERS[type](body);
+    speakAd(voiceover);
+    adOverlay.classList.add('show');
+    var remain = AD_SKIP_MIN + Math.floor(Math.random()*(AD_SKIP_MAX-AD_SKIP_MIN+1));
+    adSkipBtn.disabled = true;
+    adSkipBtn.textContent = 'Skip in ' + remain + 's';
+    if (adSkipTimer) clearInterval(adSkipTimer);
+    adSkipTimer = setInterval(function(){
+      remain--;
+      if (remain <= 0){
+        clearInterval(adSkipTimer);
+        adSkipTimer = null;
+        adSkipBtn.disabled = false;
+        adSkipBtn.textContent = '✕ Close Ad';
+      } else {
+        adSkipBtn.textContent = 'Skip in ' + remain + 's';
+      }
+    }, 1000);
+  }
+  function hideAd(){
+    adOverlay.classList.remove('show');
+    if (adSkipTimer) { clearInterval(adSkipTimer); adSkipTimer = null; }
+    if (adPlayableCleanup) { adPlayableCleanup(); adPlayableCleanup = null; }
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+  }
+  adSkipBtn.addEventListener('click', function(){ if (!adSkipBtn.disabled) hideAd(); });
+  setInterval(showAd, AD_INTERVAL_MS);
+
+  // Release the camera for real when you actually navigate away or close the tab — not tied to
+  // an in-app "Close" button (removed; this is a standalone app now, not something opened
+  // in a tab meant to be closed back to Explox).
+  window.addEventListener('pagehide', function(){
+    if (camStream) camStream.getTracks().forEach(function(t){ t.stop(); });
+  });
+
+})();
+</script>
+</body>
+</html>

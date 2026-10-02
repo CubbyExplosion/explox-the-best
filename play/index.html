@@ -19,7 +19,7 @@
     var adBreak = window.adBreak = window.adConfig = function(o) { window.adsbygoogle.push(o); };
   </script>
   <!-- TOUCH DETECTION — runs before first paint so the on-screen controls are already showing when
-       the page renders. Adds `touch` (or `no-touch`) to <html>; the CSS below keys the mobile
+       the page renders. Adds `touch` (or `no-touch`) to <html>; the CSS above keys the mobile
        controls / arcade pads / shrunk side-tabs off that class in addition to @media(pointer:coarse),
        because that media query alone misses phones & tablets that don't report a coarse pointer.
        Override for testing or a stubborn device: ?touch=1 / ?touch=0, or window.setTouchControls(true/false). -->
@@ -30,6 +30,7 @@
         root.classList.toggle('touch', !!on);
         root.classList.toggle('no-touch', !on);
       }
+      // Manual override wins: URL ?touch=1/0, then a saved choice, else auto-detect the hardware.
       var saved = null;
       try { saved = localStorage.getItem('exploxTouchControls'); } catch(e){}
       var q = null;
@@ -43,6 +44,9 @@
       var on = (q !== null) ? (q === '1') : (saved !== null) ? (saved === 'on') : auto;
       apply(on);
       if(q !== null){ try { localStorage.setItem('exploxTouchControls', q === '1' ? 'on' : 'off'); } catch(e){} }
+      // Lets a player force the on-screen controls on/off (e.g. a touchscreen laptop, or a phone that
+      // under-reports touch) and remembers it. updateMobileActionButtons() (game-controls.js) keeps
+      // the vehicle Fire/Bomb buttons correct on the next 300ms tick regardless.
       window.setTouchControls = function(v){
         apply(v);
         try { localStorage.setItem('exploxTouchControls', v ? 'on' : 'off'); } catch(e){}
@@ -57,7 +61,7 @@
     /* ── HUD ── */
     #hud { position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:10; }
     #gameName { position:fixed; top:14px; left:50%; transform:translateX(-50%); color:#fff; font-size:26px; font-weight:bold; text-shadow:2px 2px 6px #000; letter-spacing:4px; }
-    #controls  { position:fixed; bottom:52px; left:14px; color:#fff; font-size:12px; background:rgba(0,0,0,0.5); padding:8px 12px; border-radius:8px; line-height:1.9; }  /* bottom:52 (was 14) so it clears the menu bar now docked in the bottom-left corner */
+    #controls  { position:fixed; bottom:52px; left:14px; color:#fff; font-size:12px; background:rgba(0,0,0,0.5); padding:8px 12px; border-radius:8px; line-height:1.9; }  /* bottom:52 (was 14) so it clears the ☰ menu bar now docked in the bottom-left corner */
     /* Touch controls — hidden by default, shown on touch-primary devices. We key this off BOTH the
        CSS media query AND a `touch` class set on <html> by JS (see the detectTouch script in <head>).
        The media query alone silently failed on phones/tablets that don't report `pointer: coarse`
@@ -197,7 +201,18 @@
     #hungerHud     { position:fixed; top:392px; right:14px; color:#88ff88; font-size:13px; font-weight:bold; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; }
     #sickHud       { position:fixed; top:430px; right:14px; color:#aaff66; font-size:13px; font-weight:bold; background:rgba(40,60,0,0.85); padding:7px 12px; border-radius:8px; border:1px solid #779922; display:none; }
     #bladderHud    { position:fixed; top:468px; right:14px; color:#66ccff; font-size:13px; font-weight:bold; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; }
-    #tirednessHud  { position:fixed; top:506px; right:14px; color:#bb99ff; font-size:13px; font-weight:bold; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; }
+    #tirednessHud  { position:fixed; top:506px; right:14px; background:rgba(0,0,0,0.5); padding:7px 12px; border-radius:8px; display:flex; align-items:center; gap:6px; }
+    /* User's own ask: "no words... an energy level" — same bar-only treatment as #healthBarBg/
+       #healthBarFill, just purple-toned to match this HUD's old text color, no percentage shown. */
+    #tirednessBarBg   { width:120px; height:12px; background:#241a3a; border:1px solid #bb99ff; border-radius:6px; overflow:hidden; }
+    #tirednessBarFill { width:100%; height:100%; background:linear-gradient(90deg,#7a5ad1,#bb99ff); transition:width 0.2s; }
+    /* User's own ask: "when you hit a mob... makes a health bar... no words" — a single shared,
+       wordless target-HP bar (showTargetHealthBar(), game-engine.js) for whatever you're currently
+       fighting, replacing the old "Hit X for Y! (Z HP left)" text notif every combat function used
+       to show. Top-center, the conventional "current target" spot in games with this kind of bar. */
+    #targetHealthHud    { display:none; position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:16; }
+    #targetHealthBarBg  { width:220px; height:16px; background:#330000; border:2px solid #ff6644; border-radius:8px; overflow:hidden; }
+    #targetHealthBarFill{ width:100%; height:100%; background:linear-gradient(90deg,#ff4444,#ffaa44); transition:width 0.15s; }
     /* Cash/ATM feature — appended at the end of the right-side HUD stack (top:544, the next free
        38px slot after #tirednessHud) rather than reflowing every other HUD rule's hardcoded `top`
        value down by 38px — this whole stack is fixed pixel positions, not a flex stack, so
@@ -213,6 +228,16 @@
     #healthBarFill { width:100%; height:100%; background:linear-gradient(90deg,#ff4444,#ff8844); transition:width 0.2s; }
     #healthText    { color:#fff; font-size:11px; margin-top:4px; }
     #hitFlash      { position:fixed; inset:0; background:rgba(255,0,0,0.35); pointer-events:none; opacity:0; z-index:9990; transition:opacity 0.35s; }
+    /* Gun scope overlay — user's own ask: "add a scope so you can shoot". startGunScope()/
+       stopGunScope() (game-controls.js) toggle this alongside the real camera.fov zoom; the black
+       ring is a real vignette (radial-gradient), not just a decorative circle, and pointer-events:
+       none so it never intercepts the fire-click underneath it. */
+    #gunScopeOverlay { display:none; position:fixed; inset:0; pointer-events:none; z-index:9985;
+      background:radial-gradient(circle, transparent 0%, transparent 38%, #000 62%, #000 100%); }
+    #gunScopeOverlay::before, #gunScopeOverlay::after {
+      content:''; position:absolute; top:50%; left:50%; background:#eee; opacity:0.85; }
+    #gunScopeOverlay::before { width:22px; height:2px; transform:translate(-50%,-50%); }
+    #gunScopeOverlay::after  { width:2px; height:22px; transform:translate(-50%,-50%); }
     #crosshair { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); color:#fff; font-size:20px; pointer-events:none; }
     #ePrompt   { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); color:#fff; font-size:15px; background:rgba(0,0,0,0.65); padding:9px 22px; border-radius:22px; display:none; white-space:nowrap; border:1px solid rgba(255,255,255,0.3); }
     #punchChargeHud { position:fixed; bottom:118px; left:50%; transform:translateX(-50%); width:130px; height:11px; background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.4); border-radius:6px; overflow:hidden; display:none; z-index:16; }
@@ -385,8 +410,8 @@
 <div id="loginScreen">
   <h1>EXPLOX</h1>
   <h2>SELECT YOUR ACCOUNT</h2>
-  <div id="loginSitePlayersLine" style="color:#888;font-size:11px;margin-bottom:8px;">🌍 <span id="loginSitePlayerCount">…</span> people play Explox</div>
-  <a href="../exgun/" style="display:inline-block;margin-bottom:10px;color:#ff6a3d;font-size:11px;text-decoration:none;border:1px solid #ff6a3d;border-radius:6px;padding:4px 10px;">🔫 Try EXGUN — a new RPG shooter</a>
+  <div id="loginSitePlayersLine" style="color:#888;font-size:11px;margin-bottom:8px;">🌍 <span id="loginSitePlayerCount">…</span> people play Explox<span id="loginSitePlayersWeek"></span></div>
+  <a href="exgun/" style="display:inline-block;margin-bottom:10px;color:#ff6a3d;font-size:11px;text-decoration:none;border:1px solid #ff6a3d;border-radius:6px;padding:4px 10px;">🔫 Try EXGUN — a new RPG shooter</a>
   <div id="serverModeRow">
     <button id="onlineModeBtn"  class="modeBtn" onclick="setServerMode('online')">🟢 ONLINE</button>
     <button id="offlineModeBtn" class="modeBtn" onclick="setServerMode('offline')">🔴 OFFLINE</button>
@@ -420,6 +445,45 @@
       <button onclick="cancelPassword()" style="flex:1;padding:10px;background:none;border:1px solid #555;border-radius:8px;color:#aaa;font-size:14px;cursor:pointer;">Cancel</button>
       <button onclick="submitPassword()" style="flex:1;padding:10px;background:#e94560;border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:bold;cursor:pointer;">▶ PLAY</button>
     </div>
+  </div>
+</div>
+
+<!-- SERVER LOADING BAR — user's own ask, after the free-tier Render server's own 50-second
+     cold-start wait (see project memory) had no visual feedback at all: shown during any online
+     login/signup fetch that might have to wait on a sleeping server waking back up. See
+     showServerLoadingBar()/hideServerLoadingBar() (game-core.js). -->
+<div id="serverLoadingOverlay" style="display:none;position:fixed;inset:0;z-index:310;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#1a1a2e,#0f3460);border:2px solid #44ccff;border-radius:16px;padding:28px 26px;width:300px;text-align:center;">
+    <div style="font-size:32px;margin-bottom:10px;">🌐</div>
+    <p id="serverLoadingMsg" style="color:#fff;font-size:13px;margin-bottom:14px;">Connecting to the server...</p>
+    <div style="width:100%;height:14px;background:rgba(255,255,255,0.1);border-radius:7px;overflow:hidden;border:1px solid #44ccff55;">
+      <div id="serverLoadingBarFill" style="width:0%;height:100%;background:linear-gradient(90deg,#44ccff,#66ffcc);border-radius:7px;transition:width 0.2s linear;"></div>
+    </div>
+    <p style="color:#666;font-size:10px;margin-top:10px;">A free server can take up to a minute to wake up after sitting idle — hang tight!</p>
+  </div>
+</div>
+
+<!-- EMBEDDED CHECKOUT MODAL — user's own ask, trying the publishable key: mounts Stripe's own
+     Embedded Checkout UI right inside the game instead of redirecting to a separate page. See
+     buyCurrencyPackageEmbedded()/closeEmbeddedCheckout() (game-alignment.js). -->
+<div id="embeddedCheckoutModal" style="display:none;position:fixed;inset:0;z-index:320;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:16px;width:min(480px,92vw);max-height:90vh;overflow-y:auto;position:relative;">
+    <button onclick="closeEmbeddedCheckout()" style="position:absolute;top:8px;right:8px;width:28px;height:28px;background:#eee;border:none;border-radius:50%;font-size:14px;cursor:pointer;z-index:1;">✕</button>
+    <div id="embeddedCheckoutContainer"></div>
+  </div>
+</div>
+
+<!-- CUSTOM BUNDLE QUOTE MODAL — user's own ask: an admin quoted a real price for a Custom Bundle
+     request (idea + item + currency), so this needs a real persistent, clickable link, unlike
+     showBigMsg()/showNotif() which both auto-vanish in seconds and are plain text. See
+     showBundleQuoteModal()/closeBundleQuoteModal() (game-core.js). -->
+<div id="bundleQuoteModal" style="display:none;position:fixed;inset:0;z-index:330;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#2a2000,#3a2e00);border:2px solid #ffcc44;border-radius:14px;padding:24px;width:min(360px,90vw);text-align:center;position:relative;">
+    <button onclick="closeBundleQuoteModal()" style="position:absolute;top:8px;right:8px;width:28px;height:28px;background:rgba(255,255,255,0.15);border:none;border-radius:50%;font-size:14px;cursor:pointer;color:#fff;">✕</button>
+    <div style="font-size:34px;margin-bottom:8px;">🎁</div>
+    <div style="color:#fff;font-size:15px;font-weight:bold;margin-bottom:6px;">Your Custom Bundle is ready!</div>
+    <div id="bundleQuoteTotal" style="color:#7CFC00;font-size:20px;font-weight:bold;margin-bottom:16px;"></div>
+    <a id="bundleQuoteLink" href="#" target="_blank" style="display:block;padding:12px;background:#ffcc44;border-radius:8px;color:#111;font-weight:bold;font-size:13px;text-decoration:none;">💳 Complete Purchase</a>
   </div>
 </div>
 
@@ -708,8 +772,7 @@
 <!-- SCHOOL HOMEWORK — real follow-up question assigned at dismissal (assignSchoolHomework(),
      game-land.js), doable any time before the next school day from a real HUD tab (homeworkTab,
      below in the right tab stack — only shown while genuinely pending) rather than requiring a
-     trip back to School. Same "toggle panel, hide/show its own tab" pattern
-     toggleEarningsPanel() (game-customization.js) already uses. -->
+     trip back to School. -->
 <div id="homeworkModal" style="display:none;position:fixed;inset:0;z-index:65;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
   <div style="background:linear-gradient(135deg,#12203a,#0d1930);border:2px solid #FFD700;border-radius:16px;padding:24px;width:340px;max-width:90vw;box-sizing:border-box;">
     <div style="font-size:30px;text-align:center;margin-bottom:4px;">📝</div>
@@ -1551,6 +1614,7 @@
 <!-- GAME HUD -->
 <div id="_dbgFrames" style="position:fixed;top:130px;left:10px;color:lime;font-size:11px;z-index:9999;pointer-events:none;background:rgba(0,0,0,0.6);padding:3px 7px;border-radius:4px;">Frames: 0</div>
 <div id="hitFlash"></div>
+<div id="gunScopeOverlay"></div>
 <div id="hud" style="display:none">
 <!-- RIGHT/LEFT TAB STACKS — real fix for a real bug found live: each tab used to be its
      own position:fixed element at a hand-picked "top:calc(50% + Npx)" offset from screen center,
@@ -1570,11 +1634,10 @@
       <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🎒</span>BAG
     </button>
   </div>
-    <div id="questsTab">
-    <button onclick="toggleQuestsPanel()" style="display:block;background:linear-gradient(180deg,#1a0a2a,#2a0a4a);border:2px solid #cc66ff;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
-      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">📜</span>QUESTS
-    </button>
-  </div>
+    <!-- EMOTES TAB — real bone-driven emotes (game-character.js's EMOTE_CATALOG/applyEmotePose),
+         over 100 purchasable variants across 14 animation families. Auto-discovered by
+         buildTabMenu() (game-controls.js) into the phone/desktop ☰ Menu, same zero-extra-wiring
+         convention every other rail tab already follows. -->
     <div id="emotesTab">
     <button onclick="toggleEmotesPanel()" style="display:block;background:linear-gradient(180deg,#2a0a1e,#4a0f30);border:2px solid #ff66cc;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
       <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🎭</span>EMOTES
@@ -1586,6 +1649,11 @@
     <div id="movesTab">
     <button onclick="toggleMovesPanel()" style="display:block;background:linear-gradient(180deg,#2a1a0a,#4a2f0f);border:2px solid #ff9933;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
       <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">🥊</span>MOVES
+    </button>
+  </div>
+    <div id="questsTab">
+    <button onclick="toggleQuestsPanel()" style="display:block;background:linear-gradient(180deg,#1a0a2a,#2a0a4a);border:2px solid #cc66ff;border-right:none;border-radius:10px 0 0 10px;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);">
+      <span style="font-size:16px;display:block;margin-bottom:5px;transform:rotate(180deg);writing-mode:horizontal-tb;">📜</span>QUESTS
     </button>
   </div>
     <div id="testLabTab">
@@ -1622,10 +1690,17 @@
   </div>
   </div>
 <div id="leftTabStack" style="position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:20;display:flex;flex-direction:column;gap:3px;max-height:94vh;overflow-y:auto;overflow-x:hidden;pointer-events:auto;">
-    <div id="chatTab">
+    <div id="chatTab" style="position:relative;">
     <button onclick="toggleGameChat()" style="display:block;background:linear-gradient(180deg,#0a1a2a,#0a2a4a);border:2px solid #44ccff;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
       <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">💬</span>CHAT
     </button>
+    <!-- New-message preview — user's own ask: show incoming chat text right on the CHAT tab
+         itself (referencing another game's style), not just in the 3D world or inside the panel
+         you'd have to open first. Only ever shown while chatPanel is closed (see
+         showChatTabPreview(), game-social.js) — if it's already open you're already seeing it. -->
+    <div id="chatTabPreview" style="display:none;position:absolute;left:100%;top:0;margin-left:8px;max-width:220px;background:rgba(5,15,24,0.95);border:2px solid #44ccff;border-radius:8px;padding:8px 10px;font-size:11px;color:#eee;pointer-events:none;white-space:normal;word-break:break-word;">
+      <b id="chatTabPreviewName" style="color:#44ccff;"></b><span id="chatTabPreviewText"></span>
+    </div>
   </div>
     <div id="trashTab">
     <button onclick="openTrashModal()" style="display:block;background:linear-gradient(180deg,#0a2a0a,#122a12);border:2px solid #66ff66;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
@@ -1699,9 +1774,31 @@
       <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">🎁</span>DAILY EVENTS
     </button>
   </div>
+    <!-- PROFILE/STATS/HIRE — user's own ask: "also the profile and stats and hireing are also in
+         menuue." viewMyProfile() (P key) and the new Hire gig board ([[project_explox_hire_real_players]],
+         previously only reachable through the in-game computer) existed with no rail tab, so
+         buildTabMenu() (game-controls.js) never picked them up into the phone/desktop ☰ Menu either
+         — same real gap KARAOKE had before it moved into this same rail. STATS is a new real
+         read-only dashboard over already-tracked lifetime fields (playTimeSeconds, totalKills, etc.)
+         that had nowhere to be seen all together before now. -->
+    <div id="profileTab">
+    <button onclick="viewMyProfile()" style="display:block;background:linear-gradient(180deg,#1a0a2a,#2e0a4a);border:2px solid #bb66ff;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">👤</span>PROFILE
+    </button>
+  </div>
+    <div id="statsTab">
+    <button onclick="toggleStatsPanel()" style="display:block;background:linear-gradient(180deg,#0a1a2a,#0a2e4a);border:2px solid #44aaff;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">📊</span>STATS
+    </button>
+  </div>
+    <div id="hireRailTab">
+    <button onclick="openHireModal()" style="display:block;background:linear-gradient(180deg,#0a2a1e,#0a4a30);border:2px solid #44ddaa;border-left:none;border-radius:0 10px 10px 0;padding:14px 10px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;cursor:pointer;text-align:center;line-height:1.6;writing-mode:vertical-rl;text-orientation:mixed;">
+      <span style="font-size:16px;display:block;margin-bottom:5px;writing-mode:horizontal-tb;">💼</span>HIRE
+    </button>
+  </div>
   </div>
 
-<div id="gameName">EXPLOX</div>
+  <div id="gameName">EXPLOX</div>
   <div id="crosshair">+</div>
   <!-- ITEM-THROW AIM HUD — shown only while aiming a thrown item (startAimThrow()/cancelAimThrow(),
        game-land.js). Desktop confirms/cancels with a click / right-click / Esc on the canvas itself
@@ -1715,9 +1812,8 @@
       <button id="throwCancelBtn" onclick="cancelAimThrow(true)">✕ Cancel</button>
     </div>
   </div>
-  
   <div id="location">City Center</div>
-  <div id="sitePlayersHud" style="display:none;">🌍 <span id="sitePlayerCount">1</span> people play Explox</div>
+  <div id="sitePlayersHud" style="display:none;">🌍 <span id="sitePlayerCount">1</span> people play Explox<span id="sitePlayersWeek"></span></div>
   <div id="sipHud">💰 <span id="sipAmount">500</span> S.I.P.</div>
   <div id="cashHud">💵 $<span id="cashAmount">0</span> Cash</div>
   <div id="watchAdHud" onclick="watchRewardAd()">📺 Watch Ad +5 S.I.P.</div>
@@ -1733,11 +1829,12 @@
   <div id="hungerHud">🍔 Hunger: 100%</div>
   <div id="sickHud">🤒 SICK — slower, losing health</div>
   <div id="bladderHud">🚽 Bladder: 100%</div>
-  <div id="tirednessHud">😴 Tiredness: 100%</div>
+  <div id="tirednessHud">😴 <div id="tirednessBarBg"><div id="tirednessBarFill"></div></div></div>
   <div id="healthHud">
     <div id="healthBarBg"><div id="healthBarFill"></div></div>
     <div id="healthText">100/100 HP</div>
   </div>
+  <div id="targetHealthHud"><div id="targetHealthBarBg"><div id="targetHealthBarFill"></div></div></div>
   <div id="punchChargeHud"><div id="punchChargeFill"></div></div>
   <div id="ePrompt"></div>
   <div id="notification"></div>
@@ -1790,11 +1887,14 @@
     <div id="mobileFireBtn">🔥</div>
     <div id="mobileBombBtn">💣</div>
     <div id="mobileAutopilotBtn">🧑‍✈️</div>
-  </div
+  </div>
 
-  <!-- MENU + FULLSCREEN — the vertical side-tab rails are hidden on every device and replaced by this
-       one small grey corner control. ☰ opens a grid where every tab is a labelled thumbnail, built
-       live from the rails by buildTabMenu() (game-controls.js). ⛶ toggles real fullscreen. -->
+  <!-- PHONE MENU + FULLSCREEN — on touch devices the vertical side-tab rails eat most of a small
+       screen, so they're hidden (html.touch rules below) and replaced by this one small grey corner
+       control. ☰ opens a grid where every tab is a labelled thumbnail, built live from the rails by
+       buildTabMenu() (game-controls.js) so it always matches what's actually available (and skips
+       tabs the game has hidden). ⛶ toggles real fullscreen. Touch-only, so desktop keeps its side
+       tabs exactly as they were. -->
   <div id="phoneMenuBar">
     <div id="tabMenuBtn" onclick="openTabMenu()">☰ Menu</div>
     <div id="fullscreenBtn" onclick="toggleGameFullscreen()">⛶ Full</div>
@@ -1805,6 +1905,7 @@
       <div id="tabMenuGrid"></div>
     </div>
   </div>
+
   <button onclick="backToLogin()" style="position:fixed;top:14px;left:14px;pointer-events:auto;background:rgba(0,0,0,0.5);border:1px solid #555;border-radius:8px;color:#aaa;font-size:13px;padding:6px 14px;cursor:pointer;z-index:20;" onmouseover="this.style.borderColor='#e94560';this.style.color='#fff'" onmouseout="this.style.borderColor='#555';this.style.color='#aaa'">← Accounts</button>
   <button id="musicBtn" onclick="toggleBgMusic()" title="Toggle music" style="position:fixed;top:278px;right:14px;z-index:20;pointer-events:auto;background:rgba(0,0,0,0.5);border:1px solid #555;border-radius:8px;color:#fff;font-size:16px;padding:5px 10px;cursor:pointer;line-height:1;">🎵</button>
   <div id="seasonHud" onclick="openCalendar()" style="position:fixed;top:240px;right:14px;color:#fff;font-size:12px;background:rgba(0,0,0,0.5);padding:7px 12px;border-radius:8px;cursor:pointer;pointer-events:auto;white-space:nowrap;"></div>
@@ -1854,12 +1955,11 @@
         <button type="button" onclick="insertChatEmoji('⚔️')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:3px;">⚔️</button>
       </div>
       <div style="display:flex;gap:6px;">
-        <input id="chatInput" placeholder="Say something..." maxlength="200" onkeydown="if(event.key==='Enter'){event.stopPropagation();sendChatMessage();} if(event.key==='Escape'){event.stopPropagation();closeGameChat();}" style="flex:1;padding:7px 9px;background:rgba(0,0,0,0.55);border:1px solid #ffffff55;border-radius:2px;color:#fff;font-size:13px;font-family:'Courier New',monospace;outline:none;" onfocus="this.style.borderColor='#fff'" onblur="this.style.borderColor='#ffffff55'">
+        <input id="chatInput" placeholder="Say something..." maxlength="10000" onkeydown="if(event.key==='Enter'){event.stopPropagation();sendChatMessage();} if(event.key==='Escape'){event.stopPropagation();closeGameChat();}" style="flex:1;padding:7px 9px;background:rgba(0,0,0,0.55);border:1px solid #ffffff55;border-radius:2px;color:#fff;font-size:13px;font-family:'Courier New',monospace;outline:none;" onfocus="this.style.borderColor='#fff'" onblur="this.style.borderColor='#ffffff55'">
         <button type="button" onclick="toggleEmojiPicker()" style="padding:7px 10px;background:rgba(0,0,0,0.55);border:1px solid #ffffff55;border-radius:2px;color:#fff;font-size:14px;cursor:pointer;">😀</button>
         <button onclick="sendChatMessage()" style="padding:7px 12px;background:rgba(0,0,0,0.55);border:1px solid #ffffff55;border-radius:2px;color:#fff;font-size:13px;cursor:pointer;font-weight:bold;">→</button>
       </div>
     </div>
-  </div>
   </div>
 
   <!-- SAI TAB -->
@@ -1954,7 +2054,6 @@
     <button onclick="closeMusicPanel()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:10px;">✕ Close</button>
   </div>
 
-
   <!-- KARAOKE PANEL -->
   <div id="karaokePanel" style="display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#1a0a1a,#2a0a1e);border:2px solid #ff88cc;border-left:none;border-radius:0 14px 14px 0;padding:14px 12px;width:260px;pointer-events:auto;max-height:85vh;overflow:hidden;">
     <div style="color:#ff88cc;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:4px;">🎤 KARAOKE</div>
@@ -2032,12 +2131,9 @@
     <button onclick="closeQuestsPanel()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:10px;">✕ Close</button>
   </div>
 
-  <!-- EARNINGS TAB — every S.I.P./Elite Coin reward in the game gets queued here instead of
-       landing in your wallet instantly; click an earning to actually collect it. The red "!"
-       badge lights up once anything's sat uncollected for 30+ real minutes. -->
-  
-
-  <!-- EMOTES PANEL -->
+  <!-- EMOTES PANEL — over 100 real bone-driven emotes (game-character.js's EMOTE_CATALOG), grouped
+       by animation family; each row is either a real ▶ Play button (owned) or a 🔒 Buy button
+       (real S.I.P., buyEmoteVariant()). -->
   <div id="emotesPanel" style="display:none;position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:21;background:linear-gradient(135deg,#1a0518,#2a0828);border:2px solid #ff66cc;border-right:none;border-radius:14px 0 0 14px;padding:14px 12px;width:300px;pointer-events:auto;max-height:85vh;overflow:hidden;flex-direction:column;">
     <div style="color:#ff66cc;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:4px;">🎭 EMOTES</div>
     <p style="color:#555;font-size:9px;text-align:center;margin-bottom:8px;letter-spacing:1px;">BUY WITH REAL S.I.P. — OWNED ONES ARE PLAYABLE</p>
@@ -2109,7 +2205,58 @@
     <div style="color:#bb66ff;font-size:14px;font-weight:bold;letter-spacing:3px;text-align:center;margin-bottom:4px;">🏆 RECORDS</div>
     <p style="color:#555;font-size:9px;text-align:center;margin-bottom:8px;letter-spacing:1px;">YOUR ALL-TIME BESTS</p>
     <div id="recordsList" style="overflow-y:auto;flex:1;padding-right:4px;"></div>
-    <button onclick="closeRecordsPanel()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:10px;">✕ Close</button>
+    <button onclick="viewMyProfile()" style="width:100%;padding:7px;background:#3a2a5a;border:1px solid #bb66ff;border-radius:6px;color:#fff;font-size:11px;font-weight:bold;cursor:pointer;margin-top:8px;">👤 My Profile</button>
+    <button onclick="closeRecordsPanel()" style="width:100%;padding:6px;background:none;border:1px solid #333;border-radius:6px;color:#555;font-size:11px;cursor:pointer;margin-top:6px;">✕ Close</button>
+  </div>
+
+  <!-- PLAYER PROFILE MODAL — user's own ask: "every one hass a profile bio username stats like
+       total kills and more". Own profile (viewMyProfile(), the RECORDS panel button above) shows
+       an editable bio textarea; another player's (tryViewNearestProfile(), the P key) shows their
+       bio as read-only text — see showProfileModal()/saveMyBio() (game-social.js). -->
+  <div id="profileModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;">
+    <div style="background:linear-gradient(135deg,#120a1a,#1c1128);border:2px solid #bb66ff;border-radius:14px;padding:22px;width:min(320px,90vw);position:relative;">
+      <button onclick="closeProfileModal()" style="position:absolute;top:8px;right:8px;width:28px;height:28px;background:rgba(255,255,255,0.1);border:none;border-radius:50%;font-size:14px;cursor:pointer;color:#fff;">✕</button>
+      <div style="font-size:34px;text-align:center;margin-bottom:6px;">👤</div>
+      <div id="profileModalName" style="color:#bb66ff;font-size:16px;font-weight:bold;text-align:center;margin-bottom:10px;"></div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <div style="flex:1;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px;text-align:center;">
+          <div style="color:#fff;font-size:16px;font-weight:bold;" id="profileModalKills"></div>
+          <div style="color:#888;font-size:9px;letter-spacing:1px;">TOTAL KILLS</div>
+        </div>
+        <div style="flex:1;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px;text-align:center;">
+          <div style="color:#fff;font-size:16px;font-weight:bold;" id="profileModalLevel"></div>
+          <div style="color:#888;font-size:9px;letter-spacing:1px;">ROBOT LEVEL</div>
+        </div>
+      </div>
+      <div id="profileModalBio" style="color:#ccc;font-size:12px;line-height:1.5;text-align:center;padding:8px;"></div>
+      <textarea id="profileModalBioEdit" maxlength="150" rows="3" placeholder="Write a short bio about yourself..." style="display:none;width:100%;box-sizing:border-box;padding:8px;background:#0d0714;border:1px solid #555;border-radius:8px;color:#fff;font-size:12px;resize:vertical;margin-bottom:8px;"></textarea>
+      <button id="profileModalEditBtn" onclick="saveMyBio()" style="display:none;width:100%;padding:8px;background:#bb66ff;border:none;border-radius:6px;color:#111;font-size:11px;font-weight:bold;cursor:pointer;">💾 Save Bio</button>
+    </div>
+  </div>
+
+  <!-- STATS PANEL — user's own ask: "also the profile and stats and hireing are also in menuue."
+       A real read-only dashboard over lifetime fields that were already tracked/saved (see
+       saveCurrentUser(), game-core.js) but never shown together in one place before now —
+       renderStatsPanel() (game-social.js) just formats the existing numbers, no new game state. -->
+  <div id="statsModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;">
+    <div style="background:linear-gradient(135deg,#0a111a,#0d1c28);border:2px solid #44aaff;border-radius:14px;padding:22px;width:min(340px,90vw);max-height:85vh;overflow-y:auto;position:relative;">
+      <button onclick="closeStatsPanel()" style="position:absolute;top:8px;right:8px;width:28px;height:28px;background:rgba(255,255,255,0.1);border:none;border-radius:50%;font-size:14px;cursor:pointer;color:#fff;">✕</button>
+      <div style="font-size:34px;text-align:center;margin-bottom:6px;">📊</div>
+      <div style="color:#44aaff;font-size:16px;font-weight:bold;text-align:center;margin-bottom:14px;">Your Stats</div>
+      <div id="statsModalBody"></div>
+    </div>
+  </div>
+
+  <!-- HIRE MODAL — the same real Hire gig board (renderHirePage(), game-vehicles.js) the computer's
+       SIB already has, now also reachable without owning a computer first — hiring/working for
+       another real player is a social/economy action like CHAT or QUESTS, not something that should
+       need a purchased item just to glance at. refreshHireUI() (game-vehicles.js) refreshes whichever
+       of these two real entry points is actually open. -->
+  <div id="hireModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;">
+    <div style="background:#1c1c1c;border:2px solid #44ddaa;border-radius:14px;width:min(380px,92vw);max-height:85vh;overflow-y:auto;position:relative;">
+      <button onclick="closeHireModal()" style="position:absolute;top:10px;right:10px;width:28px;height:28px;background:rgba(255,255,255,0.15);border:none;border-radius:50%;font-size:14px;cursor:pointer;color:#fff;z-index:1;">✕</button>
+      <div id="hireModalContent"></div>
+    </div>
   </div>
 
   <!-- GAME BUILDER TAB — user's own ask: "make something like scratch incase they have no coding
@@ -2646,6 +2793,26 @@
   </div>
 </div>
 
+<!-- STORE SHELF MODAL (buy — your own store or a visited one) -->
+<div id="storeShelfModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;flex-direction:column;">
+  <div style="background:linear-gradient(135deg,#1a2a1a,#14301e);border:2px solid #4a9d5a;border-radius:16px;padding:24px;min-width:340px;max-height:82vh;overflow-y:auto;">
+    <h2 id="storeShelfTitle" style="color:#7fd88f;letter-spacing:2px;margin-bottom:4px;font-size:18px;text-align:center;">🛍️ Shop the Shelves</h2>
+    <p style="color:#888;font-size:11px;text-align:center;margin-bottom:16px;">Buy real stock right off the shelf.</p>
+    <div id="storeShelfList" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <button onclick="closeStoreShelves()" style="margin-top:16px;width:100%;padding:8px;background:none;border:1px solid #555;border-radius:8px;color:#888;font-size:12px;cursor:pointer;">✕ Close</button>
+  </div>
+</div>
+
+<!-- SELL YOUR STUFF MODAL (your own store or a visited one) -->
+<div id="sellStuffModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;flex-direction:column;">
+  <div style="background:linear-gradient(135deg,#2a2210,#301e10);border:2px solid #d8a84a;border-radius:16px;padding:24px;min-width:340px;max-height:82vh;overflow-y:auto;">
+    <h2 style="color:#e8c070;letter-spacing:2px;margin-bottom:4px;font-size:18px;text-align:center;">💰 Sell Your Stuff</h2>
+    <p style="color:#888;font-size:11px;text-align:center;margin-bottom:16px;">List anything you own for sale — inventory, weapons, armor, even a car. You set the price — a fairer price sells faster!</p>
+    <div id="sellStuffList" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <button onclick="closeSellCounter()" style="margin-top:16px;width:100%;padding:8px;background:none;border:1px solid #555;border-radius:8px;color:#888;font-size:12px;cursor:pointer;">✕ Close</button>
+  </div>
+</div>
+
 <!-- HOUSE FURNITURE MODAL -->
 <div id="houseFurnitureModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;flex-direction:column;">
   <div style="background:linear-gradient(135deg,#1a2e1e,#0f2818);border:2px solid #3a9d3a;border-radius:16px;padding:24px;min-width:340px;max-height:82vh;overflow-y:auto;">
@@ -2667,6 +2834,46 @@
     <div id="restaurantCompHud" style="display:none;background:rgba(255,255,255,0.06);border:1px solid #ffaa55;border-radius:10px;padding:10px 14px;margin-bottom:14px;"></div>
     <div id="restaurantList" style="display:flex;flex-direction:column;gap:10px;"></div>
     <button onclick="closeRestaurant()" style="margin-top:16px;width:100%;padding:8px;background:none;border:1px solid #555;border-radius:8px;color:#888;font-size:12px;cursor:pointer;">✕ Close</button>
+  </div>
+</div>
+
+<!-- COMPUTER DESKTOP MODAL — the real "home screen" once you open the computer: SIB, the App
+     Store, and every app you've installed each show up as their own real icon here, each opening
+     its own window (sibModal/appStoreModal/appWindowModal below), rather than everything being
+     pages buried inside the browser. -->
+<div id="computerDesktopModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
+  <div style="background:#2a2a2a;border-radius:12px;width:420px;max-width:95vw;box-shadow:0 8px 40px #000a;overflow:hidden;">
+    <div style="background:#1a1a1a;padding:8px 12px;display:flex;align-items:center;gap:8px;">
+      <div style="display:flex;gap:5px;"><div style="width:12px;height:12px;border-radius:50%;background:#ff5555;"></div><div style="width:12px;height:12px;border-radius:50%;background:#ffdd55;"></div><div style="width:12px;height:12px;border-radius:50%;background:#55cc44;"></div></div>
+      <span style="color:#00ccaa;font-size:13px;font-weight:bold;margin-left:8px;">🖥️ Desktop</span>
+      <button onclick="closeComputerDesktop()" style="margin-left:auto;background:none;border:none;color:#888;font-size:16px;cursor:pointer;">✕</button>
+    </div>
+    <div id="desktopContent" style="background:#f5f5f5;min-height:260px;max-height:70vh;overflow-y:auto;font-family:Arial,sans-serif;padding:10px;"></div>
+  </div>
+</div>
+
+<!-- APP STORE MODAL -->
+<div id="appStoreModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
+  <div style="background:#2a2a2a;border-radius:12px;width:420px;max-width:95vw;box-shadow:0 8px 40px #000a;overflow:hidden;">
+    <div style="background:#1a1a1a;padding:8px 12px;display:flex;align-items:center;gap:8px;">
+      <div style="display:flex;gap:5px;"><div style="width:12px;height:12px;border-radius:50%;background:#ff5555;"></div><div style="width:12px;height:12px;border-radius:50%;background:#ffdd55;"></div><div style="width:12px;height:12px;border-radius:50%;background:#55cc44;"></div></div>
+      <span style="color:#00ccaa;font-size:13px;font-weight:bold;margin-left:8px;">📱 App Store</span>
+      <button onclick="closeAppStoreApp()" style="margin-left:auto;background:none;border:none;color:#888;font-size:16px;cursor:pointer;">✕</button>
+    </div>
+    <div id="appStoreContent" style="height:380px;overflow-y:auto;font-family:Arial,sans-serif;"></div>
+  </div>
+</div>
+
+<!-- APP WINDOW MODAL — shared window every installed app (Calculator/Notepad/Clock/.../Play
+     Explox) opens into; renderAppWindow() (game-vehicles.js) swaps #appWindowContent per app. -->
+<div id="appWindowModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
+  <div style="background:#2a2a2a;border-radius:12px;width:420px;max-width:95vw;box-shadow:0 8px 40px #000a;overflow:hidden;">
+    <div style="background:#1a1a1a;padding:8px 12px;display:flex;align-items:center;gap:8px;">
+      <div style="display:flex;gap:5px;"><div style="width:12px;height:12px;border-radius:50%;background:#ff5555;"></div><div style="width:12px;height:12px;border-radius:50%;background:#ffdd55;"></div><div style="width:12px;height:12px;border-radius:50%;background:#55cc44;"></div></div>
+      <span id="appWindowTitle" style="color:#00ccaa;font-size:13px;font-weight:bold;margin-left:8px;">App</span>
+      <button onclick="closeInstalledApp()" style="margin-left:auto;background:none;border:none;color:#888;font-size:16px;cursor:pointer;">✕</button>
+    </div>
+    <div id="appWindowContent" style="height:380px;overflow-y:auto;font-family:Arial,sans-serif;"></div>
   </div>
 </div>
 
@@ -2871,34 +3078,35 @@ function closeMgPanel(){
 }
 </script>
 
+<script src="https://js.stripe.com/v3/"></script>
 <script src="AiGame/explox/three.min.js"></script>
 <!-- game.js (24,500 lines) was split into these files, in this exact order, so the game still
      runs identically — each file is one coherent subsystem instead of one giant file. See
      AiGame/explox/modules/README.md for how this was done and how to keep it split going forward. -->
-<script src="AiGame/explox/modules/game-core.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-economy.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-customization.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-engine.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-alignment.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-cinema.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-transit.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-social.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-shops.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-vehicles.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-housing.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-land.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-zones.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-buildings.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-character.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-district.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-shopinteriors.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-world.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-controls.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-sai.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-admin.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-bible.js?v=20260927i"></script>
-<script src="AiGame/explox/modules/game-library.js?v=20260927i"></script>
-<script src="AiGame/explox/game-builder.js?v=20260927i"></script>
+<script src="AiGame/explox/modules/game-core.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-economy.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-customization.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-engine.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-alignment.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-cinema.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-transit.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-social.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-shops.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-vehicles.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-housing.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-land.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-zones.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-buildings.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-character.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-district.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-shopinteriors.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-world.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-controls.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-sai.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-admin.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-bible.js?v=20261002b"></script>
+<script src="AiGame/explox/modules/game-library.js?v=20261002b"></script>
+<script src="AiGame/explox/game-builder.js"></script>
 <script>
 window.addEventListener('load', function() {
   var btn = document.getElementById('createAccBtn');

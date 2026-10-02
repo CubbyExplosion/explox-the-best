@@ -907,12 +907,16 @@ function tickBladder(dt) {
     updateBladderHud();
   }
 }
+// User's own ask: "no words... an energy level" — a wordless bar (#tirednessBarFill) instead of
+// the old "😴 Tiredness: X% — EXHAUSTED!" text. Still real, felt feedback: the fill's OWN color
+// shifts through the same 4 thresholds the old text color did, so "almost exhausted" and
+// "exhausted" still read at a glance, just via color/fill-length instead of a sentence.
 function updateTirednessHud() {
-  const hud = document.getElementById('tirednessHud');
-  if (!hud) return;
+  const fill = document.getElementById('tirednessBarFill');
+  if (!fill) return;
   const pct = Math.round(tiredness);
-  hud.style.color = tiredness <= 0 ? '#ff3333' : (tiredness < 25 ? '#ff8844' : (tiredness < 60 ? '#ffdd44' : '#bb99ff'));
-  hud.textContent = `😴 Tiredness: ${pct}%${tiredness <= 0 ? ' — EXHAUSTED!' : ''}`;
+  fill.style.width = pct + '%';
+  fill.style.background = tiredness <= 0 ? '#ff3333' : (tiredness < 25 ? 'linear-gradient(90deg,#cc5522,#ff8844)' : (tiredness < 60 ? 'linear-gradient(90deg,#ccaa22,#ffdd44)' : 'linear-gradient(90deg,#7a5ad1,#bb99ff)'));
 }
 function tickTiredness(dt) {
   if (tiredness > 0) {
@@ -1365,10 +1369,37 @@ function setChatMode(mode) {
   dev.style.color = mode === 'devtalk' ? '#ff8844' : '#888';
   document.getElementById('chatInput').placeholder = mode === 'devtalk' ? 'Message the developer...' : 'Say something...';
 }
+// "you can send money through chat" — /pay <name> <amount>, real S.I.P., same mailbox sip_gift
+// tryGiveSip() (Y key) already uses, just addressed by typed name instead of nearest-player
+// proximity. Requires the target to be currently online (a real remotePlayers entry, matched
+// case-insensitively) rather than trusting whatever name was typed outright — tryGiveSip() gets
+// this same safety for free by only ever targeting someone physically standing near you; a typed
+// name has no such guarantee, so a typo or a stale name would otherwise silently hand real S.I.P.
+// to the wrong account (or one that doesn't exist) with the sender none the wiser.
+function handlePayCommand(argsText) {
+  if (serverMode !== 'online') { showNotif('💸 Giving S.I.P. needs ONLINE mode!'); return; }
+  const parts = argsText.trim().split(/\s+/).filter(Boolean);
+  const amt = Math.floor(Number(parts[parts.length - 1]));
+  const typedName = parts.slice(0, -1).join(' ');
+  if (parts.length < 2 || !Number.isFinite(amt) || amt <= 0) { showNotif('❌ Try: /pay <name> <amount>'); return; }
+  const target = Object.keys(remotePlayers).find(n => n.toLowerCase() === typedName.toLowerCase());
+  if (!target) { showNotif(`❌ "${typedName}" isn't online right now — /pay only works on someone currently playing.`); return; }
+  if (sipDollars < amt) { showNotif(`❌ You only have ${sipDollars} S.I.P.!`); return; }
+  spendSip(amt); updateSIP(); saveCurrentUser();
+  sendMail(target, 'sip_gift', { amount: amt });
+  showNotif(`💸 Sent ${amt.toLocaleString()} S.I.P. to ${target}!`);
+  chatAddMsg('You', `paid ${target} ${amt.toLocaleString()} S.I.P. 💸`, true);
+}
 function sendChatMessage() {
   const input = document.getElementById('chatInput');
   const text = input.value.trim();
   if(!text) return;
+  if (text.toLowerCase().startsWith('/pay ')) {
+    input.value = '';
+    closeGameChat();
+    handlePayCommand(text.slice(5));
+    return;
+  }
   input.value = '';
   closeGameChat(); // Minecraft-style: Enter (or the send button) both submits AND closes chat back to normal play
   if(serverMode !== 'online') { showNotif('💬 Chat needs ONLINE mode!'); return; }
@@ -1378,6 +1409,7 @@ function sendChatMessage() {
     return;
   }
   chatAddMsg('You', text, true); // shown instantly — don't make your own message wait on a round trip
+  if (typeof playerGroup !== 'undefined' && playerGroup) showSpeechBubble(playerGroup, currentUser, text);
   fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/chat', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ from: currentUser, text })
@@ -1399,7 +1431,12 @@ async function syncChatMessages() {
     const msgs = await r.json();
     msgs.forEach(m => {
       chatLastSeenTs = Math.max(chatLastSeenTs, m.ts);
-      if(m.from !== currentUser) chatAddMsg(m.from, m.text, false); // your own already shown instantly in sendChatMessage()
+      if(m.from !== currentUser) {
+        chatAddMsg(m.from, m.text, false); // your own already shown instantly in sendChatMessage()
+        const rp = remotePlayers[m.from];
+        if (rp && rp.mesh) showSpeechBubble(rp.mesh, m.from, m.text); // only if they're currently rendered nearby — otherwise there's no mesh to float it above
+        showChatTabPreview(m.from, m.text); // no-op if the Chat panel is already open — you're already seeing it there
+      }
     });
   } catch(e) { /* next sync will catch up */ }
 }
@@ -1423,7 +1460,7 @@ function chatAddMsg(label, text, isMine) {
   div.appendChild(document.createTextNode(': ' + text)); // createTextNode, never innerHTML — this is another real player's typed text
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
-  if (!chatOpen) scheduleMsgFade(div);
+  if (!chatOpen && othersOnlineCount() === 0) scheduleMsgFade(div);
 }
 // Whether the chat input is currently open (Enter or the CHAT tab — openGameChat() below). While
 // true, every line sits at full opacity with no fade timer, matching Minecraft showing its full
@@ -1431,12 +1468,35 @@ function chatAddMsg(label, text, isMine) {
 let chatOpen = false;
 const CHAT_FADE_DELAY = 8000; // ms a line sits fully visible before it starts fading, same idle window Minecraft's own chat uses
 const CHAT_FADE_DURATION = 600; // ms fade-out itself, matches the CSS transition set on each line above
+// User's own ask: "the chat stays on... as long as there is a second third forth fifth sixth
+// seventh [player]" — i.e. whenever ANYONE else is around, not just you alone. remotePlayers
+// (game-character.js) is the real live set syncPresence() already maintains every second, so
+// there's nothing new to sync — just read its current size.
+function othersOnlineCount() { return Object.keys(remotePlayers).length; }
 function scheduleMsgFade(div) {
   clearTimeout(div._fadeTimer);
   div._fadeTimer = setTimeout(() => {
     div.style.opacity = '0';
     setTimeout(() => { div.style.display = 'none'; }, CHAT_FADE_DURATION);
   }, CHAT_FADE_DELAY);
+}
+// New-message preview on the 💬 CHAT tab itself — user's own ask (referencing another game's
+// style): see who said what without having to open the panel first. Only shown while the panel
+// is actually closed (if it's open, chatAddMsg() above already put it in front of you) — checked
+// fresh on every call rather than cached, since panel open/closed can change between messages.
+let chatTabPreviewTimer = null;
+const CHAT_TAB_PREVIEW_MS = 5000;
+const CHAT_TAB_PREVIEW_TEXT_MAX = 100;
+function showChatTabPreview(name, text) {
+  if (chatOpen) return; // already visible in the open, full-opacity log
+  const box = document.getElementById('chatTabPreview');
+  if (!box) return;
+  document.getElementById('chatTabPreviewName').textContent = (name || 'Player') + ': ';
+  const shown = text.length > CHAT_TAB_PREVIEW_TEXT_MAX ? text.slice(0, CHAT_TAB_PREVIEW_TEXT_MAX - 3) + '...' : text;
+  document.getElementById('chatTabPreviewText').textContent = shown; // textContent, never innerHTML — another real player's typed text
+  box.style.display = 'block';
+  clearTimeout(chatTabPreviewTimer);
+  chatTabPreviewTimer = setTimeout(() => { box.style.display = 'none'; }, CHAT_TAB_PREVIEW_MS);
 }
 // Minecraft-style open/close: "open" just means the input bar is visible and the recent
 // scrollback is pinned at full opacity — the message log itself (chatMessages) is ALWAYS in the
@@ -1471,12 +1531,14 @@ function closeGameChat() {
   box.style.overflowY = 'hidden';
   box.scrollTop = box.scrollHeight;
   // Back to normal play — every currently-visible line starts fading again from now, same as a
-  // freshly-posted message would.
-  [...box.children].forEach(div => scheduleMsgFade(div));
+  // freshly-posted message would. Skipped entirely while someone else is online (othersOnlineCount()
+  // above) — the whole point of that feature is the log staying lit without you needing to keep
+  // chat open the whole time.
+  if (othersOnlineCount() === 0) [...box.children].forEach(div => scheduleMsgFade(div));
   if(renderer && renderer.domElement) renderer.domElement.requestPointerLock();
 }
 // "also add emojis" — user's own ask, right after the Minecraft-chat rework above. A plain grid
-// (#chatEmojiPicker, index.html) toggled by the 😀 button next to Send; picking one inserts it at
+// (#chatEmojiPicker, EXPLOX.html) toggled by the 😀 button next to Send; picking one inserts it at
 // the real cursor position (not just appended to the end) so it works mid-sentence too, then puts
 // the cursor right after it and refocuses the input so you can keep typing or send immediately.
 function toggleEmojiPicker() {
@@ -1492,6 +1554,22 @@ function insertChatEmoji(emoji) {
   input.setSelectionRange(pos, pos);
 }
 
+// Real PvP knockback — user's own ask: "if they're fighting you you take dmg and you get
+// knockback". damagePlayer() alongside every call site below already applied real damage (that
+// part already worked); this is the missing half — actually pushing YOUR OWN playerGroup away
+// from the attacker's real position, using the exact same startKnockback()/tickKnockbacks()
+// (game-economy.js) every NPC fight already uses, not a separate knockback system. Needs the
+// attacker's OWN swing power stashed into playerSwingPower for the one call startKnockback()
+// reads it from (it's a global belonging to whoever calls it, per its own existing design) —
+// restored right after so it can never leak into your own next real punch.
+function applyIncomingKnockback(data) {
+  if (data.fromX === undefined || data.fromZ === undefined) return; // an older/other message shape with no position to push away from
+  const savedPower = playerSwingPower;
+  playerSwingPower = data.power !== undefined ? data.power : 0.3;
+  startKnockback(data.fromX, data.fromZ, playerGroup.position.x, playerGroup.position.z,
+    (x, z) => { playerGroup.position.x = x; playerGroup.position.z = z; });
+  playerSwingPower = savedPower;
+}
 function handleMailboxMessage(msg) {
   if(msg.type === 'duel_challenge') {
     duelChallengeFrom = msg.from;
@@ -1508,7 +1586,7 @@ function handleMailboxMessage(msg) {
       showNotif(`${msg.from} declined the duel.`);
     }
   } else if(msg.type === 'duel_hit') {
-    if(dueling === msg.from) damagePlayer(msg.data.damage, msg.from + ' (duel)');
+    if(dueling === msg.from) { damagePlayer(msg.data.damage, msg.from + ' (duel)'); applyIncomingKnockback(msg.data); }
   } else if(msg.type === 'duel_end') {
     if(dueling === msg.from) {
       dueling = null;
@@ -1520,10 +1598,33 @@ function handleMailboxMessage(msg) {
       }
     }
   } else if(msg.type === 'ffa_hit') {
-    if(inArena && ffaAlive) { lastFfaAttacker = msg.from; damagePlayer(msg.data.damage, msg.from + ' (arena)'); }
+    if(inArena && ffaAlive) { lastFfaAttacker = msg.from; damagePlayer(msg.data.damage, msg.from + ' (arena)'); applyIncomingKnockback(msg.data); }
   } else if(msg.type === 'sip_gift') {
     queueEarning(msg.data.amount, 0, `Gift from ${msg.from}`);
     showNotif(`💸 ${msg.from} gave you ${msg.data.amount} S.I.P.! Thanks!`);
+  } else if(msg.type === 'store_sale') {
+    // A visitor bought something off YOUR real shelf (buyFromShelf(), game-vehicles.js) while
+    // you weren't there to see it live — same real crediting as sip_gift above, plus the real
+    // stock decrement that buyFromShelf() could only apply OPTIMISTICALLY to its own cached copy
+    // of your data at the time of the sale (no live shared-state write exists for another
+    // player's save in this project). Floored at 0 since several sales could, in principle,
+    // arrive out of order relative to you re-stocking that same shelf in the meantime.
+    const d = msg.data;
+    if(storeStock[d.itemId] !== undefined) storeStock[d.itemId] = Math.max(0, storeStock[d.itemId] - 1);
+    queueEarning(d.price, 0, 'Your Store');
+    storeSalesCount += 1;
+    saveCurrentUser();
+    showNotif(`💰 ${msg.from} bought ${d.emoji} ${d.itemName} from your store for ${d.price} S.I.P.!`);
+  } else if(msg.type === 'listing_sale') {
+    // A visitor bought one of YOUR real player-sold listings (buyListing(), game-vehicles.js) —
+    // same real crediting as store_sale above, plus removing the real listing itself (the buyer
+    // already received the real item on their own end; this side only ever needs the credit +
+    // cleanup, never a grant — a listing can only ever be bought once).
+    const d = msg.data;
+    storeListings = storeListings.filter(l => l.listingId !== d.listingId);
+    queueEarning(d.price, 0, 'Your Store');
+    saveCurrentUser();
+    showNotif(`💰 ${msg.from} bought your listed ${d.emoji} ${d.name} for ${d.price.toLocaleString()} S.I.P.!`);
   } else if(msg.type === 'trash_deposit') {
     // Real deposit into YOUR trashSafeSip/trashSafeItems (game-economy.js) — lands whether or
     // not your Trash Safe's passcode has even been set yet; setting one only ever gates taking
@@ -1546,6 +1647,31 @@ function handleMailboxMessage(msg) {
     // it's never missed entirely.
     showNotif(`📨 Dev Talk from ${msg.from}: ${msg.data.text}`);
     adminAddMsg(`📨 ${msg.from}: ${msg.data.text}`, 'devtalk');
+  } else if(msg.type === 'custom_bundle_request') {
+    // Only ever addressed to an ADMIN_ACCOUNTS name (submitCustomBundle(), game-alignment.js) —
+    // stored so /bundle_quote|/bundle_reject (game-admin.js) can look it up by requestId later,
+    // same "hold it in memory until an admin acts on it" idea as pendingBundleRequests' own
+    // declaration there. Logged into the real admin panel either way, not just toasted, since an
+    // admin reviewing an idea needs to actually re-read it, not just glimpse a notif.
+    pendingBundleRequests[msg.data.requestId] = msg.data;
+    showNotif(`🎁 Custom Bundle request from ${msg.from}`);
+    adminAddMsg(`🎁 ${msg.data.requester} wants: ${msg.data.itemName || '(no item)'} + ${msg.data.currencyAmount.toLocaleString()} ${msg.data.currencyType === 'elite' ? 'Elite Coins' : 'S.I.P.'} + idea: "${msg.data.idea || '(none)'}" — /bundle_quote ${msg.data.requester} <complications> or /bundle_reject ${msg.data.requester}`, 'devtalk');
+  } else if(msg.type === 'custom_bundle_quote') {
+    // The admin reviewed the idea and priced it — a real Stripe checkout URL already generated
+    // server-side (adminCreateBundleCheckout(), game-admin.js), just needs the player to actually
+    // click through and pay. This can arrive at any random moment while playing, possibly minutes/
+    // hours after the request, so a real PERSISTENT modal (showBundleQuoteModal(), game-core.js —
+    // showBigMsg()/showNotif() both auto-vanish in seconds and are plain text, neither can hold a
+    // real clickable link around long enough to matter here) rather than yanking the player
+    // straight to Stripe or hoping they saw a toast.
+    showBundleQuoteModal(msg.data.totalCents, msg.data.url);
+  } else if(msg.type === 'custom_bundle_declined') {
+    // No money ever changed hands for the idea half of this request, so the consolation is a
+    // normal reward credit (queueEarning(), the Earnings-tab collectible-delay path), NOT the
+    // instant-wallet-credit rule real Stripe purchases use elsewhere in this file — nothing was
+    // actually purchased here.
+    queueEarning(10000, 0, 'Custom Bundle idea declined');
+    showNotif(`🎁 ${msg.from} couldn't add your idea to the game this time — sent you 10,000 S.I.P. instead!`);
   } else if(msg.type === 'prayer_gift') {
     // "make it so you can wish for others" — someone else's GRANT roll named YOU, so whatever
     // their prayer parsed to (see parsePrayerGrant() in game-land.js) actually lands here, on
@@ -1568,6 +1694,51 @@ function handleMailboxMessage(msg) {
     const k = killers.find(kk => kk.alive && kk.hitTargetIsPlayer && kk.hitTargetName === msg.data.targetName);
     if (k) { k.alive = false; if (k.mesh) scene.remove(k.mesh); }
     completeHiredHitOnPlayer(msg.data.targetName);
+  } else if(msg.type === 'job_offer') {
+    // Real job offer from a real other player, see [[Hire]] (game-vehicles.js renderHirePage()) —
+    // they already funded the real S.I.P. budget on their own end at postJob() time; this is just
+    // the invite landing in your inbox, same accept/decline shape as a duel challenge above.
+    incomingJobOffers.push({ employer: msg.from, task: msg.data.task, payRate: msg.data.payRate, budget: msg.data.budget, customDesc: msg.data.customDesc });
+    saveCurrentUser();
+    showNotif(`💼 ${msg.from} wants to hire you! Check the Hire page on your computer.`);
+  } else if(msg.type === 'job_accept') {
+    const e = myEmployees[msg.from];
+    if(e) { e.status = 'active'; saveCurrentUser(); showNotif(`✅ ${msg.from} accepted your job offer!`); }
+  } else if(msg.type === 'job_decline') {
+    const e = myEmployees[msg.from];
+    if(e) {
+      if(e.budgetRemaining > 0) queueEarning(Math.round(e.budgetRemaining), 0, `Refund — ${msg.from} declined`);
+      delete myEmployees[msg.from];
+      saveCurrentUser();
+      showNotif(`${msg.from} declined your job offer — budget refunded.`);
+    }
+  } else if(msg.type === 'job_delivery') {
+    // Real-time confirmation for when YOU (the employer) happen to be online while an employee
+    // delivers — deliverJobWork() (game-vehicles.js) already wrote the authoritative cap-checked
+    // numbers straight into your cached explox_user_<you> record on the employee's own client, so
+    // this just applies that same real result to your actual live session variables too, so your
+    // own screen (wood/scrap totals, this employee's budget) doesn't look stale until your next reload.
+    const d = msg.data;
+    const e = myEmployees[msg.from];
+    if(e) { e.budgetRemaining = Math.max(0, e.budgetRemaining - d.pay); e.totalDelivered = (e.totalDelivered||0) + d.amount; e.totalPaid = (e.totalPaid||0) + d.pay; }
+    if(d.task === 'wood') { woodCount += d.amount; updateWood(); }
+    else if(d.task === 'scrap') { scrapMetal += d.amount; updateScrapMetal(); }
+    saveCurrentUser();
+    showNotif(`💼 ${msg.from} delivered ${d.amount} ${JOB_TASKS[d.task].emoji} — paid them ${Math.round(d.pay)} S.I.P.`);
+  } else if(msg.type === 'job_fired') {
+    if(currentJob && currentJob.employer === msg.from) {
+      currentJob = null;
+      saveCurrentUser();
+      showNotif(`🔥 ${msg.from} fired you.`);
+    }
+  } else if(msg.type === 'job_quit') {
+    const e = myEmployees[msg.from];
+    if(e) {
+      if(e.budgetRemaining > 0) queueEarning(Math.round(e.budgetRemaining), 0, `Refund — ${msg.from} quit`);
+      delete myEmployees[msg.from];
+      saveCurrentUser();
+      showNotif(`${msg.from} quit working for you — remaining budget refunded.`);
+    }
   }
 }
 
@@ -1619,6 +1790,87 @@ function tryGiveSip() {
   sendMail(target, 'sip_gift', { amount: amt });
   showNotif(`💸 Sent ${amt} S.I.P. to ${target}!`);
 }
+// User's own ask: "every one hass a profile bio username stats like total kills" — P key, same
+// nearestRemotePlayer(10) proximity as tryGiveSip() above. Reads rp.bio/totalKills/robotLevel,
+// kept fresh every presence tick (syncPresence(), game-character.js), so this always shows
+// whatever that player's client most recently reported — never a stale first-seen snapshot.
+function tryViewNearestProfile() {
+  const target = nearestRemotePlayer(10);
+  if (!target) { showNotif('👤 Get closer to someone to view their profile!'); return; }
+  const rp = remotePlayers[target];
+  showProfileModal(target, rp.bio || '', rp.totalKills || 0, rp.robotLevel, false);
+}
+function viewMyProfile() {
+  const myTotalKills = (lifetimeCitizensDefeated||0) + (lifetimeCopsDefeated||0) + (lifetimeRobotKills||0) + (lifetimeRogueKills||0) + (typeof ffaKills!=='undefined'?ffaKills:0);
+  showProfileModal(currentUser, playerBio, myTotalKills, Number.isFinite(eliteLevel) ? eliteLevel : 'Infinity', true);
+}
+function showProfileModal(name, bio, totalKills, robotLevel, isSelf) {
+  document.getElementById('profileModalName').textContent = name;
+  document.getElementById('profileModalKills').textContent = totalKills.toLocaleString();
+  document.getElementById('profileModalLevel').textContent = robotLevel === 'Infinity' ? '∞' : Number(robotLevel || 0).toLocaleString();
+  const bioEl = document.getElementById('profileModalBio');
+  const editBtn = document.getElementById('profileModalEditBtn');
+  if (isSelf) {
+    bioEl.style.display = 'none';
+    document.getElementById('profileModalBioEdit').style.display = 'block';
+    document.getElementById('profileModalBioEdit').value = bio;
+    editBtn.style.display = 'block';
+  } else {
+    bioEl.style.display = 'block';
+    bioEl.textContent = bio || '(no bio set)';
+    document.getElementById('profileModalBioEdit').style.display = 'none';
+    editBtn.style.display = 'none';
+  }
+  document.getElementById('profileModal').style.display = 'flex';
+}
+function closeProfileModal() {
+  document.getElementById('profileModal').style.display = 'none';
+}
+function saveMyBio() {
+  playerBio = document.getElementById('profileModalBioEdit').value.trim().slice(0, 150);
+  saveCurrentUser();
+  showNotif('👤 Bio saved!');
+}
+// ─── STATS PANEL — user's own ask: "also the profile and stats ... are also in menuue." Every
+// number here already exists as a real persisted field (saveCurrentUser(), game-core.js) — this
+// just lays them out together, same real "format what's already tracked" job viewMyProfile()'s
+// totalKills math already does, just a fuller real breakdown instead of two headline numbers.
+function toggleStatsPanel() {
+  const m = document.getElementById('statsModal');
+  if (m.style.display === 'flex') { closeStatsPanel(); return; }
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  renderStatsPanel();
+  m.style.display = 'flex';
+}
+function closeStatsPanel() {
+  document.getElementById('statsModal').style.display = 'none';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function renderStatsPanel() {
+  const totalKills = (lifetimeCitizensDefeated||0) + (lifetimeCopsDefeated||0) + (lifetimeRobotKills||0) + (lifetimeRogueKills||0) + (typeof ffaKills!=='undefined'?ffaKills:0);
+  const rows = [
+    ['⚔️','Total Kills', totalKills.toLocaleString()],
+    ['🤖','Robots Defeated', (lifetimeRobotKills||0).toLocaleString()],
+    ['👿','Rogue Robots Defeated', (lifetimeRogueKills||0).toLocaleString()],
+    ['🏆','Arena Knockouts', (typeof ffaKills!=='undefined'?ffaKills:0).toLocaleString()],
+    ['📜','Quests Completed', (totalQuestsCompleted||0).toLocaleString()],
+    ['👹','Bosses Defeated', (totalBossesDefeated||0).toLocaleString()],
+    ['🕴️','Contracts Completed', (totalContractsCompleted||0).toLocaleString()],
+    ['🏪','Store Sales', (storeSalesCount||0).toLocaleString()],
+    ['🔥','Daily Streak', (dailyStreakCount||0).toLocaleString() + ' days'],
+    ['⏱️','Play Time', formatPlayTime(playTimeSeconds)],
+    ['💰','Peak S.I.P.', (peakSip||0).toLocaleString()],
+    ['💎','Peak Elite Coins', (peakElite||0).toLocaleString()],
+    ['🚗','Cars Owned', (ownedCars||[]).length.toLocaleString()],
+    ['🤝','Friends', (friends||[]).length.toLocaleString()],
+  ];
+  document.getElementById('statsModalBody').innerHTML = rows.map(([icon,label,val]) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.05);border-radius:8px;padding:9px 12px;margin-bottom:6px;">
+      <span style="color:#ccc;font-size:12px;">${icon} ${label}</span>
+      <span style="color:#fff;font-size:13px;font-weight:bold;">${val}</span>
+    </div>`).join('');
+}
 // Called from handleInteract() (E key) - returns true if it handled the press,
 // so the normal contextual-E logic (cars, NPCs, zones...) knows to stop there.
 function tryDuelInteract() {
@@ -1637,7 +1889,7 @@ function tryDuelInteract() {
     if(d > 8) { showNotif(`Get closer to ${dueling} to swing!`); return true; } // real players found this too tight at 6 - loosened, and now says why instead of silently doing nothing
     const dmg = getWeaponDamage();
     swingAndHit(rp.mesh.position.x, rp.mesh.position.z, () => sfx.hit());
-    sendMail(dueling, 'duel_hit', { damage: dmg });
+    sendMail(dueling, 'duel_hit', { damage: dmg, fromX: playerGroup.position.x, fromZ: playerGroup.position.z, power: playerSwingPower });
     startKnockback(playerGroup.position.x, playerGroup.position.z, rp.mesh.position.x, rp.mesh.position.z,
       (x, z) => { rp.mesh.position.x = x; rp.mesh.position.z = z; });
     showNotif(`⚔️ Hit ${dueling} for ${dmg}!`);
@@ -1695,7 +1947,7 @@ function tryFfaInteract() {
   if(!target) { return false; }
   const dmg = getWeaponDamage();
   swingAndHit(targetRp.mesh.position.x, targetRp.mesh.position.z, () => sfx.hit());
-  sendMail(target, 'ffa_hit', { damage: dmg });
+  sendMail(target, 'ffa_hit', { damage: dmg, fromX: playerGroup.position.x, fromZ: playerGroup.position.z, power: playerSwingPower });
   startKnockback(playerGroup.position.x, playerGroup.position.z, targetRp.mesh.position.x, targetRp.mesh.position.z,
     (x, z) => { targetRp.mesh.position.x = x; targetRp.mesh.position.z = z; });
   showNotif(`⚔️ Hit ${target} for ${dmg}!`);
@@ -1741,13 +1993,39 @@ function presidentBodyguardsNear(president, radius) {
   return npcs.filter(n => n.role === 'Bodyguard' && !n.isDown && n.name.startsWith(president.name + "'s Bodyguard")
     && Math.hypot(n.group.position.x-president.group.position.x, n.group.position.z-president.group.position.z) < radius);
 }
+// Same shape as presidentBodyguardsNear() above, just for the King's own (much bigger) army —
+// "X's Royal Guard A/B/.." matches generateRoyalCourtNPCs()'s own naming (game-character.js).
+function royalGuardsNear(king, radius) {
+  return npcs.filter(n => n.role === 'Royal Guard' && !n.isDown && n.name.startsWith(king.name + "'s Royal Guard")
+    && Math.hypot(n.group.position.x-king.group.position.x, n.group.position.z-king.group.position.z) < radius);
+}
+const ROYAL_GUARD_PROTECT_RADIUS = 14;
 function attackNPC(npc) {
   if(npc.isDown) { showNotif(`${npc.name} is already down!`); return; }
   const isCop = npc.role === 'Officer';
   const isPresident = npc.role === 'President';
+  const isKing = npc.role === 'King';
+  const isRoyalGuard = npc.role === 'Royal Guard';
+
+  // The King's whole point — user's own ask, "he has an army protecting him": while ANY Royal
+  // Guard is still standing near him, the King is genuinely untouchable, not just extra-tanky —
+  // the blow never lands, his HP never moves, and the nearby guards punish the attempt instead.
+  // Only once every guard in the group is down (see defeatNPC()'s Royal Guard branch below) does
+  // an attack on the King actually reach him, via the normal combatHp path further down.
+  if (isKing) {
+    const guards = royalGuardsNear(npc, ROYAL_GUARD_PROTECT_RADIUS);
+    if (guards.length) {
+      swingAndHit(npc.group.position.x, npc.group.position.z, () => sfx.hit());
+      guards.forEach(g => damagePlayer(8 + Math.floor(Math.random()*10), g.name));
+      showNotif(`🛡️ The Royal Guard throws itself in front of the blow — ${npc.name} is untouched! (${guards.length} guard${guards.length===1?'':'s'} still standing)`);
+      return;
+    }
+  }
+
   // A President is a real fight, not a pushover — this is the whole reason "try" and "actually
-  // kill" are different outcomes: Bodyguards below add even more real risk on top of this.
-  if(npc.combatHp === undefined) npc.combatHp = isPresident ? 80 : npc.job ? 30 : (isCop ? 60 : 40);
+  // kill" are different outcomes: Bodyguards below add even more real risk on top of this. The
+  // King only ever reaches this line once his whole army is down, per the early-return above.
+  if(npc.combatHp === undefined) npc.combatHp = npc.combatMaxHp = isKing ? 500 : isPresident ? 80 : isRoyalGuard ? 55 : npc.job ? 30 : (isCop ? 60 : 40);
 
   const dmg = getWeaponDamage();
   npc.combatHp -= dmg;
@@ -1757,8 +2035,8 @@ function attackNPC(npc) {
 
   if(npc.combatHp > 0) {
     // NPC fights back — real risk for the player, not a free hit each time.
-    const backDmg = Math.round((isCop ? 8 : 5) + Math.random()*(isCop?10:6));
-    showNotif(`⚔️ Hit ${npc.name} for ${dmg}! (${Math.max(0,npc.combatHp)} HP left)`);
+    const backDmg = Math.round((isKing ? 14 : isRoyalGuard ? 9 : isCop ? 8 : 5) + Math.random()*(isKing?14:isRoyalGuard?10:isCop?10:6));
+    showTargetHealthBar(Math.max(0,npc.combatHp), npc.combatMaxHp);
     damagePlayer(backDmg, npc.name);
     if (isPresident) {
       const guards = presidentBodyguardsNear(npc, 15);
@@ -1773,9 +2051,46 @@ function attackNPC(npc) {
 }
 // Extracted so a car ram (item 160) can trigger the EXACT same real consequences as melee combat
 // — grave, wanted level, S.I.P. — instead of a separate, inconsistent death path.
+const ROYAL_GUARD_RESPAWN_MS = 90000; // a defeated guard is back on duty in 90 real seconds — thinned, not erased, so the King's protection stays a repeatable challenge
+let lastKingDefeatAt = -Infinity; // ambient session state, not persisted — same "resets on a fresh load" spirit as presidentVisitState/celebrityState above
+const KING_DEFEAT_COOLDOWN_DAYS = 1; // same day-based rarity shape as Killer Supreme's own cooldown (game-land.js)
 function defeatNPC(npc) {
   const isCop = npc.role === 'Officer';
   const isPresident = npc.role === 'President';
+  const isRoyalGuard = npc.role === 'Royal Guard';
+  const isKing = npc.role === 'King';
+  if (isRoyalGuard) {
+    // Taken out of the fight, not erased — same temporary-knockdown shape as the 40 Suburbs
+    // friends further below, just on its own longer timer, so the King's "army" is something you
+    // can actually wear down over one real assault without permanently gutting it for every future
+    // player (or your own next attempt) the way a citizen kill's grave/deadNPCs would.
+    npc.isDown = true;
+    npc.group.rotation.z = Math.PI / 2;
+    npc.group.position.y = -0.5;
+    queueEarning(30, 0, `Defeated ${npc.name}`);
+    showNotif(`🛡️💥 ${npc.name} is down!`);
+    setTimeout(() => {
+      npc.isDown = false;
+      npc.group.rotation.z = 0;
+      npc.group.position.y = 0;
+      npc.combatHp = undefined;
+    }, ROYAL_GUARD_RESPAWN_MS);
+    return;
+  }
+  if (isKing) {
+    // The King retreats rather than dying for good — he's a standing world fixture (the Line of
+    // Explox, game-library.js), not a one-time kill. tickKing() (below) brings him back once the
+    // cooldown passes, fresh combatHp and all — the whole encounter is meant to be repeatable, not
+    // a single permanent content moment.
+    lastKingDefeatAt = playTimeSeconds;
+    npc.isDown = true;
+    npc.group.rotation.z = Math.PI / 2;
+    npc.group.position.y = -0.5;
+    const sip = 3000 + Math.floor(Math.random()*2000), elite = 15 + Math.floor(Math.random()*10);
+    queueEarning(sip, elite, `Defeated ${npc.name}`);
+    showNotif(`👑💥 You broke through the entire Royal Guard and defeated ${npc.name}! The throne sits empty again... for now.`);
+    return;
+  }
   if(isPresident) {
     // Assassinating a head of state is instantly national news — no 15-30s "nobody's noticed
     // yet" grace period like a regular citizen gets, and a much bigger bounty to match the risk
@@ -2196,6 +2511,21 @@ function tickPresidents(dt) {
     const sip = 300 + Math.floor(Math.random()*400), elite = 2 + Math.floor(Math.random()*3);
     queueEarning(sip, elite, `State visit with ${npc.name}`);
     showNotif(`🤝 ${npc.name} welcomes you! A diplomatic gift of ${sip} S.I.P. has been added to your wallet.`);
+  }
+}
+
+// Brings the King back once his defeat cooldown passes — his Royal Guards each recover on their
+// own independent ROYAL_GUARD_RESPAWN_MS timers regardless (set in defeatNPC() above), so this
+// only ever needs to manage the King himself.
+function tickKing(dt) {
+  const king = npcs.find(n => n.role === 'King');
+  if (!king || !king.isDown) return;
+  if (playTimeSeconds - lastKingDefeatAt >= KING_DEFEAT_COOLDOWN_DAYS * DAY_LENGTH) {
+    king.isDown = false;
+    king.group.rotation.z = 0;
+    king.group.position.y = 0;
+    king.combatHp = undefined;
+    showNotif(`👑 ${king.name} has returned to the throne, Royal Guard at his side once more.`);
   }
 }
 

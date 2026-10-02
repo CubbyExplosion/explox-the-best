@@ -557,6 +557,7 @@ function backToLogin() {
   clearRemoteKillers();
   clearRemoteBuddies();
   clearRemoteBodyguards();
+  clearRemoteParkedCars();
   document.getElementById('customScreen').style.display = 'none';
   document.getElementById('loginScreen').style.display  = 'flex';
   loadLoginScreen();
@@ -565,6 +566,8 @@ function backToLogin() {
 // ─── PLAYER SETTINGS ─────────────────────────────────────────────────────────
 let playerName  = 'Player';
 let playerProfilePic = null; // data:image/png URL from the Profile Picture painter, or null = use the procedural badge
+let playerBio = ''; // user's own ask: "every one hass a profile bio" — free text, editable via editMyBio() (game-social.js), synced to others via syncPresence() (game-character.js)
+let playerNotepadText = ''; // user's own ask: "download real apps... do real computer stuff" — the Notepad app's real saved content (renderNotepadApp(), game-vehicles.js)
 let playerShirtPaint = null; // data:image/png URL from the same painter, applied as a real texture on the shirt
 let playerColors = { skin:'#f5c89a', shirt:'#2196F3', pants:'#333333', shoes:'#4e3b2a', hair:'#3a1f0a' };
 let playerHat   = 'none';
@@ -578,6 +581,14 @@ let ownedEmotes   = []; // variant ids from EMOTE_CATALOG (game-character.js) ac
 let playerSwingStart = -999; // 't' (clock.getElapsedTime()) when the last swing began, read every frame in animate()
 let playerSwingPower = 1; // 0-1, how charged the swing currently animating was — read alongside playerSwingStart
 let pendingSwingPower = 1; // set right before the charge-release handleInteract() call, consumed once by the next triggerSwing()
+// User's own ask: "shows they're fighting moves... not delayed" — a monotonic counter, bumped
+// once per real swing, sent in syncPresence() (game-character.js) instead of a live "is swinging
+// right now" boolean. A swing only lasts SWING_DURATION-ish seconds but presence only syncs once
+// a second (PRESENCE_SYNC_INTERVAL) — a boolean sampled at that rate would miss almost every real
+// swing entirely. Seeing the id change is a guarantee an attack happened since the last sync, so
+// the receiving end (updateRemotePlayers()) can always replay the full move at least once, timed
+// on ITS OWN clock, instead of gambling on catching it live.
+let playerSwingId = 0;
 const SWING_DURATION = 0.25;
 // 10 real fight-move choreographies (FIGHT_MOVE_CATALOG, game-character.js) come free with every
 // account — no S.I.P. cost, always "owned". Listed here (not derived from the catalog) so this file
@@ -607,6 +618,7 @@ function triggerSwing() {
     // equippedMoves should never be empty in practice (doLogin() seeds it), but a hardcoded fallback
     // keeps a fight working even in that edge case rather than erroring or freezing the swing pose.
     activeSwingMove = (equippedMoves && equippedMoves.length) ? equippedMoves[Math.floor(Math.random()*equippedMoves.length)] : 'jab';
+    playerSwingId++;
   }
 }
 // Guns get their own real feedback — a visible tracer round (fireWarShot, game-world.js — same

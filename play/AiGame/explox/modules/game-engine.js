@@ -65,6 +65,22 @@ function showNotif(msg) {
   clearTimeout(notifTimer);
   notifTimer = setTimeout(() => el.style.opacity = '0', 2400);
 }
+// User's own ask: "dont say anything when you hit a mob... makes a health bar... no word[s]" —
+// replaces the old "Hit X for Y! (Z HP left)" text notif every combat function used to show on
+// every single swing. Every mob-like object in this game already carries a real .hp/.maxHp pair
+// (robots, killers, robbers, demons, Satan, bosses, the dummy, NPCs...), so this one wordless bar
+// covers all of them — see the sweep across game-land.js/game-world.js/game-social.js/
+// game-housing.js/game-alignment.js for every call site this replaced.
+let targetHealthHideTimer = null;
+function showTargetHealthBar(hp, maxHp) {
+  const hud = document.getElementById('targetHealthHud');
+  const fill = document.getElementById('targetHealthBarFill');
+  if (!hud || !fill || !maxHp) return;
+  fill.style.width = Math.max(0, Math.min(100, (hp / maxHp) * 100)) + '%';
+  hud.style.display = 'block';
+  clearTimeout(targetHealthHideTimer);
+  targetHealthHideTimer = setTimeout(() => { hud.style.display = 'none'; }, 2500);
+}
 function updateSIP() { document.getElementById('sipAmount').textContent = sipDollars; if(sipDollars > peakSip) peakSip = sipDollars; saveCurrentUser(); }
 // Elite Coins — a real premium currency, deliberately NOT earnable by just walking around: only
 // the toughest robots drop any, and only 1-3 at a time, so an Elite Shop item priced at 15-30

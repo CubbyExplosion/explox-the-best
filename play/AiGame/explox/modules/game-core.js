@@ -1319,7 +1319,7 @@ function saveCurrentUser() {
     safeInventory: safeInventory,
     trashSafeCombo: trashSafeCombo, trashSafeSip: trashSafeSip, trashSafeItems: trashSafeItems,
     hat:playerHat, hair:playerHair, shirt:playerShirt, pants:playerPants, shoes:playerShoes,
-    profilePic: playerProfilePic, shirtPaint: playerShirtPaint,
+    profilePic: playerProfilePic, shirtPaint: playerShirtPaint, bio: playerBio, notepadText: playerNotepadText, todoList: playerTodoList,
     skin:playerColors.skin, shirtColor:playerColors.shirt,
     pantsColor:playerColors.pants, shoesColor:playerColors.shoes,
     hairColor:playerColors.hair, name:playerName, sip:sipDollars, cash:cash, wood:woodCount, scrap:scrapMetal, ownedLand:ownedLand, plotBuildings:plotBuildings,
@@ -1334,7 +1334,9 @@ function saveCurrentUser() {
     ownedStore: ownedStore, ownedFurniture: ownedFurniture, ownedHouseFurniture: ownedHouseFurniture,
     storeStock: storeStock, storePrices: storePrices,
     storeSalesCount: storeSalesCount, storeStockOrder: storeStockOrder,
+    storeListings: storeListings,
     storeAdLevel: storeAdLevel, ownedStaff: ownedStaff,
+    myEmployees: myEmployees, currentJob: currentJob, incomingJobOffers: incomingJobOffers,
     friends: friends, houseGuest: houseGuest,
     marriages: marriages, children: children,
     elderLifespans: elderLifespans, elderPassed: elderPassed,
@@ -1564,13 +1566,15 @@ async function createAccount() {
 
     if(serverMode === 'online') {
       let res;
+      showServerLoadingBar('Creating your account...'); // same real fix as submitPassword() — 4s was never enough to wait out a sleeping free-tier server actually waking up
       try {
         const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/signup', {
           method: 'POST', headers: {'Content-Type':'application/json'},
           body: JSON.stringify({ name, pw: pwHash })
-        }, 4000);
+        }, 60000);
         res = r.ok ? await r.json() : { ok:false, error: r.status === 409 ? 'taken' : 'error' };
       } catch(e) { res = null; }
+      hideServerLoadingBar();
       if(!res) { showServerMsg('😴 Sorry, the server is currently off. Please come again later or play Offline!'); return; }
       if(!res.ok) { showBigMsg(res.error === 'taken' ? '⚠️ That name is taken!' : '❌ Server error, try again.'); return; }
       setPw(name, pwHash); // local cache so the same device can still log in if Offline later
@@ -1640,6 +1644,94 @@ function backupAccount(name) {
   showBigMsg(`💾 Backup saved for "${name}"!`);
   loadLoginScreen();
 }
+// ─── REAL-MONEY ENTITLEMENTS — Super Tank/Armor/Jet/Motorcycle/Future Jet unlocks, the VIP
+// discount, and weekly vehicle rentals bought via Stripe (game-alignment.js's
+// buyCurrencyPackage()). Kept as runtime-only state fetched fresh each login, NOT merged into
+// the account's saved `data` — explox-server stores them in a separate `entitlements` field for
+// the same reason: `data` gets wholesale-replaced by a normal save, so anything written there
+// could get silently clobbered by a save landing moments later. myUnlockedItems/myActiveRentals/
+// myDiscountPct are just today's live snapshot; enterPremiumVehicle() (game-vehicles.js) and
+// similar ownership checks read them directly.
+let myUnlockedItems = [];
+let myActiveRentals = {};
+let myDiscountPct = 0;
+async function syncEntitlements() {
+  if (serverMode !== 'online' || !currentUser) return;
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/entitlements/' + encodeURIComponent(currentUser), {}, 5000);
+    if (!r.ok) return;
+    const ent = await r.json();
+    myUnlockedItems = ent.unlockedItems || [];
+    myActiveRentals = ent.rentals || {};
+    myDiscountPct = ent.discountPct || 0;
+    // Super Armor has no vehicle-style "is this usable right now" check to hook into — it's
+    // equipped through the normal ARMOR/ownedArmor system, so a confirmed real purchase just
+    // gets pushed into ownedArmor once, permanently, the same way any other owned item works.
+    if (myUnlockedItems.includes('super_armor') && typeof ownedArmor !== 'undefined' && !ownedArmor.includes('super_armor')) {
+      ownedArmor.push('super_armor');
+      saveCurrentUser();
+    }
+    // Custom Bundle's item slot (findCustomBundleItem(), game-alignment.js) can be ANY id from
+    // WEAPONS/ARMOR/CAR_CATALOG/FURNITURE_CATALOG/COMPUTER_CATALOG, not just the fixed Super
+    // items above — so unlike those, this checks every catalog generically rather than hardcoding
+    // one id, and pushes into whichever owned-array actually matches.
+    myUnlockedItems.forEach(id => {
+      if (typeof ownedWeapons !== 'undefined' && WEAPONS.some(w => w.id === id) && !ownedWeapons.includes(id)) { ownedWeapons.push(id); saveCurrentUser(); }
+      if (typeof ownedArmor !== 'undefined' && ARMOR.some(a => a.id === id) && !ownedArmor.includes(id)) { ownedArmor.push(id); saveCurrentUser(); }
+      if (typeof ownedCars !== 'undefined' && CAR_CATALOG.some(c => c.id === id) && !ownedCars.includes(id)) { ownedCars.push(id); spawnOwnedCars(); saveCurrentUser(); }
+      if (typeof ownedFurniture !== 'undefined' && FURNITURE_CATALOG.some(f => f.id === id) && !ownedFurniture.includes(id)) { ownedFurniture.push(id); saveCurrentUser(); }
+      if (typeof ownedComputers !== 'undefined' && COMPUTER_CATALOG.some(c => c.id === id) && !ownedComputers.includes(id)) { ownedComputers.push(id); saveCurrentUser(); }
+    });
+  } catch(e) { /* offline blip — keep whatever we last had this session */ }
+}
+// Called once at page load — Stripe redirects the WHOLE page back here after checkout, which
+// means every bit of JS state (currentUser included) is gone, same as any fresh load. The name
+// this purchase was for got stashed in localStorage right before leaving for Stripe specifically
+// so this can find its way back to the right account even though nothing else survived the trip.
+async function handleStripeReturn() {
+  const params = new URLSearchParams(window.location.search);
+  const outcome = params.get('stripe');
+  if (!outcome) return;
+  history.replaceState(null, '', window.location.pathname); // drop ?stripe=... so a refresh doesn't replay this
+  const name = localStorage.getItem('explox_pending_purchase_name');
+  localStorage.removeItem('explox_pending_purchase_name');
+  if (!name || outcome !== 'success') return;
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/entitlements/' + encodeURIComponent(name), {}, 6000);
+    if (!r.ok) return;
+    const ent = await r.json();
+    const pending = (ent.pendingGrants || []).filter(g => !g.claimed);
+    let sipGained = 0, eliteGained = 0;
+    pending.forEach(g => { sipGained += g.sip || 0; eliteGained += g.elite || 0; });
+    if (sipGained || eliteGained) {
+      // Same rule as every other real-money credit in this game: goes straight into the wallet,
+      // never through queueEarning()/the Earnings tab (see buyCurrencyPackage(), game-
+      // alignment.js, for the full reasoning). Written directly into the saved data blob rather
+      // than through updateSIP()/updateElite() since there's no active logged-in session right
+      // now — the player hasn't necessarily even reached the login screen yet.
+      const data = getUserData(name);
+      data.sip = (data.sip || 0) + sipGained;
+      data.eliteCoins = (data.eliteCoins || 0) + eliteGained;
+      localStorage.setItem('explox_user_' + name, explosafeStringify(data));
+      fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/user/' + encodeURIComponent(name), {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: explosafeStringify(data)
+      }, 6000).catch(()=>{});
+    }
+    if (pending.length) {
+      fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/entitlements/' + encodeURIComponent(name) + '/claim', { method: 'POST' }, 6000).catch(()=>{});
+    }
+    showBigMsg(sipGained || eliteGained
+      ? `🎉 Purchase complete! +${sipGained.toLocaleString()} S.I.P. +${eliteGained.toLocaleString()} 💎`
+      : `🎉 Purchase complete!`);
+    // User's own real complaint: coming back from Stripe used to dump the player at the account
+    // list, forcing them to click their name and retype their password again — a jarring "kicked
+    // out" feeling right after paying. This account was already an authenticated, active session
+    // (it's the one that just initiated the purchase) — doLogin() picks that same session straight
+    // back up onto the customization screen, no re-typed password needed, instead of pretending
+    // nobody's logged in.
+    await doLogin(name);
+  } catch(e) { /* server unreachable right after the redirect — syncEntitlements() will still pick this up on next login */ }
+}
 let pendingRestoreAccountName = null;
 function restoreAccount(name) {
   const backup = localStorage.getItem('explox_backup_' + name);
@@ -1671,6 +1763,39 @@ function confirmRestoreAccount() {
   loadLoginScreen();
 }
 
+// ─── SERVER LOADING BAR — user's own ask. The free-tier server this game talks to spins down
+// after sitting idle and can take up to ~50 real seconds to wake back up on the next request, but
+// there was no visual feedback during that wait at all — it just looked frozen. There's no way to
+// know REAL progress (the server doesn't report a percentage while it's waking up), so this fills
+// on a timer toward an honest estimate instead of a made-up-looking instant jump: races linearly
+// to 90% over SERVER_WAKE_ESTIMATE_MS, then holds there rather than ever claiming to be finished
+// before the real response actually arrives — hideServerLoadingBar() snaps it the rest of the way
+// the moment that happens.
+const SERVER_WAKE_ESTIMATE_MS = 50000;
+let _serverLoadingTimer = null;
+function showServerLoadingBar(message) {
+  const overlay = document.getElementById('serverLoadingOverlay');
+  const bar = document.getElementById('serverLoadingBarFill');
+  if (!overlay || !bar) return;
+  document.getElementById('serverLoadingMsg').textContent = message || 'Connecting to the server...';
+  bar.style.width = '0%';
+  overlay.style.display = 'flex';
+  const start = Date.now();
+  clearInterval(_serverLoadingTimer);
+  _serverLoadingTimer = setInterval(() => {
+    const pct = Math.min(90, (Date.now() - start) / SERVER_WAKE_ESTIMATE_MS * 90);
+    bar.style.width = pct + '%';
+  }, 200);
+}
+function hideServerLoadingBar() {
+  clearInterval(_serverLoadingTimer);
+  _serverLoadingTimer = null;
+  const bar = document.getElementById('serverLoadingBarFill');
+  const overlay = document.getElementById('serverLoadingOverlay');
+  if (bar) bar.style.width = '100%';
+  setTimeout(() => { if (overlay) overlay.style.display = 'none'; }, 150); // brief flash to full so it reads as "done", not an abrupt cutoff
+}
+
 let _pendingLogin = null;
 function loginAs(name) {
   _pendingLogin = name;
@@ -1690,13 +1815,19 @@ async function submitPassword() {
 
   if(serverMode === 'online') {
     let res;
+    // Real bug this loading bar fixes on its own, not just cosmetic: 4 seconds was nowhere near
+    // long enough for a sleeping free-tier server to wake up (can take ~50s for real), so every
+    // login attempt right after the server had spun down used to falsely report "server is off"
+    // when it just hadn't finished waking up yet. Long enough now to actually wait it out.
+    showServerLoadingBar('Logging in...');
     try {
       const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/login', {
         method: 'POST', headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ name: _pendingLogin, pw: enteredHash })
-      }, 4000);
+      }, 60000);
       res = r.ok ? await r.json() : { ok:false };
     } catch(e) { res = null; }
+    hideServerLoadingBar();
     if(!res) {
       document.getElementById('pwModal').style.display = 'none';
       showServerMsg('😴 Sorry, the server is currently off. Please come again later or play Offline!');
@@ -1749,6 +1880,7 @@ async function doLogin(name) {
   }
   currentUser = name;
   refreshAdminTabVisibility(); // "commands only for me" — shows the ADMIN tab only for ADMIN_ACCOUNTS (game-admin.js)
+  syncEntitlements(); // real-money unlocks/rentals/discount — fire-and-forget, doesn't block login
   const d = getUserData(name);
   // A genuinely brand-new account (never saved before) starts growth at 0 (Baby) — that's the
   // whole point of the feature. An EXISTING account just updated to a version with growth added
@@ -1771,6 +1903,9 @@ async function doLogin(name) {
   playerName    = d.name         || name;
   playerProfilePic = d.profilePic || null;
   playerShirtPaint = d.shirtPaint || null;
+  playerBio = d.bio || '';
+  playerNotepadText = d.notepadText || '';
+  playerTodoList = Array.isArray(d.todoList) ? d.todoList : [];
   sipDollars    = d.sip !== undefined ? d.sip : 0;
   cash          = d.cash !== undefined ? d.cash : 0; // Cash/ATM feature — physical cash carried, separate from bank-safe sipDollars
   woodCount     = d.wood !== undefined ? d.wood : 0;
@@ -1831,8 +1966,12 @@ async function doLogin(name) {
   storePrices = d.storePrices && typeof d.storePrices === 'object' ? d.storePrices : {};
   storeSalesCount = d.storeSalesCount !== undefined ? d.storeSalesCount : 0;
   storeStockOrder = Array.isArray(d.storeStockOrder) ? d.storeStockOrder : [];
+  storeListings = Array.isArray(d.storeListings) ? d.storeListings : [];
   storeAdLevel = d.storeAdLevel !== undefined ? d.storeAdLevel : 0;
   ownedStaff = Array.isArray(d.ownedStaff) ? d.ownedStaff : [];
+  myEmployees = d.myEmployees && typeof d.myEmployees === 'object' ? d.myEmployees : {};
+  currentJob = d.currentJob || null;
+  incomingJobOffers = Array.isArray(d.incomingJobOffers) ? d.incomingJobOffers : [];
   friends = Array.isArray(d.friends) ? d.friends : [];
   houseGuest = d.houseGuest || null;
   marriages = Array.isArray(d.marriages) ? d.marriages : [];
@@ -1870,7 +2009,7 @@ async function doLogin(name) {
   eatingCompBests = d.eatingCompBests && typeof d.eatingCompBests === 'object' ? d.eatingCompBests : {};
   eliteLevel = d.eliteLevel !== undefined ? d.eliteLevel : 0;
   // Defaults to 'normal' for every existing save that predates this feature (MOB_DIFFICULTY_MULT
-  // has no entry for undefined, so mobDifficultyMult() would silently read as 1.0 anyway -- this
+  // has no entry for undefined, so mobDifficultyMult() would silently read as 1.0 anyway — this
   // just keeps the picker's own highlighted button honest on login too).
   mobDifficulty = (d.mobDifficulty && MOB_DIFFICULTY_MULT[d.mobDifficulty] !== undefined) ? d.mobDifficulty : 'normal';
   // Recomputed here (not left at the module-load default of 100) so a login always starts fresh
@@ -2010,5 +2149,17 @@ function showBigMsg(txt) {
   box.style.display = 'block';
   clearTimeout(box._t);
   box._t = setTimeout(() => box.style.display = 'none', 3000);
+}
+// Custom Bundle quote — a real, persistent, clickable link (bundleQuoteModal, EXPLOX.html), unlike
+// showBigMsg() above which is plain text and auto-vanishes in 3s. Triggered by the 'custom_bundle_
+// quote' mailbox message (handleMailboxMessage(), game-social.js) once an admin has priced the
+// idea and the server's already generated the real Stripe URL.
+function showBundleQuoteModal(totalCents, url) {
+  document.getElementById('bundleQuoteTotal').textContent = '$' + (totalCents / 100).toFixed(2) + ' total';
+  document.getElementById('bundleQuoteLink').href = url;
+  document.getElementById('bundleQuoteModal').style.display = 'flex';
+}
+function closeBundleQuoteModal() {
+  document.getElementById('bundleQuoteModal').style.display = 'none';
 }
 

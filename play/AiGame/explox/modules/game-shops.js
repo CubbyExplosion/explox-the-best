@@ -527,6 +527,24 @@ generateAutoWeaponBatch(17, 195000000000000, 370000000000000, 9.07, 9.25);
     batchScale = nextScale;
   }
 }
+// GUNS — user's own ask: "make guns at weapon shop". Raw dmg values here just need to rank above
+// every generated batch above (same "thrown away the moment buildWeaponLevels() runs" note as
+// those batches' own comment) — landing guns as the strongest weapons in the game, which feels
+// right for a real gun to be worth more than a sword. weaponCategory() (game-social.js) derives
+// their shop header ("GUN") automatically from the id prefix, same as every material tier already
+// does — no separate category list to maintain.
+const GUNS = [
+  { id:'gun_pistol',  name:'🔫 Pistol',         color:0x333333, dmg:1.0e40 },
+  { id:'gun_shotgun', name:'🔫 Shotgun',        color:0x4a3a2a, dmg:1.1e40 },
+  { id:'gun_rifle',   name:'🔫 Assault Rifle',  color:0x2a2a2a, dmg:1.2e40 },
+  { id:'gun_sniper',  name:'🔭 Sniper Rifle',   color:0x1a2a1a, dmg:1.3e40 },
+  { id:'gun_minigun', name:'🔫 Minigun',        color:0x555555, dmg:1.4e40 },
+];
+GUNS.forEach(g => {
+  WEAPON_DAMAGE[g.id] = g.dmg;
+  WEAPON_VISUALS[g.id] = { archetype:'gun', color:g.color, accent:0x111111, glow:null, scale:1.1 };
+  WEAPONS.push({ id:g.id, name:g.name, cost:0, color:g.color });
+});
 // Real damage reduction, not a cosmetic — applied for real in damagePlayer().
 const ARMOR = [
   { id:'leather', name:'🥋 Leather Armor', cost:80,  reduction:0.15, color:0x8B5A2B },
@@ -642,7 +660,10 @@ function openShop(type) {
       items.appendChild(d);
     });
   } else if(type==='armor') {
-    ARMOR.filter(a => !a.craftOnly && !a.premiumOnly).forEach((a) => {
+    // premiumOnly (Super Armor) stays hidden from browse-and-buy UNLESS the account already owns
+    // it — syncEntitlements() (game-core.js) pushes it into ownedArmor the moment a real Stripe
+    // purchase for it is confirmed, same as every other real-money item in this game.
+    ARMOR.filter(a => !a.craftOnly && (!a.premiumOnly || ownedArmor.includes(a.id))).forEach((a) => {
       const realIdx = ARMOR.indexOf(a);
       const owned = ownedArmor.includes(a.id);
       const equipped = playerArmor === a.id;
@@ -767,22 +788,6 @@ function craftArmorHard(i) {
   sfx.buy();
   showNotif(`🔨 Crafted ${a.name}!`);
   if(!inShopInterior) openShop('armor');
-}
-// "Craft but hard" path for any non-craftOnly ARMOR entry — same real granting code buyArmor()
-// uses (ownedArmor.push + equipArmor), just paid for with craftCostForPrice()'s real
-// wood/scrap/material/Elite-Coin recipe (game-housing.js) instead of S.I.P.
-function craftArmorHard(i) {
-  const a = ARMOR[i];
-  if(a.craftOnly) return; // already has its own real CRAFT_RECIPES entry — don't double-grant
-  if(ownedArmor.includes(a.id)) { equipArmor(a.id); openShop('armor'); return; }
-  const cost = craftCostForPrice(a.cost, a.id);
-  if(!canAffordCraftCost(cost)) { showNotif(`❌ Need ${craftCostForPriceText(cost)}`); return; }
-  spendCraftCost(cost);
-  ownedArmor.push(a.id);
-  equipArmor(a.id);
-  sfx.buy();
-  showNotif(`🔨 Crafted ${a.name}!`);
-  openShop('armor');
 }
 function equipArmor(id) {
   playerArmor = id;
@@ -2046,26 +2051,6 @@ function craftWeaponHard(i) {
   showNotif(`🔨 Crafted ${w.name}!`);
   closeShop();
 }
-// "Craft but hard" path for any non-craftOnly WEAPONS entry — same real granting code buyWeapon()
-// uses (ownedWeapons.push + equipWeapon), paid for with craftCostForPrice()'s real wood/scrap/
-// material/Elite-Coin recipe (game-housing.js) instead of S.I.P., and respecting the exact same
-// weaponRequiredLevel() Robot-Level gate buyWeapon() already enforces — crafting can't bypass a
-// level lock buying can't bypass either.
-function craftWeaponHard(i) {
-  const w = WEAPONS[i];
-  if(w.craftOnly) return; // already has its own real CRAFT_RECIPES entry — don't double-grant
-  const need = weaponRequiredLevel(w.id);
-  if (need > eliteLevel) { showNotif(`🔒 ${w.name} requires Robot Level ${need} to craft (you're Lv.${eliteLevel}) — level up in the Quests tab!`); return; }
-  if(ownedWeapons.includes(w.id)) { equipWeapon(w.id); closeShop(); return; }
-  const cost = craftCostForPrice(w.cost, w.id);
-  if(!canAffordCraftCost(cost)) { showNotif(`❌ Need ${craftCostForPriceText(cost)}`); return; }
-  spendCraftCost(cost);
-  ownedWeapons.push(w.id);
-  equipWeapon(w.id);
-  sfx.buy();
-  showNotif(`🔨 Crafted ${w.name}!`);
-  closeShop();
-}
 
 // ─── 40 OUTFIT SHOPS (Fashion Wing) ────────────────────────────────────────────
 // 10 real themes, 4 name variations each = 40 shops. Every shop in a theme sells that
@@ -2505,6 +2490,13 @@ function buildWeaponArchetype(archetype, c1, c2, glow, scale) {
     case 'cleaver':
       add(new THREE.BoxGeometry(0.06,0.5,0.05), c2, 0,-0.1,0);
       add(new THREE.BoxGeometry(0.38,0.5,0.06), c1, 0.12,0.28,0);
+      break;
+    // GUN — user's own ask: "make guns at weapon shop". A block-built silhouette matching every
+    // other archetype's style: body/barrel, a grip angled down, and a barrel-tip accent.
+    case 'gun':
+      add(new THREE.BoxGeometry(0.5,0.12,0.12), c1, 0.06,0.12,0);
+      add(new THREE.BoxGeometry(0.12,0.32,0.1), c2, -0.2,-0.14,0);
+      add(new THREE.BoxGeometry(0.18,0.07,0.07), c1, 0.36,0.12,0);
       break;
   }
   g.scale.setScalar(scale || 1);

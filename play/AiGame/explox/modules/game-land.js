@@ -1459,7 +1459,7 @@ function fightRobot(robot) {
     (x, z) => { robot.x = x; robot.z = z; robot.mesh.position.set(x, 0, z); });
 
   if(robot.hp > 0) {
-    showNotif(`🤖 Hit ${robot.type.name} for ${dmg}! (${robot.hp} HP left)`);
+    showTargetHealthBar(robot.hp, robot.maxHp);
     if (!isEvilImmune()) {
       const backDmg = Math.round((6 + Math.random()*8) * robot.powerMult);
       damagePlayer(backDmg, robot.type.name);
@@ -1521,7 +1521,7 @@ function spawnRogueRobot() {
 }
 function tickRogueRobots(dt) {
   rogueTimer += dt;
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore && !inShopInterior;
   if (rogueTimer >= 20) {
     rogueTimer = 0;
     if (outdoors && rogueRobots.filter(r=>r.alive).length < 5) spawnRogueRobot();
@@ -1556,7 +1556,7 @@ function fightRogueRobot(robot) {
   startKnockback(playerGroup.position.x, playerGroup.position.z, robot.x, robot.z,
     (x, z) => { robot.x = x; robot.z = z; robot.mesh.position.set(x, 0, z); });
   if (robot.hp > 0) {
-    showNotif(`⚔️ Hit the rogue ${robot.type.name} for ${dmg}! (${robot.hp} HP left)`);
+    showTargetHealthBar(robot.hp, robot.maxHp);
     return;
   }
   defeatRogueRobot(robot);
@@ -1585,6 +1585,12 @@ function defeatRogueRobot(robot) {
 let killers = []; // NOT persisted — {id,mesh,x,z,hp,maxHp,alive,speed,attackTimer,revealed}
 let killerTimer = 0;
 const KILLER_REVEAL_RANGE = 7, KILLER_ATTACK_RANGE = 2.5, KILLER_ATTACK_INTERVAL = 1.1;
+// User's own ask: "choose their difficulty for the mobs like killers bots" — Killers never scaled
+// with ANYTHING before (flat 200 HP forever, no matter how strong the player got), unlike
+// robots/rogue robots which already scale with Robot Level via robotPowerMult() (game-
+// customization.js). These are now real FUNCTIONS (not plain consts) so mobDifficultyMult() is
+// read fresh every time a Killer actually spawns — picking a new difficulty takes effect on the
+// next spawn, same as it does for robots.
 function KILLER_HP() { return Math.round(200 * mobDifficultyMult()); }
 function KILLER_REWARD_ELITE() { return Math.round(500 * mobDifficultyMult()); }
 // KILLER SUPREME — user's own ask: "a killer you only see once [per] 2 days explox ones and is 10
@@ -1671,7 +1677,7 @@ function fightKillerSupreme(killer) {
   startKnockback(playerGroup.position.x, playerGroup.position.z, killer.x, killer.z,
     (x, z) => { killer.x = x; killer.z = z; killer.mesh.position.set(x, 0, z); });
   if (killer.hp > 0) {
-    showNotif(`👑 Hit Killer Supreme for ${dmg}! (${killer.hp}/${killer.maxHp} HP left)`);
+    showTargetHealthBar(killer.hp, killer.maxHp);
     return;
   }
   defeatKillerSupreme(killer);
@@ -1794,7 +1800,7 @@ function shootFromWall() {
   target.hp -= dmg;
   fireWarShot(BANK_WALL_POS.x, BANK_WALL_POS.y, BANK_WALL_POS.z, target.x, target.z);
   sfx.laser();
-  if (target.hp > 0) { showNotif(`🏹 Shot the attacker for ${dmg} from the wall! (${target.hp}/${target.maxHp} HP left)`); return; }
+  if (target.hp > 0) { showTargetHealthBar(target.hp, target.maxHp); return; }
   defeatKiller(target);
 }
 
@@ -2107,7 +2113,7 @@ function fightRobber(k) {
   swingAndHit(k.x, k.z, () => sfx.clang());
   startKnockback(playerGroup.position.x, playerGroup.position.z, k.x, k.z,
     (x, z) => { k.x = x; k.z = z; k.mesh.position.set(x, 0, z); });
-  if (k.hp > 0) { showNotif(`⚔️ Hit the robber for ${dmg}! (${k.hp}/${k.maxHp} HP left)`); return; }
+  if (k.hp > 0) { showTargetHealthBar(k.hp, k.maxHp); return; }
   defeatRobber(k);
 }
 function defeatRobber(k) {
@@ -2306,7 +2312,7 @@ function tickDemonCombat(k, dt) {
 }
 function tickKillers(dt) {
   killerTimer += dt;
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore && !inShopInterior;
   const evilMult = evilSpawnMultiplier();
   if (killerTimer >= killerSpawnInterval() / Math.max(1,evilMult)) {
     killerTimer = 0;
@@ -2382,7 +2388,7 @@ function fightKiller(killer) {
   startKnockback(playerGroup.position.x, playerGroup.position.z, killer.x, killer.z,
     (x, z) => { killer.x = x; killer.z = z; killer.mesh.position.set(x, 0, z); });
   if (killer.hp > 0) {
-    showNotif(`⚔️ Hit the killer for ${dmg}! (${killer.hp}/${killer.maxHp} HP left)`);
+    showTargetHealthBar(killer.hp, killer.maxHp);
     return;
   }
   defeatKiller(killer);
@@ -2444,7 +2450,7 @@ function fightDemon(demon) {
   startKnockback(playerGroup.position.x, playerGroup.position.z, demon.x, demon.z,
     (x, z) => { demon.x = x; demon.z = z; demon.mesh.position.set(x, 0, z); });
   if (demon.hp > 0) {
-    showNotif(`⚔️ Hit ${demon.demonDef.name} for ${dmg}! (${demon.hp}/${demon.maxHp} HP left)`);
+    showTargetHealthBar(demon.hp, demon.maxHp);
     return;
   }
   defeatDemon(demon);
@@ -2534,7 +2540,7 @@ function fightSatanBoss(satan) {
   startKnockback(playerGroup.position.x, playerGroup.position.z, satan.x, satan.z,
     (x, z) => { satan.x = x; satan.z = z; satan.mesh.position.x = x; satan.mesh.position.z = z; });
   if (satan.hp > 0) {
-    showNotif(`⚔️ Struck Satan for ${dmg}! (${satan.hp.toLocaleString()}/${satan.maxHp.toLocaleString()} HP left)`);
+    showTargetHealthBar(satan.hp, satan.maxHp);
     return;
   }
   defeatSatanBoss(satan);
@@ -2901,7 +2907,6 @@ const ROBOT_ARENA_SPAWN = { x:90000, z:0 }; // own 10,000-unit lane, next free o
 const ROBOT_ARENA_EXIT  = { x:90000, z:18 };
 const ROBOT_ARENA_COLS  = [];
 const ARENA_SIZE = 24; // half-width of the square floor
-const ARENA_MAX_ACTIVE = 6;   // robots alive at once — the rest wait their turn
 const ARENA_MAX_TOTAL  = 200; // hard cap on the configurable total, exactly as asked
 let inArenaBattle   = false;
 let arenaConfiguring = false; // count-picker open, fight not started yet
@@ -2980,11 +2985,14 @@ function startArenaBattle() {
   showNotif(`🤖⚔️ ${arenaTotalRobots} robots incoming — good luck!`);
   spawnArenaWave();
 }
+// User's own ask: "when youre in the arena all the robots spawn at once" — used to trickle in
+// ARENA_MAX_ACTIVE (6) at a time, "the rest wait their turn." Now spawns every remaining robot in
+// one go; still safely called after each defeat too (remaining lands on 0 the moment a battle's
+// fully cleared, so that's a harmless no-op, not a second wave).
 function spawnArenaWave() {
   if (!arenaRunning) return;
   const remaining = arenaTotalRobots - arenaDefeatedCount - arenaActiveRobots.length;
-  const toSpawn = Math.max(0, Math.min(ARENA_MAX_ACTIVE - arenaActiveRobots.length, remaining));
-  for (let i=0; i<toSpawn; i++) spawnOneArenaRobot();
+  for (let i=0; i<remaining; i++) spawnOneArenaRobot();
 }
 // Arena robots used to be completely stationary (spawn point fixed forever, only ever moved by a
 // knockback) and totally passive (the ONLY damage they ever dealt was a guaranteed counter-hit
@@ -3053,7 +3061,7 @@ function fightArenaRobot(robot) {
     // No counter-hit here anymore — tickArenaRobots() already attacks on its own timer whenever
     // it's in range, attacking or not. A guaranteed extra hit every time you landed one too would
     // just be double damage on top of that (same fix as item 209's bosses).
-    showNotif(`🤖 Hit ${robot.type.name} for ${dmg}! (${robot.hp} HP left)`);
+    showTargetHealthBar(robot.hp, robot.maxHp);
     return;
   }
   defeatArenaRobot(robot);
@@ -5244,7 +5252,7 @@ function fightMovieBoss() {
   swingAndHit(mb.curX, mb.curZ, () => sfx.clang());
   mb.attackTimer = 0;
   if (mb.hp <= 0) { defeatMovieBoss(); return; }
-  showNotif(`⚔️ Hit ${mb.def.name} for ${dmg}! (${mb.hp}/${mb.maxHp} HP left)`);
+  showTargetHealthBar(mb.hp, mb.maxHp);
 }
 function defeatMovieBoss() {
   const mb = movieBossFight;
@@ -5477,15 +5485,22 @@ function useGrinder() {
     const count = wreckagePiles.length;
     wreckagePiles.forEach(w => {
       scene.remove(w.mesh);
-      scrapMetal += 3;
       (w.type && w.type.yields || []).forEach(name => {
         const m = findMaterial(name);
         if(m) addToInventory(m.id, m.name, m.emoji);
       });
     });
     wreckagePiles = [];
-    updateScrapMetal();
-    messages.push(`${count} wreckage pile${count===1?'':'s'} → +${count*3} 🔩 Scrap Metal + real robot materials`);
+    // "kill robots to get materials" — the user's own example for a real job task. The bonus
+    // real robot materials above (addToInventory) always stay yours; only the plain scrap metal
+    // total is what a 'scrap' job redirects to an employer, same real deliverJobWork() path
+    // chopTree() uses for wood — keeps the hook to one resource number, not every material kind.
+    const scrapGained = count * 3;
+    const toJob = deliverJobWork('scrap', scrapGained);
+    if (!toJob) { scrapMetal += scrapGained; updateScrapMetal(); }
+    messages.push(toJob
+      ? `${count} wreckage pile${count===1?'':'s'} → delivered to your job + real robot materials kept`
+      : `${count} wreckage pile${count===1?'':'s'} → +${scrapGained} 🔩 Scrap Metal + real robot materials`);
   }
   let junkGroundCount = 0;
   DUMP_ITEMS.forEach(item => {

@@ -468,7 +468,7 @@ function fightWorldEventNpc(npc, ev) {
   startKnockback(playerGroup.position.x, playerGroup.position.z, npc.x, npc.z,
     (x, z) => { npc.x = x; npc.z = z; npc.mesh.position.set(x, 0, z); });
   if (npc.hp > 0) {
-    showNotif(`${ev.data.emoji} Hit for ${dmg}! (${npc.hp} HP left)`);
+    showTargetHealthBar(npc.hp, npc.maxHp);
     // Invasion Attempt's invaders fight back through their own active tick (tickInvasionCombat)
     // instead of a free counter-hit on every player swing — the other 7 hostileFaction events stay
     // exactly as they were, still just passive counter-punchers.
@@ -2333,12 +2333,16 @@ function companionHitBoss(def, dmg, label) {
 function landCompanionHit(target, mult, label) {
   if (target.type === 'duel') {
     const dmg = Math.max(1, Math.round(getWeaponDamage() * mult));
-    sendMail(target.name, 'duel_hit', { damage: dmg });
+    // fromX/fromZ use the OWNER's own position (companions fight right beside you, not from
+    // their own tracked spot) — close enough for a believable push direction on the receiving
+    // end's applyIncomingKnockback() (game-social.js); power is a fixed modest value since a
+    // companion's hit was never a charged player punch to begin with.
+    sendMail(target.name, 'duel_hit', { damage: dmg, fromX: playerGroup.position.x, fromZ: playerGroup.position.z, power: 0.3 });
     showNotif(`${label} hits ${target.name} for ${dmg}!`);
     sfx.hit();
   } else if (target.type === 'ffa') {
     const dmg = Math.max(1, Math.round(getWeaponDamage() * mult));
-    sendMail(target.name, 'ffa_hit', { damage: dmg });
+    sendMail(target.name, 'ffa_hit', { damage: dmg, fromX: playerGroup.position.x, fromZ: playerGroup.position.z, power: 0.3 });
     showNotif(`${label} hits ${target.name} for ${dmg}!`);
     sfx.hit();
   } else if (target.type === 'killer') {
@@ -2350,8 +2354,7 @@ function landCompanionHit(target, mult, label) {
     // k.demon), but each is a real different kind of kill with its own reward/message —
     // dispatching every companion-assisted kill here through defeatKiller() regardless would have
     // silently paid the wrong currency and shown the wrong message for a robber or demon kill.
-    const foeLabel = k.demon ? k.demonDef.name : (k.robber ? 'the robber' : 'the killer');
-    if (k.hp > 0) { showNotif(`${label} hits ${foeLabel} for ${dmg}! (${k.hp}/${k.maxHp} HP left)`); return; }
+    if (k.hp > 0) { showTargetHealthBar(k.hp, k.maxHp); return; }
     showNotif(`${label} lands the final hit!`);
     if (k.robber) defeatRobber(k); else if (k.demon) defeatDemon(k); else defeatKiller(k);
   } else if (target.type === 'boss') {
@@ -2362,7 +2365,7 @@ function landCompanionHit(target, mult, label) {
     const dmg = Math.max(1, Math.round(getRobotDamage() * mult));
     r.hp -= dmg;
     sfx.clang();
-    if (r.hp > 0) { showNotif(`${label} hits the rogue ${r.type.name} for ${dmg}! (${r.hp} HP left)`); return; }
+    if (r.hp > 0) { showTargetHealthBar(r.hp, r.maxHp); return; }
     showNotif(`${label} lands the final hit!`);
     defeatRogueRobot(r);
   }
@@ -2603,7 +2606,7 @@ function fightWarNpc(npc, terr) {
     (x, z) => { npc.x = x; npc.z = z; npc.mesh.position.set(x, 0, z); });
   lifetimeWarHits++;
   if (npc.hp > 0) {
-    showNotif(`🪖 Hit for ${dmg}! (${npc.hp} HP left)`);
+    showTargetHealthBar(npc.hp, npc.maxHp);
     return;
   }
   showNotif(`🪖 Defender defeated! +${terr.rewardPerKill} S.I.P. pending`);
@@ -2729,7 +2732,7 @@ function hitWarWall(terr) {
   const dmg = getRobotDamage();
   w.hp -= dmg;
   swingAndHit(w.zone.x, w.zone.z, () => sfx.clang());
-  if (w.hp > 0) { showNotif(`🧱 Hit the wall for ${dmg}! (${w.hp}/${w.maxHp} HP left)`); return; }
+  if (w.hp > 0) { showTargetHealthBar(w.hp, w.maxHp); return; }
   clearWallStructure(w);
   breachedWarWalls.add(terr.name);
   sfx.boom();

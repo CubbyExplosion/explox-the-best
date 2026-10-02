@@ -991,19 +991,23 @@ function chopTree(tree) {
   tree.hp--;
   triggerSwing();
   sfx.chop();
-  woodCount += 1;
-  if (tree.hp <= 0) {
-    woodCount += 2; // felling bonus on top of this hit's +1 — matches fellTree()'s own +3 total
-    fellTree(tree);
-  } else {
-    updateWood();
-    showNotif(`🪓 Chop! +1 🪵 Wood (${tree.hp} hit${tree.hp===1?'':'s'} left)`);
+  const felled = tree.hp <= 0;
+  const gained = felled ? 3 : 1; // felling bonus (+2) on top of this hit's +1 — matches fellTree()'s own +3 total
+  // deliverJobWork() (game-vehicles.js) redirects this to an employer if you're currently working
+  // a real wood job for one — same real "the work goes to who hired you, not your own stockpile"
+  // rule as every other job task. Falls through to your own normal wood otherwise.
+  const toJob = deliverJobWork('wood', gained);
+  if (!toJob) {
+    woodCount += gained;
+    if (!felled) { updateWood(); showNotif(`🪓 Chop! +1 🪵 Wood (${tree.hp} hit${tree.hp===1?'':'s'} left)`); }
   }
+  if (felled) fellTree(tree, !toJob);
 }
 // Extracted so a car ram (item 160) can instantly fell a tree in one hit (a real car obviously
 // doesn't need 3 chops) while still granting the SAME real +3 wood total and respawn timer as
 // normally chopping one down — no economy exploit from ramming instead of chopping.
-function fellTree(tree) {
+function fellTree(tree, grantedWoodLocally) {
+  if (grantedWoodLocally === undefined) grantedWoodLocally = true; // default for callers that already always grant it locally (e.g. ramTree())
   tree.fallen = true;
   tree.canopy.visible = false;
   tree.trunk.scale.y = 0.15;
@@ -1012,8 +1016,10 @@ function fellTree(tree) {
   // hill region, so this is unchanged from before wherever the woods floor is still flat.
   tree.trunk.position.y = tree.groundY + tree.baseY * 0.15;
   sfx.earn();
-  updateWood();
-  showNotif('🌳 Tree down! +3 🪵 Wood total');
+  // When the +3 wood was redirected to an employer (deliverJobWork() already showed its own real
+  // delivery notif), don't also claim it landed in YOUR stockpile — that would be a false notif.
+  if (grantedWoodLocally) { updateWood(); showNotif('🌳 Tree down! +3 🪵 Wood total'); }
+  else { showNotif('🌳 Tree down!'); }
   const respawnMs = 45000;
   tree.respawnAt = Date.now() + respawnMs;
   setTimeout(() => {
@@ -1284,7 +1290,7 @@ function hitDummy() {
       showNotif('🪵 Training dummy repaired and ready!');
     }, 8000);
   } else {
-    showNotif(`🥊 Hit dummy for ${dmg}! (${DUMMY.hp} HP left)`);
+    showTargetHealthBar(DUMMY.hp, DUMMY.maxHp);
   }
 }
 

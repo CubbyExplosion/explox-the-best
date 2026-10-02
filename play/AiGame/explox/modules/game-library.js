@@ -2369,7 +2369,8 @@ const EXPLOX_ROYAL_LINE = [
   { gen:'3rd', name:'👑 King Explox II', title:'The Steadfast', text:'Ruled through The First War, when Satan rebelled against the Church. Stayed in the city with its people instead of hiding, and it held.' },
   { gen:'4th', name:'👸 Queen Explyra', title:'The Starbound', text:'Sent the first Explox citizens past the sky itself — the Moon, Mars, Jupiter\'s clouds, distant Andromeda — during the Space Race.' },
   { gen:'5th', name:'👑 King Explox III', title:'The Last Crown', text:'The final ruler to sit on the throne full-time. By his reign, City Hall\'s elected voice ran the city in practice — the crown became an honor, not an order.' },
-  { gen:'Today', name:'❓ The Line Continues...', title:'Unclaimed', text:'No one currently wears the crown. The old throne at the Monument still stands empty, waiting for whoever proves themselves worthy of it. This chapter of the line hasn\'t been written yet — maybe by you.' },
+  { gen:'6th', name:'❓ The Line Continues...', title:'Unclaimed', text:'For a long stretch, no one wore the crown. The old throne at the Monument stood empty, waiting for whoever proved themselves worthy of it.' },
+  { gen:'Today', name:'👑 King Explox IV', title:'The Reclaimer', text:'Finally answered the old throne\'s wait — built a new Royal Court and raised a real Royal Guard around it, rather than trying to rule from the cramped old Monument plaza. Whether the crown stays his is still being written. Maybe you\'ll be the one to decide that.' },
 ];
 function openExploxRoyalLine() {
   document.getElementById('neighborModalTitle').textContent = '📜 The Line of Explox';

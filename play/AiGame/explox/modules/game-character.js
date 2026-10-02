@@ -1505,6 +1505,64 @@ function drawRemoteNametag(cv, name, sip) {
   cx2.fillText(`💰 ${Math.floor(sip||0).toLocaleString()}`, 128, 65);
 }
 
+// ─── CHAT SPEECH BUBBLES — user's own ask (referencing another game's style): show what someone
+// just said floating above their head in the 3D world, not just in the Chat panel's text list.
+// Built the same way nametags already are (a CanvasTexture'd plane), mounted a bit higher than
+// the nametag so they stack, and only toggled visible for SPEECH_BUBBLE_MS per message so the
+// world doesn't fill up with permanently floating text. Works for both the local player
+// (playerGroup) and any remote player currently rendered nearby (remotePlayers[name].mesh) —
+// same target.add()-a-mesh-and-stash-it-as-a-property pattern buildOtherPlayerAvatar() already
+// uses for .nametag/.nametagCanvas, just lazily built on first use instead of every avatar.
+const SPEECH_BUBBLE_MS = 6000;
+const SPEECH_BUBBLE_TEXT_MAX = 120; // a floating bubble isn't the place for a 10,000-char chat message — full text still shows in the Chat panel itself
+function wrapBubbleText(ctx, text, maxWidth) {
+  const words = text.split(/\s+/);
+  const lines = [];
+  let line = '';
+  words.forEach(w => {
+    const test = line ? line + ' ' + w : w;
+    if (ctx.measureText(test).width > maxWidth && line) { lines.push(line); line = w; }
+    else line = test;
+  });
+  if (line) lines.push(line);
+  return lines;
+}
+function drawSpeechBubble(cv, name, text) {
+  const cx2 = cv.getContext('2d');
+  cx2.clearRect(0, 0, cv.width, cv.height);
+  const shown = text.length > SPEECH_BUBBLE_TEXT_MAX ? text.slice(0, SPEECH_BUBBLE_TEXT_MAX - 3) + '...' : text;
+  cx2.font = '14px Arial';
+  const lines = wrapBubbleText(cx2, shown, cv.width - 28).slice(0, 5);
+  const lineH = 19;
+  const boxH = 36 + lines.length * lineH;
+  const x = 6, y = cv.height - boxH, w = cv.width - 12, r = 14;
+  cx2.fillStyle = 'rgba(255,255,255,0.95)'; cx2.strokeStyle = '#333'; cx2.lineWidth = 2;
+  cx2.beginPath();
+  cx2.moveTo(x + r, y); cx2.arcTo(x + w, y, x + w, y + boxH, r); cx2.arcTo(x + w, y + boxH, x, y + boxH, r);
+  cx2.arcTo(x, y + boxH, x, y, r); cx2.arcTo(x, y, x + w, y, r); cx2.closePath();
+  cx2.fill(); cx2.stroke();
+  cx2.fillStyle = '#0a3a5a'; cx2.font = 'bold 13px Arial'; cx2.textAlign = 'left';
+  cx2.fillText((name || 'Player').slice(0, 16), x + 12, y + 20);
+  cx2.fillStyle = '#111'; cx2.font = '14px Arial';
+  lines.forEach((l, i) => cx2.fillText(l, x + 12, y + 38 + i * lineH));
+}
+function showSpeechBubble(target, name, text) {
+  if (!target || !text) return;
+  if (!target.speechBubble) {
+    const cv = document.createElement('canvas'); cv.width = 320; cv.height = 160;
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.3), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+    mesh.position.y = 5.7; mesh.visible = false;
+    target.add(mesh);
+    target.speechBubble = mesh; target.speechBubbleCanvas = cv;
+  }
+  const b = target.speechBubble;
+  drawSpeechBubble(target.speechBubbleCanvas, name, text);
+  b.material.map.needsUpdate = true;
+  b.visible = true;
+  clearTimeout(target.speechBubbleTimer);
+  target.speechBubbleTimer = setTimeout(() => { b.visible = false; }, SPEECH_BUBBLE_MS);
+}
+
 // Builds an isolated preview character for the shop "Preview" buttons (weapons/armor/outfits/
 // paint) — the same safe build-into-your-own-group pattern as buildOtherPlayerAvatar() above,
 // so trying something on never touches the real playerGroup, never gets saved, and — important
@@ -1614,12 +1672,23 @@ async function syncSitePlayerCount() {
     if (!r.ok) return;
     const allUsers = await r.json();
     const count = allUsers.length.toLocaleString();
+    // User's own follow-up: "how many people are there in the game this week" — real signupAt
+    // (explox-server's server.js) lets this be an honest count instead of a guess. Accounts from
+    // before that field existed report signupAt:null, which correctly never counts as "new" here
+    // rather than looking like everyone joined this week.
+    const oneWeekAgo = Date.now() - 7*24*60*60*1000;
+    const newThisWeek = allUsers.filter(u => u.signupAt && u.signupAt >= oneWeekAgo).length;
+    const weekText = newThisWeek > 0 ? ` (${newThisWeek.toLocaleString()} new this week)` : '';
     // Whichever of the two HUD locations exists right now (login screen vs. in-game) gets it —
     // harmless no-op on the one that isn't currently in the DOM.
     const loginEl = document.getElementById('loginSitePlayerCount');
     if (loginEl) loginEl.textContent = count;
+    const loginWeekEl = document.getElementById('loginSitePlayersWeek');
+    if (loginWeekEl) loginWeekEl.textContent = weekText;
     const inGameEl = document.getElementById('sitePlayerCount');
     if (inGameEl) inGameEl.textContent = count;
+    const inGameWeekEl = document.getElementById('sitePlayersWeek');
+    if (inGameWeekEl) inGameWeekEl.textContent = weekText;
   } catch(e) { /* next sync will catch up */ }
 }
 
@@ -1719,16 +1788,45 @@ async function syncPresence(t) {
     const visibleKillers = (typeof killers !== 'undefined' ? killers : [])
       .filter(k => k.alive && k.revealed)
       .map(k => ({ id:k.id, x:k.x, z:k.z, robber:!!k.robber, demon:!!k.demon, demonName:k.demon?k.demonDef.name:null, demonEmoji:k.demon?k.demonDef.emoji:null }));
+    // "make it so you can see the players car even when they are not driving" — parkedCars[0]
+    // (game-vehicles.js) is exactly wherever your first-owned/"travel" car is currently sitting
+    // (Home, Downtown, the new Uptown Lot, or a country you flew to) — its own live position, so
+    // there's nothing extra to compute here, just report it. Only sent while NOT driving (driving
+    // already reports the car via inCar/carId above); other players render it the same cosmetic,
+    // non-collidable way buildRemotePlayerCar() already renders a driving one.
+    const parkedCarOut = (!driving && ownedCars.length && parkedCars[0])
+      ? { carId: parkedCars[0].def.id, x: parkedCars[0].group.position.x, z: parkedCars[0].group.position.z, yaw: parkedCars[0].carYaw || 0 }
+      : null;
+    // "shows they're fighting moves... not delayed" — see playerSwingId's own comment
+    // (game-economy.js) for why this is an incrementing id rather than a live boolean.
+    // "also show walking" — moveState is the same real input state the walk cycle itself reads
+    // (game-controls.js); strafingOnly mirrors that exact same condition so a sidestepping remote
+    // player's legs move the same distinct way a sidestepping local player's do.
+    const movingOut = !inCar && !!(moveState.w || moveState.a || moveState.s || moveState.d);
+    const strafeOut = movingOut && !moveState.w && !moveState.s && (moveState.a || moveState.d);
     const body = {
       name: currentUser,
       x: posSrc.x, y: posSrc.y, z: posSrc.z,
       yaw: yawSrc,
       inCar: driving, carId: driving ? activeCar.def.id : null,
+      parkedCar: parkedCarOut,
+      moving: movingOut, strafe: strafeOut,
+      swingId: playerSwingId, swingMove: activeSwingMove, swingPower: playerSwingPower,
       hat: playerHat, hair: playerHair, shirt: playerShirt, pants: playerPants, shoes: playerShoes,
       skin: playerColors.skin, shirtColor: playerColors.shirt, pantsColor: playerColors.pants,
       shoesColor: playerColors.shoes, hairColor: playerColors.hair,
       weapon: playerWeapon, armor: playerArmor, profilePic: playerProfilePic, sip: sipDollars,
       emote: activeEmote ? activeEmote.id : null,
+      // "every one hass a profile bio username stats like total kills" — username is just `name`
+      // above (already every other player's key), bio is playerBio as-is, and total kills combines
+      // every lifetime kill-tracking stat this game already has (game-customization.js) into one
+      // headline number rather than inventing a new counter. eliteLevel can genuinely be the real
+      // JS value Infinity (admin /level infinity, game-admin.js) — JSON.stringify turns that into
+      // `null` silently, so it's sent as the string 'Infinity' instead, same as anywhere else in
+      // this codebase that has to cross a JSON boundary with a possibly-infinite Robot Level.
+      bio: playerBio,
+      totalKills: (lifetimeCitizensDefeated||0) + (lifetimeCopsDefeated||0) + (lifetimeRobotKills||0) + (lifetimeRogueKills||0) + (typeof ffaKills!=='undefined'?ffaKills:0),
+      robotLevel: Number.isFinite(eliteLevel) ? eliteLevel : 'Infinity',
       killers: visibleKillers,
       buddy: (buddyOwned && buddySpecies) ? { species: buddySpecies, colors: buddyColors } : null,
       bodyguardCount: bodyguards.length
@@ -1744,6 +1842,7 @@ async function syncPresence(t) {
     const seenKillers = new Set();
     const seenBuddies = new Set();
     const seenBodyguards = new Set();
+    const seenParkedCars = new Set();
     others.forEach(o => {
       seen.add(o.name);
       const wantCar = !!o.inCar;
@@ -1792,6 +1891,22 @@ async function syncPresence(t) {
           }
         }
         rp.targetX = o.x; rp.targetY = o.y; rp.targetZ = o.z; rp.targetYaw = o.yaw||0;
+        // "also show walking" — a live flag, safe to just overwrite every tick (unlike the swing
+        // id below, there's no short window to miss: either they're moving right now or they're
+        // not, and updateRemotePlayers() reads this fresh every frame regardless).
+        rp.moving = !!o.moving; rp.strafe = !!o.strafe;
+        // Fight moves — real bone animation via applySwingMove() (game-controls.js/game-economy.js
+        // math, mirrored in updateRemotePlayers() below), started on THIS client's own clock the
+        // instant a NEW swing id is seen. A swing only lasts a fraction of a second but presence
+        // only syncs once a second, so waiting to "catch it live" would miss almost every real
+        // swing — seeing the id change is proof an attack happened since the last sync, which is
+        // enough to replay the full move once, even though it's necessarily a beat behind.
+        if (o.swingId !== undefined && o.swingId !== rp.swingId) {
+          rp.swingId = o.swingId;
+          rp.swingMove = o.swingMove;
+          rp.swingPower = o.swingPower || 0;
+          rp.swingStartT = t;
+        }
         // Emotes — real bone animation, reusing the exact same applyEmotePose()/resetEmotePose()
         // functions the local player uses (this file), just driven by THIS remote player's own
         // synced emote id/start-time instead of local input (see updateRemotePlayers() below, which
@@ -1804,6 +1919,12 @@ async function syncPresence(t) {
           if (!oEmote && !wantCar) resetEmotePose(rp.mesh);
         }
       }
+      // Profile fields — no mesh to rebuild, no change-detection needed, just kept fresh every
+      // tick so viewProfile() (game-social.js) always reads this player's current bio/stats
+      // whenever it's opened, not whatever was true the first time they were ever seen.
+      rp.bio = o.bio || '';
+      rp.totalKills = o.totalKills || 0;
+      rp.robotLevel = o.robotLevel;
       (o.killers || []).forEach(k => {
         const key = o.name + ':' + k.id;
         seenKillers.add(key);
@@ -1815,6 +1936,23 @@ async function syncPresence(t) {
           rk.targetX = k.x; rk.targetZ = k.z;
         }
       });
+      // "see the players car even when they are not driving" — buildRemotePlayerCar() doesn't
+      // care whether the owner is currently driving or not, it just needs carId/x/z/yaw, so the
+      // exact same builder used for a driving car works unchanged for a parked one.
+      if (o.parkedCar) {
+        seenParkedCars.add(o.name);
+        let rc = remoteParkedCars[o.name];
+        if (!rc || rc.carId !== o.parkedCar.carId) {
+          if (rc) scene.remove(rc.mesh);
+          const mesh = buildRemotePlayerCar(o.parkedCar);
+          mesh.position.set(o.parkedCar.x, 0, o.parkedCar.z);
+          mesh.rotation.y = o.parkedCar.yaw || 0;
+          scene.add(mesh);
+          remoteParkedCars[o.name] = { mesh, carId:o.parkedCar.carId, targetX:o.parkedCar.x, targetZ:o.parkedCar.z, targetYaw:o.parkedCar.yaw||0 };
+        } else {
+          rc.targetX = o.parkedCar.x; rc.targetZ = o.parkedCar.z; rc.targetYaw = o.parkedCar.yaw || 0;
+        }
+      }
       // Same fixed offset buildBuddy() (game-shops.js) plants a real buddy at, just relative to
       // this OTHER player's own synced x/z instead of the local playerGroup.
       if(o.buddy && o.buddy.species) {
@@ -1856,6 +1994,12 @@ async function syncPresence(t) {
     Object.keys(remoteBuddies).forEach(name => {
       if(!seenBuddies.has(name)) { scene.remove(remoteBuddies[name].mesh); delete remoteBuddies[name]; }
     });
+    // Parked car vanishes the moment its owner stops reporting it (they drove off, or logged
+    // off) — same beat as every other remote-* cleanup here, and the honest limitation described
+    // on remoteParkedCars' own declaration above.
+    Object.keys(remoteParkedCars).forEach(name => {
+      if(!seenParkedCars.has(name)) { scene.remove(remoteParkedCars[name].mesh); delete remoteParkedCars[name]; }
+    });
     Object.keys(remoteBodyguards).forEach(key => {
       if(!seenBodyguards.has(key)) { scene.remove(remoteBodyguards[key].mesh); delete remoteBodyguards[key]; }
     });
@@ -1871,11 +2015,38 @@ function updateRemotePlayers(dt, t) {
     while(dYaw > Math.PI) dYaw -= Math.PI*2;
     while(dYaw < -Math.PI) dYaw += Math.PI*2;
     rp.mesh.rotation.y += dYaw * Math.min(1, dt*6);
-    // Emotes — independent of the position/yaw lerp above (an emoting remote player might be
-    // standing perfectly still), driven off the SAME real applyEmotePose() function the local
-    // player uses, aimed at this remote avatar's own bones and this remote player's own synced
-    // emote id/start-time (set in syncPresence() above).
-    if (rp.emote && rp.mesh.hipsBone) {
+    // "also show walking" — the EXACT same formula the local player's own walk cycle uses
+    // (game-controls.js: swing=moving?Math.sin(t*WALK_CYCLE_CADENCE)*swingAmp:0), just aimed at
+    // this remote avatar's own bones and driven by the moving/strafe flags synced in
+    // syncPresence() above, instead of local moveState. Runs BEFORE the swing/emote blocks below,
+    // same precedence the local player's own animate() uses, since a fight move legitimately
+    // overrides the walk cycle's hip/shoulder rotation for its short window.
+    if (rp.mesh.leftShoulderBone || rp.mesh.rightShoulderBone || rp.mesh.leftHipBone || rp.mesh.rightHipBone) {
+      const swing = rp.moving ? Math.sin(t*WALK_CYCLE_CADENCE)*WALK_CYCLE_SWING_AMP : 0;
+      if (rp.mesh.leftShoulderBone) rp.mesh.leftShoulderBone.rotation.x = swing;
+      if (rp.mesh.rightShoulderBone) rp.mesh.rightShoulderBone.rotation.x = -swing;
+      if (rp.strafe) {
+        if (rp.mesh.leftHipBone) { rp.mesh.leftHipBone.rotation.x = 0; rp.mesh.leftHipBone.rotation.z = -swing; }
+        if (rp.mesh.rightHipBone) { rp.mesh.rightHipBone.rotation.x = 0; rp.mesh.rightHipBone.rotation.z = swing; }
+      } else {
+        if (rp.mesh.leftHipBone) { rp.mesh.leftHipBone.rotation.x = -swing; rp.mesh.leftHipBone.rotation.z = 0; }
+        if (rp.mesh.rightHipBone) { rp.mesh.rightHipBone.rotation.x = swing; rp.mesh.rightHipBone.rotation.z = 0; }
+      }
+    }
+    // "shows they're fighting moves" — replays the move THIS client just learned about (swingId
+    // changed in syncPresence() above) on its own local clock. See playerSwingId's comment
+    // (game-economy.js) for why this is a one-shot replay rather than trying to catch a live state.
+    const swingElapsed = rp.swingStartT !== undefined ? t - rp.swingStartT : -1;
+    const swingWindow = SWING_DURATION + (rp.swingPower||0)*0.15;
+    const swinging = swingElapsed >= 0 && swingElapsed < swingWindow;
+    if (swinging && rp.mesh.hipsBone) {
+      const arc = Math.sin((swingElapsed/swingWindow)*Math.PI);
+      applySwingMove(rp.swingMove, rp.mesh, arc, rp.swingPower||0);
+    } else if (rp.emote && rp.mesh.hipsBone) {
+      // Emotes — independent of the position/yaw lerp above (an emoting remote player might be
+      // standing perfectly still), driven off the SAME real applyEmotePose() function the local
+      // player uses, aimed at this remote avatar's own bones and this remote player's own synced
+      // emote id/start-time (set in syncPresence() above).
       const variant = EMOTE_CATALOG_BY_ID[rp.emote];
       if (variant) {
         const elapsed = t - rp.emoteStartT;
@@ -1921,6 +2092,27 @@ function clearRemoteBodyguards() {
   Object.values(remoteBodyguards).forEach(rg => scene.remove(rg.mesh));
   remoteBodyguards = {};
 }
+// "make it so you can see the players car even when they are not driving" — ownerName -> {mesh,
+// targetX, targetZ, targetYaw, carId}, same shape/lerp convention as remoteBuddies/
+// remoteBodyguards above. Built in syncPresence()'s main loop from each other player's own
+// `parkedCar` field. Honest limitation worth remembering: this only exists while the owner is
+// ALSO online reporting it — there's no persistent server-side world-object store for cars, so the
+// car disappears the moment its owner logs off, same as every other remote-* map here.
+let remoteParkedCars = {};
+function updateRemoteParkedCars(dt) {
+  Object.values(remoteParkedCars).forEach(rc => {
+    rc.mesh.position.x += (rc.targetX - rc.mesh.position.x) * Math.min(1, dt*6);
+    rc.mesh.position.z += (rc.targetZ - rc.mesh.position.z) * Math.min(1, dt*6);
+    let dYaw = rc.targetYaw - rc.mesh.rotation.y;
+    while(dYaw > Math.PI) dYaw -= Math.PI*2;
+    while(dYaw < -Math.PI) dYaw += Math.PI*2;
+    rc.mesh.rotation.y += dYaw * Math.min(1, dt*6);
+  });
+}
+function clearRemoteParkedCars() {
+  Object.values(remoteParkedCars).forEach(rc => scene.remove(rc.mesh));
+  remoteParkedCars = {};
+}
 
 // ─── PRESIDENTS — user's own ask: "make presidents", one per country. Same rule as the
 // Celebrities above: every name here is ORIGINAL — none of these is any real president, prime
@@ -1954,9 +2146,43 @@ function generatePresidentNPCs() {
   return out;
 }
 
+// ─── ROYAL COURT — user's own ask: "make it so there is a king for explox and he has an army
+// protecting him". Continues the in-world Line of Explox (EXPLOX_ROYAL_LINE, game-library.js)
+// past the "Unclaimed" gap left by King Explox III — King Explox IV has since reclaimed the crown
+// and built a new Royal Court (game-buildings.js) rather than ruling from the old, tiny Monument
+// plaza downtown. 6 Royal Guards is a real army, not a 2-Bodyguard escort like the Presidents get
+// — see royalGuardsNear()/attackNPC() (game-social.js) for how they actually protect him in
+// combat (he takes zero damage while any of them are still standing), not just decoratively.
+const KING_NAME = 'King Explox IV';
+const ROYAL_COURT = { x:200, z:100 };
+function generateRoyalCourtNPCs() {
+  // Real bug caught live: every OTHER NPC in this game has a real `patrol` route, and the generic
+  // per-frame NPC movement code (animate(), game-controls.js) unconditionally reads
+  // npc.patrol[npc.patrolIdx] for anyone not flagged seated — the King, sitting still on his
+  // throne with neither a patrol NOR seated:true, crashed startGame() entirely the first time
+  // this was actually loaded in a browser ("Cannot read properties of undefined (reading '0')").
+  // seated:true is also the thematically correct fix, not just the safe one — he's genuinely
+  // sitting on the real throne seat built in game-buildings.js, same real sitting pose the
+  // Diner's waiter NPCs already use.
+  const out = [ { name:KING_NAME, role:'King', skin:0xe8c080, shirt:0x4B0082, pants:0x2a1a4a,
+    pos:[ROYAL_COURT.x, 0, ROYAL_COURT.z+2.5], hat:'crown', hair:'short', hairColor:0x1a1108, seated:true } ];
+  // A hexagon ring at radius 8 around the throne — 6 named guards, letters A-F matching the
+  // Presidents' own "X's Bodyguard A/B" naming convention, just extended to a real army's size.
+  const guardOffsets = [[8,0],[4,6.9],[-4,6.9],[-8,0],[-4,-6.9],[4,-6.9]];
+  const letters = ['A','B','C','D','E','F'];
+  guardOffsets.forEach(([dx,dz], i) => {
+    out.push({ name:`${KING_NAME}'s Royal Guard ${letters[i]}`, role:'Royal Guard',
+      skin:0xd4a070, shirt:0x8B0000, pants:0x1a1a1a, hat:'helmet',
+      pos:[ROYAL_COURT.x+dx, 0, ROYAL_COURT.z+dz],
+      patrol:[[ROYAL_COURT.x+dx, ROYAL_COURT.z+dz], [ROYAL_COURT.x+dx*0.6, ROYAL_COURT.z+dz*0.6]] });
+  });
+  return out;
+}
+
 // ─── NPCS ────────────────────────────────────────────────────────────────────
 const NPC_DEFS=[
   ...generatePresidentNPCs(),
+  ...generateRoyalCourtNPCs(),
   {name:'Sam',  role:'Shopkeeper',skin:0xf5c89a,shirt:0x2255aa,pants:0x333344,pos:[44,0,52],patrol:[[44,52],[52,52],[52,44],[44,44]],hair:'short',hairColor:0x2a1505},
   {name:'Mia',  role:'Shopkeeper',skin:0xd4956a,shirt:0x1166bb,pants:0x222233,pos:[58,0,52],patrol:[[58,52],[66,52],[66,44],[58,44]],hair:'long',hairColor:0x1a1a1a},
   {name:'Leo',  role:'Shopkeeper',skin:0xe8c080,shirt:0x0044cc,pants:0x111122,pos:[72,0,52],patrol:[[72,52],[80,52],[80,44],[72,44]],hair:'spiky',hairColor:0x3a2410},

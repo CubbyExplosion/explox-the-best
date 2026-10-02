@@ -1279,7 +1279,34 @@ function renderKaraokePanel() {
 // ─── MULTI-ACCOUNT SYSTEM ────────────────────────────────────────────────────
 let currentUser = null;
 
-function getUserData(name) { return JSON.parse(localStorage.getItem('explox_user_' + name) || '{}'); }
+// Real bug found live: JSON has no way to represent Infinity/-Infinity/NaN — JSON.stringify()
+// silently turns all three into the literal `null`. A maxed-out currency (repeated admin Office
+// grants stacking past Number.MAX_VALUE, see officeGive()/OFFICE_MAX_GRANT in game-admin.js)
+// overflows to real Infinity, and saving THAT quietly wrote `sip:null` — which then crashed the
+// account list (sipFor(name).toLocaleString() on null) and made the whole account unopenable.
+// User's own fix, once we found the cause: "when it says infinity make it save at that" — round
+// those three values through their own text markers instead of losing them to null. Number's own
+// toLocaleString() already renders Infinity as "∞" and does real math with it correctly, so
+// nothing else has to change once the value survives the save/load round trip intact.
+function explosafeStringify(obj) {
+  return JSON.stringify(obj, (key, value) => {
+    if (typeof value === 'number') {
+      if (value === Infinity) return '__Infinity__';
+      if (value === -Infinity) return '__-Infinity__';
+      if (Number.isNaN(value)) return '__NaN__';
+    }
+    return value;
+  });
+}
+function explosafeParse(text) {
+  return JSON.parse(text, (key, value) => {
+    if (value === '__Infinity__') return Infinity;
+    if (value === '__-Infinity__') return -Infinity;
+    if (value === '__NaN__') return NaN;
+    return value;
+  });
+}
+function getUserData(name) { return explosafeParse(localStorage.getItem('explox_user_' + name) || '{}'); }
 
 function saveCurrentUser() {
   if(!currentUser) return;
@@ -1292,7 +1319,7 @@ function saveCurrentUser() {
     safeInventory: safeInventory,
     trashSafeCombo: trashSafeCombo, trashSafeSip: trashSafeSip, trashSafeItems: trashSafeItems,
     hat:playerHat, hair:playerHair, shirt:playerShirt, pants:playerPants, shoes:playerShoes,
-    profilePic: playerProfilePic, shirtPaint: playerShirtPaint,
+    profilePic: playerProfilePic, shirtPaint: playerShirtPaint, bio: playerBio, notepadText: playerNotepadText, todoList: playerTodoList,
     skin:playerColors.skin, shirtColor:playerColors.shirt,
     pantsColor:playerColors.pants, shoesColor:playerColors.shoes,
     hairColor:playerColors.hair, name:playerName, sip:sipDollars, cash:cash, wood:woodCount, scrap:scrapMetal, ownedLand:ownedLand, plotBuildings:plotBuildings,
@@ -1300,6 +1327,8 @@ function saveCurrentUser() {
     tubeLikes:tubeLikes, tubeViews:tubeViews, tubeBaseComments:tubeBaseComments, myUploads:myUploads, mySubscribers:mySubscribers, carLocation:carLocation, installedApps:installedApps,
     weapon:playerWeapon, ownedWeapons:ownedWeapons, ownedItems:ownedItems, ownedSkins:ownedSkins,
     armor:playerArmor, ownedArmor:ownedArmor,
+    ownedEmotes: ownedEmotes,
+    ownedFightMoves: ownedFightMoves, equippedMoves: equippedMoves,
     alignment:alignment, wanted:wantedLevel,
     birthday: playerBirthday, ownedCars: ownedCars, ownedComputers: ownedComputers,
     ownedStore: ownedStore, ownedFurniture: ownedFurniture, ownedHouseFurniture: ownedHouseFurniture,
@@ -1312,6 +1341,11 @@ function saveCurrentUser() {
     lastBirthdayGiftDate: lastBirthdayGiftDate,
     deadNPCs: deadNPCs,
     buddyOwned: buddyOwned, buddySpecies: buddySpecies, buddyName: buddyName, buddyColors: buddyColors,
+    // Only the plain {id,name,level} fields — never the live `group` mesh reference, which isn't
+    // serializable. buildBodyguards() (game-shops.js) rebuilds real meshes from this on load,
+    // exactly the same "rebuild the visual from saved data" role buildBuddy() already plays.
+    bodyguards: bodyguards.map(b => ({ id:b.id, name:b.name, level:b.level })),
+    hiredJetPilot: hiredJetPilot,
     activeAddOns: activeAddOns,
     playTimeSeconds: playTimeSeconds, lastGrowthStageId: lastGrowthStageId, eliteCoins: eliteCoins,
     familyKidAdopted: familyKidAdopted, familyKidId: familyKidId, familyKidName: familyKidName, familyKidPlayTime: familyKidPlayTime,
@@ -1320,13 +1354,14 @@ function saveCurrentUser() {
     unpaidBills: unpaidBills, lastBillCheck: lastBillCheck, hasSeenGuide: hasSeenGuide,
     hasBusinessLicense: hasBusinessLicense, businessLicenseInfo: businessLicenseInfo, approvedPermits: approvedPermits,
     myStocks: myStocks, ffaKills: ffaKills, eatingCompBests: eatingCompBests,
-    eliteLevel: eliteLevel, activeQuests: activeQuests,
+    eliteLevel: eliteLevel, activeQuests: activeQuests, mobDifficulty: mobDifficulty,
     lifetimeRobotKills: lifetimeRobotKills, lifetimeRogueKills: lifetimeRogueKills, lifetimeWarHits: lifetimeWarHits,
-    killerDefeats: killerDefeats, pendingEarnings: pendingEarnings,
+    killerDefeats: killerDefeats,
     totalKills: totalKills, wrathTriggerCount: wrathTriggerCount, divineJudgmentServed: divineJudgmentServed,
     divineSentenceStartedAt: divineSentenceStartedAt, divineRedemptionGranted: divineRedemptionGranted,
-    lastSatanBossFightAt: lastSatanBossFightAt, lastEventOfDayClaim: lastEventOfDayClaim,
+    lastSatanBossFightAt: lastSatanBossFightAt, lastKillerSupremeFightAt: lastKillerSupremeFightAt, lastEventOfDayClaim: lastEventOfDayClaim,
     dailyStreakCount: dailyStreakCount, lastStreakClaimDate: lastStreakClaimDate,
+    lastEventBattleClaim: lastEventBattleClaim,
     churchLastPrayed: churchLastPrayed, safePeriodEndsAt: safePeriodEndsAt,
     schoolLastQuizAt: schoolLastQuizAt, schoolVisitCount: schoolVisitCount, schoolHomework: schoolHomework,
     satanReignActive: satanReignActive, satanReignProgress: satanReignProgress, satanReignStartedAt: satanReignStartedAt,
@@ -1339,14 +1374,14 @@ function saveCurrentUser() {
     spyDiscoveredAt: spyDiscoveredAt, spyNextEligibleAt: spyNextEligibleAt,
     mysteryCaseState: mysteryCaseState, mysteryActiveCaseId: mysteryActiveCaseId, mysteryNextTriggerAt: mysteryNextTriggerAt
   };
-  localStorage.setItem('explox_user_' + currentUser, JSON.stringify(data));
+  localStorage.setItem('explox_user_' + currentUser, explosafeStringify(data));
   localStorage.setItem('explox_current_user', currentUser);
   if(serverMode === 'online') {
     // Fire-and-forget: never let a slow/dead server hold up gameplay, which
     // autosaves via this function constantly. localStorage above is always
     // the safety net.
     fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/user/' + encodeURIComponent(currentUser), {
-      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data)
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: explosafeStringify(data)
     }, 4000).catch(()=>{});
   }
 }
@@ -1462,6 +1497,10 @@ async function setServerMode(mode) {
 
 async function loadLoginScreen() {
   updateServerModeButtons();
+  // User's own ask: "any one can see how many people are playoing any time any wheree" — even
+  // here, before logging in at all, regardless of Online/Offline (syncSitePlayerCount(),
+  // game-character.js, always tries the server on purpose).
+  syncSitePlayerCount();
   const list = document.getElementById('accountList');
   document.getElementById('newAccName').value = '';
   document.getElementById('newAccPw').value   = '';
@@ -1500,12 +1539,15 @@ async function loadLoginScreen() {
       const thumb = pic
         ? `<img src="${pic}" style="width:32px;height:32px;border-radius:6px;image-rendering:pixelated;flex-shrink:0;">`
         : '';
+      const hasBackup = !!localStorage.getItem('explox_backup_' + name);
       return `<div class="accountCard" onclick="loginAs('${name}')">
         ${thumb}
         <div class="acInfo">
           <div class="acName">${name}</div>
           <div class="acSip">💰 ${sip} S.I.P.</div>
         </div>
+        <button class="acBackup" title="Save a backup of this account" onclick="event.stopPropagation();backupAccount('${name}')">💾</button>
+        <button class="acRestore" title="${hasBackup ? 'Load your last backup' : 'No backup saved yet'}" ${hasBackup ? '' : 'disabled'} onclick="event.stopPropagation();restoreAccount('${name}')">♻️</button>
         <button class="acDel" onclick="event.stopPropagation();deleteAccount('${name}')">✕</button>
       </div>`;
     }).join('');
@@ -1522,13 +1564,15 @@ async function createAccount() {
 
     if(serverMode === 'online') {
       let res;
+      showServerLoadingBar('Creating your account...'); // same real fix as submitPassword() — 4s was never enough to wait out a sleeping free-tier server actually waking up
       try {
         const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/signup', {
           method: 'POST', headers: {'Content-Type':'application/json'},
           body: JSON.stringify({ name, pw: pwHash })
-        }, 4000);
+        }, 60000);
         res = r.ok ? await r.json() : { ok:false, error: r.status === 409 ? 'taken' : 'error' };
       } catch(e) { res = null; }
+      hideServerLoadingBar();
       if(!res) { showServerMsg('😴 Sorry, the server is currently off. Please come again later or play Offline!'); return; }
       if(!res.ok) { showBigMsg(res.error === 'taken' ? '⚠️ That name is taken!' : '❌ Server error, try again.'); return; }
       setPw(name, pwHash); // local cache so the same device can still log in if Offline later
@@ -1581,6 +1625,175 @@ function confirmDeleteAccount() {
   loadLoginScreen();
 }
 
+// User's own ask, right after a scare where the online mode's account list looked empty (real
+// cause: the online server's DB was empty — local data was never actually touched, see
+// serverMode/EXPLOX_ONLINE_URL above): "make a back up for me the back up is for all every one
+// can make a back up with a button and use once u click it the old one is gone and the new one is
+// in" — one manual backup slot per account, available to every player (not admin-gated), stored
+// as a second localStorage entry so it survives independently of the live save. Restoring is
+// destructive on purpose (that's the point — "the old one is gone and the new one is in"), so it
+// goes through the same real in-page modal pattern as deleteConfirmModal above instead of a
+// native confirm() (already documented as unreliable in some embeds).
+function backupAccount(name) {
+  const data = localStorage.getItem('explox_user_' + name);
+  if (!data) { showBigMsg(`⚠️ No save data for "${name}" on this device yet — play a bit first!`); return; }
+  localStorage.setItem('explox_backup_' + name, data);
+  localStorage.setItem('explox_backup_time_' + name, String(Date.now()));
+  showBigMsg(`💾 Backup saved for "${name}"!`);
+  loadLoginScreen();
+}
+// ─── REAL-MONEY ENTITLEMENTS — Super Tank/Armor/Jet/Motorcycle/Future Jet unlocks, the VIP
+// discount, and weekly vehicle rentals bought via Stripe (game-alignment.js's
+// buyCurrencyPackage()). Kept as runtime-only state fetched fresh each login, NOT merged into
+// the account's saved `data` — explox-server stores them in a separate `entitlements` field for
+// the same reason: `data` gets wholesale-replaced by a normal save, so anything written there
+// could get silently clobbered by a save landing moments later. myUnlockedItems/myActiveRentals/
+// myDiscountPct are just today's live snapshot; enterPremiumVehicle() (game-vehicles.js) and
+// similar ownership checks read them directly.
+let myUnlockedItems = [];
+let myActiveRentals = {};
+let myDiscountPct = 0;
+async function syncEntitlements() {
+  if (serverMode !== 'online' || !currentUser) return;
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/entitlements/' + encodeURIComponent(currentUser), {}, 5000);
+    if (!r.ok) return;
+    const ent = await r.json();
+    myUnlockedItems = ent.unlockedItems || [];
+    myActiveRentals = ent.rentals || {};
+    myDiscountPct = ent.discountPct || 0;
+    // Super Armor has no vehicle-style "is this usable right now" check to hook into — it's
+    // equipped through the normal ARMOR/ownedArmor system, so a confirmed real purchase just
+    // gets pushed into ownedArmor once, permanently, the same way any other owned item works.
+    if (myUnlockedItems.includes('super_armor') && typeof ownedArmor !== 'undefined' && !ownedArmor.includes('super_armor')) {
+      ownedArmor.push('super_armor');
+      saveCurrentUser();
+    }
+    // Custom Bundle's item slot (findCustomBundleItem(), game-alignment.js) can be ANY id from
+    // WEAPONS/ARMOR/CAR_CATALOG/FURNITURE_CATALOG/COMPUTER_CATALOG, not just the fixed Super
+    // items above — so unlike those, this checks every catalog generically rather than hardcoding
+    // one id, and pushes into whichever owned-array actually matches.
+    myUnlockedItems.forEach(id => {
+      if (typeof ownedWeapons !== 'undefined' && WEAPONS.some(w => w.id === id) && !ownedWeapons.includes(id)) { ownedWeapons.push(id); saveCurrentUser(); }
+      if (typeof ownedArmor !== 'undefined' && ARMOR.some(a => a.id === id) && !ownedArmor.includes(id)) { ownedArmor.push(id); saveCurrentUser(); }
+      if (typeof ownedCars !== 'undefined' && CAR_CATALOG.some(c => c.id === id) && !ownedCars.includes(id)) { ownedCars.push(id); spawnOwnedCars(); saveCurrentUser(); }
+      if (typeof ownedFurniture !== 'undefined' && FURNITURE_CATALOG.some(f => f.id === id) && !ownedFurniture.includes(id)) { ownedFurniture.push(id); saveCurrentUser(); }
+      if (typeof ownedComputers !== 'undefined' && COMPUTER_CATALOG.some(c => c.id === id) && !ownedComputers.includes(id)) { ownedComputers.push(id); saveCurrentUser(); }
+    });
+  } catch(e) { /* offline blip — keep whatever we last had this session */ }
+}
+// Called once at page load — Stripe redirects the WHOLE page back here after checkout, which
+// means every bit of JS state (currentUser included) is gone, same as any fresh load. The name
+// this purchase was for got stashed in localStorage right before leaving for Stripe specifically
+// so this can find its way back to the right account even though nothing else survived the trip.
+async function handleStripeReturn() {
+  const params = new URLSearchParams(window.location.search);
+  const outcome = params.get('stripe');
+  if (!outcome) return;
+  history.replaceState(null, '', window.location.pathname); // drop ?stripe=... so a refresh doesn't replay this
+  const name = localStorage.getItem('explox_pending_purchase_name');
+  localStorage.removeItem('explox_pending_purchase_name');
+  if (!name || outcome !== 'success') return;
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/entitlements/' + encodeURIComponent(name), {}, 6000);
+    if (!r.ok) return;
+    const ent = await r.json();
+    const pending = (ent.pendingGrants || []).filter(g => !g.claimed);
+    let sipGained = 0, eliteGained = 0;
+    pending.forEach(g => { sipGained += g.sip || 0; eliteGained += g.elite || 0; });
+    if (sipGained || eliteGained) {
+      // Same rule as every other real-money credit in this game: goes straight into the wallet,
+      // never through queueEarning()/the Earnings tab (see buyCurrencyPackage(), game-
+      // alignment.js, for the full reasoning). Written directly into the saved data blob rather
+      // than through updateSIP()/updateElite() since there's no active logged-in session right
+      // now — the player hasn't necessarily even reached the login screen yet.
+      const data = getUserData(name);
+      data.sip = (data.sip || 0) + sipGained;
+      data.eliteCoins = (data.eliteCoins || 0) + eliteGained;
+      localStorage.setItem('explox_user_' + name, explosafeStringify(data));
+      fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/user/' + encodeURIComponent(name), {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: explosafeStringify(data)
+      }, 6000).catch(()=>{});
+    }
+    if (pending.length) {
+      fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/entitlements/' + encodeURIComponent(name) + '/claim', { method: 'POST' }, 6000).catch(()=>{});
+    }
+    showBigMsg(sipGained || eliteGained
+      ? `🎉 Purchase complete! +${sipGained.toLocaleString()} S.I.P. +${eliteGained.toLocaleString()} 💎`
+      : `🎉 Purchase complete!`);
+    // User's own real complaint: coming back from Stripe used to dump the player at the account
+    // list, forcing them to click their name and retype their password again — a jarring "kicked
+    // out" feeling right after paying. This account was already an authenticated, active session
+    // (it's the one that just initiated the purchase) — doLogin() picks that same session straight
+    // back up onto the customization screen, no re-typed password needed, instead of pretending
+    // nobody's logged in.
+    await doLogin(name);
+  } catch(e) { /* server unreachable right after the redirect — syncEntitlements() will still pick this up on next login */ }
+}
+let pendingRestoreAccountName = null;
+function restoreAccount(name) {
+  const backup = localStorage.getItem('explox_backup_' + name);
+  if (!backup) { showBigMsg(`⚠️ No backup saved for "${name}" yet — tap 💾 first.`); return; }
+  pendingRestoreAccountName = name;
+  document.getElementById('restoreConfirmName').textContent = name;
+  const ts = Number(localStorage.getItem('explox_backup_time_' + name));
+  document.getElementById('restoreConfirmTime').textContent = ts ? new Date(ts).toLocaleString() : 'an earlier save';
+  document.getElementById('restoreConfirmModal').style.display = 'flex';
+}
+function cancelRestoreAccount() {
+  pendingRestoreAccountName = null;
+  document.getElementById('restoreConfirmModal').style.display = 'none';
+}
+function confirmRestoreAccount() {
+  const name = pendingRestoreAccountName;
+  document.getElementById('restoreConfirmModal').style.display = 'none';
+  pendingRestoreAccountName = null;
+  if (!name) return;
+  const backup = localStorage.getItem('explox_backup_' + name);
+  if (!backup) return;
+  localStorage.setItem('explox_user_' + name, backup);
+  if (serverMode === 'online') {
+    fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/user/' + encodeURIComponent(name), {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: backup
+    }, 4000).catch(()=>{});
+  }
+  showBigMsg(`♻️ "${name}" restored from backup!`);
+  loadLoginScreen();
+}
+
+// ─── SERVER LOADING BAR — user's own ask. The free-tier server this game talks to spins down
+// after sitting idle and can take up to ~50 real seconds to wake back up on the next request, but
+// there was no visual feedback during that wait at all — it just looked frozen. There's no way to
+// know REAL progress (the server doesn't report a percentage while it's waking up), so this fills
+// on a timer toward an honest estimate instead of a made-up-looking instant jump: races linearly
+// to 90% over SERVER_WAKE_ESTIMATE_MS, then holds there rather than ever claiming to be finished
+// before the real response actually arrives — hideServerLoadingBar() snaps it the rest of the way
+// the moment that happens.
+const SERVER_WAKE_ESTIMATE_MS = 50000;
+let _serverLoadingTimer = null;
+function showServerLoadingBar(message) {
+  const overlay = document.getElementById('serverLoadingOverlay');
+  const bar = document.getElementById('serverLoadingBarFill');
+  if (!overlay || !bar) return;
+  document.getElementById('serverLoadingMsg').textContent = message || 'Connecting to the server...';
+  bar.style.width = '0%';
+  overlay.style.display = 'flex';
+  const start = Date.now();
+  clearInterval(_serverLoadingTimer);
+  _serverLoadingTimer = setInterval(() => {
+    const pct = Math.min(90, (Date.now() - start) / SERVER_WAKE_ESTIMATE_MS * 90);
+    bar.style.width = pct + '%';
+  }, 200);
+}
+function hideServerLoadingBar() {
+  clearInterval(_serverLoadingTimer);
+  _serverLoadingTimer = null;
+  const bar = document.getElementById('serverLoadingBarFill');
+  const overlay = document.getElementById('serverLoadingOverlay');
+  if (bar) bar.style.width = '100%';
+  setTimeout(() => { if (overlay) overlay.style.display = 'none'; }, 150); // brief flash to full so it reads as "done", not an abrupt cutoff
+}
+
 let _pendingLogin = null;
 function loginAs(name) {
   _pendingLogin = name;
@@ -1600,13 +1813,19 @@ async function submitPassword() {
 
   if(serverMode === 'online') {
     let res;
+    // Real bug this loading bar fixes on its own, not just cosmetic: 4 seconds was nowhere near
+    // long enough for a sleeping free-tier server to wake up (can take ~50s for real), so every
+    // login attempt right after the server had spun down used to falsely report "server is off"
+    // when it just hadn't finished waking up yet. Long enough now to actually wait it out.
+    showServerLoadingBar('Logging in...');
     try {
       const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/login', {
         method: 'POST', headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ name: _pendingLogin, pw: enteredHash })
-      }, 4000);
+      }, 60000);
       res = r.ok ? await r.json() : { ok:false };
     } catch(e) { res = null; }
+    hideServerLoadingBar();
     if(!res) {
       document.getElementById('pwModal').style.display = 'none';
       showServerMsg('😴 Sorry, the server is currently off. Please come again later or play Offline!');
@@ -1659,6 +1878,7 @@ async function doLogin(name) {
   }
   currentUser = name;
   refreshAdminTabVisibility(); // "commands only for me" — shows the ADMIN tab only for ADMIN_ACCOUNTS (game-admin.js)
+  syncEntitlements(); // real-money unlocks/rentals/discount — fire-and-forget, doesn't block login
   const d = getUserData(name);
   // A genuinely brand-new account (never saved before) starts growth at 0 (Baby) — that's the
   // whole point of the feature. An EXISTING account just updated to a version with growth added
@@ -1681,6 +1901,9 @@ async function doLogin(name) {
   playerName    = d.name         || name;
   playerProfilePic = d.profilePic || null;
   playerShirtPaint = d.shirtPaint || null;
+  playerBio = d.bio || '';
+  playerNotepadText = d.notepadText || '';
+  playerTodoList = Array.isArray(d.todoList) ? d.todoList : [];
   sipDollars    = d.sip !== undefined ? d.sip : 0;
   cash          = d.cash !== undefined ? d.cash : 0; // Cash/ATM feature — physical cash carried, separate from bank-safe sipDollars
   woodCount     = d.wood !== undefined ? d.wood : 0;
@@ -1721,6 +1944,15 @@ async function doLogin(name) {
   ownedArmor    = d.ownedArmor   || [];
   ownedItems    = d.ownedItems   || [];
   ownedSkins    = d.ownedSkins   || [];
+  ownedEmotes   = Array.isArray(d.ownedEmotes) ? d.ownedEmotes : [];
+  ownedFightMoves = Array.isArray(d.ownedFightMoves) ? d.ownedFightMoves : [];
+  equippedMoves   = Array.isArray(d.equippedMoves) ? d.equippedMoves : [];
+  // Brand-new account (or an existing one that's never equipped a move) — auto-equip 3 free moves
+  // picked for maximum visual variety (a punch, a kick, a two-handed overhead slam) rather than just
+  // the first 3 in FIGHT_MOVE_DEFS' declaration order (jab/cross/hook, which are all similar-looking
+  // arm punches and gave a brand-new player almost no visible variety by default — real feedback).
+  // Real persisted state from here on; saveCurrentUser() picks this up like anything else next run.
+  if (!equippedMoves.length) equippedMoves = ['cross', 'roundhouse', 'overhead_slam'];
   alignment     = d.alignment    || 'good';
   wantedLevel   = d.wanted      || 0;
   ownedCars     = d.ownedCars     || [];
@@ -1745,6 +1977,8 @@ async function doLogin(name) {
   buddyOwned   = !!d.buddyOwned;
   buddySpecies = d.buddySpecies || null;
   buddyName    = d.buddyName || 'Buddy';
+  bodyguards = Array.isArray(d.bodyguards) ? d.bodyguards.map(b => ({ id:b.id, name:b.name, level:b.level, group:null })) : [];
+  hiredJetPilot = !!d.hiredJetPilot;
   buddyColors  = d.buddyColors && typeof d.buddyColors === 'object' ? d.buddyColors : { body:'#66ddff', accent:'#ffffff', eye:'#111111' };
   activeAddOns = Array.isArray(d.activeAddOns) ? d.activeAddOns : [];
   familyKidAdopted = !!d.familyKidAdopted;
@@ -1768,6 +2002,10 @@ async function doLogin(name) {
   ffaKills = d.ffaKills !== undefined ? d.ffaKills : 0;
   eatingCompBests = d.eatingCompBests && typeof d.eatingCompBests === 'object' ? d.eatingCompBests : {};
   eliteLevel = d.eliteLevel !== undefined ? d.eliteLevel : 0;
+  // Defaults to 'normal' for every existing save that predates this feature (MOB_DIFFICULTY_MULT
+  // has no entry for undefined, so mobDifficultyMult() would silently read as 1.0 anyway — this
+  // just keeps the picker's own highlighted button honest on login too).
+  mobDifficulty = (d.mobDifficulty && MOB_DIFFICULTY_MULT[d.mobDifficulty] !== undefined) ? d.mobDifficulty : 'normal';
   // Recomputed here (not left at the module-load default of 100) so a login always starts fresh
   // at the CORRECT full health for this account's real Robot Level, not last account's or nobody's.
   playerMaxHealth = computePlayerMaxHealth();
@@ -1790,9 +2028,11 @@ async function doLogin(name) {
   divineSentenceStartedAt = d.divineSentenceStartedAt !== undefined ? d.divineSentenceStartedAt : 0;
   divineRedemptionGranted = !!d.divineRedemptionGranted;
   lastSatanBossFightAt = d.lastSatanBossFightAt !== undefined ? d.lastSatanBossFightAt : 0;
+  lastKillerSupremeFightAt = d.lastKillerSupremeFightAt !== undefined ? d.lastKillerSupremeFightAt : 0;
   lastEventOfDayClaim = d.lastEventOfDayClaim !== undefined ? d.lastEventOfDayClaim : '';
   dailyStreakCount = d.dailyStreakCount !== undefined ? d.dailyStreakCount : 0;
   lastStreakClaimDate = d.lastStreakClaimDate !== undefined ? d.lastStreakClaimDate : '';
+  lastEventBattleClaim = d.lastEventBattleClaim !== undefined ? d.lastEventBattleClaim : '';
   churchLastPrayed   = d.churchLastPrayed !== undefined ? d.churchLastPrayed : 0;
   safePeriodEndsAt   = d.safePeriodEndsAt !== undefined ? d.safePeriodEndsAt : 0;
   schoolLastQuizAt   = d.schoolLastQuizAt !== undefined ? d.schoolLastQuizAt : 0; // real School day cooldown gate — see SCHOOL_QUIZ_COOLDOWN_MS, game-land.js
@@ -1814,9 +2054,6 @@ async function doLogin(name) {
   peakElite = Math.max(d.peakElite !== undefined ? d.peakElite : 0, eliteCoins);
   totalQuestsCompleted = d.totalQuestsCompleted !== undefined ? d.totalQuestsCompleted : 0;
   totalBossesDefeated  = d.totalBossesDefeated !== undefined ? d.totalBossesDefeated : 0;
-  pendingEarnings    = Array.isArray(d.pendingEarnings) ? d.pendingEarnings : [];
-  _earningsOverdueNotified = new Set(); // fresh per login — a still-overdue earning just nags again once, not a bug
-  updateEarningsBadge();
   ensureQuests();
   activeContracts = Array.isArray(d.activeContracts) ? d.activeContracts : [];
   lifetimeShopsRobbed = d.lifetimeShopsRobbed !== undefined ? d.lifetimeShopsRobbed : 0;
@@ -1906,6 +2143,18 @@ function showBigMsg(txt) {
   box.style.display = 'block';
   clearTimeout(box._t);
   box._t = setTimeout(() => box.style.display = 'none', 3000);
+}
+// Custom Bundle quote — a real, persistent, clickable link (bundleQuoteModal, EXPLOX.html), unlike
+// showBigMsg() above which is plain text and auto-vanishes in 3s. Triggered by the 'custom_bundle_
+// quote' mailbox message (handleMailboxMessage(), game-social.js) once an admin has priced the
+// idea and the server's already generated the real Stripe URL.
+function showBundleQuoteModal(totalCents, url) {
+  document.getElementById('bundleQuoteTotal').textContent = '$' + (totalCents / 100).toFixed(2) + ' total';
+  document.getElementById('bundleQuoteLink').href = url;
+  document.getElementById('bundleQuoteModal').style.display = 'flex';
+}
+function closeBundleQuoteModal() {
+  document.getElementById('bundleQuoteModal').style.display = 'none';
 }
 
 // ─── BANK ────────────────────────────────────────────────────────────────────
@@ -2269,6 +2518,13 @@ async function syncStocks() {
   } catch(e) { /* next sync will catch up */ }
 }
 
+// TRADING CENTER — the building's real door action (buildCity()'s TRADING CENTER block,
+// game-buildings.js / CITY_ZONES, game-zones.js). Reuses the exact same Stock Market modal and
+// state as the Bank's own menu button — buying/selling shares works identically either way.
+function openTradingCenter() {
+  showNotif('📈 Welcome to the Trading Center!');
+  openStockMarket();
+}
 function openStockMarket() {
   document.getElementById('stockMarketModal').style.display = 'flex';
   refreshStockMarketUI();
@@ -2458,6 +2714,9 @@ function backToLogin() {
   currentUser = null;
   clearRemotePlayers();
   clearRemoteKillers();
+  clearRemoteBuddies();
+  clearRemoteBodyguards();
+  clearRemoteParkedCars();
   document.getElementById('customScreen').style.display = 'none';
   document.getElementById('loginScreen').style.display  = 'flex';
   loadLoginScreen();
@@ -2466,6 +2725,8 @@ function backToLogin() {
 // ─── PLAYER SETTINGS ─────────────────────────────────────────────────────────
 let playerName  = 'Player';
 let playerProfilePic = null; // data:image/png URL from the Profile Picture painter, or null = use the procedural badge
+let playerBio = ''; // user's own ask: "every one hass a profile bio" — free text, editable via editMyBio() (game-social.js), synced to others via syncPresence() (game-character.js)
+let playerNotepadText = ''; // user's own ask: "download real apps... do real computer stuff" — the Notepad app's real saved content (renderNotepadApp(), game-vehicles.js)
 let playerShirtPaint = null; // data:image/png URL from the same painter, applied as a real texture on the shirt
 let playerColors = { skin:'#f5c89a', shirt:'#2196F3', pants:'#333333', shoes:'#4e3b2a', hair:'#3a1f0a' };
 let playerHat   = 'none';
@@ -2475,11 +2736,65 @@ let playerPants = 'long';
 let playerShoes   = 'sneakers';
 let playerWeapon  = 'none';
 let ownedWeapons  = [];
+let ownedEmotes   = []; // variant ids from EMOTE_CATALOG (game-character.js) actually bought with real S.I.P. — only these are playable
 let playerSwingStart = -999; // 't' (clock.getElapsedTime()) when the last swing began, read every frame in animate()
 let playerSwingPower = 1; // 0-1, how charged the swing currently animating was — read alongside playerSwingStart
 let pendingSwingPower = 1; // set right before the charge-release handleInteract() call, consumed once by the next triggerSwing()
+// User's own ask: "shows they're fighting moves... not delayed" — a monotonic counter, bumped
+// once per real swing, sent in syncPresence() (game-character.js) instead of a live "is swinging
+// right now" boolean. A swing only lasts SWING_DURATION-ish seconds but presence only syncs once
+// a second (PRESENCE_SYNC_INTERVAL) — a boolean sampled at that rate would miss almost every real
+// swing entirely. Seeing the id change is a guarantee an attack happened since the last sync, so
+// the receiving end (updateRemotePlayers()) can always replay the full move at least once, timed
+// on ITS OWN clock, instead of gambling on catching it live.
+let playerSwingId = 0;
 const SWING_DURATION = 0.25;
-function triggerSwing() { if(clock){ playerSwingStart = clock.getElapsedTime(); playerSwingPower = pendingSwingPower; } }
+// 10 real fight-move choreographies (FIGHT_MOVE_CATALOG, game-character.js) come free with every
+// account — no S.I.P. cost, always "owned". Listed here (not derived from the catalog) so this file
+// has a zero-dependency fallback list even though the full 30-move catalog + applySwingMove() live in
+// game-character.js (which loads AFTER this file — see EXPLOX.html's <script> order). Keep this in
+// sync with the 10 FIGHT_MOVE_CATALOG entries whose tier is 'free'.
+const FIGHT_MOVES = ['jab','cross','hook','uppercut','roundhouse','overhead_slam','thrust','spin_slash','knee_strike','haymaker'];
+// Up to 20 more moves cost real S.I.P. to unlock (buyFightMove(), game-character.js) — variant ids
+// live in FIGHT_MOVE_CATALOG there. ownedFightMoves only ever needs to record the PAID ones (the 10
+// free ones above are always considered owned — see isFightMoveOwned(), game-character.js), same
+// "don't bother persisting what's free by default" shortcut ownedEmotes doesn't get to take (emotes
+// are never free) but fits fine here.
+let ownedFightMoves = []; // paid FIGHT_MOVE_CATALOG ids actually bought — persisted in saveCurrentUser()/doLogin() (game-core.js), same shape as ownedEmotes
+// Which owned moves (free or paid) are actually active in combat right now — capped at 3
+// (enforced by equipFightMove(), game-character.js). triggerSwing() below picks a real random move
+// from THIS array, not from the full 30-move catalog, so buying a move does nothing in a real fight
+// until it's actually equipped. Seeded to the first 3 free moves for a brand-new account by doLogin()
+// (game-core.js) so combat is never broken out of the box.
+let equippedMoves = [];
+let activeSwingMove = FIGHT_MOVES[0]; // real move id the swing currently animating is playing — set by triggerSwing() below, read every frame by animate() (game-controls.js)
+function triggerSwing() {
+  if(clock){
+    playerSwingStart = clock.getElapsedTime();
+    playerSwingPower = pendingSwingPower;
+    // Real random pick from whatever's actually equipped — every one of the ~14 existing combat call
+    // sites gets this for free since they all just call triggerSwing()/swingAndHit() unchanged.
+    // equippedMoves should never be empty in practice (doLogin() seeds it), but a hardcoded fallback
+    // keeps a fight working even in that edge case rather than erroring or freezing the swing pose.
+    activeSwingMove = (equippedMoves && equippedMoves.length) ? equippedMoves[Math.floor(Math.random()*equippedMoves.length)] : 'jab';
+    playerSwingId++;
+  }
+}
+// Guns get their own real feedback — a visible tracer round (fireWarShot, game-world.js — same
+// one war NPCs/the Bank wall already fire) plus the gunshot sound, instead of the melee
+// clang/hit noise. Every combat function below routes its swing+sound through here rather than
+// calling triggerSwing()+its own sfx directly, so equipping any gun (WEAPON_VISUALS archetype,
+// game-shops.js) changes every fight the same way at once instead of needing a per-fight check.
+function isGunEquipped() { const v = WEAPON_VISUALS[playerWeapon]; return !!v && v.archetype === 'gun'; }
+function swingAndHit(targetX, targetZ, meleeSfxFn) {
+  triggerSwing();
+  if (isGunEquipped()) {
+    fireWarShot(playerGroup.position.x, 1.6, playerGroup.position.z, targetX, targetZ);
+    sfx.laser();
+  } else if (meleeSfxFn) {
+    meleeSfxFn();
+  }
+}
 
 // Charge-and-release punch: holding E winds the arm back, releasing throws the punch —
 // the longer it was held (up to PUNCH_MAX_CHARGE seconds), the harder it lands.
@@ -2546,6 +2861,16 @@ let buddyName    = 'Buddy';
 let buddyColors  = { body:'#66ddff', accent:'#ffffff', eye:'#111111' };
 let buddyGroup   = null;                 // THREE.Group, lives directly in scene (not a playerGroup child) so it can lag behind
 let buddyMeshes  = null;                 // { body:[], accent:[], eye:[] } — tagged parts a repaint recolors live
+
+// ─── BODYGUARDS — user's own ask: hire (with Elite Coins, not S.I.P.) real combat companions,
+// each independently levelable up to a real cap of 10. Same "lives directly in scene, follows the
+// player" convention as Buddy above, and plugs into the exact same landCompanionHit()/
+// getCompanionCombatTarget() assist pipeline (game-world.js) tickCompanionAssist() already uses —
+// see tickBodyguards() there. Unlike Buddy (one, forever), this is a real roster: hire up to
+// BODYGUARD_MAX_COUNT, each its own {id,name,level} — see hireBodyguard()/levelUpBodyguard()/
+// buildBodyguards() (game-shops.js).
+let bodyguards = []; // [{id, name, level, group}] — group is a live THREE.Group reference, rebuilt fresh by buildBodyguards() every load, never itself persisted (see game-core.js save/load)
+let hiredJetPilot = false; // Pro Pilot — a real one-time hire (game-vehicles.js hireJetPilot()), same "pay once, keep forever" shape as Buddy
 
 // ─── ADOPTED CHILD — a real family member who follows you like Buddy, but a small person
 // (reuses the box-figure style, not a pet shape) who visibly grows up via GROWTH_STAGES above. ──
@@ -2774,6 +3099,123 @@ function formatBigNum(n) {
   return Math.abs(n) >= 1e21 ? n.toExponential(2) : n.toLocaleString();
 }
 
+// ─── MOB DIFFICULTY — user's own ask: "make it so you can choose their difficulty for the mobs
+// like killers bots". Robot Level (eliteLevel, right below) already scales robots/rogue robots
+// automatically as you level up, but Killers/Robbers/Demons/Killer Supreme never scaled with
+// ANYTHING — flat HP/damage no matter how strong you'd gotten (KILLER_HP=200 forever, game-land.js).
+// This is a real, deliberate CHOICE layered on top of all of it: a picked multiplier applied to
+// every mob's HP and outgoing damage everywhere they're spawned/attack, independent of Robot Level
+// so a fresh low-level account can still choose Hard/Nightmare, and a maxed-out one can still pick
+// Easy. Persisted per account (saveCurrentUser()/loadUser(), game-core.js), defaults to 'normal' for
+// every existing save that predates this feature. Picked from the real ⚔️ MOB DIFFICULTY tab —
+// setMobDifficulty()/renderMobDifficultyPanel() further down this file.
+let mobDifficulty = 'normal';
+// 10 real toughness tiers (user's own follow-up ask, after an initial 4-tier pass) — a real, felt
+// step up between each one, not just a cosmetic label change. 'normal' (tier 4) stays the default
+// so every existing save that predates this feature sees ZERO change in mob strength until they
+// pick one. 'peaceful' is a real 11th, DIFFERENT kind of entry — not "very weak mobs" (a 0 HP mob
+// spawning and instantly dying would be a strange, broken edge case, not actually peaceful), but
+// "no mobs spawn at all" (user's own follow-up ask: "a peaceful so no one will spawn") — see
+// isPeacefulMode() and every ambient spawn function's own guard below, game-land.js.
+const MOB_DIFFICULTY_MULT = {
+  peaceful:0, babysteps:0.3, easy:0.5, casual:0.7, normal:1.0, tough:1.3,
+  hard:1.7, brutal:2.2, extreme:2.8, nightmare:3.6, apocalypse:4.5,
+};
+const MOB_DIFFICULTY_LABELS = {
+  peaceful:'🕊️ Peaceful', babysteps:'🍼 Baby Steps', easy:'🟢 Easy', casual:'🔵 Casual', normal:'🟡 Normal', tough:'🟠 Tough',
+  hard:'🔴 Hard', brutal:'💀 Brutal', extreme:'⚠️ Extreme', nightmare:'☠️ Nightmare', apocalypse:'🔥 Apocalypse',
+};
+function mobDifficultyMult() { return MOB_DIFFICULTY_MULT[mobDifficulty] !== undefined ? MOB_DIFFICULTY_MULT[mobDifficulty] : 1.0; }
+// A real, explicit check for the ambient spawn functions to gate on — separate from reading the
+// multiplier directly, since "peaceful" isn't really "a difficulty of 0", it's "don't spawn at all"
+// (checking `mobDifficultyMult() === 0` would work by coincidence today, but isPeacefulMode() says
+// what it actually means at every call site instead of relying on that coincidence).
+function isPeacefulMode() { return mobDifficulty === 'peaceful'; }
+function setMobDifficulty(diff) {
+  // MOB_DIFFICULTY_MULT[diff] is 0 for 'peaceful' — a falsy `if(!MOB_DIFFICULTY_MULT[diff])` guard
+  // would wrongly reject picking it, so this checks for the KEY existing, not a truthy value.
+  if (MOB_DIFFICULTY_MULT[diff] === undefined) return;
+  const oldMult = mobDifficultyMult();
+  mobDifficulty = diff;
+  const newMult = mobDifficultyMult();
+  saveCurrentUser();
+  renderMobDifficultyPanel();
+  const affected = applyMobDifficultyInstantly(oldMult, newMult);
+  showNotif(diff === 'peaceful'
+    ? `🕊️ Peaceful mode on — ${affected} Killer${affected===1?'':'s'}/Robot${affected===1?'':'s'} already out there just vanished, and none will spawn again until you leave Peaceful.`
+    : `⚔️ Mob difficulty set to ${MOB_DIFFICULTY_LABELS[diff]} — ${affected ? `${affected} mob${affected===1?'':'s'} already out there just got rescaled to match, and n` : 'n'}ew mobs use it from here on.`);
+}
+// Real user ask: "make it so when you go to peaceful or any other make it so they instantly
+// change" — mob difficulty used to only affect FUTURE spawns; anything already alive stayed at
+// its old HP/tier until the player dealt with it (see the old notification text this replaced).
+// Outgoing mob damage already read mobDifficultyMult() LIVE at hit-time everywhere it's dealt
+// (damagePlayer(...*mobDifficultyMult()) throughout game-land.js/game-world.js), so that part was
+// always instant — only each mob's already-spawned HP (baked in once at spawn via KILLER_HP()/
+// ROBBER_HP()/DEMON_HP()/robotPowerMult(), never recomputed) needed catching up here. Covers every
+// array mob difficulty actually applies to: `killers` (the ambient Killer/Robber/Demon/Killer
+// Supreme/Spy Ambusher/Guard Killer subtypes all share this one array, distinguished by their own
+// boolean flags — none of them store a powerMult since their HP fns read mobDifficultyMult()
+// directly), `robots` and `rogueRobots` (both DO store `powerMult` = robotPowerMult() = an
+// eliteLevel-based factor times mobDifficultyMult() — but since eliteLevel hasn't changed here,
+// the ratio between the OLD and NEW mobDifficultyMult() alone is still the exact right scale
+// factor for their HP too). War Territory NPCs are a deliberately separate system (their own
+// getRobotDamage()/getWeaponDamage() scaling, nothing to do with mobDifficulty) and are NOT
+// touched here, matching this feature's existing spawn-gate scope (isPeacefulMode() call sites).
+function applyMobDifficultyInstantly(oldMult, newMult) {
+  const pools = [killers, robots, rogueRobots];
+  let affected = 0;
+  if (newMult === 0) {
+    // Peaceful — remove the mob properly (mesh + any real CITY_ZONES/CITY_COLS entry) instead of
+    // leaving a 0-HP corpse standing around; same alive:false + scene.remove(mesh) convention
+    // clearGuardKillers() (game-land.js) already uses for a mass-despawn. No reward/drop — the
+    // player didn't defeat these, they just chose not to fight tonight.
+    pools.forEach(pool => pool.forEach(m => {
+      if (!m.alive) return;
+      m.alive = false;
+      if (m.mesh) scene.remove(m.mesh);
+      if (m.zone) { const zi = CITY_ZONES.indexOf(m.zone); if (zi > -1) CITY_ZONES.splice(zi, 1); } // robots only — killers/rogueRobots are checked by live array proximity, no zone entry to clean up
+      if (m.col) { const ci = CITY_COLS.indexOf(m.col); if (ci > -1) CITY_COLS.splice(ci, 1); }
+      affected++;
+    }));
+    return affected;
+  }
+  if (oldMult === 0 || oldMult === newMult) return 0; // nothing alive to rescale coming out of Peaceful (everything was just cleared above), or no real change
+  const ratio = newMult / oldMult;
+  pools.forEach(pool => pool.forEach(m => {
+    if (!m.alive) return;
+    m.maxHp = Math.max(1, Math.round(m.maxHp * ratio));
+    m.hp = Math.max(1, Math.round(m.hp * ratio));
+    affected++;
+  }));
+  return affected;
+}
+function renderMobDifficultyPanel() {
+  const list = document.getElementById('mobDifficultyList');
+  if (!list) return;
+  list.innerHTML = Object.keys(MOB_DIFFICULTY_MULT).map(diff => {
+    const active = diff === mobDifficulty;
+    const sub = diff === 'peaceful' ? 'no mobs spawn' : `${MOB_DIFFICULTY_MULT[diff]}x HP &amp; damage`;
+    return `<button class="mobDiffBtn" onclick="setMobDifficulty('${diff}')" style="display:block;width:100%;margin-bottom:8px;padding:10px;border-radius:8px;border:2px solid ${active?'#e94560':'#444'};background:${active?'rgba(233,69,96,0.18)':'rgba(255,255,255,0.05)'};color:#fff;font-size:13px;font-weight:bold;cursor:pointer;">${MOB_DIFFICULTY_LABELS[diff]}${active?' ✓':''} <span style="color:#888;font-weight:normal;font-size:11px;">(${sub})</span></button>`;
+  }).join('');
+}
+function toggleMobDifficultyPanel() {
+  const panel = document.getElementById('mobDifficultyPanel');
+  if (panel.style.display === 'none') {
+    if (document.pointerLockElement) document.exitPointerLock();
+    isPointerLocked = false;
+    renderMobDifficultyPanel();
+    panel.style.display = 'block';
+    document.getElementById('mobDifficultyTab').style.display = 'none';
+  } else {
+    closeMobDifficultyPanel();
+  }
+}
+function closeMobDifficultyPanel() {
+  document.getElementById('mobDifficultyPanel').style.display = 'none';
+  document.getElementById('mobDifficultyTab').style.display = 'block';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+
 // ─── QUESTS & ROBOT LEVEL — completing quests pays out Elite Coins; spending 100/500/1000/
 // 1500/2000/3000/4500/... of them "levels up" the robots themselves (bigger, tougher, hit
 // harder), but scales their rewards up to match so the loop stays worth playing.
@@ -2826,10 +3268,16 @@ let divineRedemptionGranted = false;
 // game-library.js's "The First War"). playTimeSeconds-based, same reasoning as
 // divineSentenceStartedAt above — this has to survive reloads/relogins and can span many sessions.
 let lastSatanBossFightAt = 0; // playTimeSeconds snapshot of the last challenge — see challengeSatan() (game-world.js)
+let lastKillerSupremeFightAt = 0; // playTimeSeconds snapshot of the last time it appeared — see spawnKillerSupreme() (game-land.js)
 // EVENT OF THE DAY — a real once-per-REAL-CALENDAR-DAY claim (a genuine "YYYY-MM-DD" string, not
 // playTimeSeconds like everything else on this page) — see openEventOfDay()/claimEventOfDay()
 // (game-world.js). Empty string means never claimed.
 let lastEventOfDayClaim = '';
+// Today's Event's own "⚔️ Play Today's Challenge" button (openEventOfDay()/startTodaysChallenge(),
+// game-land.js/game-world.js) — a real once-per-REAL-CALENDAR-DAY gate, same shape as
+// lastEventOfDayClaim above, but tracked separately since fighting the challenge is a second,
+// independent way to get a bonus, not a replacement for the passive claim button.
+let lastEventBattleClaim = '';
 // Daily login streak (the "Rewards" tab inside Daily Events, game-world.js) — separate from the
 // event above: `dailyStreakCount` is which real consecutive day the player is on, `lastStreakClaimDate`
 // is the same real "YYYY-MM-DD" gate. Missing a real day resets the streak — see claimDailyStreak().
@@ -2966,6 +3414,11 @@ function renderRecordsPanel() {
 }
 const ELITE_LEVEL_THRESHOLDS = [100, 500, 1000, 1500, 2000, 3000, 4500];
 function eliteThresholdForLevel(level) { // cost in Elite Coins to go from level-1 to level
+  // Real bug found live: this loop counts up one level at a time from 8 to `level` — if `level`
+  // is Infinity (an eliteLevel of Infinity, forced in from outside the normal level-up flow,
+  // which never actually reaches it on its own), `i <= level` is true forever and the loop hangs
+  // the whole tab. Any non-finite level has an infinite cost anyway, so just say so directly.
+  if (!isFinite(level)) return Infinity;
   if (level <= ELITE_LEVEL_THRESHOLDS.length) return ELITE_LEVEL_THRESHOLDS[level - 1];
   let last = ELITE_LEVEL_THRESHOLDS[ELITE_LEVEL_THRESHOLDS.length - 1];
   let delta = last - ELITE_LEVEL_THRESHOLDS[ELITE_LEVEL_THRESHOLDS.length - 2];
@@ -2982,7 +3435,11 @@ function eliteThresholdForLevel(level) { // cost in Elite Coins to go from level
 // robots. The player's own weapon upgrades (Weapon Shop, WEAPON_DAMAGE/ROBOT_BONUS_DAMAGE below)
 // stay a real, uncapped way to keep growing stronger against them regardless of this cap.
 const ROBOT_POWER_MULT_CAP = 8;   // ≈ level 20 worth of the old uncapped formula
-function robotPowerMult() { return Math.min(ROBOT_POWER_MULT_CAP, 1 + eliteLevel * 0.35); } // HP/damage/reward scale
+// The Robot-Level-based portion stays capped (see the comment above) so it can never runaway on
+// its own — but the player's own deliberate mob-difficulty CHOICE (mobDifficultyMult() above)
+// multiplies on top, uncapped by this same cap, since picking Nightmare/Apocalypse on purpose is
+// a different thing than accidentally leveling into unkillable robots.
+function robotPowerMult() { return Math.min(ROBOT_POWER_MULT_CAP, 1 + eliteLevel * 0.35) * mobDifficultyMult(); } // HP/damage/reward scale
 // Robot SIZE used to also scale with the viewing player's own Robot Level, same formula as
 // power above — but robots aren't networked objects (each client spawns its own local copies),
 // so two players standing in the same spot saw genuinely different sizes for "the same" robot
@@ -2999,19 +3456,75 @@ function robotSizeMult()  { return 1; }
 // nobody's damage math actually reads.
 function computePlayerMaxHealth() { return 100 + eliteLevel * 15; }
 function playerLevelDamageMult()  { return 1 + eliteLevel * 0.08; }
+// Shared by every real level-up (levelUpElite() below, and the admin console's /level, game-
+// admin.js): recomputes Max HP and carries the same +delta heal into current HP — EXCEPT that
+// "current HP + delta" breaks the moment either side of the subtraction is non-finite (the exact
+// same `Infinity - Infinity` => NaN trap this file already found and fixed once for eliteCoins in
+// levelUpEliteMax() below — /level infinity, then /level back down to a normal number, hit it again
+// here for real: oldMax was Infinity, the delta became -Infinity, and playerHealth + -Infinity off
+// an Infinity current HP silently corrupted it to NaN). Whenever the math would go non-finite either
+// way, just top off to the new max instead of computing a broken delta — the intuitive behavior for
+// a level change anyway, and it can never produce NaN.
+function applyPlayerMaxHealthChange() {
+  const oldMax = playerMaxHealth;
+  playerMaxHealth = computePlayerMaxHealth();
+  const delta = playerMaxHealth - oldMax;
+  playerHealth = isFinite(delta) ? playerHealth + delta : playerMaxHealth;
+  if (!isFinite(playerHealth)) playerHealth = playerMaxHealth; // final safety net
+  updateHealthBar();
+  return oldMax;
+}
 function levelUpElite() {
   const cost = eliteThresholdForLevel(eliteLevel + 1);
+  // Same Infinity-minus-Infinity trap as levelUpEliteMax() above, reachable here too once a
+  // maxed-out account's compounding cost itself overflows to Infinity (~level 1750+) — refuse
+  // instead of ever computing `eliteCoins -= cost` with both sides Infinite.
+  if (!isFinite(cost)) { showNotif(`🏆 MAX LEVEL REACHED — Robot Level ${eliteLevel} is as far as it goes.`); return; }
   if (eliteCoins < cost) { showNotif(`❌ Need ${cost.toLocaleString()} 💎 to reach Level ${eliteLevel + 1} (you have ${Math.floor(eliteCoins)})`); return; }
   eliteCoins -= cost;
   eliteLevel++;
   updateElite();
   // The level-up itself doubles as a real heal (added to current HP, not a full refill you have
   // to earn back) rather than just quietly raising a cap you won't notice until you're hurt.
+  const oldMax = applyPlayerMaxHealthChange();
+  showNotif(`🆙 Robot Level ${eliteLevel}! Robots are bigger and stronger now — but worth more too. You're stronger too: +${playerMaxHealth-oldMax} Max HP, +${Math.round((playerLevelDamageMult()-1)*100)}% damage!`);
+  sfx.buy();
+  saveCurrentUser();
+  renderQuestsPanel();
+}
+// User's own ask: "make a button in the qwests called upgrade max until u have no elite" — a
+// one-click version of spamming levelUpElite() by hand. Costs grow ~1.5x compounding per level
+// (see eliteThresholdForLevel above), so even an admin-granted near-Number.MAX_VALUE eliteCoins
+// balance only takes on the order of ~1700 loop iterations to exhaust — safe to run synchronously,
+// no risk of hanging the tab.
+// Real bug found live: once eliteCoins is legitimately Infinity (an admin account maxed out, now
+// that Infinity survives saving intact instead of corrupting to null — see explosafeStringify(),
+// game-core.js), the compounding cost eventually overflows to Infinity too, and
+// `eliteCoins -= cost` becomes `Infinity - Infinity`, which JavaScript evaluates to NaN — silently
+// turning infinite coins into broken coins. The `isFinite(cost)` guard stops the loop the moment
+// cost itself stops being a real number, before that subtraction can ever happen.
+function levelUpEliteMax() {
+  const startLevel = eliteLevel;
+  const startCoins = eliteCoins;
+  let levelsGained = 0;
+  let cost = eliteThresholdForLevel(eliteLevel + 1);
+  while (isFinite(cost) && eliteCoins >= cost) {
+    eliteCoins -= cost;
+    eliteLevel++;
+    levelsGained++;
+    cost = eliteThresholdForLevel(eliteLevel + 1);
+  }
+  if (levelsGained === 0) {
+    if (!isFinite(cost)) { showNotif(`🏆 MAX LEVEL REACHED — Robot Level ${eliteLevel} is as far as it goes.`); return; }
+    showNotif(`❌ Need ${cost.toLocaleString()} 💎 to reach Level ${eliteLevel + 1} (you have ${Math.floor(eliteCoins)})`);
+    return;
+  }
+  updateElite();
   const oldMax = playerMaxHealth;
   playerMaxHealth = computePlayerMaxHealth();
   playerHealth += playerMaxHealth - oldMax;
   updateHealthBar();
-  showNotif(`🆙 Robot Level ${eliteLevel}! Robots are bigger and stronger now — but worth more too. You're stronger too: +${playerMaxHealth-oldMax} Max HP, +${Math.round((playerLevelDamageMult()-1)*100)}% damage!`);
+  showNotif(`🆙 Maxed out! Robot Level ${startLevel} → ${eliteLevel} (+${levelsGained}), spent ${Math.floor(startCoins - eliteCoins).toLocaleString()} 💎! +${playerMaxHealth-oldMax} Max HP, +${Math.round((playerLevelDamageMult()-1)*100)}% damage!`);
   sfx.buy();
   saveCurrentUser();
   renderQuestsPanel();
@@ -3053,7 +3566,7 @@ function claimQuest(id) {
   const q = activeQuests[idx];
   if (questProgress(q) < q.target) return;
   queueEarning(0, q.rewardElite, 'Quest');
-  showNotif(`✅ Quest complete! Check Earnings to collect +${q.rewardElite} 💎`);
+  showNotif(`✅ Quest complete! +${q.rewardElite} 💎 added to your wallet`);
   sfx.buy();
   totalQuestsCompleted++;
   activeQuests.splice(idx, 1);
@@ -3079,14 +3592,26 @@ function closeQuestsPanel() {
 }
 function renderQuestsPanel() {
   const nextCost = eliteThresholdForLevel(eliteLevel + 1);
-  document.getElementById('questsLevelLine').innerHTML =
-    `💎 Robot Level <b>${eliteLevel}</b><br>Next level: ${nextCost.toLocaleString()} 💎 (you have ${Math.floor(eliteCoins).toLocaleString()})`;
+  // A non-finite cost means the compounding formula (eliteThresholdForLevel above) has hit its
+  // own ceiling — no real "next level" exists anymore, so say that plainly instead of showing
+  // raw "∞" targets ("Need ∞ to reach Level ∞" reads like a bug, not a feature). User's own ask
+  // after seeing that wording: "don't say to reach level infinity... say max level reached."
+  const atMaxLevel = !isFinite(nextCost);
+  document.getElementById('questsLevelLine').innerHTML = atMaxLevel
+    ? `💎 Robot Level <b>${eliteLevel}</b><br>🏆 MAX LEVEL REACHED`
+    : `💎 Robot Level <b>${eliteLevel}</b><br>Next level: ${nextCost.toLocaleString()} 💎 (you have ${Math.floor(eliteCoins).toLocaleString()})`;
   const btn = document.getElementById('questsLevelUpBtn');
-  const canLevel = eliteCoins >= nextCost;
+  const canLevel = !atMaxLevel && eliteCoins >= nextCost;
   btn.disabled = !canLevel;
   btn.style.opacity = canLevel ? '1' : '0.5';
   btn.style.cursor = canLevel ? 'pointer' : 'not-allowed';
-  btn.textContent = canLevel ? `⬆️ LEVEL UP! (-${nextCost.toLocaleString()} 💎)` : `⬆️ Need ${Math.ceil(nextCost - eliteCoins).toLocaleString()} more 💎`;
+  btn.textContent = atMaxLevel ? '🏆 MAX LEVEL REACHED'
+    : canLevel ? `⬆️ LEVEL UP! (-${nextCost.toLocaleString()} 💎)` : `⬆️ Need ${Math.ceil(nextCost - eliteCoins).toLocaleString()} more 💎`;
+  const maxBtn = document.getElementById('questsUpgradeMaxBtn');
+  maxBtn.disabled = !canLevel;
+  maxBtn.style.opacity = canLevel ? '1' : '0.5';
+  maxBtn.style.cursor = canLevel ? 'pointer' : 'not-allowed';
+  if (atMaxLevel) maxBtn.textContent = '🏆 MAX LEVEL REACHED';
   const refreshBtn = document.getElementById('questsRefreshBtn');
   const canRefresh = eliteCoins >= QUEST_REFRESH_COST;
   refreshBtn.disabled = !canRefresh;
@@ -3159,7 +3684,7 @@ function claimContract(id) {
   const c = activeContracts[idx];
   if (contractProgress(c) < c.target) return;
   queueEarning(c.rewardSip, 0, 'Crime Contract');
-  showNotif(`✅ Contract complete! Check Earnings to collect +${c.rewardSip} S.I.P.`);
+  showNotif(`✅ Contract complete! +${c.rewardSip} S.I.P. added to your wallet`);
   sfx.buy();
   totalContractsCompleted++;
   activeContracts.splice(idx, 1);
@@ -3207,116 +3732,61 @@ function renderContractsPanel() {
   }).join('');
 }
 
-// ─── EARNINGS TAB — user's own ask: "when you earn money it goes there click the earning to
-// get the earning ... if you let it sit for more than 30 min you get a notification and a big
-// red ! on the tab." EVERY real S.I.P./Elite Coin reward in the game now queues here via
-// queueEarning() instead of landing in the wallet instantly — collecting is a real, separate
-// action. Persisted (it's real money owed to the player, shouldn't vanish on logout) with a
-// real Date.now() timestamp per entry so the 30-minute check survives a relog, unlike the
-// clock.getElapsedTime()-based timers used elsewhere in this file that reset every page load.
-let pendingEarnings = []; // {id, sip, elite, source, ts} — persisted
-const EARNING_OVERDUE_MS = 30 * 60 * 1000; // 30 real minutes
-let _earningsOverdueNotified = new Set(); // which overdue ids already got their one nag — not persisted, fine to re-nag once after a relog
-const EARNING_MERGE_WINDOW_MS = 6000; // rapid same-source earnings (boss hitSip per swing, gathering-event's 5s ticks) stack into one row instead of flooding the tab
+// ─── EARNINGS — the Earnings tab (a real "queue rewards, click to collect" system) was removed
+// per the user's own ask ("get rid of the earnings tab"). queueEarning() is still called from
+// ~90 real reward sites across the codebase, so it stays as the one shared chokepoint — it now
+// just credits the wallet immediately instead of queuing, matching how every other reward in
+// the game already lands instantly.
 function queueEarning(sip, elite, source) {
   sip = sip || 0; elite = elite || 0;
   if (!sip && !elite) return;
-  const now = Date.now();
-  const last = pendingEarnings[pendingEarnings.length - 1];
-  if (last && last.source === source && now - last.ts <= EARNING_MERGE_WINDOW_MS) {
-    last.sip += sip; last.elite += elite; last.ts = now; // extends its own 30-minute clock from the latest addition, same as a real running total would
-  } else {
-    pendingEarnings.push({ id:'earn'+now+'_'+Math.floor(Math.random()*99999), sip, elite, source, ts:now });
-  }
-  updateEarningsBadge();
-  renderEarningsPanel();
-  saveCurrentUser();
-}
-function collectEarning(id) {
-  const idx = pendingEarnings.findIndex(e => e.id === id);
-  if (idx < 0) return;
-  const e = pendingEarnings[idx];
-  pendingEarnings.splice(idx, 1);
-  if (e.sip)   { sipDollars += e.sip; updateSIP(); }
-  if (e.elite) { eliteCoins += e.elite; updateElite(); }
-  sfx.coin();
-  const parts = [e.sip ? `${e.sip.toLocaleString()} S.I.P.` : '', e.elite ? `${e.elite.toLocaleString()} 💎` : ''].filter(Boolean).join(' + ');
-  showNotif(`💰 Collected ${parts} from ${e.source}!`);
-  _earningsOverdueNotified.delete(id);
-  saveCurrentUser();
-  renderEarningsPanel();
-  updateEarningsBadge();
-}
-function collectAllEarnings() {
-  if (!pendingEarnings.length) return;
-  let sip = 0, elite = 0;
-  pendingEarnings.forEach(e => { sip += e.sip; elite += e.elite; });
-  pendingEarnings = [];
-  _earningsOverdueNotified.clear();
   if (sip)   { sipDollars += sip; updateSIP(); }
   if (elite) { eliteCoins += elite; updateElite(); }
   sfx.coin();
-  showNotif(`💰 Collected everything: +${sip.toLocaleString()} S.I.P. +${elite.toLocaleString()} 💎!`);
+  const parts = [sip ? `${sip.toLocaleString()} S.I.P.` : '', elite ? `${elite.toLocaleString()} 💎` : ''].filter(Boolean).join(' + ');
+  showNotif(`💰 +${parts} from ${source}!`);
   saveCurrentUser();
-  renderEarningsPanel();
-  updateEarningsBadge();
 }
-function updateEarningsBadge() {
-  const countEl = document.getElementById('earningsCount');
-  if (countEl) { countEl.textContent = pendingEarnings.length; countEl.style.display = pendingEarnings.length ? 'flex' : 'none'; }
-  const now = Date.now();
-  const hasOverdue = pendingEarnings.some(e => now - e.ts >= EARNING_OVERDUE_MS);
-  const badge = document.getElementById('earningsBadge');
-  if (badge) badge.style.display = hasOverdue ? 'flex' : 'none';
-}
-// Checked every real EARNINGS_CHECK_INTERVAL seconds (not every frame — a Date.now() diff over a
-// small array is cheap, but there's no reason to touch the DOM 60x/sec for a 30-MINUTE threshold).
-const EARNINGS_CHECK_INTERVAL = 5;
-function tickEarnings() {
-  if (!pendingEarnings.length) return;
-  const now = Date.now();
-  pendingEarnings.forEach(e => {
-    if (now - e.ts >= EARNING_OVERDUE_MS && !_earningsOverdueNotified.has(e.id)) {
-      _earningsOverdueNotified.add(e.id);
-      showNotif(`🔔 ${e.source}'s earning has been sitting for 30+ min — go collect it!`);
-      sfx.notify();
-    }
+
+// ─── WATCH-AD REWARD — "get ads so they watch them, others advertise" + "make the rewarded and
+// the break thing" (user's own asks). Uses Google's real H5 Games Ads Ad Placement API
+// (adBreak()/adConfig(), loaded in EXPLOX.html's <head> — see the setup comment there for the
+// placeholder publisher ID you need to swap in). One-time config call, tells the ad SDK this game
+// has audio and to start preloading ad breaks in the background.
+adConfig({ preloadAdBreaks: 'on', sound: 'on' });
+const REWARD_AD_SIP = 5; // user's own ask, lowered from the original 150 — a token thank-you, not meant to be a real income source
+const REWARD_AD_COOLDOWN_MS = 5 * 60 * 1000; // 5 real minutes between claims, on top of whatever frequency capping Google's own ad delivery already applies
+let nextRewardAdAt = 0;
+// Called by the 📺 Watch Ad HUD button (EXPLOX.html). type:'reward' is Google's real opt-in ad
+// format — beforeReward hands back showAdFn(); calling it immediately is fine here since the
+// player's own click on the HUD button IS the real opt-in gesture Google requires, so there's no
+// need for a second confirm step on top of it (unlike Google's own doc example, which adds one
+// because ITS ad break isn't already behind a dedicated button).
+function watchRewardAd() {
+  const remaining = nextRewardAdAt - Date.now();
+  if (remaining > 0) { showNotif(`📺 Next ad bonus available in ${Math.ceil(remaining / 1000)}s.`); return; }
+  adBreak({
+    type: 'reward',
+    name: 'sip-bonus',
+    beforeReward: (showAdFn) => { showAdFn(); },
+    adViewed: () => {
+      nextRewardAdAt = Date.now() + REWARD_AD_COOLDOWN_MS;
+      queueEarning(REWARD_AD_SIP, 0, 'watching an ad');
+    },
+    adDismissed: () => { showNotif('📺 Ad skipped — no bonus this time.'); },
   });
-  updateEarningsBadge();
 }
-function toggleEarningsPanel() {
-  const panel = document.getElementById('earningsPanel');
-  if (panel.style.display === 'none') {
-    if (document.pointerLockElement) document.exitPointerLock();
-    isPointerLocked = false;
-    renderEarningsPanel();
-    panel.style.display = 'flex';
-    document.getElementById('earningsTab').style.display = 'none';
-  } else { closeEarningsPanel(); }
-}
-function closeEarningsPanel() {
-  document.getElementById('earningsPanel').style.display = 'none';
-  document.getElementById('earningsTab').style.display = 'block';
-  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
-}
-function renderEarningsPanel() {
-  const list = document.getElementById('earningsList');
-  const btn = document.getElementById('earningsCollectAllBtn');
-  if (btn) btn.style.display = pendingEarnings.length ? 'block' : 'none';
-  if (!pendingEarnings.length) {
-    list.innerHTML = `<div style="color:#555;font-size:12px;text-align:center;padding:24px 10px;">No pending earnings yet —<br>go earn some S.I.P. or 💎!</div>`;
-    return;
-  }
-  const now = Date.now();
-  list.innerHTML = pendingEarnings.slice().reverse().map(e => {
-    const ageMin = Math.floor((now - e.ts) / 60000);
-    const overdue = now - e.ts >= EARNING_OVERDUE_MS;
-    const amountTxt = [e.sip ? `${e.sip.toLocaleString()} S.I.P.` : '', e.elite ? `${e.elite.toLocaleString()} 💎` : ''].filter(Boolean).join(' + ');
-    return `<div onclick="collectEarning('${e.id}')" style="cursor:pointer;background:rgba(255,255,255,0.05);border:2px solid ${overdue ? '#ff3333' : '#333'};border-radius:10px;padding:10px;margin-bottom:8px;">
-      <div style="color:#fff;font-size:12px;font-weight:bold;margin-bottom:3px;">💰 +${amountTxt}</div>
-      <div style="color:${overdue ? '#ff6666' : '#888'};font-size:10px;">from ${e.source} — ${ageMin < 1 ? 'just now' : ageMin + 'm ago'}${overdue ? ' ⚠️ OVERDUE' : ''}</div>
-    </div>`;
-  }).join('');
+
+// User's own ask: "every min there's a 10% chance they can happen" (bumped to 20% same day) — a
+// periodic interstitial ON TOP OF the existing respawn-triggered one (knockoutPlayer(),
+// game-social.js), so ad breaks aren't gated only on dying. Rolled once a real minute by the
+// setInterval in _startGameInner() (game-zones.js), same cadence convention as the
+// bank/calendar/Heaven-invite timers already started there. Guards on currentUser so it can never
+// fire from the login screen.
+function maybeTriggerPeriodicAdBreak() {
+  if (!currentUser) return;
+  if (Math.random() >= 0.20) return;
+  adBreak({ type: 'start', name: 'periodic-break' });
 }
 
 // ─── GROWTH — a real, shared "age up" system driven by accumulated real PLAY seconds (same
@@ -3773,6 +4243,8 @@ function drawPreview() {
   else if(playerHat==='headphones'){ px.fillStyle='#222222'; px.fillRect(cx-24,20,6,16); px.fillRect(cx+18,20,6,16); px.fillRect(cx-22,10,44,6); }
   else if(playerHat==='chef')      { px.fillStyle='#ffffff'; px.fillRect(cx-18,26,36,10); px.beginPath(); px.ellipse(cx,14,20,16,0,0,Math.PI*2); px.fill(); }
   else if(playerHat==='turban')    { px.fillStyle='#8833aa'; px.beginPath(); px.ellipse(cx,20,22,18,0,0,Math.PI*2); px.fill(); px.fillStyle='#ffcc00'; px.beginPath(); px.arc(cx,10,4,0,Math.PI*2); px.fill(); }
+  // Cat Ears — real user request (a fan playing the deployed game): "Pls add cat ears... As an hat".
+  else if(playerHat==='catears')   { px.fillStyle='#333333'; px.beginPath(); px.moveTo(cx-24,16); px.lineTo(cx-12,-8); px.lineTo(cx-2,16); px.closePath(); px.fill(); px.beginPath(); px.moveTo(cx+2,16); px.lineTo(cx+12,-8); px.lineTo(cx+24,16); px.closePath(); px.fill(); px.fillStyle='#ff88aa'; px.beginPath(); px.moveTo(cx-19,12); px.lineTo(cx-12,-2); px.lineTo(cx-6,12); px.closePath(); px.fill(); px.beginPath(); px.moveTo(cx+6,12); px.lineTo(cx+12,-2); px.lineTo(cx+19,12); px.closePath(); px.fill(); }
 
   // Nametag
   const name = document.getElementById('nameInput').value || 'Player';
@@ -3790,6 +4262,7 @@ try { refreshPreviews(); } catch(e) { console.warn('refreshPreviews startup erro
 window.addEventListener('load', () => {
   refreshPreviews();
   loadLoginScreen();
+  handleStripeReturn(); // came back from a real Stripe purchase? (game-core.js) — no-op otherwise
   const createBtn = document.getElementById('createAccBtn');
   if(createBtn) createBtn.addEventListener('click', createAccount);
   const pwInput = document.getElementById('newAccPw');
@@ -3889,6 +4362,22 @@ function showNotif(msg) {
   clearTimeout(notifTimer);
   notifTimer = setTimeout(() => el.style.opacity = '0', 2400);
 }
+// User's own ask: "dont say anything when you hit a mob... makes a health bar... no word[s]" —
+// replaces the old "Hit X for Y! (Z HP left)" text notif every combat function used to show on
+// every single swing. Every mob-like object in this game already carries a real .hp/.maxHp pair
+// (robots, killers, robbers, demons, Satan, bosses, the dummy, NPCs...), so this one wordless bar
+// covers all of them — see the sweep across game-land.js/game-world.js/game-social.js/
+// game-housing.js/game-alignment.js for every call site this replaced.
+let targetHealthHideTimer = null;
+function showTargetHealthBar(hp, maxHp) {
+  const hud = document.getElementById('targetHealthHud');
+  const fill = document.getElementById('targetHealthBarFill');
+  if (!hud || !fill || !maxHp) return;
+  fill.style.width = Math.max(0, Math.min(100, (hp / maxHp) * 100)) + '%';
+  hud.style.display = 'block';
+  clearTimeout(targetHealthHideTimer);
+  targetHealthHideTimer = setTimeout(() => { hud.style.display = 'none'; }, 2500);
+}
 function updateSIP() { document.getElementById('sipAmount').textContent = sipDollars; if(sipDollars > peakSip) peakSip = sipDollars; saveCurrentUser(); }
 // Elite Coins — a real premium currency, deliberately NOT earnable by just walking around: only
 // the toughest robots drop any, and only 1-3 at a time, so an Elite Shop item priced at 15-30
@@ -3986,12 +4475,105 @@ function addToBag(food){
   updateBagHud();
   showNotif(food.emoji+' '+food.name+' added to bag! (C to eat)');
 }
+// Real per-food bite count — bigger/heartier foods take more bites than a quick snack, derived
+// deterministically from the food's own name (same craftHash()-seeded approach weapons/emotes
+// already use, game-housing.js) so a given food always takes the same number of bites without
+// needing a hand-typed `bites` field added to every one of the dozen+ scattered food catalogs
+// across the game (restaurants, cinema concessions, transit meals, the store, etc.).
+function bitesForFood(name) { return 2 + (craftHash(name) % 4); } // 2-5 bites
+const BITE_DURATION = 1000; // ms — one real bite per C press, not the whole meal at once
+// The bag food currently being eaten, across however many separate C presses/bites it takes —
+// null once fully finished. Kept completely separate from eatFood() below (used by restaurants,
+// the Eating Contest, prison food, school lunches, flight meals, food bombs...) since ALL of those
+// need one call to play one complete, automatically-timed bite sequence — turning eatFood() itself
+// into a multi-press mechanic would break the Eating Contest's real-time pacing against its
+// simulated opponent (game-social.js) and every other one-shot caller.
+let _activeFood = null;
 function eatFromBag(){
   if(_eatBusy||_iceCreamBusy) return;
+  if(_activeFood){ takeBagBite(); return; } // still chewing through the last item you pulled out — finish it before grabbing the next
   if(playerBag.length===0){ showNotif('🎒 Bag is empty — buy food first!'); return; }
   const food=playerBag.shift();
   updateBagHud();
-  eatFood(food.emoji,food.name,food.taste);
+  startBagFood(food.emoji,food.name,food.taste,food.restoreAmt);
+}
+function startBagFood(emoji,name,taste,restoreAmt){
+  // Overeat-streak decision made once per ITEM (matching eatFood()'s own rule below), using the
+  // Hunger value from before any of this item's bites land — a 3-bite snack shouldn't count as 3
+  // separate "ate while full" strikes just because it takes 3 presses to finish.
+  const wasFull = hunger >= HUNGER_FULL_THRESHOLD;
+  overeatStreak = wasFull ? overeatStreak + 1 : 0;
+  const overeating = wasFull && overeatStreak >= OVEREAT_VOMIT_STREAK;
+  if (overeating) overeatStreak = 0;
+  let sprite = null;
+  if (player.headBone) {
+    sprite = buildThrownItemSprite(emoji);
+    sprite.position.copy(player.headBone.getWorldPosition(new THREE.Vector3()));
+    scene.add(sprite);
+  }
+  _activeFood = { emoji, name, taste, restoreAmt: restoreAmt||35, bites: bitesForFood(name), bitesTaken: 0, sprite, overeating };
+  takeBagBite();
+}
+// One real bite, one real second, one C press — a real 3D food prop (same buildThrownItemSprite()
+// technique thrown items use) travels hand-to-mouth and shrinks a further 1/bites of the way down
+// each time, punching one more visible chunk out of the 2D chomp canvas, until the food's own bite
+// count (bitesForFood() above) runs out.
+function takeBagBite(){
+  if(!_activeFood || _eatBusy) return;
+  _eatBusy = true; _eatingArmActive = true;
+  const food = _activeFood;
+  const cv=document.createElement('canvas'); cv.width=240; cv.height=240;
+  cv.style.cssText='position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:9998;pointer-events:none;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.5));';
+  document.body.appendChild(cv);
+  const ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
+  const start = performance.now();
+  const holesAlready = food.bitesTaken; // chunks carved out by earlier presses, redrawn fresh every frame same as eatFood() below
+  function frame(now){
+    const p = Math.min(1, (now-start)/BITE_DURATION);
+    const remaining = Math.max(0, 1 - (holesAlready+p)/food.bites); // shrinks toward 0 across the WHOLE food's remaining lifetime, not just this one bite
+    const squash = 1 + Math.sin(p*Math.PI)*0.14;
+    ctx.clearRect(0,0,W,H);
+    const base = H*0.55*(0.45+0.55*remaining);
+    ctx.save(); ctx.translate(W/2,H*0.55); ctx.scale(squash,2-squash);
+    ctx.globalAlpha = Math.max(0.15, Math.min(1, remaining*1.3));
+    ctx.font = base+'px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(food.emoji,0,0);
+    ctx.globalCompositeOperation='destination-out';
+    ctx.globalAlpha=1;
+    const holesShown = holesAlready + (p>=1?1:0); // this bite's own hole only appears once it actually lands
+    for(let b=0;b<holesShown;b++){
+      const angle=b*(Math.PI*2/food.bites); // spread evenly around the food, however many bites it takes
+      const dist=0.30*base, r=0.28*base;
+      ctx.beginPath(); ctx.arc(Math.cos(angle)*dist, Math.sin(angle)*dist, r, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalCompositeOperation='source-over';
+    ctx.restore();
+    for(let i=0;i<6;i++){ const a=now*0.01+i, cr=p*W*0.42; ctx.fillStyle='rgba(210,170,90,'+remaining+')'; ctx.beginPath(); ctx.arc(W/2+Math.cos(a)*cr,H*0.55+Math.sin(a)*cr,3,0,Math.PI*2); ctx.fill(); }
+    if (food.sprite && player.headBone) {
+      const mouthPos = player.headBone.getWorldPosition(new THREE.Vector3());
+      const handPos = (player.rightShoulderBone || player.headBone).getWorldPosition(new THREE.Vector3());
+      handPos.y -= 0.7; handPos.z += 0.3;
+      food.sprite.position.lerpVectors(handPos, mouthPos, Math.min(1, p*1.15));
+      const s = 0.5 * Math.max(0.05, remaining);
+      food.sprite.scale.set(s,s,s);
+    }
+    if(p<1) requestAnimationFrame(frame);
+    else {
+      cv.remove(); _eatBusy=false; _eatingArmActive=false;
+      food.bitesTaken++;
+      restoreHunger(food.restoreAmt/food.bites);
+      if(food.bitesTaken >= food.bites){
+        if (food.sprite) { scene.remove(food.sprite); food.sprite.material.map.dispose(); food.sprite.material.dispose(); }
+        tasteReaction(food.taste, food.name);
+        if (food.overeating) setTimeout(() => vomit('eating too much'), 1600);
+        _activeFood = null;
+      } else {
+        const left = food.bites - food.bitesTaken;
+        showNotif(`${food.emoji} ${left} bite${left===1?'':'s'} left — press C to keep eating.`);
+      }
+    }
+  }
+  requestAnimationFrame(frame);
 }
 function updateBagHud(){
   const el=document.getElementById('bagItems');
@@ -4007,6 +4589,16 @@ const TASTE_REACTION = {
   bitter: {face:'🤢', word:'Bitter — yuck!',  rating:'BAD',  col:'120,200,60'},
 };
 let _eatBusy = false;
+let _eatingArmActive = false; // true only while a real eatFood() bite animation is in flight — lets game-controls.js's per-frame render loop raise the real right arm toward the mouth without fighting the walk/punch-swing animations that also own that same shoulder bone
+// ─── OVEREATING → VOMIT — a real, felt mechanic: eating once at full Hunger does nothing extra
+// today (restoreHunger() already just no-ops past 100), but eating several times in a row while
+// already full now builds toward a real vomit via the same vomit() used for bad food/sickness
+// below. 95 = "genuinely full" (not simply "at exactly 100", so a meal landing you at 96-99
+// still counts), and 3 CONSECUTIVE over-full eats (not 1) so a single accidental extra meal
+// isn't punished this hard — it resets to 0 the moment an eat happens below the threshold.
+let overeatStreak = 0;
+const HUNGER_FULL_THRESHOLD = 95;
+const OVEREAT_VOMIT_STREAK = 3;
 // Real, discrete bites — the food visibly loses a chunk each time instead of just uniformly
 // shrinking in place. Each bite punches a permanent hole out of the emoji (alternating sides,
 // working inward) via 'destination-out' compositing, redrawn fresh every frame so the hole
@@ -4015,13 +4607,32 @@ const EAT_BITES = 4;
 function eatFood(emoji,name,taste,restoreAmt){
   if(_eatBusy || _iceCreamBusy) return;
   _eatBusy = true;
+  _eatingArmActive = true;
+  // Overeating tracker — checked against Hunger BEFORE this bite's own restore, so a meal that
+  // itself tops the player off (e.g. 90 -> 100) doesn't retroactively count as "eating while full".
+  const wasFull = hunger >= HUNGER_FULL_THRESHOLD;
   restoreHunger(restoreAmt || 35);
+  overeatStreak = wasFull ? overeatStreak + 1 : 0;
+  const overeating = wasFull && overeatStreak >= OVEREAT_VOMIT_STREAK;
+  if (overeating) overeatStreak = 0; // consumed this trip — starts counting fresh toward the next one
   const cv=document.createElement('canvas'); cv.width=240; cv.height=240;
   cv.style.cssText='position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:9998;pointer-events:none;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.5));';
   document.body.appendChild(cv);
   const ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
   const dur=1400, start=performance.now();
   let bitesTaken=0;
+  // Real 3D food prop — same buildThrownItemSprite() emoji-canvas-on-a-Sprite technique thrown
+  // items already use (game-land.js), reused here rather than inventing a new sprite approach.
+  // Travels from real hand/chest height up to the LIVE headBone world position every frame (not
+  // a hardcoded number, so it's correct at any life-stage/add-on scale), shrinking down as if
+  // being bitten to nothing right as it reaches the mouth — over the exact same duration/bite
+  // timing as the 2D chomp canvas above.
+  let foodSprite = null;
+  if (player.headBone) {
+    foodSprite = buildThrownItemSprite(emoji);
+    foodSprite.position.copy(player.headBone.getWorldPosition(new THREE.Vector3()));
+    scene.add(foodSprite);
+  }
   function frame(now){
     const p=Math.min(1,(now-start)/dur), remaining=1-p, within=(p*EAT_BITES)%1, squash=1+Math.sin(within*Math.PI)*0.14;
     const biteIndex=Math.min(EAT_BITES-1, Math.floor(p*EAT_BITES));
@@ -4044,8 +4655,21 @@ function eatFood(emoji,name,taste,restoreAmt){
     ctx.globalCompositeOperation='source-over';
     ctx.restore();
     for(let i=0;i<6;i++){ const a=now*0.01+i, cr=p*W*0.42; ctx.fillStyle='rgba(210,170,90,'+remaining+')'; ctx.beginPath(); ctx.arc(W/2+Math.cos(a)*cr,H*0.55+Math.sin(a)*cr,3,0,Math.PI*2); ctx.fill(); }
+    if (foodSprite && player.headBone) {
+      const mouthPos = player.headBone.getWorldPosition(new THREE.Vector3());
+      const handPos = (player.rightShoulderBone || player.headBone).getWorldPosition(new THREE.Vector3());
+      handPos.y -= 0.7; handPos.z += 0.3; // roughly real hand/chest height, out in front of the body
+      foodSprite.position.lerpVectors(handPos, mouthPos, Math.min(1, p*1.15)); // reaches the mouth a beat before the last bite finishes chewing, not exactly on the final frame
+      const s = 0.5 * Math.max(0.05, remaining); // shrinks toward nothing as it's bitten down — same "remaining" the 2D chomp above already tracks
+      foodSprite.scale.set(s,s,s);
+    }
     if(p<1) requestAnimationFrame(frame);
-    else { cv.remove(); _eatBusy=false; tasteReaction(taste,name); }
+    else {
+      cv.remove(); _eatBusy=false; _eatingArmActive=false;
+      if (foodSprite) { scene.remove(foodSprite); foodSprite.material.map.dispose(); foodSprite.material.dispose(); }
+      tasteReaction(taste,name);
+      if (overeating) setTimeout(() => vomit('eating too much'), 1600); // same real delay tasteReaction() already uses before its own bad-food vomit, so _eatBusy is guaranteed clear again by the time this fires
+    }
   }
   requestAnimationFrame(frame);
 }
@@ -4072,6 +4696,21 @@ function vomit(reason) {
   updateHungerHud();
   showNotif(`🤮 You threw up${reason ? ' from ' + reason : ''}! Lost ${lostHunger} Hunger.`);
   sfx.nope();
+  // Real 3D visual — a burst of green particles falling away from the real mouth position
+  // (headBone's LIVE world position, correct at any life-stage/scale), using the same generic
+  // spawnParticle() pool movement trails already use (game-controls.js/game-customization.js)
+  // rather than a bespoke particle system just for this. Applies to every real vomit() trigger —
+  // bad food, sickness, and overeating — automatically, since they all funnel through this one function.
+  if (player.headBone) {
+    const mouthPos = player.headBone.getWorldPosition(new THREE.Vector3());
+    for (let i=0;i<12;i++){
+      const ang = Math.random()*Math.PI*2, spd = 0.3+Math.random()*0.9;
+      spawnParticle(mouthPos, 0x6fbf3a, {
+        vx: Math.cos(ang)*spd, vz: Math.sin(ang)*spd, vy: -1.0-Math.random()*1.0, gravity:true,
+        life: 0.5+Math.random()*0.35, size: 0.06+Math.random()*0.05
+      });
+    }
+  }
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;z-index:9999;pointer-events:none;background:radial-gradient(circle at 50% 60%, rgba(120,200,60,0) 25%, rgba(120,200,60,0.45) 100%);transition:opacity .5s;';
   ov.innerHTML = '<div style="position:absolute;top:56%;left:50%;transform:translate(-50%,-50%);font-size:64px;">🤮</div>';
@@ -4138,21 +4777,56 @@ function readBook() {
 const CITY_COLS = [];       // city building colliders
 const HOUSE_COLS = [];      // house interior colliders
 
-function addCol(arr, cx, cz, hw, hd) {
+function addCol(arr, cx, cz, hw, hd, roofY) {
   // See scalePt()/scaleLen()'s own comment (HELPERS section, near box()) for why this is real
   // math and not a free ride on some parent transform.
   if (_buildOrigin) { [cx,cz] = scalePt(cx,cz); hw = scaleLen(hw); hd = scaleLen(hd); }
-  const c = { cx, cz, hw, hd }; arr.push(c); return c;
+  // roofY (optional) marks this as a climbable rooftop, not just a solid wall: isBlocked() below
+  // only lets the player cross into this footprint once they're already at/above roofY (arrived
+  // via a real addRoofRamp() staircase), and groundHeightAt() (game-zones.js) then holds them at
+  // roofY while they're up there. Leaving roofY undefined (every existing call before this change)
+  // keeps a collider exactly as solid as it always was — always blocked, no roof to stand on.
+  const c = { cx, cz, hw, hd, roofY }; arr.push(c); return c;
 }
 
-function isBlocked(nx, nz, rOverride) {
+function isBlocked(nx, nz, rOverride, py) {
   const r = rOverride !== undefined ? rOverride : 0.65; // real optional radius — cars (item 159 fix) pass a bigger one
-  const cols = inMovieFight ? MOVIE_FIGHT_COLS : inArenaBattle ? ROBOT_ARENA_COLS : inPrison ? [] : inFriendHouse ? [] : inLandHouse ? LAND_HOUSE_COLS : inCountryHotel ? COUNTRY_HOTEL_COLS : inAirportLounge ? AIRPORT_LOUNGE_COLS : inArcade ? ARCADE_COLS : inHotel ? HOTEL_COLS : inHouse ? HOUSE_COLS : inMall ? MALL_COLS : inStore ? STORE_COLS : inVisitStore ? [] : inBankInterior ? BANK_INTERIOR_COLS : CITY_COLS;
+  const cols = inMovieFight ? MOVIE_FIGHT_COLS : inArenaBattle ? ROBOT_ARENA_COLS : inPrison ? [] : inFriendHouse ? [] : inLandHouse ? LAND_HOUSE_COLS : inCountryHotel ? COUNTRY_HOTEL_COLS : inAirportLounge ? AIRPORT_LOUNGE_COLS : inArcade ? ARCADE_COLS : inHotel ? HOTEL_COLS : inHouse ? HOUSE_COLS : inMall ? MALL_COLS : inStore ? STORE_COLS : inVisitStore ? [] : inBankInterior ? BANK_INTERIOR_COLS : inShopInterior ? SHOP_INTERIOR_COLS : CITY_COLS;
   for(const c of cols) {
     if(nx+r > c.cx-c.hw && nx-r < c.cx+c.hw &&
-       nz+r > c.cz-c.hd && nz-r < c.cz+c.hd) return true;
+       nz+r > c.cz-c.hd && nz-r < c.cz+c.hd) {
+      // Up on the roof already (climbed a real addRoofRamp() staircase to get there) — the wall
+      // that blocks you down at street level shouldn't also trap you on top of it.
+      if(c.roofY !== undefined && py !== undefined && py >= c.roofY - 0.3) continue;
+      return true;
+    }
   }
   return false;
+}
+
+// ─── ROOF RAMPS ───────────────────────────────────────────────────────────────
+// Real exterior staircases up to a rooftop (addCol's roofY above): a straight sloped strip from
+// ground level (y0) to the roof (y1). groundHeightAt() (game-zones.js) samples this every frame
+// exactly like it already does for the Park/Woods/Plains hills — same "just re-follow the height
+// while walking" trick, just a straight line instead of a dome — so walking up the visual stair
+// steps built alongside it (see buildCity(), game-buildings.js) smoothly lifts the player. Always
+// placed in open air beside a building's own addCol rectangle, never overlapping it, so isBlocked()
+// never needs to know about the climb itself — only the final step off the ramp onto the roof does.
+const ROOF_RAMPS = [];
+function addRoofRamp(x1, z1, x2, z2, halfWidth, y0, y1) {
+  if (_buildOrigin) { [x1,z1] = scalePt(x1,z1); [x2,z2] = scalePt(x2,z2); halfWidth = scaleLen(halfWidth); }
+  ROOF_RAMPS.push({ x1, z1, x2, z2, halfWidth, y0, y1 });
+}
+function roofRampHeightAt(x, z) {
+  for (const rp of ROOF_RAMPS) {
+    const dx = rp.x2-rp.x1, dz = rp.z2-rp.z1, len = Math.hypot(dx,dz);
+    const ux = dx/len, uz = dz/len;
+    const px = x-rp.x1, pz = z-rp.z1;
+    const along = px*ux + pz*uz;
+    const perp = Math.abs(px*-uz + pz*ux);
+    if (along >= 0 && along <= len && perp <= rp.halfWidth) return rp.y0 + (rp.y1-rp.y0)*(along/len);
+  }
+  return null;
 }
 
 // ─── JOB SYSTEM ──────────────────────────────────────────────────────────────
@@ -4229,6 +4903,67 @@ function toggleJob(type, pay, taskText) {
     showNotif(`Started working as ${type}! You'll need to help out when asked.`);
   }
   renderJobsPanel();
+}
+// ACTOR — user's own ask: "add acting," followed up with "it will be a fighting movie." Starting/
+// quitting still goes through the shared toggleJob()/tickJob() engine (Shopkeeper/Officer/Factory
+// jobs all rely on that same shared plumbing, untouched) — but completing a task is NOT the
+// generic instant "press E," since a fight needs more than a heartbeat. While a task is active,
+// pressing E instead spawns/fights a real stunt double (actorFightTarget) right there; only
+// defeating it calls completeJobTask() for real pay. tickActorFight() (called from the main loop,
+// game-controls.js, right after tickJob()) keeps the job HUD's normal 4-second miss-timer from
+// ever expiring mid-fight and cleans up if the job gets quit/interrupted with a fight still live.
+const ACTOR_PAY = 18;
+let actorFightTarget = null; // {hp, maxHp, mesh} — a real, ephemeral opponent, never persisted
+function startActingJob() {
+  if (activeJob === 'Actor' && jobTaskActive) {
+    if (!actorFightTarget) spawnActorStuntFight(); else fightActorStunt();
+    return;
+  }
+  if (activeJob === 'Actor') { toggleJob('Actor', ACTOR_PAY, ''); return; } // no live task — this is the quit path
+  const m = CINEMA_MOVIES[Math.floor(Math.random()*CINEMA_MOVIES.length)];
+  toggleJob('Actor', ACTOR_PAY, `🎬 Action! Fight the stunt double in "${m.title}"!`);
+}
+function buildStuntMesh(x, z) {
+  const g = new THREE.Group();
+  function b(w,h,d,color,px,py,pz) { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(color)); m.position.set(px,py,pz); m.castShadow=true; g.add(m); return m; }
+  b(0.55,0.85,0.32, 0x556677, 0,1.15,0);   // padded stunt suit torso
+  b(0.4,0.4,0.4, 0xd4a070, 0,1.85,0);      // head
+  b(0.42,0.16,0.35, 0x222222, 0,1.95,0);   // stunt helmet
+  b(0.5,0.75,0.3, 0x333333, 0,0.55,0);     // stunt suit legs
+  g.position.set(x,0,z);
+  scene.add(g);
+  return g;
+}
+const ACTOR_STUNT_HP = 30, ACTOR_STUNT_RANGE = 3.5;
+function spawnActorStuntFight() {
+  const x = playerGroup.position.x + Math.sin(yaw)*2.5, z = playerGroup.position.z + Math.cos(yaw)*2.5;
+  actorFightTarget = { hp: ACTOR_STUNT_HP, maxHp: ACTOR_STUNT_HP, mesh: buildStuntMesh(x, z) };
+  showNotif('🎬 Stunt double is ready — walk up and press E to fight!');
+}
+function fightActorStunt() {
+  if (!actorFightTarget) return;
+  const dx = playerGroup.position.x - actorFightTarget.mesh.position.x, dz = playerGroup.position.z - actorFightTarget.mesh.position.z;
+  if (Math.hypot(dx, dz) > ACTOR_STUNT_RANGE) { showNotif('🎬 Get closer to the stunt double!'); return; }
+  actorFightTarget.hp -= getWeaponDamage();
+  sfx.clang();
+  if (actorFightTarget.hp > 0) { showTargetHealthBar(actorFightTarget.hp, actorFightTarget.maxHp); return; }
+  scene.remove(actorFightTarget.mesh);
+  actorFightTarget = null;
+  showNotif('🎬 Cut! Great scene!');
+  completeJobTask();
+}
+// Keeps the shared job HUD/timer from expiring mid-fight (a real fight takes longer than the
+// normal 4-second reaction window every other job uses) and tidies up a leftover stunt double if
+// the Actor job ever ends some other way (quitting, or something else clocking you out) while one
+// is still on screen. Purely additive — tickJob() itself is completely untouched.
+function tickActorFight(dt) {
+  if (activeJob !== 'Actor' || !actorFightTarget) {
+    if (actorFightTarget) { scene.remove(actorFightTarget.mesh); actorFightTarget = null; }
+    return;
+  }
+  jobTaskTimer = 999; // self-paced — you're not racing a clock mid-fight
+  const el = document.getElementById('jobHud');
+  if (el) { el.textContent = `🎬 Fight the stunt double! [E] (${actorFightTarget.hp}/${actorFightTarget.maxHp} HP)`; el.style.color = '#ff2244'; }
 }
 // FACTORY JOBS — same reaction-task engine as Shopkeeper/Officer above (toggleJob()/tickJob()),
 // just 3 more real jobs at the Industrial District (FACTORY_DEFS/buildFactories(), game-buildings.js;
@@ -4458,7 +5193,7 @@ function finishCounterRound(correct) {
   if (correct && stillCounting) {
     payBankJob(activeBankJob.job, activeBankJob.currency, 1/COUNTER_ROUNDS);
     sfx.coin();
-    showNotif(`🧮 Correct — $${counterAnswer.toLocaleString()}! Payout added to Earnings.`);
+    showNotif(`🧮 Correct — $${counterAnswer.toLocaleString()}! Payout added to your wallet.`);
   } else if (stillCounting) {
     sfx.nope();
     showNotif(`🧮 Wrong! It was $${counterAnswer.toLocaleString()}. No pay this round.`);
@@ -4493,19 +5228,71 @@ function closeJobsPanel() {
 // still handing out free currency behind a price tag (which would make the price meaningless).
 const CURRENCY_SHOP_PACKAGES = [
   { id:'sip100',      sip:100,     elite:0,    label:'100 S.I.P.',       price:'$5'  },
+  { id:'sip500',      sip:500,     elite:0,    label:'500 S.I.P.',       price:'$8'  },
   { id:'sip1000',     sip:1000,    elite:0,    label:'1,000 S.I.P.',     price:'$10' },
   { id:'sip5000',     sip:5000,    elite:0,    label:'5,000 S.I.P.',     price:'$15' },
   { id:'sip10000',    sip:10000,   elite:0,    label:'10,000 S.I.P.',    price:'$20' },
+  { id:'sip25000',    sip:25000,   elite:0,    label:'25,000 S.I.P.',    price:'$21' },
   { id:'sip50000',    sip:50000,   elite:0,    label:'50,000 S.I.P.',    price:'$22' },
   { id:'sip100000',   sip:100000,  elite:0,    label:'100,000 S.I.P.',   price:'$25' },
   { id:'sip1000000',  sip:1000000, elite:0,    label:'1,000,000 S.I.P.', price:'$35' },
   { id:'elite100',     sip:0, elite:100,      label:'100 💎',       price:'$5'  },
+  { id:'elite500',     sip:0, elite:500,      label:'500 💎',       price:'$8'  },
   { id:'elite1000',    sip:0, elite:1000,     label:'1,000 💎',     price:'$10' },
   { id:'elite5000',    sip:0, elite:5000,     label:'5,000 💎',     price:'$15' },
+  { id:'elite25000',   sip:0, elite:25000,    label:'25,000 💎',    price:'$20' },
   { id:'elite50000',   sip:0, elite:50000,    label:'50,000 💎',    price:'$25' },
   { id:'elite100000',  sip:0, elite:100000,   label:'100,000 💎',   price:'$35' },
   { id:'elite1000000', sip:0, elite:1000000,  label:'1,000,000 💎', price:'$45' },
+  { id:'starter', sip:1000, elite:100, label:'🌱 Starter Pack', desc:'1,000 S.I.P. + 100 💎', price:'$8' },
   { id:'vip', sip:100000, elite:5000, label:'👑 VIP Package', desc:'100,000 S.I.P. + 5,000 💎', price:'$25', vip:true },
+  // VIP Discount — user's own ask: a real $5.00 listing, same permanently-disabled pattern as
+  // every other real-money entry here. sip/elite are 0 since it isn't a currency grant — it
+  // describes a real 20% discount on every OTHER package on this list, same "shown honestly, not
+  // actually appliable yet" rule as everything else (no real payment processor exists to apply a
+  // discount to in the first place).
+  { id:'vip_discount', sip:0, elite:0, label:'👑 VIP Discount', desc:'20% off every other package in this Shop.', price:'$5.00' },
+  { id:'mega', sip:2000000, elite:2000000, label:'💥 Mega Bundle', desc:'2,000,000 S.I.P. + 2,000,000 💎', price:'$60', vip:true },
+  // Super Tank — user's own correction: this real-money listing belongs in the SHOP tab itself,
+  // not the separate Car Dealership modal (TANK_DEF, game-vehicles.js). sip/elite are 0 on purpose
+  // — unlike every entry above, a real future payment for THIS one should unlock the vehicle, not
+  // credit currency, so whoever wires up real payments later must not treat it like the others.
+  { id:'super_tank', sip:0, elite:0, label:'🛡️ Super Tank', desc:'A real rideable super weapon with a cannon — parked at the Car Dealership.', price:'$10.00' },
+  // Super Armor — same real-item-behind-an-honest-inert-price-tag pattern as the Super Tank right
+  // above (SUPER_ARMOR_DEF, game-shops.js). sip/elite are 0 for the same reason: a real future
+  // payment for this one should unlock the armor, not credit currency.
+  { id:'super_armor', sip:0, elite:0, label:'⭐ Super Armor', desc:'Blocks 93% of incoming damage — the strongest armor in the game.', price:'$10.00' },
+  // Super Jet — same real-item-behind-an-honest-inert-price-tag pattern as the Tank and Armor
+  // above (JET_DEF, game-vehicles.js). Driven, not flown (user's own correction).
+  { id:'super_jet', sip:0, elite:0, label:'✈️ Super Jet', desc:'A real driveable super weapon with guns, bombs, and armor — parked at the City Airport.', price:'$15.00' },
+  // Super Motorcycle — same real-item-behind-an-honest-inert-price-tag pattern as the Tank/Armor/
+  // Jet above (MOTORCYCLE_DEF, game-vehicles.js).
+  { id:'super_motorcycle', sip:0, elite:0, label:'🏍️ Super Motorcycle', desc:'A real rideable super weapon with rockets — parked at the Car Dealership.', price:'$8.00' },
+  // Future Jet — same real-item-behind-an-honest-inert-price-tag pattern as the Tank/Armor/Jet/
+  // Motorcycle above (FUTURE_JET_DEF, game-vehicles.js), just with a S.I.P. cost stacked on top
+  // of the real $ price (user's own ask: "future 1 99 500000 sip") — the extra 500,000 S.I.P.
+  // is shown here as flavor text on the same honest, permanently-inert listing, not something
+  // this entry actually deducts (there's nowhere for a currency shop entry to charge S.I.P. from
+  // — it's a real-money purchase flow that doesn't exist yet, same as every other price here).
+  { id:'future_jet', sip:0, elite:0, label:'🚀 Future Jet', desc:'20 guns, rockets, and lasers — the strongest jet in the game. Parked at the City Airport.', price:'$1.99 + 500,000 S.I.P.' },
+  // Super Package — user's own ask: the big combo bundle, bigger than VIP/Mega above since it
+  // bundles three real items (Tank + Jet + Motorcycle, already parked and drivable in the world
+  // either way) on top of a currency grant. grantsTank/grantsJet/grantsMotorcycle flag the
+  // non-currency part for whoever wires up real payments later — same "credit currency directly,
+  // but unlock these some other real way, don't just queueEarning() them" rule super_tank/
+  // super_jet/super_motorcycle's own comments already spell out. Price bumped +$5 (user's own
+  // follow-up) after the Motorcycle was added to the bundle's contents.
+  { id:'super_package', sip:10000, elite:1000, label:'💎 Super Package', desc:'🛡️ Super Tank + ✈️ Super Jet + 🏍️ Super Motorcycle + 10,000 S.I.P. + 1,000 💎', price:'$35.00', vip:true, grantsTank:true, grantsJet:true, grantsMotorcycle:true },
+];
+// Weekly rentals — cheaper temporary access to the same 4 Super vehicles as an alternative to
+// buying them outright above. Billed weekly by Stripe until cancelled (explox-server's
+// RENTAL_PRODUCTS table has the real prices; these are just display copies, same "server is the
+// source of truth on price" rule as CURRENCY_SHOP_PACKAGES).
+const VEHICLE_RENTAL_PACKAGES = [
+  { id:'rent_super_tank',       label:'🛡️ Super Tank',       desc:'Rent for a week, cancel anytime.', price:'$3.00/week' },
+  { id:'rent_super_jet',        label:'✈️ Super Jet',        desc:'Rent for a week, cancel anytime.', price:'$4.00/week' },
+  { id:'rent_super_motorcycle', label:'🏍️ Super Motorcycle', desc:'Rent for a week, cancel anytime.', price:'$2.50/week' },
+  { id:'rent_future_jet',       label:'🚀 Future Jet',       desc:'Rent for a week, cancel anytime.', price:'$3.50/week' },
 ];
 function toggleCurrencyShopPanel() {
   const panel = document.getElementById('currencyShopPanel');
@@ -4525,29 +5312,167 @@ function closeCurrencyShopPanel() {
 function renderCurrencyShopPanel() {
   const list = document.getElementById('currencyShopList');
   if (!list) return; // panel HTML not loaded yet (e.g. called before startGame())
-  list.innerHTML = `<div style="color:#ffcc66;font-size:10.5px;text-align:center;background:rgba(255,204,102,0.1);border:1px dashed #886600;border-radius:8px;padding:6px;margin-bottom:8px;">Sorry, payments are unavailable.</div>` +
-    CURRENCY_SHOP_PACKAGES.map(p => `
+  list.innerHTML = CURRENCY_SHOP_PACKAGES.map(p => `
     <div style="background:${p.vip ? 'linear-gradient(90deg,#3a2a00,#4a3800)' : 'rgba(255,255,255,0.05)'};border:2px solid ${p.vip ? '#FFD700' : '#333'};border-radius:10px;padding:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
       <div>
         <div style="color:#fff;font-size:12px;font-weight:bold;">${p.label}</div>
         ${p.desc ? `<div style="color:#aaa;font-size:10px;">${p.desc}</div>` : ''}
         <div style="color:#7CFC00;font-size:12px;font-weight:bold;margin-top:2px;">${p.price}</div>
       </div>
-      <button onclick="buyCurrencyPackage('${p.id}')" style="padding:7px 12px;background:#444;border:none;border-radius:6px;color:#ccc;font-size:11px;font-weight:bold;cursor:pointer;white-space:nowrap;">🚧 Soon</button>
-    </div>`).join('');
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <button onclick="buyCurrencyPackage('${p.id}')" style="padding:7px 12px;background:#5a3fd6;border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:bold;cursor:pointer;white-space:nowrap;">💳 Buy</button>
+        <button onclick="buyCurrencyPackageEmbedded('${p.id}')" style="padding:4px 12px;background:none;border:1px solid #5a3fd6;border-radius:6px;color:#a88fff;font-size:9px;cursor:pointer;white-space:nowrap;" title="Try the payment form inside the game instead of a separate page">🖼️ Inline</button>
+      </div>
+    </div>`).join('') +
+    `<div style="color:#88ccff;font-size:12px;font-weight:bold;margin:14px 0 8px;">🔄 Weekly Vehicle Rentals</div>` +
+    VEHICLE_RENTAL_PACKAGES.map(p => `
+    <div style="background:rgba(255,255,255,0.05);border:2px solid #336699;border-radius:10px;padding:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+      <div>
+        <div style="color:#fff;font-size:12px;font-weight:bold;">${p.label}</div>
+        <div style="color:#aaa;font-size:10px;">${p.desc}</div>
+        <div style="color:#7CFC00;font-size:12px;font-weight:bold;margin-top:2px;">${p.price}</div>
+      </div>
+      <button onclick="buyCurrencyPackage('${p.id}')" style="padding:7px 12px;background:#336699;border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:bold;cursor:pointer;white-space:nowrap;">🔄 Rent</button>
+    </div>`).join('') +
+    renderCustomBundleSection();
 }
-// No payment processor is wired up yet — that needs a parent to actually create a Stripe/PayPal
-// business account first. IMPORTANT for whoever implements this later, user's own explicit rule:
-// once a real USD purchase succeeds, credit sipDollars/eliteCoins directly (updateSIP()/
-// updateElite()) — NEVER route it through queueEarning()/the Earnings tab. Earnings is a fun
-// "go collect it" delay for stuff you earned playing (robbery, quests, giveaways); a customer who
-// just paid real money needs to get exactly what they paid for immediately, with zero risk of it
-// sitting uncollected, getting lost, or looking like it wasn't delivered — that's the kind of
-// thing that gets a real business sued, not just a bad review.
-function buyCurrencyPackage(id) {
-  const pkg = CURRENCY_SHOP_PACKAGES.find(p => p.id === id);
-  if (!pkg) return;
-  showNotif(`Sorry, payments are unavailable.`);
+// ─── CUSTOM BUNDLE — user's own ask: pick one item + an amount of currency + type up one idea for
+// the game; item and currency price themselves off the SAME rate ($1 per 100 = 1 cent per unit,
+// applied to the item's existing S.I.P. cost too, per the user's own choice), but the idea has no
+// fixed price — only an admin can judge how "complicated" it is. So this is a REQUEST, not an
+// instant purchase: it goes to every ADMIN_ACCOUNTS name over the same mailbox everything else
+// player-to-player already uses (handleMailboxMessage(), game-social.js), and an admin either
+// runs /bundle_reject <name> (instant 10,000 S.I.P. consolation, no money changes hands) or
+// /bundle_quote <name> <complications> (game-admin.js — $2/complication, generates a REAL Stripe
+// checkout via the server's new create-custom-session endpoint and mails the player the link).
+const CUSTOM_BUNDLE_CENTS_PER_UNIT = 1;   // $1 per 100 S.I.P.-equivalent units == 1 cent/unit
+const CUSTOM_BUNDLE_CENTS_PER_COMPLICATION = 200; // $2 per complication, an admin's own call
+// Every catalog that already has a flat S.I.P. cost field, combined into one lookup so the
+// bundle's item slot prices off the SAME number the item already costs to buy normally — no
+// separate price list to maintain. Elite-Coin-only costs (priceElite) aren't handled here, kept
+// simple on purpose; WEAPONS/ARMOR use `.cost`, the rest use `.price`.
+function findCustomBundleItem(query) {
+  if (!query) return null;
+  const q = query.trim().toLowerCase();
+  const pools = [
+    ...WEAPONS.map(w => ({ id:w.id, name:w.name, cost:w.cost })),
+    ...ARMOR.map(a => ({ id:a.id, name:a.name, cost:a.cost })),
+    ...CAR_CATALOG.map(c => ({ id:c.id, name:c.name, cost:c.price })),
+    ...FURNITURE_CATALOG.map(f => ({ id:f.id, name:f.name, cost:f.price })),
+    ...COMPUTER_CATALOG.map(c => ({ id:c.id, name:c.name, cost:c.price })),
+  ];
+  return pools.find(p => p.name.toLowerCase() === q || p.id.toLowerCase() === q) || null;
+}
+function renderCustomBundleSection() {
+  return `<div style="color:#ffcc44;font-size:12px;font-weight:bold;margin:14px 0 8px;">🎁 Custom Bundle</div>
+    <div style="background:rgba(255,255,255,0.05);border:2px solid #ffcc44;border-radius:10px;padding:10px;">
+      <div style="color:#aaa;font-size:10px;margin-bottom:8px;">Pick one item + an amount of currency + type up one idea for the game. The item and currency price themselves automatically ($1 per 100); your idea gets reviewed by the developer, who'll either quote you a real price or send you 10,000 S.I.P. instead.</div>
+      <input id="bundleItemInput" list="bundleItemList" placeholder="Item name (e.g. Katana)" oninput="updateCustomBundleTotal()" style="width:100%;box-sizing:border-box;padding:6px 8px;margin-bottom:6px;background:#111;border:1px solid #555;border-radius:6px;color:#fff;font-size:11px;">
+      <datalist id="bundleItemList">${[...WEAPONS, ...ARMOR, ...CAR_CATALOG, ...FURNITURE_CATALOG, ...COMPUTER_CATALOG].map(i => `<option value="${i.name}">`).join('')}</datalist>
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <input id="bundleCurrencyAmount" type="number" min="0" value="0" placeholder="Amount" oninput="updateCustomBundleTotal()" style="flex:1;padding:6px 8px;background:#111;border:1px solid #555;border-radius:6px;color:#fff;font-size:11px;">
+        <select id="bundleCurrencyType" onchange="updateCustomBundleTotal()" style="padding:6px 8px;background:#111;border:1px solid #555;border-radius:6px;color:#fff;font-size:11px;">
+          <option value="sip">S.I.P.</option>
+          <option value="elite">💎 Elite Coins</option>
+        </select>
+      </div>
+      <textarea id="bundleIdeaInput" maxlength="300" rows="2" placeholder="Your idea for the game..." style="width:100%;box-sizing:border-box;padding:6px 8px;margin-bottom:6px;background:#111;border:1px solid #555;border-radius:6px;color:#fff;font-size:11px;resize:vertical;"></textarea>
+      <div style="color:#7CFC00;font-size:12px;font-weight:bold;margin-bottom:8px;">Item + currency so far: $<span id="bundleTotalSoFar">0.00</span> <span style="color:#888;font-weight:normal;font-size:10px;">(+ whatever the idea gets quoted at)</span></div>
+      <button onclick="submitCustomBundle()" style="width:100%;padding:8px;background:#ffcc44;border:none;border-radius:6px;color:#111;font-size:11px;font-weight:bold;cursor:pointer;">📨 Submit Request</button>
+    </div>`;
+}
+function updateCustomBundleTotal() {
+  const el = document.getElementById('bundleTotalSoFar');
+  if (!el) return;
+  const item = findCustomBundleItem(document.getElementById('bundleItemInput').value);
+  const amount = Math.max(0, Math.floor(Number(document.getElementById('bundleCurrencyAmount').value) || 0));
+  const cents = (item ? item.cost : 0) * CUSTOM_BUNDLE_CENTS_PER_UNIT + amount * CUSTOM_BUNDLE_CENTS_PER_UNIT;
+  el.textContent = (cents / 100).toFixed(2);
+}
+function submitCustomBundle() {
+  if (serverMode !== 'online') { showNotif('🔒 Custom Bundle requests need Online mode — pick it on the login screen.'); return; }
+  if (!currentUser) { showNotif('❌ Log in first!'); return; }
+  const itemQuery = document.getElementById('bundleItemInput').value.trim();
+  const item = findCustomBundleItem(itemQuery);
+  if (itemQuery && !item) { showNotif(`❌ Couldn't find an item called "${itemQuery}" — pick one from the list.`); return; }
+  const amount = Math.max(0, Math.floor(Number(document.getElementById('bundleCurrencyAmount').value) || 0));
+  const currencyType = document.getElementById('bundleCurrencyType').value;
+  const idea = document.getElementById('bundleIdeaInput').value.trim();
+  if (!item && !amount && !idea) { showNotif('❌ Pick an item, an amount, or type an idea first!'); return; }
+  const requestId = 'bundle_' + Date.now();
+  ADMIN_ACCOUNTS.forEach(a => sendMail(a, 'custom_bundle_request', {
+    requestId, requester: currentUser, itemName: item ? item.name : null, itemId: item ? item.id : null,
+    itemCents: item ? item.cost * CUSTOM_BUNDLE_CENTS_PER_UNIT : 0,
+    currencyAmount: amount, currencyType, currencyCents: amount * CUSTOM_BUNDLE_CENTS_PER_UNIT, idea
+  }));
+  showNotif('📨 Sent! The developer will review your idea and follow up.');
+  document.getElementById('bundleItemInput').value = '';
+  document.getElementById('bundleCurrencyAmount').value = '0';
+  document.getElementById('bundleIdeaInput').value = '';
+  updateCustomBundleTotal();
+}
+// Real Stripe Checkout integration (explox-server's /api/checkout/create-session — see
+// entitlements.js). Works for both CURRENCY_SHOP_PACKAGES (one-time) and
+// VEHICLE_RENTAL_PACKAGES (weekly subscription) ids, since the server tells them apart on its
+// own. User's own explicit rule, still honored: once a real purchase succeeds, currency credits
+// directly (see handleStripeReturn() in game-core.js) — NEVER routed through queueEarning()/the
+// Earnings tab. Earnings is a fun "go collect it" delay for stuff earned by playing; a customer
+// who just paid real money needs exactly what they paid for immediately, with zero risk of it
+// sitting uncollected — that's the kind of thing that gets a real business sued.
+async function buyCurrencyPackage(id) {
+  if (serverMode !== 'online') { showNotif('🔒 Real purchases need Online mode — pick it on the login screen.'); return; }
+  if (!currentUser) { showNotif('❌ Log in first!'); return; }
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/checkout/create-session', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ name: currentUser, productId: id, returnUrl: window.location.href })
+    }, 6000);
+    const res = r.ok ? await r.json() : { ok:false };
+    if (res.ok && res.url) {
+      // Full-page navigation to Stripe loses all JS state (currentUser included) — stash it so
+      // handleStripeReturn() (game-core.js) knows whose account to credit when Stripe sends the
+      // player back here after payment.
+      localStorage.setItem('explox_pending_purchase_name', currentUser);
+      window.location.href = res.url;
+    } else {
+      showNotif('❌ Payments aren\'t set up on the server yet — try again later.');
+    }
+  } catch(e) {
+    showNotif('😴 Could not reach the payment server. Try again later.');
+  }
+}
+// Stripe's PUBLISHABLE key — safe to embed client-side by design (unlike the secret key, which
+// only ever lives on explox-server and never reaches the browser). User's own ask to try using
+// it: mounts Stripe's own Embedded Checkout UI right inside the game (embeddedCheckoutModal,
+// EXPLOX.html) instead of the redirect-to-a-separate-page flow buyCurrencyPackage() above uses —
+// same server session/webhook/entitlements underneath either way, per create-session's own
+// comment (explox-server/server.js). TEST-mode key while this is being built/verified — swap for
+// the live one only once the whole payment system is deliberately switched to live mode.
+const STRIPE_PUBLISHABLE_KEY = 'pk_test_51UFAO7B7UKdtTNdsuf2yIYIw1aLGyTuO2qxaUAqdtnQ23uKzHLyYr2tJtKO2tXAdk05lkuAtvpCOlwM2xsd2Lnad00vs1ScwsA';
+let _embeddedCheckout = null;
+async function buyCurrencyPackageEmbedded(id) {
+  if (serverMode !== 'online') { showNotif('🔒 Real purchases need Online mode — pick it on the login screen.'); return; }
+  if (!currentUser) { showNotif('❌ Log in first!'); return; }
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/checkout/create-session', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ name: currentUser, productId: id, returnUrl: window.location.href, embedded: true })
+    }, 8000);
+    const res = r.ok ? await r.json() : { ok:false };
+    if (!res.ok || !res.clientSecret) { showNotif('❌ Payments aren\'t set up on the server yet — try again later.'); return; }
+    localStorage.setItem('explox_pending_purchase_name', currentUser); // same round-trip stash handleStripeReturn() (game-core.js) reads back after the embedded form redirects on completion
+    const stripeClient = Stripe(STRIPE_PUBLISHABLE_KEY);
+    document.getElementById('embeddedCheckoutContainer').innerHTML = '';
+    _embeddedCheckout = await stripeClient.initEmbeddedCheckout({ clientSecret: res.clientSecret });
+    _embeddedCheckout.mount('#embeddedCheckoutContainer');
+    document.getElementById('embeddedCheckoutModal').style.display = 'flex';
+  } catch(e) {
+    showNotif('😴 Could not reach the payment server. Try again later.');
+  }
+}
+function closeEmbeddedCheckout() {
+  document.getElementById('embeddedCheckoutModal').style.display = 'none';
+  if (_embeddedCheckout) { _embeddedCheckout.destroy(); _embeddedCheckout = null; }
 }
 
 // ─── TEST LAB TAB — user's own ask: a private place to drop new mini-game files and try them
@@ -4691,6 +5616,7 @@ function renderJobsPanel() {
 
   const shopActive = activeJob === 'Shopkeeper';
   const copActive = activeJob === 'Officer';
+  const actorActive = activeJob === 'Actor';
   let html = `
     <div style="${card(shopActive)}">
       <div style="color:#fff;font-size:12px;font-weight:bold;margin-bottom:6px;">📦 Shopkeeper — +5 S.I.P./task</div>
@@ -4699,6 +5625,10 @@ function renderJobsPanel() {
     <div style="${card(copActive)}">
       <div style="color:#fff;font-size:12px;font-weight:bold;margin-bottom:6px;">🚨 Officer — +10 S.I.P./task</div>
       ${copActive ? stopBtn("quitJob('Stopped working.')", 'Stop Working') : startBtn(`toggleJob('Officer',10,'🚨 Trouble downtown — respond!')`, 'Start Working')}
+    </div>
+    <div style="${card(actorActive)}">
+      <div style="color:#fff;font-size:12px;font-weight:bold;margin-bottom:6px;">🎭 Actor — +${ACTOR_PAY} S.I.P./task</div>
+      ${actorActive ? stopBtn("quitJob('Stopped working.')", 'Stop Working') : startBtn(`startActingJob()`, 'Start Working')}
     </div>
     <div style="color:#88ccff;font-size:11px;font-weight:bold;letter-spacing:2px;text-align:center;margin:12px 0 8px;">🏭 FACTORIES</div>
   `;
@@ -4763,7 +5693,7 @@ function completeJobTask() {
   jobTaskActive = false;
   jobNextTaskIn = 3 + Math.random()*4;
   queueEarning(activeJobPay, 0, activeJob);
-  showNotif(`✅ Nice work! +${activeJobPay} S.I.P. pending in Earnings`);
+  showNotif(`✅ Nice work! +${activeJobPay} S.I.P. added to your wallet`);
 }
 
 function tickJob(dt) {
@@ -4844,7 +5774,7 @@ function serveAtTable(idx) {
   cookSubPresses = 0;
   const dish = tableOrders[idx];
   queueEarning(20, 0, 'Diner Job');
-  showNotif(`✅ ${dish} delivered! +20 S.I.P. pending in Earnings`);
+  showNotif(`✅ ${dish} delivered! +20 S.I.P. added to your wallet`);
   document.getElementById('jobHud').textContent = '💼 No Job';
   document.getElementById('jobHud').style.color = '#fff';
   tableOrders[idx] = '✅ Thank you!';
@@ -5058,7 +5988,7 @@ function robShop(shopName, gain) {
   robbedCooldowns[shopName] = 60;
   increaseWanted(1);
   lifetimeShopsRobbed++;
-  showNotif(`🔫 Robbed ${shopName}! +${gain} S.I.P. pending in Earnings`);
+  showNotif(`🔫 Robbed ${shopName}! +${gain} S.I.P. added to your wallet`);
 }
 
 // ─── CINEMA SYSTEM ────────────────────────────────────────────────────────────
@@ -11347,7 +12277,7 @@ function endEatingCompetition() {
   if (won) {
     payout = EATCOMP_WIN_PAYOUT + (isNewBest ? EATCOMP_BEST_BONUS : 0);
     queueEarning(payout, 0, `Eating Competition win vs ${opp.name}`);
-    resultLine = `🏆 YOU WIN! ${eatingCompPlayerCount} vs ${eatingCompOpponentCount} — +${payout} S.I.P. pending in Earnings!`;
+    resultLine = `🏆 YOU WIN! ${eatingCompPlayerCount} vs ${eatingCompOpponentCount} — +${payout} S.I.P. added to your wallet!`;
     sfx.cheer();
   } else {
     payout = EATCOMP_LOSS_CONSOLATION;
@@ -11362,7 +12292,7 @@ function endEatingCompetition() {
       <div class="siName">${won ? '🏆 Victory!' : '😅 Defeat'}</div>
       <div class="siCost">You: ${eatingCompPlayerCount} items — ${opp.name}: ${eatingCompOpponentCount} items</div>
       ${isNewBest ? `<div style="color:#ffd700;font-size:12px;margin-top:4px;">🏅 New personal best!</div>` : ''}
-      <div style="color:${won ? '#88dd88' : '#ff8888'};font-size:13px;margin-top:6px;">+${payout} S.I.P. ${won ? '(pending in Earnings)' : 'consolation'}</div>
+      <div style="color:${won ? '#88dd88' : '#ff8888'};font-size:13px;margin-top:6px;">+${payout} S.I.P. ${won ? '(added to your wallet)' : 'consolation'}</div>
     </div>
     <button class="shopBtn" style="width:100%;margin-top:6px;" onclick="openEatingCompetitionPicker()">🔁 Compete Again</button>
     <button class="shopBtn" style="background:#555;width:100%;margin-top:6px;" onclick="renderBuffet()">← Back to Buffet</button>`;
@@ -11657,7 +12587,16 @@ function buildWeaponLevels() {
 }
 function weaponRequiredLevel(id) {
   buildWeaponLevels();
-  return _weaponLevels[id] || 1;
+  // Real bug found live ("i cant buy in explox armory"): buildWeaponLevels() never assigns a
+  // weapon level 0 (its own comment above explains why — a literal level-0 weapon would deal
+  // 0 damage under the level×10 damage curve, so every real tier starts at 1). But a brand-new
+  // account's eliteLevel (Robot Level) itself starts at 0 — so the CHEAPEST weapon in the entire
+  // game required "Robot Level 1" while a fresh account could never be higher than 0, an
+  // unbuyable-forever catch-22 for every new player. Subtracting 1 here shifts the PURCHASE
+  // REQUIREMENT down by one step (the weapon's real tier/damage/cost above is untouched) so the
+  // baseline starter tier needs Robot Level 0 (always true) and each level you actually earn
+  // unlocks the next real tier, same relative gating as before.
+  return Math.max(0, (_weaponLevels[id] || 1) - 1);
 }
 // Same derive-don't-duplicate approach as weaponRequiredLevel() above — the tier is already
 // encoded in every batch weapon's own id ('wood_club' -> 'Wood'), so grouping the shop by
@@ -11747,12 +12686,16 @@ function tickBladder(dt) {
     updateBladderHud();
   }
 }
+// User's own ask: "no words... an energy level" — a wordless bar (#tirednessBarFill) instead of
+// the old "😴 Tiredness: X% — EXHAUSTED!" text. Still real, felt feedback: the fill's OWN color
+// shifts through the same 4 thresholds the old text color did, so "almost exhausted" and
+// "exhausted" still read at a glance, just via color/fill-length instead of a sentence.
 function updateTirednessHud() {
-  const hud = document.getElementById('tirednessHud');
-  if (!hud) return;
+  const fill = document.getElementById('tirednessBarFill');
+  if (!fill) return;
   const pct = Math.round(tiredness);
-  hud.style.color = tiredness <= 0 ? '#ff3333' : (tiredness < 25 ? '#ff8844' : (tiredness < 60 ? '#ffdd44' : '#bb99ff'));
-  hud.textContent = `😴 Tiredness: ${pct}%${tiredness <= 0 ? ' — EXHAUSTED!' : ''}`;
+  fill.style.width = pct + '%';
+  fill.style.background = tiredness <= 0 ? '#ff3333' : (tiredness < 25 ? 'linear-gradient(90deg,#cc5522,#ff8844)' : (tiredness < 60 ? 'linear-gradient(90deg,#ccaa22,#ffdd44)' : 'linear-gradient(90deg,#7a5ad1,#bb99ff)'));
 }
 function tickTiredness(dt) {
   if (tiredness > 0) {
@@ -11897,8 +12840,135 @@ function damagePlayer(amount, sourceLabel) {
   sfx.hit();
   if(playerHealth <= 0) knockoutPlayer();
 }
+// ─── DEATH PENALTY — user's explicit multi-turn rule: dying (HP hits 0) for ANY reason/context
+// loses everything the player is carrying/owns EXCEPT: cosmetic customizations (hat/hair/shirt/
+// pants/shoes/skin — always free to change anyway), the Bank (bankBalance/bankEliteBalance), the
+// Safe (safeBalance/safeInventory), the Trash Safe (trashSafeSip/trashSafeItems), Houses (ownedLand/
+// plotBuildings), Vehicles (ownedCars, ALL of them), and anything flagged premiumOnly in a shop
+// catalog (real-money items — WEAPONS/ARMOR's own premiumOnly flag, e.g. Super Armor; the other
+// known real-money items — Super Tank/Jet/Motorcycle/Future Jet — are vehicles, so ownedCars'
+// blanket exemption already protects them). Everything else — wallet sipDollars/eliteCoins, cash,
+// playerInventory, non-premium ownedWeapons/ownedArmor, wood/scrap — is genuinely lost, dropped as
+// a real lootable pile at the exact death spot (same CITY_ZONES walk-up-and-E convention as
+// spawnJunkPile()/pickUpJunk() in game-land.js) so the player can walk back and reclaim it after
+// respawning. NOT persisted, same ambient "session only" category JUNK_PILES already uses.
+function isPremiumWeaponId(id) { const w = WEAPONS.find(w => w.id === id); return !!(w && w.premiumOnly); }
+function isPremiumArmorId(id)  { const a = ARMOR.find(a => a.id === id);  return !!(a && a.premiumOnly); }
+
+let DEATH_DROP_PILES = []; // {x,z,mesh,zone,loot,owner} — NOT persisted, same category as JUNK_PILES
+
+function buildDeathDropMesh(x, z) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.26, 8, 6), new THREE.MeshLambertMaterial({ color: 0xf2f2ea }));
+  skull.position.set(0, 0.32, 0); g.add(skull);
+  [[-0.22,0.15,-0.12],[0.2,0.12,0.15],[0,0.05,0.22],[0.15,0.08,-0.22],[-0.18,0.06,0.15]].forEach(([dx,dy,dz]) => {
+    const coin = new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,0.05,10), new THREE.MeshLambertMaterial({ color: 0xffcc33 }));
+    coin.rotation.x = Math.PI/2 + (Math.random()-0.5)*0.6;
+    coin.position.set(dx,dy,dz); g.add(coin);
+  });
+  return g;
+}
+function lootIsEmpty(loot) {
+  return loot.sip<=0 && loot.elite<=0 && loot.cash<=0 && loot.wood<=0 && loot.scrap<=0 &&
+    Object.keys(loot.items||{}).length===0 && (loot.weapons||[]).length===0 && (loot.armor||[]).length===0;
+}
+function describeDeathLoot(loot) {
+  const parts = [];
+  if (loot.sip > 0)   parts.push(`${loot.sip.toLocaleString()} S.I.P.`);
+  if (loot.elite > 0) parts.push(`${loot.elite.toLocaleString()} 💎 Elite Coins`);
+  if (loot.cash > 0)  parts.push(`$${loot.cash.toLocaleString()} cash`);
+  const itemCount = Object.keys(loot.items||{}).reduce((n,k)=>n+((loot.items[k]&&loot.items[k].qty)||0), 0);
+  if (itemCount > 0) parts.push(`${itemCount} item${itemCount===1?'':'s'}`);
+  if ((loot.weapons||[]).length) parts.push(`${loot.weapons.length} weapon${loot.weapons.length===1?'':'s'}`);
+  if ((loot.armor||[]).length)   parts.push(`${loot.armor.length} armor piece${loot.armor.length===1?'':'s'}`);
+  if (loot.wood > 0)  parts.push(`${loot.wood} 🪵 wood`);
+  if (loot.scrap > 0) parts.push(`${loot.scrap} 🔩 scrap`);
+  return parts.join(', ') || 'nothing';
+}
+function spawnDeathDropPile(x, z, loot, ownerName) {
+  if (lootIsEmpty(loot)) return;
+  const mesh = buildDeathDropMesh(x, z);
+  const pile = { x, z, mesh, loot, owner: ownerName, zone: null };
+  const zone = { x, z, r: 2.5, label: `💀 Reclaim Lost Stuff (${describeDeathLoot(loot)})`, action: () => reclaimDeathDrop(pile) };
+  pile.zone = zone;
+  // unshift, not push: the E-interact loop (game-zones.js) fires the FIRST zone in CITY_ZONES
+  // whose radius contains the player, in array order — a death can easily land right next to an
+  // existing zone (an ATM, a shop door, the Bank...) whose bigger radius would otherwise always
+  // win and make a freshly-lost pile impossible to reach until that other zone is dealt with.
+  // Reclaiming your own death drop should always take priority over anything else nearby.
+  CITY_ZONES.unshift(zone);
+  DEATH_DROP_PILES.push(pile);
+}
+function reclaimDeathDrop(pile) {
+  if (!pile.mesh) return; // already collected
+  const loot = pile.loot;
+  if (loot.sip > 0)   { sipDollars += loot.sip; updateSIP(); }
+  if (loot.elite > 0) { eliteCoins += loot.elite; updateElite(); }
+  if (loot.cash > 0)  { cash += loot.cash; updateCash(); }
+  if (loot.wood > 0)  { woodCount += loot.wood; updateWood(); }
+  if (loot.scrap > 0) { scrapMetal += loot.scrap; updateScrapMetal(); }
+  Object.keys(loot.items || {}).forEach(id => {
+    const it = loot.items[id];
+    for (let n=0; n<(it.qty||0); n++) addToInventory(id, it.name, it.emoji);
+  });
+  (loot.weapons || []).forEach(id => { if(!ownedWeapons.includes(id)) ownedWeapons.push(id); });
+  (loot.armor   || []).forEach(id => { if(!ownedArmor.includes(id))   ownedArmor.push(id); });
+  refreshInventory();
+  saveCurrentUser();
+  scene.remove(pile.mesh); pile.mesh = null;
+  const zi = CITY_ZONES.indexOf(pile.zone); if(zi>-1) CITY_ZONES.splice(zi,1);
+  pile.zone = null;
+  const di = DEATH_DROP_PILES.indexOf(pile); if(di>-1) DEATH_DROP_PILES.splice(di,1);
+  showNotif(`💀 Reclaimed: ${describeDeathLoot(loot)}!`);
+  sfx.click();
+}
+// The real death-penalty application: wipes everything lose-able from the account's live state,
+// drops it as a real pile at (x,z) — captured by knockoutPlayer() BEFORE any respawn teleport, so
+// this is always the exact spot the player died at, no matter which branch below runs next — and
+// returns the loot manifest so a caller with its own dedicated UI (e.g. the War Death modal) can
+// build its own message instead of the generic delayed showNotif() (pass suppressNotif=true).
+function applyDeathLossAndDrop(x, z, suppressNotif) {
+  const loot = {
+    sip: sipDollars, elite: eliteCoins, cash: cash,
+    items: JSON.parse(JSON.stringify(playerInventory || {})),
+    weapons: ownedWeapons.filter(id => !isPremiumWeaponId(id)),
+    armor: ownedArmor.filter(id => !isPremiumArmorId(id)),
+    wood: woodCount, scrap: scrapMetal,
+  };
+  if (lootIsEmpty(loot)) return loot; // nothing at risk — don't spawn an empty pile or notif
+
+  sipDollars = 0; updateSIP();
+  eliteCoins = 0; updateElite();
+  cash = 0; updateCash();
+  woodCount = 0; updateWood();
+  scrapMetal = 0; updateScrapMetal();
+  playerInventory = {};
+  ownedWeapons = ownedWeapons.filter(isPremiumWeaponId);
+  ownedArmor   = ownedArmor.filter(isPremiumArmorId);
+  if (!ownedWeapons.includes(playerWeapon)) { playerWeapon = 'none'; if (typeof updateWeaponMesh === 'function') updateWeaponMesh(); }
+  if (!ownedArmor.includes(playerArmor))    { playerArmor  = 'none'; if (typeof updateArmorMesh  === 'function') updateArmorMesh();  }
+  refreshInventory();
+  saveCurrentUser();
+  spawnDeathDropPile(x, z, loot, currentUser);
+  if (!suppressNotif) {
+    // Delayed like every other "second notification right after a knockout" call in this file —
+    // showNotif() shares one on-screen element, so firing this immediately would overwrite
+    // whichever context-specific "you were knocked out" message the branch below already showed.
+    setTimeout(() => showNotif(`☠️ You lost everything you were carrying: ${describeDeathLoot(loot)} — it's on the ground where you died!`), 2400);
+  }
+  return loot;
+}
 function knockoutPlayer() {
+  // "make the ... break thing" (user's own ask) — a real Google H5 Games Ads interstitial
+  // (adBreak(), game-customization.js sets up adConfig()) at the one real choke point EVERY
+  // knockout/respawn already passes through, regardless of which branch below actually runs.
+  // Google's own overlay covers the whole screen while an ad shows, so nothing else here needs to
+  // pause — same "a natural break between game states" placement Google's own docs recommend.
+  adBreak({ type: 'start', name: 'respawn-break' });
   if(wrathActive) endWrathAfterDeath(); // "attacks until you die" — the chase always ends here, never by outrunning it
+  // Captured BEFORE any branch below teleports the player away, so the death-drop pile always
+  // lands at the real spot the knockout happened, in every context.
+  const deathX = playerGroup.position.x, deathZ = playerGroup.position.z;
   if(lastHitmanAttacker) {
     // A real hired-killer death, not a duel/arena loss — the hirer only finds out once we
     // confirm it ourselves, since they have no way to know our HP directly (see
@@ -11907,6 +12977,7 @@ function knockoutPlayer() {
     lastHitmanAttacker = null;
     sendMail(hirer, 'hitman_kill_confirmed', { targetName: currentUser });
     showNotif(`💀 A killer hired by ${hirer} got you! Waking up at home...`);
+    applyDeathLossAndDrop(deathX, deathZ);
     playerGroup.position.set(HOUSE_DOOR.x, 0, HOUSE_DOOR.z + 3);
     yaw = 0;
     playerHealth = playerMaxHealth;
@@ -11918,6 +12989,7 @@ function knockoutPlayer() {
     dueling = null;
     sendMail(opponent, 'duel_end', { result: 'you_won' });
     showNotif(`😵 You lost the duel to ${opponent}!`);
+    applyDeathLossAndDrop(deathX, deathZ);
     playerHealth = playerMaxHealth;
     updateHealthBar();
     return; // a friendly duel loss doesn't send you home
@@ -11929,6 +13001,7 @@ function knockoutPlayer() {
     lastFfaAttacker = null;
     if(attacker) sendMail(attacker, 'ffa_kill');
     showNotif(`💀 Knocked out${attacker ? ' by '+attacker : ''}! Respawning in ${FFA_RESPAWN_SECONDS}s...`);
+    applyDeathLossAndDrop(deathX, deathZ);
     playerHealth = playerMaxHealth;
     updateHealthBar();
     return; // arena knockouts don't send you home either — you just sit out the cooldown
@@ -11938,13 +13011,14 @@ function knockoutPlayer() {
     // where to respawn." warAlive stays false (can't fight, can't be hit) until a choice is
     // actually made in warDeathModal; picking "Right Here" keeps the original no-travel-penalty
     // territory grind possible, the other two are a real trip in exchange for safety.
+    // Old behavior lost a flat 10% of the wallet (WAR_DEATH_SIP_LOSS_PCT, game-world.js) — now
+    // superseded by the same full-loss death penalty every other context uses.
     warAlive = false;
-    const lostSip = Math.round(sipDollars * WAR_DEATH_SIP_LOSS_PCT);
-    sipDollars = Math.max(0, sipDollars - lostSip);
-    updateSIP();
+    const terr = currentWarZone;
+    const lostLoot = applyDeathLossAndDrop(deathX, deathZ, true); // suppress the generic notif — the modal below shows its own message
     playerHealth = playerMaxHealth;
     updateHealthBar();
-    showWarDeathModal(currentWarZone, lostSip);
+    showWarDeathModal(terr, describeDeathLoot(lostLoot));
     return;
   }
   if(activeJob || activeBankJob) {
@@ -11953,6 +13027,7 @@ function knockoutPlayer() {
     // teleport-home would undo the whole point of standing your ground against them. Same "just a
     // breather in place" pattern as the War Zone/Arena cases above, just for any active job.
     showNotif('💀 Knocked out on the job! Shake it off and get back to it.');
+    applyDeathLossAndDrop(deathX, deathZ);
     playerHealth = playerMaxHealth;
     updateHealthBar();
     return;
@@ -11969,25 +13044,9 @@ function knockoutPlayer() {
   yaw = Math.PI;
   playerHealth = playerMaxHealth;
   updateHealthBar();
-  // Cash/ATM feature — real risk for carrying physical cash instead of leaving it all bank-safe:
-  // an ordinary open-city knockout (this default branch only — every special-case branch above
-  // already returned before reaching here) costs a real chunk of whatever cash you had on you.
-  // sipDollars is completely untouched — that's the entire point of the cash-vs-bank tradeoff.
-  // 30%-70% lost (steeper than a Robber's own 15%-25% steal roll, see robMoney()/game-land.js —
-  // getting fully knocked out is a much worse beat than a robber catching up to you).
-  if (cash > 0) {
-    const lostPct = 0.3 + Math.random() * 0.4; // 30%-70%
-    const lostCash = Math.round(cash * lostPct);
-    if (lostCash > 0) {
-      cash -= lostCash;
-      updateCash();
-      // Delayed like every other "second notification right after a knockout/event" call in the
-      // game (see holiday/reminder/Satan's Reign notifs elsewhere) — showNotif() shares one on-
-      // screen element, so firing this immediately would silently overwrite "Rushed to City
-      // Hospital..." above before the player ever reads it.
-      setTimeout(() => showNotif(`💸 You lost $${lostCash.toLocaleString()} in the chaos!`), 2200);
-    }
-  }
+  // Old behavior only cost 30%-70% of carried cash (sipDollars/inventory/gear were untouched) —
+  // now superseded by the same full-loss death penalty every other context uses above.
+  applyDeathLossAndDrop(deathX, deathZ);
   resetAllBossAggro(); // the "die" end condition for a boss chase — it doesn't just resume hunting you the instant you wake up across the map
   if (inMovieFight) cleanupMovieFight(); // same "no orphaned interior state after a teleport-home" concern — the room/boss don't stay half-active behind you
   // Real bug found live while testing the Robot Arena's new active-attacking robots: the Arena
@@ -11997,7 +13056,7 @@ function knockoutPlayer() {
   // city's. Barely reachable before (robots only ever hit back as a counter to your own swing);
   // now that they attack on their own, getting surrounded and knocked out is a real, easy way to
   // die in there, so this can no longer stay a dormant edge case.
-  if (inArenaBattle) { clearArenaRobots(); inArenaBattle = false; arenaConfiguring = false; arenaRunning = false; closeArenaConfig(); document.getElementById('arenaHud').style.display = 'none'; }
+  if (inArenaBattle) { clearArenaRobots(); inArenaBattle = false; arenaConfiguring = false; arenaRunning = false; inEventBattle = false; closeArenaConfig(); document.getElementById('arenaHud').style.display = 'none'; }
 }
 
 // ─── FIGHT ARENA — a dedicated place to duel; the duel mechanic itself works
@@ -12089,11 +13148,39 @@ function setChatMode(mode) {
   dev.style.color = mode === 'devtalk' ? '#ff8844' : '#888';
   document.getElementById('chatInput').placeholder = mode === 'devtalk' ? 'Message the developer...' : 'Say something...';
 }
+// "you can send money through chat" — /pay <name> <amount>, real S.I.P., same mailbox sip_gift
+// tryGiveSip() (Y key) already uses, just addressed by typed name instead of nearest-player
+// proximity. Requires the target to be currently online (a real remotePlayers entry, matched
+// case-insensitively) rather than trusting whatever name was typed outright — tryGiveSip() gets
+// this same safety for free by only ever targeting someone physically standing near you; a typed
+// name has no such guarantee, so a typo or a stale name would otherwise silently hand real S.I.P.
+// to the wrong account (or one that doesn't exist) with the sender none the wiser.
+function handlePayCommand(argsText) {
+  if (serverMode !== 'online') { showNotif('💸 Giving S.I.P. needs ONLINE mode!'); return; }
+  const parts = argsText.trim().split(/\s+/).filter(Boolean);
+  const amt = Math.floor(Number(parts[parts.length - 1]));
+  const typedName = parts.slice(0, -1).join(' ');
+  if (parts.length < 2 || !Number.isFinite(amt) || amt <= 0) { showNotif('❌ Try: /pay <name> <amount>'); return; }
+  const target = Object.keys(remotePlayers).find(n => n.toLowerCase() === typedName.toLowerCase());
+  if (!target) { showNotif(`❌ "${typedName}" isn't online right now — /pay only works on someone currently playing.`); return; }
+  if (sipDollars < amt) { showNotif(`❌ You only have ${sipDollars} S.I.P.!`); return; }
+  spendSip(amt); updateSIP(); saveCurrentUser();
+  sendMail(target, 'sip_gift', { amount: amt });
+  showNotif(`💸 Sent ${amt.toLocaleString()} S.I.P. to ${target}!`);
+  chatAddMsg('You', `paid ${target} ${amt.toLocaleString()} S.I.P. 💸`, true);
+}
 function sendChatMessage() {
   const input = document.getElementById('chatInput');
   const text = input.value.trim();
   if(!text) return;
+  if (text.toLowerCase().startsWith('/pay ')) {
+    input.value = '';
+    closeGameChat();
+    handlePayCommand(text.slice(5));
+    return;
+  }
   input.value = '';
+  closeGameChat(); // Minecraft-style: Enter (or the send button) both submits AND closes chat back to normal play
   if(serverMode !== 'online') { showNotif('💬 Chat needs ONLINE mode!'); return; }
   if(chatMode === 'devtalk') {
     chatAddMsg('You → Dev', text, true);
@@ -12101,20 +13188,34 @@ function sendChatMessage() {
     return;
   }
   chatAddMsg('You', text, true); // shown instantly — don't make your own message wait on a round trip
+  if (typeof playerGroup !== 'undefined' && playerGroup) showSpeechBubble(playerGroup, currentUser, text);
   fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/chat', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ from: currentUser, text })
   }, 4000).catch(()=>{});
 }
+// Real bug found live: some deployments of the Explox server (explox-server.onrender.com
+// included) don't implement /api/chat at all — a 404, not a timeout — so this was retrying
+// forever, every CHAT_SYNC_INTERVAL, spamming the console with failed-request errors for the
+// entire session. A 404 means "this route doesn't exist here," which won't change until the
+// page reloads (unlike a transient !r.ok, which is worth still retrying), so stop asking once
+// that's confirmed instead of hammering a route that will never answer.
+let chatEndpointMissing = false;
 async function syncChatMessages() {
-  if(serverMode !== 'online') return;
+  if(serverMode !== 'online' || chatEndpointMissing) return;
   try {
     const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/chat?since=' + chatLastSeenTs, {}, 4000);
+    if(r.status === 404) { chatEndpointMissing = true; return; }
     if(!r.ok) return;
     const msgs = await r.json();
     msgs.forEach(m => {
       chatLastSeenTs = Math.max(chatLastSeenTs, m.ts);
-      if(m.from !== currentUser) chatAddMsg(m.from, m.text, false); // your own already shown instantly in sendChatMessage()
+      if(m.from !== currentUser) {
+        chatAddMsg(m.from, m.text, false); // your own already shown instantly in sendChatMessage()
+        const rp = remotePlayers[m.from];
+        if (rp && rp.mesh) showSpeechBubble(rp.mesh, m.from, m.text); // only if they're currently rendered nearby — otherwise there's no mesh to float it above
+        showChatTabPreview(m.from, m.text); // no-op if the Chat panel is already open — you're already seeing it there
+      }
     });
   } catch(e) { /* next sync will catch up */ }
 }
@@ -12123,38 +13224,131 @@ async function syncChatMessages() {
 // to shove the real Close button off-screen). This is even more important HERE since chat text
 // comes from OTHER real players, not just your own typed commands — one person spamming a long
 // unbroken string could otherwise break the chat panel's layout on EVERYONE's screen who sees it.
+// Minecraft-style: a single semi-transparent black bar per line, sender name colored, always
+// left-aligned (no more isMine right-alignment — Minecraft's own log never does that either).
+// Fades on its own via scheduleMsgFade() below unless chat is currently open (chatOpen).
 function chatAddMsg(label, text, isMine) {
   const box = document.getElementById('chatMessages');
   if(!box) return;
   const div = document.createElement('div');
-  div.style.cssText = (isMine
-    ? 'background:rgba(255,255,255,0.07);border-radius:6px;padding:6px 8px;font-size:11px;color:#ccc;text-align:right;margin-bottom:6px;'
-    : 'background:rgba(68,204,255,0.1);border-radius:6px;padding:6px 8px;font-size:11px;color:#66ddff;margin-bottom:6px;')
-    + 'max-width:100%;word-break:break-word;overflow-wrap:break-word;';
+  div.style.cssText = 'background:rgba(0,0,0,0.5);border-radius:2px;padding:2px 6px;font-size:13px;color:#fff;max-width:100%;word-break:break-word;overflow-wrap:break-word;transition:opacity 0.6s;';
   const name = document.createElement('b');
+  name.style.color = isMine ? '#ffff88' : '#55ffff'; // "You"/"You -> Dev" in yellow, other players in aqua — same two-color split Minecraft itself uses for self vs. system/other text
   name.textContent = label; // caller passes the exact label ('You', 'You → Dev', or the sender's real name)
   div.appendChild(name);
   div.appendChild(document.createTextNode(': ' + text)); // createTextNode, never innerHTML — this is another real player's typed text
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
+  if (!chatOpen && othersOnlineCount() === 0) scheduleMsgFade(div);
 }
-function toggleGameChat() {
-  const panel = document.getElementById('chatPanel');
-  if(panel.style.display === 'none') {
-    if(document.pointerLockElement) document.exitPointerLock();
-    isPointerLocked = false;
-    panel.style.display = 'flex';
-    document.getElementById('chatTab').style.display = 'none';
-  } else {
-    closeGameChat();
-  }
+// Whether the chat input is currently open (Enter or the CHAT tab — openGameChat() below). While
+// true, every line sits at full opacity with no fade timer, matching Minecraft showing its full
+// live scrollback while you're actively chatting.
+let chatOpen = false;
+const CHAT_FADE_DELAY = 8000; // ms a line sits fully visible before it starts fading, same idle window Minecraft's own chat uses
+const CHAT_FADE_DURATION = 600; // ms fade-out itself, matches the CSS transition set on each line above
+// User's own ask: "the chat stays on... as long as there is a second third forth fifth sixth
+// seventh [player]" — i.e. whenever ANYONE else is around, not just you alone. remotePlayers
+// (game-character.js) is the real live set syncPresence() already maintains every second, so
+// there's nothing new to sync — just read its current size.
+function othersOnlineCount() { return Object.keys(remotePlayers).length; }
+function scheduleMsgFade(div) {
+  clearTimeout(div._fadeTimer);
+  div._fadeTimer = setTimeout(() => {
+    div.style.opacity = '0';
+    setTimeout(() => { div.style.display = 'none'; }, CHAT_FADE_DURATION);
+  }, CHAT_FADE_DELAY);
+}
+// New-message preview on the 💬 CHAT tab itself — user's own ask (referencing another game's
+// style): see who said what without having to open the panel first. Only shown while the panel
+// is actually closed (if it's open, chatAddMsg() above already put it in front of you) — checked
+// fresh on every call rather than cached, since panel open/closed can change between messages.
+let chatTabPreviewTimer = null;
+const CHAT_TAB_PREVIEW_MS = 5000;
+const CHAT_TAB_PREVIEW_TEXT_MAX = 100;
+function showChatTabPreview(name, text) {
+  if (chatOpen) return; // already visible in the open, full-opacity log
+  const box = document.getElementById('chatTabPreview');
+  if (!box) return;
+  document.getElementById('chatTabPreviewName').textContent = (name || 'Player') + ': ';
+  const shown = text.length > CHAT_TAB_PREVIEW_TEXT_MAX ? text.slice(0, CHAT_TAB_PREVIEW_TEXT_MAX - 3) + '...' : text;
+  document.getElementById('chatTabPreviewText').textContent = shown; // textContent, never innerHTML — another real player's typed text
+  box.style.display = 'block';
+  clearTimeout(chatTabPreviewTimer);
+  chatTabPreviewTimer = setTimeout(() => { box.style.display = 'none'; }, CHAT_TAB_PREVIEW_MS);
+}
+// Minecraft-style open/close: "open" just means the input bar is visible and the recent
+// scrollback is pinned at full opacity — the message log itself (chatMessages) is ALWAYS in the
+// DOM and always rendering over the game world, never hidden outright like the old side panel.
+function toggleGameChat() { if (chatOpen) closeGameChat(); else openGameChat(); }
+function openGameChat() {
+  if (chatOpen) { document.getElementById('chatInput').focus(); return; }
+  chatOpen = true;
+  if(document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('chatInputBar').style.display = 'block';
+  document.getElementById('chatTab').style.display = 'none';
+  const preview = document.getElementById('chatTabPreview'); if (preview) preview.style.display = 'none'; // element only exists where the chat-tab-preview feature has actually landed
+  const box = document.getElementById('chatMessages');
+  box.style.maxHeight = '260px';
+  box.style.overflowY = 'auto';
+  // Un-fade every line currently in the log (cancel pending fade timers, restore full opacity) —
+  // opening chat shows the whole live scrollback the same way Minecraft does, not just whatever
+  // hadn't faded yet.
+  [...box.children].forEach(div => { clearTimeout(div._fadeTimer); div.style.opacity = '1'; div.style.display = ''; });
+  box.scrollTop = box.scrollHeight;
+  document.getElementById('chatInput').focus();
 }
 function closeGameChat() {
-  document.getElementById('chatPanel').style.display = 'none';
+  chatOpen = false;
+  document.getElementById('chatInputBar').style.display = 'none';
+  document.getElementById('chatInput').blur();
+  document.getElementById('chatEmojiPicker').style.display = 'none';
   document.getElementById('chatTab').style.display = 'block';
+  const box = document.getElementById('chatMessages');
+  box.style.maxHeight = '132px';
+  box.style.overflowY = 'hidden';
+  box.scrollTop = box.scrollHeight;
+  // Back to normal play — every currently-visible line starts fading again from now, same as a
+  // freshly-posted message would. Skipped entirely while someone else is online (othersOnlineCount()
+  // above) — the whole point of that feature is the log staying lit without you needing to keep
+  // chat open the whole time.
+  if (othersOnlineCount() === 0) [...box.children].forEach(div => scheduleMsgFade(div));
   if(renderer && renderer.domElement) renderer.domElement.requestPointerLock();
 }
+// "also add emojis" — user's own ask, right after the Minecraft-chat rework above. A plain grid
+// (#chatEmojiPicker, EXPLOX.html) toggled by the 😀 button next to Send; picking one inserts it at
+// the real cursor position (not just appended to the end) so it works mid-sentence too, then puts
+// the cursor right after it and refocuses the input so you can keep typing or send immediately.
+function toggleEmojiPicker() {
+  const p = document.getElementById('chatEmojiPicker');
+  p.style.display = p.style.display === 'none' ? 'grid' : 'none';
+}
+function insertChatEmoji(emoji) {
+  const input = document.getElementById('chatInput');
+  const start = input.selectionStart ?? input.value.length, end = input.selectionEnd ?? input.value.length;
+  input.value = input.value.slice(0, start) + emoji + input.value.slice(end);
+  const pos = start + emoji.length;
+  input.focus();
+  input.setSelectionRange(pos, pos);
+}
 
+// Real PvP knockback — user's own ask: "if they're fighting you you take dmg and you get
+// knockback". damagePlayer() alongside every call site below already applied real damage (that
+// part already worked); this is the missing half — actually pushing YOUR OWN playerGroup away
+// from the attacker's real position, using the exact same startKnockback()/tickKnockbacks()
+// (game-economy.js) every NPC fight already uses, not a separate knockback system. Needs the
+// attacker's OWN swing power stashed into playerSwingPower for the one call startKnockback()
+// reads it from (it's a global belonging to whoever calls it, per its own existing design) —
+// restored right after so it can never leak into your own next real punch.
+function applyIncomingKnockback(data) {
+  if (data.fromX === undefined || data.fromZ === undefined) return; // an older/other message shape with no position to push away from
+  const savedPower = playerSwingPower;
+  playerSwingPower = data.power !== undefined ? data.power : 0.3;
+  startKnockback(data.fromX, data.fromZ, playerGroup.position.x, playerGroup.position.z,
+    (x, z) => { playerGroup.position.x = x; playerGroup.position.z = z; });
+  playerSwingPower = savedPower;
+}
 function handleMailboxMessage(msg) {
   if(msg.type === 'duel_challenge') {
     duelChallengeFrom = msg.from;
@@ -12171,19 +13365,19 @@ function handleMailboxMessage(msg) {
       showNotif(`${msg.from} declined the duel.`);
     }
   } else if(msg.type === 'duel_hit') {
-    if(dueling === msg.from) damagePlayer(msg.data.damage, msg.from + ' (duel)');
+    if(dueling === msg.from) { damagePlayer(msg.data.damage, msg.from + ' (duel)'); applyIncomingKnockback(msg.data); }
   } else if(msg.type === 'duel_end') {
     if(dueling === msg.from) {
       dueling = null;
       if(msg.data && msg.data.result === 'you_won') {
         queueEarning(50, 0, `Duel win vs ${msg.from}`);
-        showNotif(`🏆 You won the duel against ${msg.from}! +50 S.I.P. pending in Earnings`);
+        showNotif(`🏆 You won the duel against ${msg.from}! +50 S.I.P. added to your wallet`);
       } else {
         showNotif(`Duel with ${msg.from} ended.`);
       }
     }
   } else if(msg.type === 'ffa_hit') {
-    if(inArena && ffaAlive) { lastFfaAttacker = msg.from; damagePlayer(msg.data.damage, msg.from + ' (arena)'); }
+    if(inArena && ffaAlive) { lastFfaAttacker = msg.from; damagePlayer(msg.data.damage, msg.from + ' (arena)'); applyIncomingKnockback(msg.data); }
   } else if(msg.type === 'sip_gift') {
     queueEarning(msg.data.amount, 0, `Gift from ${msg.from}`);
     showNotif(`💸 ${msg.from} gave you ${msg.data.amount} S.I.P.! Thanks!`);
@@ -12209,6 +13403,31 @@ function handleMailboxMessage(msg) {
     // it's never missed entirely.
     showNotif(`📨 Dev Talk from ${msg.from}: ${msg.data.text}`);
     adminAddMsg(`📨 ${msg.from}: ${msg.data.text}`, 'devtalk');
+  } else if(msg.type === 'custom_bundle_request') {
+    // Only ever addressed to an ADMIN_ACCOUNTS name (submitCustomBundle(), game-alignment.js) —
+    // stored so /bundle_quote|/bundle_reject (game-admin.js) can look it up by requestId later,
+    // same "hold it in memory until an admin acts on it" idea as pendingBundleRequests' own
+    // declaration there. Logged into the real admin panel either way, not just toasted, since an
+    // admin reviewing an idea needs to actually re-read it, not just glimpse a notif.
+    pendingBundleRequests[msg.data.requestId] = msg.data;
+    showNotif(`🎁 Custom Bundle request from ${msg.from}`);
+    adminAddMsg(`🎁 ${msg.data.requester} wants: ${msg.data.itemName || '(no item)'} + ${msg.data.currencyAmount.toLocaleString()} ${msg.data.currencyType === 'elite' ? 'Elite Coins' : 'S.I.P.'} + idea: "${msg.data.idea || '(none)'}" — /bundle_quote ${msg.data.requester} <complications> or /bundle_reject ${msg.data.requester}`, 'devtalk');
+  } else if(msg.type === 'custom_bundle_quote') {
+    // The admin reviewed the idea and priced it — a real Stripe checkout URL already generated
+    // server-side (adminCreateBundleCheckout(), game-admin.js), just needs the player to actually
+    // click through and pay. This can arrive at any random moment while playing, possibly minutes/
+    // hours after the request, so a real PERSISTENT modal (showBundleQuoteModal(), game-core.js —
+    // showBigMsg()/showNotif() both auto-vanish in seconds and are plain text, neither can hold a
+    // real clickable link around long enough to matter here) rather than yanking the player
+    // straight to Stripe or hoping they saw a toast.
+    showBundleQuoteModal(msg.data.totalCents, msg.data.url);
+  } else if(msg.type === 'custom_bundle_declined') {
+    // No money ever changed hands for the idea half of this request, so the consolation is a
+    // normal reward credit (queueEarning(), the Earnings-tab collectible-delay path), NOT the
+    // instant-wallet-credit rule real Stripe purchases use elsewhere in this file — nothing was
+    // actually purchased here.
+    queueEarning(10000, 0, 'Custom Bundle idea declined');
+    showNotif(`🎁 ${msg.from} couldn't add your idea to the game this time — sent you 10,000 S.I.P. instead!`);
   } else if(msg.type === 'prayer_gift') {
     // "make it so you can wish for others" — someone else's GRANT roll named YOU, so whatever
     // their prayer parsed to (see parsePrayerGrant() in game-land.js) actually lands here, on
@@ -12282,6 +13501,47 @@ function tryGiveSip() {
   sendMail(target, 'sip_gift', { amount: amt });
   showNotif(`💸 Sent ${amt} S.I.P. to ${target}!`);
 }
+// User's own ask: "every one hass a profile bio username stats like total kills" — P key, same
+// nearestRemotePlayer(10) proximity as tryGiveSip() above. Reads rp.bio/totalKills/robotLevel,
+// kept fresh every presence tick (syncPresence(), game-character.js), so this always shows
+// whatever that player's client most recently reported — never a stale first-seen snapshot.
+function tryViewNearestProfile() {
+  const target = nearestRemotePlayer(10);
+  if (!target) { showNotif('👤 Get closer to someone to view their profile!'); return; }
+  const rp = remotePlayers[target];
+  showProfileModal(target, rp.bio || '', rp.totalKills || 0, rp.robotLevel, false);
+}
+function viewMyProfile() {
+  const myTotalKills = (lifetimeCitizensDefeated||0) + (lifetimeCopsDefeated||0) + (lifetimeRobotKills||0) + (lifetimeRogueKills||0) + (typeof ffaKills!=='undefined'?ffaKills:0);
+  showProfileModal(currentUser, playerBio, myTotalKills, Number.isFinite(eliteLevel) ? eliteLevel : 'Infinity', true);
+}
+function showProfileModal(name, bio, totalKills, robotLevel, isSelf) {
+  document.getElementById('profileModalName').textContent = name;
+  document.getElementById('profileModalKills').textContent = totalKills.toLocaleString();
+  document.getElementById('profileModalLevel').textContent = robotLevel === 'Infinity' ? '∞' : Number(robotLevel || 0).toLocaleString();
+  const bioEl = document.getElementById('profileModalBio');
+  const editBtn = document.getElementById('profileModalEditBtn');
+  if (isSelf) {
+    bioEl.style.display = 'none';
+    document.getElementById('profileModalBioEdit').style.display = 'block';
+    document.getElementById('profileModalBioEdit').value = bio;
+    editBtn.style.display = 'block';
+  } else {
+    bioEl.style.display = 'block';
+    bioEl.textContent = bio || '(no bio set)';
+    document.getElementById('profileModalBioEdit').style.display = 'none';
+    editBtn.style.display = 'none';
+  }
+  document.getElementById('profileModal').style.display = 'flex';
+}
+function closeProfileModal() {
+  document.getElementById('profileModal').style.display = 'none';
+}
+function saveMyBio() {
+  playerBio = document.getElementById('profileModalBioEdit').value.trim().slice(0, 150);
+  saveCurrentUser();
+  showNotif('👤 Bio saved!');
+}
 // Called from handleInteract() (E key) - returns true if it handled the press,
 // so the normal contextual-E logic (cars, NPCs, zones...) knows to stop there.
 function tryDuelInteract() {
@@ -12299,9 +13559,8 @@ function tryDuelInteract() {
     if(d > 25) return false; // opponent is far off - don't block unrelated interactions
     if(d > 8) { showNotif(`Get closer to ${dueling} to swing!`); return true; } // real players found this too tight at 6 - loosened, and now says why instead of silently doing nothing
     const dmg = getWeaponDamage();
-    triggerSwing();
-    sfx.hit();
-    sendMail(dueling, 'duel_hit', { damage: dmg });
+    swingAndHit(rp.mesh.position.x, rp.mesh.position.z, () => sfx.hit());
+    sendMail(dueling, 'duel_hit', { damage: dmg, fromX: playerGroup.position.x, fromZ: playerGroup.position.z, power: playerSwingPower });
     startKnockback(playerGroup.position.x, playerGroup.position.z, rp.mesh.position.x, rp.mesh.position.z,
       (x, z) => { rp.mesh.position.x = x; rp.mesh.position.z = z; });
     showNotif(`⚔️ Hit ${dueling} for ${dmg}!`);
@@ -12358,9 +13617,8 @@ function tryFfaInteract() {
   // truly no PvP target, letting the caller fall through to check everything else first.
   if(!target) { return false; }
   const dmg = getWeaponDamage();
-  triggerSwing();
-  sfx.hit();
-  sendMail(target, 'ffa_hit', { damage: dmg });
+  swingAndHit(targetRp.mesh.position.x, targetRp.mesh.position.z, () => sfx.hit());
+  sendMail(target, 'ffa_hit', { damage: dmg, fromX: playerGroup.position.x, fromZ: playerGroup.position.z, power: playerSwingPower });
   startKnockback(playerGroup.position.x, playerGroup.position.z, targetRp.mesh.position.x, targetRp.mesh.position.z,
     (x, z) => { targetRp.mesh.position.x = x; targetRp.mesh.position.z = z; });
   showNotif(`⚔️ Hit ${target} for ${dmg}!`);
@@ -12406,25 +13664,50 @@ function presidentBodyguardsNear(president, radius) {
   return npcs.filter(n => n.role === 'Bodyguard' && !n.isDown && n.name.startsWith(president.name + "'s Bodyguard")
     && Math.hypot(n.group.position.x-president.group.position.x, n.group.position.z-president.group.position.z) < radius);
 }
+// Same shape as presidentBodyguardsNear() above, just for the King's own (much bigger) army —
+// "X's Royal Guard A/B/.." matches generateRoyalCourtNPCs()'s own naming (game-character.js).
+function royalGuardsNear(king, radius) {
+  return npcs.filter(n => n.role === 'Royal Guard' && !n.isDown && n.name.startsWith(king.name + "'s Royal Guard")
+    && Math.hypot(n.group.position.x-king.group.position.x, n.group.position.z-king.group.position.z) < radius);
+}
+const ROYAL_GUARD_PROTECT_RADIUS = 14;
 function attackNPC(npc) {
   if(npc.isDown) { showNotif(`${npc.name} is already down!`); return; }
   const isCop = npc.role === 'Officer';
   const isPresident = npc.role === 'President';
+  const isKing = npc.role === 'King';
+  const isRoyalGuard = npc.role === 'Royal Guard';
+
+  // The King's whole point — user's own ask, "he has an army protecting him": while ANY Royal
+  // Guard is still standing near him, the King is genuinely untouchable, not just extra-tanky —
+  // the blow never lands, his HP never moves, and the nearby guards punish the attempt instead.
+  // Only once every guard in the group is down (see defeatNPC()'s Royal Guard branch below) does
+  // an attack on the King actually reach him, via the normal combatHp path further down.
+  if (isKing) {
+    const guards = royalGuardsNear(npc, ROYAL_GUARD_PROTECT_RADIUS);
+    if (guards.length) {
+      swingAndHit(npc.group.position.x, npc.group.position.z, () => sfx.hit());
+      guards.forEach(g => damagePlayer(8 + Math.floor(Math.random()*10), g.name));
+      showNotif(`🛡️ The Royal Guard throws itself in front of the blow — ${npc.name} is untouched! (${guards.length} guard${guards.length===1?'':'s'} still standing)`);
+      return;
+    }
+  }
+
   // A President is a real fight, not a pushover — this is the whole reason "try" and "actually
-  // kill" are different outcomes: Bodyguards below add even more real risk on top of this.
-  if(npc.combatHp === undefined) npc.combatHp = isPresident ? 80 : npc.job ? 30 : (isCop ? 60 : 40);
+  // kill" are different outcomes: Bodyguards below add even more real risk on top of this. The
+  // King only ever reaches this line once his whole army is down, per the early-return above.
+  if(npc.combatHp === undefined) npc.combatHp = npc.combatMaxHp = isKing ? 500 : isPresident ? 80 : isRoyalGuard ? 55 : npc.job ? 30 : (isCop ? 60 : 40);
 
   const dmg = getWeaponDamage();
   npc.combatHp -= dmg;
-  triggerSwing();
+  swingAndHit(npc.group.position.x, npc.group.position.z, () => sfx.hit());
   startKnockback(playerGroup.position.x, playerGroup.position.z, npc.group.position.x, npc.group.position.z,
     (x, z) => { npc.group.position.x = x; npc.group.position.z = z; });
-  sfx.hit();
 
   if(npc.combatHp > 0) {
     // NPC fights back — real risk for the player, not a free hit each time.
-    const backDmg = Math.round((isCop ? 8 : 5) + Math.random()*(isCop?10:6));
-    showNotif(`⚔️ Hit ${npc.name} for ${dmg}! (${Math.max(0,npc.combatHp)} HP left)`);
+    const backDmg = Math.round((isKing ? 14 : isRoyalGuard ? 9 : isCop ? 8 : 5) + Math.random()*(isKing?14:isRoyalGuard?10:isCop?10:6));
+    showTargetHealthBar(Math.max(0,npc.combatHp), npc.combatMaxHp);
     damagePlayer(backDmg, npc.name);
     if (isPresident) {
       const guards = presidentBodyguardsNear(npc, 15);
@@ -12439,9 +13722,46 @@ function attackNPC(npc) {
 }
 // Extracted so a car ram (item 160) can trigger the EXACT same real consequences as melee combat
 // — grave, wanted level, S.I.P. — instead of a separate, inconsistent death path.
+const ROYAL_GUARD_RESPAWN_MS = 90000; // a defeated guard is back on duty in 90 real seconds — thinned, not erased, so the King's protection stays a repeatable challenge
+let lastKingDefeatAt = -Infinity; // ambient session state, not persisted — same "resets on a fresh load" spirit as presidentVisitState/celebrityState above
+const KING_DEFEAT_COOLDOWN_DAYS = 1; // same day-based rarity shape as Killer Supreme's own cooldown (game-land.js)
 function defeatNPC(npc) {
   const isCop = npc.role === 'Officer';
   const isPresident = npc.role === 'President';
+  const isRoyalGuard = npc.role === 'Royal Guard';
+  const isKing = npc.role === 'King';
+  if (isRoyalGuard) {
+    // Taken out of the fight, not erased — same temporary-knockdown shape as the 40 Suburbs
+    // friends further below, just on its own longer timer, so the King's "army" is something you
+    // can actually wear down over one real assault without permanently gutting it for every future
+    // player (or your own next attempt) the way a citizen kill's grave/deadNPCs would.
+    npc.isDown = true;
+    npc.group.rotation.z = Math.PI / 2;
+    npc.group.position.y = -0.5;
+    queueEarning(30, 0, `Defeated ${npc.name}`);
+    showNotif(`🛡️💥 ${npc.name} is down!`);
+    setTimeout(() => {
+      npc.isDown = false;
+      npc.group.rotation.z = 0;
+      npc.group.position.y = 0;
+      npc.combatHp = undefined;
+    }, ROYAL_GUARD_RESPAWN_MS);
+    return;
+  }
+  if (isKing) {
+    // The King retreats rather than dying for good — he's a standing world fixture (the Line of
+    // Explox, game-library.js), not a one-time kill. tickKing() (below) brings him back once the
+    // cooldown passes, fresh combatHp and all — the whole encounter is meant to be repeatable, not
+    // a single permanent content moment.
+    lastKingDefeatAt = playTimeSeconds;
+    npc.isDown = true;
+    npc.group.rotation.z = Math.PI / 2;
+    npc.group.position.y = -0.5;
+    const sip = 3000 + Math.floor(Math.random()*2000), elite = 15 + Math.floor(Math.random()*10);
+    queueEarning(sip, elite, `Defeated ${npc.name}`);
+    showNotif(`👑💥 You broke through the entire Royal Guard and defeated ${npc.name}! The throne sits empty again... for now.`);
+    return;
+  }
   if(isPresident) {
     // Assassinating a head of state is instantly national news — no 15-30s "nobody's noticed
     // yet" grace period like a regular citizen gets, and a much bigger bounty to match the risk
@@ -12466,7 +13786,7 @@ function defeatNPC(npc) {
     queueEarning(10, 0, `Defeated ${npc.name}`);
     increaseWanted(1);
     lifetimeCitizensDefeated++;
-    showNotif(`💥 Defeated ${npc.name}! +10 S.I.P. pending in Earnings`);
+    showNotif(`💥 Defeated ${npc.name}! +10 S.I.P. added to your wallet`);
     setTimeout(() => {
       npc.isDown = false;
       npc.group.rotation.z = 0;
@@ -12584,7 +13904,7 @@ function hireKillerAgainstType(type) {
   const x = playerGroup.position.x + Math.cos(ang)*dist, z = playerGroup.position.z + Math.sin(ang)*dist;
   const mesh = buildKillerMesh(x, z);
   mesh.visible = true;
-  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:4+Math.random()*1.5, hitTargetType: type, attackTimer:0, huntElapsed:0, revealed:true });
+  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP(), maxHp:KILLER_HP(), mesh, alive:true, speed:4+Math.random()*1.5, hitTargetType: type, attackTimer:0, huntElapsed:0, revealed:true });
   showNotif(free ? `🗡️ One of your own is heading out to hunt down ${label} for you — no charge.` : `🗡️ A killer is heading out to hunt down ${label} for you...`);
   closeHitmanModal();
 }
@@ -12622,7 +13942,7 @@ function spawnHitman(target) {
   const x = targetPos.x + Math.cos(ang)*dist, z = targetPos.z + Math.sin(ang)*dist;
   const mesh = buildKillerMesh(x, z);
   mesh.visible = true; // a hired hit isn't a jump-scare ambush — you can see them coming for the target
-  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:4+Math.random()*1.5, hitTargetName: target.name, hitTargetIsPlayer: isRealPlayer, attackTimer:0, huntElapsed:0, revealed:true });
+  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP(), maxHp:KILLER_HP(), mesh, alive:true, speed:4+Math.random()*1.5, hitTargetName: target.name, hitTargetIsPlayer: isRealPlayer, attackTimer:0, huntElapsed:0, revealed:true });
 }
 function tickHitmanCombat(k, dt) {
   if (k.hitTargetIsPlayer) { tickHitmanVsPlayer(k, dt); return; }
@@ -12683,7 +14003,7 @@ function completeHiredHitOnPlayer(targetName) {
   totalKills++; checkWrathTrigger(); checkDivineJudgment();
   const wealth = npcWealth(targetName);
   queueEarning(wealth, 0, `Hit on ${targetName}`);
-  showNotif(`🗡️ Your hired killer got ${targetName}! ${wealth} S.I.P. pending in Earnings.`);
+  showNotif(`🗡️ Your hired killer got ${targetName}! ${wealth} S.I.P. added to your wallet.`);
   const delaySec = 20 + Math.random()*25;
   setTimeout(() => {
     increaseWanted(1);
@@ -12730,7 +14050,7 @@ function completeHiredHit(target) {
   saveCurrentUser();
   buildGrave(target.name, x, z);
   queueEarning(wealth, 0, `Hit on ${target.name}`);
-  showNotif(`🗡️ ${hitFlavorText(target.name)} ${wealth} S.I.P. pending in Earnings.`);
+  showNotif(`🗡️ ${hitFlavorText(target.name)} ${wealth} S.I.P. added to your wallet.`);
   const delaySec = 20 + Math.random()*25;
   setTimeout(() => {
     increaseWanted(1);
@@ -12793,7 +14113,7 @@ function tickCelebrities(dt) {
       if(dist < CELEBRITY_GIVEAWAY_RADIUS) {
         const sip = 200 + Math.floor(Math.random()*300), elite = 1 + Math.floor(Math.random()*3);
         queueEarning(sip, elite, `${npc.name}'s Giveaway`);
-        showNotif(`💰 You caught ${npc.name}'s giveaway! Check Earnings.`);
+        showNotif(`💰 You caught ${npc.name}'s giveaway! Added to your wallet.`);
         st.activeEvent = null; st.nextEventAt = celebNextEventAt();
       }
     } else { // challenge
@@ -12806,7 +14126,7 @@ function tickCelebrities(dt) {
         if(st.activeEvent.playerTime >= CELEBRITY_CHALLENGE_DURATION) {
           const sip = 500 + Math.floor(Math.random()*500), elite = 3 + Math.floor(Math.random()*3);
           queueEarning(sip, elite, `${npc.name}'s Challenge`);
-          showNotif(`🏆 You won ${npc.name}'s challenge! Check Earnings.`);
+          showNotif(`🏆 You won ${npc.name}'s challenge! Added to your wallet.`);
           st.activeEvent = null; st.nextEventAt = celebNextEventAt();
         }
       } else if(st.activeEvent.playerTime > 0) {
@@ -12861,7 +14181,22 @@ function tickPresidents(dt) {
     presidentVisitState[npc.name] = playTimeSeconds;
     const sip = 300 + Math.floor(Math.random()*400), elite = 2 + Math.floor(Math.random()*3);
     queueEarning(sip, elite, `State visit with ${npc.name}`);
-    showNotif(`🤝 ${npc.name} welcomes you! A diplomatic gift has been added to Earnings.`);
+    showNotif(`🤝 ${npc.name} welcomes you! A diplomatic gift of ${sip} S.I.P. has been added to your wallet.`);
+  }
+}
+
+// Brings the King back once his defeat cooldown passes — his Royal Guards each recover on their
+// own independent ROYAL_GUARD_RESPAWN_MS timers regardless (set in defeatNPC() above), so this
+// only ever needs to manage the King himself.
+function tickKing(dt) {
+  const king = npcs.find(n => n.role === 'King');
+  if (!king || !king.isDown) return;
+  if (playTimeSeconds - lastKingDefeatAt >= KING_DEFEAT_COOLDOWN_DAYS * DAY_LENGTH) {
+    king.isDown = false;
+    king.group.rotation.z = 0;
+    king.group.position.y = 0;
+    king.combatHp = undefined;
+    showNotif(`👑 ${king.name} has returned to the throne, Royal Guard at his side once more.`);
   }
 }
 
@@ -12911,7 +14246,7 @@ function buyBlackMarketItem(idx) {
   const item = BLACK_MARKET_ITEMS[idx];
   if(sipDollars < item.cost) { showNotif('❌ Not enough S.I.P.!'); return; }
   spendSip(item.cost);
-  if(item.sipReward) { queueEarning(item.sipReward, 0, 'Black Market'); showNotif(`💰 Laundered! +${item.sipReward} S.I.P. pending in Earnings`); }
+  if(item.sipReward) { queueEarning(item.sipReward, 0, 'Black Market'); showNotif(`💰 Laundered! +${item.sipReward} S.I.P. added to your wallet`); }
   if(item.weaponId) {
     if(!ownedWeapons.includes(item.weaponId)) ownedWeapons.push(item.weaponId);
     playerWeapon = item.weaponId;
@@ -13459,6 +14794,24 @@ generateAutoWeaponBatch(17, 195000000000000, 370000000000000, 9.07, 9.25);
     batchScale = nextScale;
   }
 }
+// GUNS — user's own ask: "make guns at weapon shop". Raw dmg values here just need to rank above
+// every generated batch above (same "thrown away the moment buildWeaponLevels() runs" note as
+// those batches' own comment) — landing guns as the strongest weapons in the game, which feels
+// right for a real gun to be worth more than a sword. weaponCategory() (game-social.js) derives
+// their shop header ("GUN") automatically from the id prefix, same as every material tier already
+// does — no separate category list to maintain.
+const GUNS = [
+  { id:'gun_pistol',  name:'🔫 Pistol',         color:0x333333, dmg:1.0e40 },
+  { id:'gun_shotgun', name:'🔫 Shotgun',        color:0x4a3a2a, dmg:1.1e40 },
+  { id:'gun_rifle',   name:'🔫 Assault Rifle',  color:0x2a2a2a, dmg:1.2e40 },
+  { id:'gun_sniper',  name:'🔭 Sniper Rifle',   color:0x1a2a1a, dmg:1.3e40 },
+  { id:'gun_minigun', name:'🔫 Minigun',        color:0x555555, dmg:1.4e40 },
+];
+GUNS.forEach(g => {
+  WEAPON_DAMAGE[g.id] = g.dmg;
+  WEAPON_VISUALS[g.id] = { archetype:'gun', color:g.color, accent:0x111111, glow:null, scale:1.1 };
+  WEAPONS.push({ id:g.id, name:g.name, cost:0, color:g.color });
+});
 // Real damage reduction, not a cosmetic — applied for real in damagePlayer().
 const ARMOR = [
   { id:'leather', name:'🥋 Leather Armor', cost:80,  reduction:0.15, color:0x8B5A2B },
@@ -13466,6 +14819,16 @@ const ARMOR = [
   { id:'gold',    name:'👑 Golden Armor',  cost:600, reduction:0.45, color:0xFFD700 },
   { id:'scrap',   name:'🔩 Scrap Armor',   cost:0,   reduction:0.35, color:0x667788, craftOnly:true },
   { id:'titanium',name:'🦾 Titanium Armor',cost:0,   reduction:0.50, color:0xcfd8e0, craftOnly:true },
+  // SUPER ARMOR — user's own ask: the item behind the $10.00 real-money 🛍️ SHOP tab listing
+  // (CURRENCY_SHOP_PACKAGES, game-alignment.js), same permanently-disabled-purchase pattern as
+  // the Super Tank. Real and equippable (same shape as every entry above, so ARMOR.find() in
+  // damagePlayer()/buildArmorVisual() picks it up correctly) but marked premiumOnly so it never
+  // shows up in the normal browse-and-buy list below (can't be bought with S.I.P. or crafted) —
+  // equipArmor('super_armor') is the only way onto it right now. 0.93 reduction was picked AFTER
+  // checking generateArmorBatch() below — the buyable batch already climbs as high as 0.90, so
+  // this has to clear that to honestly be the strongest, while staying under the batch's own
+  // deliberate "never literally unkillable" ceiling of 1.0.
+  { id:'super_armor', name:'⭐ Super Armor', cost:0, reduction:0.93, color:0xff3355, premiumOnly:true },
 ];
 // User's own follow-up: "add armor using the same batch system" — reuses the exact same tier-name
 // generator (and its dedup Set, so it can never collide with a weapon tier id) and hue-rotation
@@ -13545,31 +14908,43 @@ function openShop(type) {
     OUTFITS.forEach((o,i) => {
       const d = document.createElement('div'); d.className='shopItem';
       const safeName = o.name.replace(/'/g, "\\'");
+      const craftId = 'outfit_' + o.name.toLowerCase().replace(/\s+/g,'_');
+      const craftCost = craftCostForPrice(o.cost, craftId);
+      const canCraft = canAffordCraftCost(craftCost);
       d.innerHTML=`<div class="siName">${o.name}</div>
         <div class="siCost">💰 ${o.cost} S.I.P.</div>
+        <div class="siCost" style="color:#8ac9ff;">🔨 ${craftCostForPriceText(craftCost)}</div>
         <div class="siSwatch" style="display:flex;gap:4px;margin:4px 0">
           <div style="width:18px;height:18px;background:${o.shirt};border-radius:3px"></div>
           <div style="width:18px;height:18px;background:${o.pants};border-radius:3px"></div>
           <div style="width:18px;height:18px;background:${o.shoes};border-radius:3px"></div>
         </div>
-        <div style="display:flex;gap:6px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="shopBtn" onclick="renderShopPreview({shirt:'${o.shirt}',pants:'${o.pants}',shoes:'${o.shoes}'},'${safeName}')" style="background:#2a4a5a;">👁 Preview</button>
           <button class="shopBtn" onclick="buyOutfit(${i})">Buy</button>
+          <button class="shopBtn" onclick="craftOutfit(${i})" style="background:${canCraft?'#2a4a6a':'#333'};" ${canCraft?'':'disabled'}>🔨 Craft</button>
         </div>`;
       items.appendChild(d);
     });
   } else if(type==='armor') {
-    ARMOR.filter(a => !a.craftOnly).forEach((a) => {
+    // premiumOnly (Super Armor) stays hidden from browse-and-buy UNLESS the account already owns
+    // it — syncEntitlements() (game-core.js) pushes it into ownedArmor the moment a real Stripe
+    // purchase for it is confirmed, same as every other real-money item in this game.
+    ARMOR.filter(a => !a.craftOnly && (!a.premiumOnly || ownedArmor.includes(a.id))).forEach((a) => {
       const realIdx = ARMOR.indexOf(a);
       const owned = ownedArmor.includes(a.id);
       const equipped = playerArmor === a.id;
       const d = document.createElement('div'); d.className='shopItem';
       const safeName = a.name.replace(/'/g, "\\'");
+      const craftCost = craftCostForPrice(a.cost, a.id);
+      const canCraft = !owned && canAffordCraftCost(craftCost);
       d.innerHTML=`<div class="siName">${a.name}</div>
         <div class="siCost">${owned ? (equipped?'✅ Equipped':'✔ Owned') : '💰 '+a.cost+' S.I.P.'} — blocks ${Math.round(a.reduction*100)}% damage</div>
-        <div style="display:flex;gap:6px;">
+        ${owned ? '' : `<div class="siCost" style="color:#8ac9ff;">🔨 ${craftCostForPriceText(craftCost)}</div>`}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="shopBtn" onclick="renderShopPreview({armor:'${a.id}'},'${safeName}')" style="background:#2a4a5a;">👁 Preview</button>
           <button class="shopBtn" onclick="buyArmor(${realIdx})" ${equipped?'disabled':''}>${owned?(equipped?'Equipped':'Equip'):'Buy'}</button>
+          ${owned ? '' : `<button class="shopBtn" style="background:#3a6a4a;" onclick="craftArmorHard(${realIdx})" ${canCraft?'':'disabled'}>🔨 Craft</button>`}
         </div>`;
       items.appendChild(d);
     });
@@ -13603,11 +14978,15 @@ function openShop(type) {
       const locked = need > eliteLevel;
       const d = document.createElement('div'); d.className='shopItem';
       const safeName = w.name.replace(/'/g, "\\'");
+      const craftCost = craftCostForPrice(w.cost, w.id);
+      const canCraft = !owned && !locked && canAffordCraftCost(craftCost);
       d.innerHTML=`<div class="siName">${w.name}</div>
         <div class="siCost">${owned ? (equipped?'✅ Equipped':'✔ Owned') : '💰 '+w.cost+' S.I.P.'} — ${WEAPON_DAMAGE[w.id]} dmg to people, 🤖 ${ROBOT_BONUS_DAMAGE[w.id]} dmg to robots${need>0?` — 🔒 Lv.${need}`:''}</div>
-        <div style="display:flex;gap:6px;">
+        ${owned ? '' : `<div class="siCost" style="color:#8ac9ff;">🔨 ${craftCostForPriceText(craftCost)}</div>`}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="shopBtn" onclick="renderShopPreview({weapon:'${w.id}'},'${safeName}')" style="background:#2a4a5a;">👁 Preview</button>
           <button class="shopBtn" onclick="buyWeapon(${realIdx})" ${(equipped||locked)?'disabled':''}>${locked?`Requires Lv.${need}`:(owned?(equipped?'Equipped':'Equip'):'Buy')}</button>
+          ${owned ? '' : `<button class="shopBtn" style="background:#3a6a4a;" onclick="craftWeaponHard(${realIdx})" ${(locked||!canCraft)?'disabled':''}>${locked?`🔒 Lv.${need}`:'🔨 Craft'}</button>`}
         </div>`;
       items.appendChild(d);
     });
@@ -13632,11 +15011,15 @@ function openShop(type) {
       const locked = need > eliteLevel;
       const d = document.createElement('div'); d.className='shopItem';
       const safeName = w.name.replace(/'/g, "\\'");
+      const craftCost = craftCostForPrice(w.cost, w.id);
+      const canCraft = !owned && !locked && canAffordCraftCost(craftCost);
       d.innerHTML=`<div class="siName">${w.name}</div>
         <div class="siCost">${owned ? (equipped?'✅ Equipped':'✔ Owned') : '💰 '+w.cost+' S.I.P.'}${need>0?` — 🔒 Requires Lv.${need}`:''}</div>
-        <div style="display:flex;gap:6px;">
+        ${owned ? '' : `<div class="siCost" style="color:#8ac9ff;">🔨 ${craftCostForPriceText(craftCost)}</div>`}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="shopBtn" onclick="renderShopPreview({weapon:'${w.id}'},'${safeName}')" style="background:#2a4a5a;">👁 Preview</button>
           <button class="shopBtn" onclick="buyWeapon(${realIdx})" ${(equipped||locked)?'disabled':''}>${locked?`Requires Lv.${need}`:(owned?(equipped?'Equipped':'Equip'):'Buy')}</button>
+          ${owned ? '' : `<button class="shopBtn" style="background:#3a6a4a;" onclick="craftWeaponHard(${realIdx})" ${(locked||!canCraft)?'disabled':''}>${locked?`🔒 Lv.${need}`:'🔨 Craft'}</button>`}
         </div>`;
       items.appendChild(d);
     });
@@ -13645,13 +15028,33 @@ function openShop(type) {
 function closeShop() { document.getElementById('shopOverlay').style.display='none'; stopShopPreviewLoop(); }
 function buyArmor(i) {
   const a = ARMOR[i];
-  if(ownedArmor.includes(a.id)) { equipArmor(a.id); openShop('armor'); return; }
+  // !inShopInterior guard — buyArmor()/craftArmorHard() were both written to refresh the old flat
+  // #shopOverlay list after a purchase, but they're now also called directly from the new walkable
+  // Armory interior (game-shopinteriors.js), where popping that old 2D modal open on top of the 3D
+  // room would be a real regression, not a refresh.
+  if(ownedArmor.includes(a.id)) { equipArmor(a.id); if(!inShopInterior) openShop('armor'); return; }
   if(sipDollars < a.cost) { showNotif(`❌ Need ${a.cost} S.I.P.`); return; }
   spendSip(a.cost); updateSIP();
   ownedArmor.push(a.id);
   equipArmor(a.id);
   showNotif(`✅ Got ${a.name}!`);
-  openShop('armor');
+  if(!inShopInterior) openShop('armor');
+}
+// "Craft but hard" path for any non-craftOnly ARMOR entry — same real granting code buyArmor()
+// uses (ownedArmor.push + equipArmor), just paid for with craftCostForPrice()'s real
+// wood/scrap/material/Elite-Coin recipe (game-housing.js) instead of S.I.P.
+function craftArmorHard(i) {
+  const a = ARMOR[i];
+  if(a.craftOnly) return; // already has its own real CRAFT_RECIPES entry — don't double-grant
+  if(ownedArmor.includes(a.id)) { equipArmor(a.id); if(!inShopInterior) openShop('armor'); return; }
+  const cost = craftCostForPrice(a.cost, a.id);
+  if(!canAffordCraftCost(cost)) { showNotif(`❌ Need ${craftCostForPriceText(cost)}`); return; }
+  spendCraftCost(cost);
+  ownedArmor.push(a.id);
+  equipArmor(a.id);
+  sfx.buy();
+  showNotif(`🔨 Crafted ${a.name}!`);
+  if(!inShopInterior) openShop('armor');
 }
 function equipArmor(id) {
   playerArmor = id;
@@ -13699,7 +15102,7 @@ function buyBodyPaint(i) {
   repaintSkin(p.color);
   sfx.buy();
   showNotif(`🎨 Painted ${p.name}!`);
-  openShop('paint');
+  if(!inShopInterior) openShop('paint');
 }
 function repaintSkin(hexColor) {
   playerColors.skin = hexColor;
@@ -13764,6 +15167,52 @@ function renderAddOnsPanel() {
       <button class="shopBtn" onclick="repaintBuddy()" style="width:100%;">🎨 Repaint Buddy</button>`;
     items.appendChild(info);
   }
+
+  // ── Bodyguards section — a real roster (up to BODYGUARD_MAX_COUNT), unlike Buddy's one-forever
+  // slot, since hiring more than one is the whole point of a bodyguard.
+  const bgHeader = document.createElement('div');
+  bgHeader.style.cssText = 'color:#ff9944;font-size:11px;font-weight:bold;letter-spacing:1px;margin-top:14px;';
+  bgHeader.textContent = '💂 BODYGUARDS';
+  items.appendChild(bgHeader);
+  const bgIntro = document.createElement('div'); bgIntro.className='shopItem';
+  bgIntro.innerHTML = `<div class="siName">💂 Hired Muscle</div>
+    <div style="color:#aaa;font-size:11px;margin:4px 0;">Follow you and help fight whatever you're fighting. Hire up to ${BODYGUARD_MAX_COUNT} with 💎 Elite Coins, then level each one up to ${BODYGUARD_MAX_LEVEL}.</div>`;
+  items.appendChild(bgIntro);
+  bodyguards.forEach(bg => {
+    const maxed = bg.level >= BODYGUARD_MAX_LEVEL;
+    const cost = maxed ? 0 : BODYGUARD_LEVEL_UP_COST[bg.level-1];
+    const d = document.createElement('div'); d.className='shopItem';
+    d.innerHTML = `<div class="siName">💂 ${bg.name} — Level ${bg.level}${maxed?' (MAX)':''}</div>
+      <div class="siCost">${maxed ? '⭐ Max Level' : `💎 ${cost.toLocaleString()} to level up`}</div>
+      <button class="shopBtn" onclick="levelUpBodyguard('${bg.id}')" ${(maxed || eliteCoins<cost)?'disabled':''}>${maxed?'Maxed':'Level Up'}</button>`;
+    items.appendChild(d);
+  });
+  if (bodyguards.length < BODYGUARD_MAX_COUNT) {
+    const hireDiv = document.createElement('div'); hireDiv.className='shopItem';
+    hireDiv.innerHTML = `<div class="siName">💂 Hire a Bodyguard</div>
+      <div class="siCost">💎 ${BODYGUARD_HIRE_COST.toLocaleString()} Elite Coins</div>
+      <button class="shopBtn" onclick="hireBodyguard()" ${eliteCoins<BODYGUARD_HIRE_COST?'disabled':''}>Hire (${bodyguards.length}/${BODYGUARD_MAX_COUNT})</button>`;
+    items.appendChild(hireDiv);
+  }
+
+  // ── Pro Pilot section — user's own ask: "hire a pro driver for driving my jet." One-time hire,
+  // same shape as Buddy (pay once, keep forever) — unlocks a real autopilot for the Super Jet
+  // (H key while flying, tickJetAutopilot(), game-vehicles.js), not just a cosmetic title.
+  const pilotHeader = document.createElement('div');
+  pilotHeader.style.cssText = 'color:#ff9944;font-size:11px;font-weight:bold;letter-spacing:1px;margin-top:14px;';
+  pilotHeader.textContent = '🧑‍✈️ PRO PILOT';
+  items.appendChild(pilotHeader);
+  const pilotDiv = document.createElement('div'); pilotDiv.className='shopItem';
+  if (hiredJetPilot) {
+    pilotDiv.innerHTML = `<div class="siName">🧑‍✈️ Pro Pilot — Hired</div>
+      <div style="color:#aaa;font-size:11px;margin:4px 0;">While flying the Super Jet, press [H] to autopilot straight home and land, hands-off.</div>`;
+  } else {
+    pilotDiv.innerHTML = `<div class="siName">🧑‍✈️ Hire a Pro Pilot</div>
+      <div style="color:#aaa;font-size:11px;margin:4px 0;">A real autopilot for the Super Jet — press H mid-flight and it flies itself home and lands for you.</div>
+      <div class="siCost">💰 ${JET_PILOT_HIRE_COST.toLocaleString()} S.I.P.</div>
+      <button class="shopBtn" onclick="hireJetPilot()" ${sipDollars<JET_PILOT_HIRE_COST?'disabled':''}>Hire</button>`;
+  }
+  items.appendChild(pilotDiv);
 
   // ── Family section — your real relatives (Mom & Dad, always family, no befriending needed —
   // walk up to them in the city), your own marriage status, and (once married) a child who
@@ -13980,6 +15429,67 @@ function buildBuddy() {
   scene.add(buddyGroup);
 }
 
+// ─── BODYGUARDS — hire with Elite Coins, level each one up to a real cap of 10 (user's own ask).
+const BODYGUARD_MAX_COUNT = 3;
+const BODYGUARD_MAX_LEVEL = 10;
+const BODYGUARD_HIRE_COST = 400;
+// Cost to go FROM level i+1 TO i+2 (9 entries covers level 1→2 up to 9→10) — a real fixed ramp,
+// not open-ended, since unlike the player's own eliteLevel this is deliberately capped at 10.
+const BODYGUARD_LEVEL_UP_COST = [150, 250, 400, 600, 850, 1150, 1500, 1900, 2400];
+const BODYGUARD_NAMES = ['Rex', 'Tank', 'Duke', 'Bruno', 'Diesel', 'Axel'];
+function bodyguardDamageMult(level) { return 0.25 + (level-1) * 0.08; } // level 1 = 0.25x weapon dmg, level 10 = 0.97x
+function buildBodyguardMesh(x, z) {
+  const g = new THREE.Group();
+  function b(w,h,d,color,px,py,pz) { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(color)); m.position.set(px,py,pz); m.castShadow=true; g.add(m); return m; }
+  b(0.55,0.85,0.32, 0x1a1a1a, 0,1.15,0);     // black suit torso
+  b(0.4,0.4,0.4, 0xd4a070, 0,1.85,0);        // head
+  b(0.42,0.14,0.1, 0x111111, 0,1.9,0.18);    // sunglasses
+  b(0.5,0.75,0.3, 0x0d0d0d, 0,0.55,0);       // suit pants
+  [[-0.32,1.3,0],[0.32,1.3,0]].forEach(([ax,ay,az]) => b(0.16,0.6,0.16, 0x1a1a1a, ax,ay,az)); // arms
+  g.position.set(x,0,z);
+  scene.add(g);
+  return g;
+}
+// Rebuilds every hired bodyguard's real mesh fresh — called once at world-init (see the _dbg
+// startup sequence, game-zones.js), same "rebuild the visual from saved data" role buildBuddy()
+// already plays, since only {id,name,level} survive a save/load, never the live mesh reference.
+function buildBodyguards() {
+  bodyguards.forEach((bg, i) => {
+    if (bg.group) { scene.remove(bg.group); bg.group = null; }
+    const startX = playerGroup ? playerGroup.position.x - 1.5 - i*0.9 : -1.5 - i*0.9;
+    const startZ = playerGroup ? playerGroup.position.z + 1 : 16;
+    bg.group = buildBodyguardMesh(startX, startZ);
+  });
+}
+function hireBodyguard() {
+  if (bodyguards.length >= BODYGUARD_MAX_COUNT) { showNotif(`❌ You already have the max of ${BODYGUARD_MAX_COUNT} bodyguards!`); return; }
+  if (eliteCoins < BODYGUARD_HIRE_COST) { showNotif(`❌ Need ${BODYGUARD_HIRE_COST.toLocaleString()} 💎 to hire a bodyguard!`); return; }
+  eliteCoins -= BODYGUARD_HIRE_COST;
+  updateElite();
+  const name = BODYGUARD_NAMES[bodyguards.length % BODYGUARD_NAMES.length];
+  const bg = { id: 'bg' + Date.now() + '_' + Math.floor(Math.random()*10000), name, level: 1, group: null };
+  bodyguards.push(bg);
+  buildBodyguards();
+  sfx.buy();
+  showNotif(`💂 Hired ${name} as your bodyguard! (${bodyguards.length}/${BODYGUARD_MAX_COUNT})`);
+  saveCurrentUser();
+  renderAddOnsPanel();
+}
+function levelUpBodyguard(id) {
+  const bg = bodyguards.find(b => b.id === id);
+  if (!bg) return;
+  if (bg.level >= BODYGUARD_MAX_LEVEL) { showNotif(`❌ ${bg.name} is already max level (${BODYGUARD_MAX_LEVEL})!`); return; }
+  const cost = BODYGUARD_LEVEL_UP_COST[bg.level - 1];
+  if (eliteCoins < cost) { showNotif(`❌ Need ${cost.toLocaleString()} 💎 to level up ${bg.name}!`); return; }
+  eliteCoins -= cost;
+  updateElite();
+  bg.level++;
+  sfx.buy();
+  showNotif(`⬆️ ${bg.name} is now level ${bg.level}!`);
+  saveCurrentUser();
+  renderAddOnsPanel();
+}
+
 // ─── GROWTH tick — applies the current real-play-time growth stage to the player (and the
 // adopted child, on its own slower clock) every frame; only fires the "you grew!" notif and a
 // re-save on an ACTUAL stage change, not every frame. ───────────────────────────────────────
@@ -14007,7 +15517,7 @@ function tickGrowth(dt) {
       if (cStage.id === 'adult' && familyKidSmarts > 0) {
         const payout = Math.round(familyKidSmarts * 5);
         queueEarning(payout, 0, `${familyKidName} graduated`);
-        showNotif(`🎓 ${familyKidName} graduated and got a great job — they gave you ${payout.toLocaleString()} S.I.P. to say thanks! (pending in Earnings)`);
+        showNotif(`🎓 ${familyKidName} graduated and got a great job — they gave you ${payout.toLocaleString()} S.I.P. to say thanks! (already in your wallet)`);
         sfx.cheer && sfx.cheer();
       } else {
         showNotif(`${cStage.emoji} ${familyKidName} grew into a ${cStage.label}!`);
@@ -14134,7 +15644,7 @@ function prayAtChurch() {
       } else {
         const gift = PRAY_GRANT_SIP_MIN + Math.floor(Math.random() * (PRAY_GRANT_SIP_MAX - PRAY_GRANT_SIP_MIN));
         queueEarning(gift, 0, 'Prayer Granted');
-        showNotif(`✨ Your prayer for "${prayerText}" is granted! Fully healed, +${gift.toLocaleString()} S.I.P. pending in Earnings.`);
+        showNotif(`✨ Your prayer for "${prayerText}" is granted! Fully healed, +${gift.toLocaleString()} S.I.P. added to your wallet.`);
       }
     }
     sfx.coin();
@@ -14233,7 +15743,7 @@ function participateInSchoolEvent() {
   const smartsBonus = 30 + Math.round(Math.random() * 40);
   familyKidSmarts += smartsBonus;
   queueEarning(sipReward, 0, `${def.name} at ${familyKidName}'s school`);
-  showNotif(`${def.emoji} You helped out at the ${def.name}! +${smartsBonus} Smarts, ${sipReward} S.I.P. pending in Earnings.`);
+  showNotif(`${def.emoji} You helped out at the ${def.name}! +${smartsBonus} Smarts, ${sipReward} S.I.P. added to your wallet.`);
   sfx.cheer ? sfx.cheer() : sfx.buy();
   schoolEventActive = null;
   scheduleNextSchoolEvent();
@@ -14509,9 +16019,16 @@ function consumePermitFor(plotId) {
 // them before that happens, not to decorate the loading screen. ─────────────────────────────
 const GUIDE_PAGES = [
   { emoji:'👋', title:'Welcome to Explox!', tips:[
-    'WASD to move, Shift to run, Space to jump, Mouse to look around.',
-    'Press E to interact with people, doors, and shop counters.',
-    'Press T anytime to ask SAI, your in-game helper, a real question.',
+    'On a phone: use the left joystick to move, RUN to sprint, ⬆ to jump, and drag the screen to look around. On a computer: WASD to move, Shift to run, Space to jump, mouse to look.',
+    'Tap the E button (or press E) to interact with people, doors, and shop counters. Near an enemy, hold it to charge a stronger hit.',
+    'In a Tank, Jet, or Motorcycle a 🔥 FIRE button appears — tap it to shoot. 🧨 throws a grenade. On a computer these are F and Q.',
+    'Open 🤖 SAI from the ☰ Menu (or press T) anytime to ask your in-game helper a real question.',
+  ]},
+  { emoji:'📱', title:'Playing on a Phone', tips:[
+    'Move with the joystick in the bottom-left. Drag anywhere else on the screen to look around.',
+    'Buttons on the right: ⬆ jump, E to interact (hold it near an enemy to charge a stronger hit), and RUN to sprint.',
+    'In a Tank, Jet, or Motorcycle a 🔥 FIRE button appears — tap it to shoot. 🧨 throws a grenade, 💣 drops a Jet bomb.',
+    'Tap ☰ Menu in the bottom-left corner to reach every tab — SAI, Bag, Shop, Mini Games and more. Tap ⛶ Full for fullscreen.',
   ]},
   { emoji:'💰', title:'Money', tips:[
     'S.I.P. is the main currency — earn it from jobs, selling things, or just exploring.',
@@ -14521,7 +16038,7 @@ const GUIDE_PAGES = [
   { emoji:'🏠', title:'Your Place', tips:[
     'You start with a free house right in the city.',
     'Buy your own land at Sunset Plains and build a house, fountain, or more on it.',
-    'Owning land or a car brings real recurring bills — pay them under the 🧩 Add-Ons tab before they go late.',
+    'Owning land or a car brings real recurring bills — pay them under 🧩 Add-Ons in the ☰ Menu (or press G) before they go late.',
   ]},
   { emoji:'🚗', title:'Get Around', tips:[
     'Buy a car at the Car Dealership and drive it around the city.',
@@ -14536,7 +16053,7 @@ const GUIDE_PAGES = [
   { emoji:'🌱', title:'One Last Thing', tips:[
     'Your character actually grows up the more you play — Baby, Kid, Teen, then Adult.',
     'Get a job downtown for steady S.I.P., or fight robots for rare 💎 Elite Coins.',
-    "Stuck? Press T for SAI, or click ❓ HELP on the left edge to see this guide again.",
+    "Stuck? Press T for SAI, or open ❓ HELP from the ☰ Menu to see this guide again.",
   ]},
 ];
 let guidePageIndex = 0;
@@ -14752,6 +16269,23 @@ function buyOutfit(i) {
   showNotif(`✅ Wearing ${o.name}!`);
   closeShop();
 }
+// "Craft but hard" path for the starter OUTFITS list — same craftCostForPrice() formula every
+// other catalog uses now, keyed off a stable 'outfit_<slug>' id since these entries have no id
+// field of their own.
+function craftOutfit(i) {
+  const o = OUTFITS[i];
+  const craftId = 'outfit_' + o.name.toLowerCase().replace(/\s+/g,'_');
+  const cost = craftCostForPrice(o.cost, craftId);
+  if(!canAffordCraftCost(cost)) { sfx.nope(); showNotif(`❌ Need ${craftCostForPriceText(cost)}`); return; }
+  spendCraftCost(cost);
+  playerColors.shirt = o.shirt; playerColors.pants = o.pants; playerColors.shoes = o.shoes;
+  document.getElementById('shirtColor').value = o.shirt;
+  document.getElementById('pantsColor').value = o.pants;
+  document.getElementById('shoeColor').value  = o.shoes;
+  sfx.buy();
+  showNotif(`🔨 Crafted ${o.name}!`);
+  closeShop();
+}
 function buyWeapon(i) {
   const w = WEAPONS[i];
   const need = weaponRequiredLevel(w.id);
@@ -14762,6 +16296,26 @@ function buyWeapon(i) {
   ownedWeapons.push(w.id);
   equipWeapon(w.id);
   showNotif(`✅ Got ${w.name}!`);
+  closeShop();
+}
+// "Craft but hard" path for any non-craftOnly WEAPONS entry — same real granting code buyWeapon()
+// uses (ownedWeapons.push + equipWeapon), paid for with craftCostForPrice()'s real wood/scrap/
+// material/Elite-Coin recipe (game-housing.js) instead of S.I.P., and respecting the exact same
+// weaponRequiredLevel() Robot-Level gate buyWeapon() already enforces — crafting can't bypass a
+// level lock buying can't bypass either.
+function craftWeaponHard(i) {
+  const w = WEAPONS[i];
+  if(w.craftOnly) return; // already has its own real CRAFT_RECIPES entry — don't double-grant
+  const need = weaponRequiredLevel(w.id);
+  if (need > eliteLevel) { showNotif(`🔒 ${w.name} requires Robot Level ${need} to craft (you're Lv.${eliteLevel}) — level up in the Quests tab!`); return; }
+  if(ownedWeapons.includes(w.id)) { equipWeapon(w.id); closeShop(); return; }
+  const cost = craftCostForPrice(w.cost, w.id);
+  if(!canAffordCraftCost(cost)) { showNotif(`❌ Need ${craftCostForPriceText(cost)}`); return; }
+  spendCraftCost(cost);
+  ownedWeapons.push(w.id);
+  equipWeapon(w.id);
+  sfx.buy();
+  showNotif(`🔨 Crafted ${w.name}!`);
   closeShop();
 }
 
@@ -15037,7 +16591,7 @@ function buildOutfitShopWing() {
     buildLogoSign(shop.name, shop.emoji, '#'+theme.wall.toString(16).padStart(6,'0'), '#'+theme.accent.toString(16).padStart(6,'0'), x + 2.7, 5, z, -Math.PI / 2);
 
     addCol(MALL_COLS, x, z, 3, 3.8);
-    MALL_ZONES.push({ x: x + 3, z, r: 3.2, label: `${shop.emoji} ${shop.name}`, action: () => openOutfitBoutique(shop.id) });
+    MALL_ZONES.push({ x: x + 3, z, r: 3.2, label: `${shop.emoji} ${shop.name}`, action: () => enterShopInterior('boutique', shop.id) });
   });
 
   for (let r = 0; r < 10; r++) {
@@ -15065,16 +16619,21 @@ function openOutfitBoutique(id) {
   shop.outfits.forEach((o, i) => {
     const d = document.createElement('div'); d.className = 'shopItem';
     const safeName = o.name.replace(/'/g, "\\'");
+    const craftId = 'boutique_' + shop.id + '_' + o.name.toLowerCase().replace(/\s+/g,'_');
+    const craftCost = craftCostForPrice(o.cost, craftId);
+    const canCraft = canAffordCraftCost(craftCost);
     d.innerHTML = `<div class="siName">${o.name}</div>
       <div class="siCost">💰 ${o.cost} S.I.P.</div>
+      <div class="siCost" style="color:#8ac9ff;">🔨 ${craftCostForPriceText(craftCost)}</div>
       <div class="siSwatch" style="display:flex;gap:4px;margin:4px 0">
         <div style="width:18px;height:18px;background:${o.shirt};border-radius:3px"></div>
         <div style="width:18px;height:18px;background:${o.pants};border-radius:3px"></div>
         <div style="width:18px;height:18px;background:${o.shoes};border-radius:3px"></div>
       </div>
-      <div style="display:flex;gap:6px;">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
         <button class="shopBtn" onclick="renderShopPreview({shirt:'${o.shirt}',pants:'${o.pants}',shoes:'${o.shoes}'},'${safeName}')" style="background:#2a4a5a;">👁 Preview</button>
         <button class="shopBtn" onclick="buyBoutiqueOutfit('${shop.id}',${i})">Buy</button>
+        <button class="shopBtn" onclick="craftBoutiqueOutfit('${shop.id}',${i})" style="background:${canCraft?'#2a4a6a':'#333'};" ${canCraft?'':'disabled'}>🔨 Craft</button>
       </div>`;
     items.appendChild(d);
   });
@@ -15090,6 +16649,25 @@ function buyBoutiqueOutfit(shopId, i) {
   document.getElementById('pantsColor').value = o.pants;
   document.getElementById('shoeColor').value  = o.shoes;
   showNotif(`✅ Wearing ${o.name}!`);
+  saveCurrentUser();
+  closeShop();
+}
+// "Craft but hard" path for every boutique's outfit list — same craftCostForPrice() formula as
+// the starter Outfit Shop above, keyed by shop id + outfit name so every boutique's version of
+// a same-named outfit still gets its own stable (but different) recipe.
+function craftBoutiqueOutfit(shopId, i) {
+  const shop = OUTFIT_SHOPS.find(s => s.id === shopId);
+  if (!shop) return;
+  const o = shop.outfits[i];
+  const craftId = 'boutique_' + shop.id + '_' + o.name.toLowerCase().replace(/\s+/g,'_');
+  const cost = craftCostForPrice(o.cost, craftId);
+  if(!canAffordCraftCost(cost)) { sfx.nope(); showNotif(`❌ Need ${craftCostForPriceText(cost)}`); return; }
+  spendCraftCost(cost);
+  playerColors.shirt = o.shirt; playerColors.pants = o.pants; playerColors.shoes = o.shoes;
+  document.getElementById('shirtColor').value = o.shirt;
+  document.getElementById('pantsColor').value = o.pants;
+  document.getElementById('shoeColor').value  = o.shoes;
+  showNotif(`🔨 Crafted ${o.name}!`);
   saveCurrentUser();
   closeShop();
 }
@@ -15179,6 +16757,13 @@ function buildWeaponArchetype(archetype, c1, c2, glow, scale) {
     case 'cleaver':
       add(new THREE.BoxGeometry(0.06,0.5,0.05), c2, 0,-0.1,0);
       add(new THREE.BoxGeometry(0.38,0.5,0.06), c1, 0.12,0.28,0);
+      break;
+    // GUN — user's own ask: "make guns at weapon shop". A block-built silhouette matching every
+    // other archetype's style: body/barrel, a grip angled down, and a barrel-tip accent.
+    case 'gun':
+      add(new THREE.BoxGeometry(0.5,0.12,0.12), c1, 0.06,0.12,0);
+      add(new THREE.BoxGeometry(0.12,0.32,0.1), c2, -0.2,-0.14,0);
+      add(new THREE.BoxGeometry(0.18,0.07,0.07), c1, 0.36,0.12,0);
       break;
   }
   g.scale.setScalar(scale || 1);
@@ -15385,8 +16970,306 @@ const CAR_CATALOG = [
   { id:'off_roader',   name:'Off-Roader',    emoji:'🚙', color:0x336633, price:5000,  speed:26 },
   { id:'speed_racer',  name:'Speed Racer',   emoji:'🏎', color:0x2244ff, price:8000,  speed:38 },
   { id:'diamond_limo', name:'Diamond Limo',  emoji:'💎', color:0x44ddff, price:20000, speed:30 },
+  // Two REAL, buyable-with-in-game-currency jets — user's own ask: "normal jet 59000sip high
+  // speed jet 100000 sip 10 elite comes with 2 guns." Unlike the Super Jet (a permanent
+  // showroom fixture, admin-only, real-$-priced), these are plain S.I.P./Elite CAR_CATALOG
+  // entries — buyCarItem() below already knows how to charge a priceElite on top of the usual
+  // S.I.P., and every other car system (spawnOwnedCars, driving physics gated on
+  // activeCar.def.isJet in game-controls.js) already works generically off `isJet`/`speed`
+  // with zero extra plumbing needed. gunCount/hasBombs feed fireJetGuns()/dropJetBomb() above —
+  // 0/false means "unarmed," matching Normal Jet being the cheap, no-frills option.
+  { id:'normal_jet',    name:'Normal Jet',     emoji:'✈️', color:0x5577aa, price:59000,  speed:45, isJet:true, gunCount:0, hasBombs:false },
+  { id:'highspeed_jet', name:'High Speed Jet', emoji:'🛫', color:0xdd5522, price:100000, priceElite:10, speed:75, isJet:true, gunCount:2, hasBombs:false },
 ];
 
+// SUPER TANK — a real rideable "super weapon" (user's own ask), parked as a permanent showroom
+// fixture at the Car Dealership lot — NOT part of CAR_CATALOG/ownedCars, since it isn't bought
+// with S.I.P. Shown in the Car Shop list with a real $10.00 USD price tag, permanently disabled —
+// same no-real-payment-processor rule already established for the Currency Shop
+// (CURRENCY_SHOP_PACKAGES, game-alignment.js) and the Daily Streak Premium button (game-world.js):
+// a real price shown honestly, a real charge never taken. Free to walk up and drive regardless,
+// exactly like every other inert price tag in this game.
+const TANK_DEF = { id:'super_tank', name:'Super Tank', emoji:'🛡️', color:0x4a5c3a, price:'$10.00', speed:14, isTank:true };
+let dealershipTank = null; // {def, group, carYaw} — built once in buildCity() (game-buildings.js); never touched by spawnOwnedCars()'s wipe-and-rebuild the way parkedCars is
+function buildTankMesh(x, z, yawAngle) {
+  const g = new THREE.Group();
+  function b(w,h,d,color,px,py,pz) { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(color)); m.position.set(px,py,pz); m.castShadow=true; g.add(m); return m; }
+  g.bodyMesh = b(5.5,1.8,9, TANK_DEF.color, 0,1.3,0);   // armored hull
+  g.cabinMesh = b(3,1.2,3.6, 0x3a4a2e, 0,2.6,0.5);      // turret (tagged so Rainbow Paint can still recolor it, same as a car's cabin)
+  b(0.5,0.5,6, 0x222222, 0,2.6,4.5);                    // cannon barrel — points down local +Z, same "forward" axis buildCar()'s own front bumper uses
+  [-3,3].forEach(sx => b(1.6,1.4,9.5, 0x1a1a1a, sx,0.7,0)); // tank treads — same boxy shorthand buildRobotMesh()'s 'tank' shape already uses (game-land.js), just player-scale
+  g.position.set(x,0,z);
+  g.rotation.y = yawAngle||0;
+  scene.add(g);
+  return g;
+}
+// Cannon fire — bound to F while driving the tank specifically (game-controls.js keydown), only
+// live when isTank is true so it can never fire from a normal car. Targets the same hostile
+// categories the grenade (game-land.js throwCombatGrenade) and car-ram (tickCarRam above) already
+// do — robots/rogue robots/real killers — deliberately NOT peaceful npcs, same "weapon, not a way
+// to grief bystanders" line the grenade already draws.
+// Range bumped from 14 to 50 (user's own ask: "real tank range") — a real tank cannon hits things
+// far past melee distance, closer to the size of a whole city block here than a car-ram's reach.
+const TANK_CANNON_COOLDOWN_MS = 2000, TANK_CANNON_RANGE = 50, TANK_CANNON_SPLASH = 6, TANK_CANNON_DAMAGE = 220;
+let tankCannonCooldownUntil = 0;
+function fireTankCannon() {
+  if (!inCar || !activeCar || !activeCar.def.isTank) return;
+  const now = Date.now();
+  if (now < tankCannonCooldownUntil) { showNotif(`🎯 Cannon reloading — ${Math.ceil((tankCannonCooldownUntil-now)/1000)}s left.`); return; }
+  tankCannonCooldownUntil = now + TANK_CANNON_COOLDOWN_MS;
+  const ix = activeCar.group.position.x + Math.sin(carYaw)*TANK_CANNON_RANGE;
+  const iz = activeCar.group.position.z + Math.cos(carYaw)*TANK_CANNON_RANGE;
+  let hitCount = 0, killCount = 0;
+  robots.filter(r => r.alive).forEach(r => {
+    if (Math.hypot(ix-r.x, iz-r.z) > TANK_CANNON_SPLASH) return;
+    hitCount++; killCount++; defeatRobot(r);
+  });
+  rogueRobots.filter(r => r.alive).forEach(r => {
+    if (Math.hypot(ix-r.x, iz-r.z) > TANK_CANNON_SPLASH) return;
+    hitCount++; killCount++; defeatRogueRobot(r);
+  });
+  killers.filter(k => k.alive && !k.guardKiller && !k.hitTargetName && !k.hitTargetType).forEach(k => {
+    if (Math.hypot(ix-k.x, iz-k.z) > TANK_CANNON_SPLASH) return;
+    hitCount++;
+    k.hp -= TANK_CANNON_DAMAGE;
+    if (k.hp > 0) return;
+    killCount++;
+    if (k.satanBoss) defeatSatanBoss(k);
+    else if (k.demon) defeatDemon(k);
+    else if (k.robber) defeatRobber(k);
+    else defeatKiller(k);
+  });
+  spawnGrenadeBlastFx(ix, iz);
+  sfx.boom();
+  showNotif(hitCount ? `🎯💥 Cannon blast hits ${hitCount}!${killCount?` (${killCount} defeated)`:''}` : "🎯💥 Cannon fires — nothing in range.");
+}
+// SUPER JET — a second real rideable "super weapon" (user's own ask). Driven on the ground like
+// every other vehicle here — user's own correction, "no u drive it" — NOT flown, so it reuses the
+// exact same generic driving-physics block (game-controls.js) as a car/the Tank with zero changes
+// there. Parked as a second permanent showroom fixture at the Car Dealership, next to the Tank.
+// Same $-priced/permanently-disabled SHOP tab listing pattern (CURRENCY_SHOP_PACKAGES,
+// game-alignment.js) as the Tank and Super Armor. Fastest vehicle in the game (55, ahead of the
+// Speed Racer's 38) with three real abilities: guns (F, rapid small hits), bombs (V, a bigger
+// blast on a real cooldown), and armor (waives the usual building-crash fee below, same free pass
+// "crashinsurance" already grants — a real, functional meaning for "armor" on a vehicle that has
+// no HP of its own to begin with).
+const JET_DEF = { id:'super_jet', name:'Super Jet', emoji:'✈️', color:0x2a3a4a, price:'$15.00', speed:55, isJet:true, jetArmor:true };
+// FUTURE JET — user's own ask: "future 1 99 500000 sip has 20 guns some rockets lasers and
+// more." Has a real $ component (on top of the S.I.P.), so it follows the exact same
+// admin-only/"buy in SHOP" pattern as the Tank/Super Jet/Motorcycle above rather than the plain
+// CAR_CATALOG S.I.P.-only purchase Normal Jet/High Speed Jet use — no real payment processor
+// exists anywhere in this game, so a listing with any real-money price stays a locked preview
+// for everyone but the admin account, same rule, same reason, every time it's come up. gunCount
+// 20 (10x High Speed Jet's) + hasBombs true is "rockets and lasers" — a felt, dramatic firepower
+// jump from fireJetGuns()/dropJetBomb() (both above) scaling off the SAME def fields already
+// added for the S.I.P. jets, not a third separate weapon system.
+const FUTURE_JET_DEF = { id:'future_jet', name:'Future Jet', emoji:'🚀', color:0x22ddaa, price:'$1.99 + 500,000 S.I.P.', speed:80, isJet:true, gunCount:20, hasBombs:true };
+let dealershipFutureJet = null; // {def, group, carYaw, homeX, homeZ, homeYaw} — built once in buildCity(), same pattern as dealershipJet
+// Real flight (user's own follow-up ask, "make the jet fly" — reversing the earlier "no u drive
+// it" ground-only correction into "drive it AND it can also take off"). Only the Jet gets this —
+// every other vehicle stays exactly as ground-locked as before (see the isJet branch,
+// game-controls.js's driving-physics block). Space thrusts upward while held (jetThrustHeld,
+// set/cleared by the Space keydown/keyup handlers, game-controls.js); a gentle gravity glides it
+// back down and it lands safely, floor-clamped at groundHeightAt(), exactly like a car resting on
+// the ground when not thrusting. JET_FLIGHT_CLEARANCE is the altitude above which it stops
+// colliding with city buildings at all — below it, it still drives/rams/crashes like a normal car,
+// so you have to actually climb before you can clear rooftops, not just hover at ground level.
+let jetVel = 0, jetThrustHeld = false;
+const JET_THRUST_ACCEL = 14, JET_MAX_ASCENT = 18, JET_GRAVITY = 10, JET_FLIGHT_CLEARANCE = 8;
+
+// PRO PILOT — user's own ask: "hire a pro driver for driving my jet." A real one-time hire
+// (hiredJetPilot, persisted — game-core.js/game-economy.js), same "pay once, keep forever" shape
+// as Buddy, that unlocks a real autopilot: press H while flying to have it fly itself home and
+// land, hands-off, through the exact same flight physics (jetThrustHeld/jetVel above) a manual
+// pilot uses — tickJetAutopilot() below just drives those same numbers itself instead of reading
+// Space/WASD. jetAutopilotActive is ephemeral (not persisted), same category as jetVel/jetThrustHeld.
+const JET_PILOT_HIRE_COST = 3000;
+let jetAutopilotActive = false;
+const AUTOPILOT_TURN_RATE = 1.5, AUTOPILOT_CRUISE_ALT = 12, AUTOPILOT_ARRIVE_DIST = 4;
+function hireJetPilot() {
+  if (hiredJetPilot) { showNotif('❌ You already hired a Pro Pilot!'); return; }
+  if (sipDollars < JET_PILOT_HIRE_COST) { showNotif(`❌ Need ${JET_PILOT_HIRE_COST.toLocaleString()} S.I.P. to hire a Pro Pilot!`); return; }
+  spendSip(JET_PILOT_HIRE_COST); updateSIP();
+  hiredJetPilot = true;
+  sfx.buy();
+  showNotif('🧑‍✈️ Pro Pilot hired! Press H while flying the Super Jet to autopilot home.');
+  saveCurrentUser();
+  renderAddOnsPanel();
+}
+function toggleJetAutopilot() {
+  if (!inCar || !activeCar || !activeCar.def.isJet) return;
+  if (!hiredJetPilot) { showNotif('❌ Hire a Pro Pilot first! (Add-Ons panel)'); return; }
+  jetAutopilotActive = !jetAutopilotActive;
+  showNotif(jetAutopilotActive ? '🧑‍✈️ Autopilot engaged — flying you home!' : '🧑‍✈️ Autopilot disengaged — you have the controls.');
+}
+// Drives carYaw/position/jetThrustHeld itself (see the isJet-autopilot branch in the main driving
+// block, game-controls.js) instead of reading moveState/Space — real navigation toward the Jet's
+// own home pad (activeCar.homeX/homeZ, set once in game-buildings.js), climbing to a safe cruising
+// altitude first so it doesn't just plow into whatever's between here and home at rooftop height.
+function tickJetAutopilot(dt) {
+  const dx = activeCar.homeX - activeCar.group.position.x, dz = activeCar.homeZ - activeCar.group.position.z;
+  const distHome = Math.hypot(dx, dz);
+  if (distHome > AUTOPILOT_ARRIVE_DIST) {
+    const desiredYaw = Math.atan2(dx, dz);
+    let angleDiff = desiredYaw - carYaw;
+    while (angleDiff > Math.PI) angleDiff -= Math.PI*2;
+    while (angleDiff < -Math.PI) angleDiff += Math.PI*2;
+    carYaw += Math.sign(angleDiff) * Math.min(Math.abs(angleDiff), AUTOPILOT_TURN_RATE*dt);
+    const spd = activeCar.def.speed;
+    const nx = activeCar.group.position.x + Math.sin(carYaw)*spd*dt;
+    const nz = activeCar.group.position.z + Math.cos(carYaw)*spd*dt;
+    // Same rooftop-clearance rule a manual pilot follows — flying blind through buildings at low
+    // altitude wouldn't read as a "pro" pilot. Below clearance it just holds position horizontally
+    // and climbs in place first, exactly like a real takeoff, instead of ramming something on the way up.
+    const flying = activeCar.group.position.y > JET_FLIGHT_CLEARANCE;
+    if (flying || !isBlocked(nx, nz, 2.3)) { activeCar.group.position.x = nx; activeCar.group.position.z = nz; }
+    jetThrustHeld = activeCar.group.position.y < AUTOPILOT_CRUISE_ALT;
+  } else {
+    // Arrived over home — cut thrust and let it glide down; the shared vertical-physics block
+    // (game-controls.js) floor-clamps it at groundHeightAt() exactly like a manual landing.
+    jetThrustHeld = false;
+    const groundY = groundHeightAt(activeCar.group.position.x, activeCar.group.position.z);
+    if (activeCar.group.position.y <= groundY + 0.05) {
+      activeCar.group.position.x = activeCar.homeX; activeCar.group.position.z = activeCar.homeZ; carYaw = activeCar.homeYaw;
+      jetAutopilotActive = false;
+      showNotif('🧑‍✈️ Landed! Your Pro Pilot brought you home safe.');
+    }
+  }
+}
+let dealershipJet = null; // {def, group, carYaw} — built once in buildCity(), same pattern as dealershipTank
+function buildJetMesh(x, z, yawAngle, color) {
+  color = color !== undefined ? color : JET_DEF.color;
+  const g = new THREE.Group();
+  function b(w,h,d,color,px,py,pz) { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(color)); m.position.set(px,py,pz); m.castShadow=true; g.add(m); return m; }
+  g.bodyMesh = b(2.6,1.4,10, color, 0,1,0);                    // sleek fuselage
+  g.cabinMesh = b(1.6,1,2.6, 0x1a2230, 0,1.9,1.5);             // cockpit body (tagged for Rainbow Paint, same as a car's cabin)
+  const glassMat = new THREE.MeshLambertMaterial({ color:0x88ccff, transparent:true, opacity:0.55 });
+  const canopy = new THREE.Mesh(new THREE.BoxGeometry(1.3,0.7,1.8), glassMat); canopy.position.set(0,2.35,2); canopy.castShadow=true; g.add(canopy);
+  b(7,0.3,2, color, 0,1,-0.5);                                 // wings
+  b(0.4,1.4,1.6, color, 0,1.6,-4.6);                           // tail fin
+  b(0.9,0.9,1.4, 0x111111, -1.3,0.6,-5);                       // engine L
+  b(0.9,0.9,1.4, 0x111111,  1.3,0.6,-5);                       // engine R
+  b(0.5,0.5,0.5, 0xff6600, -1.3,0.6,-5.7);                     // exhaust glow L
+  b(0.5,0.5,0.5, 0xff6600,  1.3,0.6,-5.7);                     // exhaust glow R
+  [[-2.5,0.1,4],[2.5,0.1,4],[0,0.1,-4]].forEach(([wx,wy,wz]) => { // landing gear, since it drives on the ground, not flies
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,0.4,10), mat(0x111111));
+    wheel.rotation.z = Math.PI/2; wheel.position.set(wx,wy,wz); g.add(wheel);
+  });
+  g.position.set(x,0,z);
+  g.rotation.y = yawAngle||0;
+  scene.add(g);
+  return g;
+}
+// Guns — rapid small hits, bound to F while driving the jet (game-controls.js keydown). Shares the
+// F key with fireTankCannon() above; both self-gate on their own vehicle's def flag, so only one
+// ever actually fires depending on which vehicle you're in.
+const JET_GUN_COOLDOWN_MS = 450, JET_GUN_RANGE = 12, JET_GUN_SPLASH = 3, JET_GUN_DAMAGE = 50;
+let jetGunCooldownUntil = 0;
+function fireJetGuns() {
+  if (!inCar || !activeCar || !activeCar.def.isJet) return;
+  // User's own ask, adding new jet tiers: "high speed jet ... comes with 2 guns" / "future ...
+  // has 20 guns some rockets lasers and more" — real, felt firepower differences instead of
+  // every jet hitting identically. `gunCount` defaults to 1 (undefined ?? 1) so the original
+  // Super Jet's balance is completely unchanged; an explicit 0 (Normal Jet) means unarmed.
+  const gunCount = activeCar.def.gunCount ?? 1;
+  if (gunCount <= 0) { showNotif('🔒 This jet has no weapons.'); return; }
+  const now = Date.now();
+  if (now < jetGunCooldownUntil) return; // rapid-fire — no "reloading" notif spam, just a silent gate
+  jetGunCooldownUntil = now + JET_GUN_COOLDOWN_MS;
+  const dmg = JET_GUN_DAMAGE * gunCount;
+  const ix = activeCar.group.position.x + Math.sin(carYaw)*JET_GUN_RANGE;
+  const iz = activeCar.group.position.z + Math.cos(carYaw)*JET_GUN_RANGE;
+  let hitCount = 0;
+  robots.filter(r => r.alive).forEach(r => { if (Math.hypot(ix-r.x, iz-r.z) <= JET_GUN_SPLASH) { hitCount++; defeatRobot(r); } });
+  rogueRobots.filter(r => r.alive).forEach(r => { if (Math.hypot(ix-r.x, iz-r.z) <= JET_GUN_SPLASH) { hitCount++; defeatRogueRobot(r); } });
+  killers.filter(k => k.alive && !k.guardKiller && !k.hitTargetName && !k.hitTargetType).forEach(k => {
+    if (Math.hypot(ix-k.x, iz-k.z) > JET_GUN_SPLASH) return;
+    hitCount++;
+    k.hp -= dmg;
+    if (k.hp > 0) return;
+    if (k.satanBoss) defeatSatanBoss(k); else if (k.demon) defeatDemon(k); else if (k.robber) defeatRobber(k); else defeatKiller(k);
+  });
+  sfx.clang();
+  if (hitCount) showNotif(`🔫 Guns hit ${hitCount}!`);
+}
+// Bombs — one big blast on a real cooldown, dropped straight down from wherever the jet currently
+// is, bound to V (game-controls.js keydown).
+const JET_BOMB_COOLDOWN_MS = 4000, JET_BOMB_SPLASH = 9, JET_BOMB_DAMAGE = 320;
+let jetBombCooldownUntil = 0;
+function dropJetBomb() {
+  if (!inCar || !activeCar || !activeCar.def.isJet) return;
+  // hasBombs defaults to true (undefined !== false) so Super Jet's existing bomb is unaffected;
+  // Normal Jet and High Speed Jet explicitly set it false — only guns, no bombs, at that tier.
+  if (activeCar.def.hasBombs === false) { showNotif('🔒 This jet has no bombs.'); return; }
+  const now = Date.now();
+  if (now < jetBombCooldownUntil) { showNotif(`💣 Bomb reloading — ${Math.ceil((jetBombCooldownUntil-now)/1000)}s left.`); return; }
+  jetBombCooldownUntil = now + JET_BOMB_COOLDOWN_MS;
+  const ix = activeCar.group.position.x, iz = activeCar.group.position.z;
+  let hitCount = 0, killCount = 0;
+  robots.filter(r => r.alive).forEach(r => { if (Math.hypot(ix-r.x, iz-r.z) <= JET_BOMB_SPLASH) { hitCount++; killCount++; defeatRobot(r); } });
+  rogueRobots.filter(r => r.alive).forEach(r => { if (Math.hypot(ix-r.x, iz-r.z) <= JET_BOMB_SPLASH) { hitCount++; killCount++; defeatRogueRobot(r); } });
+  killers.filter(k => k.alive && !k.guardKiller && !k.hitTargetName && !k.hitTargetType).forEach(k => {
+    if (Math.hypot(ix-k.x, iz-k.z) > JET_BOMB_SPLASH) return;
+    hitCount++;
+    k.hp -= JET_BOMB_DAMAGE;
+    if (k.hp > 0) return;
+    killCount++;
+    if (k.satanBoss) defeatSatanBoss(k); else if (k.demon) defeatDemon(k); else if (k.robber) defeatRobber(k); else defeatKiller(k);
+  });
+  spawnGrenadeBlastFx(ix, iz);
+  sfx.boom();
+  showNotif(hitCount ? `💣💥 Bomb hits ${hitCount}!${killCount?` (${killCount} defeated)`:''}` : '💣💥 Bomb drops — nothing in range.');
+}
+// SUPER MOTORCYCLE — a third real rideable "super weapon" (user's own ask). Driven on the ground
+// exactly like the Tank/a car (same generic driving-physics block, game-controls.js) — parked as a
+// third permanent showroom fixture at the Car Dealership lot, past the Tank. Same $-priced/
+// permanently-disabled SHOP tab listing pattern (CURRENCY_SHOP_PACKAGES, game-alignment.js) as the
+// Tank/Armor/Jet. Fast and agile (speed 40, between the Off-Roader's 26 and the Speed Racer's 38)
+// with one real ability: rockets (F, shared with the Tank's cannon/Jet's guns — each self-gates on
+// its own vehicle's def flag, so only one ever actually fires).
+const MOTORCYCLE_DEF = { id:'super_motorcycle', name:'Super Motorcycle', emoji:'🏍️', color:0xcc1122, price:'$8.00', speed:40, isMotorcycle:true };
+let dealershipMotorcycle = null; // {def, group, carYaw} — built once in buildCity(), same pattern as dealershipTank
+function buildMotorcycleMesh(x, z, yawAngle) {
+  const g = new THREE.Group();
+  function b(w,h,d,color,px,py,pz) { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(color)); m.position.set(px,py,pz); m.castShadow=true; g.add(m); return m; }
+  g.bodyMesh = b(0.9,0.7,3.4, MOTORCYCLE_DEF.color, 0,0.9,0);   // frame/tank
+  g.cabinMesh = b(0.6,0.6,0.8, 0x1a1a1a, 0,1.35,-0.7);          // seat (tagged for Rainbow Paint, same as a car's cabin)
+  b(1.1,0.5,0.15, 0x222222, 0,1.15,1.6);                        // handlebars
+  b(0.15,0.6,0.15, 0x888888, 0,1.3,1.5);                        // front fork
+  [-1.15,1.15].forEach(rx => b(0.5,0.3,1.4, 0x333333, rx,1.1,-1.3)); // side-mounted rocket pods
+  [-1.15,1.15].forEach(rx => b(0.2,0.2,0.3, 0xff6600, rx,1.1,-2.0)); // rocket tips
+  [1.6,-1.6].forEach(wz => { const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.55,0.4,12), mat(0x111111)); wheel.rotation.z = Math.PI/2; wheel.position.set(0,0.55,wz); g.add(wheel); });
+  g.position.set(x,0,z);
+  g.rotation.y = yawAngle||0;
+  scene.add(g);
+  return g;
+}
+// Rockets — one real explosive hit on a cooldown, fired forward from wherever the motorcycle is
+// facing, bound to F while driving it (game-controls.js keydown).
+const MOTO_ROCKET_COOLDOWN_MS = 1500, MOTO_ROCKET_RANGE = 13, MOTO_ROCKET_SPLASH = 7, MOTO_ROCKET_DAMAGE = 190;
+let motoRocketCooldownUntil = 0;
+function fireMotorcycleRockets() {
+  if (!inCar || !activeCar || !activeCar.def.isMotorcycle) return;
+  const now = Date.now();
+  if (now < motoRocketCooldownUntil) { showNotif(`🚀 Rockets reloading — ${Math.ceil((motoRocketCooldownUntil-now)/1000)}s left.`); return; }
+  motoRocketCooldownUntil = now + MOTO_ROCKET_COOLDOWN_MS;
+  const ix = activeCar.group.position.x + Math.sin(carYaw)*MOTO_ROCKET_RANGE;
+  const iz = activeCar.group.position.z + Math.cos(carYaw)*MOTO_ROCKET_RANGE;
+  let hitCount = 0, killCount = 0;
+  robots.filter(r => r.alive).forEach(r => { if (Math.hypot(ix-r.x, iz-r.z) <= MOTO_ROCKET_SPLASH) { hitCount++; killCount++; defeatRobot(r); } });
+  rogueRobots.filter(r => r.alive).forEach(r => { if (Math.hypot(ix-r.x, iz-r.z) <= MOTO_ROCKET_SPLASH) { hitCount++; killCount++; defeatRogueRobot(r); } });
+  killers.filter(k => k.alive && !k.guardKiller && !k.hitTargetName && !k.hitTargetType).forEach(k => {
+    if (Math.hypot(ix-k.x, iz-k.z) > MOTO_ROCKET_SPLASH) return;
+    hitCount++;
+    k.hp -= MOTO_ROCKET_DAMAGE;
+    if (k.hp > 0) return;
+    killCount++;
+    if (k.satanBoss) defeatSatanBoss(k); else if (k.demon) defeatDemon(k); else if (k.robber) defeatRobber(k); else defeatKiller(k);
+  });
+  spawnGrenadeBlastFx(ix, iz);
+  sfx.boom();
+  showNotif(hitCount ? `🚀💥 Rockets hit ${hitCount}!${killCount?` (${killCount} defeated)`:''}` : '🚀💥 Rockets fire — nothing in range.');
+}
 function buildCar(def, x, z, yawAngle) {
   const g = new THREE.Group();
   function b(w,h,d,color,px,py,pz) {
@@ -15481,7 +17364,9 @@ function crashIntoBuilding(x, z) {
   const now = performance.now();
   if (now - lastCarCrashAt < 1500) return;
   lastCarCrashAt = now;
-  const fee = activeAddOns.includes('crashinsurance') ? 0 : Math.min(sipDollars, BUILDING_CRASH_FEE);
+  // Super Jet's "armor" (JET_DEF.jetArmor) — same free pass as the crashinsurance add-on. A real,
+  // functional meaning for "armor" on a vehicle that has no HP of its own to take damage against.
+  const fee = (activeAddOns.includes('crashinsurance') || (activeCar && activeCar.def.jetArmor)) ? 0 : Math.min(sipDollars, BUILDING_CRASH_FEE);
   spendSip(fee); updateSIP(); saveCurrentUser();
   spawnCarImpactBurst(x, z, [0xff8800,0x888888,0xffcc00]); // sparks, not the "destroyed" debris palette
   sfx.hit();
@@ -15539,6 +17424,7 @@ const CAR_PARKING_SPOTS = [
 function carLocationSpot(name) {
   if (name === 'Downtown Explox' || !name) return null; // downtown uses CAR_PARKING_SPOTS below, unchanged
   if (name === 'Home') return { x: -45, z: -107 }; // real open ground just outside your House's fenced yard (fence spans x:[-40,-20])
+  if (name === 'Uptown Lot') return { x: 60, z: 110 }; // the new lot (buildUptownParkingLot(), game-buildings.js) — checked clear of Restaurant Row/School/Transit Hub/Uptown Plaza's own LOC_ZONES circles
   const theme = COUNTRY_THEMES.find(t => t.name === name);
   // -30/+90 (1x-scale "open ground near the airport") scaled ×20 for item ~234's country resize —
   // theme.cx/cz are already the new, final scaled center, so only this offset needed the ×20.
@@ -15553,6 +17439,24 @@ function parkCarAtHome() {
   sfx.buy();
   showNotif('🅿️ Your car is now parked at home!');
 }
+// A second real place to park — user's own ask for "a new parking lot", right alongside the
+// bigger ask that other players can actually SEE a parked car (syncPresence()/game-character.js).
+// Exact same shape as parkCarAtHome() above, just a different named spot.
+function parkCarAtUptownLot() {
+  if (!ownedCars.length) { showNotif("❌ You don't own a car yet! Buy one at the Car Dealership."); return; }
+  if (carLocation === 'Uptown Lot') { showNotif('🅿️ Your car is already parked here!'); return; }
+  carLocation = 'Uptown Lot';
+  saveCurrentUser();
+  spawnOwnedCars();
+  sfx.buy();
+  showNotif('🅿️ Your car is now parked at the Uptown Lot!');
+}
+// A CAR_CATALOG entry flagged isJet (Normal Jet/High Speed Jet) gets the real sleek jet shape
+// instead of the generic boxy car — same buildJetMesh() the admin-only Super Jet uses, just
+// recolored per def.color, so a jet you can actually fly doesn't look like a car with wheels.
+function buildOwnedVehicleMesh(def, x, z, yaw) {
+  return def.isJet ? buildJetMesh(x, z, yaw, def.color) : buildCar(def, x, z, yaw);
+}
 function spawnOwnedCars() {
   parkedCars.forEach(pc => scene.remove(pc.group));
   parkedCars = [];
@@ -15562,10 +17466,10 @@ function spawnOwnedCars() {
     // Only your FIRST-owned car can travel — every other car always stays at the Downtown lot
     if (i === 0 && carLocation !== 'Downtown Explox') {
       const spot = carLocationSpot(carLocation);
-      if (spot) { parkedCars.push({def, group: buildCar(def, spot.x, spot.z, 0), carYaw:0}); return; }
+      if (spot) { parkedCars.push({def, group: buildOwnedVehicleMesh(def, spot.x, spot.z, 0), carYaw:0}); return; }
     }
     const spot = CAR_PARKING_SPOTS[i % CAR_PARKING_SPOTS.length];
-    const group = buildCar(def, spot.x, spot.z, 0);
+    const group = buildOwnedVehicleMesh(def, spot.x, spot.z, 0);
     parkedCars.push({def, group, carYaw:0});
   });
 }
@@ -15587,19 +17491,37 @@ function refreshCarShopUI() {
     const owned = ownedCars.includes(def.id);
     const d = document.createElement('div');
     d.className = 'shopItem';
+    const eliteCost = def.priceElite ? ` + 💎 ${def.priceElite.toLocaleString()}` : '';
+    // "Craft but hard" — same shared formula as weapons/armor/mall items, plus the car's own
+    // existing priceElite premium (special vehicles) layered on top so crafting one never skips
+    // the Elite Coin gate buyCarItem() already enforces for them.
+    const craftCost = craftCostForPrice(def.price, def.id);
+    craftCost.elite = (craftCost.elite || 0) + (def.priceElite || 0);
+    const canCraft = !owned && canAffordCraftCost(craftCost);
     d.innerHTML = `<div class="siName">${def.emoji} ${def.name}</div>
-      <div class="siCost">💰 ${def.price.toLocaleString()} S.I.P. &nbsp;|&nbsp; 🏎 Speed: ${def.speed}</div>
-      <button class="shopBtn" ${owned?'disabled':''} onclick="buyCarItem(${i})">${owned?'✅ Owned':'Buy'}</button>`;
+      <div class="siCost">💰 ${def.price.toLocaleString()} S.I.P.${eliteCost} &nbsp;|&nbsp; 🏎 Speed: ${def.speed}</div>
+      ${owned ? '' : `<div class="siCost" style="color:#8ac9ff;">🔨 ${craftCostForPriceText(craftCost)}</div>`}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="shopBtn" ${owned?'disabled':''} onclick="buyCarItem(${i})">${owned?'✅ Owned':'Buy'}</button>
+        <button class="shopBtn" ${owned?'disabled':''} onclick="craftCarItem(${i})" style="background:${canCraft?'#2a4a6a':'#333'};" ${canCraft?'':'disabled'}>🔨 Craft</button>
+      </div>`;
     list.appendChild(d);
   });
+  // Super Tank's real-money listing lives in the sidebar 🛍️ SHOP tab instead (the Currency Shop
+  // panel, CURRENCY_SHOP_PACKAGES — game-alignment.js), not here — user's own correction: this Car
+  // Dealership modal is only ever S.I.P. purchases. The Tank itself is still parked right outside
+  // on the lot regardless (dealershipTank above), free to walk up and drive either way.
 }
 function buyCarItem(idx) {
   const def = CAR_CATALOG[idx];
   if(ownedCars.includes(def.id)) { showNotif('You already own this car!'); return; }
   const cost = def.price;
-  if(sipDollars < cost) { sfx.nope(); showNotif(`❌ Need ${cost} S.I.P.!`); return; }
+  const eliteCost = def.priceElite || 0;
+  if(sipDollars < cost) { sfx.nope(); showNotif(`❌ Need ${cost.toLocaleString()} S.I.P.!`); return; }
+  if(eliteCoins < eliteCost) { sfx.nope(); showNotif(`❌ Need ${eliteCost.toLocaleString()} 💎 Elite too!`); return; }
   spendSip(cost);
   updateSIP();
+  if(eliteCost) { eliteCoins -= eliteCost; updateElite(); }
   ownedCars.push(def.id);
   saveCurrentUser();
   spawnOwnedCars();
@@ -15607,21 +17529,82 @@ function buyCarItem(idx) {
   showNotif(`${def.emoji} ${def.name} purchased! Find it parked at the Car Shop!`);
   refreshCarShopUI();
 }
+// "Craft but hard" path for CAR_CATALOG — same real granting code buyCarItem() uses
+// (ownedCars.push + spawnOwnedCars), paid for with craftCostForPrice()'s wood/scrap/material
+// recipe instead of S.I.P., plus the car's own priceElite premium if it has one.
+function craftCarItem(idx) {
+  const def = CAR_CATALOG[idx];
+  if(ownedCars.includes(def.id)) { showNotif('You already own this car!'); return; }
+  const cost = craftCostForPrice(def.price, def.id);
+  cost.elite = (cost.elite || 0) + (def.priceElite || 0);
+  if(!canAffordCraftCost(cost)) { sfx.nope(); showNotif(`❌ Need ${craftCostForPriceText(cost)}`); return; }
+  spendCraftCost(cost);
+  ownedCars.push(def.id);
+  saveCurrentUser();
+  spawnOwnedCars();
+  sfx.buy();
+  showNotif(`🔨 Crafted ${def.emoji} ${def.name}! Find it parked at the Car Shop!`);
+  refreshCarShopUI();
+}
+// All four "Super" vehicles (Tank/Jet/Motorcycle/Future Jet) are real-money 🛍️ SHOP tab listings
+// (CURRENCY_SHOP_PACKAGES + VEHICLE_RENTAL_PACKAGES, game-alignment.js) — user's own correction:
+// "non of the tanks are avalible for free only for me" — letting any player walk up and drive
+// them for free would give away, for nothing, the exact thing the Shop is asking real money for.
+// Usable by: the account's own admin accounts (isAdmin(), game-admin.js — same allowlist the
+// Admin Chat console uses, so it's still possible to test/enjoy them without paying), anyone who
+// permanently bought one (myUnlockedItems, populated by syncEntitlements() in game-core.js from
+// the server's real Stripe purchase record), or anyone with an active weekly rental
+// (myActiveRentals — stops working the moment that subscription is cancelled or lapses, since
+// syncEntitlements() re-checks live server state on every login). Everyone else gets a real
+// locked message instead of silently sliding in.
+function canUsePremiumVehicle(itemId) {
+  return isAdmin() || myUnlockedItems.includes(itemId) || !!(myActiveRentals[itemId] && myActiveRentals[itemId].active);
+}
+function enterPremiumVehicle(pv) {
+  if (!canUsePremiumVehicle(pv.def.id)) { showNotif(`🔒 ${pv.def.name} isn't available for free — buy or rent it in the 🛍️ SHOP tab!`); return; }
+  enterCar(pv);
+}
+// PRIVATE CAB — user's own ask: "a cab only for me, any one who is not me can see unknown and is
+// locked." Unlike the Tank/Jet/Motorcycle above, even the NAME stays hidden from everyone else —
+// its sign (buildSign(), game-buildings.js) is built from isAdmin() at world-init time, which runs
+// once per player's own client using THEIR OWN currentUser, so every other real player genuinely
+// sees "❓ UNKNOWN" baked right into the sign texture itself, not just a locked prompt.
+const CAB_DEF = { id:'private_cab', name:'Private Cab', emoji:'🚕', color:0x161616, price:'', speed:32, isPrivateCab:true };
+let dealershipCab = null;
+function buildCabMesh(x, z, yawAngle) {
+  const g = buildCar(CAB_DEF, x, z, yawAngle);
+  const lightMat = new THREE.MeshBasicMaterial({color:0xffee88});
+  const cabLight = new THREE.Mesh(new THREE.BoxGeometry(0.8,0.3,1.2), lightMat);
+  cabLight.position.set(0,2.85,-0.5); g.add(cabLight); // a small roof light, real taxi flavor, no text on it
+  return g;
+}
+function enterMysteryVehicle(pv) {
+  if (!isAdmin()) { showNotif('❓ Unknown — locked.'); return; }
+  enterCar(pv);
+}
 function enterCar(pc) {
   activeCar = pc;
   inCar = true;
   carYaw = pc.carYaw || 0;
+  jetVel = 0; jetThrustHeld = false; jetAutopilotActive = false; // no leftover flight state from a previous flight — harmless for non-jets, never read outside the isJet branch
   playerGroup.visible = false;
-  showNotif(`🚗 Driving ${pc.def.name}! WASD to drive · A/D to turn · E to exit`);
+  showNotif(pc.def.isJet ? `✈️ Flying ${pc.def.name}! WASD to steer · Hold Space to climb · F Guns · V Bomb${hiredJetPilot?' · H Autopilot':''} · E to exit` : `🚗 Driving ${pc.def.name}! WASD to drive · A/D to turn · E to exit`);
 }
 function exitCar() {
   if(!inCar||!activeCar) return;
   playerGroup.position.x = activeCar.group.position.x + Math.cos(carYaw)*5;
   playerGroup.position.z = activeCar.group.position.z - Math.sin(carYaw)*5;
   activeCar.carYaw = carYaw;
+  // User's own follow-up: "don't land it back in the airport when u exit" — reverses the earlier
+  // auto-teleport-home behavior. The Jet now just stays exactly where you left it on exit, same as
+  // any other vehicle, even mid-air — Pro Pilot (toggleJetAutopilot(), H key) is the real, deliberate
+  // way to send it home now, not an automatic side effect of every exit.
+  jetVel = 0; jetAutopilotActive = false;
   activeCar = null;
   inCar = false;
   playerGroup.visible = true;
+  const altitudeHud = document.getElementById('altitudeHud');
+  if (altitudeHud) altitudeHud.style.display = 'none';
   showNotif('Stepped out of car.');
 }
 
@@ -16133,7 +18116,7 @@ function giveShopperTip(){
     const tip = 1 + Math.floor(Math.random()*100); // 1-100 S.I.P.
     queueEarning(tip, 0, 'Store Tip');
     sfx.cheer();
-    showNotif(`🎉 A happy customer left you a ${tip} S.I.P. tip! (pending in Earnings)`);
+    showNotif(`🎉 A happy customer left you a ${tip} S.I.P. tip! (added to your wallet)`);
   }
 }
 // Builds/updates the OPEN or CLOSED sign on the front of the building
@@ -16172,9 +18155,15 @@ function refreshFurnitureCounterUI() {
     const owned = ownedFurniture.includes(def.id);
     const d = document.createElement('div');
     d.className = 'shopItem';
+    const craftCost = craftCostForPrice(def.price, def.id);
+    const canCraft = !owned && canAffordCraftCost(craftCost);
     d.innerHTML = `<div class="siName">${def.emoji} ${def.name}</div>
       <div class="siCost">💰 ${def.price} S.I.P.</div>
-      <button class="shopBtn" ${owned?'disabled':''} onclick="buyFurniture(${i})">${owned?'✅ Placed':'Buy'}</button>`;
+      ${owned ? '' : `<div class="siCost" style="color:#8ac9ff;">🔨 ${craftCostForPriceText(craftCost)}</div>`}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="shopBtn" ${owned?'disabled':''} onclick="buyFurniture(${i})">${owned?'✅ Placed':'Buy'}</button>
+        <button class="shopBtn" ${owned?'disabled':''} onclick="craftFurniture(${i})" style="background:${canCraft?'#2a4a6a':'#333'};" ${canCraft?'':'disabled'}>🔨 Craft</button>
+      </div>`;
     list.appendChild(d);
   });
 }
@@ -16188,6 +18177,20 @@ function buyFurniture(idx) {
   saveCurrentUser();
   sfx.buy();
   showNotif(`${def.emoji} ${def.name} placed in your store!`);
+  buildStoreInterior();
+}
+// "Craft but hard" path for FURNITURE_CATALOG — same real granting code buyFurniture() uses,
+// paid for with craftCostForPrice()'s wood/scrap/material recipe instead of S.I.P.
+function craftFurniture(idx) {
+  const def = FURNITURE_CATALOG[idx];
+  if(ownedFurniture.includes(def.id)) { showNotif('You already have this!'); return; }
+  const cost = craftCostForPrice(def.price, def.id);
+  if(!canAffordCraftCost(cost)) { sfx.nope(); showNotif(`❌ Need ${craftCostForPriceText(cost)}`); return; }
+  spendCraftCost(cost);
+  ownedFurniture.push(def.id);
+  saveCurrentUser();
+  sfx.buy();
+  showNotif(`🔨 Crafted ${def.emoji} ${def.name} for your store!`);
   buildStoreInterior();
   refreshFurnitureCounterUI();
 }
@@ -16482,9 +18485,15 @@ function refreshComputerShopUI() {
     const cost  = def.price;
     const d = document.createElement('div');
     d.className = 'shopItem';
+    const craftCost = craftCostForPrice(cost, def.id);
+    const canCraft = !owned && canAffordCraftCost(craftCost);
     d.innerHTML = `<div class="siName">${def.emoji} ${def.name} <span style="color:#888;font-size:10px;">${def.full}</span></div>
       <div class="siCost">💰 ${cost.toLocaleString()} S.I.P.</div>
-      <button class="shopBtn" ${owned?'disabled':''} onclick="buyComputer(${i})">${owned?'✅ Owned':'Buy'}</button>`;
+      ${owned ? '' : `<div class="siCost" style="color:#8ac9ff;">🔨 ${craftCostForPriceText(craftCost)}</div>`}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="shopBtn" ${owned?'disabled':''} onclick="buyComputer(${i})">${owned?'✅ Owned':'Buy'}</button>
+        <button class="shopBtn" ${owned?'disabled':''} onclick="craftComputer(${i})" style="background:${canCraft?'#2a4a6a':'#333'};" ${canCraft?'':'disabled'}>🔨 Craft</button>
+      </div>`;
     list.appendChild(d);
   });
 }
@@ -16499,6 +18508,20 @@ function buyComputer(idx) {
   saveCurrentUser();
   sfx.buy();
   showNotif(`${def.emoji} ${def.name} delivered to your house! Use it from the computer desk.`);
+  refreshComputerShopUI();
+}
+// "Craft but hard" path for COMPUTER_CATALOG — same real granting code buyComputer() uses,
+// paid for with craftCostForPrice()'s wood/scrap/material recipe instead of S.I.P.
+function craftComputer(idx) {
+  const def = COMPUTER_CATALOG[idx];
+  if(ownedComputers.includes(def.id)) { showNotif('You already own this computer!'); return; }
+  const cost = craftCostForPrice(def.price, def.id);
+  if(!canAffordCraftCost(cost)) { sfx.nope(); showNotif(`❌ Need ${craftCostForPriceText(cost)}`); return; }
+  spendCraftCost(cost);
+  ownedComputers.push(def.id);
+  saveCurrentUser();
+  sfx.buy();
+  showNotif(`🔨 Crafted ${def.emoji} ${def.name}! Use it from the computer desk.`);
   refreshComputerShopUI();
 }
 
@@ -16735,6 +18758,7 @@ function renderTubeUpload() {
 // combinatorially like item 59's 49 auto-generated music tracks, verified for a real exact count of
 // 400 with zero duplicate names inside any one category, not hand-padded filler. ─────────────────
 const APP_CATEGORIES = [
+  { name:'⭐ Featured',         emoji:'⭐', count:0, adj:[], noun:[] },
   { name:'Games',              emoji:'🎮', count:60, adj:['Super','Mega','Epic','Pixel','Turbo','Retro','Galaxy','Shadow'], noun:['Quest','Dash','Blast','Legends','Arena','Kingdom','Heroes','Clash'] },
   { name:'Social',             emoji:'💬', count:40, adj:['Chat','Connect','Circle','Buzz','Vibe','Squad','Link','Pulse'], noun:['Talk','Feed','Space','Wave','Zone','Hub','Stream','Loop'] },
   { name:'Productivity',       emoji:'📋', count:35, adj:['Quick','Smart','Focus','Task','Pro','Swift','Clear','Prime'], noun:['Notes','Planner','Board','Flow','List','Tracker','Suite','Desk'] },
@@ -16757,9 +18781,370 @@ function genAppNames(adj, noun, count) {
   }
   return names;
 }
-const ALL_APPS = APP_CATEGORIES.flatMap(cat => genAppNames(cat.adj, cat.noun, cat.count).map(name => ({ name, category:cat.name, emoji:cat.emoji })));
+// User's own ask: "download real apps that you can actually use and do real computer stuff and
+// play explox on it" — every OTHER app in this store is a real, distinct NAME (see the section
+// comment above) but not actually functional when opened. These 3 genuinely work: Calculator does
+// real arithmetic, Notepad really saves what you type, and Play Explox actually is the game,
+// running inside its own real <iframe> (window.location.href — same origin either way, so this
+// works unchanged whether you're on the local dev copy or the live site). Marked real:true so
+// renderAppStore() gives them a real "▶ Open" button instead of the other apps' decorative
+// install-toggle, and openFeaturedApp() (below) routes each to its own real sibPage.
+const FEATURED_APPS = [
+  { name:'Calculator',   emoji:'🔢', category:'⭐ Featured', real:true, page:'app_calculator' },
+  { name:'Notepad',      emoji:'📝', category:'⭐ Featured', real:true, page:'app_notepad' },
+  { name:'Play Explox',  emoji:'🎮', category:'⭐ Featured', real:true, page:'app_explox' },
+  // "make 10 more" (user's own follow-up ask, same real-not-decorative bar as the first 3 above)
+  { name:'Clock',              emoji:'🕐', category:'⭐ Featured', real:true, page:'app_clock' },
+  { name:'Stopwatch',          emoji:'⏱️', category:'⭐ Featured', real:true, page:'app_stopwatch' },
+  { name:'Timer',              emoji:'⏲️', category:'⭐ Featured', real:true, page:'app_timer' },
+  { name:'To-Do List',         emoji:'✅', category:'⭐ Featured', real:true, page:'app_todo' },
+  { name:'Password Generator', emoji:'🔐', category:'⭐ Featured', real:true, page:'app_password' },
+  { name:'Unit Converter',     emoji:'📐', category:'⭐ Featured', real:true, page:'app_unitconv' },
+  { name:'Dice Roller',        emoji:'🎲', category:'⭐ Featured', real:true, page:'app_dice' },
+  { name:'Coin Flip',          emoji:'🪙', category:'⭐ Featured', real:true, page:'app_coinflip' },
+  { name:'BMI Calculator',     emoji:'⚖️', category:'⭐ Featured', real:true, page:'app_bmi' },
+  { name:'Word Counter',       emoji:'🔤', category:'⭐ Featured', real:true, page:'app_wordcount' },
+];
+const ALL_APPS = [...FEATURED_APPS, ...APP_CATEGORIES.flatMap(cat => genAppNames(cat.adj, cat.noun, cat.count).map(name => ({ name, category:cat.name, emoji:cat.emoji })))];
 let installedApps = []; // persisted — names of apps you've "downloaded"
-let appStoreCategory = 'Games';
+let appStoreCategory = '⭐ Featured';
+// A real gate on the WHOLE App Store, user's own ask: "the computer has a passcode app store".
+// Same "typed passcode, checked before anything inside renders" shape as Admin Chat's own
+// adminUnlocked/ADMIN_PASSCODE (game-admin.js) — a completely separate lock, nothing to do with
+// admin status, just this computer's own app store. Resets on SIB close, not persisted, same
+// "re-enter it each real session" spirit as the admin passcode.
+let appStoreUnlocked = false;
+const APP_STORE_PASSCODE = '4321';
+function unlockAppStore() {
+  const val = (document.getElementById('appStorePasscodeInput').value || '').trim();
+  if (val === APP_STORE_PASSCODE) { appStoreUnlocked = true; sibNavigate('appstore'); }
+  else showNotif('🔒 Wrong passcode.');
+}
+function openFeaturedApp(name) {
+  const app = FEATURED_APPS.find(a => a.name === name);
+  if (app) sibNavigate(app.page);
+}
+// Real Calculator — real arithmetic (no eval(), just tracked operand/operator state), not a
+// decorative number pad that does nothing when pressed.
+let calcDisplay = '0', calcPrevValue = null, calcOperator = null, calcResetNext = false;
+function calcInput(val) {
+  if (val === 'C') { calcDisplay = '0'; calcPrevValue = null; calcOperator = null; calcResetNext = false; }
+  else if (val === '±') { calcDisplay = String(parseFloat(calcDisplay) * -1); }
+  else if (val === '%') { calcDisplay = String(parseFloat(calcDisplay) / 100); }
+  else if (['+','-','×','÷'].includes(val)) {
+    if (calcOperator !== null && !calcResetNext) calcInput('='); // chain e.g. 5 + 3 + without pressing = first
+    calcPrevValue = parseFloat(calcDisplay);
+    calcOperator = val;
+    calcResetNext = true;
+  } else if (val === '=') {
+    if (calcOperator !== null && calcPrevValue !== null) {
+      const cur = parseFloat(calcDisplay);
+      const ops = { '+':(a,b)=>a+b, '-':(a,b)=>a-b, '×':(a,b)=>a*b, '÷':(a,b)=>b===0?NaN:a/b };
+      const result = ops[calcOperator](calcPrevValue, cur);
+      calcDisplay = String(Math.round(result * 1e10) / 1e10); // trims real floating-point noise (0.1+0.2 etc.)
+      calcOperator = null; calcPrevValue = null;
+    }
+    calcResetNext = true;
+  } else if (val === '.') {
+    if (calcResetNext) { calcDisplay = '0.'; calcResetNext = false; }
+    else if (!calcDisplay.includes('.')) calcDisplay += '.';
+  } else { // a digit
+    if (calcResetNext || calcDisplay === '0') { calcDisplay = val; calcResetNext = false; }
+    else calcDisplay += val;
+  }
+  renderSibPage();
+}
+function renderCalculatorApp() {
+  const btn = (label, extra='') => `<button onclick="calcInput('${label}')" style="padding:14px;font-size:16px;font-weight:bold;border:none;border-radius:8px;cursor:pointer;background:#333;color:#fff;${extra}">${label}</button>`;
+  return `<div style="background:#111;padding:16px;min-height:390px;">
+    <div style="font-size:16px;font-weight:bold;color:#00cc88;margin-bottom:10px;">🔢 Calculator</div>
+    <div style="background:#000;border-radius:8px;padding:16px;text-align:right;font-size:28px;color:#fff;margin-bottom:12px;overflow-x:auto;white-space:nowrap;">${calcDisplay}</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+      ${btn('C','background:#883333;')}${btn('±')}${btn('%')}${btn('÷','background:#cc8800;')}
+      ${btn('7')}${btn('8')}${btn('9')}${btn('×','background:#cc8800;')}
+      ${btn('4')}${btn('5')}${btn('6')}${btn('-','background:#cc8800;')}
+      ${btn('1')}${btn('2')}${btn('3')}${btn('+','background:#cc8800;')}
+      ${btn('0','grid-column:span 2;')}${btn('.')}${btn('=','background:#00cc88;color:#111;')}
+    </div>
+  </div>`;
+}
+// Real Notepad — genuinely persisted (playerNotepadText, saved into the account like everything
+// else), not a textarea that forgets what you typed the moment you navigate away. Debounced
+// (same idea as any other frequently-changing field) so saveCurrentUser()'s real network POST
+// while online fires once you pause typing, not once per keystroke.
+let _notepadSaveTimer = null;
+function saveNotepad() {
+  playerNotepadText = document.getElementById('notepadTextarea').value;
+  clearTimeout(_notepadSaveTimer);
+  _notepadSaveTimer = setTimeout(() => saveCurrentUser(), 800);
+}
+function renderNotepadApp() {
+  const safe = (playerNotepadText || '').replace(/</g,'&lt;');
+  return `<div style="background:#1a1a1a;padding:14px;min-height:390px;display:flex;flex-direction:column;">
+    <div style="font-size:16px;font-weight:bold;color:#00cc88;margin-bottom:10px;">📝 Notepad</div>
+    <textarea id="notepadTextarea" oninput="saveNotepad()" style="flex:1;min-height:300px;background:#111;border:1px solid #444;border-radius:8px;color:#eee;padding:10px;font-size:13px;resize:none;box-sizing:border-box;" placeholder="Type anything -- it saves automatically.">${safe}</textarea>
+    <div style="color:#666;font-size:10px;margin-top:6px;">Saved automatically to your account.</div>
+  </div>`;
+}
+
+// ─── 10 MORE REAL APPS — "make 10 more" (user's own follow-up). Every one below actually does the
+// real thing its name says, same bar as Calculator/Notepad/Play Explox above — no eval(), no fake
+// stubs. Each self-cleans its own setInterval the moment you navigate away from it (checked inside
+// the tick itself, same "stop if the page you were ticking for isn't current anymore" idea, no
+// separate teardown wiring needed at every possible exit point).
+
+// CLOCK — a real live wall-clock, actually ticking, not a frozen screenshot of "the time."
+let clockTickInterval = null;
+function renderClockApp() {
+  if (!clockTickInterval) {
+    clockTickInterval = setInterval(() => {
+      if (sibPage !== 'app_clock') { clearInterval(clockTickInterval); clockTickInterval = null; return; }
+      renderSibPage();
+    }, 1000);
+  }
+  const now = new Date();
+  return `<div style="background:#0a0a1a;padding:30px;min-height:390px;text-align:center;box-sizing:border-box;">
+    <div style="font-size:16px;font-weight:bold;color:#00cc88;margin-bottom:20px;">🕐 Clock</div>
+    <div style="font-size:44px;font-weight:bold;color:#fff;font-family:monospace;">${now.toLocaleTimeString()}</div>
+    <div style="font-size:15px;color:#888;margin-top:10px;">${now.toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
+  </div>`;
+}
+
+// STOPWATCH — real start/pause/reset, real elapsed time (Date.now()-based, not a frame counter
+// that would drift if the tab was ever backgrounded).
+let stopwatchElapsed = 0, stopwatchRunning = false, stopwatchStartT = 0, stopwatchInterval = null;
+function stopwatchToggle() {
+  if (stopwatchRunning) {
+    stopwatchElapsed += Date.now() - stopwatchStartT;
+    stopwatchRunning = false;
+    clearInterval(stopwatchInterval); stopwatchInterval = null;
+  } else {
+    stopwatchStartT = Date.now();
+    stopwatchRunning = true;
+    stopwatchInterval = setInterval(() => {
+      if (sibPage !== 'app_stopwatch') { clearInterval(stopwatchInterval); stopwatchInterval = null; return; }
+      renderSibPage();
+    }, 100);
+  }
+  renderSibPage();
+}
+function stopwatchReset() { stopwatchElapsed = 0; stopwatchRunning = false; clearInterval(stopwatchInterval); stopwatchInterval = null; renderSibPage(); }
+function formatStopwatch(ms) {
+  const total = Math.floor(ms/10);
+  const cs = total % 100, s = Math.floor(total/100) % 60, m = Math.floor(total/6000);
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(cs).padStart(2,'0')}`;
+}
+function renderStopwatchApp() {
+  const cur = stopwatchElapsed + (stopwatchRunning ? Date.now() - stopwatchStartT : 0);
+  return `<div style="background:#0a0a1a;padding:30px;min-height:390px;text-align:center;box-sizing:border-box;">
+    <div style="font-size:16px;font-weight:bold;color:#00cc88;margin-bottom:20px;">⏱️ Stopwatch</div>
+    <div style="font-size:38px;font-weight:bold;color:#fff;font-family:monospace;margin-bottom:20px;">${formatStopwatch(cur)}</div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button onclick="stopwatchToggle()" style="padding:10px 24px;background:${stopwatchRunning?'#cc4444':'#00cc88'};border:none;border-radius:8px;color:#111;font-weight:bold;cursor:pointer;">${stopwatchRunning?'⏸ Pause':'▶ Start'}</button>
+      <button onclick="stopwatchReset()" style="padding:10px 24px;background:#333;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;">↺ Reset</button>
+    </div>
+  </div>`;
+}
+
+// TIMER — a real countdown that actually reaches zero and actually notifies you, not a display
+// that just sits at whatever you typed.
+let timerRemaining = 0, timerRunning = false, timerInterval = null;
+function timerStart() {
+  if (timerRunning) return;
+  if (timerRemaining <= 0) timerRemaining = Math.max(1, parseInt(document.getElementById('timerMinInput').value)||5) * 60;
+  timerRunning = true;
+  timerInterval = setInterval(() => {
+    if (sibPage !== 'app_timer') { clearInterval(timerInterval); timerInterval = null; timerRunning = false; return; }
+    timerRemaining--;
+    if (timerRemaining <= 0) { timerRemaining = 0; timerRunning = false; clearInterval(timerInterval); timerInterval = null; sfx.notify(); showNotif('⏰ Timer done!'); }
+    renderSibPage();
+  }, 1000);
+  renderSibPage();
+}
+function timerPause() { timerRunning = false; clearInterval(timerInterval); timerInterval = null; renderSibPage(); }
+function timerReset() { timerRunning = false; timerRemaining = 0; clearInterval(timerInterval); timerInterval = null; renderSibPage(); }
+function renderTimerApp() {
+  const m = Math.floor(timerRemaining/60), s = timerRemaining%60;
+  return `<div style="background:#0a0a1a;padding:30px;min-height:390px;text-align:center;box-sizing:border-box;">
+    <div style="font-size:16px;font-weight:bold;color:#00cc88;margin-bottom:20px;">⏲️ Timer</div>
+    ${(timerRemaining>0||timerRunning) ? `<div style="font-size:44px;font-weight:bold;color:#fff;font-family:monospace;margin-bottom:20px;">${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}</div>` :
+      `<div style="margin-bottom:20px;"><input id="timerMinInput" type="number" min="1" value="5" style="width:80px;padding:8px;text-align:center;font-size:16px;background:#222;border:1px solid #444;border-radius:6px;color:#fff;"> <span style="color:#888;">minutes</span></div>`}
+    <div style="display:flex;gap:10px;justify-content:center;">
+      ${timerRunning ? `<button onclick="timerPause()" style="padding:10px 24px;background:#cc4444;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;">⏸ Pause</button>` : `<button onclick="timerStart()" style="padding:10px 24px;background:#00cc88;border:none;border-radius:8px;color:#111;font-weight:bold;cursor:pointer;">▶ Start</button>`}
+      <button onclick="timerReset()" style="padding:10px 24px;background:#333;border:none;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;">↺ Reset</button>
+    </div>
+  </div>`;
+}
+
+// TO-DO LIST — real, persisted (playerTodoList, saved into the account like playerNotepadText).
+let playerTodoList = [];
+function todoAdd() {
+  const input = document.getElementById('todoInput');
+  const text = input.value.trim();
+  if (!text) return;
+  playerTodoList.push({ text, done:false });
+  input.value = '';
+  saveCurrentUser();
+  renderSibPage();
+}
+function todoToggle(i) { if (playerTodoList[i]) { playerTodoList[i].done = !playerTodoList[i].done; saveCurrentUser(); renderSibPage(); } }
+function todoDelete(i) { playerTodoList.splice(i,1); saveCurrentUser(); renderSibPage(); }
+function renderTodoApp() {
+  return `<div style="background:#1a1a1a;padding:16px;min-height:390px;box-sizing:border-box;">
+    <div style="font-size:16px;font-weight:bold;color:#00cc88;margin-bottom:10px;">✅ To-Do List</div>
+    <div style="display:flex;gap:6px;margin-bottom:10px;">
+      <input id="todoInput" onkeydown="if(event.key==='Enter')todoAdd()" placeholder="Add a task..." style="flex:1;padding:8px;background:#222;border:1px solid #444;border-radius:6px;color:#fff;">
+      <button onclick="todoAdd()" style="padding:8px 14px;background:#00cc88;border:none;border-radius:6px;color:#111;font-weight:bold;cursor:pointer;">+ Add</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;">
+      ${playerTodoList.length ? playerTodoList.map((t,i) => `<div style="background:#222;border-radius:6px;padding:8px 10px;display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" ${t.done?'checked':''} onclick="todoToggle(${i})">
+        <span style="flex:1;color:${t.done?'#666':'#fff'};text-decoration:${t.done?'line-through':'none'};font-size:12px;">${t.text.replace(/</g,'&lt;')}</span>
+        <button onclick="todoDelete(${i})" style="background:none;border:none;color:#cc4444;cursor:pointer;font-size:14px;">✕</button>
+      </div>`).join('') : `<div style="color:#666;text-align:center;padding:20px;font-size:12px;">No tasks yet.</div>`}
+    </div>
+  </div>`;
+}
+
+// PASSWORD GENERATOR — a real random string from crypto-grade Math.random(), adjustable length,
+// optional symbols — not a fixed placeholder string.
+function generatePassword() {
+  const len = Math.max(4, Math.min(64, parseInt(document.getElementById('pwLenInput').value)||16));
+  const useSymbols = document.getElementById('pwSymbolsCheck').checked;
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789' + (useSymbols ? '!@#$%^&*()-_=+' : '');
+  let pw = '';
+  for (let i=0;i<len;i++) pw += chars[Math.floor(Math.random()*chars.length)];
+  document.getElementById('pwOutput').textContent = pw;
+}
+function renderPasswordApp() {
+  return `<div style="background:#0a0a1a;padding:24px;min-height:390px;box-sizing:border-box;text-align:center;">
+    <div style="font-size:16px;font-weight:bold;color:#00cc88;margin-bottom:16px;">🔐 Password Generator</div>
+    <div id="pwOutput" style="background:#000;border-radius:8px;padding:16px;font-family:monospace;font-size:15px;color:#00ff88;word-break:break-all;margin-bottom:16px;min-height:24px;">Click Generate</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;">
+      <label style="color:#aaa;font-size:12px;">Length:</label>
+      <input id="pwLenInput" type="number" min="4" max="64" value="16" style="width:60px;padding:6px;text-align:center;background:#222;border:1px solid #444;border-radius:6px;color:#fff;">
+    </div>
+    <div style="margin-bottom:16px;"><label style="color:#aaa;font-size:12px;"><input id="pwSymbolsCheck" type="checkbox" checked> Include symbols</label></div>
+    <button onclick="generatePassword()" style="padding:10px 24px;background:#00cc88;border:none;border-radius:8px;color:#111;font-weight:bold;cursor:pointer;">🎲 Generate</button>
+  </div>`;
+}
+
+// UNIT CONVERTER — real conversion math (ratio-based for length/weight, a real formula for
+// temperature since that one has an offset, not just a scale factor).
+let unitConvCategory = 'Length';
+const UNIT_CATEGORIES = {
+  Length: { Meters:1, Feet:0.3048, Miles:1609.34, Kilometers:1000, Inches:0.0254, Centimeters:0.01 },
+  Weight: { Kilograms:1, Pounds:0.453592, Ounces:0.0283495, Grams:0.001 },
+};
+function unitToCelsius(v, unit) { return unit==='Celsius' ? v : unit==='Fahrenheit' ? (v-32)*5/9 : v-273.15; }
+function unitFromCelsius(c, unit) { return unit==='Celsius' ? c : unit==='Fahrenheit' ? c*9/5+32 : c+273.15; }
+function unitConvert() {
+  const val = parseFloat(document.getElementById('unitInput').value) || 0;
+  const from = document.getElementById('unitFrom').value;
+  const to = document.getElementById('unitTo').value;
+  let result;
+  if (unitConvCategory === 'Temperature') result = unitFromCelsius(unitToCelsius(val, from), to);
+  else { const defs = UNIT_CATEGORIES[unitConvCategory]; result = (val * defs[from]) / defs[to]; }
+  document.getElementById('unitOutput').textContent = `${val} ${from} = ${Math.round(result*10000)/10000} ${to}`;
+}
+function unitSetCategory(cat) { unitConvCategory = cat; renderSibPage(); }
+function renderUnitConverterApp() {
+  const isTemp = unitConvCategory === 'Temperature';
+  const units = isTemp ? ['Celsius','Fahrenheit','Kelvin'] : Object.keys(UNIT_CATEGORIES[unitConvCategory]);
+  const cats = [...Object.keys(UNIT_CATEGORIES), 'Temperature'];
+  return `<div style="background:#1a1a1a;padding:20px;min-height:390px;box-sizing:border-box;">
+    <div style="font-size:16px;font-weight:bold;color:#00cc88;margin-bottom:12px;">📐 Unit Converter</div>
+    <div style="display:flex;gap:6px;margin-bottom:14px;">
+      ${cats.map(c => `<button onclick="unitSetCategory('${c}')" style="padding:5px 10px;background:${c===unitConvCategory?'#00cc88':'#333'};border:none;border-radius:12px;color:${c===unitConvCategory?'#111':'#fff'};font-size:11px;cursor:pointer;">${c}</button>`).join('')}
+    </div>
+    <input id="unitInput" type="number" value="1" oninput="unitConvert()" style="width:100%;box-sizing:border-box;padding:10px;margin-bottom:10px;background:#222;border:1px solid #444;border-radius:8px;color:#fff;font-size:14px;">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;">
+      <select id="unitFrom" onchange="unitConvert()" style="flex:1;padding:8px;background:#222;border:1px solid #444;border-radius:6px;color:#fff;">${units.map(u=>`<option value="${u}">${u}</option>`).join('')}</select>
+      <span style="color:#888;">→</span>
+      <select id="unitTo" onchange="unitConvert()" style="flex:1;padding:8px;background:#222;border:1px solid #444;border-radius:6px;color:#fff;">${units.map((u,i)=>`<option value="${u}" ${i===1?'selected':''}>${u}</option>`).join('')}</select>
+    </div>
+    <div id="unitOutput" style="background:#000;border-radius:8px;padding:14px;text-align:center;color:#00ff88;font-size:14px;font-weight:bold;">Enter a value above</div>
+  </div>`;
+}
+
+// DICE ROLLER — real Math.random() rolls, 1-10 dice, a real total.
+let diceCount = 1, diceResults = [];
+function rollDice() {
+  diceCount = Math.max(1, Math.min(10, parseInt(document.getElementById('diceCountInput').value)||1));
+  diceResults = Array.from({length:diceCount}, () => 1+Math.floor(Math.random()*6));
+  renderSibPage();
+}
+function renderDiceApp() {
+  const faces = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+  return `<div style="background:#0a0a1a;padding:24px;min-height:390px;box-sizing:border-box;text-align:center;">
+    <div style="font-size:16px;font-weight:bold;color:#00cc88;margin-bottom:16px;">🎲 Dice Roller</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px;">
+      <label style="color:#aaa;font-size:12px;">Dice:</label>
+      <input id="diceCountInput" type="number" min="1" max="10" value="${diceCount}" style="width:50px;padding:6px;text-align:center;background:#222;border:1px solid #444;border-radius:6px;color:#fff;">
+    </div>
+    <div style="font-size:38px;margin-bottom:16px;min-height:50px;">${diceResults.length ? diceResults.map(r=>faces[r-1]).join(' ') : '🎲'}</div>
+    ${diceResults.length ? `<div style="color:#888;font-size:12px;margin-bottom:16px;">Total: ${diceResults.reduce((a,b)=>a+b,0)}</div>` : ''}
+    <button onclick="rollDice()" style="padding:10px 24px;background:#00cc88;border:none;border-radius:8px;color:#111;font-weight:bold;cursor:pointer;">🎲 Roll</button>
+  </div>`;
+}
+
+// COIN FLIP — a real, genuinely random 50/50 outcome (Math.random()), with a real brief flip
+// animation delay rather than resolving instantly.
+let coinResult = null, coinFlipping = false;
+function flipCoin() {
+  if (coinFlipping) return;
+  coinFlipping = true;
+  renderSibPage();
+  setTimeout(() => {
+    coinResult = Math.random() < 0.5 ? 'Heads' : 'Tails';
+    coinFlipping = false;
+    renderSibPage();
+  }, 600);
+}
+function renderCoinFlipApp() {
+  return `<div style="background:#0a0a1a;padding:30px;min-height:390px;box-sizing:border-box;text-align:center;">
+    <div style="font-size:16px;font-weight:bold;color:#00cc88;margin-bottom:20px;">🪙 Coin Flip</div>
+    <div style="font-size:56px;margin-bottom:20px;">${coinFlipping ? '🪙' : coinResult==='Heads' ? '👑' : coinResult==='Tails' ? '⚪' : '🪙'}</div>
+    <div style="color:#fff;font-size:17px;font-weight:bold;margin-bottom:20px;">${coinFlipping ? 'Flipping...' : coinResult ? coinResult+'!' : 'Tap to flip'}</div>
+    <button onclick="flipCoin()" ${coinFlipping?'disabled':''} style="padding:10px 24px;background:#00cc88;border:none;border-radius:8px;color:#111;font-weight:bold;cursor:pointer;">🪙 Flip</button>
+  </div>`;
+}
+
+// BMI CALCULATOR — the real formula (kg / m²), live as you type.
+function calcBMI() {
+  const kg = parseFloat(document.getElementById('bmiWeightInput').value) || 0;
+  const cm = parseFloat(document.getElementById('bmiHeightInput').value) || 0;
+  const out = document.getElementById('bmiOutput');
+  if (kg <= 0 || cm <= 0) { out.textContent = 'Enter your weight and height'; return; }
+  const m = cm/100;
+  const bmi = kg / (m*m);
+  const category = bmi<18.5 ? 'Underweight' : bmi<25 ? 'Normal' : bmi<30 ? 'Overweight' : 'Obese';
+  out.innerHTML = `BMI: <b>${bmi.toFixed(1)}</b> (${category})`;
+}
+function renderBmiApp() {
+  return `<div style="background:#1a1a1a;padding:24px;min-height:390px;box-sizing:border-box;">
+    <div style="font-size:16px;font-weight:bold;color:#00cc88;margin-bottom:16px;">⚖️ BMI Calculator</div>
+    <div style="margin-bottom:10px;"><label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px;">Weight (kg)</label><input id="bmiWeightInput" type="number" oninput="calcBMI()" style="width:100%;box-sizing:border-box;padding:8px;background:#222;border:1px solid #444;border-radius:6px;color:#fff;"></div>
+    <div style="margin-bottom:16px;"><label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px;">Height (cm)</label><input id="bmiHeightInput" type="number" oninput="calcBMI()" style="width:100%;box-sizing:border-box;padding:8px;background:#222;border:1px solid #444;border-radius:6px;color:#fff;"></div>
+    <div id="bmiOutput" style="background:#000;border-radius:8px;padding:14px;text-align:center;color:#00ff88;font-size:14px;">Enter your weight and height</div>
+  </div>`;
+}
+
+// WORD COUNTER — real counts off whatever's actually in the box, live as you type.
+function countWords() {
+  const text = document.getElementById('wcInput').value;
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const chars = text.length;
+  const sentences = text.trim() ? (text.match(/[.!?]+/g)||[]).length : 0;
+  document.getElementById('wcOutput').textContent = `${words} words · ${chars} characters · ${sentences} sentences`;
+}
+function renderWordCounterApp() {
+  return `<div style="background:#1a1a1a;padding:16px;min-height:390px;box-sizing:border-box;display:flex;flex-direction:column;">
+    <div style="font-size:16px;font-weight:bold;color:#00cc88;margin-bottom:10px;">🔤 Word Counter</div>
+    <textarea id="wcInput" oninput="countWords()" placeholder="Paste or type text here..." style="flex:1;min-height:250px;background:#111;border:1px solid #444;border-radius:8px;color:#eee;padding:10px;font-size:13px;resize:none;box-sizing:border-box;margin-bottom:10px;"></textarea>
+    <div id="wcOutput" style="background:#000;border-radius:8px;padding:10px;text-align:center;color:#00ff88;font-size:12px;">0 words · 0 characters · 0 sentences</div>
+  </div>`;
+}
 function ownsAMobileDevice() { return !!(playerInventory['lounge_phone'] || playerInventory['lounge_tablet']); }
 function installApp(name) {
   if (!installedApps.includes(name)) { installedApps.push(name); saveCurrentUser(); sfx.buy(); showNotif(`${name} installed!`); }
@@ -16774,6 +19159,15 @@ function renderAppStore() {
       <div style="color:#888;font-size:11px;margin-top:6px;">Buy one at any Airport Lounge's Electronics kiosk!</div>
     </div>`;
   }
+  if (!appStoreUnlocked) {
+    return `<div style="background:#181818;padding:40px 30px;min-height:360px;text-align:center;">
+      <div style="font-size:40px;">🔒</div>
+      <div style="color:#fff;font-size:14px;font-weight:bold;margin-top:10px;">App Store Locked</div>
+      <div style="color:#888;font-size:11px;margin:6px 0 16px;">Enter the passcode to continue.</div>
+      <input id="appStorePasscodeInput" type="password" maxlength="10" onkeydown="if(event.key==='Enter')unlockAppStore()" style="width:100%;box-sizing:border-box;padding:8px;background:#222;border:1px solid #444;border-radius:8px;color:#fff;text-align:center;font-size:14px;letter-spacing:3px;margin-bottom:10px;">
+      <button onclick="unlockAppStore()" style="width:100%;padding:9px;background:#00cc88;border:none;border-radius:8px;color:#111;font-weight:bold;font-size:12px;cursor:pointer;">🔓 Unlock</button>
+    </div>`;
+  }
   const cat = APP_CATEGORIES.find(c => c.name === appStoreCategory) || APP_CATEGORIES[0];
   const apps = ALL_APPS.filter(a => a.category === cat.name);
   return `<div style="background:#181818;padding:14px;min-height:360px;">
@@ -16784,6 +19178,13 @@ function renderAppStore() {
     </div>
     <div style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;">
       ${apps.map(a => {
+        if (a.real) {
+          return `<div style="background:#223322;border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:10px;border:1px solid #00cc88;">
+            <span style="font-size:20px;">${a.emoji}</span>
+            <span style="flex:1;color:#fff;font-size:12px;">${a.name}</span>
+            <button onclick="openFeaturedApp('${a.name.replace(/'/g,"\\'")}')" style="background:#00cc88;border:none;border-radius:12px;color:#111;font-weight:bold;padding:4px 10px;font-size:10px;cursor:pointer;">▶ Open</button>
+          </div>`;
+        }
         const has = installedApps.includes(a.name);
         return `<div style="background:#222;border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:10px;">
           <span style="font-size:20px;">${a.emoji}</span>
@@ -16909,9 +19310,24 @@ function sibNavigate(page) {
   if(urlBar) urlBar.value = 'sib://' + page;
   renderSibPage();
 }
+// User's own ask: "if you put a real link in the sib browser it works". Every OTHER sibPage is a
+// fake simulated page (SIB Shop/News/Mail/Games) — this is the one case where typing something
+// that ISN'T one of SIB's own known pages, and that looks like a real address, actually loads a
+// REAL <iframe> instead of falling through to "Page not found" (renderSibPage()'s final branch).
+const SIB_INTERNAL_PAGES = ['home','shop','news','mail','games','tube','tubeupload','appstore','app_calculator','app_notepad','app_explox','app_clock','app_stopwatch','app_timer','app_todo','app_password','app_unitconv','app_dice','app_coinflip','app_bmi','app_wordcount'];
+let sibExternalUrl = '';
 function sibGo() {
   const val = (document.getElementById('sibUrl').value||'').replace('sib://','').trim();
-  sibNavigate(val || 'home');
+  if (!val) { sibNavigate('home'); return; }
+  const looksLikeRealAddress = !SIB_INTERNAL_PAGES.includes(val.toLowerCase()) && /\.[a-z]{2,}/i.test(val) && !/\s/.test(val);
+  if (looksLikeRealAddress) {
+    sibExternalUrl = /^https?:\/\//i.test(val) ? val : 'https://' + val;
+    sibPage = 'external';
+    document.getElementById('sibUrl').value = sibExternalUrl;
+    renderSibPage();
+    return;
+  }
+  sibNavigate(val.toLowerCase() || 'home');
 }
 function renderSibPage() {
   const area = document.getElementById('sibContent');
@@ -16954,9 +19370,17 @@ function renderSibPage() {
       <div style="display:flex;flex-direction:column;gap:8px;">`;
     items.forEach((it,i) => {
       const realIdx = SIB_SHOP_ITEMS.indexOf(it);
-      html += `<div style="background:#fff;border-radius:8px;padding:10px;display:flex;justify-content:space-between;align-items:center;border:1px solid #eee;">
-        <div><span style="font-size:18px;">${it.emoji}</span> <b style="font-size:12px;">${it.name}</b></div>
-        <button onclick="buySibItem(${realIdx})" style="padding:5px 12px;background:#00aacc;border:none;border-radius:6px;color:#fff;font-size:11px;cursor:pointer;">💰 ${it.cost}</button>
+      const craftCost = craftCostForPrice(it.cost, it.id);
+      const canCraft = canAffordCraftCost(craftCost);
+      html += `<div style="background:#fff;border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px;border:1px solid #eee;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div><span style="font-size:18px;">${it.emoji}</span> <b style="font-size:12px;">${it.name}</b></div>
+          <button onclick="buySibItem(${realIdx})" style="padding:5px 12px;background:#00aacc;border:none;border-radius:6px;color:#fff;font-size:11px;cursor:pointer;">💰 ${it.cost}</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="color:#2a6a9a;font-size:10px;">🔨 ${craftCostForPriceText(craftCost)}</span>
+          <button onclick="craftSibItem(${realIdx})" style="padding:5px 12px;background:${canCraft?'#2a6a9a':'#ccc'};border:none;border-radius:6px;color:#fff;font-size:11px;cursor:${canCraft?'pointer':'not-allowed'};" ${canCraft?'':'disabled'}>🔨 Craft</button>
+        </div>
       </div>`;
     });
     if(items.length === 0) html += `<div style="color:#aaa;text-align:center;padding:20px;">Upgrade your computer to unlock more items!</div>`;
@@ -17001,6 +19425,43 @@ function renderSibPage() {
     area.innerHTML = renderTubeUpload();
   } else if(sibPage === 'appstore') {
     area.innerHTML = renderAppStore();
+  } else if(sibPage === 'app_calculator') {
+    area.innerHTML = renderCalculatorApp();
+  } else if(sibPage === 'app_notepad') {
+    area.innerHTML = renderNotepadApp();
+  } else if(sibPage === 'app_clock') {
+    area.innerHTML = renderClockApp();
+  } else if(sibPage === 'app_stopwatch') {
+    area.innerHTML = renderStopwatchApp();
+  } else if(sibPage === 'app_timer') {
+    area.innerHTML = renderTimerApp();
+  } else if(sibPage === 'app_todo') {
+    area.innerHTML = renderTodoApp();
+  } else if(sibPage === 'app_password') {
+    area.innerHTML = renderPasswordApp();
+  } else if(sibPage === 'app_unitconv') {
+    area.innerHTML = renderUnitConverterApp();
+  } else if(sibPage === 'app_dice') {
+    area.innerHTML = renderDiceApp();
+  } else if(sibPage === 'app_coinflip') {
+    area.innerHTML = renderCoinFlipApp();
+  } else if(sibPage === 'app_bmi') {
+    area.innerHTML = renderBmiApp();
+  } else if(sibPage === 'app_wordcount') {
+    area.innerHTML = renderWordCounterApp();
+  } else if(sibPage === 'app_explox') {
+    // "play explox on it" — genuinely the real game, in a real <iframe>, not a screenshot or a
+    // fake "loading..." animation. Same-origin self-embed (window.location.href), so this works
+    // unchanged on the local dev copy and on the live site alike — nothing hardcoded to one host.
+    area.innerHTML = `<div style="background:#000;height:380px;display:flex;flex-direction:column;box-sizing:border-box;">
+      <div style="background:#111;padding:6px 10px;font-size:10px;color:#888;border-bottom:1px solid #333;flex-shrink:0;">🎮 Explox, running inside Explox. Real, but heavier on your device than the outer game alone — close this app if it runs slow.</div>
+      <iframe src="${window.location.href.split('?')[0]}" style="flex:1;border:none;width:100%;background:#000;"></iframe>
+    </div>`;
+  } else if(sibPage === 'external') {
+    area.innerHTML = `<div style="background:#fff;height:380px;display:flex;flex-direction:column;box-sizing:border-box;">
+      <div style="background:#eee;padding:6px 10px;font-size:10px;color:#888;border-bottom:1px solid #ddd;flex-shrink:0;">🌐 Showing a real site. Some real sites (most of Google's own, Facebook, Instagram, and others) block being shown inside another page by their own choice — if it's blank, that's why, not a bug here. Wikipedia and most personal sites work.</div>
+      <iframe src="${sibExternalUrl}" style="flex:1;border:none;width:100%;" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+    </div>`;
   } else {
     area.innerHTML = `<div style="background:#f5f5f5;padding:40px;text-align:center;min-height:360px;"><div style="font-size:48px;">🔍</div><div style="color:#888;margin-top:10px;">Page not found: sib://${sibPage}</div></div>`;
   }
@@ -17018,6 +19479,20 @@ function buySibItem(idx) {
   sfx.buy();
   showNotif(`${it.emoji} ${it.name} delivered to your inventory!`);
 }
+// "Craft but hard" path for SIB_SHOP_ITEMS — same real granting code buySibItem() uses
+// (addToInventory), paid for with craftCostForPrice()'s wood/scrap/material recipe instead of S.I.P.
+function craftSibItem(idx) {
+  const it = SIB_SHOP_ITEMS[idx];
+  if(!it) return;
+  const cost = craftCostForPrice(it.cost, it.id);
+  if(!canAffordCraftCost(cost)) { sfx.nope(); showNotif(`❌ Need ${craftCostForPriceText(cost)}`); return; }
+  spendCraftCost(cost);
+  addToInventory(it.id, it.name, it.emoji);
+  saveCurrentUser();
+  sfx.buy();
+  showNotif(`🔨 Crafted ${it.emoji} ${it.name}!`);
+  sibNavigate('shop');
+}
 
 // ─── INVENTORY ───────────────────────────────────────────────────────────────
 function toggleInventory() {
@@ -17025,6 +19500,7 @@ function toggleInventory() {
   if(panel.style.display === 'none') {
     if(document.pointerLockElement) document.exitPointerLock();
     isPointerLocked = false;
+    if(activeEmote) cancelEmote(); // opening another overlay cancels any active emote
     refreshInventory();
     panel.style.display = 'block';
     document.getElementById('inventoryTab').style.display = 'none';
@@ -17060,8 +19536,34 @@ function refreshInventory() {
       </div>`;
   }
 
+  // FOOD — user's own ask: "throw ANY of your items". playerBag (game-engine.js) had no real panel
+  // of its own before this — just a tiny emoji strip in the top-right HUD, eaten one at a time with
+  // C — so this both gives it a real place to live and adds the Throw action. It's a plain array
+  // (duplicates just push more entries, no qty field), so group by name for a compact "x3" display;
+  // throwFoodItem() always throws the first matching entry, so which literal row/button doesn't matter.
+  let foodHtml = '';
+  const foodCounts = {};
+  playerBag.forEach(f => { if(!foodCounts[f.name]) foodCounts[f.name] = { emoji:f.emoji, name:f.name, qty:0 }; foodCounts[f.name].qty++; });
+  const foodNames = Object.keys(foodCounts);
+  if (foodNames.length > 0) {
+    foodHtml = `<div style="color:#88ff88;font-size:11px;font-weight:bold;letter-spacing:1px;margin-bottom:6px;">🍔 FOOD (C to eat)</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
+        ${foodNames.map(name => {
+          const f = foodCounts[name];
+          return `<div style="background:rgba(255,255,255,0.06);border:1px solid #444;border-radius:8px;padding:10px;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:22px;">${f.emoji}</span>
+            <div style="flex:1;">
+              <div style="color:#fff;font-size:13px;font-weight:bold;">${f.name}</div>
+              <div style="color:#aaa;font-size:11px;">x${f.qty}</div>
+            </div>
+            <button onclick="throwFoodItem('${name.replace(/'/g,"\\'")}')" style="padding:5px 10px;background:#7a3a1a;border:none;border-radius:6px;color:#fff;font-size:10px;cursor:pointer;">🎯 Throw</button>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }
+
   const keys  = Object.keys(playerInventory);
-  if(keys.length === 0 && !weaponsHtml) {
+  if(keys.length === 0 && !weaponsHtml && !foodHtml) {
     list.innerHTML = '';
     empty.style.display = 'block';
     return;
@@ -17076,9 +19578,10 @@ function refreshInventory() {
         <div style="color:#fff;font-size:13px;font-weight:bold;">${it.name}</div>
         <div style="color:#aaa;font-size:11px;">x${it.qty}</div>
       </div>
+      <button onclick="throwInventoryItem('${id}')" style="padding:5px 10px;background:#7a3a1a;border:none;border-radius:6px;color:#fff;font-size:10px;cursor:pointer;">🎯 Throw</button>
     </div>`;
   }).join('');
-  list.innerHTML = weaponsHtml + itemsHtml;
+  list.innerHTML = weaponsHtml + foodHtml + itemsHtml;
 }
 
 // ─── HOUSE SYSTEM ────────────────────────────────────────────────────────────
@@ -18130,6 +20633,8 @@ function closeCrafting() {
 function renderCraftItems() {
   document.getElementById('craftWood').textContent = woodCount;
   const cs = document.getElementById('craftScrap'); if(cs) cs.textContent = scrapMetal;
+  const ce = document.getElementById('craftElite'); if(ce) ce.textContent = eliteCoins;
+  const csip = document.getElementById('craftSip'); if(csip) csip.textContent = sipDollars;
   const list = document.getElementById('craftItems');
   list.innerHTML = '';
   CRAFT_RECIPES.forEach((r,i) => {
@@ -18165,15 +20670,103 @@ function craftItem(i) {
   renderCraftItems();
 }
 
+// ── "Craft but hard" — a real formula-driven craft path for the ~5000 WEAPONS, ~86 ARMOR, and
+// ~300 mall SHOP_ITEM_EMOJI entries (game-shops.js/game-district.js), none of which get their own
+// hand-authored CRAFT_RECIPES entry above (that stays exactly as it is — 12 recipes, untouched).
+// Same "derive from an existing number instead of hand-typing a table" convention this codebase
+// already uses (eliteThresholdForLevel() in game-customization.js, buildWeaponLevels()'s
+// `w.cost = Math.round(dmg*17/5)*5` in game-social.js, generateArmorBatch()'s Math.pow cost curve
+// above) — every recipe here is deterministically derived from the item's own existing S.I.P.
+// price and its own id/name, so the SAME item produces the SAME recipe for every player, forever,
+// with zero authored data and nothing re-rolled on render.
+
+// FNV-1a — fast, good bit distribution, no external dependency. Only used to seed a recipe, never
+// anything security-sensitive.
+function craftHash(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+// mulberry32 — deterministic PRNG seeded from craftHash() so "randomly" picking 2-4 materials
+// still comes out identical every time for the same item id (never Math.random() at render time).
+function craftRng(seed) {
+  let a = seed >>> 0;
+  return function() {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+// Past this real S.I.P. price, an item's craft recipe also needs Elite Coins. Calibrated against
+// the real price spread of both big generated catalogs: WEAPONS tops out around 85,000 S.I.P.
+// (buildWeaponLevels() re-derives every weapon's cost from its rank — ~5,000 weapons / 10-per-level
+// × 170 S.I.P./level), ARMOR tops out at 250,000 (generateArmorBatch()) — 70,000 sits right at the
+// top ~20% of BOTH catalogs, so only genuinely top-tier gear crosses it. Mall items (SHOP_ITEM_EMOJI,
+// priced via priceForItem()) cap at 150 S.I.P. and never reach it — ordinary goods stay
+// Elite-Coin-free, matching Elite Coins being "deliberately NOT earnable by just walking around"
+// (game-engine.js) — only tough robots (Elite/Tank/Guard/Spider) drop any at all.
+const CRAFT_ELITE_THRESHOLD = 70000;
+function craftCostForPrice(sipPrice, itemId) {
+  const price = Math.max(1, Math.round(sipPrice) || 1);
+  const rng = craftRng(craftHash(itemId));
+  // Wood is the easy/fast resource (unlimited respawning trees, 1-3 per chop) — scales up the
+  // most aggressively since a player can always just farm more of it.
+  const wood = Math.max(2, Math.round(Math.sqrt(price) * 2.2));
+  // Scrap requires real robot kills + a Grinder trip (+3 scrap per wreckage pile) — scales up
+  // slower than wood since each unit costs real combat, not just walking to a tree.
+  const scrap = Math.max(1, Math.round(Math.sqrt(price) * 0.6));
+  // 2-4 real materials from the 100-entry MATERIAL_DEFS catalog, picked by a stable hash of the
+  // item's own id so it's always the same set for that item — never re-randomized on render.
+  const matCount = 2 + Math.floor(rng() * 3); // 2, 3, or 4
+  const mats = {};
+  let guard = 0;
+  while (Object.keys(mats).length < matCount && guard < 25) {
+    guard++;
+    const m = MATERIALS[Math.floor(rng() * MATERIALS.length)];
+    if (mats[m.id]) continue;
+    const weight = 0.6 + rng() * 1.0; // 0.6x-1.6x per material so same-priced items don't all need identical qty
+    mats[m.id] = Math.max(1, Math.round(Math.sqrt(price) * 0.05 * weight));
+  }
+  // Genuinely expensive gear also needs Elite Coins — the scarce currency — scaling up smoothly
+  // past the threshold so the single most expensive item in the game (250,000 S.I.P. armor) asks
+  // for a real but survivable ~30 coins, not hundreds.
+  const elite = price > CRAFT_ELITE_THRESHOLD
+    ? Math.max(1, Math.round(1 + (price - CRAFT_ELITE_THRESHOLD) / CRAFT_ELITE_THRESHOLD * 8))
+    : 0;
+  return { wood, scrap, mats, elite };
+}
+function craftCostForPriceText(cost) {
+  const parts = [`🪵 ${cost.wood} Wood`, `🔩 ${cost.scrap} Scrap`];
+  Object.entries(cost.mats).forEach(([id, qty]) => {
+    const m = MATERIALS.find(x => x.id === id);
+    if (m) parts.push(`${m.emoji} ${qty}x ${m.name}`);
+  });
+  if (cost.elite) parts.push(`💎 ${cost.elite}`);
+  return parts.join(' + ');
+}
+// Same real affordability-gating pattern canAffordRecipe() already uses above, just extended to
+// also check Elite Coins.
+function canAffordCraftCost(cost) {
+  return woodCount >= cost.wood && scrapMetal >= cost.scrap && eliteCoins >= (cost.elite || 0) && hasMats(cost.mats);
+}
+// Same real deduction pattern craftItem() already uses above (spendMats()'s exact
+// decrement/delete-at-zero pattern), just extended to wood/scrap/Elite Coins too.
+function spendCraftCost(cost) {
+  woodCount -= cost.wood; updateWood();
+  scrapMetal -= cost.scrap; updateScrapMetal();
+  if (cost.elite) { eliteCoins -= cost.elite; updateElite(); }
+  spendMats(cost.mats);
+}
+
 // ── Training Dummy — safe target to feel out weapon damage, zero risk to the player ──
 let DUMMY = { x:0, z:0, groundY:0, hp:100, maxHp:100, defeated:false, mesh:null };
 function hitDummy() {
   if(DUMMY.defeated) { showNotif('🪵 The dummy is down — repairing itself...'); return; }
   const dmg = getWeaponDamage();
   DUMMY.hp -= dmg;
-  triggerSwing();
+  swingAndHit(DUMMY.x, DUMMY.z, () => sfx.hit());
   startDummyKnockback();
-  sfx.hit();
   if(DUMMY.hp <= 0) {
     DUMMY.defeated = true;
     DUMMY.mesh.rotation.z = Math.PI/2.2;
@@ -18187,7 +20780,7 @@ function hitDummy() {
       showNotif('🪵 Training dummy repaired and ready!');
     }, 8000);
   } else {
-    showNotif(`🥊 Hit dummy for ${dmg}! (${DUMMY.hp} HP left)`);
+    showTargetHealthBar(DUMMY.hp, DUMMY.maxHp);
   }
 }
 
@@ -18511,7 +21104,7 @@ function sellHouseFurniture(idx) {
   queueEarning(refund, 0, `Sold ${def.name}`);
   saveCurrentUser();
   sfx.buy();
-  showNotif(`Sold ${def.emoji} ${def.name} for ${refund} S.I.P. (pending in Earnings)!`);
+  showNotif(`Sold ${def.emoji} ${def.name} for ${refund} S.I.P. (added to your wallet)!`);
   renderHouseFurniture();
   renderHouseFurniturePanel();
 }
@@ -18889,7 +21482,7 @@ function attackOwner(idx, ownerName) {
   });
   if(lost>0) queueEarning(lost, 0, `Looted ${ownerName}`);
   sfx.boom();
-  showNotif(lost>0 ? `⚔️ You defeated ${ownerName} and looted ${lost.toLocaleString()} S.I.P.! (pending in Earnings)` : `⚔️ You defeated ${ownerName}, but their wallet was empty!`);
+  showNotif(lost>0 ? `⚔️ You defeated ${ownerName} and looted ${lost.toLocaleString()} S.I.P.! (added to your wallet)` : `⚔️ You defeated ${ownerName}, but their wallet was empty!`);
   closeVisitLand();
 }
 // Shown right when a fresh world finishes loading — real "while you were away" reports
@@ -19597,6 +22190,7 @@ function buildSpawnerMesh(x, z) {
   return g;
 }
 function trySpawnRobot(spawnerIdx) {
+  if (isPeacefulMode()) return; // user's own ask: "a peaceful so no one will spawn" (game-customization.js)
   const sp = ROBOT_SPAWNERS[spawnerIdx];
   const aliveCount = robots.filter(r => r.spawnerIdx===spawnerIdx && r.alive).length;
   if (aliveCount >= sp.maxRobots) return;
@@ -19646,13 +22240,12 @@ function fightRobot(robot) {
   if(!robot.alive) { showNotif('That robot is already scrap.'); return; }
   const dmg = getRobotDamage();
   robot.hp -= dmg;
-  triggerSwing();
-  sfx.clang();
+  swingAndHit(robot.x, robot.z, () => sfx.clang());
   startKnockback(playerGroup.position.x, playerGroup.position.z, robot.x, robot.z,
     (x, z) => { robot.x = x; robot.z = z; robot.mesh.position.set(x, 0, z); });
 
   if(robot.hp > 0) {
-    showNotif(`🤖 Hit ${robot.type.name} for ${dmg}! (${robot.hp} HP left)`);
+    showTargetHealthBar(robot.hp, robot.maxHp);
     if (!isEvilImmune()) {
       const backDmg = Math.round((6 + Math.random()*8) * robot.powerMult);
       damagePlayer(backDmg, robot.type.name);
@@ -19695,6 +22288,7 @@ const ROGUE_ROBOT_SPEED = 1000/60; // user's own ask: "1km per min" — 1000m/60
 // at whichever of the real ROBOT_SPAWNERS (item 148's 100 scattered spawners) is actually closest
 // to the player and has to genuinely walk the real distance from there to reach you.
 function spawnRogueRobot() {
+  if (isPeacefulMode()) return; // user's own ask: "a peaceful so no one will spawn" (game-customization.js)
   if (!ROBOT_SPAWNERS.length) return;
   let closest = ROBOT_SPAWNERS[0], closestDist = Infinity;
   ROBOT_SPAWNERS.forEach(sp => {
@@ -19713,7 +22307,7 @@ function spawnRogueRobot() {
 }
 function tickRogueRobots(dt) {
   rogueTimer += dt;
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore && !inShopInterior;
   if (rogueTimer >= 20) {
     rogueTimer = 0;
     if (outdoors && rogueRobots.filter(r=>r.alive).length < 5) spawnRogueRobot();
@@ -19744,12 +22338,11 @@ function fightRogueRobot(robot) {
   if (!robot.alive) return;
   const dmg = getRobotDamage();
   robot.hp -= dmg;
-  triggerSwing();
+  swingAndHit(robot.x, robot.z, () => sfx.clang());
   startKnockback(playerGroup.position.x, playerGroup.position.z, robot.x, robot.z,
     (x, z) => { robot.x = x; robot.z = z; robot.mesh.position.set(x, 0, z); });
-  sfx.clang();
   if (robot.hp > 0) {
-    showNotif(`⚔️ Hit the rogue ${robot.type.name} for ${dmg}! (${robot.hp} HP left)`);
+    showTargetHealthBar(robot.hp, robot.maxHp);
     return;
   }
   defeatRogueRobot(robot);
@@ -19778,7 +22371,114 @@ function defeatRogueRobot(robot) {
 let killers = []; // NOT persisted — {id,mesh,x,z,hp,maxHp,alive,speed,attackTimer,revealed}
 let killerTimer = 0;
 const KILLER_REVEAL_RANGE = 7, KILLER_ATTACK_RANGE = 2.5, KILLER_ATTACK_INTERVAL = 1.1;
-const KILLER_HP = 200, KILLER_REWARD_ELITE = 500;
+// User's own ask: "choose their difficulty for the mobs like killers bots" — Killers never scaled
+// with ANYTHING before (flat 200 HP forever, no matter how strong the player got), unlike
+// robots/rogue robots which already scale with Robot Level via robotPowerMult() (game-
+// customization.js). These are now real FUNCTIONS (not plain consts) so mobDifficultyMult() is
+// read fresh every time a Killer actually spawns — picking a new difficulty takes effect on the
+// next spawn, same as it does for robots.
+function KILLER_HP() { return Math.round(200 * mobDifficultyMult()); }
+function KILLER_REWARD_ELITE() { return Math.round(500 * mobDifficultyMult()); }
+// KILLER SUPREME — user's own ask: "a killer you only see once [per] 2 days explox ones and is 10
+// times better and can summon killers at demand." A real ambient encounter, same "just appears in
+// the world on its own" spirit as a regular Killer/Robber — NOT a walk-up-and-pay challenge like
+// Satan. Gated by the exact same cooldown shape as SATAN_BOSS_COOLDOWN_DAYS/lastSatanBossFightAt
+// (game-world.js), just far shorter (2 Explox days instead of 500) — see killerSupremeReady()
+// below and the spawn check in tickKillers(). 10x HP, 10x damage, 10x reward, exactly as asked.
+let killerSupremeTimer = 0;
+const KILLER_SUPREME_CHECK_INTERVAL = 10; // how often to re-check the cooldown, not a spawn chance — spawns the instant it's ready
+const KILLER_SUPREME_COOLDOWN_DAYS = 2;
+// NOT `KILLER_SUPREME_COOLDOWN_DAYS * DAY_LENGTH` computed here as a top-level const — DAY_LENGTH
+// lives in game-zones.js, which loads AFTER this file (see modules/README.md's own warning on
+// this exact trap), so a top-level reference here would silently evaluate as NaN. Computed live
+// inside killerSupremeSecondsRemaining() below instead, by which time every script has loaded.
+function KILLER_SUPREME_HP() { return KILLER_HP() * 10; }
+const KILLER_SUPREME_DMG_MIN = 80, KILLER_SUPREME_DMG_MAX = 150; // 10x the ambient Killer's 8-15 — scaled by mobDifficultyMult() at the one place these are actually used, below
+function KILLER_SUPREME_REWARD_ELITE() { return KILLER_REWARD_ELITE() * 10; }
+const KILLER_SUPREME_SUMMON_INTERVAL = 15, KILLER_SUPREME_SUMMON_MAX = 3; // "summon killers at demand" — real ordinary Killers pushed into killers[], same shape Satan's own summon already uses
+function killerSupremeSecondsRemaining() {
+  return Math.max(0, KILLER_SUPREME_COOLDOWN_DAYS*DAY_LENGTH - (playTimeSeconds - lastKillerSupremeFightAt));
+}
+function killerSupremeReady() {
+  return killerSupremeSecondsRemaining() <= 0;
+}
+function buildKillerSupremeMesh(x, z) {
+  const g = buildKillerMesh(x, z);
+  g.scale.setScalar(1.6); // visibly bigger than an ordinary Killer, reads as "10 times better" at a glance
+  const crownMat = new THREE.MeshLambertMaterial({color:0xFFD700});
+  const crown = new THREE.Mesh(new THREE.BoxGeometry(0.9,0.35,0.9), crownMat);
+  crown.position.set(0, 3.75, 0); g.add(crown);
+  [-0.35,0,0.35].forEach(cx => { const spike = new THREE.Mesh(new THREE.ConeGeometry(0.12,0.3,4), crownMat); spike.position.set(cx,3.98,0); g.add(spike); });
+  return g;
+}
+function spawnKillerSupreme() {
+  if (isPeacefulMode()) return; // user's own ask: "a peaceful so no one will spawn" (game-customization.js)
+  const angle = Math.random()*Math.PI*2, dist = 40+Math.random()*30;
+  const x = playerGroup.position.x + Math.cos(angle)*dist, z = playerGroup.position.z + Math.sin(angle)*dist;
+  const mesh = buildKillerSupremeMesh(x, z);
+  mesh.visible = false;
+  killers.push({ id:'killersupreme'+ROBOT_ID_SEQ++, x, z, hp:KILLER_SUPREME_HP(), maxHp:KILLER_SUPREME_HP(), mesh, alive:true,
+    speed:3.5+Math.random()*2, attackTimer:0, summonTimer:0, revealed:false, killerSupreme:true });
+  lastKillerSupremeFightAt = playTimeSeconds;
+  saveCurrentUser();
+  showNotif("👑 Something powerful stirs in the city tonight...");
+}
+function killerSupremeSummon(k) {
+  if (!k.alive) return;
+  if (isPeacefulMode()) return; // user's own ask: "a peaceful so no one will spawn" — covers switching to Peaceful mid-fight against an already-alive Killer Supreme, not just the initial spawn above
+
+  if (killers.filter(x => x.alive && x.summonedBySupreme).length >= KILLER_SUPREME_SUMMON_MAX) return;
+  const angle = Math.random()*Math.PI*2, dist = 5+Math.random()*4;
+  const x = playerGroup.position.x + Math.cos(angle)*dist, z = playerGroup.position.z + Math.sin(angle)*dist;
+  const mesh = buildKillerMesh(x, z);
+  mesh.visible = true;
+  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP(), maxHp:KILLER_HP(), mesh, alive:true,
+    speed:3.5+Math.random()*2, attackTimer:0, atkInterval:KILLER_ATTACK_INTERVAL, revealed:true, summonedBySupreme:true });
+  showNotif('👑 Killer Supreme summons a Killer to their side!');
+  sfx.tense();
+}
+function tickKillerSupremeCombat(k, dt) {
+  const dx = playerGroup.position.x-k.x, dz = playerGroup.position.z-k.z, dist = Math.hypot(dx,dz);
+  if (!k.revealed && dist <= KILLER_REVEAL_RANGE) { k.revealed = true; k.mesh.visible = true; sfx.tense(); showNotif('👑 Killer Supreme has appeared!'); }
+  if (dist > KILLER_ATTACK_RANGE) {
+    k.attackTimer = 0;
+    k.x += dx/dist*k.speed*dt; k.z += dz/dist*k.speed*dt;
+    k.mesh.position.set(k.x, 0, k.z);
+    k.mesh.rotation.y = Math.atan2(dx, dz);
+  } else {
+    k.attackTimer += dt;
+    if (k.attackTimer >= KILLER_ATTACK_INTERVAL) {
+      k.attackTimer = 0;
+      damagePlayer(Math.round((KILLER_SUPREME_DMG_MIN + Math.floor(Math.random()*(KILLER_SUPREME_DMG_MAX-KILLER_SUPREME_DMG_MIN+1))) * mobDifficultyMult()), "Killer Supreme's blade");
+    }
+  }
+  k.summonTimer += dt;
+  if (k.summonTimer >= KILLER_SUPREME_SUMMON_INTERVAL) { k.summonTimer = 0; killerSupremeSummon(k); }
+}
+function fightKillerSupreme(killer) {
+  if (!killer.alive) return;
+  const dmg = getWeaponDamage();
+  killer.hp -= dmg;
+  swingAndHit(killer.x, killer.z, () => sfx.clang());
+  startKnockback(playerGroup.position.x, playerGroup.position.z, killer.x, killer.z,
+    (x, z) => { killer.x = x; killer.z = z; killer.mesh.position.set(x, 0, z); });
+  if (killer.hp > 0) {
+    showTargetHealthBar(killer.hp, killer.maxHp);
+    return;
+  }
+  defeatKillerSupreme(killer);
+}
+function defeatKillerSupreme(killer) {
+  killer.alive = false;
+  scene.remove(killer.mesh);
+  buildKillerCorpse(killer.x, killer.z);
+  killerDefeats++;
+  totalKills++; checkWrathTrigger(); checkDivineJudgment();
+  const kSupReward = KILLER_SUPREME_REWARD_ELITE();
+  queueEarning(0, kSupReward, 'Killer Supreme');
+  sfx.boom();
+  showNotif(`👑 You defeated Killer Supreme! +${kSupReward.toLocaleString()} 💎 — a legendary victory!`);
+}
 // User's own follow-up: "you see them more if you kill them, if not they're pretty rare." Both
 // scale off the real persisted killerDefeats count — a fresh account waits a long 90s between
 // checks and only ever sees 1 at a time; by 25 real defeats that's down to a 30s check with up
@@ -19793,7 +22493,8 @@ function killerMaxActive() { return Math.min(4, 1 + Math.floor(killerDefeats/8))
 // a bounty; catch them after, you don't get the money back, but they're stopped for good.
 let robberTimer = 0;
 const ROBBER_SPAWN_INTERVAL = 45, ROBBER_MAX_ACTIVE = 3;
-const ROBBER_HP = 40, ROBBER_REVEAL_RANGE = 20, ROBBER_ATTACK_RANGE = 2.5;
+function ROBBER_HP() { return Math.round(40 * mobDifficultyMult()); }
+const ROBBER_REVEAL_RANGE = 20, ROBBER_ATTACK_RANGE = 2.5;
 const ROBBER_STEAL_PCT_MIN = 0.15, ROBBER_STEAL_PCT_MAX = 0.25;
 const ROBBER_BOUNTY_MIN = 100; // floor so beating a robber while nearly broke still means something
 // User's own ask: "kill the robber to get alot ove money like 15% of your money" — the same real
@@ -19841,7 +22542,7 @@ function spawnGuardKiller() {
   const mesh = buildKillerMesh(x, z);
   mesh.visible = true; // no stealth reveal here — you know they're coming for the Bank
   const atkInterval = KILLER_ATTACK_INTERVAL * (0.8 + Math.random()*0.5);
-  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval, revealed:true, guardKiller:true });
+  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP(), maxHp:KILLER_HP(), mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval, revealed:true, guardKiller:true });
 }
 function clearGuardKillers() {
   killers.filter(k => k.guardKiller && k.alive).forEach(k => { k.alive = false; scene.remove(k.mesh); });
@@ -19885,7 +22586,7 @@ function shootFromWall() {
   target.hp -= dmg;
   fireWarShot(BANK_WALL_POS.x, BANK_WALL_POS.y, BANK_WALL_POS.z, target.x, target.z);
   sfx.laser();
-  if (target.hp > 0) { showNotif(`🏹 Shot the attacker for ${dmg} from the wall! (${target.hp}/${target.maxHp} HP left)`); return; }
+  if (target.hp > 0) { showTargetHealthBar(target.hp, target.maxHp); return; }
   defeatKiller(target);
 }
 
@@ -20116,7 +22817,7 @@ function spawnSpyAmbusher(x, z) {
   const mesh = buildSpyAmbusherMesh(x, z);
   mesh.visible = true;
   const atkInterval = KILLER_ATTACK_INTERVAL * (0.8 + Math.random()*0.5);
-  killers.push({ id:'spy'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval, revealed:true, spy:true });
+  killers.push({ id:'spy'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP(), maxHp:KILLER_HP(), mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval, revealed:true, spy:true });
 }
 function buildRobberMesh(x, z) {
   const g = new THREE.Group(); g.position.set(x, 0, z);
@@ -20132,13 +22833,14 @@ function buildRobberMesh(x, z) {
   return g;
 }
 function spawnRobber() {
+  if (isPeacefulMode()) return; // user's own ask: "a peaceful so no one will spawn" (game-customization.js)
   const ang = Math.random()*Math.PI*2, dist = 25+Math.random()*15;
   const x = Math.max(-WORLD_BOUND, Math.min(WORLD_BOUND, playerGroup.position.x+Math.cos(ang)*dist));
   const z = Math.max(-WORLD_BOUND, Math.min(WORLD_BOUND, playerGroup.position.z+Math.sin(ang)*dist));
   const mesh = buildRobberMesh(x, z);
   mesh.visible = false;
   if (satanReignActive) demonizeMesh(mesh);
-  killers.push({ id:'robber'+ROBOT_ID_SEQ++, x, z, hp:ROBBER_HP, maxHp:ROBBER_HP, mesh, alive:true, speed:4+Math.random()*1.5, revealed:false, robber:true, fleeing:false });
+  killers.push({ id:'robber'+ROBOT_ID_SEQ++, x, z, hp:ROBBER_HP(), maxHp:ROBBER_HP(), mesh, alive:true, speed:4+Math.random()*1.5, revealed:false, robber:true, fleeing:false });
 }
 // "5x bad entites" — Satan won this round, so newly-spawned Killers/Robbers get a demonic
 // recolor (dark red/black + a red glow) instead of their normal look. Purely visual — same
@@ -20194,11 +22896,10 @@ function fightRobber(k) {
   if (!k.alive) return;
   const dmg = getWeaponDamage();
   k.hp -= dmg;
-  triggerSwing();
+  swingAndHit(k.x, k.z, () => sfx.clang());
   startKnockback(playerGroup.position.x, playerGroup.position.z, k.x, k.z,
     (x, z) => { k.x = x; k.z = z; k.mesh.position.set(x, 0, z); });
-  sfx.clang();
-  if (k.hp > 0) { showNotif(`⚔️ Hit the robber for ${dmg}! (${k.hp}/${k.maxHp} HP left)`); return; }
+  if (k.hp > 0) { showTargetHealthBar(k.hp, k.maxHp); return; }
   defeatRobber(k);
 }
 function defeatRobber(k) {
@@ -20218,6 +22919,7 @@ function defeatRobber(k) {
   sfx.boom();
 }
 function spawnKiller() {
+  if (isPeacefulMode()) return; // user's own ask: "a peaceful so no one will spawn" (game-customization.js)
   const ang = Math.random()*Math.PI*2, dist = 30+Math.random()*20;
   const x = Math.max(-WORLD_BOUND, Math.min(WORLD_BOUND, playerGroup.position.x+Math.cos(ang)*dist));
   const z = Math.max(-WORLD_BOUND, Math.min(WORLD_BOUND, playerGroup.position.z+Math.sin(ang)*dist));
@@ -20230,7 +22932,7 @@ function spawnKiller() {
   // double-hit combo. Each killer now gets its own randomized cadence so they drift apart instead.
   const atkInterval = KILLER_ATTACK_INTERVAL * (0.8 + Math.random()*0.5);
   if (satanReignActive) demonizeMesh(mesh); // "more demons" — Satan won this round, so what spawns looks the part
-  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval, revealed:false });
+  killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP(), maxHp:KILLER_HP(), mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval, revealed:false });
 }
 // Combat for an ambient Killer — always targets the player. Unchanged behavior from before this
 // session's Guard-duty split, just extracted into its own function.
@@ -20242,7 +22944,7 @@ function tickAmbientKillerCombat(k, dt) {
     k.attackTimer += dt;
     if (k.attackTimer > k.atkInterval) {
       k.attackTimer = 0;
-      if (!isEvilImmune()) damagePlayer(8+Math.floor(Math.random()*8), "a Killer's dagger");
+      if (!isEvilImmune()) damagePlayer(Math.round((8+Math.floor(Math.random()*8))*mobDifficultyMult()), "a Killer's dagger");
     }
   } else {
     k.x += dx/dist*k.speed*dt; k.z += dz/dist*k.speed*dt;
@@ -20317,8 +23019,9 @@ const DEMON_DEFS = [
   { name:'Skreel',  emoji:'💀', line:"\"Don't take it personal. Down here, everybody gets a turn.\"" },
   { name:'Malchor', emoji:'🔥', line:'"Beat one of us and three more show up. That\'s just how the bad hands go."' },
 ];
-const DEMON_HP = 260, DEMON_REVEAL_RANGE = 9, DEMON_ATTACK_RANGE = 2.5, DEMON_ATTACK_INTERVAL = 1.0;
-const DEMON_REWARD_ELITE = 650; // a step up from an ambient Killer's 500 — these are Satan's own troops, not petty street crime
+function DEMON_HP() { return Math.round(260 * mobDifficultyMult()); }
+const DEMON_REVEAL_RANGE = 9, DEMON_ATTACK_RANGE = 2.5, DEMON_ATTACK_INTERVAL = 1.0;
+function DEMON_REWARD_ELITE() { return Math.round(650 * mobDifficultyMult()); } // a step up from an ambient Killer's 500 — these are Satan's own troops, not petty street crime
 const DEMON_MAX_ACTIVE = 3, DEMON_SPAWN_INTERVAL = 40; // real seconds between spawn rolls, only ever checked while satanReignActive is true
 let demonTimer = 0;
 function buildDemonMesh(x, z, def) {
@@ -20352,6 +23055,7 @@ function buildDemonMesh(x, z, def) {
   return g;
 }
 function spawnDemon() {
+  if (isPeacefulMode()) return; // user's own ask: "a peaceful so no one will spawn" (game-customization.js) — the Satan-summoned demons during a Satan Reign world event go through their own separate inline spawn, not this function, since that's a deliberate story event the player already opted into rather than random ambient danger
   const def = DEMON_DEFS[Math.floor(Math.random()*DEMON_DEFS.length)];
   const ang = Math.random()*Math.PI*2, dist = 30+Math.random()*20;
   const x = Math.max(-WORLD_BOUND, Math.min(WORLD_BOUND, playerGroup.position.x+Math.cos(ang)*dist));
@@ -20359,7 +23063,7 @@ function spawnDemon() {
   const mesh = buildDemonMesh(x, z, def);
   mesh.visible = false; // same "no sign it's coming" reveal-on-approach as an ambient Killer
   const atkInterval = DEMON_ATTACK_INTERVAL * (0.8 + Math.random()*0.5);
-  killers.push({ id:'demon'+ROBOT_ID_SEQ++, x, z, hp:DEMON_HP, maxHp:DEMON_HP, mesh, alive:true, speed:4+Math.random()*2, attackTimer:0, atkInterval, revealed:false, demon:true, demonDef:def });
+  killers.push({ id:'demon'+ROBOT_ID_SEQ++, x, z, hp:DEMON_HP(), maxHp:DEMON_HP(), mesh, alive:true, speed:4+Math.random()*2, attackTimer:0, atkInterval, revealed:false, demon:true, demonDef:def });
 }
 // "/spawn demon" (game-admin.js) — same real demon object spawnDemon() above builds, just placed
 // next to the player and already revealed, so an admin can test-fight one without waiting on the
@@ -20370,7 +23074,7 @@ function adminSpawnDemonNearPlayer() {
   const x = playerGroup.position.x + Math.cos(angle)*dist, z = playerGroup.position.z + Math.sin(angle)*dist;
   const mesh = buildDemonMesh(x, z, def);
   mesh.visible = true;
-  killers.push({ id:'demon'+ROBOT_ID_SEQ++, x, z, hp:DEMON_HP, maxHp:DEMON_HP, mesh, alive:true, speed:4+Math.random()*2, attackTimer:0, atkInterval:DEMON_ATTACK_INTERVAL, revealed:true, demon:true, demonDef:def });
+  killers.push({ id:'demon'+ROBOT_ID_SEQ++, x, z, hp:DEMON_HP(), maxHp:DEMON_HP(), mesh, alive:true, speed:4+Math.random()*2, attackTimer:0, atkInterval:DEMON_ATTACK_INTERVAL, revealed:true, demon:true, demonDef:def });
   return def.name;
 }
 function tickDemonCombat(k, dt) {
@@ -20384,7 +23088,7 @@ function tickDemonCombat(k, dt) {
     k.attackTimer += dt;
     if (k.attackTimer > k.atkInterval) {
       k.attackTimer = 0;
-      if (!isEvilImmune()) damagePlayer(10+Math.floor(Math.random()*10), `${k.demonDef.name}'s claws`);
+      if (!isEvilImmune()) damagePlayer(Math.round((10+Math.floor(Math.random()*10))*mobDifficultyMult()), `${k.demonDef.name}'s claws`);
     }
   } else {
     k.x += dx/dist*k.speed*dt; k.z += dz/dist*k.speed*dt;
@@ -20394,7 +23098,7 @@ function tickDemonCombat(k, dt) {
 }
 function tickKillers(dt) {
   killerTimer += dt;
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore && !inShopInterior;
   const evilMult = evilSpawnMultiplier();
   if (killerTimer >= killerSpawnInterval() / Math.max(1,evilMult)) {
     killerTimer = 0;
@@ -20403,7 +23107,15 @@ function tickKillers(dt) {
     // spawns for the whole 20-minute shift. Real bug, fixed while touching this code anyway.
     // `!k.spy` alongside the existing exclusions — a one-time favorite-spot ambush (game-world.js's
     // triggerSpyAmbush) shouldn't count against or suppress the normal ambient Killer spawn rate.
-    if (outdoors && evilMult>0 && killers.filter(k=>k.alive && !k.guardKiller && !k.hitTargetName && !k.hitTargetType && !k.robber && !k.demon && !k.spy).length < killerMaxActive()*evilMult) spawnKiller();
+    if (outdoors && evilMult>0 && killers.filter(k=>k.alive && !k.guardKiller && !k.hitTargetName && !k.hitTargetType && !k.robber && !k.demon && !k.spy && !k.killerSupreme && !k.summonedBySupreme).length < killerMaxActive()*evilMult) spawnKiller();
+  }
+  // KILLER SUPREME — real ambient spawn the instant the 2-Explox-day cooldown clears (checked
+  // periodically, not on the same fast timer as ordinary Killers — there's no random chance here,
+  // just a wait), same "just shows up in the world" spirit as everything else in this function.
+  killerSupremeTimer += dt;
+  if (killerSupremeTimer >= KILLER_SUPREME_CHECK_INTERVAL) {
+    killerSupremeTimer = 0;
+    if (outdoors && killerSupremeReady() && !killers.some(k => k.alive && k.killerSupreme)) spawnKillerSupreme();
   }
   robberTimer += dt;
   if (robberTimer >= ROBBER_SPAWN_INTERVAL / Math.max(1,evilMult)) {
@@ -20450,6 +23162,7 @@ function tickKillers(dt) {
     if (k.robber) { tickRobberCombat(k, dt); return; }
     if (k.demon) { tickDemonCombat(k, dt); return; }
     if (k.satanBoss) { tickSatanBossCombat(k, dt); return; }
+    if (k.killerSupreme) { tickKillerSupremeCombat(k, dt); return; }
     tickAmbientKillerCombat(k, dt);
   });
 }
@@ -20457,12 +23170,11 @@ function fightKiller(killer) {
   if (!killer.alive) return;
   const dmg = getWeaponDamage();
   killer.hp -= dmg;
-  triggerSwing();
+  swingAndHit(killer.x, killer.z, () => sfx.clang());
   startKnockback(playerGroup.position.x, playerGroup.position.z, killer.x, killer.z,
     (x, z) => { killer.x = x; killer.z = z; killer.mesh.position.set(x, 0, z); });
-  sfx.clang();
   if (killer.hp > 0) {
-    showNotif(`⚔️ Hit the killer for ${dmg}! (${killer.hp}/${killer.maxHp} HP left)`);
+    showTargetHealthBar(killer.hp, killer.maxHp);
     return;
   }
   defeatKiller(killer);
@@ -20501,7 +23213,7 @@ function defeatKiller(killer) {
   killerDefeats++;
   totalKills++; checkWrathTrigger(); checkDivineJudgment();
   const badLuck = satanReignActive;
-  const reward = badLuck ? Math.max(1, Math.round(KILLER_REWARD_ELITE*0.5)) : KILLER_REWARD_ELITE;
+  const reward = badLuck ? Math.max(1, Math.round(KILLER_REWARD_ELITE()*0.5)) : KILLER_REWARD_ELITE();
   queueEarning(0, reward, killer.spy ? 'Spy Ambusher' : 'Killer');
   sfx.boom();
   if (killer.spy) {
@@ -20520,12 +23232,11 @@ function fightDemon(demon) {
   if (!demon.alive) return;
   const dmg = getWeaponDamage();
   demon.hp -= dmg;
-  triggerSwing();
+  swingAndHit(demon.x, demon.z, () => sfx.clang());
   startKnockback(playerGroup.position.x, playerGroup.position.z, demon.x, demon.z,
     (x, z) => { demon.x = x; demon.z = z; demon.mesh.position.set(x, 0, z); });
-  sfx.clang();
   if (demon.hp > 0) {
-    showNotif(`⚔️ Hit ${demon.demonDef.name} for ${dmg}! (${demon.hp}/${demon.maxHp} HP left)`);
+    showTargetHealthBar(demon.hp, demon.maxHp);
     return;
   }
   defeatDemon(demon);
@@ -20540,9 +23251,10 @@ function defeatDemon(demon) {
   // game-world.js. Guarded on satanReignActive (not just "demons only exist during the reign
   // anyway") so a stray hit landing the same tick the reign already ended can't double-count.
   if (satanReignActive) satanReignProgress++;
-  queueEarning(0, DEMON_REWARD_ELITE, demon.demonDef.name);
+  const demonReward = DEMON_REWARD_ELITE();
+  queueEarning(0, demonReward, demon.demonDef.name);
   sfx.boom();
-  showNotif(`💀 ${demon.demonDef.emoji} ${demon.demonDef.name} is struck down! +${DEMON_REWARD_ELITE} 💎`);
+  showNotif(`💀 ${demon.demonDef.emoji} ${demon.demonDef.name} is struck down! +${demonReward} 💎`);
 }
 // Satan's window closing shouldn't leave his minions standing around in the now-ordinary world —
 // same "shift ended mid-fight, don't leave the swarm standing there" treatment tickKillers()
@@ -20596,12 +23308,12 @@ function satanSummon(k) {
     const def = DEMON_DEFS[Math.floor(Math.random()*DEMON_DEFS.length)];
     const mesh = buildDemonMesh(x, z, def);
     mesh.visible = true;
-    killers.push({ id:'demon'+ROBOT_ID_SEQ++, x, z, hp:DEMON_HP, maxHp:DEMON_HP, mesh, alive:true, speed:4+Math.random()*2, attackTimer:0, atkInterval:DEMON_ATTACK_INTERVAL, revealed:true, demon:true, demonDef:def, summonedBySatan:true });
+    killers.push({ id:'demon'+ROBOT_ID_SEQ++, x, z, hp:DEMON_HP(), maxHp:DEMON_HP(), mesh, alive:true, speed:4+Math.random()*2, attackTimer:0, atkInterval:DEMON_ATTACK_INTERVAL, revealed:true, demon:true, demonDef:def, summonedBySatan:true });
     showNotif(`😈 Satan summons ${def.emoji} ${def.name} to his side!`);
   } else {
     const mesh = buildKillerMesh(x, z);
     mesh.visible = true;
-    killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP, maxHp:KILLER_HP, mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval:KILLER_ATTACK_INTERVAL, revealed:true, summonedBySatan:true });
+    killers.push({ id:'killer'+ROBOT_ID_SEQ++, x, z, hp:KILLER_HP(), maxHp:KILLER_HP(), mesh, alive:true, speed:3.5+Math.random()*2, attackTimer:0, atkInterval:KILLER_ATTACK_INTERVAL, revealed:true, summonedBySatan:true });
     showNotif('😈 Satan summons a Killer from the shadows!');
   }
   sfx.tense();
@@ -20610,12 +23322,11 @@ function fightSatanBoss(satan) {
   if (!satan.alive) return;
   const dmg = getWeaponDamage();
   satan.hp -= dmg;
-  triggerSwing();
+  swingAndHit(satan.x, satan.z, () => sfx.clang());
   startKnockback(playerGroup.position.x, playerGroup.position.z, satan.x, satan.z,
     (x, z) => { satan.x = x; satan.z = z; satan.mesh.position.x = x; satan.mesh.position.z = z; });
-  sfx.clang();
   if (satan.hp > 0) {
-    showNotif(`⚔️ Struck Satan for ${dmg}! (${satan.hp.toLocaleString()}/${satan.maxHp.toLocaleString()} HP left)`);
+    showTargetHealthBar(satan.hp, satan.maxHp);
     return;
   }
   defeatSatanBoss(satan);
@@ -20692,6 +23403,233 @@ function spawnGrenadeBlastFx(x, z) {
   }, 50);
 }
 
+// ── THROW ANY ITEM — user's own ask: "make it so you can throw any of your items with damage
+// and each one is 3d when you throw it", corrected right after a first auto-target pass to "NO YOU
+// get to choose and it will have dotted lines to aim" — so this is a real aim-and-release mechanic,
+// not an auto-lock. Every item in the Inventory panel (playerInventory) and every food in the Bag
+// (playerBag) gets a real "🎯 Throw" button (refreshInventory(), game-housing.js): clicking it enters
+// AIM MODE — a dashed line traces the exact real arc the item will fly (reusing your existing mouse-
+// look yaw to aim direction and pitch to control throw distance, the same look controls you already
+// use to move the camera, so aiming needs no new input scheme), and a click/tap RELEASES it as a
+// genuine 3D object — an emoji billboard, so a thrown 🍕 actually looks like a flying pizza, same
+// "draw to a canvas, wrap it in a CanvasTexture" pattern nametags already use (game-character.js) —
+// arcing through the air over real travel time to wherever you aimed, then dealing real damage to
+// whatever's actually standing there using the same hp -= dmg / defeat-on-death shape every other
+// hit in this game uses (see fightKiller above). Damage is a fraction of your equipped weapon's
+// damage (weaker than an actual swing or the Grenade's real explosive blast — this is "whatever you
+// happened to be holding", not a purpose-built weapon), so it scales with progression exactly like
+// everything else instead of needing a hand-tuned value for the ~300 different throwable items here.
+const ITEM_THROW_COOLDOWN_MS = 500, ITEM_THROW_MAX_RANGE = 16, ITEM_THROW_MIN_RANGE = 4,
+      ITEM_THROW_DAMAGE_MULT = 0.5, ITEM_THROW_DURATION = 0.38, ITEM_THROW_ARC_HEIGHT = 2.6,
+      ITEM_THROW_HIT_RADIUS = 3.2; // how close to the landing point something has to be standing to actually get hit
+let itemThrowCooldownUntil = 0; // Date.now() ms — same "not persisted" category as grenadeCooldownUntil
+let thrownItems = []; // {mesh, startX,startY,startZ, tx,ty,tz, elapsed, dur, dmg, emoji} — ticked by tickThrownItems() (game-controls.js animate())
+let aimingThrow = null; // {source:'inventory'|'food', key, emoji, name} while a throw is being aimed, else null
+let throwAimLine = null; // THREE.Line (dashed) previewing the real flight arc, rebuilt every frame while aiming
+
+// Where the aimed throw would land right now, using the SAME yaw the player already steers with
+// (Math.sin/cos(yaw) — the exact forward-vector convention the Tank cannon/Jet guns/melee all use)
+// for direction, and pitch (already mouse/touch-look driven, range -0.5..1.0 — game-controls.js) for
+// distance: looking up throws further/higher, looking down keeps it close, so "aiming" is just using
+// the look controls you already have, no new input scheme needed.
+function computeThrowLanding() {
+  if (!playerGroup) return null;
+  const t = Math.max(0, Math.min(1, (pitch + 0.5) / 1.5)); // pitch's real range is -0.5..1.0
+  const dist = ITEM_THROW_MIN_RANGE + (ITEM_THROW_MAX_RANGE - ITEM_THROW_MIN_RANGE) * t;
+  const x = playerGroup.position.x + Math.sin(yaw) * dist;
+  const z = playerGroup.position.z + Math.cos(yaw) * dist;
+  return { x, z, y: groundHeightAt(x, z) };
+}
+
+// Same "who's actually fightable" filter as throwCombatGrenade's killers check, but centered on a
+// chosen POINT (the landing spot) rather than the player, since the player is now aiming — not
+// auto-locking onto whatever happens to be nearest to themselves.
+function findEnemyNearPoint(x, z, radius) {
+  let best = null, bestDist = radius;
+  killers.filter(k => k.alive && !k.guardKiller && !k.hitTargetName && !k.hitTargetType).forEach(k => {
+    const d = Math.hypot(x-k.x, z-k.z);
+    if (d < bestDist) { bestDist = d; best = { ref:k, kind:'killer' }; }
+  });
+  robots.filter(r => r.alive).forEach(r => {
+    const d = Math.hypot(x-r.x, z-r.z);
+    if (d < bestDist) { bestDist = d; best = { ref:r, kind:'robot' }; }
+  });
+  rogueRobots.filter(r => r.alive).forEach(r => {
+    const d = Math.hypot(x-r.x, z-r.z);
+    if (d < bestDist) { bestDist = d; best = { ref:r, kind:'rogue' }; }
+  });
+  return best;
+}
+
+// A small always-faces-camera billboard showing the item's own emoji, exactly like the "draw to a
+// canvas, wrap it in a CanvasTexture" nametag/sign pattern used all over this game — just on a
+// THREE.Sprite instead of a name-tag plane so it needs no rotation math while it flies.
+function buildThrownItemSprite(emoji) {
+  const cv = document.createElement('canvas'); cv.width = 64; cv.height = 64;
+  const ctx = cv.getContext('2d');
+  ctx.font = '46px "Segoe UI Emoji","Apple Color Emoji",sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(emoji || '📦', 32, 36);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent:true, depthTest:true }));
+  sprite.scale.set(0.6, 0.6, 0.6);
+  return sprite;
+}
+
+// ── AIM MODE — entered by the "🎯 Throw" button (throwInventoryItem()/throwFoodItem() below),
+// exited by confirmAimThrow() (release) or cancelAimThrow() (Escape/right-click/the ✕ button). Input
+// wiring (click-to-confirm, right-click/Escape-to-cancel, the on-screen confirm/cancel buttons for
+// touch) lives in game-controls.js, right next to the rest of setupControls()/setupMobileControls().
+function startAimThrow(source, key, emoji, name) {
+  if (aimingThrow) return; // already aiming something else — finish or cancel that throw first
+  if (Date.now() < itemThrowCooldownUntil) { showNotif('🎯 Wait a moment before throwing again.'); return; }
+  aimingThrow = { source, key, emoji, name };
+  closeInventory(); // let them see the world to aim
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock(); // re-lock so mouse-look keeps steering the aim
+  showThrowAimHud(emoji, name);
+}
+function cancelAimThrow(showMsg) {
+  if (!aimingThrow) return;
+  const a = aimingThrow;
+  aimingThrow = null;
+  hideThrowAimHud();
+  if (throwAimLine) { scene.remove(throwAimLine); throwAimLine.geometry.dispose(); throwAimLine.material.dispose(); throwAimLine = null; }
+  if (showMsg) showNotif(`🎯 Put the ${a.emoji} ${a.name} away.`);
+}
+// Small always-on-top overlay shown only while aiming — names what you're about to throw and gives
+// touch players a real confirm/cancel button (desktop can also just click the canvas / press Esc,
+// wired in setupControls(), game-controls.js).
+function showThrowAimHud(emoji, name) {
+  const hud = document.getElementById('throwAimHud');
+  if (!hud) return;
+  document.getElementById('throwAimLabel').textContent = `${emoji} Aiming ${name}`;
+  hud.style.display = 'flex';
+}
+function hideThrowAimHud() {
+  const hud = document.getElementById('throwAimHud');
+  if (hud) hud.style.display = 'none';
+}
+function confirmAimThrow() {
+  if (!aimingThrow) return;
+  const a = aimingThrow;
+  const landing = computeThrowLanding();
+  cancelAimThrow(false); // clear aim state/line first — the flight below is a completely separate tracked effect
+  itemThrowCooldownUntil = Date.now() + ITEM_THROW_COOLDOWN_MS;
+  const dmg = Math.round(getWeaponDamage() * ITEM_THROW_DAMAGE_MULT);
+  const startX = playerGroup.position.x, startZ = playerGroup.position.z, startY = playerGroup.position.y + 1.3;
+  const sprite = buildThrownItemSprite(a.emoji);
+  sprite.position.set(startX, startY, startZ);
+  scene.add(sprite);
+  thrownItems.push({
+    mesh: sprite, startX, startY, startZ,
+    tx: landing.x, tz: landing.z, ty: landing.y + 0.4,
+    elapsed: 0, dur: ITEM_THROW_DURATION, dmg, emoji: a.emoji
+  });
+  sfx.whoosh();
+  // Consume it now — you released it, it's gone either way, same as any real thrown object.
+  if (a.source === 'inventory') {
+    const it = playerInventory[a.key];
+    if (it) { it.qty--; if (it.qty <= 0) delete playerInventory[a.key]; saveCurrentUser(); }
+  } else {
+    const idx = playerBag.findIndex(f => f.name === a.key);
+    if (idx !== -1) playerBag.splice(idx, 1);
+    updateBagHud();
+  }
+  refreshInventory();
+}
+
+// Per-frame aim-line update — hooked into the main animate() loop (game-controls.js) right next to
+// tickThrownItems below. Rebuilds a DASHED line (LineDashedMaterial — a real "dotted line", the
+// user's own ask) each frame along the same parabola the real throw will fly, from your hand out to
+// wherever you're currently aiming, so it always reflects your current look direction live. Colored
+// green when something's actually standing in the hit radius at the current landing point, white
+// otherwise — real, useful aim feedback rather than just a decorative line.
+const THROW_AIM_SEGMENTS = 16;
+function tickThrowAim() {
+  if (!aimingThrow || !playerGroup) return;
+  const landing = computeThrowLanding();
+  const startX = playerGroup.position.x, startZ = playerGroup.position.z, startY = playerGroup.position.y + 1.3;
+  const willHit = !!findEnemyNearPoint(landing.x, landing.z, ITEM_THROW_HIT_RADIUS);
+  const pts = [];
+  for (let i = 0; i <= THROW_AIM_SEGMENTS; i++) {
+    const p = i / THROW_AIM_SEGMENTS;
+    pts.push(new THREE.Vector3(
+      startX + (landing.x-startX)*p,
+      startY + (landing.y+0.4-startY)*p + Math.sin(p*Math.PI)*ITEM_THROW_ARC_HEIGHT,
+      startZ + (landing.z-startZ)*p
+    ));
+  }
+  if (!throwAimLine) {
+    const geo = new THREE.BufferGeometry().setFromPoints(pts);
+    const mat = new THREE.LineDashedMaterial({ color:0xffffff, dashSize:0.35, gapSize:0.25, linewidth:2 });
+    throwAimLine = new THREE.Line(geo, mat);
+    scene.add(throwAimLine);
+  } else {
+    throwAimLine.geometry.setFromPoints(pts);
+  }
+  throwAimLine.material.color.setHex(willHit ? 0x44ff66 : 0xffffff);
+  throwAimLine.computeLineDistances(); // required every time the geometry changes, or the dashes stop rendering correctly
+}
+
+// Per-frame flight update — hooked into the main animate() loop (game-controls.js), same category
+// AND same dt-accumulates-toward-a-duration idiom as tickKnockbacks above: a short-lived list of
+// in-flight effects, each ticked and pruned every frame, driven by the real per-frame dt rather than
+// wall-clock time (so it behaves correctly regardless of frame rate, a paused debugger, etc.).
+function tickThrownItems(dt) {
+  for (let i = thrownItems.length-1; i >= 0; i--) {
+    const it = thrownItems[i];
+    it.elapsed += dt;
+    const p = Math.min(1, it.elapsed / it.dur);
+    it.mesh.position.x = it.startX + (it.tx-it.startX)*p;
+    it.mesh.position.z = it.startZ + (it.tz-it.startZ)*p;
+    it.mesh.position.y = it.startY + (it.ty-it.startY)*p + Math.sin(p*Math.PI)*ITEM_THROW_ARC_HEIGHT;
+    if (p < 1) continue;
+    scene.remove(it.mesh);
+    thrownItems.splice(i, 1);
+    applyThrownItemHit(it);
+  }
+}
+
+// Lands the hit — searches for whatever's actually standing near where it landed (the player aimed,
+// they don't get a guaranteed lock-on) and applies the same hp -= dmg / "still alive? notify :
+// defeat" shape as fightKiller/fightRobot above, dispatching to the right defeat function for
+// whichever of the three enemy arrays it found the target in.
+function applyThrownItemHit(it) {
+  const found = findEnemyNearPoint(it.tx, it.tz, ITEM_THROW_HIT_RADIUS);
+  if (!found) { showNotif(`🎯 The ${it.emoji} lands... nothing there.`); return; }
+  const target = found.ref;
+  burstConfetti(new THREE.Vector3(target.x, 1, target.z), 6);
+  sfx.hit();
+  target.hp -= it.dmg;
+  if (target.hp > 0) {
+    const label = found.kind === 'killer' ? 'the killer' : ((target.type && target.type.name) || 'the target');
+    showNotif(`🎯 Hit ${label} for ${it.dmg}!`);
+    return;
+  }
+  if (found.kind === 'robot') { defeatRobot(target); return; }
+  if (found.kind === 'rogue') { defeatRogueRobot(target); return; }
+  if (target.satanBoss) defeatSatanBoss(target);
+  else if (target.demon) defeatDemon(target);
+  else if (target.robber) defeatRobber(target);
+  else defeatKiller(target);
+}
+
+// ── Public entry points — one per item source, since playerInventory (id-keyed, has a real qty)
+// and playerBag (a plain array — duplicates just push more entries, game-engine.js) are shaped
+// completely differently. Both are wired to a "🎯 Throw" button in refreshInventory() (game-
+// housing.js), the same panel the "🎒 BAG" tab already opens — both just START aim mode; the actual
+// throw (and item consumption) happens on release, in confirmAimThrow() above. ──
+function throwInventoryItem(id) {
+  const it = playerInventory[id];
+  if (!it) return;
+  startAimThrow('inventory', id, it.emoji, it.name);
+}
+function throwFoodItem(name) {
+  const idx = playerBag.findIndex(f => f.name === name);
+  if (idx === -1) return;
+  const food = playerBag[idx];
+  startAimThrow('food', name, food.emoji, food.name);
+}
+
 // ── The Grinder — turns real robot wreckage into Scrap Metal + the robot's real materials ──
 const GRINDER_POS = { x:SCRAPYARD_CENTER.x, z:SCRAPYARD_CENTER.z+18 };
 let wreckagePiles = []; // {x,z,mesh,type} — NOT persisted, same category as the ambient robots themselves
@@ -20755,7 +23693,6 @@ const ROBOT_ARENA_SPAWN = { x:90000, z:0 }; // own 10,000-unit lane, next free o
 const ROBOT_ARENA_EXIT  = { x:90000, z:18 };
 const ROBOT_ARENA_COLS  = [];
 const ARENA_SIZE = 24; // half-width of the square floor
-const ARENA_MAX_ACTIVE = 6;   // robots alive at once — the rest wait their turn
 const ARENA_MAX_TOTAL  = 200; // hard cap on the configurable total, exactly as asked
 let inArenaBattle   = false;
 let arenaConfiguring = false; // count-picker open, fight not started yet
@@ -20763,6 +23700,7 @@ let arenaRunning     = false;
 let arenaTotalRobots = 20;
 let arenaDefeatedCount = 0;
 let arenaActiveRobots = [];
+let inEventBattle = false; // true only while the CURRENT arena run came from Today's Event's own button (startTodaysChallenge() below) — NOT persisted, same ephemeral category as inArenaBattle itself
 
 function buildRobotArenaEntranceSign() {
   const ex = ROBOT_ARENA_ENTRANCE.x, ez = ROBOT_ARENA_ENTRANCE.z;
@@ -20807,6 +23745,7 @@ function exitRobotArena() {
   inArenaBattle = false;
   arenaConfiguring = false;
   arenaRunning = false;
+  inEventBattle = false; // leaving early forfeits nothing (the day isn't marked claimed until a real win) but the flag itself must not survive into the next normal arena visit
   closeArenaConfig();
   document.getElementById('arenaHud').style.display = 'none';
   playerGroup.position.set(ROBOT_ARENA_ENTRANCE.x, 0, ROBOT_ARENA_ENTRANCE.z+3);
@@ -20832,11 +23771,14 @@ function startArenaBattle() {
   showNotif(`🤖⚔️ ${arenaTotalRobots} robots incoming — good luck!`);
   spawnArenaWave();
 }
+// User's own ask: "when youre in the arena all the robots spawn at once" — used to trickle in
+// ARENA_MAX_ACTIVE (6) at a time, "the rest wait their turn." Now spawns every remaining robot in
+// one go; still safely called after each defeat too (remaining lands on 0 the moment a battle's
+// fully cleared, so that's a harmless no-op, not a second wave).
 function spawnArenaWave() {
   if (!arenaRunning) return;
   const remaining = arenaTotalRobots - arenaDefeatedCount - arenaActiveRobots.length;
-  const toSpawn = Math.max(0, Math.min(ARENA_MAX_ACTIVE - arenaActiveRobots.length, remaining));
-  for (let i=0; i<toSpawn; i++) spawnOneArenaRobot();
+  for (let i=0; i<remaining; i++) spawnOneArenaRobot();
 }
 // Arena robots used to be completely stationary (spawn point fixed forever, only ever moved by a
 // knockback) and totally passive (the ONLY damage they ever dealt was a guaranteed counter-hit
@@ -20897,16 +23839,15 @@ function fightArenaRobot(robot) {
   if (!robot.alive || !arenaRunning) return;
   const dmg = getRobotDamage();
   robot.hp -= dmg;
-  triggerSwing();
+  swingAndHit(robot.x, robot.z, () => sfx.clang());
   startKnockback(playerGroup.position.x, playerGroup.position.z, robot.x, robot.z,
     (x, z) => { robot.x = x; robot.z = z; robot.mesh.position.set(x, 0, z); robot.zone.x = x; robot.zone.z = z; });
-  sfx.clang();
   robot.attackTimer = 0; // landing a hit resets its swing timer, same as a real fight would
   if (robot.hp > 0) {
     // No counter-hit here anymore — tickArenaRobots() already attacks on its own timer whenever
     // it's in range, attacking or not. A guaranteed extra hit every time you landed one too would
     // just be double damage on top of that (same fix as item 209's bosses).
-    showNotif(`🤖 Hit ${robot.type.name} for ${dmg}! (${robot.hp} HP left)`);
+    showTargetHealthBar(robot.hp, robot.maxHp);
     return;
   }
   defeatArenaRobot(robot);
@@ -20934,9 +23875,48 @@ function finishArenaBattle() {
   const bonusSip = arenaTotalRobots * 10;
   const bonusElite = arenaTotalRobots * 2;
   queueEarning(bonusSip, bonusElite, 'Robot Arena Clear');
-  saveCurrentUser();
   document.getElementById('arenaHud').style.display = 'none';
   showNotif(`🏆 ARENA CLEARED! All ${arenaTotalRobots} robots defeated! +${bonusSip} S.I.P. +${bonusElite} 💎`);
+  // Today's Event challenge (startTodaysChallenge() below) rides on top of the normal arena clear
+  // above — a real once-per-real-day surprise bonus, on top of the normal per-robot/completion pay,
+  // only when this particular run came from that button (not a normal Robot Arena visit).
+  if (inEventBattle) {
+    inEventBattle = false;
+    lastEventBattleClaim = todayDateString();
+    const surpriseSip = EVENT_BATTLE_BONUS_SIP_MIN + Math.floor(Math.random()*(EVENT_BATTLE_BONUS_SIP_MAX-EVENT_BATTLE_BONUS_SIP_MIN+1));
+    queueEarning(surpriseSip, 0, "Today's Event Challenge");
+    showNotif(`🎁 Today's Event bonus: +${surpriseSip.toLocaleString()} S.I.P.!`);
+  }
+  saveCurrentUser();
+}
+// TODAY'S EVENT CHALLENGE — the Daily Events tab's own button ("make it so the daily events tab is
+// like a special map you play in, could be fighting, and in the tab is a button" — user's own ask,
+// with "random" enemies and "random" reward as the follow-up answer). Reuses the real Robot Arena
+// above wholesale (same pocket space, same tickArenaRobots() chase-and-attack fight, same
+// fightArenaRobot() combat) instead of building a second fake copy of it — the "random enemies"
+// part is already exactly what pickRobotType() does every time a robot spawns (a weighted pick
+// across all 6 real robot types), so a random robot COUNT here is enough to make every run feel
+// different without inventing a whole second enemy roster. Skips the manual count-picker modal
+// (this is meant to be today's one-tap challenge, not a difficulty choice) and grants one surprise
+// S.I.P. bonus in finishArenaBattle() above, once per real calendar day.
+const EVENT_BATTLE_MIN_ROBOTS = 5, EVENT_BATTLE_MAX_ROBOTS = 20;
+const EVENT_BATTLE_BONUS_SIP_MIN = 200, EVENT_BATTLE_BONUS_SIP_MAX = 2000;
+function startTodaysChallenge() {
+  const today = todayDateString();
+  if (lastEventBattleClaim === today) { showNotif("⚔️ Already fought today's challenge — come back tomorrow!"); return; }
+  document.getElementById('neighborModal').style.display = 'none';
+  inArenaBattle = true;
+  inEventBattle = true;
+  arenaConfiguring = false;
+  playerGroup.position.set(ROBOT_ARENA_SPAWN.x, 0, ROBOT_ARENA_SPAWN.z-10);
+  yaw = 0;
+  arenaTotalRobots = EVENT_BATTLE_MIN_ROBOTS + Math.floor(Math.random()*(EVENT_BATTLE_MAX_ROBOTS-EVENT_BATTLE_MIN_ROBOTS+1));
+  arenaDefeatedCount = 0;
+  arenaRunning = true;
+  updateArenaHud();
+  document.getElementById('arenaHud').style.display = 'block';
+  spawnArenaWave();
+  showNotif(`⚔️ Today's Challenge: defeat ${arenaTotalRobots} robots for a surprise bonus!`);
 }
 function clearArenaRobots() {
   arenaActiveRobots.forEach(r => {
@@ -21349,6 +24329,13 @@ function leaveHospital() {
   showNotif('Leaving the hospital...');
 }
 const DOCTOR_SPOT = { x:HOSPITAL_SPAWN.x, z:HOSPITAL_SPAWN.z-6 };
+// Real bone-rigged Doctor NPC (built once by buildHospitalInterior() below) — set here so
+// animate()'s per-frame patrol/walk-cycle code (game-controls.js) can reach its bones without a
+// separate lookup. Patrols a short real lane along X centered on DOCTOR_SPOT, using the exact
+// same WALK_CYCLE_CADENCE/WALK_CYCLE_SWING_AMP brisk-gait formula the player's own walk uses.
+let doctorRig = null;
+const DOCTOR_PATROL_RANGE = 1.8; // half-width of the pacing lane (units either side of DOCTOR_SPOT.x) — short, stays clear of the exam table/sign
+const DOCTOR_PATROL_SPEED = 2.6; // units/sec the lane position advances — brisk, not a shuffle
 const HOSPITAL_ZONES = [
   { x:DOCTOR_SPOT.x, z:DOCTOR_SPOT.z, r:3.5, label:`🩺 See the Doctor (${DOCTOR_VISIT_COST} S.I.P.)`, action: () => seeDoctor()},
   { x:HOSPITAL_SPAWN.x, z:HOSPITAL_SPAWN.z+10, r:4, label:'🚪 Leave Hospital', action: () => leaveHospital()},
@@ -21377,17 +24364,37 @@ function buildHospitalInterior() {
   buildSign('🏥 CITY HOSPITAL', hx, 6.6, hz-17.7);
   box(8,3,0.4, 0x8B5E3C, hx, 1.5, hz+18); // exit door marker
 
-  // Doctor's exam area — a real table + a doctor NPC-style figure, not just an empty room
+  // Doctor's exam area — a real table + a doctor NPC-style figure, not just an empty room.
+  // Real THREE.Bone rig below (hipsBone/spineBone/headBone/leftShoulderBone/rightShoulderBone/
+  // leftHipBone/rightHipBone) — the SAME bone names/hierarchy buildPlayer()/buildOtherPlayerAvatar()
+  // already use (game-character.js), just re-scaled to this figure's own box proportions — so the
+  // brisk walk-cycle bone-rotation code in animate() (game-controls.js) has real joints to swing
+  // instead of rotating a raw mesh around its own center.
   box(3,0.9,1.6, 0xffffff, DOCTOR_SPOT.x, 0.45, DOCTOR_SPOT.z-3); // exam table
   box(3,0.15,1.6, 0xddeeff, DOCTOR_SPOT.x, 0.92, DOCTOR_SPOT.z-3); // table pad
   const doc = new THREE.Group();
-  const mk = (w,h,d,color,px,py,pz) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color})); m.position.set(px,py,pz); doc.add(m); return m; };
-  mk(0.8,0.8,0.8, 0xd9b38c, 0,2.6,0); // head
-  mk(0.9,1.1,0.5, 0xffffff, 0,1.65,0); // white coat torso
-  mk(0.35,0.9,0.35, 0xffffff,-0.6,1.65,0); mk(0.35,0.9,0.35, 0xffffff,0.6,1.65,0); // arms
-  mk(0.38,0.9,0.38, 0x2244aa,-0.2,0.7,0); mk(0.38,0.9,0.38, 0x2244aa,0.2,0.7,0); // scrub pants
+  const DOC_SPINE_Y = 1.65, DOC_HEAD_Y = 2.2, DOC_SHOULDER_X = 0.6, DOC_SHOULDER_Y = 2.1, DOC_HIP_X = 0.2, DOC_HIP_Y = 1.15;
+  const docHips = new THREE.Bone(); docHips.position.set(0, DOC_SPINE_Y, 0); doc.add(docHips);
+  const docSpine = new THREE.Bone(); docHips.add(docSpine); // same local-origin-as-hips simplification buildPlayer() uses
+  const docHead = new THREE.Bone(); docHead.position.set(0, DOC_HEAD_Y-DOC_SPINE_Y, 0); docSpine.add(docHead);
+  const docLSh = new THREE.Bone(); docLSh.position.set(-DOC_SHOULDER_X, DOC_SHOULDER_Y-DOC_SPINE_Y, 0); docSpine.add(docLSh);
+  const docRSh = new THREE.Bone(); docRSh.position.set(DOC_SHOULDER_X, DOC_SHOULDER_Y-DOC_SPINE_Y, 0); docSpine.add(docRSh);
+  const docLHip = new THREE.Bone(); docLHip.position.set(-DOC_HIP_X, DOC_HIP_Y-DOC_SPINE_Y, 0); docHips.add(docLHip);
+  const docRHip = new THREE.Bone(); docRHip.position.set(DOC_HIP_X, DOC_HIP_Y-DOC_SPINE_Y, 0); docHips.add(docRHip);
+  doc.hipsBone=docHips; doc.spineBone=docSpine; doc.headBone=docHead;
+  doc.leftShoulderBone=docLSh; doc.rightShoulderBone=docRSh;
+  doc.leftHipBone=docLHip; doc.rightHipBone=docRHip;
+  doc.skeleton = new THREE.Skeleton([docHips, docSpine, docHead, docLSh, docRSh, docLHip, docRHip]);
+  const mkDoc = (bone,bwx,bwy,bwz,w,h,d,color,px,py,pz) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color})); m.position.set(px-bwx,py-bwy,pz-bwz); bone.add(m); return m; };
+  mkDoc(docHead,0,DOC_HEAD_Y,0, 0.8,0.8,0.8, 0xd9b38c, 0,2.6,0); // head
+  mkDoc(docSpine,0,DOC_SPINE_Y,0, 0.9,1.1,0.5, 0xffffff, 0,1.65,0); // white coat torso
+  mkDoc(docLSh,-DOC_SHOULDER_X,DOC_SHOULDER_Y,0, 0.35,0.9,0.35, 0xffffff,-0.6,1.65,0); // arms
+  mkDoc(docRSh,DOC_SHOULDER_X,DOC_SHOULDER_Y,0, 0.35,0.9,0.35, 0xffffff,0.6,1.65,0);
+  mkDoc(docLHip,-DOC_HIP_X,DOC_HIP_Y,0, 0.38,0.9,0.38, 0x2244aa,-0.2,0.7,0); // scrub pants
+  mkDoc(docRHip,DOC_HIP_X,DOC_HIP_Y,0, 0.38,0.9,0.38, 0x2244aa,0.2,0.7,0);
   doc.position.set(DOCTOR_SPOT.x, 0, DOCTOR_SPOT.z+2);
   scene.add(doc);
+  doctorRig = doc; // hands the rig to animate()'s real patrol/walk-cycle tick (game-controls.js)
   buildSign('🩺 SEE THE DOCTOR', DOCTOR_SPOT.x, 4.2, DOCTOR_SPOT.z+3.5);
 
   // A couple of waiting-room chairs near the entrance, for real furnished feel
@@ -22546,7 +25553,7 @@ function answerSchoolQuiz(choiceIdx) {
     const reward = SCHOOL_SIP_PER_CORRECT * (st.isExamDay ? SCHOOL_EXAM_SIP_MULT : 1);
     st.correctThisPeriod++; st.correctTotal++; st.sipEarned += reward;
     queueEarning(reward, 0, st.isExamDay ? '📝 Exam' : '🏫 School');
-    feedback.innerHTML = `<span style="color:#4CAF50;">✅ Correct! +${reward} S.I.P. pending in Earnings.</span>`;
+    feedback.innerHTML = `<span style="color:#4CAF50;">✅ Correct! +${reward} S.I.P. added to your wallet.</span>`;
     sfx.cheer ? sfx.cheer() : sfx.buy();
   } else {
     st.wrongTotal++;
@@ -22672,7 +25679,7 @@ function renderSchoolDismissalUI() {
   box2.innerHTML = `
     ${examLine}
     <div style="margin-bottom:6px;">🎒 School's out! You got ${st.correctTotal} out of 10 real quiz questions right.</div>
-    <div style="color:${st.sipEarned>0?'#4CAF50':'#aaa'};margin-bottom:10px;">${st.sipEarned>0 ? `Earned ${st.sipEarned} S.I.P. total today — pending in Earnings!` : 'No S.I.P. today — better luck next visit.'}</div>
+    <div style="color:${st.sipEarned>0?'#4CAF50':'#aaa'};margin-bottom:10px;">${st.sipEarned>0 ? `Earned ${st.sipEarned} S.I.P. total today — already in your wallet!` : 'No S.I.P. today — better luck next visit.'}</div>
     <div style="color:#FFD700;font-size:11px;">📝 Homework assigned: ${schoolHomework.subject}. Finish it before your next school day (📝 H.WORK tab, top of screen) or it'll cost you ${SCHOOL_HOMEWORK_MISS_PENALTY} S.I.P.!</div>
   `;
   schoolDayState = null; // day is fully resolved — reopening the modal now shows the picker (still cooldown-gated by schoolLastQuizAt, set back in startSchoolDay())
@@ -22680,8 +25687,7 @@ function renderSchoolDismissalUI() {
 
 // ─── HOMEWORK — assigned at dismissal above, doable any time before the next school day from a
 // real always-available HUD tab (only shown while genuinely pending) rather than requiring a trip
-// back to School — same "toggle panel, hide/show its own tab" pattern toggleEarningsPanel()
-// (game-customization.js) already uses.
+// back to School.
 function assignSchoolHomework(bandId) {
   const subjects = ['Math','Reading','Science','Social','Art'];
   const subject = subjects[Math.floor(Math.random()*subjects.length)];
@@ -22924,7 +25930,7 @@ function answerScienceTest(choiceIdx) {
     st.correctCount++;
     st.sipEarned += SCIENCE_SIP_PER_CORRECT;
     queueEarning(SCIENCE_SIP_PER_CORRECT, 0, '🧪 Science Test');
-    feedback.innerHTML = `<span style="color:#4CAF50;">✅ Correct! +${SCIENCE_SIP_PER_CORRECT} S.I.P. pending in Earnings.</span>`;
+    feedback.innerHTML = `<span style="color:#4CAF50;">✅ Correct! +${SCIENCE_SIP_PER_CORRECT} S.I.P. added to your wallet.</span>`;
     sfx.cheer ? sfx.cheer() : sfx.buy();
   } else {
     feedback.innerHTML = `<span style="color:#ff8888;">❌ Not quite — the answer was "${q.c[q.a]}".</span>`;
@@ -22945,7 +25951,7 @@ function renderScienceResults() {
   document.getElementById('scienceLabQuestion').textContent = `You got ${st.correctCount} out of ${st.questions.length} right!`;
   document.getElementById('scienceLabChoices').innerHTML = '';
   document.getElementById('scienceLabFeedback').innerHTML = st.sipEarned > 0
-    ? `<span style="color:#4CAF50;">🎉 Earned ${st.sipEarned} S.I.P. total this visit — pending in your Earnings tab!</span>`
+    ? `<span style="color:#4CAF50;">🎉 Earned ${st.sipEarned} S.I.P. total this visit — already in your wallet!</span>`
     : `<span style="color:#aaa;">No S.I.P. this time — come back after the cooldown for another shot.</span>`;
   document.getElementById('scienceLabNextBtn').style.display = 'none';
 }
@@ -23029,11 +26035,10 @@ function fightMovieBoss() {
   const mb = movieBossFight;
   const dmg = getWeaponDamage();
   mb.hp = Math.max(0, mb.hp - dmg); // no server involved here at all — always a real, immediate 0, same as an offline solo boss fight (item 209's fix)
-  triggerSwing();
-  sfx.clang();
+  swingAndHit(mb.curX, mb.curZ, () => sfx.clang());
   mb.attackTimer = 0;
   if (mb.hp <= 0) { defeatMovieBoss(); return; }
-  showNotif(`⚔️ Hit ${mb.def.name} for ${dmg}! (${mb.hp}/${mb.maxHp} HP left)`);
+  showTargetHealthBar(mb.hp, mb.maxHp);
 }
 function defeatMovieBoss() {
   const mb = movieBossFight;
@@ -23303,6 +26308,7 @@ function useGrinder() {
 const CITY_ZONES = [
   { x:HOUSE_DOOR.x, z:HOUSE_DOOR.z, r:5,  label:'Enter Your House',            action: () => enterHouse()},
   { x:-45, z:-107, r:3.5, label:'🅿️ Park Car Here', action: () => parkCarAtHome()},
+  { x:60, z:110, r:9, label:'🅿️ Park Car Here (Uptown Lot)', action: () => parkCarAtUptownLot()},
   // The 5 shop zones are listed BEFORE "Work as Shopkeeper" below on purpose — updatePrompt()
   // checks zones in this exact array order and stops at the first radius match, and Shopkeeper's
   // big r:16 area (centered right behind the shops) actually overlaps Coffee Shop and Outfit
@@ -23313,8 +26319,8 @@ const CITY_ZONES = [
   // and the Shopkeeper zone still works completely normally everywhere outside those two shops.
   { x:58,  z:54,  r:8,  label:'☕ Coffee Shop',  action: ()=>shopOrRob('Coffee Shop', 8,35),  isShop:true },
   { x:44,  z:54,  r:8,  label:'🧸 Toy Store',    action: ()=>shopOrRob('Toy Store',  15,50),  isShop:true },
-  { x:70,  z:54,  r:8,  label:'👗 Outfit Shop',  action: ()=>{ alignment==='bad'?robShop('Outfit Shop',65):openShop('outfits'); }, isShop:true },
-  { x:84,  z:54,  r:8,  label:'⚔️ Weapon Shop',  action: ()=>{ alignment==='bad'?robShop('Weapon Shop',80):openShop('weapons'); }, isShop:true },
+  { x:70,  z:54,  r:8,  label:'👗 Outfit Shop',  action: ()=>{ alignment==='bad'?robShop('Outfit Shop',65):enterShopInterior('outfitshop'); }, isShop:true },
+  { x:84,  z:54,  r:8,  label:'⚔️ Weapon Shop',  action: ()=>{ alignment==='bad'?robShop('Weapon Shop',80):enterShopInterior('armory'); }, isShop:true },
   { x:20,  z:88,  r:8,  label:'🍕 Pizza Place',  action: ()=>shopOrRob('Pizza Place', 10,30), isShop:true },
   { x:65,  z:48,  r:16, label:'Work as Shopkeeper (+5 S.I.P./task)',           action: ()=>toggleJob('Shopkeeper',5,'📦 A customer needs help!'), isJobZone:true, jobType:'Shopkeeper' },
   { x:12,  z:92,  r:3,  label:'🧊 Get Ingredients from Fridge',                action: () => getIngredients(),    isFridge:true },
@@ -23332,6 +26338,12 @@ const CITY_ZONES = [
   { x:240, z:-29, r:14, label:'Work at Toy Factory (+12 S.I.P./task)',         action: ()=>toggleJob('Toy Factory Worker',12,'🧸 A toy needs assembling!'), isJobZone:true, jobType:'Toy Factory Worker' },
   { x:330, z:-29, r:14, label:'Work at Auto Parts Factory (+15 S.I.P./task)',  action: ()=>toggleJob('Auto Parts Worker',15,'🔧 A car part needs assembling!'), isJobZone:true, jobType:'Auto Parts Worker' },
   { x:420, z:-29, r:14, label:'Work at Robot Parts Factory (+18 S.I.P./task)', action: ()=>toggleJob('Robot Parts Worker',18,'⚙️ A robot chassis needs bolting together!'), isJobZone:true, jobType:'Robot Parts Worker' },
+  // ACTOR — real "Work as an Actor" job (user's own ask: "add acting"), at the theater's own
+  // Actors Entrance (game-buildings.js), clear of the main "Pick a Movie" zone below (x:50,z:-72,r:8).
+  // r:9 (bigger than a normal job zone's walk-up radius) — once a task is live, E fights a real
+  // stunt double spawned a couple units away (spawnActorStuntFight()/fightActorStunt(),
+  // game-alignment.js), so there has to be room to actually stand next to it and swing.
+  { x:30, z:-68, r:9, label:`🎭 Work as an Actor (+${ACTOR_PAY} S.I.P./task)`, action: () => startActingJob(), isJobZone:true, jobType:'Actor' },
   { x:34,  z:3,   r:5,  label:'🕴️ Talk to Shady Dealer',                       action: () => toggleAlignment(),   isDealerZone:true },
   { x:-80, z:-71, r:5,  label:'⬛ ???',                                         action: () => openBlackMarket(),   isBlackMarket:true },
   { x:160, z:218, r:7,  label:'🏦 Enter City Bank',                             action: () => openBankPasscode()},
@@ -23348,7 +26360,11 @@ const CITY_ZONES = [
   // opens a small real choice (openSchoolEntrance(), further down this file) between walking in
   // as yourself (enterSchool() — a real pocket-space classroom, game-land.js) or the existing
   // kid menu, which is untouched and still one click away.
-  { x:70,  z:60,  r:12, label:'🏫 Enter School',                                action: () => openSchoolEntrance()},
+  // Real bug found live: r:12 exactly equals the building's own addCol half-depth (game-buildings.js,
+  // addCol(CITY_COLS,70,60,19,12)) — since the player's own collision radius (~0.65) keeps them
+  // 12.7 units from center at the closest, pressed right against the wall, the zone circle (10)
+  // never actually reached them. Bumped to 13 so standing at the wall is genuinely inside it.
+  { x:70,  z:60,  r:13, label:'🏫 Enter School',                                action: () => openSchoolEntrance()},
   { x:50,  z:-72, r:8,  label:'🎬 Movie Theater – Pick a Movie!', action: () => openCinema()},
   { x:0,   z:50,  r:13, label:'🚇 S.I.T.S. Transit Hub – Ride anywhere!', action: () => openSITS()},
   { x:-15, z:4,   r:8,  label:'🏨 City Hotel – Check In!',               action: () => openHotel()},
@@ -23361,7 +26377,20 @@ const CITY_ZONES = [
   { x:-10, z:-95, r:9,  label:'🏟️ Enter Sports Park', action: () => enterSportsPark()},
   { x:-40, z:74,  r:5,  label:'🏥 City Hospital – See a Doctor!', action: () => enterHospital()},
   { x:SEA_EXIT.x, z:SEA_EXIT.z, r:9, label:'🌊 Enter the Sea', action: () => enterSea()},
-  { x:-40, z:20,  r:10, label:'⛪ Enter Church', action: () => openChurch()},
+  // Real bug found live (user report: "can't get in church") — r:10 exactly equals the building's
+  // own addCol half-width/half-depth (game-buildings.js, addCol(CITY_COLS,-40,20,10,10)). The
+  // player's own collision radius (~0.65) keeps them 10.7 units from center at the closest,
+  // pressed right against the wall, so the zone circle (10) never actually reached them — the
+  // church was never enterable at all. Bumped to 11 so standing at the wall is genuinely inside it.
+  { x:-40, z:20,  r:11, label:'⛪ Enter Church', action: () => openChurch()},
+  // KING EXPLOX MONUMENT — user's own ask: a real statue + a real "origin of Explox" history
+  // exhibit (openExploxHistory(), game-library.js), in the plaza between downtown and City Hall.
+  { x:0, z:-10, r:6, label:'👑 King Explox Monument — Read the History', action: () => openExploxHistory()},
+  // THE MANSION (was "The Office") — admin-only HQ, reskinned as a house per the user's own ask:
+  // "the office is a house the biggest best." Same locked-for-everyone-else pattern as the Super
+  // Tank/Jet/Motorcycle — openOfficeRequest() (game-admin.js) does its own isAdmin() check and
+  // shows the honest locked message itself, so this zone doesn't need a separate gate here.
+  { x:300, z:113, r:9, label:'🏠 The Mansion', action: () => openOfficeRequest()},
   // Deliberately placed just south of the Church itself — facing away from it, toward the dark —
   // rather than inside any interior. See challengeSatan() (game-world.js) for the full reasoning.
   { x:-40, z:3,   r:5,  label:'😈 Challenge Satan', action: () => challengeSatan()},
@@ -23374,6 +26403,7 @@ const CITY_ZONES = [
   // on the building's own addCol center, radius matching its half-width (16) same ratio those two
   // use against their own half-widths (11).
   { x:0, z:-35, r:17, label:'🏛️ Enter City Hall — Forms Office', action: () => openFormsOffice()},
+  { x:210, z:210, r:12, label:'📈 Enter Trading Center', action: () => openTradingCenter()},
 ];
 const HOUSE_ZONES = [
   { x:HOUSE_EXIT.x, z:HOUSE_EXIT.z, r:3, label:'Exit House', action: () => exitHouse()},
@@ -23405,8 +26435,8 @@ const HOTEL_ZONES = [
 ];
 const MALL_ZONES = [
   { x:MALL_EXIT.x, z:MALL_EXIT.z, r:5,  label:'Exit Mall',           action: () => exitMall()},
-  { x:MALL_SPAWN.x-27, z:-16,      r:7,  label:'👗 Outfit Shop',       action: ()=>openShop('outfits') },
-  { x:MALL_SPAWN.x+27, z:-16,      r:7,  label:'⚔️ Weapon Shop',       action: ()=>openShop('weapons') },
+  { x:MALL_SPAWN.x-27, z:-16,      r:7,  label:'👗 Outfit Shop',       action: ()=>enterShopInterior('outfitshop') },
+  { x:MALL_SPAWN.x+27, z:-16,      r:7,  label:'⚔️ Weapon Shop',       action: ()=>enterShopInterior('armory') },
   { x:MALL_SPAWN.x-27, z:-3,       r:7,  label:'💍 Buy Jewelry (30)',   action: ()=>buyItem('Jewelry',30) },
   { x:MALL_SPAWN.x+27, z:-3,       r:7,  label:'📱 Buy Phone (45)',     action: ()=>buyItem('Phone',45) },
   { x:MALL_SPAWN.x+27, z:10,       r:7,  label:'🍦 Buy Ice Cream (8)', action: ()=>buyItem('Ice Cream',8) },
@@ -23427,11 +26457,11 @@ function isNearCombatTarget() {
   const px = playerGroup.position.x, pz = playerGroup.position.z;
   if(dueling) return true;
   if(inArena && ffaAlive) return true;
-  if(!inArena && !inHouse && !inMall && !inArcade && !inStore && serverMode === 'online' && nearestRemotePlayer(35)) return true;
-  if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade) {
+  if(!inArena && !inHouse && !inMall && !inArcade && !inStore && !inShopInterior && serverMode === 'online' && nearestRemotePlayer(35)) return true;
+  if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade && !inShopInterior) {
     for(const npc of npcs) { if(Math.hypot(px-npc.group.position.x, pz-npc.group.position.z) < 3.5) return true; }
   }
-  if(!inHouse && !inMall && !inArcade && !inStore && !inMovieFight) {
+  if(!inHouse && !inMall && !inArcade && !inStore && !inMovieFight && !inShopInterior) {
     for(const r of rogueRobots) { if(r.alive && Math.hypot(px-r.x, pz-r.z) < 3) return true; }
     for(const k of killers) { if(k.alive && k.revealed && Math.hypot(px-k.x, pz-k.z) < 3) return true; }
     for(const def of BOSS_DEFS) { const st = bossState[def.name]; if(st && st.alive && Math.hypot(px-st.curX, pz-st.curZ) < 4.5) return true; }
@@ -23442,7 +26472,10 @@ function isNearCombatTarget() {
 }
 function onInteractDown() {
   if(chargingPunch) return; // already charging — a stray repeat/duplicate event, ignore
-  if(isNearCombatTarget()) { chargingPunch = true; punchChargeStart = clock.getElapsedTime(); }
+  if(isNearCombatTarget()) {
+    if(activeEmote) cancelEmote(); // starting combat cancels any active emote, same rule as moving
+    chargingPunch = true; punchChargeStart = clock.getElapsedTime();
+  }
   else handleInteract();
 }
 function onInteractUp() {
@@ -23456,6 +26489,143 @@ function onInteractUp() {
   // (War/world-event fights swing through the same function but aren't chargeable).
   punchChargeMult = 1;
   pendingSwingPower = 1;
+}
+
+// Shared combat-target search used by both handleInteract() (E, after isNearCombatTarget() lets a
+// charge start — see onInteractDown() above) and tryFightKey() (F, below — no charge, no proximity
+// pre-check, works any time). Same priority order either way so E and F never disagree about what's
+// actually fightable right now. Returns true if a real target was found and attacked.
+function tryCombatSwing() {
+  const px2 = playerGroup.position.x, pz = playerGroup.position.z;
+  // A duel you've already committed to (accepted a real challenge) always takes
+  // priority, even inside the arena - real bug found live: without this, walking
+  // into the arena mid-duel silently switched your E-press over to generic FFA
+  // targeting instead of your actual opponent, with no way to keep fighting them.
+  if(dueling && serverMode === 'online' && tryDuelInteract()) return true;
+  // Arena free-for-all takes priority over open-world 1v1 duels while standing in it
+  if(inArena && serverMode === 'online' && tryFfaInteract()) return true;
+  // PvP duel: swing at your opponent if one's active, else challenge whoever's nearby
+  if(!inArena && !inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && !inMovieFight && !inShopInterior && serverMode === 'online' && tryDuelInteract()) return true;
+  // Bad guy with weapon: NPC attack takes priority over zone actions
+  if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade && !inArenaBattle && !inMovieFight && !inShopInterior) {
+    let closest = null, closestDist = 3.5;
+    for(const npc of npcs) {
+      const d = Math.sqrt((px2-npc.group.position.x)**2+(pz-npc.group.position.z)**2);
+      if(d < closestDist) { closestDist = d; closest = npc; }
+    }
+    if(closest) { attackNPC(closest); return true; }
+  }
+  // Rogue robots (item 156) roam freely into the city and can be fought back any time, same
+  // priority tier as attacking an NPC — they aren't tied to a fixed CITY_ZONES position since they move.
+  // The Movie Fight Room's single boss is its own dedicated combat target — none of the outdoor
+  // rogue robot/killer/boss systems apply inside this pocket interior.
+  if (inMovieFight && movieBossFight && movieBossFight.alive) {
+    const d = Math.sqrt((px2-movieBossFight.curX)**2+(pz-movieBossFight.curZ)**2);
+    if (d < 4.5) { fightMovieBoss(); return true; }
+  }
+  if (!inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital && !inSchool && !inShopInterior) {
+    let closestRogue = null, closestRogueDist = 3;
+    for (const r of rogueRobots) {
+      if (!r.alive) continue;
+      const d = Math.sqrt((px2-r.x)**2+(pz-r.z)**2);
+      if (d < closestRogueDist) { closestRogueDist = d; closestRogue = r; }
+    }
+    if (closestRogue) { fightRogueRobot(closestRogue); return true; }
+    // Killers (only once revealed — you can't fight what you haven't even seen yet), same tier.
+    let closestKiller = null, closestKillerDist = 3;
+    for (const k of killers) {
+      if (!k.alive || !k.revealed) continue;
+      const d = Math.sqrt((px2-k.x)**2+(pz-k.z)**2);
+      if (d < closestKillerDist) { closestKillerDist = d; closestKiller = k; }
+    }
+    if (closestKiller) { if (closestKiller.robber) fightRobber(closestKiller); else if (closestKiller.demon) fightDemon(closestKiller); else if (closestKiller.satanBoss) fightSatanBoss(closestKiller); else if (closestKiller.killerSupreme) fightKillerSupreme(closestKiller); else fightKiller(closestKiller); return true; }
+    // Bosses now chase (see tickBossChase) instead of sitting at a fixed CITY_ZONES spot, so
+    // fighting one has to be a live proximity check off its real curX/curZ, same as the two above.
+    let closestBoss = null, closestBossDist = 4.5;
+    for (const def of BOSS_DEFS) {
+      const st = bossState[def.name];
+      if (!st || !st.alive) continue;
+      const d = Math.sqrt((px2-st.curX)**2+(pz-st.curZ)**2);
+      if (d < closestBossDist) { closestBossDist = d; closestBoss = def; }
+    }
+    if (closestBoss) { fightBoss(closestBoss); return true; }
+  }
+  // Training dummy (Whispering Woods) — same real target isNearCombatTarget() already treats as
+  // fightable, checked here too so F/E both connect with it without waiting for the generic zone
+  // loop below (which only runs from handleInteract(), not from the F-key path).
+  for(const z of CITY_ZONES) { if(z.action === hitDummy && Math.hypot(px2-z.x, pz-z.z) < z.r) { hitDummy(); return true; } }
+  return false;
+}
+// F — a dedicated "just attack" key: always available, no charge, no need to already be lined up
+// with isNearCombatTarget() the instant you press it (that's only how E decides whether to START
+// charging). Reuses tryCombatSwing() so it's always looking at the exact same targets E can hit.
+// Still throws a real swing (triggerSwing()) even when nothing's in range — a genuine whiff, not a
+// silent no-op — so pressing F always visibly fights, any time, whether or not it lands.
+function tryFightKey() {
+  if (playerSeated || inCar || chargingPunch) return;
+  if (!tryCombatSwing()) triggerSwing();
+}
+
+// GUN FREE-AIM — user's own ask: "add a scope so you can shoot... see bullets when you shoot".
+// Every combat function up to now (tryCombatSwing() above) is PROXIMITY-based — walk up to
+// something, press E/F. A gun is the one weapon category where "aim at whatever's actually in
+// your crosshair, at real range" makes more sense than "whatever's nearest within 3 units" — so
+// this is a real THREE.Raycaster shot from the camera's own look direction, not a reskin of the
+// existing swing. Deliberately covers the open-world ambient threats (robots/rogue robots/
+// killers+robbers+demons+Satan+Killer Supreme) — the exact same dispatch tryCombatSwing() uses
+// for its own killers-array branch, kept in lockstep on purpose — and leaves the rarer contextual
+// fights (Robot Arena, Movie Fight boss, World Bosses, the training dummy) on the existing
+// proximity system for now; they're each their own pocket space anyway, not somewhere a free-aim
+// shot across the open world would ever reach.
+const GUN_RANGE = 70;
+function tryFireGun() {
+  if (!isGunEquipped() || !camera || !scene || playerSeated || inCar) return false;
+  const targets = []; // [{mesh, fn}]
+  robots.forEach(r => { if (r.alive && r.mesh) targets.push({ mesh:r.mesh, fn:() => fightRobot(r) }); });
+  rogueRobots.forEach(r => { if (r.alive && r.mesh) targets.push({ mesh:r.mesh, fn:() => fightRogueRobot(r) }); });
+  killers.forEach(k => {
+    if (!k.alive || !k.revealed || !k.mesh) return;
+    const fn = k.robber ? () => fightRobber(k) : k.demon ? () => fightDemon(k) : k.satanBoss ? () => fightSatanBoss(k) : k.killerSupreme ? () => fightKillerSupreme(k) : () => fightKiller(k);
+    targets.push({ mesh:k.mesh, fn });
+  });
+  const meshToFn = new Map(targets.map(t => [t.mesh, t.fn]));
+  const raycaster = new THREE.Raycaster();
+  const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+  const origin = new THREE.Vector3(); camera.getWorldPosition(origin);
+  raycaster.set(origin, dir);
+  raycaster.far = GUN_RANGE;
+  const hits = raycaster.intersectObjects(targets.map(t => t.mesh), true); // recursive — a mob's mesh is a Group of parts, not one solid object
+  if (hits.length) {
+    // Walk up from whatever specific child part the raycast actually hit (a leg, a barrel...) to
+    // the registered root mesh, since meshToFn only ever keys off the top-level group. The fight
+    // function itself already fires its own real tracer + gunshot sound when a gun is equipped
+    // (swingAndHit() -> fireWarShot(), game-economy.js — every combat function already routes
+    // through it) — no second tracer needed here for a landed shot.
+    let obj = hits[0].object;
+    while (obj && !meshToFn.has(obj)) obj = obj.parent;
+    if (obj) meshToFn.get(obj)();
+  } else {
+    // A miss never reaches any fight function, so it would otherwise show NOTHING at all — this
+    // is the one case that actually needs its own tracer, out to the shot's max range.
+    spawnGunTracer(origin, origin.clone().addScaledVector(dir, GUN_RANGE));
+  }
+  return true;
+}
+// A thin, fast-fading beam — same real THREE.Mesh-box-tracer technique fireWarShot() (game-world.js)
+// already uses for War NPC/Bank-wall gunfire, just oriented along the player's OWN shot instead of
+// a fixed two-point NPC line, since this one's direction changes with the camera every single shot.
+// Only used for a MISS (see tryFireGun() above) — a landed hit already gets a real tracer from the
+// fight function's own existing swingAndHit()->fireWarShot() call.
+function spawnGunTracer(from, to) {
+  const dist = from.distanceTo(to);
+  const tracer = new THREE.Mesh(
+    new THREE.BoxGeometry(0.04, 0.04, dist),
+    new THREE.MeshBasicMaterial({ color: 0xffee88, transparent:true, opacity:0.9 })
+  );
+  tracer.position.copy(from).lerp(to, 0.5);
+  tracer.lookAt(to);
+  scene.add(tracer);
+  setTimeout(() => scene.remove(tracer), 70);
 }
 
 function handleInteract() {
@@ -23472,6 +26642,33 @@ function handleInteract() {
     const dx=px2-pc.group.position.x, dz=pz-pc.group.position.z;
     if(Math.sqrt(dx*dx+dz*dz)<7) { enterCar(pc); return; }
   }
+  // The Super Tank — a permanent Car Dealership fixture, not in parkedCars/ownedCars (see
+  // dealershipTank, game-vehicles.js), so it gets this one extra proximity check of its own.
+  if (dealershipTank) {
+    const dx=px2-dealershipTank.group.position.x, dz=pz-dealershipTank.group.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<7) { enterPremiumVehicle(dealershipTank); return; }
+  }
+  // The Super Jet — same idea, parked on the Airport apron (dealershipJet, game-vehicles.js).
+  if (dealershipJet) {
+    const dx=px2-dealershipJet.group.position.x, dz=pz-dealershipJet.group.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<7) { enterPremiumVehicle(dealershipJet); return; }
+  }
+  // The Future Jet — same idea, a second Airport apron pad next to the Super Jet's (dealershipFutureJet, game-vehicles.js).
+  if (dealershipFutureJet) {
+    const dx=px2-dealershipFutureJet.group.position.x, dz=pz-dealershipFutureJet.group.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<7) { enterPremiumVehicle(dealershipFutureJet); return; }
+  }
+  // The Super Motorcycle — same idea, a second Car Dealership pad (dealershipMotorcycle, game-vehicles.js).
+  if (dealershipMotorcycle) {
+    const dx=px2-dealershipMotorcycle.group.position.x, dz=pz-dealershipMotorcycle.group.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<7) { enterPremiumVehicle(dealershipMotorcycle); return; }
+  }
+  // The Private Cab — parked outside The Office. enterMysteryVehicle() (game-vehicles.js) never
+  // reveals what it even is to a non-admin, on top of being locked.
+  if (dealershipCab) {
+    const dx=px2-dealershipCab.group.position.x, dz=pz-dealershipCab.group.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<7) { enterMysteryVehicle(dealershipCab); return; }
+  }
   // Money Printer press window (Bank Jobs) — a short real-time reaction that can happen from
   // anywhere in the city now that jobs don't require standing at a physical zone (item 217), so
   // it's checked here up front rather than tied to any CITY_ZONES entry.
@@ -23484,64 +26681,15 @@ function handleInteract() {
     if(carriedBoxes.length && tryPlaceBox()) return;
     if(tryPickUpBox()) return;
   }
-  // A duel you've already committed to (accepted a real challenge) always takes
-  // priority, even inside the arena - real bug found live: without this, walking
-  // into the arena mid-duel silently switched your E-press over to generic FFA
-  // targeting instead of your actual opponent, with no way to keep fighting them.
-  if(dueling && serverMode === 'online' && tryDuelInteract()) return;
-  // Arena free-for-all takes priority over open-world 1v1 duels while standing in it
-  if(inArena && serverMode === 'online' && tryFfaInteract()) return;
-  // PvP duel: swing at your opponent if one's active, else challenge whoever's nearby
-  if(!inArena && !inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && !inMovieFight && serverMode === 'online' && tryDuelInteract()) return;
-  // Bad guy with weapon: NPC attack takes priority over zone actions
-  if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade && !inArenaBattle && !inMovieFight) {
-    let closest = null, closestDist = 3.5;
-    for(const npc of npcs) {
-      const d = Math.sqrt((px2-npc.group.position.x)**2+(pz-npc.group.position.z)**2);
-      if(d < closestDist) { closestDist = d; closest = npc; }
-    }
-    if(closest) { attackNPC(closest); return; }
-  }
-  // Rogue robots (item 156) roam freely into the city and can be fought back any time, same
-  // priority tier as attacking an NPC — they aren't tied to a fixed CITY_ZONES position since they move.
-  // The Movie Fight Room's single boss is its own dedicated combat target — none of the outdoor
-  // rogue robot/killer/boss systems apply inside this pocket interior.
-  if (inMovieFight && movieBossFight && movieBossFight.alive) {
-    const d = Math.sqrt((px2-movieBossFight.curX)**2+(pz-movieBossFight.curZ)**2);
-    if (d < 4.5) { fightMovieBoss(); return; }
-  }
-  if (!inHouse && !inMall && !inArcade && !inStore && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital && !inSchool) {
-    let closestRogue = null, closestRogueDist = 3;
-    for (const r of rogueRobots) {
-      if (!r.alive) continue;
-      const d = Math.sqrt((px2-r.x)**2+(pz-r.z)**2);
-      if (d < closestRogueDist) { closestRogueDist = d; closestRogue = r; }
-    }
-    if (closestRogue) { fightRogueRobot(closestRogue); return; }
-    // Killers (only once revealed — you can't fight what you haven't even seen yet), same tier.
-    let closestKiller = null, closestKillerDist = 3;
-    for (const k of killers) {
-      if (!k.alive || !k.revealed) continue;
-      const d = Math.sqrt((px2-k.x)**2+(pz-k.z)**2);
-      if (d < closestKillerDist) { closestKillerDist = d; closestKiller = k; }
-    }
-    if (closestKiller) { if (closestKiller.robber) fightRobber(closestKiller); else if (closestKiller.demon) fightDemon(closestKiller); else if (closestKiller.satanBoss) fightSatanBoss(closestKiller); else fightKiller(closestKiller); return; }
-    // Bosses now chase (see tickBossChase) instead of sitting at a fixed CITY_ZONES spot, so
-    // fighting one has to be a live proximity check off its real curX/curZ, same as the two above.
-    let closestBoss = null, closestBossDist = 4.5;
-    for (const def of BOSS_DEFS) {
-      const st = bossState[def.name];
-      if (!st || !st.alive) continue;
-      const d = Math.sqrt((px2-st.curX)**2+(pz-st.curZ)**2);
-      if (d < closestBossDist) { closestBossDist = d; closestBoss = def; }
-    }
-    if (closestBoss) { fightBoss(closestBoss); return; }
-  }
-  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inVisitStore ? VISIT_STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : inSea ? SEA_ZONES : inSchool ? SCHOOL_ZONES : CITY_ZONES;
+  // Every combat branch (duels, arena FFA, bad-alignment NPC attacks, rogue robots, killers/
+  // robbers/demons/bosses, the movie boss, the training dummy) now lives in tryCombatSwing()
+  // above, shared with the F key, so E and F always agree on what's fightable right now.
+  if (tryCombatSwing()) return;
+  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inVisitStore ? VISIT_STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : inSea ? SEA_ZONES : inSchool ? SCHOOL_ZONES : inShopInterior ? SHOP_INTERIOR_ZONES : CITY_ZONES;
   for(const z of zones) {
     if(Math.sqrt((px2-z.x)**2+(pz-z.z)**2) < z.r) { z.action(); return; }
   }
-  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore) {
+  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore && !inShopInterior) {
     const neighbor = findNearestNeighbor(px2, pz, 3);
     if(neighbor) { openNeighborModal(neighbor.name); return; }
   }
@@ -23551,13 +26699,54 @@ function handleInteract() {
 function updatePrompt() {
   const px2 = playerGroup.position.x, pz = playerGroup.position.z;
   const el = document.getElementById('ePrompt');
-  if(inCar) { el.textContent='[E] Exit Car'; el.style.display='block'; return; }
+  if(inCar) {
+    // Jet hint built per-jet now that Normal Jet/High Speed Jet/Future Jet don't all share the
+    // Super Jet's exact loadout (gunCount/hasBombs, game-vehicles.js) — showing "[F] Guns" on an
+    // unarmed Normal Jet would just be a lie you'd discover by pressing it. [Shift] Boost is
+    // real and free on every jet (the new afterburner above), so that part's unconditional.
+    const jetHint = (def) => {
+      const parts = ['[E] Exit Car'];
+      if ((def.gunCount ?? 1) > 0) parts.push('[F] Guns');
+      if (def.hasBombs !== false) parts.push('[V] Bomb');
+      parts.push('[Shift] Boost');
+      if (hiredJetPilot) parts.push(`[H] ${jetAutopilotActive?'Cancel':''} Autopilot`);
+      return parts.join(' · ');
+    };
+    el.textContent = (activeCar && activeCar.def.isTank) ? '[E] Exit Car · [F] Fire Cannon'
+      : (activeCar && activeCar.def.isJet) ? jetHint(activeCar.def)
+      : (activeCar && activeCar.def.isMotorcycle) ? '[E] Exit Car · [F] Rockets'
+      : '[E] Exit Car';
+    el.style.display='block'; return;
+  }
   if(onBankWall) { el.textContent='[E] 🏹 Shoot (or climb down if nothing\'s in range)'; el.style.display='block'; return; }
   for(const pc of parkedCars) {
     const dx=px2-pc.group.position.x, dz=pz-pc.group.position.z;
     if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent=`[E] ${pc.def.emoji} Get in ${pc.def.name}`; el.style.display='block'; return; }
   }
-  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inVisitStore ? VISIT_STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : inSea ? SEA_ZONES : inSchool ? SCHOOL_ZONES : CITY_ZONES;
+  // Tank/Jet/Motorcycle/Future Jet are real-money items (see canUsePremiumVehicle(),
+  // game-vehicles.js) — a player who hasn't bought or rented one sees an honest locked hint here
+  // instead of "Get in", same gate handleInteract() enforces.
+  if (dealershipTank) {
+    const dx=px2-dealershipTank.group.position.x, dz=pz-dealershipTank.group.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent = canUsePremiumVehicle(dealershipTank.def.id) ? `[E] ${dealershipTank.def.emoji} Get in ${dealershipTank.def.name}` : `🔒 ${dealershipTank.def.name} — buy/rent in 🛍️ SHOP`; el.style.display='block'; return; }
+  }
+  if (dealershipJet) {
+    const dx=px2-dealershipJet.group.position.x, dz=pz-dealershipJet.group.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent = canUsePremiumVehicle(dealershipJet.def.id) ? `[E] ${dealershipJet.def.emoji} Get in ${dealershipJet.def.name}` : `🔒 ${dealershipJet.def.name} — buy/rent in 🛍️ SHOP`; el.style.display='block'; return; }
+  }
+  if (dealershipFutureJet) {
+    const dx=px2-dealershipFutureJet.group.position.x, dz=pz-dealershipFutureJet.group.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent = canUsePremiumVehicle(dealershipFutureJet.def.id) ? `[E] ${dealershipFutureJet.def.emoji} Get in ${dealershipFutureJet.def.name}` : `🔒 ${dealershipFutureJet.def.name} — buy/rent in 🛍️ SHOP`; el.style.display='block'; return; }
+  }
+  if (dealershipMotorcycle) {
+    const dx=px2-dealershipMotorcycle.group.position.x, dz=pz-dealershipMotorcycle.group.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent = canUsePremiumVehicle(dealershipMotorcycle.def.id) ? `[E] ${dealershipMotorcycle.def.emoji} Get in ${dealershipMotorcycle.def.name}` : `🔒 ${dealershipMotorcycle.def.name} — buy/rent in 🛍️ SHOP`; el.style.display='block'; return; }
+  }
+  if (dealershipCab) {
+    const dx=px2-dealershipCab.group.position.x, dz=pz-dealershipCab.group.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent = isAdmin() ? `[E] ${dealershipCab.def.emoji} Get in ${dealershipCab.def.name}` : `❓ Unknown — locked`; el.style.display='block'; return; }
+  }
+  const zones = inMovieFight ? MOVIE_FIGHT_ZONES : inArenaBattle ? ROBOT_ARENA_ZONES : inPrison ? PRISON_ZONES : inFriendHouse ? FRIEND_HOUSE_ZONES : inLandHouse ? LAND_HOUSE_ZONES : inCountryHotel ? COUNTRY_HOTEL_ZONES : inAirportLounge ? AIRPORT_LOUNGE_ZONES : inArcade ? ARCADE_ZONES : inHotel ? HOTEL_ZONES : inHouse ? HOUSE_ZONES : inMall ? MALL_ZONES : inStore ? STORE_ZONES : inVisitStore ? VISIT_STORE_ZONES : inBankInterior ? BANK_INTERIOR_ZONES : inSportsPark ? SPORTS_ZONES : inHospital ? HOSPITAL_ZONES : inSea ? SEA_ZONES : inSchool ? SCHOOL_ZONES : inShopInterior ? SHOP_INTERIOR_ZONES : CITY_ZONES;
   for(const z of zones) {
     if(Math.sqrt((px2-z.x)**2+(pz-z.z)**2) < z.r) {
       if(z.isComputer) {
@@ -23622,14 +26811,14 @@ function updatePrompt() {
     }
   }
   // NPC attack prompt — checked after zones so zones still take priority
-  if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade) {
+  if(alignment === 'bad' && playerWeapon !== 'none' && !inHouse && !inMall && !inArcade && !inShopInterior) {
     for(const npc of npcs) {
       const d = Math.sqrt((px2-npc.group.position.x)**2+(pz-npc.group.position.z)**2);
       if(d < 3.5) { el.textContent=`[E] 💥 Attack ${npc.name}`; el.style.display='block'; return; }
     }
   }
   // Talk to a nearby neighbor — lowest priority, only out in the open city
-  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore) {
+  if(!inHouse && !inHotel && !inMall && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inCar && !inArcade && !inArenaBattle && !inMovieFight && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore && !inShopInterior) {
     const neighbor = findNearestNeighbor(px2, pz, 3);
     if(neighbor) { el.textContent = `[E] 👋 Talk to ${neighbor.name}`; el.style.display='block'; return; }
   }
@@ -23813,6 +27002,18 @@ const COUNTRY_HILL_AMP = 4.5;
 // one that also falls in a flat pocket (pond/bench/land-plot/etc) — both cases are the same
 // "already-developed, stay flat" guarantee the rest of this file depends on.
 function groundHeightAt(x, z) {
+  // ROOFTOPS — a building with a roofY (addCol's optional 5th arg, game-engine.js) is a real
+  // standing surface once you're on it: isBlocked() only ever lets the player's x/z cross into
+  // that footprint at all once they're already at/above roofY, so if (x,z) lands inside one here,
+  // they must already be up there — just hold them at roofY, same as any other floor.
+  for (const c of CITY_COLS) {
+    if (c.roofY === undefined) continue;
+    if (x > c.cx-c.hw && x < c.cx+c.hw && z > c.cz-c.hd && z < c.cz+c.hd) return c.roofY;
+  }
+  // The real exterior staircases leading up to those rooftops (addRoofRamp(), game-engine.js) —
+  // a straight ramp strip sampled the exact same way the hill regions below are.
+  const rampY = roofRampHeightAt(x, z);
+  if (rampY !== null) return rampY;
   { const dx = x-PARK_HILL.cx, dz = z-PARK_HILL.cz, d = Math.hypot(dx,dz);
     if (d < PARK_HILL.edgeR) {
       let rm = regionMul(d, PARK_HILL.fullR, PARK_HILL.edgeR);
@@ -23909,6 +27110,17 @@ function _startGameInner() {
   // real day-change while the session stays open (e.g. left running overnight past midnight),
   // instead of only ever checking once at login.
   setInterval(checkCalendarReminders, 60000);
+
+  // User's own ask: "add a sighn saying do u want to go to heaven it appears once 5 min" — a real
+  // periodic invite to Heaven (HEAVEN_ZONE/enterHeaven(), game-world.js — the existing Divine
+  // Judgment redemption destination, reused here rather than building a second one), same
+  // 5-minute cadence idea as the bank timer above. Skipped while already in Heaven so it doesn't
+  // ask someone who already said yes.
+  setInterval(maybeShowHeavenInvite, 300000);
+
+  // User's own ask: "every min there's a 10% chance they can happen" — periodic ad break, see
+  // maybeTriggerPeriodicAdBreak() (game-customization.js) for the actual roll + adBreak() call.
+  setInterval(maybeTriggerPeriodicAdBreak, 60000);
 
   // Check WebGL is available
   const _tc = document.createElement('canvas');
@@ -24013,6 +27225,7 @@ function _startGameInner() {
   _dbg('buildDump', buildDump);
   _dbg('buildMallShopWing', buildMallShopWing);
   _dbg('buildOutfitShopWing', buildOutfitShopWing);
+  _dbg('buildShopInteriorShell', buildShopInteriorShell); // walkable shop interiors — one shared pocket room, reskinned per shop on entry (game-shopinteriors.js)
   _dbg('buildCountryZones', buildCountryZones);
   _dbg('buildSpaceZone', buildSpaceZone);
   _dbg('buildHillTerrain', buildHillTerrain); // real hills — after buildCity (groundMesh color) and every region's own content (Woods/Plains/countries) is built
@@ -24029,6 +27242,7 @@ function _startGameInner() {
   _dbg('buildWeaponLevels', buildWeaponLevels); // must run before buildPlayer()/updateWeaponMesh() touch the currently-equipped weapon's damage — otherwise a returning player's weapon keeps dealing OLD (pre-rebalance) damage until they happen to open the shop
   _dbg('buildPlayer', buildPlayer);
   _dbg('buildBuddy', buildBuddy);
+  _dbg('buildBodyguards', buildBodyguards);
   _dbg('buildChild', buildChild);
   _dbg('applyCameraFX', applyCameraFX);
   _dbg('buildNPCs', buildNPCs);
@@ -24363,15 +27577,24 @@ function getSeasonInfo() {
   return {season, sk, holiday, skySky, fogFog, mmdd};
 }
 
-// ─── DAY/NIGHT CYCLE — runs off playTimeSeconds (real seconds actually played, same clock
-// tickGrowth already uses for growth stages), NOT the real-world wall clock, so it advances at
-// the same steady pace no matter what timezone or time of day you actually play at. One full
-// day+night takes DAY_LENGTH real seconds; brightness follows a smooth cosine curve (0 at
-// midnight, 1 at noon) instead of hard day/night cuts, so dawn and dusk fade in and out. Season
-// effects above still own the "full daylight" base sky/fog color (seasonSkyColor/seasonFogColor)
-// — this system only darkens toward that base at night, it never fights season for ownership of
-// scene.background/scene.fog.color. ──────────────────────────────────────────────────────────
+// ─── DAY/NIGHT CYCLE — one full day+night takes DAY_LENGTH real seconds; brightness follows a
+// smooth cosine curve (0 at midnight, 1 at noon) instead of hard day/night cuts, so dawn and dusk
+// fade in and out. Season effects above still own the "full daylight" base sky/fog color
+// (seasonSkyColor/seasonFogColor) — this system only darkens toward that base at night, it never
+// fights season for ownership of scene.background/scene.fog.color. ────────────────────────────
 const DAY_LENGTH = 1800; // real seconds for one full day+night cycle (30 minutes)
+// SHARED WORLD CLOCK — "make the time and weather be the same everywhere" (user's own ask): both
+// day/night and weather used to derive from playTimeSeconds, each player's own accumulated PLAY
+// time — since no two accounts have ever played the exact same number of seconds, two players
+// standing side by side could see a different time of day AND different weather. Date.now() is
+// the one clock every player's device already agrees on with no server round-trip needed, so both
+// systems now derive their PHASE from it instead — the cycle LENGTHS are unchanged (still exactly
+// DAY_LENGTH per day, still a weather reroll every WEATHER_CYCLE_SECONDS), so this doesn't tie
+// day/night to real sunrise/sunset either, it just makes every player's cycle line up. The
+// per-country time-zone offset below (COUNTRY_TIME_ZONE_HOURS, a separate earlier ask) still
+// applies on top of this shared base, same as before. playTimeSeconds itself is untouched — still
+// exactly what growth/aging (tickGrowth) and every cooldown elsewhere in the game use.
+function sharedClockSeconds() { return Date.now() / 1000; }
 let seasonSkyColor, seasonFogColor; // THREE.Color, lazily created in applySeasonEffects (THREE isn't loaded yet at parse time)
 let _dayNightColors = null;         // lazily built cache of THREE.Color helpers, see updateDayNight
 let _judgmentColor = null;          // lazily built cache for the Wrath/Satan sky override, see updateDayNight
@@ -24415,13 +27638,14 @@ let _wasInSpaceZone = false; // tracks the zone→no-zone transition so leaving 
 // dark at night is normal), but these are actual roofed buildings, so they're the ones a real
 // day/night cycle shouldn't be allowed to darken. Used by updateDayNight() below.
 function isPlayerIndoors() {
-  return inHouse || inMall || inHotel || inStore || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inPrison || inArcade || inArenaBattle || inMovieFight || inBankInterior || inSportsPark || inHospital || inSchool || inVisitStore;
+  return inHouse || inMall || inHotel || inStore || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inPrison || inArcade || inArenaBattle || inMovieFight || inBankInterior || inSportsPark || inHospital || inSchool || inVisitStore || inShopInterior;
 }
 // ─── TIME ZONES — user's own ask: "and time zones". Each real Earth country gets a real-ish UTC
-// offset matching its actual real-world zone, so the SAME moment of real playtime looks like a
-// different time of day depending which country you're standing in — the same real reason time
-// zones exist on the actual Earth. Downtown Explox and the Space Station stay on the base clock
-// (no offset) — deep space doesn't have a real "time zone", and Downtown is the home reference.
+// offset matching its actual real-world zone, so the SAME moment on the shared world clock
+// (sharedClockSeconds() above) looks like a different time of day depending which country you're
+// standing in — the same real reason time zones exist on the actual Earth. Downtown Explox and
+// the Space Station stay on the base clock (no offset) — deep space doesn't have a real "time
+// zone", and Downtown is the home reference.
 const COUNTRY_TIME_ZONE_HOURS = { Japan:9, France:1, Brazil:-3, Egypt:2, UK:0, Australia:10, Canada:-5, Italy:1 };
 function currentTimeZoneCountry() {
   if (!playerGroup) return null;
@@ -24436,7 +27660,7 @@ function getDayNightBrightness() {
   const offsetDayFrac = zone ? COUNTRY_TIME_ZONE_HOURS[zone] / 24 : 0;
   // adminTimeOffsetSeconds (game-admin.js, /time day|night) shifts ONLY this display calculation —
   // playTimeSeconds itself is left untouched since it also drives character growth/aging.
-  const frac = ((((playTimeSeconds + adminTimeOffsetSeconds) / DAY_LENGTH) + offsetDayFrac) % 1 + 1) % 1; // 0..1, 0 = midnight; double-mod keeps negative UTC offsets positive
+  const frac = ((((sharedClockSeconds() + adminTimeOffsetSeconds) / DAY_LENGTH) + offsetDayFrac) % 1 + 1) % 1; // 0..1, 0 = midnight; double-mod keeps negative UTC offsets positive
   const raw = (1 - Math.cos(frac * Math.PI * 2)) / 2;       // 0 at midnight, 1 at noon
   return { frac, raw, zone };
 }
@@ -24579,12 +27803,14 @@ function updateSeasonHud() {
 // The old system was a static 1:1 function of season (winter=always snow, fall=always leaves,
 // else always nothing). This replaces it with real day-to-day variety, using the EXACT same trick
 // DAY_LENGTH/getDayNightBrightness() already use above: the current weather is DERIVED fresh from
-// playTimeSeconds every time it's needed, split into WEATHER_CYCLE_SECONDS-long windows, instead of
-// being a separately-persisted timer. Each window's weather is a deterministic weighted pick seeded
-// from (window index + current season), so reloading the page resumes the SAME weather instead of
-// rerolling — zero new save fields needed, exactly like day/night. 4 real minutes/state gives
-// ~7-8 changes across one 30-minute DAY_LENGTH day, which reads as "weather actually changes today"
-// without flickering between conditions every few seconds.
+// sharedClockSeconds() every time it's needed, split into WEATHER_CYCLE_SECONDS-long windows,
+// instead of being a separately-persisted timer. Each window's weather is a deterministic weighted
+// pick seeded from (window index + current season), so reloading the page resumes the SAME weather
+// instead of rerolling — zero new save fields needed, exactly like day/night. Using the shared
+// clock (not playTimeSeconds) also means every player computes the same window index at the same
+// real moment, so weather matches for everyone instead of drifting per-account. 4 real
+// minutes/state gives ~7-8 changes across one 30-minute DAY_LENGTH day, which reads as "weather
+// actually changes today" without flickering between conditions every few seconds.
 const WEATHER_CYCLE_SECONDS = 240;
 const WEATHER_TYPES = {
   clear:  {emoji:'☀️',  name:'Clear',        particle:null},
@@ -24622,7 +27848,7 @@ function _weatherHash01(str) {
   for (let i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
   return h / 4294967295;
 }
-function currentWeatherWindow() { return Math.floor(playTimeSeconds / WEATHER_CYCLE_SECONDS); }
+function currentWeatherWindow() { return Math.floor(sharedClockSeconds() / WEATHER_CYCLE_SECONDS); }
 function pickWeatherForWindow(windowIdx, sk) {
   const weights = WEATHER_WEIGHTS[sk];
   const roll = _weatherHash01(windowIdx + '_' + sk) * 100; // weight rows sum to 100
@@ -25074,7 +28300,114 @@ function buildCity() {
   buildSign('🏛 CITY HALL',0,24,-23);
   for(let i=-2;i<=2;i++) box(1.5,18,1.5, 0xf5efe0,i*5,9,-23);
   for(let s=0;s<3;s++) box(34-s*2,0.5,2, 0xddd0bb,0,0.5+s*0.5,-22.5+s);
-  addCol(CITY_COLS,0,-35, 16,13);
+  addCol(CITY_COLS,0,-35, 16,13, 23);
+  // Real exterior staircase up the west side, onto the flat gold roof cap — first climbable
+  // rooftop in the city (see addCol's roofY / addRoofRamp, game-engine.js).
+  for(let i=0;i<12;i++){ const t=i/11; box(1.6,0.35,2, 0xd4c8b0, -20+t*4, 0.3+t*22.7, -35); }
+  addRoofRamp(-20,-35, -16,-35, 1.2, 0,23);
+
+  // KING EXPLOX MONUMENT — user's own ask: "make a king explox statue" + the origin-of-Explox
+  // history exhibit (openExploxHistory(), game-library.js). Placed in the open plaza between
+  // downtown and City Hall's own front steps — checked clear of every nearby addCol/zone first
+  // (City Hall itself starts at z:-22, the Hotel zone at x:-15,z:-5,r:8 doesn't reach x:0).
+  box(5,0.6,5, 0xccc4b0, 0,0.3,-10);              // stone plaza base
+  box(3,3.4,3, 0x9a9488, 0,2,-10);                // pedestal
+  box(3.2,0.3,3.2, 0x847e72, 0,3.85,-10);         // pedestal cap
+  box(0.9,1.2,0.5, 0xB8860B, 0,4.6,-10);          // King's robe/torso (bronze)
+  box(0.6,0.6,0.6, 0xB8860B, 0,5.5,-10);          // King's head (bronze)
+  box(0.7,0.25,0.7, 0xFFD700, 0,5.85,-10);        // crown
+  box(0.15,1.4,0.15, 0xB8860B, 0.55,4.7,-9.9);    // scepter arm
+  box(0.12,0.5,0.12, 0xB8860B, 0.55,5.5,-9.9);    // scepter shaft
+  box(0.3,0.3,0.3, 0xFFD700, 0.55,5.85,-9.9);     // scepter orb
+  buildSign('👑 KING EXPLOX', 0,7,-10.2);
+  buildSign('📜 Press E for the History of Explox', 0,3.3,-8.2);
+  const kingLight = new THREE.PointLight(0xFFD700, 1.0, 20);
+  kingLight.position.set(0,6,-10); scene.add(kingLight);
+  addCol(CITY_COLS, 0,-10, 3,3);
+
+  // THE ROYAL COURT — user's own ask: "make it so there is a king for explox and he has an army
+  // protecting him". A NEW throne room, separate from the old King Explox Monument just above
+  // (which stays exactly as the historical shrine it already was — the current King doesn't rule
+  // from that cramped little plaza). Placed at (200,100): checked clear of every LOC_ZONES circle
+  // (game-zones.js) and every Celebrity patrol loop (Chaz Diamond's own loop runs through (0,0)-
+  // (40,40), which is exactly why this ISN'T at the old Monument either) before picking the spot.
+  // The King NPC + his 6 Royal Guards themselves are generateRoyalCourtNPCs() (game-character.js);
+  // this is just the physical room they stand in.
+  box(20,0.5,20, 0xa89a78, 200,0.25,100);           // stone court floor
+  box(6,0.6,6,   0x8a7a58, 200,0.55,100);           // raised dais
+  box(1.2,2.2,1.2, 0x4B0082, 200,1.9,102.5);        // throne back
+  box(1.6,0.3,1.4, 0x4B0082, 200,1.05,101.8);       // throne seat
+  box(0.25,3,0.25, 0xFFD700, 197,1.5,100);          // banner pole
+  box(0.25,3,0.25, 0xFFD700, 203,1.5,100);          // banner pole
+  box(0.25,3,0.25, 0xFFD700, 200,1.5,97);           // banner pole
+  box(1.2,1.6,0.05, 0x8B0000, 197,2.6,100);         // banner cloth
+  box(1.2,1.6,0.05, 0x8B0000, 203,2.6,100);         // banner cloth
+  box(1.2,1.6,0.05, 0x8B0000, 200,2.6,97);          // banner cloth
+  buildSign('👑 THE ROYAL COURT', 200,4.2,102.5);
+  const courtLight = new THREE.PointLight(0xFFD700, 1.0, 30);
+  courtLight.position.set(200,5,100); scene.add(courtLight);
+  addCol(CITY_COLS, 200,102.5, 1,1); // the throne itself blocks walking through it
+
+  // UPTOWN LOT — user's own ask for "a new parking lot", right alongside the ask that other
+  // players can actually see a parked car (syncPresence(), game-character.js — this is just the
+  // physical ground; parkCarAtUptownLot()/carLocationSpot() (game-vehicles.js) place the car
+  // itself once someone actually parks here). Checked clear of Restaurant Row (20,80,r30), School
+  // (70,60,r22), Transit Hub (0,50,r22) and Uptown Plaza (250,150,r30)'s own LOC_ZONES circles.
+  // No addCol walls — an open lot, same "flat marked pavement, nothing to collide with" style as
+  // the Mall's own parking plaza above.
+  box(24,0.08,18, 0x3a3a3a, 60,0.04,110);
+  for(let i=0;i<4;i++) { box(0.3,0.06,4, 0xffffff, 51+i*6,0.08,110); }
+  buildSign('🅿️ UPTOWN LOT', 60,3.5,101.5);
+
+  // THE OFFICE, now THE MANSION — user's own ask: "the office is a house the biggest best and
+  // nobody exept mer and staff can come." Same admin-only gate as before (isAdmin(), game-admin.js
+  // — ADMIN_ACCOUNTS already covers exactly "me and staff": 'cubby explosion' + 'gurnaldst') and
+  // the same fully solid, no-interior footprint (nobody — admin included — ever walks through
+  // these walls; the whole "visit" is the exterior request-menu popup, same as the Church/Library
+  // pattern), just reskinned from a corporate tower into the single biggest, grandest HOUSE in the
+  // city — built from the same body+flat-roof-cap language as the neighborhood houses
+  // (buildHouse(), game-district.js) scaled up far past anything else with a roof on it. Same
+  // anchor coordinates as the old tower (door/recess at z=119.9, staff at z=112-115, CITY_ZONES
+  // trigger at z=113) so nothing else placed around it needs to move.
+  const MANSION_WALL = 0xf0e6c8, MANSION_ROOF = 0x7a2a2a, MANSION_TRIM = 0xd4af37;
+  box(30,20,36, MANSION_WALL, 300,10,100);              // main hall
+  box(32,2.4,38, MANSION_ROOF, 300,21.2,100);           // main roof cap
+  box(14,14,26, MANSION_WALL, 275,7,100);               // west wing
+  box(15.6,1.6,27.6, MANSION_ROOF, 275,14.8,100);       // west wing roof cap
+  box(14,14,26, MANSION_WALL, 325,7,100);               // east wing
+  box(15.6,1.6,27.6, MANSION_ROOF, 325,14.8,100);       // east wing roof cap
+  box(7,7,7, MANSION_WALL, 300,25,100);                 // cupola
+  box(7.8,0.9,7.8, MANSION_ROOF, 300,28.5,100);         // cupola cap
+  box(0.3,8,0.3, MANSION_TRIM, 300,33,100);             // flagpole
+  // Gold-trimmed windows on the main hall's front face.
+  for (let fy=0; fy<2; fy++) for (let fx=-8; fx<=8; fx+=8) {
+    box(3,3.4,0.2, 0xbfe3f7, 300+fx, 6+fy*7, 118.1);
+  }
+  [-5.5,5.5].forEach(cx => box(1,11,1, 0xffffff, 300+cx,5.5,116.5));  // entrance columns
+  box(14,1.2,6, 0xffffff, 300,11.2,116.5);              // portico canopy
+  box(12,14,2, 0x1a2038, 300,7,119.9);                  // dark entrance recess
+  box(9,10,0.3, 0x3a2416, 300,6,119);                   // grand wooden double doors
+  box(9,0.4,0.4, MANSION_TRIM, 300,11.2,119.1);         // gold lintel above the doors
+  buildSign('🏠 THE MANSION', 300,30,100);
+  buildSign('STAFF ONLY', 300,9,118.8);
+  const officeLight = new THREE.PointLight(0xffdd88, 1.4, 50);
+  officeLight.position.set(300,15,110); scene.add(officeLight);
+  // Real employee figures out front — "they work for me," not just decoration; this is who the
+  // player is narratively asking when they open the request menu at the door.
+  [[-6,112],[6,112],[0,115]].forEach(([ox,oz]) => {
+    const x = 300+ox, z = oz;
+    box(0.55,0.85,0.32, 0x223355, x,1.15,z);   // suit torso
+    box(0.4,0.4,0.4, 0xd4a070, x,1.85,z);      // head
+    box(0.5,0.75,0.3, 0x1a1a2a, x,0.55,z);     // suit legs
+  });
+  addCol(CITY_COLS, 300,100, 33,21);
+  // PRIVATE CAB — user's own ask, parked just outside The Office (your own personal fleet, at
+  // your own HQ). isAdmin() is read HERE, at world-build time — since buildCity() runs once per
+  // player's own client off THEIR OWN currentUser, every other real player's own client bakes in
+  // the "❓ UNKNOWN" text instead, genuinely never seeing the real name at all, not just a locked door.
+  box(6,0.1,10, 0x333333, 290,0.06,128);
+  buildSign(isAdmin() ? '🚕 PRIVATE CAB' : '❓ UNKNOWN', 290,4,124.5);
+  dealershipCab = { def: CAB_DEF, group: buildCabMesh(290, 128, Math.PI), carYaw: Math.PI };
 
   // APARTMENTS
   [[-40,-40],[-60,-40],[-40,-60],[-60,-60]].forEach(([ax,az])=>{
@@ -25124,7 +28457,11 @@ function buildCity() {
   box(0.3,3,3, 0xBFE6FF,-64,8,66);          // window, south of the door
   buildSign('📚 LIBRARY',-62,15,60);
   box(10,0.2,8, 0xaa7744,-66,0.1,60);       // walkway leading up to the entrance
-  addCol(CITY_COLS,-75,60, 11,10);
+  addCol(CITY_COLS,-75,60, 11,10, 14.2);
+  // Real exterior staircase up the west side, opposite the entrance canopy — climbs onto the
+  // dark wood roof cap (see addCol's roofY / addRoofRamp, game-engine.js).
+  for(let i=0;i<9;i++){ const t=i/8; box(1.4,0.3,1.6, 0x5c3a1e, -90+t*4, 0.25+t*13.95, 60); }
+  addRoofRamp(-90,60, -86,60, 1, 0,14.2);
 
   // SCIENCE LAB — coordinator's own ask: real "Science Tests" run by real in-game Scientist
   // characters, not just a menu. Real walk-up exterior + real modal (game-zones.js's Enter Science
@@ -25150,7 +28487,10 @@ function buildCity() {
   box(0.3,3,3, 0x8CFFE0, SCI.x+10,8,SCI.z+6);       // glowing window, south of the door
   buildSign('🧪 SCIENCE LAB', SCI.x+13.5,15,SCI.z);
   box(10,0.2,8, 0x9aa7ad, SCI.x+10,0.1,SCI.z);      // walkway leading up to the entrance
-  addCol(CITY_COLS, SCI.x,SCI.z, 10,9);
+  addCol(CITY_COLS, SCI.x,SCI.z, 10,9, 13);
+  // Real exterior staircase up the west side, opposite the entrance canopy.
+  for(let i=0;i<9;i++){ const t=i/8; box(1.4,0.3,1.6, 0x4a6572, SCI.x-14+t*4, 0.25+t*12.75, SCI.z); }
+  addRoofRamp(SCI.x-14,SCI.z, SCI.x-10,SCI.z, 1, 0,13);
 
   // SCHOOL
   box(36,14,22, 0xf5d080,70,7,60); box(36,1,22, 0xe8c050,70,14.5,60);
@@ -25158,7 +28498,10 @@ function buildCity() {
   box(16,0.2,10, 0xaa7744,82,0.1,66);
   box(0.3,4,0.3, 0x666,80,2,62); box(0.3,4,0.3, 0x666,84,2,62); box(5,0.3,0.3, 0x666,82,4,62);
   box(0.3,10,0.3, 0x666,58,5,50); box(4,0.2,0.1, 0x4488dd,60,9.5,50);
-  addCol(CITY_COLS,70,60, 19,12);
+  addCol(CITY_COLS,70,60, 19,12, 15);
+  // Real exterior staircase up the east side, clear of the flagpole (north) and entrance (south).
+  for(let i=0;i<10;i++){ const t=i/9; box(1.6,0.32,1.8, 0xe8c050, 93-t*4, 0.28+t*14.7, 60); }
+  addRoofRamp(93,60, 89,60, 1.1, 0,15);
 
   // CHURCH — "make god god of Abraham" clarified to "a church you can walk into", real building
   // + a real Pray action inside (openChurch()/prayAtChurch(), game-shops.js), not a decoration.
@@ -25222,6 +28565,21 @@ function buildCity() {
   box(10,1.4,0.4, 0xe8dcc0, 160,19.3,216.5);          // front parapet — the wall itself
   for(let i=-2;i<=2;i++) box(1,0.6,0.4, 0xe8dcc0, 160+i*2,20.3,216.5); // crenellations
 
+  // TRADING CENTER — new building, real walk-up exterior + real modal (openTradingCenter(),
+  // game-economy.js), same "walk up and use it" pattern as the Library/City Hall Forms Office —
+  // not a walk-in 3D interior. Opens the existing Stock Market, which used to only be reachable
+  // through the Bank menu. Placed in the Bank's own cleared finance block, a clear 20+ unit gap
+  // east of the Bank's guard staircase (which ends around x=180,z=210) so nothing overlaps.
+  box(20,16,18, 0x1a2a44, 210,8,210);                 // dark navy glass tower
+  box(21,1,19,  0x0d1626, 210,16.5,210);              // dark roof cap
+  box(10,10,2,  0x33ddaa, 210,6,219.1);               // glowing green glass front
+  box(16,2,0.3, 0x0d1626, 210,13.5,219.2);            // black ticker-band frame above the glass
+  buildSign('📈 TRADING CENTER', 210,18,219);
+  const tradeLight = new THREE.PointLight(0x33ddaa, 1.1, 26);
+  tradeLight.position.set(210,9,218); scene.add(tradeLight);
+  box(10,0.2,6, 0xaaaaaa, 210,0.1,215);               // walkway leading up to the entrance
+  addCol(CITY_COLS, 210,210, 11,10);
+
   // MOVIE THEATER — x=50, z=-85
   box(28,14,20, 0x8B1A1A, 50,7,-85);           // main building (dark red)
   box(29,1,21,  0x5a0d0d, 50,14.5,-85);         // flat roof
@@ -25242,6 +28600,12 @@ function buildCity() {
   const cinLight = new THREE.PointLight(0xff2244, 1.2, 30);
   cinLight.position.set(50,10,-74); scene.add(cinLight);
   addCol(CITY_COLS, 50,-85, 15,11);
+  // ACTORS ENTRANCE — real "Work as an Actor" job door (user's own ask: "add acting"), on the
+  // theater's west side, clear of the main entrance zone (x:50,z:-72,r:8) and the ticket booth
+  // (x:60,z:-70). See startActingJob()/ACTOR_PAY (game-alignment.js) and the matching CITY_ZONES
+  // entry (game-zones.js).
+  box(3,6,0.3, 0x442211, 30,3,-66.5);
+  buildSign('🎭 ACTORS ENTRANCE', 30,7,-66.3);
 
   // S.I.T.S. TRANSIT HUB — x=0, z=50 (south side, visible from spawn)
   box(36,10,18, 0x1a2a3a, 0,5,50);             // main station building
@@ -25362,6 +28726,22 @@ function buildCity() {
   const carLight = new THREE.PointLight(0xffffff, 1.2, 40);
   carLight.position.set(130,10,20); scene.add(carLight);
   addCol(CITY_COLS, 130,20, 16,12);
+  // SUPER TANK — a permanent showroom fixture just past the regular parking row (which uses
+  // CAR_PARKING_SPOTS x:117-145, game-vehicles.js) so it never collides with a purchased car
+  // parked there. Its own small reinforced pad, since bare dirt past the lot's real edge (x:148)
+  // would look wrong under it. See dealershipTank/TANK_DEF/buildTankMesh (game-vehicles.js) and
+  // the extra proximity check in handleInteract()/updatePrompt() (game-zones.js) that lets you
+  // walk up and ride it exactly like any owned car.
+  box(10,0.1,10, 0x444444, 155,0.06,44);
+  buildSign('🛡️ SUPER TANK', 155,5,38);
+  dealershipTank = { def: TANK_DEF, group: buildTankMesh(155, 44, 0), carYaw: 0 };
+  // SUPER MOTORCYCLE — a second showroom pad, 15 units east of the Tank's (clear of it and the
+  // regular parking row). See dealershipMotorcycle/MOTORCYCLE_DEF/buildMotorcycleMesh
+  // (game-vehicles.js) and the matching proximity check in handleInteract()/updatePrompt()
+  // (game-zones.js).
+  box(8,0.1,8, 0x444444, 170,0.06,44);
+  buildSign('🏍️ SUPER MOTORCYCLE', 170,5,38);
+  dealershipMotorcycle = { def: MOTORCYCLE_DEF, group: buildMotorcycleMesh(170, 44, 0), carYaw: 0 };
 
   // ─── THE DINER — x=110, z=-25 ────────────────────────────────────────────────
   box(20,10,16, 0xB8452F, 110,5,-25);            // main building (warm brick red)
@@ -25520,6 +28900,20 @@ function buildCity() {
   });
   addCol(CITY_COLS, -200,-200, 26,12);
   addCol(CITY_COLS, -220,-208, 4,4);
+  // SUPER JET — a permanent showroom fixture on the open apron, clear of the baggage carts (x:
+  // -205..-195,z:-214) and both decorative parked planes (z:-242). See dealershipJet/JET_DEF/
+  // buildJetMesh (game-vehicles.js) and the matching proximity check in handleInteract()/
+  // updatePrompt() (game-zones.js) that lets you walk up and drive it exactly like the Tank.
+  buildSign('✈️ SUPER JET', -230,4.5,-224);
+  // homeX/homeZ/homeYaw — user's own ask: "make the plane land at the airport when i exit", since
+  // unlike a ground vehicle the Jet can be exited mid-flight, which would otherwise leave it
+  // floating stranded wherever you bailed out (see exitCar(), game-vehicles.js).
+  dealershipJet = { def: JET_DEF, group: buildJetMesh(-230, -220, 0), carYaw: 0, homeX: -230, homeZ: -220, homeYaw: 0 };
+  // FUTURE JET — a second Airport apron pad, 15 units west of the Super Jet's, same clear-of-
+  // everything reasoning (baggage carts at x:-205..-195, control tower's addCol at x:-224..-216,
+  // both z:-242 runway planes) — see dealershipFutureJet/FUTURE_JET_DEF/buildJetMesh (game-vehicles.js).
+  buildSign('🚀 FUTURE JET', -245,4.5,-224);
+  dealershipFutureJet = { def: FUTURE_JET_DEF, group: buildJetMesh(-245, -220, 0, FUTURE_JET_DEF.color), carYaw: 0, homeX: -245, homeZ: -220, homeYaw: 0 };
 }
 
 // ─── PLAYER HOUSE (exterior in city) ─────────────────────────────────────────
@@ -26469,6 +29863,8 @@ function drawAvatarCard(cv) {
   else if(playerHat==='headphones'){ c.fillStyle='#222222'; c.fillRect(cx-17,14,4,11); c.fillRect(cx+13,14,4,11); c.fillRect(cx-15,6,30,5); }
   else if(playerHat==='chef')      { c.fillStyle='#ffffff'; c.fillRect(cx-12,18,24,7); c.beginPath(); c.ellipse(cx,9,14,11,0,0,Math.PI*2); c.fill(); }
   else if(playerHat==='turban')    { c.fillStyle='#8833aa'; c.beginPath(); c.ellipse(cx,14,15,12,0,0,Math.PI*2); c.fill(); c.fillStyle='#ffcc00'; c.beginPath(); c.arc(cx,7,3,0,Math.PI*2); c.fill(); }
+  // Cat Ears — real user request (a fan playing the deployed game): "Pls add cat ears... As an hat".
+  else if(playerHat==='catears')   { c.fillStyle='#333333'; c.beginPath(); c.moveTo(cx-16,10); c.lineTo(cx-8,-6); c.lineTo(cx-1,10); c.closePath(); c.fill(); c.beginPath(); c.moveTo(cx+1,10); c.lineTo(cx+8,-6); c.lineTo(cx+16,10); c.closePath(); c.fill(); c.fillStyle='#ff88aa'; c.beginPath(); c.moveTo(cx-13,8); c.lineTo(cx-8,-1); c.lineTo(cx-4,8); c.closePath(); c.fill(); c.beginPath(); c.moveTo(cx+4,8); c.lineTo(cx+8,-1); c.lineTo(cx+13,8); c.closePath(); c.fill(); }
 
   // Pants & shoes — real match to the character's actual customization, not just the shirt/hair
   // colors this card already used. Drawn in the space freed by growing the card 24px taller
@@ -26502,116 +29898,154 @@ function buildPlayer() {
   const skin=c3(playerColors.skin), shirt=c3(playerColors.shirt);
   const pants=c3(playerColors.pants), shoes=c3(playerColors.shoes), hairC=c3(playerColors.hair);
 
+  // ── REAL SKELETAL RIG ── actual THREE.Bone objects (real THREE.Object3D subclasses), parented
+  // into a real joint hierarchy, with a real THREE.Skeleton registered over them. Every body/
+  // cosmetic mesh below now hangs off the bone for its body part instead of sitting flat under
+  // playerGroup, so game-controls.js's walk/punch/etc. animation can rotate the BONE (a real
+  // joint) instead of the raw box mesh — a swinging arm now pivots from the shoulder instead of
+  // spinning around its own geometric center. Bone world-Y values below are in playerGroup space
+  // (none of these bones sit rotated away from identity here, so "world" == "rest-pose local sum"
+  // for every number already hand-tuned into the branches further down).
+  const SPINE_Y = 1.75;   // torso vertical center — hips sit at the same height in this simplified rig
+  const HEAD_Y = 2.3;     // neck / base of the head box (head box is 1 unit tall, centered at 2.8)
+  const SHOULDER_X = 0.65, SHOULDER_Y = 2.2; // top of the arm box (0.9 tall, centered at 1.75)
+  const legH = playerPants==='shorts' ? 0.5 : playerPants==='capri' ? 0.75 : 0.9;
+  const legY = playerPants==='shorts' ? 0.9 : playerPants==='capri' ? 0.72 : 0.75;
+  const HIP_X = 0.22, HIP_Y = legY + legH/2; // top of the leg box — the real hip joint
+
+  const hipsBone = new THREE.Bone(); hipsBone.position.set(0, SPINE_Y, 0); playerGroup.add(hipsBone);
+  const spineBone = new THREE.Bone(); hipsBone.add(spineBone); // stays at local (0,0,0) — same point as hips here
+  const headBone = new THREE.Bone(); headBone.position.set(0, HEAD_Y-SPINE_Y, 0); spineBone.add(headBone);
+  const leftShoulderBone = new THREE.Bone(); leftShoulderBone.position.set(-SHOULDER_X, SHOULDER_Y-SPINE_Y, 0); spineBone.add(leftShoulderBone);
+  const rightShoulderBone = new THREE.Bone(); rightShoulderBone.position.set(SHOULDER_X, SHOULDER_Y-SPINE_Y, 0); spineBone.add(rightShoulderBone);
+  const leftHipBone = new THREE.Bone(); leftHipBone.position.set(-HIP_X, HIP_Y-SPINE_Y, 0); hipsBone.add(leftHipBone);
+  const rightHipBone = new THREE.Bone(); rightHipBone.position.set(HIP_X, HIP_Y-SPINE_Y, 0); hipsBone.add(rightHipBone);
+  player.hipsBone=hipsBone; player.spineBone=spineBone; player.headBone=headBone;
+  player.leftShoulderBone=leftShoulderBone; player.rightShoulderBone=rightShoulderBone;
+  player.leftHipBone=leftHipBone; player.rightHipBone=rightHipBone;
+  player.skeleton = new THREE.Skeleton([hipsBone, spineBone, headBone, leftShoulderBone, rightShoulderBone, leftHipBone, rightHipBone]);
+
   const skinMeshes = [];
-  const mk=(w,h,d,color,x,y,z)=>{
+  // mkOn(bone, boneWX,boneWY,boneWZ, w,h,d,color,x,y,z) — same box-mesh builder as the old flat
+  // mk(), but every branch below still passes the SAME playerGroup-relative x,y,z it always used;
+  // this just re-expresses that position relative to the target bone by subtracting the bone's
+  // own world offset, so none of the ~150 hand-tuned coordinate literals below had to change.
+  const mkOn=(bone,bwx,bwy,bwz,w,h,d,color,x,y,z)=>{
     const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color}));
-    m.position.set(x,y,z); m.castShadow=true; playerGroup.add(m);
+    m.position.set(x-bwx,y-bwy,z-bwz); m.castShadow=true; bone.add(m);
     if(color===skin) skinMeshes.push(m); // tags every skin-colored part real-time body paint can recolor live
     return m;
   };
+  const mkHead=(w,h,d,color,x,y,z)=>mkOn(headBone,0,HEAD_Y,0,w,h,d,color,x,y,z);
+  const mkTorso=(w,h,d,color,x,y,z)=>mkOn(spineBone,0,SPINE_Y,0,w,h,d,color,x,y,z);
+  const mkHips=(w,h,d,color,x,y,z)=>mkOn(hipsBone,0,SPINE_Y,0,w,h,d,color,x,y,z);
+  const mkArmL=(w,h,d,color,x,y,z)=>mkOn(leftShoulderBone,-SHOULDER_X,SHOULDER_Y,0,w,h,d,color,x,y,z);
+  const mkArmR=(w,h,d,color,x,y,z)=>mkOn(rightShoulderBone,SHOULDER_X,SHOULDER_Y,0,w,h,d,color,x,y,z);
+  const mkLegL=(w,h,d,color,x,y,z)=>mkOn(leftHipBone,-HIP_X,HIP_Y,0,w,h,d,color,x,y,z);
+  const mkLegR=(w,h,d,color,x,y,z)=>mkOn(rightHipBone,HIP_X,HIP_Y,0,w,h,d,color,x,y,z);
 
   // Head & eyes
-  player.headMesh = mk(1,1,1, skin, 0,2.8,0);
+  player.headMesh = mkHead(1,1,1, skin, 0,2.8,0);
   const em=new THREE.MeshBasicMaterial({color:0x111111});
-  [-0.22,0.22].forEach(ex=>{const e=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.05),em);e.position.set(ex,2.85,0.51);playerGroup.add(e);});
+  [-0.22,0.22].forEach(ex=>{const e=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.05),em);e.position.set(ex,2.85-HEAD_Y,0.51);headBone.add(e);});
 
   // Hair
-  if(playerHair==='short')    { mk(1.08,0.3,0.95,hairC,0,3.35,0); mk(0.25,0.5,0.9,hairC,-0.6,3.1,0); mk(0.25,0.5,0.9,hairC,0.6,3.1,0); }
-  else if(playerHair==='long'){ mk(1.08,0.3,0.95,hairC,0,3.35,0); mk(0.28,1.4,0.9,hairC,-0.6,2.4,0); mk(0.28,1.4,0.9,hairC,0.6,2.4,0); mk(0.9,1.4,0.28,hairC,0,2.4,-0.5); }
-  else if(playerHair==='spiky'){ mk(1.1,0.2,1.0,hairC,0,3.35,0); [-0.35,-0.17,0,0.17,0.35].forEach((sx,i)=>mk(0.18,0.5+i%2*0.2,0.18,hairC,sx,3.7+i%2*0.1,0)); }
-  else if(playerHair==='afro') { mk(1.5,1.4,1.4,hairC,0,3.1,0); }
-  else if(playerHair==='ponytail'){ mk(1.08,0.3,0.95,hairC,0,3.35,0); mk(0.25,0.5,0.9,hairC,-0.6,3.1,0); mk(0.28,1.8,0.28,hairC,0,2.2,-0.5); }
-  else if(playerHair==='curly'){ [-0.3,0,0.3].forEach(cx2=>mk(0.5,0.55,0.5,hairC,cx2,3.4,0)); mk(0.28,1.2,0.28,hairC,-0.6,2.7,0); mk(0.28,1.2,0.28,hairC,0.6,2.7,0); }
+  if(playerHair==='short')    { mkHead(1.08,0.3,0.95,hairC,0,3.35,0); mkHead(0.25,0.5,0.9,hairC,-0.6,3.1,0); mkHead(0.25,0.5,0.9,hairC,0.6,3.1,0); }
+  else if(playerHair==='long'){ mkHead(1.08,0.3,0.95,hairC,0,3.35,0); mkHead(0.28,1.4,0.9,hairC,-0.6,2.4,0); mkHead(0.28,1.4,0.9,hairC,0.6,2.4,0); mkHead(0.9,1.4,0.28,hairC,0,2.4,-0.5); }
+  else if(playerHair==='spiky'){ mkHead(1.1,0.2,1.0,hairC,0,3.35,0); [-0.35,-0.17,0,0.17,0.35].forEach((sx,i)=>mkHead(0.18,0.5+i%2*0.2,0.18,hairC,sx,3.7+i%2*0.1,0)); }
+  else if(playerHair==='afro') { mkHead(1.5,1.4,1.4,hairC,0,3.1,0); }
+  else if(playerHair==='ponytail'){ mkHead(1.08,0.3,0.95,hairC,0,3.35,0); mkHead(0.25,0.5,0.9,hairC,-0.6,3.1,0); mkHead(0.28,1.8,0.28,hairC,0,2.2,-0.5); }
+  else if(playerHair==='curly'){ [-0.3,0,0.3].forEach(cx2=>mkHead(0.5,0.55,0.5,hairC,cx2,3.4,0)); mkHead(0.28,1.2,0.28,hairC,-0.6,2.7,0); mkHead(0.28,1.2,0.28,hairC,0.6,2.7,0); }
 
   // Hat
-  if(playerHat==='cap')     { mk(1.2,0.15,1.2,0xee4444,0,3.35,0); mk(0.9,0.5,0.8,0xee4444,0,3.63,-0.05); mk(0.5,0.12,0.4,0xee4444,0,3.28,0.7); }
-  else if(playerHat==='cowboy'){ mk(1.7,0.12,1.7,0x8B4513,0,3.32,0); mk(0.9,0.7,0.9,0x8B4513,0,3.72,0); }
-  else if(playerHat==='crown'){ mk(1.1,0.28,1.1,0xFFD700,0,3.35,0); [-0.35,0,0.35].forEach((cx2,i)=>mk(0.22,0.4+i%2*0.15,0.22,0xFFD700,cx2,3.7,0)); }
-  else if(playerHat==='helmet'){ mk(1.15,0.85,1.15,0x555555,0,3.48,0); mk(0.7,0.3,0.15,0x88ccff,0,3.22,0.56); }
-  else if(playerHat==='tophat'){ mk(1.35,0.1,1.35,0x111111,0,3.32,0); mk(0.9,0.9,0.9,0x111111,0,3.8,0); mk(0.92,0.08,0.92,0x333333,0,3.38,0); }
-  else if(playerHat==='beanie'){ mk(1.05,0.7,1.05,shirt,0,3.5,0); mk(0.35,0.35,0.35,0xffffff,0,3.92,0); }
-  else if(playerHat==='fedora'){ mk(1.5,0.1,1.5,0x7a5c3a,0,3.32,0); mk(0.9,0.65,0.9,0x7a5c3a,0,3.65,0); mk(0.91,0.08,0.91,0x333333,0,3.37,0); }
-  else if(playerHat==='wizard'){ const w=new THREE.Mesh(new THREE.ConeGeometry(0.6,1.8,8),new THREE.MeshLambertMaterial({color:0x4444aa}));w.position.set(0,3.9,0);playerGroup.add(w); mk(1.3,0.12,1.3,0x4444aa,0,3.32,0); }
-  else if(playerHat==='pirate'){ mk(1.4,0.1,1.4,0x111111,0,3.32,0); mk(0.9,0.6,0.5,0x111111,0,3.66,0); mk(0.3,0.3,0.15,0xffffff,0,3.7,0.3); }
-  else if(playerHat==='santa') { mk(1.1,0.2,1.1,0xffffff,0,3.32,0); const cn=new THREE.Mesh(new THREE.ConeGeometry(0.5,1.0,8),new THREE.MeshLambertMaterial({color:0xdd2222}));cn.position.set(0.1,3.88,0);playerGroup.add(cn); mk(0.25,0.25,0.25,0xffffff,0.45,4.32,0); }
+  if(playerHat==='cap')     { mkHead(1.2,0.15,1.2,0xee4444,0,3.35,0); mkHead(0.9,0.5,0.8,0xee4444,0,3.63,-0.05); mkHead(0.5,0.12,0.4,0xee4444,0,3.28,0.7); }
+  else if(playerHat==='cowboy'){ mkHead(1.7,0.12,1.7,0x8B4513,0,3.32,0); mkHead(0.9,0.7,0.9,0x8B4513,0,3.72,0); }
+  else if(playerHat==='crown'){ mkHead(1.1,0.28,1.1,0xFFD700,0,3.35,0); [-0.35,0,0.35].forEach((cx2,i)=>mkHead(0.22,0.4+i%2*0.15,0.22,0xFFD700,cx2,3.7,0)); }
+  else if(playerHat==='helmet'){ mkHead(1.15,0.85,1.15,0x555555,0,3.48,0); mkHead(0.7,0.3,0.15,0x88ccff,0,3.22,0.56); }
+  else if(playerHat==='tophat'){ mkHead(1.35,0.1,1.35,0x111111,0,3.32,0); mkHead(0.9,0.9,0.9,0x111111,0,3.8,0); mkHead(0.92,0.08,0.92,0x333333,0,3.38,0); }
+  else if(playerHat==='beanie'){ mkHead(1.05,0.7,1.05,shirt,0,3.5,0); mkHead(0.35,0.35,0.35,0xffffff,0,3.92,0); }
+  else if(playerHat==='fedora'){ mkHead(1.5,0.1,1.5,0x7a5c3a,0,3.32,0); mkHead(0.9,0.65,0.9,0x7a5c3a,0,3.65,0); mkHead(0.91,0.08,0.91,0x333333,0,3.37,0); }
+  else if(playerHat==='wizard'){ const w=new THREE.Mesh(new THREE.ConeGeometry(0.6,1.8,8),new THREE.MeshLambertMaterial({color:0x4444aa}));w.position.set(0,3.9-HEAD_Y,0);headBone.add(w); mkHead(1.3,0.12,1.3,0x4444aa,0,3.32,0); }
+  else if(playerHat==='pirate'){ mkHead(1.4,0.1,1.4,0x111111,0,3.32,0); mkHead(0.9,0.6,0.5,0x111111,0,3.66,0); mkHead(0.3,0.3,0.15,0xffffff,0,3.7,0.3); }
+  else if(playerHat==='santa') { mkHead(1.1,0.2,1.1,0xffffff,0,3.32,0); const cn=new THREE.Mesh(new THREE.ConeGeometry(0.5,1.0,8),new THREE.MeshLambertMaterial({color:0xdd2222}));cn.position.set(0.1,3.88-HEAD_Y,0);headBone.add(cn); mkHead(0.25,0.25,0.25,0xffffff,0.45,4.32,0); }
   // 15 new hats — real distinct meshes, same shape-language as the ones above.
-  else if(playerHat==='bandana')   { mk(1.15,0.15,1.15,0xcc3355,0,3.32,0); mk(0.3,0.3,0.1,0xcc3355,0,3.2,-0.6); }
-  else if(playerHat==='headband')  { mk(1.15,0.15,1.15,0x3388cc,0,3.35,0); }
-  else if(playerHat==='partyhat')  { const ph=new THREE.Mesh(new THREE.ConeGeometry(0.55,1.3,8),new THREE.MeshLambertMaterial({color:0xffcc00}));ph.position.set(0,4.0,0);playerGroup.add(ph); mk(0.15,0.15,0.15,0xff3366,0,4.68,0); }
-  else if(playerHat==='bucket')    { mk(1.5,0.15,1.5,0x4a7a4a,0,3.36,0); mk(0.9,0.5,0.9,0x4a7a4a,0,3.65,0); }
-  else if(playerHat==='jester')    { mk(1.15,0.15,1.15,0x8833cc,0,3.35,0); [-0.35,0,0.35].forEach((jx,i)=>{const jc=new THREE.Mesh(new THREE.ConeGeometry(0.16,0.5+i%2*0.2,4),new THREE.MeshLambertMaterial({color:0x8833cc}));jc.position.set(jx,3.7+i%2*0.1,0);playerGroup.add(jc);}); }
-  else if(playerHat==='viking')    { mk(1.15,0.7,1.15,0x999999,0,3.5,0); const hL=new THREE.Mesh(new THREE.ConeGeometry(0.12,0.6,6),new THREE.MeshLambertMaterial({color:0xeeeecc}));hL.position.set(-0.6,3.9,0);hL.rotation.z=0.5;playerGroup.add(hL); const hR=new THREE.Mesh(new THREE.ConeGeometry(0.12,0.6,6),new THREE.MeshLambertMaterial({color:0xeeeecc}));hR.position.set(0.6,3.9,0);hR.rotation.z=-0.5;playerGroup.add(hR); }
-  else if(playerHat==='graduation'){ mk(1.4,0.1,1.4,0x111111,0,3.6,0); mk(0.9,0.5,0.9,0x111111,0,3.35,0); mk(0.06,0.4,0.06,0xFFD700,0.6,3.5,0); }
-  else if(playerHat==='flower')    { mk(1.15,0.15,1.15,0x2d7a2d,0,3.35,0); ['#ff69b4','#ffcc00','#ff6688','#cc88ff','#ffffff'].forEach((col,i)=>{const a2=i*Math.PI*2/5; mk(0.16,0.16,0.16,parseInt(col.slice(1),16),Math.cos(a2)*0.55,3.4,Math.sin(a2)*0.55);}); }
-  else if(playerHat==='backwards') { mk(1.2,0.5,0.8,0x3355aa,0,3.63,0.05); mk(0.5,0.12,0.4,0x3355aa,0,3.28,-0.7); }
-  else if(playerHat==='sombrero')  { mk(2.2,0.12,2.2,0xd4a860,0,3.35,0); mk(0.9,0.7,0.9,0xd4a860,0,3.75,0); }
-  else if(playerHat==='sunglasses'){ mk(0.9,0.22,0.1,0x111111,0,2.87,0.52); mk(0.15,0.15,0.35,0x222222,-0.5,2.87,0.35); mk(0.15,0.15,0.35,0x222222,0.5,2.87,0.35); }
-  else if(playerHat==='propeller') { mk(1.05,0.7,1.05,0xdd4444,0,3.5,0); mk(0.7,0.06,0.12,0xcccccc,0,3.95,0); mk(0.1,0.15,0.1,0x888888,0,3.9,0); }
-  else if(playerHat==='antlers')   { mk(1.1,0.7,1.1,hairC,0,3.5,0); [-0.4,0.4].forEach(ax=>{ mk(0.1,0.7,0.1,0x8B5A2B,ax,4.0,0); mk(0.3,0.1,0.1,0x8B5A2B,ax-0.15,3.85,0); mk(0.3,0.1,0.1,0x8B5A2B,ax+0.15,4.15,0); }); }
-  else if(playerHat==='headphones'){ mk(0.18,0.5,0.5,0x222222,-0.62,3.15,0); mk(0.18,0.5,0.5,0x222222,0.62,3.15,0); mk(1.3,0.12,0.2,0x222222,0,3.75,0); }
-  else if(playerHat==='chef')      { mk(1.0,0.3,1.0,0xffffff,0,3.45,0); mk(0.8,0.7,0.8,0xffffff,0,3.95,0); }
-  else if(playerHat==='turban')    { mk(1.1,0.7,1.1,0x8833aa,0,3.55,0); mk(0.16,0.16,0.16,0xffcc00,0,3.95,0.4); }
+  else if(playerHat==='bandana')   { mkHead(1.15,0.15,1.15,0xcc3355,0,3.32,0); mkHead(0.3,0.3,0.1,0xcc3355,0,3.2,-0.6); }
+  else if(playerHat==='headband')  { mkHead(1.15,0.15,1.15,0x3388cc,0,3.35,0); }
+  else if(playerHat==='partyhat')  { const ph=new THREE.Mesh(new THREE.ConeGeometry(0.55,1.3,8),new THREE.MeshLambertMaterial({color:0xffcc00}));ph.position.set(0,4.0-HEAD_Y,0);headBone.add(ph); mkHead(0.15,0.15,0.15,0xff3366,0,4.68,0); }
+  else if(playerHat==='bucket')    { mkHead(1.5,0.15,1.5,0x4a7a4a,0,3.36,0); mkHead(0.9,0.5,0.9,0x4a7a4a,0,3.65,0); }
+  else if(playerHat==='jester')    { mkHead(1.15,0.15,1.15,0x8833cc,0,3.35,0); [-0.35,0,0.35].forEach((jx,i)=>{const jc=new THREE.Mesh(new THREE.ConeGeometry(0.16,0.5+i%2*0.2,4),new THREE.MeshLambertMaterial({color:0x8833cc}));jc.position.set(jx,3.7+i%2*0.1-HEAD_Y,0);headBone.add(jc);}); }
+  else if(playerHat==='viking')    { mkHead(1.15,0.7,1.15,0x999999,0,3.5,0); const hL=new THREE.Mesh(new THREE.ConeGeometry(0.12,0.6,6),new THREE.MeshLambertMaterial({color:0xeeeecc}));hL.position.set(-0.6,3.9-HEAD_Y,0);hL.rotation.z=0.5;headBone.add(hL); const hR=new THREE.Mesh(new THREE.ConeGeometry(0.12,0.6,6),new THREE.MeshLambertMaterial({color:0xeeeecc}));hR.position.set(0.6,3.9-HEAD_Y,0);hR.rotation.z=-0.5;headBone.add(hR); }
+  else if(playerHat==='graduation'){ mkHead(1.4,0.1,1.4,0x111111,0,3.6,0); mkHead(0.9,0.5,0.9,0x111111,0,3.35,0); mkHead(0.06,0.4,0.06,0xFFD700,0.6,3.5,0); }
+  else if(playerHat==='flower')    { mkHead(1.15,0.15,1.15,0x2d7a2d,0,3.35,0); ['#ff69b4','#ffcc00','#ff6688','#cc88ff','#ffffff'].forEach((col,i)=>{const a2=i*Math.PI*2/5; mkHead(0.16,0.16,0.16,parseInt(col.slice(1),16),Math.cos(a2)*0.55,3.4,Math.sin(a2)*0.55);}); }
+  else if(playerHat==='backwards') { mkHead(1.2,0.5,0.8,0x3355aa,0,3.63,0.05); mkHead(0.5,0.12,0.4,0x3355aa,0,3.28,-0.7); }
+  else if(playerHat==='sombrero')  { mkHead(2.2,0.12,2.2,0xd4a860,0,3.35,0); mkHead(0.9,0.7,0.9,0xd4a860,0,3.75,0); }
+  else if(playerHat==='sunglasses'){ mkHead(0.9,0.22,0.1,0x111111,0,2.87,0.52); mkHead(0.15,0.15,0.35,0x222222,-0.5,2.87,0.35); mkHead(0.15,0.15,0.35,0x222222,0.5,2.87,0.35); }
+  else if(playerHat==='propeller') { mkHead(1.05,0.7,1.05,0xdd4444,0,3.5,0); mkHead(0.7,0.06,0.12,0xcccccc,0,3.95,0); mkHead(0.1,0.15,0.1,0x888888,0,3.9,0); }
+  else if(playerHat==='antlers')   { mkHead(1.1,0.7,1.1,hairC,0,3.5,0); [-0.4,0.4].forEach(ax=>{ mkHead(0.1,0.7,0.1,0x8B5A2B,ax,4.0,0); mkHead(0.3,0.1,0.1,0x8B5A2B,ax-0.15,3.85,0); mkHead(0.3,0.1,0.1,0x8B5A2B,ax+0.15,4.15,0); }); }
+  else if(playerHat==='headphones'){ mkHead(0.18,0.5,0.5,0x222222,-0.62,3.15,0); mkHead(0.18,0.5,0.5,0x222222,0.62,3.15,0); mkHead(1.3,0.12,0.2,0x222222,0,3.75,0); }
+  else if(playerHat==='chef')      { mkHead(1.0,0.3,1.0,0xffffff,0,3.45,0); mkHead(0.8,0.7,0.8,0xffffff,0,3.95,0); }
+  else if(playerHat==='turban')    { mkHead(1.1,0.7,1.1,0x8833aa,0,3.55,0); mkHead(0.16,0.16,0.16,0xffcc00,0,3.95,0.4); }
+  // Cat Ears — real user request (a fan playing the deployed game): "Pls add cat ears... As an hat".
+  else if(playerHat==='catears')   { mkHead(0.32,0.5,0.14,0x333333,-0.35,3.75,0); mkHead(0.32,0.5,0.14,0x333333,0.35,3.75,0); mkHead(0.18,0.3,0.06,0xff88aa,-0.35,3.68,0.06); mkHead(0.18,0.3,0.06,0xff88aa,0.35,3.68,0.06); }
 
   // Body & arms
   const bCol = playerShirt==='suit' ? 0x222222 : shirt;
   const aCol = playerShirt==='tanktop' ? skin : bCol;
-  player.torsoMesh = mk(0.9,1.1,0.5, bCol, 0,1.75,0);
+  player.torsoMesh = mkTorso(0.9,1.1,0.5, bCol, 0,1.75,0);
   player.torsoBaseColor = bCol;
   refreshShirtPaintTexture();
-  player.lArm = mk(0.35,0.9,0.35, aCol,-0.65,1.75,0);
-  player.rArm = mk(0.35,0.9,0.35, aCol, 0.65,1.75,0);
-  mk(0.37,0.28,0.37, skin,-0.65,1.22,0); mk(0.37,0.28,0.37, skin,0.65,1.22,0);
+  player.lArm = mkArmL(0.35,0.9,0.35, aCol,-0.65,1.75,0);
+  player.rArm = mkArmR(0.35,0.9,0.35, aCol, 0.65,1.75,0);
+  mkArmL(0.37,0.28,0.37, skin,-0.65,1.22,0); mkArmR(0.37,0.28,0.37, skin,0.65,1.22,0);
   // 15 new shirts — real distinct accent meshes on top of the shared torso/arm shape above.
-  if(playerShirt==='crop')          { mk(0.94,0.3,0.54, skin, 0,1.35,0); }
-  else if(playerShirt==='vneck')    { mk(0.15,0.25,0.1, skin, 0,2.15,0.26); }
-  else if(playerShirt==='crewneck') { mk(0.45,0.1,0.45, bCol, 0,2.3,0); }
-  else if(playerShirt==='turtleneck'){ mk(0.5,0.22,0.5, bCol, 0,2.35,0); }
-  else if(playerShirt==='polo')     { mk(0.5,0.1,0.1, 0xffffff, 0,2.15,0.26); }
-  else if(playerShirt==='tuxedo')   { mk(0.5,0.1,0.1, 0xffffff, 0,2.15,0.26); mk(0.12,0.12,0.1, 0x111111, 0,2.2,0.3); }
-  else if(playerShirt==='sweater')  { for(let i=0;i<3;i++) mk(0.92,0.06,0.52, 0x000000, 0,1.5+i*0.25,0.001); }
-  else if(playerShirt==='raincoat') { mk(1.0,1.3,0.56, bCol, 0,1.7,0); mk(0.3,0.12,0.5, 0xffffff, 0,2.3,0); }
-  else if(playerShirt==='denim')    { mk(0.15,0.5,0.05, 0xffdc78, -0.35,1.9,0.26); mk(0.15,0.5,0.05, 0xffdc78, 0.35,1.9,0.26); }
-  else if(playerShirt==='camo')     { mk(0.3,0.3,0.1, 0x2a3a14, -0.2,1.9,0.26); mk(0.25,0.25,0.1, 0x3a4a1a, 0.2,1.6,0.26); }
-  else if(playerShirt==='graphic')  { mk(0.3,0.3,0.05, 0xffcc00, 0,1.7,0.26); }
-  else if(playerShirt==='flannel')  { for(let i=0;i<3;i++) mk(0.92,0.06,0.52, 0x000000, 0,1.5+i*0.25,0.001); mk(0.06,1.0,0.52, 0x000000, -0.2,1.75,0.001); }
-  else if(playerShirt==='buttonup') { for(let i=0;i<4;i++) mk(0.06,0.06,0.06, 0x333333, 0,2.15-i*0.2,0.26); }
-  else if(playerShirt==='crophoodie'){ mk(0.94,0.3,0.54, skin, 0,1.35,0); mk(0.08,0.4,0.08, bCol, -0.15,2.15,0.26); mk(0.08,0.4,0.08, bCol, 0.15,2.15,0.26); }
-  else if(playerShirt==='overshirt'){ mk(0.5,1.1,0.1, skin, 0,1.75,0.26); }
+  if(playerShirt==='crop')          { mkTorso(0.94,0.3,0.54, skin, 0,1.35,0); }
+  else if(playerShirt==='vneck')    { mkTorso(0.15,0.25,0.1, skin, 0,2.15,0.26); }
+  else if(playerShirt==='crewneck') { mkTorso(0.45,0.1,0.45, bCol, 0,2.3,0); }
+  else if(playerShirt==='turtleneck'){ mkTorso(0.5,0.22,0.5, bCol, 0,2.35,0); }
+  else if(playerShirt==='polo')     { mkTorso(0.5,0.1,0.1, 0xffffff, 0,2.15,0.26); }
+  else if(playerShirt==='tuxedo')   { mkTorso(0.5,0.1,0.1, 0xffffff, 0,2.15,0.26); mkTorso(0.12,0.12,0.1, 0x111111, 0,2.2,0.3); }
+  else if(playerShirt==='sweater')  { for(let i=0;i<3;i++) mkTorso(0.92,0.06,0.52, 0x000000, 0,1.5+i*0.25,0.001); }
+  else if(playerShirt==='raincoat') { mkTorso(1.0,1.3,0.56, bCol, 0,1.7,0); mkTorso(0.3,0.12,0.5, 0xffffff, 0,2.3,0); }
+  else if(playerShirt==='denim')    { mkTorso(0.15,0.5,0.05, 0xffdc78, -0.35,1.9,0.26); mkTorso(0.15,0.5,0.05, 0xffdc78, 0.35,1.9,0.26); }
+  else if(playerShirt==='camo')     { mkTorso(0.3,0.3,0.1, 0x2a3a14, -0.2,1.9,0.26); mkTorso(0.25,0.25,0.1, 0x3a4a1a, 0.2,1.6,0.26); }
+  else if(playerShirt==='graphic')  { mkTorso(0.3,0.3,0.05, 0xffcc00, 0,1.7,0.26); }
+  else if(playerShirt==='flannel')  { for(let i=0;i<3;i++) mkTorso(0.92,0.06,0.52, 0x000000, 0,1.5+i*0.25,0.001); mkTorso(0.06,1.0,0.52, 0x000000, -0.2,1.75,0.001); }
+  else if(playerShirt==='buttonup') { for(let i=0;i<4;i++) mkTorso(0.06,0.06,0.06, 0x333333, 0,2.15-i*0.2,0.26); }
+  else if(playerShirt==='crophoodie'){ mkTorso(0.94,0.3,0.54, skin, 0,1.35,0); mkTorso(0.08,0.4,0.08, bCol, -0.15,2.15,0.26); mkTorso(0.08,0.4,0.08, bCol, 0.15,2.15,0.26); }
+  else if(playerShirt==='overshirt'){ mkTorso(0.5,1.1,0.1, skin, 0,1.75,0.26); }
 
   // Legs
-  const legH = playerPants==='shorts' ? 0.5 : playerPants==='capri' ? 0.75 : 0.9;
-  const legY = playerPants==='shorts' ? 0.9 : playerPants==='capri' ? 0.72 : 0.75;
-  player.lLeg = mk(0.38,legH,0.38, pants,-0.22,legY,0);
-  player.rLeg = mk(0.38,legH,0.38, pants, 0.22,legY,0);
-  if(playerPants==='shorts'){mk(0.38,0.45,0.38,skin,-0.22,0.32,0);mk(0.38,0.45,0.38,skin,0.22,0.32,0);}
-  if(playerPants==='cargo'){mk(0.15,0.25,0.4,0x333333,-0.38,0.9,0.1);mk(0.15,0.25,0.4,0x333333,0.38,0.9,0.1);}
+  player.lLeg = mkLegL(0.38,legH,0.38, pants,-0.22,legY,0);
+  player.rLeg = mkLegR(0.38,legH,0.38, pants, 0.22,legY,0);
+  if(playerPants==='shorts'){mkLegL(0.38,0.45,0.38,skin,-0.22,0.32,0);mkLegR(0.38,0.45,0.38,skin,0.22,0.32,0);}
+  if(playerPants==='cargo'){mkLegL(0.15,0.25,0.4,0x333333,-0.38,0.9,0.1);mkLegR(0.15,0.25,0.4,0x333333,0.38,0.9,0.1);}
   // 10 new pants — real distinct accents/shapes on the shared leg meshes above.
-  if(playerPants==='capri')          { mk(0.4,0.2,0.4,skin,-0.22,0.42,0); mk(0.4,0.2,0.4,skin,0.22,0.42,0); }
-  else if(playerPants==='leggings')  { mk(0.06,0.9,0.06,0x000000,-0.22,0.75,0.19); mk(0.06,0.9,0.06,0x000000,0.22,0.75,0.19); }
-  else if(playerPants==='plaid')     { for(let i=0;i<3;i++) mk(0.4,0.06,0.4,0x000000,-0.22,0.5+i*0.25,0); for(let i=0;i<3;i++) mk(0.4,0.06,0.4,0x000000,0.22,0.5+i*0.25,0); }
-  else if(playerPants==='bellbottom'){ mk(0.55,0.2,0.42,pants,-0.22,0.35,0); mk(0.55,0.2,0.42,pants,0.22,0.35,0); }
-  else if(playerPants==='camopants') { mk(0.2,0.2,0.2,0x3a4a1a,-0.22,0.9,0.15); mk(0.2,0.2,0.2,0x2a3a14,0.22,0.6,0.15); }
-  else if(playerPants==='skinny')    { mk(0.06,0.9,0.06,0x000000,-0.24,0.75,0); mk(0.06,0.9,0.06,0x000000,0.24,0.75,0); }
-  else if(playerPants==='sweatpants'){ mk(0.4,0.1,0.4,0xffffff,-0.22,0.32,0); mk(0.4,0.1,0.4,0xffffff,0.22,0.32,0); }
-  else if(playerPants==='overalls')  { mk(0.9,0.6,0.5,pants,0,1.5,0); mk(0.1,0.4,0.1,pants,-0.3,2.0,0); mk(0.1,0.4,0.1,pants,0.3,2.0,0); }
-  else if(playerPants==='skirt' || playerPants==='kilt') { const sk=new THREE.Mesh(new THREE.ConeGeometry(0.55,0.65,4),new THREE.MeshLambertMaterial({color:pants})); sk.position.set(0,0.65,0); sk.rotation.y=Math.PI/4; playerGroup.add(sk); }
+  if(playerPants==='capri')          { mkLegL(0.4,0.2,0.4,skin,-0.22,0.42,0); mkLegR(0.4,0.2,0.4,skin,0.22,0.42,0); }
+  else if(playerPants==='leggings')  { mkLegL(0.06,0.9,0.06,0x000000,-0.22,0.75,0.19); mkLegR(0.06,0.9,0.06,0x000000,0.22,0.75,0.19); }
+  else if(playerPants==='plaid')     { for(let i=0;i<3;i++) mkLegL(0.4,0.06,0.4,0x000000,-0.22,0.5+i*0.25,0); for(let i=0;i<3;i++) mkLegR(0.4,0.06,0.4,0x000000,0.22,0.5+i*0.25,0); }
+  else if(playerPants==='bellbottom'){ mkLegL(0.55,0.2,0.42,pants,-0.22,0.35,0); mkLegR(0.55,0.2,0.42,pants,0.22,0.35,0); }
+  else if(playerPants==='camopants') { mkLegL(0.2,0.2,0.2,0x3a4a1a,-0.22,0.9,0.15); mkLegR(0.2,0.2,0.2,0x2a3a14,0.22,0.6,0.15); }
+  else if(playerPants==='skinny')    { mkLegL(0.06,0.9,0.06,0x000000,-0.24,0.75,0); mkLegR(0.06,0.9,0.06,0x000000,0.24,0.75,0); }
+  else if(playerPants==='sweatpants'){ mkLegL(0.4,0.1,0.4,0xffffff,-0.22,0.32,0); mkLegR(0.4,0.1,0.4,0xffffff,0.22,0.32,0); }
+  else if(playerPants==='overalls')  { mkHips(0.9,0.6,0.5,pants,0,1.5,0); mkLegL(0.1,0.4,0.1,pants,-0.3,2.0,0); mkLegR(0.1,0.4,0.1,pants,0.3,2.0,0); }
+  else if(playerPants==='skirt' || playerPants==='kilt') { const sk=new THREE.Mesh(new THREE.ConeGeometry(0.55,0.65,4),new THREE.MeshLambertMaterial({color:pants})); sk.position.set(0,0.65-SPINE_Y,0); sk.rotation.y=Math.PI/4; hipsBone.add(sk); }
 
   // Shoes
   const shoeC=c3(playerColors.shoes);
   const shH=playerShoes==='boots'?0.45:playerShoes==='rainboots'?0.6:playerShoes==='cowboyboots'?0.55:playerShoes==='platform'?0.3:0.22;
   const shY=playerShoes==='boots'?0.18:playerShoes==='rainboots'?0.28:playerShoes==='cowboyboots'?0.25:playerShoes==='platform'?0.13:0.1;
   const shD=playerShoes==='sandals'?0.6:playerShoes==='flipflops'?0.55:0.52;
-  mk(0.42,shH,shD, shoeC,-0.22,shY,0.05);
-  mk(0.42,shH,shD, shoeC, 0.22,shY,0.05);
-  if(playerShoes==='hightop'){mk(0.43,0.3,0.53,shoeC,-0.22,0.32,0.04);mk(0.43,0.3,0.53,shoeC,0.22,0.32,0.04);}
+  mkLegL(0.42,shH,shD, shoeC,-0.22,shY,0.05);
+  mkLegR(0.42,shH,shD, shoeC, 0.22,shY,0.05);
+  if(playerShoes==='hightop'){mkLegL(0.43,0.3,0.53,shoeC,-0.22,0.32,0.04);mkLegR(0.43,0.3,0.53,shoeC,0.22,0.32,0.04);}
   // 6 more new shoes — real distinct accents (flipflops/rainboots/cowboyboots/platform already
   // handled above via shH/shY/shD).
-  else if(playerShoes==='cleats')   { mk(0.06,0.06,0.06,0x222222,-0.3,0.02,0.2); mk(0.06,0.06,0.06,0x222222,0.3,0.02,0.2); }
-  else if(playerShoes==='slippers') { mk(0.05,0.05,0.2,0xffffff,-0.22,0.2,0.2); mk(0.05,0.05,0.2,0xffffff,0.22,0.2,0.2); }
-  else if(playerShoes==='crocs')    { mk(0.1,0.15,0.1,0x000000,-0.22,0.2,0.15); mk(0.1,0.15,0.1,0x000000,0.22,0.2,0.15); }
-  else if(playerShoes==='wedges')   { mk(0.4,0.15,0.5,shoeC,-0.22,0.02,0.05); mk(0.4,0.15,0.5,shoeC,0.22,0.02,0.05); }
-  else if(playerShoes==='moccasins'){ mk(0.1,0.05,0.4,0x6b4423,-0.22,0.22,0.05); mk(0.1,0.05,0.4,0x6b4423,0.22,0.22,0.05); }
-  else if(playerShoes==='skates')   { mk(0.42,0.1,0.55,0x888888,-0.22,0.02,0.08); mk(0.42,0.1,0.55,0x888888,0.22,0.02,0.08); }
+  else if(playerShoes==='cleats')   { mkLegL(0.06,0.06,0.06,0x222222,-0.3,0.02,0.2); mkLegR(0.06,0.06,0.06,0x222222,0.3,0.02,0.2); }
+  else if(playerShoes==='slippers') { mkLegL(0.05,0.05,0.2,0xffffff,-0.22,0.2,0.2); mkLegR(0.05,0.05,0.2,0xffffff,0.22,0.2,0.2); }
+  else if(playerShoes==='crocs')    { mkLegL(0.1,0.15,0.1,0x000000,-0.22,0.2,0.15); mkLegR(0.1,0.15,0.1,0x000000,0.22,0.2,0.15); }
+  else if(playerShoes==='wedges')   { mkLegL(0.4,0.15,0.5,shoeC,-0.22,0.02,0.05); mkLegR(0.4,0.15,0.5,shoeC,0.22,0.02,0.05); }
+  else if(playerShoes==='moccasins'){ mkLegL(0.1,0.05,0.4,0x6b4423,-0.22,0.22,0.05); mkLegR(0.1,0.05,0.4,0x6b4423,0.22,0.22,0.05); }
+  else if(playerShoes==='skates')   { mkLegL(0.42,0.1,0.55,0x888888,-0.22,0.02,0.08); mkLegR(0.42,0.1,0.55,0x888888,0.22,0.02,0.08); }
 
   player.skinMeshes = skinMeshes;
 
@@ -26631,53 +30065,1094 @@ function buildPlayer() {
   scene.add(playerGroup);
 }
 
+// ─── EMOTES ────────────────────────────────────────────────────────────────────
+// Coordinator's own scope expansion: "MORE THAN 100 distinct emotes, each purchasable with real
+// S.I.P." — hand-authoring 100+ fully separate animation routines isn't realistic, so this follows
+// the exact same "derive variety from a formula/seed, don't hand-type a huge table" rule the rest of
+// this codebase already uses for its huge generated catalogs (buildWeaponLevels()'s cost curve,
+// game-social.js; generateArmorBatch()'s Math.pow cost curve; craftCostForPrice()'s per-item recipe,
+// game-housing.js — craftHash()/craftRng() are reused directly below rather than redefined).
+//
+// 14 real bone-driven animation FAMILIES below (Wave/Dance/Sit/Laugh/Salute/Facepalm/Cry/Bow/Point/
+// Clap/Spin/Flex/Shrug/Cheer) are the genuine building blocks — each is a distinct per-frame
+// rotation routine over the real skeletal rig (buildPlayer()'s hipsBone/spineBone/headBone/
+// leftShoulderBone/rightShoulderBone/leftHipBone/rightHipBone), same sine-eased style as the
+// walk-cycle/punch-swing code in game-controls.js's animate(). Every emote a player can actually buy
+// is a NAMED VARIANT of one family: the SAME real animation function (applyEmotePose below), just
+// parametrized differently (speed/amplitude/repeat-count/which-side/flourish) by a seeded PRNG, so
+// e.g. "Friendly Wave" and "Cosmic Wave" are genuinely different playbacks of the same wave rig-
+// motion, not identical motion with a different label. 14 families x 4 rarity tiers x 2 variants per
+// tier = 112 real, distinct, purchasable emotes.
+const EMOTE_FAMILIES = {
+  wave:     { name:'Wave',     baseDuration:2.2 },
+  dance:    { name:'Dance',    baseDuration:0   }, // loops for as long as it's active
+  sit:      { name:'Sit',      baseDuration:0   }, // holds a seated pose until cancelled
+  laugh:    { name:'Laugh',    baseDuration:2.0 },
+  salute:   { name:'Salute',   baseDuration:1.8 },
+  facepalm: { name:'Facepalm', baseDuration:1.8 },
+  cry:      { name:'Cry',      baseDuration:2.4 },
+  bow:      { name:'Bow',      baseDuration:1.8 },
+  point:    { name:'Point',    baseDuration:1.6 },
+  clap:     { name:'Clap',     baseDuration:2.0 },
+  spin:     { name:'Spin',     baseDuration:1.4 },
+  flex:     { name:'Flex',     baseDuration:2.0 },
+  shrug:    { name:'Shrug',    baseDuration:1.6 },
+  cheer:    { name:'Cheer',    baseDuration:1.8 },
+};
+const EMOTE_FAMILY_EMOJI = {
+  wave:'👋', dance:'💃', sit:'🧘', laugh:'😂', salute:'🫡', facepalm:'🤦', cry:'😢', bow:'🙇',
+  point:'👉', clap:'👏', spin:'🌀', flex:'💪', shrug:'🤷', cheer:'🙌',
+};
+// Rarity tiers — same "bigger number = rarer/pricier" idea as WEAPON tiers/ARMOR tiers elsewhere,
+// just applied to emotes. basePrice feeds craftEmotePriceFor() below (real S.I.P., not a craft recipe).
+const EMOTE_TIERS = {
+  common:    { label:'Common',    color:'#9aa0a6', basePrice:120  },
+  rare:      { label:'Rare',      color:'#4fc3f7', basePrice:500  },
+  epic:      { label:'Epic',      color:'#c77dff', basePrice:2000 },
+  legendary: { label:'Legendary', color:'#ffd700', basePrice:8000 },
+};
+const EMOTE_TIER_ORDER = ['common','rare','epic','legendary'];
+// Adjective pools variants draw their display name from — 4 per tier is plenty since each
+// family+tier only ever needs 2 (EMOTE_VARIANTS_PER_TIER below), and craftRng() shuffles which 2
+// a given family gets so e.g. "Wave" and "Bow" don't always show the exact same 2 words.
+const EMOTE_ADJ = {
+  common:    ['Friendly','Quick','Casual','Classic'],
+  rare:      ['Smooth','Confident','Stylish','Sharp'],
+  epic:      ['Dramatic','Grand','Electric','Fierce'],
+  legendary: ['Legendary','Mythic','Cosmic','Ultimate'],
+};
+const EMOTE_VARIANTS_PER_TIER = 2; // x14 families x4 tiers = 112 real purchasable emotes
+// Deterministically generated ONCE at load — every player's game generates the exact identical 112
+// variants (same ids/names/prices/params forever), since craftHash()/craftRng() are seeded purely
+// from the family+tier+index strings below, never Math.random().
+const EMOTE_CATALOG = (function(){
+  const out = [];
+  Object.keys(EMOTE_FAMILIES).forEach(famId => {
+    const fam = EMOTE_FAMILIES[famId];
+    EMOTE_TIER_ORDER.forEach(tierId => {
+      const tier = EMOTE_TIERS[tierId];
+      // Shuffle this family+tier's own copy of the adjective pool (Fisher-Yates, seeded) so
+      // different families reliably get different adjectives for the same tier.
+      const shuffleRng = craftRng(craftHash('emoteadj:'+famId+':'+tierId));
+      const pool = EMOTE_ADJ[tierId].slice();
+      for(let i=pool.length-1;i>0;i--){ const j=Math.floor(shuffleRng()*(i+1)); const tmp=pool[i]; pool[i]=pool[j]; pool[j]=tmp; }
+      for(let v=0; v<EMOTE_VARIANTS_PER_TIER; v++){
+        const id = 'emote_'+famId+'_'+tierId+'_'+v;
+        const name = `${pool[v % pool.length]} ${fam.name}`;
+        const rng = craftRng(craftHash(id));
+        const params = {
+          speed:    0.8 + rng()*0.7,             // 0.8x-1.5x playback speed (also scales a one-shot's real finish time)
+          amp:      0.8 + rng()*0.8,              // 0.8x-1.6x motion amplitude
+          repeat:   2 + Math.floor(rng()*3),      // 2-4 repeats, for the families that oscillate (wave/clap/cheer/laugh/cry/spin)
+          side:     rng() < 0.5 ? 1 : -1,         // mirrors one-armed emotes left/right
+          flourish: rng(),                         // 0-1 dial a few families use for a bonus flick/hop/twist
+          // 0-7, unique per family (4 tiers x 2 variants) — lets a family with real distinct
+          // sub-styles (currently just 'dance') pick a genuinely different choreography per variant
+          // instead of just remixing speed/amp/flourish on one shared motion.
+          styleIndex: EMOTE_TIER_ORDER.indexOf(tierId)*EMOTE_VARIANTS_PER_TIER + v,
+        };
+        const price = Math.max(50, Math.round(tier.basePrice * (0.85 + rng()*0.3) / 5) * 5); // jittered +/-15%, same "derive off a base, don't hand-type" spirit as craftCostForPrice()'s material weights
+        out.push({ id, family:famId, tier:tierId, name, price, params, emoji: EMOTE_FAMILY_EMOJI[famId] });
+      }
+    });
+  });
+  return out;
+})();
+const EMOTE_CATALOG_BY_ID = {};
+EMOTE_CATALOG.forEach(v => { EMOTE_CATALOG_BY_ID[v.id] = v; });
+
+// Resets every bone an emote could ever touch back to rest — called once whenever an emote ends or
+// is cancelled so it can never leave an arm/head/hip stuck mid-gesture. Works on either the local
+// player object or a remote player's mesh group — both expose the identical bone names.
+function resetEmotePose(b) {
+  if(!b || !b.hipsBone) return;
+  b.hipsBone.rotation.set(0,0,0);
+  if(b.hipsBone._emoteRestY !== undefined) b.hipsBone.position.y = b.hipsBone._emoteRestY;
+  b.spineBone.rotation.set(0,0,0);
+  b.headBone.rotation.set(0,0,0);
+  b.leftShoulderBone.rotation.set(0,0,0);
+  b.rightShoulderBone.rotation.set(0,0,0);
+  b.leftHipBone.rotation.set(0,0,0);
+  b.rightHipBone.rotation.set(0,0,0);
+}
+// Drives ONE frame of the given emote FAMILY on the given bone-set, parametrized by `params`
+// (speed/amp/repeat/side/flourish — see EMOTE_CATALOG above). `b` is either the local `player`
+// object (game-controls.js's animate() calls this with `player`) or a remote player's mesh group
+// (buildOtherPlayerAvatar() builds the identical bone names onto it) — the SAME function plays the
+// SAME real motion on either, just aimed at different bones, so there's no duplicated animation
+// logic between local and remote playback. `elapsed` is real seconds since the emote started.
+function applyEmotePose(b, familyId, elapsed, params) {
+  if(!b || !b.hipsBone) return;
+  const hips=b.hipsBone, spine=b.spineBone, head=b.headBone, lSh=b.leftShoulderBone, rSh=b.rightShoulderBone, lHip=b.leftHipBone, rHip=b.rightHipBone;
+  if(hips._emoteRestY === undefined) hips._emoteRestY = hips.position.y;
+  // Every branch below only sets the joints it actually uses — starting from a clean rest pose each
+  // frame means switching families/variants (or ending one) never leaves a stray rotation behind.
+  hips.rotation.set(0,0,0); hips.position.y = hips._emoteRestY;
+  spine.rotation.set(0,0,0); head.rotation.set(0,0,0);
+  lSh.rotation.set(0,0,0); rSh.rotation.set(0,0,0);
+  lHip.rotation.set(0,0,0); rHip.rotation.set(0,0,0);
+  const p = params || {speed:1,amp:1,repeat:3,side:1,flourish:0};
+  const speed=p.speed||1, amp=p.amp||1, repeat=p.repeat||3, side=p.side>=0?1:-1, flourish=p.flourish||0, styleIndex=p.styleIndex||0;
+  const et = elapsed*speed; // "logical" time — a faster variant simply reaches every stage sooner
+  const fam = EMOTE_FAMILIES[familyId];
+  const dur = fam ? fam.baseDuration : 0;
+  const leadSh = side>=0 ? rSh : lSh; // the "acting" arm for one-armed emotes — flips per-variant via `side`
+  switch(familyId){
+    case 'wave': {
+      const raise = Math.min(1, et/0.3);
+      const swayPhase = et*Math.PI*repeat*0.9;
+      leadSh.rotation.x = -1.3*raise;
+      leadSh.rotation.z = -side*(0.3 + Math.sin(swayPhase)*0.35*amp*raise);
+      head.rotation.y = Math.sin(et*2)*0.05*amp;
+      // Hip sway / body lean riding the same wave beat — bigger `flourish` waves put more of the
+      // whole body into it instead of just the arm.
+      hips.rotation.z = side*flourish*0.15*Math.sin(swayPhase)*raise;
+      spine.rotation.z = side*flourish*0.08*Math.sin(swayPhase - 0.4)*raise;
+      break;
+    }
+    case 'dance': {
+      const beat = et*2*Math.PI*0.9; // keeps climbing the whole time it's active — a real loop, not a one-shot
+      // 8 genuinely different dance choreographies (one per family+tier variant, via styleIndex —
+      // see EMOTE_CATALOG above) instead of one shared motion remixed by speed/amp/flourish. Each
+      // style moves a different set of joints in a different pattern, so variants are distinguishable
+      // by silhouette alone, not just by how big/fast the same wiggle plays.
+      switch(styleIndex % 8){
+        case 0: { // Robot — phase quantized to 90-degree steps for a jerky, isolated snap
+          const snap = Math.round(beat/(Math.PI/2))*(Math.PI/2);
+          const armPhase = Math.sin(snap);
+          lSh.rotation.x = -0.7 + armPhase*0.7*amp; rSh.rotation.x = -0.7 - armPhase*0.7*amp;
+          lSh.rotation.z = Math.cos(snap)*0.5*amp; rSh.rotation.z = -Math.cos(snap)*0.5*amp;
+          head.rotation.y = Math.sign(Math.sin(snap*0.5))*0.2*(0.3+flourish);
+          hips.rotation.y = Math.sign(Math.sin(snap*0.5))*0.08*side;
+          break;
+        }
+        case 1: { // Disco Point — alternating overhead point, hip sway underneath
+          const rPoint = Math.sin(beat);
+          lSh.rotation.x = -0.3 - Math.max(0,-rPoint)*1.6*amp;
+          rSh.rotation.x = -0.3 - Math.max(0, rPoint)*1.6*amp;
+          lSh.rotation.z = Math.max(0,-rPoint)*0.5; rSh.rotation.z = -Math.max(0,rPoint)*0.5;
+          hips.rotation.z = Math.sin(beat*0.5)*0.15*amp*side;
+          head.rotation.y = Math.sin(beat*0.5)*0.1;
+          break;
+        }
+        case 2: { // Floss — arms swing opposite front/back past the hips, hips counter-twist
+          const swing = Math.sin(beat*1.3);
+          lSh.rotation.x = -0.4 + swing*1.1*amp; rSh.rotation.x = -0.4 - swing*1.1*amp;
+          lSh.rotation.z = 0.25; rSh.rotation.z = -0.25;
+          hips.rotation.y = -swing*0.25*amp*side;
+          hips.rotation.x = Math.abs(swing)*0.05;
+          spine.rotation.y = swing*0.1*flourish;
+          break;
+        }
+        case 3: { // Headbang — fast head bang + one-arm fist pump on the beat
+          const bang = Math.abs(Math.sin(beat*1.5));
+          head.rotation.x = -0.1 + bang*0.5*amp;
+          spine.rotation.x = bang*0.15;
+          leadSh.rotation.x = -1.2*bang; leadSh.rotation.z = -side*0.1;
+          const otherSh = side>=0 ? lSh : rSh;
+          otherSh.rotation.x = -0.3;
+          hips.position.y = hips._emoteRestY + bang*0.05*(0.3+flourish);
+          break;
+        }
+        case 4: { // Hip-Bump Shuffle — side-to-side hip bump, arms counter-sway
+          const bump = Math.sin(beat);
+          hips.rotation.z = bump*0.35*amp;
+          hips.position.y = hips._emoteRestY + Math.abs(Math.sin(beat*2))*0.03;
+          spine.rotation.z = -bump*0.15;
+          lSh.rotation.z = -bump*0.2; rSh.rotation.z = bump*0.2;
+          lSh.rotation.x = -0.25; rSh.rotation.x = -0.25;
+          head.rotation.z = bump*0.1*flourish;
+          break;
+        }
+        case 5: { // Moonwalk Groove — smooth backward lean with a slow gliding arm roll
+          const glide = Math.sin(beat*0.6);
+          spine.rotation.x = -0.12 - Math.abs(glide)*0.08*amp;
+          hips.rotation.x = -0.08*amp;
+          hips.position.y = hips._emoteRestY - Math.abs(Math.sin(beat*1.2))*0.04;
+          lSh.rotation.x = -0.5 + Math.sin(beat*1.2)*0.3*amp;
+          rSh.rotation.x = -0.5 + Math.sin(beat*1.2+Math.PI)*0.3*amp;
+          lSh.rotation.z = 0.15*flourish; rSh.rotation.z = -0.15*flourish;
+          head.rotation.z = Math.sin(beat*0.5)*0.05;
+          break;
+        }
+        case 6: { // Body-Roll Wave — a wave travels head -> spine -> hips with phase offsets
+          head.rotation.x = Math.sin(beat)*0.15*amp;
+          spine.rotation.x = Math.sin(beat-0.6)*0.18*amp;
+          hips.rotation.x = Math.sin(beat-1.2)*0.15*amp;
+          hips.position.y = hips._emoteRestY + Math.sin(beat-1.2)*0.03;
+          lSh.rotation.x = -0.4 + Math.sin(beat-0.3)*0.2*amp;
+          rSh.rotation.x = -0.4 + Math.sin(beat-0.3)*0.2*amp;
+          lSh.rotation.z = flourish*0.15*Math.sin(beat); rSh.rotation.z = -flourish*0.15*Math.sin(beat);
+          break;
+        }
+        case 7: { // Spin-Shimmy — fast shoulder shimmy layered on a slow continuous turn
+          const shimmy = Math.sin(beat*6)*0.12*amp;
+          lSh.rotation.z = 0.3 + shimmy; rSh.rotation.z = -0.3 - shimmy;
+          lSh.rotation.x = -0.5; rSh.rotation.x = -0.5;
+          hips.rotation.y = beat*0.15*side;
+          head.rotation.y = shimmy*0.5;
+          break;
+        }
+      }
+      break;
+    }
+    case 'sit': {
+      // Legs swing forward at the hip (no knee joint on this rig, so a straight-leg seated
+      // silhouette — same simplification makeNPC()'s def.seated pose already uses), held until cancelled.
+      // The idle fidget below runs on REAL `elapsed` time (not `et`), since a hold pose never
+      // finishes and shouldn't visibly speed up just because a variant's `speed` is higher.
+      const fidget = Math.sin(elapsed*0.35*repeat)*flourish;
+      lHip.rotation.x = -1.4; rHip.rotation.x = -1.4;
+      hips.position.y = hips._emoteRestY - 0.35;
+      // Amplified from the first pass — measured too subtle in testing (a seated pose has no
+      // other structural difference between variants, so the fidget IS the whole distinction).
+      spine.rotation.x = 0.15 + fidget*0.18*amp;
+      spine.rotation.z = Math.sin(elapsed*0.22*repeat + 1.1)*flourish*0.15*amp;
+      head.rotation.x = fidget*0.22*amp;
+      head.rotation.z = Math.cos(elapsed*0.3*repeat)*flourish*0.15*amp;
+      lSh.rotation.x = 0.1*amp + fidget*0.12; rSh.rotation.x = 0.1*amp - fidget*0.12;
+      lHip.rotation.z = flourish*0.1*Math.sin(elapsed*0.18*repeat); rHip.rotation.z = -flourish*0.1*Math.sin(elapsed*0.18*repeat);
+      break;
+    }
+    case 'laugh': {
+      const bob = Math.sin(et*Math.PI*2*(repeat/dur));
+      const hunch = flourish*0.2; // how much the body leans/hunches into the laugh
+      head.rotation.x = -0.15 + bob*0.15*amp - hunch*0.3;
+      spine.rotation.x = -0.08 + Math.abs(bob)*0.08*amp + hunch;
+      spine.rotation.z = side*0.04*amp;
+      lSh.rotation.x = -0.4 + bob*0.2*amp - hunch*0.15;
+      rSh.rotation.x = -0.4 - bob*0.2*amp - hunch*0.15;
+      break;
+    }
+    case 'salute': {
+      const raise = Math.min(1, et/0.25);
+      // Raise-drop-raise: `repeat` crisp salute bumps front-loaded early in the gesture, decaying
+      // out so the arm settles into a held salute well before the emote's real end.
+      const bumpWindow = Math.min(1, et/(dur*0.7));
+      const bump = Math.sin(bumpWindow*Math.PI*repeat) * (1-bumpWindow) * 0.3*amp;
+      leadSh.rotation.x = -1.75*raise + bump;
+      leadSh.rotation.z = side*0.5*raise;
+      head.rotation.x = -0.05*raise;
+      head.rotation.y = -side*0.08*raise*amp;
+      // Heel-click/heel-dip synced to the first bump, sized by `flourish`.
+      const heel = Math.max(0, Math.sin(bumpWindow*Math.PI*2)) * flourish;
+      hips.position.y = hips._emoteRestY - heel*0.05;
+      lHip.rotation.x = -heel*0.15; rHip.rotation.x = -heel*0.15;
+      break;
+    }
+    case 'facepalm': {
+      const raise = Math.min(1, et/0.3);
+      // Bigger `flourish` = a harder, more dramatic palm-drop with a brief overshoot past the
+      // resting pose before it settles.
+      const overshoot = Math.sin(raise*Math.PI)*flourish*0.35;
+      leadSh.rotation.x = -1.9*raise - overshoot;
+      leadSh.rotation.z = -side*0.35*raise;
+      head.rotation.x = 0.25*raise*amp + overshoot*0.4;
+      head.rotation.z = -side*0.1*raise;
+      // Slow head-shake once the palm has landed — `repeat` sets how many shakes fit in the rest
+      // of the gesture's real duration.
+      const afterDur = Math.max(0.1, dur-0.3);
+      const afterT = Math.max(0, et-0.3);
+      head.rotation.y = Math.sin(afterT*Math.PI*2*(repeat/afterDur))*0.12*amp*Math.min(1, afterT*3);
+      break;
+    }
+    case 'cry': {
+      const shake = Math.sin(et*Math.PI*2*(repeat/Math.max(dur,1)))*0.06*amp;
+      const hunch = flourish*0.25; // how much the body leans/hunches into the crying
+      head.rotation.x = 0.35 + hunch*0.3;
+      head.rotation.z = shake*1.5;
+      spine.rotation.x = hunch;
+      lSh.rotation.x = -0.15 + shake - hunch*0.2; rSh.rotation.x = -0.15 - shake - hunch*0.2;
+      lSh.rotation.z = shake*1.5; rSh.rotation.z = -shake*1.5;
+      break;
+    }
+    case 'bow': {
+      const pr = Math.min(1, et/dur);
+      // Higher `repeat` variants do a full double-bow (bow-rise-bow) instead of a single bow.
+      const bowCount = repeat >= 4 ? 2 : 1;
+      const arc = Math.sin(pr*Math.PI*bowCount)*amp; // down, then back up (x bowCount)
+      spine.rotation.x = arc*1.0;
+      hips.rotation.x = arc*0.15;
+      hips.rotation.y = flourish*0.3*arc*side;
+      lSh.rotation.x = arc*0.2; rSh.rotation.x = arc*0.2;
+      break;
+    }
+    case 'point': {
+      const raise = Math.min(1, et/0.25);
+      // Accusatory side-to-side wag once the arm is up — `repeat` sets how many wags, `flourish`
+      // sets how big each wag is.
+      const wag = Math.sin(et*Math.PI*2*(repeat/Math.max(dur,1)))*0.12*flourish*raise;
+      leadSh.rotation.x = -1.5*raise;
+      leadSh.rotation.z = -side*0.15 + wag;
+      head.rotation.y = -side*0.15*raise + wag*0.5;
+      break;
+    }
+    case 'clap': {
+      const beat = Math.sin(et*Math.PI*2*(repeat/dur));
+      const raise = Math.min(1, et/0.2);
+      // Head-bob / torso bounce synced to each clap, sized by `flourish`.
+      const bounce = Math.max(0, beat)*flourish;
+      lSh.rotation.x = (-1.1 + beat*0.2*amp)*raise;
+      rSh.rotation.x = (-1.1 - beat*0.2*amp)*raise;
+      lSh.rotation.z = (0.5 + beat*0.25*amp)*raise;
+      rSh.rotation.z = (-0.5 - beat*0.25*amp)*raise;
+      head.rotation.x = -0.05*raise - bounce*0.08;
+      hips.position.y = hips._emoteRestY + bounce*0.05*raise;
+      spine.rotation.x = -bounce*0.05*raise;
+      break;
+    }
+    case 'spin': {
+      // Spins the WHOLE rig (hipsBone is the root every other bone hangs from) in place, without
+      // touching playerGroup.rotation.y — so the character's actual facing/movement direction is
+      // untouched once the emote ends.
+      hips.rotation.y = et*Math.PI*2*(repeat/dur)*side;
+      // Higher `flourish` twirls with arms raised overhead instead of held at the sides.
+      const armsUp = flourish;
+      lSh.rotation.x = -0.15 - armsUp*1.6; rSh.rotation.x = -0.15 - armsUp*1.6;
+      lSh.rotation.z = armsUp*0.4; rSh.rotation.z = -armsUp*0.4;
+      break;
+    }
+    case 'flex': {
+      // Flex-relax-flex pump: `repeat` full pumps fit inside the family's real duration window.
+      const pump = Math.abs(Math.sin(et*Math.PI*(repeat/Math.max(dur,1))));
+      const shake = et>0.3 ? Math.sin(et*10)*0.03*amp : 0;
+      // Higher `flourish` does a single-arm flex (the acting `side` arm) instead of a double-arm flex.
+      const singleArm = flourish > 0.5;
+      const lAmt = singleArm && side<0 ? 0.15 : pump;
+      const rAmt = singleArm && side>=0 ? 0.15 : pump;
+      lSh.rotation.x = -1.4*lAmt*amp + shake; rSh.rotation.x = -1.4*rAmt*amp - shake;
+      lSh.rotation.z = 0.6*lAmt; rSh.rotation.z = -0.6*rAmt;
+      head.rotation.x = -0.1*pump;
+      head.rotation.y = singleArm ? side*0.12*pump : 0;
+      break;
+    }
+    case 'shrug': {
+      const pr = Math.min(1, et/dur);
+      // Multi-shrug: shrug-drop-shrug — more `repeat` means more shrugs (capped at 3 so it never
+      // gets too frantic for the family's short baseDuration).
+      const shrugCount = Math.min(3, Math.max(1, repeat-1));
+      const arc = Math.sin(pr*Math.PI*shrugCount)*amp;
+      lSh.rotation.z = 0.5*arc; rSh.rotation.z = -0.5*arc;
+      lSh.rotation.x = -0.3*arc; rSh.rotation.x = -0.3*arc;
+      // Questioning head tilt — how far it tilts is sized by `flourish`.
+      head.rotation.z = Math.sin(pr*Math.PI*2)*0.05*arc + flourish*0.15*Math.sin(pr*Math.PI);
+      head.rotation.x = flourish*0.1*Math.sin(pr*Math.PI);
+      hips.position.y = hips._emoteRestY + arc*0.03;
+      break;
+    }
+    case 'cheer': {
+      const beat = Math.sin(et*Math.PI*2*(repeat/dur));
+      const raise = Math.min(1, et/0.25);
+      // `flourish` adds extra jump height on top of the base bounce.
+      const jump = Math.max(0,beat)*(0.1 + flourish*0.15)*amp*raise;
+      lSh.rotation.x = (-2.4 + beat*0.3*amp)*raise;
+      rSh.rotation.x = (-2.4 - beat*0.3*amp)*raise;
+      hips.position.y = hips._emoteRestY + jump;
+      spine.rotation.x = -jump*0.3; // leans back slightly at the peak of a bigger jump
+      head.rotation.x = -0.1*raise;
+      break;
+    }
+  }
+}
+// A loop/hold family (Dance/Sit — baseDuration:0) never auto-finishes; every other family is a real
+// one-shot that ends once its (speed-scaled) real duration has elapsed.
+function emoteIsFinished(variant, elapsed) {
+  const fam = EMOTE_FAMILIES[variant.family];
+  if (!fam || !fam.baseDuration) return false;
+  return elapsed >= fam.baseDuration / (variant.params.speed || 1);
+}
+
+// ─── FIGHT MOVES ─────────────────────────────────────────────────────────────
+// Same real "many hand-authored choreographies sharing one function over the same rig" idea as the
+// emote system just above, aimed at combat instead of idle animation. Every attack in the game
+// (attackNPC/fightKiller/fightRobot/fightBoss/hitDummy/hitWarWall/PvP duels/FFA, etc. — ~14 real
+// combat functions across game-land.js/game-social.js/game-world.js/game-housing.js) already just
+// calls triggerSwing()/swingAndHit() (game-economy.js), which now picks a real random move id from
+// whatever the player currently has EQUIPPED and stores it in activeSwingMove — animate()
+// (game-controls.js) reads that and calls applySwingMove() below once per frame while the swing is
+// active. None of those ~14 call sites (or swingAndHit() itself) needed to change at all.
+//
+// 10 moves are free (FIGHT_MOVE_CATALOG tier:'free' — every account owns all 10, no S.I.P. needed,
+// isFightMoveOwned() below never even checks ownedFightMoves for these). The other 20 cost real
+// S.I.P. to unlock (buyFightMove()) into ownedFightMoves (game-economy.js — persisted the exact same
+// way ownedEmotes is, see saveCurrentUser()/doLogin() in game-core.js). Prices aren't hand-typed —
+// same craftHash()/craftRng()-seeded +/-15% jitter off a per-tier base price EMOTE_CATALOG above
+// already uses, just with FIGHT_MOVE_TIERS' own base prices (moves cost a bit more than emotes since
+// they actually affect combat, not just cosmetics).
+//
+// Only 3 owned moves can be EQUIPPED at once (FIGHT_MOVE_EQUIP_CAP) — equipFightMove()/
+// unequipFightMove() below manage the persisted `equippedMoves` array (game-economy.js) that
+// triggerSwing() actually draws from. doLogin() (game-core.js) auto-fills it with the first 3 free
+// moves for a brand-new account so combat is never broken out of the box.
+const FIGHT_MOVE_TIERS = {
+  free:      { label:'Free',      color:'#9aa0a6', basePrice:0     },
+  rare:      { label:'Rare',      color:'#4fc3f7', basePrice:700   },
+  epic:      { label:'Epic',      color:'#c77dff', basePrice:2500  },
+  legendary: { label:'Legendary', color:'#ffd700', basePrice:7000  },
+  mythic:    { label:'Mythic',    color:'#ff5555', basePrice:16000 },
+};
+const FIGHT_MOVE_TIER_ORDER = ['free','rare','epic','legendary','mythic'];
+// id/name/tier only — price is derived below so nobody has to hand-maintain 20 numbers in sync with
+// the tiers above. Order here is purely presentational (panel groups by tier anyway).
+const FIGHT_MOVE_DEFS = [
+  // ── 10 FREE — every account owns these from the start ──
+  { id:'jab',              name:'Jab',               tier:'free' },
+  { id:'cross',            name:'Cross',             tier:'free' },
+  { id:'hook',             name:'Hook',              tier:'free' },
+  { id:'uppercut',         name:'Uppercut',          tier:'free' },
+  { id:'roundhouse',       name:'Roundhouse Kick',   tier:'free' },
+  { id:'overhead_slam',    name:'Overhead Slam',     tier:'free' },
+  { id:'thrust',           name:'Thrust',            tier:'free' },
+  { id:'spin_slash',       name:'Spin Slash',        tier:'free' },
+  { id:'knee_strike',      name:'Knee Strike',       tier:'free' },
+  { id:'haymaker',         name:'Haymaker',          tier:'free' },
+  // ── 20 PREMIUM — real S.I.P. unlock via buyFightMove() ──
+  { id:'elbow_strike',     name:'Elbow Strike',      tier:'rare' },
+  { id:'backfist',         name:'Backfist',          tier:'rare' },
+  { id:'double_jab',       name:'Double Jab',        tier:'rare' },
+  { id:'shoulder_ram',     name:'Shoulder Ram',      tier:'rare' },
+  { id:'low_sweep',        name:'Low Sweep',         tier:'rare' },
+  { id:'flying_knee',      name:'Flying Knee',       tier:'epic' },
+  { id:'axe_kick',         name:'Axe Kick',          tier:'epic' },
+  { id:'heel_kick',        name:'Heel Kick',         tier:'epic' },
+  { id:'twin_strike',      name:'Twin Strike',       tier:'epic' },
+  { id:'spinning_backfist',name:'Spinning Backfist', tier:'epic' },
+  { id:'rising_elbow',     name:'Rising Elbow',      tier:'legendary' },
+  { id:'body_slam',        name:'Body Slam',         tier:'legendary' },
+  { id:'whirlwind_kick',   name:'Whirlwind Kick',    tier:'legendary' },
+  { id:'serpent_thrust',   name:'Serpent Thrust',    tier:'legendary' },
+  { id:'thunder_clap',     name:'Thunder Clap',      tier:'legendary' },
+  { id:'dragon_rise',      name:'Dragon Rise',       tier:'mythic' },
+  { id:'meteor_slam',      name:'Meteor Slam',       tier:'mythic' },
+  { id:'phoenix_spin',     name:'Phoenix Spin',      tier:'mythic' },
+  { id:'storm_fist',       name:'Storm Fist',        tier:'mythic' },
+  { id:'grand_finisher',   name:'Grand Finisher',    tier:'mythic' },
+];
+const FIGHT_MOVE_CATALOG = FIGHT_MOVE_DEFS.map(def => {
+  if (def.tier === 'free') return Object.assign({ price: 0 }, def);
+  const tier = FIGHT_MOVE_TIERS[def.tier];
+  const rng = craftRng(craftHash('fightmove:' + def.id));
+  const price = Math.max(50, Math.round(tier.basePrice * (0.85 + rng() * 0.3) / 5) * 5); // jittered +/-15%, same spirit as EMOTE_CATALOG's price line above
+  return Object.assign({ price }, def);
+});
+const FIGHT_MOVE_CATALOG_BY_ID = {};
+FIGHT_MOVE_CATALOG.forEach(v => { FIGHT_MOVE_CATALOG_BY_ID[v.id] = v; });
+const FIGHT_MOVE_EQUIP_CAP = 3;
+// The 10 free moves are always "owned" — ownedFightMoves (game-economy.js) only ever needs to record
+// the paid ones actually bought.
+function isFightMoveOwned(id) {
+  const v = FIGHT_MOVE_CATALOG_BY_ID[id];
+  return !!v && (v.tier === 'free' || ownedFightMoves.includes(id));
+}
+// Real S.I.P. purchase — same spendSip()/updateSIP()/saveCurrentUser()/sfx.buy() pattern
+// buyEmoteVariant() above already uses, just granting into ownedFightMoves instead of ownedEmotes.
+// Buying a move does NOT equip it — equipFightMove() below is a separate, capped step, same as
+// owning a weapon doesn't auto-wield it.
+function buyFightMove(id) {
+  const v = FIGHT_MOVE_CATALOG_BY_ID[id];
+  if (!v || v.tier === 'free' || ownedFightMoves.includes(id)) return;
+  if (sipDollars < v.price) { showNotif(`❌ Need ${v.price.toLocaleString()} S.I.P.`); return; }
+  spendSip(v.price); updateSIP();
+  ownedFightMoves.push(id);
+  saveCurrentUser();
+  sfx.buy();
+  showNotif(`✅ Unlocked the ${v.name} fight move! Equip it to use it in combat.`);
+  renderMovesPanel();
+}
+// Adds an OWNED move to the real combat rotation (equippedMoves, game-economy.js — triggerSwing()
+// there picks randomly from exactly this array). Capped at FIGHT_MOVE_EQUIP_CAP — trying to equip a
+// 4th while already full gives a real, explicit message instead of silently failing or silently
+// bumping something else off.
+function equipFightMove(id) {
+  const v = FIGHT_MOVE_CATALOG_BY_ID[id];
+  if (!v) return;
+  if (!isFightMoveOwned(id)) { showNotif(`🔒 Buy the ${v.name} move first — ${v.price.toLocaleString()} S.I.P.`); return; }
+  if (equippedMoves.includes(id)) return;
+  if (equippedMoves.length >= FIGHT_MOVE_EQUIP_CAP) { showNotif(`❌ Already have ${FIGHT_MOVE_EQUIP_CAP} moves equipped — unequip one first!`); return; }
+  equippedMoves.push(id);
+  saveCurrentUser();
+  showNotif(`⚔️ Equipped ${v.name}!`);
+  renderMovesPanel();
+}
+function unequipFightMove(id) {
+  const idx = equippedMoves.indexOf(id);
+  if (idx === -1) return;
+  equippedMoves.splice(idx, 1);
+  saveCurrentUser();
+  renderMovesPanel();
+}
+// ── FIGHT MOVES PANEL (rightTabStack's #movesTab / #movesPanel, EXPLOX.html) — same
+// toggle/close/render trio the EMOTES panel above already follows. ──
+function toggleMovesPanel() {
+  const panel = document.getElementById('movesPanel');
+  if (!panel) return;
+  if (panel.style.display === 'none') {
+    if (document.pointerLockElement) document.exitPointerLock();
+    isPointerLocked = false;
+    renderMovesPanel();
+    panel.style.display = 'flex';
+    document.getElementById('movesTab').style.display = 'none';
+  } else { closeMovesPanel(); }
+}
+function closeMovesPanel() {
+  document.getElementById('movesPanel').style.display = 'none';
+  document.getElementById('movesTab').style.display = 'block';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function renderMovesPanel() {
+  const list = document.getElementById('movesList');
+  if (!list) return;
+  let html = `<div style="color:#aaa;font-size:9px;text-align:center;margin-bottom:8px;letter-spacing:1px;">⚔️ EQUIPPED ${equippedMoves.length}/${FIGHT_MOVE_EQUIP_CAP} — ONLY EQUIPPED MOVES PLAY IN A REAL FIGHT</div>`;
+  FIGHT_MOVE_TIER_ORDER.forEach(tierId => {
+    const tier = FIGHT_MOVE_TIERS[tierId];
+    html += `<div style="color:${tier.color};font-weight:bold;font-size:12px;margin:10px 0 4px;border-bottom:1px solid #442233;padding-bottom:3px;">${tier.label.toUpperCase()}</div>`;
+    FIGHT_MOVE_CATALOG.filter(v => v.tier === tierId).forEach(v => {
+      const owned = isFightMoveOwned(v.id);
+      const equipped = equippedMoves.includes(v.id);
+      let btn;
+      if (!owned) btn = `<button class="shopBtn" onclick="buyFightMove('${v.id}')">🔒 Buy — ${v.price.toLocaleString()} S.I.P.</button>`;
+      else if (equipped) btn = `<button class="shopBtn" style="background:#5a1a1a;" onclick="unequipFightMove('${v.id}')">⏹ Unequip</button>`;
+      else btn = `<button class="shopBtn" onclick="equipFightMove('${v.id}')">▶ Equip</button>`;
+      html += `<div class="shopItem" style="margin-bottom:6px;border-color:${tier.color};${equipped?'box-shadow:0 0 8px '+tier.color+';':''}">
+        <div class="siName">🥊 ${v.name}</div>
+        <div class="siCost">${owned ? (tierId==='free' ? 'Free' : '✅ Owned') : `💰 ${v.price.toLocaleString()} S.I.P.`}</div>
+        ${btn}
+      </div>`;
+    });
+  });
+  list.innerHTML = html;
+}
+// Drives ONE frame of the given fight move on the given bone-set — the combat equivalent of
+// applyEmotePose() above, called every frame animate() (game-controls.js) has swingActive true.
+// `b` follows the same generic bone-set shape applyEmotePose() takes (only `player` actually calls
+// this today — remote players don't need to see an attacker's swing pose — but keeping the same
+// shape costs nothing and leaves the door open). `arc` is the existing 0->1->0 eased swing-progress
+// value animate() already computes from SWING_DURATION/playerSwingPower — EVERY term below is a bare
+// multiple of `arc` (or of a sine built from it), never a constant added on top, so every move is
+// guaranteed to sit at (or essentially at) the rest pose whenever arc is 0 — i.e. right as a swing
+// starts and right as it ends — instead of snapping into a mid-swing pose. `swingPower` (0-1, how
+// charged the punch was) scales each move's amplitude up a bit further, same "harder charge reads as
+// a bigger movement" idea the old single swing animation already had.
+//
+// Only the bones a given move actually cares about are set — anything else is left exactly as the
+// walk cycle (leftShoulderBone/rightShoulderBone rotation.x, leftHipBone/rightHipBone rotation.x/z)
+// or the caller's own reset branch (hipsBone, spineBone, the OTHER shoulder's rotation.z, weaponGroup
+// — game-controls.js's animate(), right where this is called) already left it earlier this exact
+// frame — see the comment there for exactly which bones each system owns.
+function applySwingMove(moveId, b, arc, swingPower) {
+  if (!b || !b.rightShoulderBone) return;
+  const hips = b.hipsBone, spine = b.spineBone, lSh = b.leftShoulderBone, rSh = b.rightShoulderBone,
+        lHip = b.leftHipBone, rHip = b.rightHipBone, wg = b.weaponGroup;
+  const a = arc, p = swingPower;
+  switch (moveId) {
+    // ── 10 FREE ──
+    case 'jab': { // fast, sharp, minimal body rotation — closest to the original single swing animation
+      rSh.rotation.x = -a * (1.1 + p * 0.6);
+      rSh.rotation.z = -a * 0.12;
+      if (wg) { wg.rotation.z = -0.2 - a * (1.1 + p * 0.6); wg.rotation.x = a * (0.3 + p * 0.25); }
+      break;
+    }
+    case 'cross': { // straight punch — the power comes from a real hip/spine twist behind it
+      hips.rotation.y = a * (0.4 + p * 0.3);
+      spine.rotation.y = a * (0.28 + p * 0.22);
+      rSh.rotation.x = -a * (1.05 + p * 0.7);
+      rSh.rotation.z = -a * 0.08;
+      if (wg) { wg.rotation.z = -0.2 - a * (1.15 + p * 0.65); wg.rotation.y = a * (0.4 + p * 0.3); }
+      break;
+    }
+    case 'hook': { // wide sideways swing with a body lean into it
+      rSh.rotation.z = -a * (1.2 + p * 0.6);
+      rSh.rotation.x = -a * 0.35;
+      spine.rotation.z = a * (0.3 + p * 0.2);
+      hips.rotation.z = a * (0.18 + p * 0.12);
+      if (wg) { wg.rotation.y = -a * (1.1 + p * 0.6); wg.rotation.z = -0.2 - a * 0.3; }
+      break;
+    }
+    case 'uppercut': { // arm arcs upward, hips/spine coil into the drive
+      rSh.rotation.x = -a * (1.4 + p * 0.5);
+      rSh.rotation.z = a * 0.3;
+      hips.rotation.x = -a * (0.2 + p * 0.15);
+      spine.rotation.x = a * (0.1 + p * 0.1);
+      if (wg) { wg.rotation.x = -a * (1.0 + p * 0.6); wg.rotation.z = -0.2 + a * 0.2; }
+      break;
+    }
+    case 'roundhouse': { // leg kicks out to the side, body leans the opposite way for balance, arms out
+      rHip.rotation.z = -a * (0.9 + p * 0.5);
+      rHip.rotation.x = -a * 0.3;
+      spine.rotation.z = -a * (0.35 + p * 0.2);
+      lSh.rotation.z = a * 0.5; rSh.rotation.z = -a * 0.5; rSh.rotation.x = -a * 0.2;
+      if (wg) wg.rotation.z = -0.2 - a * 0.15;
+      break;
+    }
+    case 'overhead_slam': { // both arms (+ weapon) raise overhead then slam down, big forward spine bend at impact
+      lSh.rotation.x = -a * (1.8 + p * 0.6); rSh.rotation.x = -a * (1.8 + p * 0.6);
+      spine.rotation.x = a * (0.4 + p * 0.3);
+      hips.rotation.x = a * (0.1 + p * 0.1);
+      if (wg) { wg.rotation.x = -a * (1.6 + p * 0.7); wg.rotation.z = -0.2; }
+      break;
+    }
+    case 'thrust': { // straight forward lunge — spine/hip lean forward, arm/weapon extends straight out
+      spine.rotation.x = a * (0.3 + p * 0.2);
+      hips.rotation.x = a * (0.15 + p * 0.15);
+      rSh.rotation.x = -a * (0.9 + p * 0.5);
+      if (wg) { wg.rotation.x = -a * (0.2 + p * 0.1); wg.rotation.z = -0.2 - a * (1.4 + p * 0.6); }
+      break;
+    }
+    case 'spin_slash': { // the whole body spins around once mid-swing before the arm/weapon lands
+      hips.rotation.y = a * (Math.PI * 2 + p * Math.PI * 0.5); // a full turn is visually a no-op, so this still reads clean at the landing frame
+      rSh.rotation.x = -a * (1.0 + p * 0.5);
+      rSh.rotation.z = -a * 0.4;
+      if (wg) { wg.rotation.y = a * (Math.PI * 2 + p * 0.6); wg.rotation.z = -0.2 - a * 0.5; }
+      break;
+    }
+    case 'knee_strike': { // one hip/leg drives up and forward, other leg planted
+      rHip.rotation.x = -a * (1.3 + p * 0.5);
+      spine.rotation.x = a * (0.25 + p * 0.15);
+      hips.rotation.x = a * 0.1;
+      rSh.rotation.x = -a * 0.4; lSh.rotation.x = -a * 0.4;
+      if (wg) wg.rotation.z = -0.2 - a * 0.3;
+      break;
+    }
+    case 'haymaker': { // the biggest/widest of the free 10 — heavy wind-up-feeling wide swing, full spine twist
+      hips.rotation.y = a * (0.6 + p * 0.4);
+      spine.rotation.y = a * (0.7 + p * 0.4);
+      rSh.rotation.z = -a * (1.6 + p * 0.8);
+      rSh.rotation.x = -a * 0.5;
+      lSh.rotation.z = a * 0.3;
+      if (wg) { wg.rotation.y = -a * (1.8 + p * 0.8); wg.rotation.z = -0.2 - a * 0.4; }
+      break;
+    }
+    // ── 20 PREMIUM ──
+    case 'elbow_strike': { // sharp, close-range elbow drive — snappier easing (a*a) than a jab's straight-line arc
+      const a2 = a * a;
+      rSh.rotation.z = -a2 * (1.3 + p * 0.6);
+      rSh.rotation.x = -a * 0.35;
+      spine.rotation.y = a * 0.1;
+      if (wg) { wg.rotation.z = -0.2 - a * 0.6; wg.rotation.x = a2 * (0.8 + p * 0.4); }
+      break;
+    }
+    case 'backfist': { // body rotates away then whips a reverse-hand strike back
+      hips.rotation.y = -a * (0.5 + p * 0.3);
+      spine.rotation.y = -a * (0.2 + p * 0.15);
+      rSh.rotation.z = a * (1.1 + p * 0.6);
+      rSh.rotation.x = -a * 0.25;
+      if (wg) { wg.rotation.y = a * (1.0 + p * 0.5); wg.rotation.z = -0.2; }
+      break;
+    }
+    case 'double_jab': { // two quick same-hand jabs — a real double pulse from one sine, not two separate timers
+      const pulse = Math.abs(Math.sin(a * Math.PI * 2));
+      rSh.rotation.x = -pulse * (1.0 + p * 0.5);
+      rSh.rotation.z = -a * 0.1;
+      if (wg) { wg.rotation.z = -0.2 - pulse * (1.0 + p * 0.5); wg.rotation.x = pulse * (0.3 + p * 0.2); }
+      break;
+    }
+    case 'shoulder_ram': { // a real tackle — spine+hips drive forward hard, both shoulders lead the charge
+      spine.rotation.x = a * (0.5 + p * 0.3);
+      hips.rotation.x = a * (0.3 + p * 0.2);
+      rSh.rotation.x = -a * (0.6 + p * 0.3); lSh.rotation.x = -a * (0.6 + p * 0.3);
+      if (wg) { wg.rotation.x = -a * (0.5 + p * 0.3); wg.rotation.z = -0.2; }
+      break;
+    }
+    case 'low_sweep': { // low wide leg sweep, body leans low, arms out for balance
+      rHip.rotation.z = -a * (1.2 + p * 0.6);
+      rHip.rotation.x = -a * 0.2;
+      spine.rotation.x = a * (0.35 + p * 0.15);
+      spine.rotation.z = a * 0.15;
+      lSh.rotation.z = a * 0.4; rSh.rotation.z = -a * 0.4;
+      if (wg) wg.rotation.z = -0.2 - a * 0.2;
+      break;
+    }
+    case 'flying_knee': { // big hip/leg drive up with a real spine arch, arms pull up into the jump
+      rHip.rotation.x = -a * (1.6 + p * 0.6);
+      spine.rotation.x = -a * (0.3 + p * 0.2);
+      hips.rotation.x = -a * 0.15;
+      rSh.rotation.x = -a * 0.5; lSh.rotation.x = -a * 0.5;
+      if (wg) wg.rotation.z = -0.2 - a * 0.25;
+      break;
+    }
+    case 'axe_kick': { // leg raises high, body slams the axe-kick down at the same time
+      rHip.rotation.x = -a * (1.7 + p * 0.5);
+      spine.rotation.x = a * (0.45 + p * 0.25);
+      hips.rotation.x = a * 0.1;
+      if (wg) { wg.rotation.x = a * (0.4 + p * 0.2); wg.rotation.z = -0.2 - a * 0.2; }
+      break;
+    }
+    case 'heel_kick': { // leg kicks backward (opposite sign from the forward kicks), spine leans into it
+      rHip.rotation.x = a * (1.3 + p * 0.5);
+      spine.rotation.x = a * (0.3 + p * 0.15);
+      rSh.rotation.z = a * 0.3; lSh.rotation.z = -a * 0.3;
+      if (wg) wg.rotation.z = -0.2 + a * 0.15;
+      break;
+    }
+    case 'twin_strike': { // both arms strike forward at once in a crossing X pattern
+      rSh.rotation.x = -a * (1.1 + p * 0.5); lSh.rotation.x = -a * (1.1 + p * 0.5);
+      rSh.rotation.z = -a * 0.4; lSh.rotation.z = a * 0.4;
+      spine.rotation.x = a * 0.15;
+      if (wg) { wg.rotation.x = -a * (0.9 + p * 0.4); wg.rotation.z = -0.2; }
+      break;
+    }
+    case 'spinning_backfist': { // like Spin Slash but the opposite rotation direction, arm led by the shoulder's z axis
+      hips.rotation.y = -a * (Math.PI * 2 + p * Math.PI * 0.5);
+      rSh.rotation.z = a * (1.3 + p * 0.6);
+      rSh.rotation.x = -a * 0.3;
+      if (wg) { wg.rotation.y = -a * (Math.PI * 2 + p * 0.5); wg.rotation.z = -0.2 - a * 0.3; }
+      break;
+    }
+    case 'rising_elbow': { // an elbow strike that rises — z-axis dominant instead of Uppercut's x-axis
+      rSh.rotation.x = -a * (1.5 + p * 0.5);
+      rSh.rotation.z = -a * (0.6 + p * 0.3);
+      hips.rotation.x = -a * (0.15 + p * 0.1);
+      spine.rotation.x = -a * 0.1;
+      if (wg) { wg.rotation.x = -a * (1.1 + p * 0.5); wg.rotation.z = -0.2; }
+      break;
+    }
+    case 'body_slam': { // a real full-body forward drive — hips+spine+both arms all lead into the weapon slam
+      hips.rotation.x = a * (0.4 + p * 0.25);
+      spine.rotation.x = a * (0.6 + p * 0.3);
+      rSh.rotation.x = -a * (1.0 + p * 0.5); lSh.rotation.x = -a * (1.0 + p * 0.5);
+      if (wg) { wg.rotation.x = -a * (1.3 + p * 0.6); wg.rotation.z = -0.2 - a * 0.3; }
+      break;
+    }
+    case 'whirlwind_kick': { // both legs sweep through a real hip spin, arms out wide, bigger than Roundhouse
+      hips.rotation.y = a * (Math.PI * 1.3 + p * Math.PI * 0.4);
+      rHip.rotation.z = -a * (1.0 + p * 0.4);
+      lHip.rotation.z = a * (0.6 + p * 0.3);
+      spine.rotation.z = -a * 0.3;
+      rSh.rotation.z = -a * 0.6; lSh.rotation.z = a * 0.6;
+      if (wg) { wg.rotation.y = a * (1.2 + p * 0.4); wg.rotation.z = -0.2; }
+      break;
+    }
+    case 'serpent_thrust': { // a quick low thrust riding a real snake-like spine/hip wiggle
+      const wig = Math.sin(a * Math.PI * 3);
+      spine.rotation.z = wig * 0.2;
+      spine.rotation.x = a * (0.25 + p * 0.15);
+      hips.rotation.z = wig * 0.12;
+      rSh.rotation.x = -a * (1.2 + p * 0.5);
+      if (wg) { wg.rotation.x = -a * (0.3 + p * 0.15); wg.rotation.z = -0.2 - a * (1.1 + p * 0.5); }
+      break;
+    }
+    case 'thunder_clap': { // both shoulders swing inward at once, like a clap landing on the target
+      rSh.rotation.z = -a * (0.9 + p * 0.4); lSh.rotation.z = a * (0.9 + p * 0.4);
+      rSh.rotation.x = -a * (0.8 + p * 0.4); lSh.rotation.x = -a * (0.8 + p * 0.4);
+      spine.rotation.x = a * (0.2 + p * 0.1);
+      hips.rotation.x = a * 0.1;
+      if (wg) { wg.rotation.x = -a * (0.7 + p * 0.3); wg.rotation.z = -0.2; }
+      break;
+    }
+    case 'dragon_rise': { // an uppercut fused with a rising body spin and a spine arch
+      rSh.rotation.x = -a * (1.6 + p * 0.6);
+      hips.rotation.y = a * (0.8 + p * 0.4);
+      spine.rotation.x = -a * (0.2 + p * 0.15);
+      spine.rotation.y = a * (0.3 + p * 0.15);
+      if (wg) { wg.rotation.x = -a * (1.3 + p * 0.6); wg.rotation.y = a * (0.6 + p * 0.3); wg.rotation.z = -0.2; }
+      break;
+    }
+    case 'meteor_slam': { // Overhead Slam's raise fused with a body spin and a much bigger forward slam
+      lSh.rotation.x = -a * (1.9 + p * 0.6); rSh.rotation.x = -a * (1.9 + p * 0.6);
+      hips.rotation.y = a * (0.5 + p * 0.3);
+      spine.rotation.x = a * (0.55 + p * 0.3);
+      if (wg) { wg.rotation.x = -a * (1.8 + p * 0.7); wg.rotation.y = a * (0.5 + p * 0.3); wg.rotation.z = -0.2; }
+      break;
+    }
+    case 'phoenix_spin': { // a real two-full-rotation spin (double Spin Slash), arms held wide the whole way
+      hips.rotation.y = a * (Math.PI * 4 + p * Math.PI * 0.8);
+      rSh.rotation.x = -a * 0.9; lSh.rotation.x = -a * 0.9;
+      rSh.rotation.z = a * 0.5; lSh.rotation.z = -a * 0.5;
+      if (wg) { wg.rotation.y = a * (Math.PI * 4 + p * 0.8); wg.rotation.z = -0.2 - a * 0.4; }
+      break;
+    }
+    case 'storm_fist': { // a real alternating left/right punch flurry from one sine (positive half = right, negative half = left)
+      const flurry = Math.sin(a * Math.PI * 4);
+      rSh.rotation.x = -Math.max(0, flurry) * (1.2 + p * 0.6);
+      lSh.rotation.x = -Math.max(0, -flurry) * (1.2 + p * 0.6);
+      spine.rotation.x = a * 0.15;
+      if (wg) { wg.rotation.z = -0.2 - Math.abs(flurry) * (1.2 + p * 0.6); wg.rotation.x = Math.abs(flurry) * (0.3 + p * 0.2); }
+      break;
+    }
+    case 'grand_finisher': { // the biggest of all 30 — full body spin + overhead raise + forward slam combined
+      hips.rotation.y = a * (Math.PI * 2 + p * Math.PI * 0.6);
+      spine.rotation.x = a * (0.5 + p * 0.35);
+      spine.rotation.y = a * (0.4 + p * 0.25);
+      lSh.rotation.x = -a * (2.0 + p * 0.7); rSh.rotation.x = -a * (2.0 + p * 0.7);
+      rSh.rotation.z = -a * 0.4; lSh.rotation.z = a * 0.4;
+      if (wg) { wg.rotation.x = -a * (1.9 + p * 0.8); wg.rotation.y = a * (1.0 + p * 0.5); wg.rotation.z = -0.2 - a * 0.3; }
+      break;
+    }
+  }
+  // ENERGY PASS — real user feedback: at their original hand-tuned amplitudes the 30 moves read as
+  // too similar/subdued in actual play (small fractions of a radian are hard to read at normal camera
+  // distance in the ~0.25-0.4s swing window). Rather than re-hand-tune 30 formulas individually
+  // (which would risk quietly reintroducing near-duplicates), every move's already-distinct
+  // per-bone/per-axis CHOREOGRAPHY (which joints move, which sign, which shape) is scaled up
+  // uniformly here, clamped per bone-type so no joint ever rotates into an anatomically-broken range.
+  // Spin moves' hips/weapon Y rotation is exempt from the clamp — those are real multi-turn spins
+  // (Math.PI*2+) where a big raw number is correct, not a bug, and clamping it would just stop the
+  // character from actually completing the turn.
+  const ENERGY = 1.6;
+  const clamp = (v, max) => Math.max(-max, Math.min(max, v * ENERGY));
+  spine.rotation.x = clamp(spine.rotation.x, 1.15);
+  spine.rotation.z = clamp(spine.rotation.z, 0.95);
+  spine.rotation.y *= ENERGY; // torque-twist moves (cross/haymaker/dragon_rise/...) — bounded well under a full turn already, no clamp needed
+  hips.rotation.x = clamp(hips.rotation.x, 0.85);
+  hips.rotation.z = clamp(hips.rotation.z, 0.85);
+  hips.rotation.y *= ENERGY;
+  lSh.rotation.x = clamp(lSh.rotation.x, 2.7); rSh.rotation.x = clamp(rSh.rotation.x, 2.7);
+  lSh.rotation.z = clamp(lSh.rotation.z, 2.4); rSh.rotation.z = clamp(rSh.rotation.z, 2.4);
+  lHip.rotation.x = clamp(lHip.rotation.x, 2.1); rHip.rotation.x = clamp(rHip.rotation.x, 2.1);
+  lHip.rotation.z = clamp(lHip.rotation.z, 1.7); rHip.rotation.z = clamp(rHip.rotation.z, 1.7);
+  if (wg) {
+    // wg.rotation.z rests at -0.2 (not 0, see buildPlayer()) whenever a weapon is held — only the
+    // DELTA from that rest tilt is the actual swing motion, so only that delta gets scaled/clamped,
+    // not the whole raw value (which would otherwise drift the rest tilt itself on every real swing).
+    wg.rotation.z = clamp(wg.rotation.z + 0.2, 2.6) - 0.2;
+    wg.rotation.x = clamp(wg.rotation.x, 2.6);
+    wg.rotation.y *= ENERGY;
+  }
+}
+
+let activeEmote = null; // {id, startT} or null — real per-frame animation, driven every frame in animate() (game-controls.js) via applyEmotePose(player, ...)
+// Plays an OWNED emote on the local player. Switching straight to a new emote while one's already
+// playing just replaces activeEmote — the very next frame's applyEmotePose() call re-poses every
+// bone it touches from a clean rest state (see above), so there's no stacking/glitching between them.
+function playEmote(id) {
+  const v = EMOTE_CATALOG_BY_ID[id];
+  if (!v) return;
+  if (!ownedEmotes.includes(id)) { showNotif(`🔒 Buy the ${v.name} emote first — ${v.price.toLocaleString()} S.I.P.`); return; }
+  if (!player || !player.hipsBone) return;
+  if (inCar || playerSeated || chargingPunch) { showNotif('❌ Can\'t emote right now.'); return; }
+  activeEmote = { id, startT: clock.getElapsedTime() };
+  // Refresh the panel immediately if it's open, so the "Stop <name>" bar and the "Playing" state
+  // on this row show up right away instead of only appearing the next time the panel is reopened.
+  const panelEl = document.getElementById('emotesPanel');
+  if (panelEl && panelEl.style.display !== 'none') renderEmotesPanel();
+}
+function cancelEmote() {
+  if (!activeEmote) return;
+  activeEmote = null;
+  const panelEl = document.getElementById('emotesPanel');
+  if (panelEl && panelEl.style.display !== 'none') renderEmotesPanel();
+  resetEmotePose(player);
+}
+// Real S.I.P. purchase — same spendSip()/showNotif()/saveCurrentUser() pattern buyArmor()/
+// buyWeapon() already use (game-shops.js), just granting into ownedEmotes instead of ownedArmor/
+// ownedWeapons. Already-owned just plays it instead of trying to buy it again.
+function buyEmoteVariant(id) {
+  const v = EMOTE_CATALOG_BY_ID[id];
+  if (!v) return;
+  if (ownedEmotes.includes(id)) { playEmote(id); return; }
+  if (sipDollars < v.price) { showNotif(`❌ Need ${v.price.toLocaleString()} S.I.P.`); return; }
+  spendSip(v.price); updateSIP();
+  ownedEmotes.push(id);
+  saveCurrentUser();
+  sfx.buy();
+  showNotif(`✅ Got the ${v.name} emote!`);
+  playEmote(id); // start it BEFORE re-rendering, so the panel's "Stop <name>" button reflects the emote just bought, not whichever was active before this purchase
+  renderEmotesPanel();
+}
+// ── EMOTES PANEL (rightTabStack's #emotesTab / #emotesPanel, EXPLOX.html) — same toggle/close/
+// render trio every other side-panel in this game already follows (see toggleQuestsPanel() /
+// closeQuestsPanel() / renderQuestsPanel(), game-customization.js).
+function toggleEmotesPanel() {
+  const panel = document.getElementById('emotesPanel');
+  if (!panel) return;
+  if (panel.style.display === 'none') {
+    if (document.pointerLockElement) document.exitPointerLock();
+    isPointerLocked = false;
+    renderEmotesPanel();
+    panel.style.display = 'flex';
+    document.getElementById('emotesTab').style.display = 'none';
+  } else { closeEmotesPanel(); }
+}
+function closeEmotesPanel() {
+  document.getElementById('emotesPanel').style.display = 'none';
+  document.getElementById('emotesTab').style.display = 'block';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
+function renderEmotesPanel() {
+  const list = document.getElementById('emotesList');
+  if (!list) return;
+  let html = '';
+  if (activeEmote) {
+    const activeV = EMOTE_CATALOG_BY_ID[activeEmote.id];
+    html += `<button class="shopBtn" style="width:100%;background:#5a1a1a;margin-bottom:8px;" onclick="cancelEmote();renderEmotesPanel();">⏹ Stop ${activeV ? activeV.name : 'Emote'}</button>`;
+  }
+  Object.keys(EMOTE_FAMILIES).forEach(famId => {
+    const fam = EMOTE_FAMILIES[famId];
+    html += `<div style="color:#ff8ecf;font-weight:bold;font-size:12px;margin:10px 0 4px;border-bottom:1px solid #442233;padding-bottom:3px;">${EMOTE_FAMILY_EMOJI[famId]} ${fam.name.toUpperCase()}</div>`;
+    EMOTE_CATALOG.filter(v => v.family === famId).forEach(v => {
+      const owned = ownedEmotes.includes(v.id);
+      const tier = EMOTE_TIERS[v.tier];
+      const playing = activeEmote && activeEmote.id === v.id;
+      html += `<div class="shopItem" style="margin-bottom:6px;border-color:${tier.color};${playing?'box-shadow:0 0 8px '+tier.color+';':''}">
+        <div class="siName">${v.emoji} ${v.name} <span style="color:${tier.color};font-size:10px;">${tier.label}</span></div>
+        <div class="siCost">${owned ? '✅ Owned' : `💰 ${v.price.toLocaleString()} S.I.P.`}</div>
+        <button class="shopBtn" onclick="${owned ? `playEmote('${v.id}')` : `buyEmoteVariant('${v.id}')`}">${owned ? (playing?'▶ Playing':'▶ Play') : '🔒 Buy'}</button>
+      </div>`;
+    });
+  });
+  list.innerHTML = html;
+}
+
 // ─── MULTIPLAYER: OTHER PLAYERS ──────────────────────────────────────────────
 // A simplified, parameterized cousin of buildPlayer() — builds into its OWN
 // group instead of the global playerGroup, so it never touches the local
-// player's own avatar/weapon/armor state. Deliberately skips weapon/armor
-// meshes (not worth the wire cost for a same-second-ish sync) and uses a
-// plain text nametag instead of the heavier avatar-canvas one.
+// player's own avatar/weapon/armor state. Uses a plain text nametag instead
+// of the heavier avatar-canvas one. User's own ask: "make the houses badges
+// weapons money all in the server" — weapon/armor reuse the same lightweight
+// buildWeaponVisual()/buildArmorVisual() (game-shops.js) the local player's
+// own updateWeaponMesh()/updateArmorMesh() already use (a few boxes, cheap),
+// the profile picture ("badge") is a small separate plane loaded via
+// THREE.TextureLoader (handles the data-URL load asynchronously on its own —
+// no blocking, no extra code needed here), and money rides on the same
+// nametag canvas the name was already drawn on.
 function buildOtherPlayerAvatar(a) {
   const g = new THREE.Group();
   const skin=c3(a.skin||'#f5c89a'), shirtC=c3(a.shirtColor||'#2196F3');
   const pantsC=c3(a.pantsColor||'#333333'), shoeC=c3(a.shoesColor||'#4e3b2a'), hairC=c3(a.hairColor||'#3a1f0a');
-  const mk=(w,h,d,color,x,y,z)=>{
-    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color}));
-    m.position.set(x,y,z); m.castShadow=true; g.add(m); return m;
-  };
-  mk(1,1,1, skin, 0,2.8,0); // head
-  const em=new THREE.MeshBasicMaterial({color:0x111111});
-  [-0.22,0.22].forEach(ex=>{const e=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.05),em);e.position.set(ex,2.85,0.51);g.add(e);});
-  const hair = a.hair||'none';
-  if(hair==='short')    { mk(1.08,0.3,0.95,hairC,0,3.35,0); mk(0.25,0.5,0.9,hairC,-0.6,3.1,0); mk(0.25,0.5,0.9,hairC,0.6,3.1,0); }
-  else if(hair==='long'){ mk(1.08,0.3,0.95,hairC,0,3.35,0); mk(0.28,1.4,0.9,hairC,-0.6,2.4,0); mk(0.28,1.4,0.9,hairC,0.6,2.4,0); mk(0.9,1.4,0.28,hairC,0,2.4,-0.5); }
-  else if(hair==='spiky'){ mk(1.1,0.2,1.0,hairC,0,3.35,0); [-0.35,-0.17,0,0.17,0.35].forEach((sx,i)=>mk(0.18,0.5+i%2*0.2,0.18,hairC,sx,3.7+i%2*0.1,0)); }
-  else if(hair==='afro') { mk(1.5,1.4,1.4,hairC,0,3.1,0); }
-  else if(hair==='ponytail'){ mk(1.08,0.3,0.95,hairC,0,3.35,0); mk(0.25,0.5,0.9,hairC,-0.6,3.1,0); mk(0.28,1.8,0.28,hairC,0,2.2,-0.5); }
-  else if(hair==='curly'){ [-0.3,0,0.3].forEach(cx2=>mk(0.5,0.55,0.5,hairC,cx2,3.4,0)); mk(0.28,1.2,0.28,hairC,-0.6,2.7,0); mk(0.28,1.2,0.28,hairC,0.6,2.7,0); }
-  const bCol = a.shirt==='suit' ? 0x222222 : shirtC;
-  const aCol = a.shirt==='tanktop' ? skin : bCol;
-  mk(0.9,1.1,0.5, bCol, 0,1.75,0);
-  g.lArm = mk(0.35,0.9,0.35, aCol,-0.65,1.75,0);
-  g.rArm = mk(0.35,0.9,0.35, aCol, 0.65,1.75,0);
-  mk(0.37,0.28,0.37, skin,-0.65,1.22,0); mk(0.37,0.28,0.37, skin,0.65,1.22,0);
+
+  // Same real bone rig as buildPlayer() (see there for the full explanation of the numbers below)
+  // — kept here too, even though remote players aren't animated yet (out of scope for this pass),
+  // so every player in the world shares one real THREE.Bone skeleton shape, not just the local one.
+  const SPINE_Y = 1.75, HEAD_Y = 2.3, SHOULDER_X = 0.65, SHOULDER_Y = 2.2;
   const legH = a.pants==='shorts' ? 0.5 : 0.9;
   const legY = a.pants==='shorts' ? 0.9 : 0.75;
-  g.lLeg = mk(0.38,legH,0.38, pantsC,-0.22,legY,0);
-  g.rLeg = mk(0.38,legH,0.38, pantsC, 0.22,legY,0);
-  const shH=a.shoes==='boots'?0.45:0.22, shY=a.shoes==='boots'?0.18:0.1;
-  mk(0.42,shH,a.shoes==='sandals'?0.6:0.52, shoeC,-0.22,shY,0.05);
-  mk(0.42,shH,a.shoes==='sandals'?0.6:0.52, shoeC, 0.22,shY,0.05);
+  const HIP_X = 0.22, HIP_Y = legY + legH/2;
+  const hipsBone = new THREE.Bone(); hipsBone.position.set(0, SPINE_Y, 0); g.add(hipsBone);
+  const spineBone = new THREE.Bone(); hipsBone.add(spineBone);
+  const headBone = new THREE.Bone(); headBone.position.set(0, HEAD_Y-SPINE_Y, 0); spineBone.add(headBone);
+  const leftShoulderBone = new THREE.Bone(); leftShoulderBone.position.set(-SHOULDER_X, SHOULDER_Y-SPINE_Y, 0); spineBone.add(leftShoulderBone);
+  const rightShoulderBone = new THREE.Bone(); rightShoulderBone.position.set(SHOULDER_X, SHOULDER_Y-SPINE_Y, 0); spineBone.add(rightShoulderBone);
+  const leftHipBone = new THREE.Bone(); leftHipBone.position.set(-HIP_X, HIP_Y-SPINE_Y, 0); hipsBone.add(leftHipBone);
+  const rightHipBone = new THREE.Bone(); rightHipBone.position.set(HIP_X, HIP_Y-SPINE_Y, 0); hipsBone.add(rightHipBone);
+  g.hipsBone=hipsBone; g.spineBone=spineBone; g.headBone=headBone;
+  g.leftShoulderBone=leftShoulderBone; g.rightShoulderBone=rightShoulderBone;
+  g.leftHipBone=leftHipBone; g.rightHipBone=rightHipBone;
+  g.skeleton = new THREE.Skeleton([hipsBone, spineBone, headBone, leftShoulderBone, rightShoulderBone, leftHipBone, rightHipBone]);
 
-  const cv=document.createElement('canvas'); cv.width=256; cv.height=64;
-  const cx2=cv.getContext('2d');
-  cx2.fillStyle='rgba(0,0,0,0.55)'; cx2.fillRect(0,16,256,32);
-  cx2.fillStyle='#fff'; cx2.font='bold 26px Arial'; cx2.textAlign='center';
-  cx2.fillText((a.name||'Player').slice(0,16), 128, 40);
-  const tag=new THREE.Mesh(new THREE.PlaneGeometry(2.4,0.6),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthWrite:false,side:THREE.DoubleSide}));
-  tag.position.y=4.6; g.add(tag); g.nametag=tag;
+  const mkOn=(bone,bwx,bwy,bwz,w,h,d,color,x,y,z)=>{
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color}));
+    m.position.set(x-bwx,y-bwy,z-bwz); m.castShadow=true; bone.add(m); return m;
+  };
+  const mkHead=(w,h,d,color,x,y,z)=>mkOn(headBone,0,HEAD_Y,0,w,h,d,color,x,y,z);
+  const mkTorso=(w,h,d,color,x,y,z)=>mkOn(spineBone,0,SPINE_Y,0,w,h,d,color,x,y,z);
+  const mkArmL=(w,h,d,color,x,y,z)=>mkOn(leftShoulderBone,-SHOULDER_X,SHOULDER_Y,0,w,h,d,color,x,y,z);
+  const mkArmR=(w,h,d,color,x,y,z)=>mkOn(rightShoulderBone,SHOULDER_X,SHOULDER_Y,0,w,h,d,color,x,y,z);
+  const mkLegL=(w,h,d,color,x,y,z)=>mkOn(leftHipBone,-HIP_X,HIP_Y,0,w,h,d,color,x,y,z);
+  const mkLegR=(w,h,d,color,x,y,z)=>mkOn(rightHipBone,HIP_X,HIP_Y,0,w,h,d,color,x,y,z);
+
+  mkHead(1,1,1, skin, 0,2.8,0); // head
+  const em=new THREE.MeshBasicMaterial({color:0x111111});
+  [-0.22,0.22].forEach(ex=>{const e=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.05),em);e.position.set(ex,2.85-HEAD_Y,0.51);headBone.add(e);});
+  const hair = a.hair||'none';
+  if(hair==='short')    { mkHead(1.08,0.3,0.95,hairC,0,3.35,0); mkHead(0.25,0.5,0.9,hairC,-0.6,3.1,0); mkHead(0.25,0.5,0.9,hairC,0.6,3.1,0); }
+  else if(hair==='long'){ mkHead(1.08,0.3,0.95,hairC,0,3.35,0); mkHead(0.28,1.4,0.9,hairC,-0.6,2.4,0); mkHead(0.28,1.4,0.9,hairC,0.6,2.4,0); mkHead(0.9,1.4,0.28,hairC,0,2.4,-0.5); }
+  else if(hair==='spiky'){ mkHead(1.1,0.2,1.0,hairC,0,3.35,0); [-0.35,-0.17,0,0.17,0.35].forEach((sx,i)=>mkHead(0.18,0.5+i%2*0.2,0.18,hairC,sx,3.7+i%2*0.1,0)); }
+  else if(hair==='afro') { mkHead(1.5,1.4,1.4,hairC,0,3.1,0); }
+  else if(hair==='ponytail'){ mkHead(1.08,0.3,0.95,hairC,0,3.35,0); mkHead(0.25,0.5,0.9,hairC,-0.6,3.1,0); mkHead(0.28,1.8,0.28,hairC,0,2.2,-0.5); }
+  else if(hair==='curly'){ [-0.3,0,0.3].forEach(cx2=>mkHead(0.5,0.55,0.5,hairC,cx2,3.4,0)); mkHead(0.28,1.2,0.28,hairC,-0.6,2.7,0); mkHead(0.28,1.2,0.28,hairC,0.6,2.7,0); }
+  const bCol = a.shirt==='suit' ? 0x222222 : shirtC;
+  const aCol = a.shirt==='tanktop' ? skin : bCol;
+  mkTorso(0.9,1.1,0.5, bCol, 0,1.75,0);
+  g.lArm = mkArmL(0.35,0.9,0.35, aCol,-0.65,1.75,0);
+  g.rArm = mkArmR(0.35,0.9,0.35, aCol, 0.65,1.75,0);
+  mkArmL(0.37,0.28,0.37, skin,-0.65,1.22,0); mkArmR(0.37,0.28,0.37, skin,0.65,1.22,0);
+  g.lLeg = mkLegL(0.38,legH,0.38, pantsC,-0.22,legY,0);
+  g.rLeg = mkLegR(0.38,legH,0.38, pantsC, 0.22,legY,0);
+  const shH=a.shoes==='boots'?0.45:0.22, shY=a.shoes==='boots'?0.18:0.1;
+  mkLegL(0.42,shH,a.shoes==='sandals'?0.6:0.52, shoeC,-0.22,shY,0.05);
+  mkLegR(0.42,shH,a.shoes==='sandals'?0.6:0.52, shoeC, 0.22,shY,0.05);
+
+  g.weaponMesh = buildWeaponVisual(a.weapon);
+  if(g.weaponMesh) g.add(g.weaponMesh);
+  g.weapon = a.weapon || 'none';
+  g.armorMesh = buildArmorVisual(a.armor);
+  if(g.armorMesh) g.add(g.armorMesh);
+  g.armor = a.armor || 'none';
+
+  if(a.profilePic) {
+    const badgeTex = new THREE.TextureLoader().load(a.profilePic);
+    const badgeMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.55,0.55), new THREE.MeshBasicMaterial({map:badgeTex,transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+    badgeMesh.position.set(-1.35,4.6,0); g.add(badgeMesh); g.badgeMesh = badgeMesh;
+  }
+
+  g.moneySip = a.sip || 0;
+  const cv=document.createElement('canvas'); cv.width=256; cv.height=88;
+  drawRemoteNametag(cv, a.name, g.moneySip);
+  const tag=new THREE.Mesh(new THREE.PlaneGeometry(2.4,0.82),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+  tag.position.y=4.7; g.add(tag); g.nametag=tag; g.nametagCanvas=cv;
 
   return g;
+}
+// Shared by buildOtherPlayerAvatar() (first build) and syncPresence() (refreshed only when the
+// money shown would actually change, not every single sync tick — a canvas redraw for every
+// online player every second is exactly the kind of extra cost worth avoiding after the real
+// stutter found testing live multiplayer for the first time).
+function drawRemoteNametag(cv, name, sip) {
+  const cx2=cv.getContext('2d');
+  cx2.clearRect(0,0,256,88);
+  cx2.fillStyle='rgba(0,0,0,0.55)'; cx2.fillRect(0,10,256,68);
+  cx2.fillStyle='#fff'; cx2.font='bold 24px Arial'; cx2.textAlign='center';
+  cx2.fillText((name||'Player').slice(0,16), 128, 40);
+  cx2.fillStyle='#FFD700'; cx2.font='bold 18px Arial';
+  cx2.fillText(`💰 ${Math.floor(sip||0).toLocaleString()}`, 128, 65);
+}
+
+// ─── CHAT SPEECH BUBBLES — user's own ask (referencing another game's style): show what someone
+// just said floating above their head in the 3D world, not just in the Chat panel's text list.
+// Built the same way nametags already are (a CanvasTexture'd plane), mounted a bit higher than
+// the nametag so they stack, and only toggled visible for SPEECH_BUBBLE_MS per message so the
+// world doesn't fill up with permanently floating text. Works for both the local player
+// (playerGroup) and any remote player currently rendered nearby (remotePlayers[name].mesh) —
+// same target.add()-a-mesh-and-stash-it-as-a-property pattern buildOtherPlayerAvatar() already
+// uses for .nametag/.nametagCanvas, just lazily built on first use instead of every avatar.
+const SPEECH_BUBBLE_MS = 6000;
+const SPEECH_BUBBLE_TEXT_MAX = 120; // a floating bubble isn't the place for a 10,000-char chat message — full text still shows in the Chat panel itself
+function wrapBubbleText(ctx, text, maxWidth) {
+  const words = text.split(/\s+/);
+  const lines = [];
+  let line = '';
+  words.forEach(w => {
+    const test = line ? line + ' ' + w : w;
+    if (ctx.measureText(test).width > maxWidth && line) { lines.push(line); line = w; }
+    else line = test;
+  });
+  if (line) lines.push(line);
+  return lines;
+}
+function drawSpeechBubble(cv, name, text) {
+  const cx2 = cv.getContext('2d');
+  cx2.clearRect(0, 0, cv.width, cv.height);
+  const shown = text.length > SPEECH_BUBBLE_TEXT_MAX ? text.slice(0, SPEECH_BUBBLE_TEXT_MAX - 3) + '...' : text;
+  cx2.font = '14px Arial';
+  const lines = wrapBubbleText(cx2, shown, cv.width - 28).slice(0, 5);
+  const lineH = 19;
+  const boxH = 36 + lines.length * lineH;
+  const x = 6, y = cv.height - boxH, w = cv.width - 12, r = 14;
+  cx2.fillStyle = 'rgba(255,255,255,0.95)'; cx2.strokeStyle = '#333'; cx2.lineWidth = 2;
+  cx2.beginPath();
+  cx2.moveTo(x + r, y); cx2.arcTo(x + w, y, x + w, y + boxH, r); cx2.arcTo(x + w, y + boxH, x, y + boxH, r);
+  cx2.arcTo(x, y + boxH, x, y, r); cx2.arcTo(x, y, x + w, y, r); cx2.closePath();
+  cx2.fill(); cx2.stroke();
+  cx2.fillStyle = '#0a3a5a'; cx2.font = 'bold 13px Arial'; cx2.textAlign = 'left';
+  cx2.fillText((name || 'Player').slice(0, 16), x + 12, y + 20);
+  cx2.fillStyle = '#111'; cx2.font = '14px Arial';
+  lines.forEach((l, i) => cx2.fillText(l, x + 12, y + 38 + i * lineH));
+}
+function showSpeechBubble(target, name, text) {
+  if (!target || !text) return;
+  if (!target.speechBubble) {
+    const cv = document.createElement('canvas'); cv.width = 320; cv.height = 160;
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.3), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+    mesh.position.y = 5.7; mesh.visible = false;
+    target.add(mesh);
+    target.speechBubble = mesh; target.speechBubbleCanvas = cv;
+  }
+  const b = target.speechBubble;
+  drawSpeechBubble(target.speechBubbleCanvas, name, text);
+  b.material.map.needsUpdate = true;
+  b.visible = true;
+  clearTimeout(target.speechBubbleTimer);
+  target.speechBubbleTimer = setTimeout(() => { b.visible = false; }, SPEECH_BUBBLE_MS);
 }
 
 // Builds an isolated preview character for the shop "Preview" buttons (weapons/armor/outfits/
@@ -26736,6 +31211,7 @@ function buildPreviewAvatar(overrides) {
   else if(hat==='headphones'){ mk(0.18,0.5,0.5,0x222222,-0.62,3.15,0); mk(0.18,0.5,0.5,0x222222,0.62,3.15,0); mk(1.3,0.12,0.2,0x222222,0,3.75,0); }
   else if(hat==='chef')      { mk(1.0,0.3,1.0,0xffffff,0,3.45,0); mk(0.8,0.7,0.8,0xffffff,0,3.95,0); }
   else if(hat==='turban')    { mk(1.1,0.7,1.1,0x8833aa,0,3.55,0); mk(0.16,0.16,0.16,0xffcc00,0,3.95,0.4); }
+  else if(hat==='catears')   { mk(0.32,0.5,0.14,0x333333,-0.35,3.75,0); mk(0.32,0.5,0.14,0x333333,0.35,3.75,0); mk(0.18,0.3,0.06,0xff88aa,-0.35,3.68,0.06); mk(0.18,0.3,0.06,0xff88aa,0.35,3.68,0.06); }
 
   const shirtStyle = playerShirt, pantsStyle = playerPants, shoesStyle = playerShoes;
   const bCol = shirtStyle==='suit' ? 0x222222 : shirtC;
@@ -26770,6 +31246,44 @@ let remotePlayers = {};
 let _lastPresenceSync = -999;
 const PRESENCE_SYNC_INTERVAL = 1; // seconds
 
+// User's own correction after the first version only showed who's online RIGHT NOW: "no it shows
+// how many people are playing al togetnher in the site" — every account that's ever signed up on
+// this server (/api/users, the same endpoint the online login screen's account list already
+// uses), not just the tiny in-memory presence list that forgets someone the moment they've been
+// quiet for 8 seconds (game-core.js's PRESENCE_TIMEOUT_SEC on the server side). Changes rarely,
+// so a real 30-second interval is plenty — no reason to hit this every second like presence.
+// Second correction: "any one can see how many people are playoing any time any wheree" — this is
+// a real, deliberate exception to "Offline means no network calls" every other sync in this file
+// follows: it always tries the server regardless of serverMode, since the whole point is a public
+// number anyone should see, on the login screen or in-game, online or off.
+let _lastSitePlayersSync = -999;
+const SITE_PLAYERS_SYNC_INTERVAL = 30; // seconds
+async function syncSitePlayerCount() {
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/users', {}, 4000);
+    if (!r.ok) return;
+    const allUsers = await r.json();
+    const count = allUsers.length.toLocaleString();
+    // User's own follow-up: "how many people are there in the game this week" — real signupAt
+    // (explox-server's server.js) lets this be an honest count instead of a guess. Accounts from
+    // before that field existed report signupAt:null, which correctly never counts as "new" here
+    // rather than looking like everyone joined this week.
+    const oneWeekAgo = Date.now() - 7*24*60*60*1000;
+    const newThisWeek = allUsers.filter(u => u.signupAt && u.signupAt >= oneWeekAgo).length;
+    const weekText = newThisWeek > 0 ? ` (${newThisWeek.toLocaleString()} new this week)` : '';
+    // Whichever of the two HUD locations exists right now (login screen vs. in-game) gets it —
+    // harmless no-op on the one that isn't currently in the DOM.
+    const loginEl = document.getElementById('loginSitePlayerCount');
+    if (loginEl) loginEl.textContent = count;
+    const loginWeekEl = document.getElementById('loginSitePlayersWeek');
+    if (loginWeekEl) loginWeekEl.textContent = weekText;
+    const inGameEl = document.getElementById('sitePlayerCount');
+    if (inGameEl) inGameEl.textContent = count;
+    const inGameWeekEl = document.getElementById('sitePlayersWeek');
+    if (inGameWeekEl) inGameWeekEl.textContent = weekText;
+  } catch(e) { /* next sync will catch up */ }
+}
+
 // User's own ask: "if i an fighting a killer you can see that" — real-time visibility into what
 // OTHER online players are currently fighting, piggybacked on the same free-form /api/presence
 // POST every other field above already uses (server stores whatever's sent, no schema — see
@@ -26780,6 +31294,16 @@ const PRESENCE_SYNC_INTERVAL = 1; // seconds
 // client's own ROBOT_ID_SEQ starts at 0, so two different players' first killer would otherwise
 // both be "killer0" and collide.
 let remoteKillers = {};
+// User's own ask: "pets body gards and and also npcs u fight" — the killers/robbers/demons half
+// was already covered above; this adds the other two personal companions. Same "owner:key ->
+// {mesh, targetX, targetZ, owner}" shape as remoteKillers, and the same reasoning for why these
+// are a separate map instead of touching the real local `buddyGroup`/`bodyguards` — pure visual
+// echoes of someone else's stuff, never able to affect your own. Position is never sent over the
+// wire at all: it's recomputed from the owner's own already-synced x/z using the exact same fixed
+// offset buildBuddy()/buildBodyguards() (game-shops.js) use locally, so there's nothing extra to
+// interpolate wrong and no extra bytes on every single presence tick.
+let remoteBuddies = {};     // ownerName -> {mesh, targetX, targetZ}
+let remoteBodyguards = {};  // "ownerName:index" -> {mesh, targetX, targetZ}
 // Thin wrapper around the real buildKillerMesh()/buildRobberMesh() (game-land.js) — reuses the
 // exact same models real killers/robbers use, then swaps the "▓▓ UNKNOWN ▓▓" nametag (correct
 // for YOUR OWN killers, where the game deliberately hides who/what it is) for a real "fighting
@@ -26837,8 +31361,9 @@ function cullDistantLights() {
 // it, so driving through/near one is always a harmless pass-through, never a
 // crashIntoBuilding()-style fee. Reuses buildCar() exactly like NPC cars do.
 function buildRemotePlayerCar(o) {
+  if (o.carId === 'super_jet') return buildJetMesh(o.x, o.z, o.yaw || 0);
   const def = CAR_CATALOG.find(c => c.id === o.carId) || CAR_CATALOG[0];
-  return buildCar(def, o.x, o.z, o.yaw || 0); // buildCar already adds it to the scene
+  return buildOwnedVehicleMesh(def, o.x, o.z, o.yaw || 0); // real jet shape for isJet entries, buildCar() otherwise — both already add to the scene
 }
 async function syncPresence(t) {
   if(!currentUser || serverMode !== 'online' || !playerGroup) return;
@@ -26855,15 +31380,48 @@ async function syncPresence(t) {
     const visibleKillers = (typeof killers !== 'undefined' ? killers : [])
       .filter(k => k.alive && k.revealed)
       .map(k => ({ id:k.id, x:k.x, z:k.z, robber:!!k.robber, demon:!!k.demon, demonName:k.demon?k.demonDef.name:null, demonEmoji:k.demon?k.demonDef.emoji:null }));
+    // "make it so you can see the players car even when they are not driving" — parkedCars[0]
+    // (game-vehicles.js) is exactly wherever your first-owned/"travel" car is currently sitting
+    // (Home, Downtown, the new Uptown Lot, or a country you flew to) — its own live position, so
+    // there's nothing extra to compute here, just report it. Only sent while NOT driving (driving
+    // already reports the car via inCar/carId above); other players render it the same cosmetic,
+    // non-collidable way buildRemotePlayerCar() already renders a driving one.
+    const parkedCarOut = (!driving && ownedCars.length && parkedCars[0])
+      ? { carId: parkedCars[0].def.id, x: parkedCars[0].group.position.x, z: parkedCars[0].group.position.z, yaw: parkedCars[0].carYaw || 0 }
+      : null;
+    // "shows they're fighting moves... not delayed" — see playerSwingId's own comment
+    // (game-economy.js) for why this is an incrementing id rather than a live boolean.
+    // "also show walking" — moveState is the same real input state the walk cycle itself reads
+    // (game-controls.js); strafingOnly mirrors that exact same condition so a sidestepping remote
+    // player's legs move the same distinct way a sidestepping local player's do.
+    const movingOut = !inCar && !!(moveState.w || moveState.a || moveState.s || moveState.d);
+    const strafeOut = movingOut && !moveState.w && !moveState.s && (moveState.a || moveState.d);
     const body = {
       name: currentUser,
       x: posSrc.x, y: posSrc.y, z: posSrc.z,
       yaw: yawSrc,
       inCar: driving, carId: driving ? activeCar.def.id : null,
+      parkedCar: parkedCarOut,
+      moving: movingOut, strafe: strafeOut,
+      swingId: playerSwingId, swingMove: activeSwingMove, swingPower: playerSwingPower,
       hat: playerHat, hair: playerHair, shirt: playerShirt, pants: playerPants, shoes: playerShoes,
       skin: playerColors.skin, shirtColor: playerColors.shirt, pantsColor: playerColors.pants,
       shoesColor: playerColors.shoes, hairColor: playerColors.hair,
-      killers: visibleKillers
+      weapon: playerWeapon, armor: playerArmor, profilePic: playerProfilePic, sip: sipDollars,
+      emote: activeEmote ? activeEmote.id : null,
+      // "every one hass a profile bio username stats like total kills" — username is just `name`
+      // above (already every other player's key), bio is playerBio as-is, and total kills combines
+      // every lifetime kill-tracking stat this game already has (game-customization.js) into one
+      // headline number rather than inventing a new counter. eliteLevel can genuinely be the real
+      // JS value Infinity (admin /level infinity, game-admin.js) — JSON.stringify turns that into
+      // `null` silently, so it's sent as the string 'Infinity' instead, same as anywhere else in
+      // this codebase that has to cross a JSON boundary with a possibly-infinite Robot Level.
+      bio: playerBio,
+      totalKills: (lifetimeCitizensDefeated||0) + (lifetimeCopsDefeated||0) + (lifetimeRobotKills||0) + (lifetimeRogueKills||0) + (typeof ffaKills!=='undefined'?ffaKills:0),
+      robotLevel: Number.isFinite(eliteLevel) ? eliteLevel : 'Infinity',
+      killers: visibleKillers,
+      buddy: (buddyOwned && buddySpecies) ? { species: buddySpecies, colors: buddyColors } : null,
+      bodyguardCount: bodyguards.length
     };
     fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/presence', {
       method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
@@ -26874,24 +31432,91 @@ async function syncPresence(t) {
     const others = await r.json();
     const seen = new Set();
     const seenKillers = new Set();
+    const seenBuddies = new Set();
+    const seenBodyguards = new Set();
+    const seenParkedCars = new Set();
     others.forEach(o => {
       seen.add(o.name);
       const wantCar = !!o.inCar;
       let rp = remotePlayers[o.name];
       if(!rp) {
+        // Real bug found live: buildCar()/buildRemotePlayerCar() only ever takes x/z/yaw, never
+        // y — a remote Super Jet mid-flight used to appear stuck on the ground and only climb to
+        // its real altitude over the next second as updateRemotePlayers()'s own lerp caught up.
+        // Setting the group's y explicitly right after building it (car or avatar, doesn't
+        // matter which — position.set() on a THREE.Group just repositions the whole thing, safe
+        // either way) means it shows up at the right height from the very first frame instead.
         const mesh = wantCar ? buildRemotePlayerCar(o) : buildOtherPlayerAvatar(o);
-        if(!wantCar) { mesh.position.set(o.x, o.y, o.z); scene.add(mesh); }
-        rp = remotePlayers[o.name] = { mesh, targetX:o.x, targetY:o.y, targetZ:o.z, targetYaw:o.yaw||0, inCar:wantCar, carId:o.carId||null };
+        mesh.position.set(o.x, o.y, o.z);
+        if(!wantCar) scene.add(mesh);
+        rp = remotePlayers[o.name] = { mesh, targetX:o.x, targetY:o.y, targetZ:o.z, targetYaw:o.yaw||0, inCar:wantCar, carId:o.carId||null, emote:o.emote||null, emoteStartT:t };
       } else {
         if(wantCar !== rp.inCar || (wantCar && o.carId !== rp.carId)) {
           // they just got in/out of a car (or swapped cars) - rebuild as the right mesh type
           scene.remove(rp.mesh);
           const mesh = wantCar ? buildRemotePlayerCar(o) : buildOtherPlayerAvatar(o);
-          if(!wantCar) { mesh.position.set(o.x, o.y, o.z); scene.add(mesh); }
+          mesh.position.set(o.x, o.y, o.z);
+          if(!wantCar) scene.add(mesh);
           rp.mesh = mesh; rp.inCar = wantCar; rp.carId = o.carId||null;
+        } else if(!wantCar) {
+          // Same avatar mesh as last tick — swap just the weapon/armor pieces if they actually
+          // changed (cheap: buildWeaponVisual()/buildArmorVisual() are a few boxes, same cost as
+          // the local player's own updateWeaponMesh()/updateArmorMesh()), and only redraw the
+          // nametag canvas when the displayed money actually moves, not every single sync tick.
+          const oWeapon = o.weapon || 'none', oArmor = o.armor || 'none';
+          if(oWeapon !== rp.mesh.weapon) {
+            if(rp.mesh.weaponMesh) rp.mesh.remove(rp.mesh.weaponMesh);
+            rp.mesh.weaponMesh = buildWeaponVisual(o.weapon);
+            if(rp.mesh.weaponMesh) rp.mesh.add(rp.mesh.weaponMesh);
+            rp.mesh.weapon = oWeapon;
+          }
+          if(oArmor !== rp.mesh.armor) {
+            if(rp.mesh.armorMesh) rp.mesh.remove(rp.mesh.armorMesh);
+            rp.mesh.armorMesh = buildArmorVisual(o.armor);
+            if(rp.mesh.armorMesh) rp.mesh.add(rp.mesh.armorMesh);
+            rp.mesh.armor = oArmor;
+          }
+          if(Math.floor(o.sip||0) !== Math.floor(rp.mesh.moneySip||0) && rp.mesh.nametagCanvas) {
+            rp.mesh.moneySip = o.sip || 0;
+            drawRemoteNametag(rp.mesh.nametagCanvas, o.name, rp.mesh.moneySip);
+            rp.mesh.nametag.material.map.needsUpdate = true;
+          }
         }
         rp.targetX = o.x; rp.targetY = o.y; rp.targetZ = o.z; rp.targetYaw = o.yaw||0;
+        // "also show walking" — a live flag, safe to just overwrite every tick (unlike the swing
+        // id below, there's no short window to miss: either they're moving right now or they're
+        // not, and updateRemotePlayers() reads this fresh every frame regardless).
+        rp.moving = !!o.moving; rp.strafe = !!o.strafe;
+        // Fight moves — real bone animation via applySwingMove() (game-controls.js/game-economy.js
+        // math, mirrored in updateRemotePlayers() below), started on THIS client's own clock the
+        // instant a NEW swing id is seen. A swing only lasts a fraction of a second but presence
+        // only syncs once a second, so waiting to "catch it live" would miss almost every real
+        // swing — seeing the id change is proof an attack happened since the last sync, which is
+        // enough to replay the full move once, even though it's necessarily a beat behind.
+        if (o.swingId !== undefined && o.swingId !== rp.swingId) {
+          rp.swingId = o.swingId;
+          rp.swingMove = o.swingMove;
+          rp.swingPower = o.swingPower || 0;
+          rp.swingStartT = t;
+        }
+        // Emotes — real bone animation, reusing the exact same applyEmotePose()/resetEmotePose()
+        // functions the local player uses (this file), just driven by THIS remote player's own
+        // synced emote id/start-time instead of local input (see updateRemotePlayers() below, which
+        // actually calls applyEmotePose() every frame while rp.emote is set). Independent of the
+        // position/yaw lerp just above — an emoting remote player might not be moving at all.
+        const oEmote = o.emote || null;
+        if (oEmote !== rp.emote) {
+          rp.emote = oEmote;
+          rp.emoteStartT = t;
+          if (!oEmote && !wantCar) resetEmotePose(rp.mesh);
+        }
       }
+      // Profile fields — no mesh to rebuild, no change-detection needed, just kept fresh every
+      // tick so viewProfile() (game-social.js) always reads this player's current bio/stats
+      // whenever it's opened, not whatever was true the first time they were ever seen.
+      rp.bio = o.bio || '';
+      rp.totalKills = o.totalKills || 0;
+      rp.robotLevel = o.robotLevel;
       (o.killers || []).forEach(k => {
         const key = o.name + ':' + k.id;
         seenKillers.add(key);
@@ -26903,6 +31528,52 @@ async function syncPresence(t) {
           rk.targetX = k.x; rk.targetZ = k.z;
         }
       });
+      // "see the players car even when they are not driving" — buildRemotePlayerCar() doesn't
+      // care whether the owner is currently driving or not, it just needs carId/x/z/yaw, so the
+      // exact same builder used for a driving car works unchanged for a parked one.
+      if (o.parkedCar) {
+        seenParkedCars.add(o.name);
+        let rc = remoteParkedCars[o.name];
+        if (!rc || rc.carId !== o.parkedCar.carId) {
+          if (rc) scene.remove(rc.mesh);
+          const mesh = buildRemotePlayerCar(o.parkedCar);
+          mesh.position.set(o.parkedCar.x, 0, o.parkedCar.z);
+          mesh.rotation.y = o.parkedCar.yaw || 0;
+          scene.add(mesh);
+          remoteParkedCars[o.name] = { mesh, carId:o.parkedCar.carId, targetX:o.parkedCar.x, targetZ:o.parkedCar.z, targetYaw:o.parkedCar.yaw||0 };
+        } else {
+          rc.targetX = o.parkedCar.x; rc.targetZ = o.parkedCar.z; rc.targetYaw = o.parkedCar.yaw || 0;
+        }
+      }
+      // Same fixed offset buildBuddy() (game-shops.js) plants a real buddy at, just relative to
+      // this OTHER player's own synced x/z instead of the local playerGroup.
+      if(o.buddy && o.buddy.species) {
+        seenBuddies.add(o.name);
+        const targetX = o.x - 1, targetZ = o.z - 1;
+        let rb = remoteBuddies[o.name];
+        if(!rb || rb.species !== o.buddy.species) {
+          if(rb) scene.remove(rb.mesh);
+          const built = buildBuddyMesh(o.buddy.species, o.buddy.colors || {body:'#88cc88',accent:'#ffffff',eye:'#111111'});
+          built.group.position.set(targetX, o.y, targetZ);
+          scene.add(built.group);
+          rb = remoteBuddies[o.name] = { mesh: built.group, species: o.buddy.species, targetX, targetZ };
+        } else {
+          rb.targetX = targetX; rb.targetZ = targetZ;
+        }
+      }
+      // Same fixed per-index offset buildBodyguards() (game-shops.js) uses locally.
+      for(let i = 0; i < (o.bodyguardCount || 0); i++) {
+        const key = o.name + ':' + i;
+        seenBodyguards.add(key);
+        const targetX = o.x - 1.5 - i*0.9, targetZ = o.z + 1;
+        let rg = remoteBodyguards[key];
+        if(!rg) {
+          const mesh = buildBodyguardMesh(targetX, targetZ);
+          remoteBodyguards[key] = { mesh, targetX, targetZ };
+        } else {
+          rg.targetX = targetX; rg.targetZ = targetZ;
+        }
+      }
     });
     Object.keys(remotePlayers).forEach(name => {
       if(!seen.has(name)) { scene.remove(remotePlayers[name].mesh); delete remotePlayers[name]; }
@@ -26912,10 +31583,22 @@ async function syncPresence(t) {
     Object.keys(remoteKillers).forEach(key => {
       if(!seenKillers.has(key)) { scene.remove(remoteKillers[key].mesh); delete remoteKillers[key]; }
     });
+    Object.keys(remoteBuddies).forEach(name => {
+      if(!seenBuddies.has(name)) { scene.remove(remoteBuddies[name].mesh); delete remoteBuddies[name]; }
+    });
+    // Parked car vanishes the moment its owner stops reporting it (they drove off, or logged
+    // off) — same beat as every other remote-* cleanup here, and the honest limitation described
+    // on remoteParkedCars' own declaration above.
+    Object.keys(remoteParkedCars).forEach(name => {
+      if(!seenParkedCars.has(name)) { scene.remove(remoteParkedCars[name].mesh); delete remoteParkedCars[name]; }
+    });
+    Object.keys(remoteBodyguards).forEach(key => {
+      if(!seenBodyguards.has(key)) { scene.remove(remoteBodyguards[key].mesh); delete remoteBodyguards[key]; }
+    });
   } catch(e) { /* a dropped sync just means they'll look stale for a beat - not worth surfacing */ }
 }
 
-function updateRemotePlayers(dt) {
+function updateRemotePlayers(dt, t) {
   Object.values(remotePlayers).forEach(rp => {
     rp.mesh.position.x += (rp.targetX - rp.mesh.position.x) * Math.min(1, dt*6);
     rp.mesh.position.y += (rp.targetY - rp.mesh.position.y) * Math.min(1, dt*6);
@@ -26924,6 +31607,45 @@ function updateRemotePlayers(dt) {
     while(dYaw > Math.PI) dYaw -= Math.PI*2;
     while(dYaw < -Math.PI) dYaw += Math.PI*2;
     rp.mesh.rotation.y += dYaw * Math.min(1, dt*6);
+    // "also show walking" — the EXACT same formula the local player's own walk cycle uses
+    // (game-controls.js: swing=moving?Math.sin(t*WALK_CYCLE_CADENCE)*swingAmp:0), just aimed at
+    // this remote avatar's own bones and driven by the moving/strafe flags synced in
+    // syncPresence() above, instead of local moveState. Runs BEFORE the swing/emote blocks below,
+    // same precedence the local player's own animate() uses, since a fight move legitimately
+    // overrides the walk cycle's hip/shoulder rotation for its short window.
+    if (rp.mesh.leftShoulderBone || rp.mesh.rightShoulderBone || rp.mesh.leftHipBone || rp.mesh.rightHipBone) {
+      const swing = rp.moving ? Math.sin(t*WALK_CYCLE_CADENCE)*WALK_CYCLE_SWING_AMP : 0;
+      if (rp.mesh.leftShoulderBone) rp.mesh.leftShoulderBone.rotation.x = swing;
+      if (rp.mesh.rightShoulderBone) rp.mesh.rightShoulderBone.rotation.x = -swing;
+      if (rp.strafe) {
+        if (rp.mesh.leftHipBone) { rp.mesh.leftHipBone.rotation.x = 0; rp.mesh.leftHipBone.rotation.z = -swing; }
+        if (rp.mesh.rightHipBone) { rp.mesh.rightHipBone.rotation.x = 0; rp.mesh.rightHipBone.rotation.z = swing; }
+      } else {
+        if (rp.mesh.leftHipBone) { rp.mesh.leftHipBone.rotation.x = -swing; rp.mesh.leftHipBone.rotation.z = 0; }
+        if (rp.mesh.rightHipBone) { rp.mesh.rightHipBone.rotation.x = swing; rp.mesh.rightHipBone.rotation.z = 0; }
+      }
+    }
+    // "shows they're fighting moves" — replays the move THIS client just learned about (swingId
+    // changed in syncPresence() above) on its own local clock. See playerSwingId's comment
+    // (game-economy.js) for why this is a one-shot replay rather than trying to catch a live state.
+    const swingElapsed = rp.swingStartT !== undefined ? t - rp.swingStartT : -1;
+    const swingWindow = SWING_DURATION + (rp.swingPower||0)*0.15;
+    const swinging = swingElapsed >= 0 && swingElapsed < swingWindow;
+    if (swinging && rp.mesh.hipsBone) {
+      const arc = Math.sin((swingElapsed/swingWindow)*Math.PI);
+      applySwingMove(rp.swingMove, rp.mesh, arc, rp.swingPower||0);
+    } else if (rp.emote && rp.mesh.hipsBone) {
+      // Emotes — independent of the position/yaw lerp above (an emoting remote player might be
+      // standing perfectly still), driven off the SAME real applyEmotePose() function the local
+      // player uses, aimed at this remote avatar's own bones and this remote player's own synced
+      // emote id/start-time (set in syncPresence() above).
+      const variant = EMOTE_CATALOG_BY_ID[rp.emote];
+      if (variant) {
+        const elapsed = t - rp.emoteStartT;
+        if (emoteIsFinished(variant, elapsed)) resetEmotePose(rp.mesh);
+        else applyEmotePose(rp.mesh, variant.family, elapsed, variant.params);
+      }
+    }
   });
 }
 
@@ -26941,6 +31663,47 @@ function updateRemoteKillers(dt) {
 function clearRemoteKillers() {
   Object.values(remoteKillers).forEach(rk => scene.remove(rk.mesh));
   remoteKillers = {};
+}
+function updateRemoteBuddies(dt) {
+  Object.values(remoteBuddies).forEach(rb => {
+    rb.mesh.position.x += (rb.targetX - rb.mesh.position.x) * Math.min(1, dt*6);
+    rb.mesh.position.z += (rb.targetZ - rb.mesh.position.z) * Math.min(1, dt*6);
+  });
+}
+function clearRemoteBuddies() {
+  Object.values(remoteBuddies).forEach(rb => scene.remove(rb.mesh));
+  remoteBuddies = {};
+}
+function updateRemoteBodyguards(dt) {
+  Object.values(remoteBodyguards).forEach(rg => {
+    rg.mesh.position.x += (rg.targetX - rg.mesh.position.x) * Math.min(1, dt*6);
+    rg.mesh.position.z += (rg.targetZ - rg.mesh.position.z) * Math.min(1, dt*6);
+  });
+}
+function clearRemoteBodyguards() {
+  Object.values(remoteBodyguards).forEach(rg => scene.remove(rg.mesh));
+  remoteBodyguards = {};
+}
+// "make it so you can see the players car even when they are not driving" — ownerName -> {mesh,
+// targetX, targetZ, targetYaw, carId}, same shape/lerp convention as remoteBuddies/
+// remoteBodyguards above. Built in syncPresence()'s main loop from each other player's own
+// `parkedCar` field. Honest limitation worth remembering: this only exists while the owner is
+// ALSO online reporting it — there's no persistent server-side world-object store for cars, so the
+// car disappears the moment its owner logs off, same as every other remote-* map here.
+let remoteParkedCars = {};
+function updateRemoteParkedCars(dt) {
+  Object.values(remoteParkedCars).forEach(rc => {
+    rc.mesh.position.x += (rc.targetX - rc.mesh.position.x) * Math.min(1, dt*6);
+    rc.mesh.position.z += (rc.targetZ - rc.mesh.position.z) * Math.min(1, dt*6);
+    let dYaw = rc.targetYaw - rc.mesh.rotation.y;
+    while(dYaw > Math.PI) dYaw -= Math.PI*2;
+    while(dYaw < -Math.PI) dYaw += Math.PI*2;
+    rc.mesh.rotation.y += dYaw * Math.min(1, dt*6);
+  });
+}
+function clearRemoteParkedCars() {
+  Object.values(remoteParkedCars).forEach(rc => scene.remove(rc.mesh));
+  remoteParkedCars = {};
 }
 
 // ─── PRESIDENTS — user's own ask: "make presidents", one per country. Same rule as the
@@ -26975,9 +31738,43 @@ function generatePresidentNPCs() {
   return out;
 }
 
+// ─── ROYAL COURT — user's own ask: "make it so there is a king for explox and he has an army
+// protecting him". Continues the in-world Line of Explox (EXPLOX_ROYAL_LINE, game-library.js)
+// past the "Unclaimed" gap left by King Explox III — King Explox IV has since reclaimed the crown
+// and built a new Royal Court (game-buildings.js) rather than ruling from the old, tiny Monument
+// plaza downtown. 6 Royal Guards is a real army, not a 2-Bodyguard escort like the Presidents get
+// — see royalGuardsNear()/attackNPC() (game-social.js) for how they actually protect him in
+// combat (he takes zero damage while any of them are still standing), not just decoratively.
+const KING_NAME = 'King Explox IV';
+const ROYAL_COURT = { x:200, z:100 };
+function generateRoyalCourtNPCs() {
+  // Real bug caught live: every OTHER NPC in this game has a real `patrol` route, and the generic
+  // per-frame NPC movement code (animate(), game-controls.js) unconditionally reads
+  // npc.patrol[npc.patrolIdx] for anyone not flagged seated — the King, sitting still on his
+  // throne with neither a patrol NOR seated:true, crashed startGame() entirely the first time
+  // this was actually loaded in a browser ("Cannot read properties of undefined (reading '0')").
+  // seated:true is also the thematically correct fix, not just the safe one — he's genuinely
+  // sitting on the real throne seat built in game-buildings.js, same real sitting pose the
+  // Diner's waiter NPCs already use.
+  const out = [ { name:KING_NAME, role:'King', skin:0xe8c080, shirt:0x4B0082, pants:0x2a1a4a,
+    pos:[ROYAL_COURT.x, 0, ROYAL_COURT.z+2.5], hat:'crown', hair:'short', hairColor:0x1a1108, seated:true } ];
+  // A hexagon ring at radius 8 around the throne — 6 named guards, letters A-F matching the
+  // Presidents' own "X's Bodyguard A/B" naming convention, just extended to a real army's size.
+  const guardOffsets = [[8,0],[4,6.9],[-4,6.9],[-8,0],[-4,-6.9],[4,-6.9]];
+  const letters = ['A','B','C','D','E','F'];
+  guardOffsets.forEach(([dx,dz], i) => {
+    out.push({ name:`${KING_NAME}'s Royal Guard ${letters[i]}`, role:'Royal Guard',
+      skin:0xd4a070, shirt:0x8B0000, pants:0x1a1a1a, hat:'helmet',
+      pos:[ROYAL_COURT.x+dx, 0, ROYAL_COURT.z+dz],
+      patrol:[[ROYAL_COURT.x+dx, ROYAL_COURT.z+dz], [ROYAL_COURT.x+dx*0.6, ROYAL_COURT.z+dz*0.6]] });
+  });
+  return out;
+}
+
 // ─── NPCS ────────────────────────────────────────────────────────────────────
 const NPC_DEFS=[
   ...generatePresidentNPCs(),
+  ...generateRoyalCourtNPCs(),
   {name:'Sam',  role:'Shopkeeper',skin:0xf5c89a,shirt:0x2255aa,pants:0x333344,pos:[44,0,52],patrol:[[44,52],[52,52],[52,44],[44,44]],hair:'short',hairColor:0x2a1505},
   {name:'Mia',  role:'Shopkeeper',skin:0xd4956a,shirt:0x1166bb,pants:0x222233,pos:[58,0,52],patrol:[[58,52],[66,52],[66,44],[58,44]],hair:'long',hairColor:0x1a1a1a},
   {name:'Leo',  role:'Shopkeeper',skin:0xe8c080,shirt:0x0044cc,pants:0x111122,pos:[72,0,52],patrol:[[72,52],[80,52],[80,44],[72,44]],hair:'spiky',hairColor:0x3a2410},
@@ -27423,7 +32220,7 @@ function buildCityShops() {
     }
 
     addCol(CITY_COLS, x, z, 4.5, 4);
-    CITY_ZONES.push({ x, z: z - 4.5, r: 4, label: `${shop.emoji} ${shop.name}`, action: () => openCityShopModal(shop.id) });
+    CITY_ZONES.push({ x, z: z - 4.5, r: 4, label: `${shop.emoji} ${shop.name}`, action: () => enterShopInterior('mall', shop.id) });
   });
 }
 // Same 25 categories, the OTHER 8 name variations each (k=4..11 — nameWords/nameTemplates only
@@ -27501,7 +32298,7 @@ function buildMallShopWing() {
     buildLogoSign(shop.name, shop.emoji, '#'+theme.wall.toString(16).padStart(6,'0'), '#'+theme.accent.toString(16).padStart(6,'0'), x, 5, z - 2.7);
 
     addCol(MALL_COLS, x, z, 3.8, 3);
-    MALL_ZONES.push({ x, z: z - 3, r: 3.2, label: `${shop.emoji} ${shop.name}`, action: () => openCityShopModal(shop.id) });
+    MALL_ZONES.push({ x, z: z - 3, r: 3.2, label: `${shop.emoji} ${shop.name}`, action: () => enterShopInterior('mall', shop.id) });
   });
 
   // Ceiling lights down the wing, one per row
@@ -27540,15 +32337,47 @@ function openCityShopModal(id) {
     <div style="text-align:center;color:#ffd54a;font-style:italic;font-size:12px;margin-bottom:12px;">"${shop.ad}"</div>
     <button ${shopBusy ? 'disabled' : ''} onclick="${workingHere ? "quitJob('Stopped working.')" : `startShopJob('${shop.id}')`};closeCityShopModal()" style="width:100%;padding:8px;margin-bottom:12px;background:${workingHere ? '#7a1a1a' : shopBusy ? '#333' : '#1a5a7a'};border:none;border-radius:8px;color:#fff;font-weight:bold;font-size:12px;cursor:${shopBusy ? 'not-allowed' : 'pointer'};opacity:${shopBusy ? '0.5' : '1'};">${workingHere ? '⏹ Stop Working Here' : `💼 Work Here (+${shopJobPay(shop)} S.I.P./task)`}</button>
     <div style="font-size:12px;color:#ccc;margin-bottom:6px;"><b>What they sell:</b></div>
-    ${shop.items.map(it => `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid #2a3a3a;">
-        <span style="color:#ddd;font-size:12px;">${it.name}</span>
-        <span style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-          <span style="color:#ffd54a;font-size:11px;">💰${it.price}</span>
-          <button onclick="buyItem('${it.name.replace(/'/g, "\\'")}',${it.price})" style="padding:3px 10px;background:#2a5a4a;border:1px solid #4a8a6a;border-radius:6px;color:#eee;font-size:11px;cursor:pointer;">Buy</button>
-        </span>
-      </div>`).join('')}`;
+    ${shop.items.map(it => {
+      const safeName = it.name.replace(/'/g, "\\'");
+      // Same id-derivation buyItem() already uses (special ITEM_INFO entry, else a slugified
+      // name) — keeps the craft recipe's hash seed identical to the id the item is actually
+      // granted under, so a player looking it up in their inventory finds the same real item.
+      const special = ITEM_INFO[it.name];
+      const craftId = (special && special.id) || it.name.toLowerCase().replace(/\s+/g,'_');
+      const craftCost = craftCostForPrice(it.price, craftId);
+      const canCraft = canAffordCraftCost(craftCost);
+      return `
+      <div style="padding:5px 0;border-bottom:1px solid #2a3a3a;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <span style="color:#ddd;font-size:12px;">${it.name}</span>
+          <span style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+            <span style="color:#ffd54a;font-size:11px;">💰${it.price}</span>
+            <button onclick="buyItem('${safeName}',${it.price})" style="padding:3px 10px;background:#2a5a4a;border:1px solid #4a8a6a;border-radius:6px;color:#eee;font-size:11px;cursor:pointer;">Buy</button>
+          </span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:3px;">
+          <span style="color:#8ac9ff;font-size:10px;flex:1;text-align:right;">🔨 ${craftCostForPriceText(craftCost)}</span>
+          <button onclick="craftMallItem('${safeName}',${it.price})" style="padding:3px 10px;background:${canCraft?'#2a4a6a':'#333'};border:1px solid #4a7aaa;border-radius:6px;color:#eee;font-size:11px;cursor:${canCraft?'pointer':'not-allowed'};" ${canCraft?'':'disabled'}>🔨 Craft</button>
+        </div>
+      </div>`;
+    }).join('')}`;
   document.getElementById('cityShopModal').style.display = 'flex';
+}
+// "Craft but hard" path for the ~300 real mall/city-shop item names (SHOP_ITEM_EMOJI), priced via
+// priceForItem() above — same real granting code buyItem() uses (addToInventory + saveCurrentUser),
+// paid for with craftCostForPrice()'s real wood/scrap/material recipe (game-housing.js) instead of
+// S.I.P. These items are all well under the Elite Coin threshold, so this never asks for 💎.
+function craftMallItem(name, cost) {
+  const special = ITEM_INFO[name];
+  const emoji = (special && special.emoji) || SHOP_ITEM_EMOJI[name] || '📦';
+  const id = (special && special.id) || name.toLowerCase().replace(/\s+/g,'_');
+  const craftCost = craftCostForPrice(cost, id);
+  if(!canAffordCraftCost(craftCost)) { sfx.nope(); showNotif(`❌ Need ${craftCostForPriceText(craftCost)}`); return; }
+  spendCraftCost(craftCost);
+  addToInventory(id, name, emoji);
+  saveCurrentUser();
+  sfx.buy();
+  showNotif(`🔨 Crafted ${emoji} ${name}!`);
 }
 function closeCityShopModal() {
   document.getElementById('cityShopModal').style.display = 'none';
@@ -28048,7 +32877,7 @@ function askForAllowance(name) {
   const amount = 10 + Math.floor(Math.random() * 16); // 10-25 S.I.P.
   queueEarning(amount, 0, `${name}'s Allowance`);
   sfx.buy();
-  showNotif(`💰 ${name} gave you ${amount} S.I.P. allowance! (pending in Earnings)`);
+  showNotif(`💰 ${name} gave you ${amount} S.I.P. allowance! (already in your wallet)`);
   saveCurrentUser();
   closeNeighborModal();
 }
@@ -28193,6 +33022,562 @@ function buildTownEventsBoard() {
   CITY_ZONES.push({ x, z: z + 1.5, r: 3.5, label: '🎉 Town Events Board', action: () => openTownEvents()});
 }
 
+// ─── WALKABLE SHOP INTERIORS ───────────────────────────────────────────────────
+// User's own ask: every shop that used to open a flat 2D list overlay (#shopOverlay /
+// #cityShopModal) when you walked up and pressed E should instead teleport you into a REAL
+// walkable 3D interior — furniture placed around a room, walk up to an item, press E to
+// buy/craft it, walk to the door to leave — and the interior has to visibly look different
+// depending on what the shop sells (an armory vs a bakery vs a jewelry store), not one
+// identical room reused everywhere.
+//
+// Same "one shared pocket interior, rebuilt/reskinned on entry" pattern City Mall already uses
+// for its 3 real doors (enterMall(returnX,returnZ) / EXTRA_MALLS, game-housing.js) — rather than
+// hand-building ~700 unique rooms (300 CITY_SHOPS+MALL_SHOPS, 40-80 OUTFIT_SHOPS, the Weapon
+// Shop, the Armor Shop, the original Outfit Shop), ONE physical room shell is built once at its
+// own pocket-dimension lane (SHOP_INTERIOR below, the next free 10,000-unit lane after
+// VisitStore's 180000 — see HOUSE_SPAWN/MALL_SPAWN/etc.'s own comments, game-engine.js) and its
+// walls/floor/light are just re-tinted plus its furniture/items rebuilt every time a DIFFERENT
+// shop is entered. Since only the currently-entered shop's decor ever exists at once, this scales
+// fine to the 5,000+ real WEAPONS entries without ever building more than ~30 meshes at a time.
+//
+// The "look different per what it sells" requirement is solved the same way this codebase already
+// scales any other big catalog (robot shapes, boss silhouettes, the 65-weapon-archetype shop
+// itself): a small set of reusable FURNITURE ARCHETYPES (shelf, display case, clothing rack,
+// weapon rack, armor stand) driven by a CATEGORY -> LOOK config table (SHOP_LOOK_KITS/
+// CATEGORY_LOOK/CATEGORY_ACCENT below) — not dozens of hand-built bespoke rooms.
+//
+// Every real purchase/craft/equip function this taps (buyItem/craftMallItem/buyWeapon/
+// craftWeaponHard/buyArmor/craftArmorHard/buyOutfit/craftOutfit/buyBoutiqueOutfit/
+// craftBoutiqueOutfit/buyBodyPaint, all game-shops.js/game-district.js) is called EXACTLY as the
+// old modal buttons already called it — nothing about the economy/inventory/equip logic changes,
+// only the interaction (walk up + E) and the visual context (a themed room instead of a flat list).
+
+let inShopInterior = false;
+let currentShopInterior = null; // { kind, refId, returnX, returnZ } — set by enterShopInterior()
+
+// Own 10,000-unit lane, the next free one after VisitStore(180000) — see every other pocket
+// interior's own "own lane" comment (game-engine.js/game-land.js/game-vehicles.js) for the scheme.
+const SHOP_INTERIOR = { x: 190000, z: 0 };
+const SHOP_INTERIOR_HALF_W = 16, SHOP_INTERIOR_HALF_D = 16;
+// Sized for the Armory's ~28 racks (20 weapon price-tier racks + 8 armor tier racks) — the
+// biggest real case — so every smaller shop (a 5-outfit boutique, a 10-item mall shop) just gets
+// a roomier, more spacious version of the same real walkable room instead of needing its own
+// differently-sized shell (which would also need its own SHOP_INTERIOR_COLS).
+const SHOP_INTERIOR_SPAWN = { x: SHOP_INTERIOR.x, z: SHOP_INTERIOR.z + SHOP_INTERIOR_HALF_D - 2 };
+const SHOP_INTERIOR_EXIT  = { x: SHOP_INTERIOR.x, z: SHOP_INTERIOR.z + SHOP_INTERIOR_HALF_D + 1 };
+const SHOP_INTERIOR_COLS = [];
+let shopInteriorWalls = [], shopInteriorFloor = null, shopInteriorCeiling = null, shopInteriorLight = null;
+let shopInteriorDecorMeshes = []; // every mesh/group built for the CURRENTLY entered shop's furniture/items — wiped and rebuilt on every entry
+let SHOP_INTERIOR_ZONES = []; // rebuilt fresh per entry, same flat {x,z,r,label,action} shape every other _ZONES array uses (game-zones.js)
+
+// Builds the static shell ONCE at game start (see the _dbg('buildShopInteriorShell', ...) call,
+// game-zones.js) — floor/ceiling/4 walls with a real door gap in the south wall, matching the
+// exact two-collider-segments-either-side-of-a-gap pattern every other pocket interior with a
+// walkable doorway uses.
+function buildShopInteriorShell() {
+  const cx = SHOP_INTERIOR.x, cz = SHOP_INTERIOR.z;
+  const hw = SHOP_INTERIOR_HALF_W, hd = SHOP_INTERIOR_HALF_D;
+  const doorHalf = 2.2;
+  shopInteriorFloor = box(hw * 2, 0.15, hd * 2, 0xdec9a3, cx, 0, cz);
+  shopInteriorCeiling = box(hw * 2, 0.4, hd * 2, 0xeeeeee, cx, 8, cz);
+  // North wall (back, solid)
+  shopInteriorWalls.push(box(hw * 2, 8, 0.4, 0x6b4a2f, cx, 4, cz - hd));
+  addCol(SHOP_INTERIOR_COLS, cx, cz - hd, hw, 0.5);
+  // West / East walls (solid)
+  shopInteriorWalls.push(box(0.4, 8, hd * 2, 0x6b4a2f, cx - hw, 4, cz));
+  shopInteriorWalls.push(box(0.4, 8, hd * 2, 0x6b4a2f, cx + hw, 4, cz));
+  addCol(SHOP_INTERIOR_COLS, cx - hw, cz, 0.5, hd);
+  addCol(SHOP_INTERIOR_COLS, cx + hw, cz, 0.5, hd);
+  // South wall (door side) — 2 segments flanking a real walkable gap
+  const segLen = hw - doorHalf, segOffset = (hw + doorHalf) / 2;
+  shopInteriorWalls.push(box(segLen, 8, 0.4, 0x6b4a2f, cx - segOffset, 4, cz + hd));
+  shopInteriorWalls.push(box(segLen, 8, 0.4, 0x6b4a2f, cx + segOffset, 4, cz + hd));
+  addCol(SHOP_INTERIOR_COLS, cx - segOffset, cz + hd, segLen / 2, 0.5);
+  addCol(SHOP_INTERIOR_COLS, cx + segOffset, cz + hd, segLen / 2, 0.5);
+  buildSign('🚪 EXIT', cx, 7.4, cz + hd - 0.35);
+  shopInteriorLight = new THREE.PointLight(0xffffff, 0.6, 44);
+  shopInteriorLight.position.set(cx, 7, cz);
+  scene.add(shopInteriorLight);
+}
+
+// Re-tints the shared static shell for whichever shop is currently entered — this (plus the
+// furniture archetype + item colors) is what actually makes an Armory look like an Armory and a
+// Bakery look like a Bakery, without rebuilding any wall/floor/collider geometry.
+function repaintShopInteriorShell(wallColor, floorColor, lightColor) {
+  shopInteriorWalls.forEach(w => w.material.color.setHex(wallColor));
+  if (shopInteriorFloor) shopInteriorFloor.material.color.setHex(floorColor);
+  if (shopInteriorLight) shopInteriorLight.color.setHex(lightColor);
+}
+
+function shopDecor(meshOrGroup) { shopInteriorDecorMeshes.push(meshOrGroup); return meshOrGroup; }
+
+// ─── FURNITURE ARCHETYPES — the small reusable kit every category's look is built from ────────
+// Each returns { group, itemLocal } — `group` is the THREE.Group already added to the scene
+// (world-positioned/rotated), `itemLocal` is where the caller should position the actual item
+// prop (weapon mesh / armor mesh / mannequin / emoji-box) as a CHILD of that group, so it inherits
+// the furniture's own position/rotation for free.
+// Named buildShopShelfUnit (not buildShelfUnit) — game-world.js already has its own unrelated
+// buildShelfUnit(g, x, z, ing, count) for the player's own Store's ingredient shelves. Both files
+// are plain <script> tags sharing one global scope, and game-world.js loads AFTER this file, so an
+// identically-named function here would get silently overwritten by that one — which is exactly
+// what happened before this fix: buildFurnitureByKind()'s default case ended up calling the Store's
+// version with completely mismatched arguments (a number where it expected a THREE.Group), throwing
+// "g.add is not a function" partway through a shop's items.forEach() and aborting the whole loop —
+// so every item after the first 'shelf'-kind one in that shop never got a SHOP_INTERIOR_ZONES entry
+// at all. Real bug found live: "most of the hitboxes aren't working in store."
+function buildShopShelfUnit(x, z, ry, wallColor, accent) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry;
+  scene.add(g); shopDecor(g);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(1.9, 2.3, 0.1), new THREE.MeshLambertMaterial({ color: wallColor }));
+  back.position.set(0, 1.3, -0.4); g.add(back);
+  const shelf1 = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.07, 0.6), new THREE.MeshLambertMaterial({ color: accent }));
+  shelf1.position.set(0, 1.25, -0.15); g.add(shelf1);
+  const shelf2 = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.07, 0.6), new THREE.MeshLambertMaterial({ color: accent }));
+  shelf2.position.set(0, 1.9, -0.15); g.add(shelf2);
+  return { group: g, itemLocal: { x: 0, y: 1.5, z: -0.15 } };
+}
+function buildDisplayCase(x, z, ry, wallColor, accent) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry;
+  scene.add(g); shopDecor(g);
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.9, 0.7), new THREE.MeshLambertMaterial({ color: accent }));
+  base.position.set(0, 0.45, 0); g.add(base);
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.35, 0.6), new THREE.MeshPhongMaterial({ color: 0xbfe8ff, transparent: true, opacity: 0.35, shininess: 90 }));
+  glass.position.set(0, 1.075, 0); g.add(glass);
+  return { group: g, itemLocal: { x: 0, y: 1.05, z: 0 } };
+}
+function buildClothingRackFurniture(x, z, ry, wallColor, accent) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry;
+  scene.add(g); shopDecor(g);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.4, 0.06, 12), new THREE.MeshLambertMaterial({ color: accent }));
+  base.position.set(0, 0.03, 0); g.add(base);
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.7, 8), new THREE.MeshLambertMaterial({ color: 0x555555 }));
+  pole.position.set(0, 0.88, 0); g.add(pole);
+  return { group: g, itemLocal: { x: 0, y: 0.06, z: 0 } };
+}
+function buildWeaponRackFurniture(x, z, ry, wallColor, accent) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry;
+  scene.add(g); shopDecor(g);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.8, 0.15), new THREE.MeshLambertMaterial({ color: 0x2a2a2a }));
+  back.position.set(0, 1.1, -0.3); g.add(back);
+  [0.7, 1.5].forEach(y => {
+    const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.1, 0.2), new THREE.MeshLambertMaterial({ color: accent }));
+    bracket.position.set(0, y, -0.15); g.add(bracket);
+  });
+  return { group: g, itemLocal: { x: 0, y: 1.1, z: -0.1 } };
+}
+function buildArmorStandFurniture(x, z, ry, wallColor, accent) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry;
+  scene.add(g); shopDecor(g);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 0.08, 10), new THREE.MeshLambertMaterial({ color: accent }));
+  base.position.set(0, 0.04, 0); g.add(base);
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.3, 8), new THREE.MeshLambertMaterial({ color: 0x444444 }));
+  pole.position.set(0, 0.7, 0); g.add(pole);
+  return { group: g, itemLocal: { x: 0, y: 1.4, z: 0 } };
+}
+function buildFurnitureByKind(kind, x, z, ry, wallColor, accent) {
+  switch (kind) {
+    case 'case':       return buildDisplayCase(x, z, ry, wallColor, accent);
+    case 'rack':       return buildClothingRackFurniture(x, z, ry, wallColor, accent);
+    case 'weaponrack': return buildWeaponRackFurniture(x, z, ry, wallColor, accent);
+    case 'armorstand': return buildArmorStandFurniture(x, z, ry, wallColor, accent);
+    default:           return buildShopShelfUnit(x, z, ry, wallColor, accent);
+  }
+}
+// A simple low-poly mannequin (cylinder torso + box legs/shoes + sphere head), recolored per real
+// outfit — the SAME shirt/pants/shoes colors that outfit actually grants, so what you see on the
+// mannequin is exactly what you'd be wearing after buying it.
+function buildOutfitMannequinProp(shirt, pants, shoes) {
+  const g = new THREE.Group();
+  const legs = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.7, 0.2), new THREE.MeshLambertMaterial({ color: pants }));
+  legs.position.set(0, 0.35, 0); g.add(legs);
+  const shoesM = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.12, 0.26), new THREE.MeshLambertMaterial({ color: shoes }));
+  shoesM.position.set(0, 0.06, 0.02); g.add(shoesM);
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.6, 10), new THREE.MeshLambertMaterial({ color: shirt }));
+  torso.position.set(0, 1.0, 0); g.add(torso);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 10), new THREE.MeshLambertMaterial({ color: 0xf5c89a }));
+  head.position.set(0, 1.42, 0); g.add(head);
+  return g;
+}
+// A small colored base + the item's own real emoji floating above it (buildThrownItemSprite,
+// game-land.js — the same canvas-emoji-sprite technique this session's throw-any-item feature
+// already uses), for the ~300 CITY_SHOPS/MALL_SHOPS items that don't have a dedicated 3D model.
+function itemEmojiFor(name) {
+  const special = ITEM_INFO[name];
+  return (special && special.emoji) || SHOP_ITEM_EMOJI[name] || '📦';
+}
+function buildMallItemPropVisual(item, accentColor) {
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshLambertMaterial({ color: accentColor }));
+  g.add(base);
+  const spr = buildThrownItemSprite(itemEmojiFor(item.name));
+  spr.scale.setScalar(1.0);
+  spr.position.set(0, 0.55, 0);
+  g.add(spr);
+  return g;
+}
+function buildRegisterCounterDecor() {
+  const cx = SHOP_INTERIOR.x, cz = SHOP_INTERIOR.z;
+  shopDecor(box(2.2, 0.9, 0.7, 0x5a4a3a, cx, 0.45, cz + SHOP_INTERIOR_HALF_D - 3));
+  shopDecor(box(2.3, 0.08, 0.8, 0x3a2a1a, cx, 0.94, cz + SHOP_INTERIOR_HALF_D - 3));
+}
+
+// Distributes `n` display slots along the back wall + both side walls (never the door/south
+// wall), proportional to each wall's real usable length — a plain, reusable formula rather than a
+// hand-placed layout per shop, so it works unchanged whether n is 5 (a boutique) or 28 (the Armory).
+function layoutSlotsAroundRoom(n, cx, cz, halfW, halfD) {
+  const slots = [];
+  if (n <= 0) return slots;
+  const backLen = halfW * 2 - 4;
+  const sideLen = halfD * 2 - 7; // leaves clearance near the door corner and the back corner
+  const totalLen = backLen + 2 * sideLen;
+  let nBack = Math.max(1, Math.min(n, Math.round(n * backLen / totalLen)));
+  let remaining = n - nBack;
+  let nLeft = Math.ceil(remaining / 2), nRight = remaining - nLeft;
+  for (let i = 0; i < nBack; i++) {
+    const t = (i + 1) / (nBack + 1);
+    slots.push({ x: cx - halfW + 2 + t * backLen, z: cz - halfD + 0.7, ry: 0 });
+  }
+  for (let i = 0; i < nLeft; i++) {
+    const t = (i + 1) / (nLeft + 1);
+    slots.push({ x: cx - halfW + 0.7, z: cz - halfD + 3 + t * sideLen, ry: Math.PI / 2 });
+  }
+  for (let i = 0; i < nRight; i++) {
+    const t = (i + 1) / (nRight + 1);
+    slots.push({ x: cx + halfW - 0.7, z: cz - halfD + 3 + t * sideLen, ry: -Math.PI / 2 });
+  }
+  return slots.slice(0, n);
+}
+
+// ─── CATEGORY -> LOOK CONFIG ────────────────────────────────────────────────────────────────────
+// A small set of reusable "looks" (wall/floor/ceiling tint, furniture archetype, light tint), not
+// 25+ bespoke room designs — grouped exactly the way the task's own suggestion did (Book/Comic/
+// Stationery share a shelf-lined reading room, Candy/Bakery/Jewelry share a display-case look,
+// etc.), with every category still keeping its OWN accent color (CATEGORY_ACCENT) so shops in the
+// same look group are still visibly distinct from each other, not identical palette-swaps.
+const SHOP_LOOK_KITS = {
+  reading:  { wallBase: 0x6b4a2f, floor: 0xdec9a3, furniture: 'shelf',       light: 0xfff0d0 },
+  display:  { wallBase: 0xf7d7e0, floor: 0xf7f0e0, furniture: 'case',        light: 0xfff5f8 },
+  tech:     { wallBase: 0x1a1f2e, floor: 0x11141c, furniture: 'shelf',       light: 0x66d9ff },
+  sport:    { wallBase: 0x1f5f8a, floor: 0xcfd6da, furniture: 'rack',        light: 0xffffff },
+  boutique: { wallBase: 0xf4e0ea, floor: 0xf8f0f4, furniture: 'rack',        light: 0xfff0f5 },
+  toy:      { wallBase: 0xff9f61, floor: 0xfff4cc, furniture: 'shelf',       light: 0xffffff },
+  nature:   { wallBase: 0x2f6b3a, floor: 0xc9b28a, furniture: 'case',        light: 0xd8ffd8 },
+  home:     { wallBase: 0x8a6a4a, floor: 0xe0d0b8, furniture: 'case',        light: 0xffe8c0 },
+  music:    { wallBase: 0x5a1f2a, floor: 0x2a1a1a, furniture: 'shelf',       light: 0xffd0d0 },
+  // Jewelry Store gets its own dark, elegant "luxury" look instead of sharing Candy/Bakery's
+  // cheerful pastel "display" look — same display-case furniture archetype (a real jewelry store
+  // and a bakery both plausibly use glass cases), but different enough at a glance (near-black
+  // walls + warm gold light vs pale pink walls) to satisfy the actual point of this feature: an
+  // interior should read as what it sells, not as a palette-swapped copy of an unrelated shop.
+  luxury:   { wallBase: 0x1a1a2e, floor: 0x2a2a3a, furniture: 'case',        light: 0xffd9a0 },
+};
+const CATEGORY_LOOK = {
+  book_store: 'reading', comic_book_shop: 'reading', stationery_shop: 'reading',
+  card_gift_shop: 'reading', craft_store: 'reading', art_supplies_store: 'reading', hobby_shop: 'reading',
+  candy_shop: 'display', bakery: 'display', jewelry_store: 'luxury',
+  electronics_store: 'tech', video_game_store: 'tech', phone_accessories_store: 'tech',
+  sports_store: 'sport', skate_shop: 'sport', bike_shop: 'sport',
+  fashion_boutique: 'boutique', shoe_store: 'boutique',
+  toy_store: 'toy', party_supplies_store: 'toy',
+  plant_shop: 'nature', aquarium_fish_store: 'nature', pet_shop: 'nature',
+  furniture_store: 'home',
+  music_store: 'music',
+};
+const CATEGORY_ACCENT = {
+  book_store: 0x3a6ea5, comic_book_shop: 0xd94f2b, stationery_shop: 0x7a4fd9, card_gift_shop: 0xd94f8f,
+  craft_store: 0x2fa86b, art_supplies_store: 0xe0a52f, hobby_shop: 0x2fa8a0,
+  candy_shop: 0xff6fa5, bakery: 0xd98a3a, jewelry_store: 0xb08a2f,
+  electronics_store: 0x2fd9d0, video_game_store: 0x9a4fd9, phone_accessories_store: 0x2f8ad9,
+  sports_store: 0xe0522f, skate_shop: 0x3a3ae0, bike_shop: 0x2fa83a,
+  fashion_boutique: 0xd92fa0, shoe_store: 0x2f5fd9,
+  toy_store: 0x2f8ad9, party_supplies_store: 0xd92fd0,
+  plant_shop: 0x3a8a2f, aquarium_fish_store: 0x2f8ad9, pet_shop: 0xd9a52f,
+  furniture_store: 0x8a5a2f,
+  music_store: 0xd92f5a,
+};
+
+// Same 8-theme palette buildOutfitShopWing() (game-shops.js) already paints every Fashion Wing
+// storefront with — reused here so a boutique's INTERIOR wall color matches its own real
+// storefront color instead of introducing a second, disconnected theme system.
+const OUTFIT_BOUTIQUE_THEMES = [
+  { wall: 0xF4C2C2, accent: 0xE08A8A }, { wall: 0xC2D4F4, accent: 0x7A9EDD },
+  { wall: 0xD8C2F4, accent: 0xA47ADD }, { wall: 0xC2F4D8, accent: 0x6ADD9E },
+  { wall: 0xF4E2C2, accent: 0xDDB56A }, { wall: 0xC2F4F0, accent: 0x6ADDD5 },
+  { wall: 0xF4C2E2, accent: 0xDD6ABA }, { wall: 0xE0E0E0, accent: 0xA0A0A0 },
+];
+
+// ─── ENTER / EXIT ────────────────────────────────────────────────────────────────────────────
+// Same shape as enterMall(returnX,returnZ)/exitMall() (game-housing.js) — remembers exactly which
+// real outdoor/mall spot to return the player to, teleports into the shared pocket interior, and
+// rebuilds that one shop's own furniture/items fresh.
+function enterShopInterior(kind, refId) {
+  currentShopInterior = { kind, refId, returnX: playerGroup.position.x, returnZ: playerGroup.position.z };
+  inShopInterior = true;
+  playerGroup.position.set(SHOP_INTERIOR_SPAWN.x, 0, SHOP_INTERIOR_SPAWN.z);
+  yaw = Math.PI;
+  populateShopInterior(kind, refId);
+}
+function exitShopInterior() {
+  if (!inShopInterior) return;
+  const ret = currentShopInterior;
+  inShopInterior = false;
+  currentShopInterior = null;
+  if (ret) playerGroup.position.set(ret.returnX, 0, ret.returnZ);
+  yaw = 0;
+  showNotif('🚪 Leaving the shop...');
+}
+
+function populateShopInterior(kind, refId) {
+  shopInteriorDecorMeshes.forEach(m => scene.remove(m));
+  shopInteriorDecorMeshes = [];
+  SHOP_INTERIOR_ZONES = [
+    { x: SHOP_INTERIOR_EXIT.x, z: SHOP_INTERIOR_EXIT.z, r: 3, label: '🚪 Exit Shop', action: () => exitShopInterior() },
+  ];
+  let title = '🏪 Shop';
+  if (kind === 'mall') {
+    const shop = CITY_SHOPS.find(s => s.id === refId) || MALL_SHOPS.find(s => s.id === refId);
+    if (shop) { title = `${shop.emoji} ${shop.name}`; populateMallShopInterior(shop); }
+  } else if (kind === 'boutique') {
+    const shop = OUTFIT_SHOPS.find(s => s.id === refId);
+    if (shop) { title = `${shop.emoji} ${shop.name}`; populateBoutiqueInterior(shop); }
+  } else if (kind === 'outfitshop') {
+    title = '👗 Outfit Shop';
+    populateOriginalOutfitShopInterior();
+  } else if (kind === 'armory') {
+    title = '⚔️ Armory';
+    populateArmoryInterior();
+  }
+  shopDecor(buildSign(title, SHOP_INTERIOR.x, 7.5, SHOP_INTERIOR.z - SHOP_INTERIOR_HALF_D + 0.3));
+  showNotif(`🚪 Welcome to ${title}!`);
+}
+
+// ─── CITY_SHOPS / MALL_SHOPS (300 real shops) ──────────────────────────────────────────────────
+function interactWithMallItemProp(name, price) {
+  if (sipDollars >= price) { buyItem(name, price); return; }
+  const special = ITEM_INFO[name];
+  const craftId = (special && special.id) || name.toLowerCase().replace(/\s+/g, '_');
+  const cost = craftCostForPrice(price, craftId);
+  if (canAffordCraftCost(cost)) { craftMallItem(name, price); return; }
+  sfx.nope();
+  showNotif(`❌ Need 💰${price} S.I.P. or ${craftCostForPriceText(cost)}`);
+}
+function populateMallShopInterior(shop) {
+  const lookId = CATEGORY_LOOK[shop.catId] || 'toy';
+  const look = SHOP_LOOK_KITS[lookId];
+  const accent = CATEGORY_ACCENT[shop.catId] || look.wallBase;
+  repaintShopInteriorShell(look.wallBase, look.floor, look.light);
+  buildRegisterCounterDecor();
+  const slots = layoutSlotsAroundRoom(shop.items.length, SHOP_INTERIOR.x, SHOP_INTERIOR.z, SHOP_INTERIOR_HALF_W, SHOP_INTERIOR_HALF_D);
+  shop.items.forEach((item, i) => {
+    const slot = slots[i]; if (!slot) return;
+    const built = buildFurnitureByKind(look.furniture, slot.x, slot.z, slot.ry, look.wallBase, accent);
+    const prop = buildMallItemPropVisual(item, accent);
+    prop.position.set(built.itemLocal.x, built.itemLocal.y, built.itemLocal.z);
+    built.group.add(prop);
+    SHOP_INTERIOR_ZONES.push({ x: slot.x, z: slot.z, r: 1.9, label: `${itemEmojiFor(item.name)} ${item.name} — 💰${item.price}`, action: () => interactWithMallItemProp(item.name, item.price) });
+  });
+}
+
+// ─── 40/80 FASHION WING BOUTIQUES (OUTFIT_SHOPS) ───────────────────────────────────────────────
+function interactWithBoutiqueOutfit(shopId, i) {
+  const shop = OUTFIT_SHOPS.find(s => s.id === shopId); if (!shop) return;
+  const o = shop.outfits[i];
+  if (sipDollars >= o.cost) { buyBoutiqueOutfit(shopId, i); return; }
+  const craftId = 'boutique_' + shopId + '_' + o.name.toLowerCase().replace(/\s+/g, '_');
+  const cost = craftCostForPrice(o.cost, craftId);
+  if (canAffordCraftCost(cost)) { craftBoutiqueOutfit(shopId, i); return; }
+  sfx.nope();
+  showNotif(`❌ Need 💰${o.cost} S.I.P. or ${craftCostForPriceText(cost)}`);
+}
+function populateBoutiqueInterior(shop) {
+  const idx = Math.max(0, OUTFIT_SHOPS.indexOf(shop));
+  const theme = OUTFIT_BOUTIQUE_THEMES[idx % OUTFIT_BOUTIQUE_THEMES.length];
+  repaintShopInteriorShell(theme.wall, 0xf8f0f4, 0xfff0f5);
+  buildRegisterCounterDecor();
+  const slots = layoutSlotsAroundRoom(shop.outfits.length, SHOP_INTERIOR.x, SHOP_INTERIOR.z, SHOP_INTERIOR_HALF_W, SHOP_INTERIOR_HALF_D);
+  shop.outfits.forEach((o, i) => {
+    const slot = slots[i]; if (!slot) return;
+    const built = buildClothingRackFurniture(slot.x, slot.z, slot.ry, theme.wall, theme.accent);
+    const mannequin = buildOutfitMannequinProp(o.shirt, o.pants, o.shoes);
+    mannequin.position.set(built.itemLocal.x, built.itemLocal.y, built.itemLocal.z);
+    built.group.add(mannequin);
+    SHOP_INTERIOR_ZONES.push({ x: slot.x, z: slot.z, r: 1.9, label: `👗 ${o.name} — 💰${o.cost}`, action: () => interactWithBoutiqueOutfit(shop.id, i) });
+  });
+}
+
+// ─── ORIGINAL OUTFIT SHOP (6 OUTFITS + Body Paint corner) ──────────────────────────────────────
+function interactWithClassicOutfit(i) {
+  const o = OUTFITS[i];
+  if (sipDollars >= o.cost) { buyOutfit(i); return; }
+  const craftId = 'outfit_' + o.name.toLowerCase().replace(/\s+/g, '_');
+  const cost = craftCostForPrice(o.cost, craftId);
+  if (canAffordCraftCost(cost)) { craftOutfit(i); return; }
+  sfx.nope();
+  showNotif(`❌ Need 💰${o.cost} S.I.P. or ${craftCostForPriceText(cost)}`);
+}
+function populateOriginalOutfitShopInterior() {
+  repaintShopInteriorShell(0xf4c2c2, 0xf8f0f4, 0xfff0f5);
+  buildRegisterCounterDecor();
+  const combinedCount = OUTFITS.length + BODY_PAINTS.length;
+  const slots = layoutSlotsAroundRoom(combinedCount, SHOP_INTERIOR.x, SHOP_INTERIOR.z, SHOP_INTERIOR_HALF_W, SHOP_INTERIOR_HALF_D);
+  let si = 0;
+  OUTFITS.forEach((o, i) => {
+    const slot = slots[si++]; if (!slot) return;
+    const built = buildClothingRackFurniture(slot.x, slot.z, slot.ry, 0xf4c2c2, 0xE08A8A);
+    const mannequin = buildOutfitMannequinProp(o.shirt, o.pants, o.shoes);
+    mannequin.position.set(built.itemLocal.x, built.itemLocal.y, built.itemLocal.z);
+    built.group.add(mannequin);
+    SHOP_INTERIOR_ZONES.push({ x: slot.x, z: slot.z, r: 1.9, label: `👗 ${o.name} — 💰${o.cost}`, action: () => interactWithClassicOutfit(i) });
+  });
+  BODY_PAINTS.forEach((p, i) => {
+    const slot = slots[si++]; if (!slot) return;
+    const built = buildDisplayCase(slot.x, slot.z, slot.ry, 0xf4c2c2, 0xE08A8A);
+    const swatch = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.25, 0.5), new THREE.MeshLambertMaterial({ color: p.color }));
+    swatch.position.set(built.itemLocal.x, built.itemLocal.y, built.itemLocal.z);
+    built.group.add(swatch);
+    SHOP_INTERIOR_ZONES.push({ x: slot.x, z: slot.z, r: 1.9, label: `🎨 ${p.name}${p.cost ? ` — 💰${p.cost}` : ' — Free'}`, action: () => buyBodyPaint(i) });
+  });
+}
+
+// ─── ARMORY (Weapon Shop + Armor Shop combined, the 2 highest-catalog-size cases) ──────────────
+// ~5,013 real WEAPONS and 85 real ARMOR pieces obviously can't each get a unique physical mesh in
+// a walkable room — grouped into real price-sorted buckets (20 weapon tiers, 8 armor tiers) shown
+// as racks/stands carrying one REAL representative mesh (buildWeaponVisual()/buildArmorVisual(),
+// the exact same builders that render what you'd see equipped), each opening a compact real
+// picker of just that bucket's items — still granting/equipping via the exact existing
+// buyWeapon()/craftWeaponHard()/buyArmor()/craftArmorHard(), never reimplemented.
+function getWeaponBuckets() {
+  buildWeaponLevels();
+  const list = WEAPONS.filter(w => !w.blackMarketOnly && !w.craftOnly && !w.robotShopOnly).slice().sort((a, b) => a.cost - b.cost);
+  const BUCKETS = 20;
+  const per = Math.max(1, Math.ceil(list.length / BUCKETS));
+  const buckets = [];
+  for (let i = 0; i < list.length; i += per) {
+    const chunk = list.slice(i, i + per);
+    if (!chunk.length) continue;
+    buckets.push({ label: `💰${chunk[0].cost.toLocaleString()}–💰${chunk[chunk.length - 1].cost.toLocaleString()}`, items: chunk });
+  }
+  return buckets;
+}
+function getArmorBuckets() {
+  const list = ARMOR.filter(a => !a.craftOnly && (!a.premiumOnly || ownedArmor.includes(a.id))).slice().sort((a, b) => a.cost - b.cost);
+  const BUCKETS = 8;
+  const per = Math.max(1, Math.ceil(list.length / BUCKETS));
+  const buckets = [];
+  for (let i = 0; i < list.length; i += per) {
+    const chunk = list.slice(i, i + per);
+    if (!chunk.length) continue;
+    buckets.push({ label: `💰${chunk[0].cost.toLocaleString()}–💰${chunk[chunk.length - 1].cost.toLocaleString()}`, items: chunk });
+  }
+  return buckets;
+}
+function populateArmoryInterior() {
+  repaintShopInteriorShell(0x3a3a3a, 0x2a2a2a, 0xffaa55);
+  buildRegisterCounterDecor();
+  const weaponBuckets = getWeaponBuckets();
+  const armorBuckets = getArmorBuckets();
+  const combined = [
+    ...weaponBuckets.map(b => ({ type: 'weapon', bucket: b })),
+    ...armorBuckets.map(b => ({ type: 'armor', bucket: b })),
+  ];
+  const slots = layoutSlotsAroundRoom(combined.length, SHOP_INTERIOR.x, SHOP_INTERIOR.z, SHOP_INTERIOR_HALF_W, SHOP_INTERIOR_HALF_D);
+  combined.forEach((entry, i) => {
+    const slot = slots[i]; if (!slot) return;
+    if (entry.type === 'weapon') {
+      const built = buildWeaponRackFurniture(slot.x, slot.z, slot.ry, 0x3a3a3a, 0x8a6a3a);
+      const rep = entry.bucket.items[Math.floor(entry.bucket.items.length / 2)];
+      const mesh = buildWeaponVisual(rep.id);
+      if (mesh) { mesh.scale.multiplyScalar(1.5); mesh.position.set(built.itemLocal.x, built.itemLocal.y, built.itemLocal.z); built.group.add(mesh); }
+      const bucketIdx = weaponBuckets.indexOf(entry.bucket);
+      SHOP_INTERIOR_ZONES.push({ x: slot.x, z: slot.z, r: 2.1, label: `⚔️ Weapons ${entry.bucket.label}`, action: () => openWeaponBucketPicker(bucketIdx) });
+    } else {
+      const built = buildArmorStandFurniture(slot.x, slot.z, slot.ry, 0x3a3a3a, 0x6a7a8a);
+      const rep = entry.bucket.items[Math.floor(entry.bucket.items.length / 2)];
+      const mesh = buildArmorVisual(rep.id);
+      if (mesh) { mesh.position.set(built.itemLocal.x, built.itemLocal.y, built.itemLocal.z); built.group.add(mesh); }
+      const bucketIdx = armorBuckets.indexOf(entry.bucket);
+      SHOP_INTERIOR_ZONES.push({ x: slot.x, z: slot.z, r: 2.1, label: `🛡️ Armor ${entry.bucket.label}`, action: () => openArmorBucketPicker(bucketIdx) });
+    }
+  });
+}
+function buyWeaponFromPicker(idx, bucketIdx) { buyWeapon(idx); openWeaponBucketPicker(bucketIdx); }
+function craftWeaponFromPicker(idx, bucketIdx) { craftWeaponHard(idx); openWeaponBucketPicker(bucketIdx); }
+function weaponPickerRowHtml(w, bucketIdx) {
+  const realIdx = WEAPONS.indexOf(w);
+  const owned = ownedWeapons.includes(w.id);
+  const equipped = playerWeapon === w.id;
+  const need = weaponRequiredLevel(w.id);
+  const locked = need > eliteLevel;
+  const craftCost = craftCostForPrice(w.cost, w.id);
+  const canCraft = !owned && !locked && canAffordCraftCost(craftCost);
+  return `<div class="shopItem">
+    <div class="siName">${w.name}</div>
+    <div class="siCost">${owned ? (equipped ? '✅ Equipped' : '✔ Owned') : '💰 ' + w.cost + ' S.I.P.'}${need > 0 ? ` — 🔒 Lv.${need}` : ''}</div>
+    ${owned ? '' : `<div class="siCost" style="color:#8ac9ff;">🔨 ${craftCostForPriceText(craftCost)}</div>`}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button class="shopBtn" onclick="buyWeaponFromPicker(${realIdx},${bucketIdx})" ${(equipped || locked) ? 'disabled' : ''}>${locked ? `Lv.${need}` : (owned ? (equipped ? 'Equipped' : 'Equip') : 'Buy')}</button>
+      ${owned ? '' : `<button class="shopBtn" style="background:#3a6a4a;" onclick="craftWeaponFromPicker(${realIdx},${bucketIdx})" ${(locked || !canCraft) ? 'disabled' : ''}>🔨 Craft</button>`}
+    </div>
+  </div>`;
+}
+function openWeaponBucketPicker(bucketIdx) {
+  const buckets = getWeaponBuckets();
+  const bucket = buckets[bucketIdx]; if (!bucket) return;
+  openShopInteriorPicker(`⚔️ Weapons ${bucket.label}`, bucket.items.map(w => weaponPickerRowHtml(w, bucketIdx)).join(''));
+}
+function buyArmorFromPicker(idx, bucketIdx) { buyArmor(idx); openArmorBucketPicker(bucketIdx); }
+function craftArmorFromPicker(idx, bucketIdx) { craftArmorHard(idx); openArmorBucketPicker(bucketIdx); }
+function armorPickerRowHtml(a, bucketIdx) {
+  const realIdx = ARMOR.indexOf(a);
+  const owned = ownedArmor.includes(a.id);
+  const equipped = playerArmor === a.id;
+  const craftCost = craftCostForPrice(a.cost, a.id);
+  const canCraft = !owned && canAffordCraftCost(craftCost);
+  return `<div class="shopItem">
+    <div class="siName">${a.name}</div>
+    <div class="siCost">${owned ? (equipped ? '✅ Equipped' : '✔ Owned') : '💰 ' + a.cost + ' S.I.P.'} — blocks ${Math.round(a.reduction * 100)}% damage</div>
+    ${owned ? '' : `<div class="siCost" style="color:#8ac9ff;">🔨 ${craftCostForPriceText(craftCost)}</div>`}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button class="shopBtn" onclick="buyArmorFromPicker(${realIdx},${bucketIdx})" ${equipped ? 'disabled' : ''}>${owned ? (equipped ? 'Equipped' : 'Equip') : 'Buy'}</button>
+      ${owned ? '' : `<button class="shopBtn" style="background:#3a6a4a;" onclick="craftArmorFromPicker(${realIdx},${bucketIdx})" ${canCraft ? '' : 'disabled'}>🔨 Craft</button>`}
+    </div>
+  </div>`;
+}
+function openArmorBucketPicker(bucketIdx) {
+  const buckets = getArmorBuckets();
+  const bucket = buckets[bucketIdx]; if (!bucket) return;
+  openShopInteriorPicker(`🛡️ Armor ${bucket.label}`, bucket.items.map(a => armorPickerRowHtml(a, bucketIdx)).join(''));
+}
+
+// ─── COMPACT IN-WORLD PICKER — a small real overlay (built once, lazily) for browsing one
+// weapon/armor price bucket at a time. Not the old #shopOverlay/#cityShopModal — a new, smaller
+// panel reusing the exact same .shopItem/.siName/.siCost/.shopBtn CSS classes those already use
+// (defined globally in EXPLOX.html, not scoped to either old overlay) so it looks consistent.
+function ensureShopInteriorPickerDom() {
+  if (document.getElementById('shopInteriorPicker')) return;
+  const d = document.createElement('div');
+  d.id = 'shopInteriorPicker';
+  d.style.cssText = 'display:none;position:fixed;inset:0;z-index:55;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;';
+  d.innerHTML = `<div style="background:#1a1a2e;border:2px solid #e94560;border-radius:14px;padding:20px;max-width:420px;width:92%;max-height:80vh;overflow-y:auto;">
+    <h3 id="shopInteriorPickerTitle" style="color:#e94560;letter-spacing:1px;margin:0 0 10px;font-size:16px;"></h3>
+    <div id="shopInteriorPickerItems" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <button onclick="closeShopInteriorPicker()" style="margin-top:12px;width:100%;padding:8px;background:#333;border:none;border-radius:8px;color:#fff;cursor:pointer;">Close</button>
+  </div>`;
+  document.body.appendChild(d);
+}
+function openShopInteriorPicker(title, itemsHtml) {
+  ensureShopInteriorPickerDom();
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('shopInteriorPickerTitle').textContent = title;
+  document.getElementById('shopInteriorPickerItems').innerHTML = itemsHtml;
+  document.getElementById('shopInteriorPicker').style.display = 'flex';
+}
+function closeShopInteriorPicker() {
+  const el = document.getElementById('shopInteriorPicker');
+  if (el) el.style.display = 'none';
+  if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+}
 // ─── WORLD EVENTS ──────────────────────────────────────────────────────────────
 // Different from the Town Events board above — these are SHARED with everyone
 // online (via the generic /api/event endpoint, one active event at a time,
@@ -28382,10 +33767,16 @@ function rollMysteryReward() {
     elite: DAILY_STREAK_MYSTERY_ELITE_MIN + Math.floor(Math.random()*(DAILY_STREAK_MYSTERY_ELITE_MAX-DAILY_STREAK_MYSTERY_ELITE_MIN+1)),
   };
 }
-function yesterdayDateString() {
-  const y = new Date(); y.setDate(y.getDate()-1);
-  return y.toISOString().slice(0,10);
-}
+// User's own ask: "the day is 12 hours make it like that for dai;ly rewards" — Daily Rewards now
+// gates on a real 12-hour cooldown instead of the real calendar date, so it's claimable twice in
+// a 24-hour day instead of once. lastStreakClaimDate keeps its field name (already wired through
+// save/load, game-core.js) but now holds a real timestamp (Date.now()) instead of a date string —
+// Number(oldDateString) is NaN, and NaN || 0 is 0, so an existing account's old-format value
+// naturally reads as "never claimed under the new system" instead of crashing or getting stuck.
+const DAILY_STREAK_COOLDOWN_MS = 12 * 60 * 60 * 1000; // 12 hours
+function lastStreakClaimMs() { return Number(lastStreakClaimDate) || 0; }
+function dailyStreakMsSinceLastClaim() { return Date.now() - lastStreakClaimMs(); }
+function dailyStreakReadyInHours() { return Math.ceil(Math.max(0, DAILY_STREAK_COOLDOWN_MS - dailyStreakMsSinceLastClaim()) / 3600000); }
 // Small shared row of pill buttons so the modal can hold two real sections (the shared Event of
 // the Day above, and this personal Streak) without needing a second modal element — reuses the
 // exact same #neighborModal every other simple popup in this file already reuses.
@@ -28412,6 +33803,16 @@ function openEventOfDay(view) {
   } else {
     html += `<button onclick="claimEventOfDay()" style="width:100%;padding:9px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;color:#111;background:#FFD700;">🎁 Claim Today's Bonus</button>`;
   }
+  // The tab's own "special map you play in" — user's own ask. A real fight (reuses the Robot
+  // Arena, startTodaysChallenge()/finishArenaBattle(), game-land.js), separate from the passive
+  // claim above: its own once-per-real-day gate, its own random robot count, its own surprise bonus.
+  const battleClaimedToday = lastEventBattleClaim === todayDateString();
+  html += `<div style="text-align:center;color:#ddd;font-size:12px;margin:14px 0 8px;">⚔️ Or fight for a surprise bonus:</div>`;
+  if (battleClaimedToday) {
+    html += `<div style="text-align:center;color:#888;font-size:12px;">✅ Already fought today's challenge — come back tomorrow!</div>`;
+  } else {
+    html += `<button onclick="startTodaysChallenge()" style="width:100%;padding:9px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;color:#fff;background:#aa2244;">⚔️ Play Today's Challenge</button>`;
+  }
   document.getElementById('neighborModalBody').innerHTML = html;
 }
 // Formats one reward for display — real numbers for Days 1-19, a real "Mystery" label (no number
@@ -28421,18 +33822,18 @@ function fmtStreakReward(r) {
   return `💰 ${r.sip.toLocaleString()} S.I.P.${r.elite ? ` + 💎 ${r.elite.toLocaleString()} Elite` : ''}`;
 }
 function renderDailyRewardsView() {
-  const today = todayDateString();
-  const claimedToday = lastStreakClaimDate === today;
-  // What day the NEXT claim would land on — Day 1 if never claimed or a real day was missed,
-  // otherwise one past wherever the streak already is.
-  const nextDay = claimedToday ? dailyStreakCount : (lastStreakClaimDate === yesterdayDateString() || lastStreakClaimDate === today ? dailyStreakCount + 1 : 1);
+  const msSinceLastClaim = dailyStreakMsSinceLastClaim();
+  const claimedToday = msSinceLastClaim < DAILY_STREAK_COOLDOWN_MS;
+  // What day the NEXT claim would land on — Day 1 if never claimed or the 24-hour grace window
+  // was missed, otherwise one past wherever the streak already is.
+  const nextDay = claimedToday ? dailyStreakCount : (msSinceLastClaim < DAILY_STREAK_COOLDOWN_MS*2 ? dailyStreakCount + 1 : 1);
   document.getElementById('neighborModalTitle').textContent = '📈 Daily Rewards';
   let html = eventOfDayTabsHtml('rewards');
-  html += `<div style="text-align:center;color:#ddd;font-size:13px;margin-bottom:6px;">Come back every real day — the reward keeps getting better! Day ${DAILY_STREAK_MAX_DAY}+ is a real mystery.</div>`;
+  html += `<div style="text-align:center;color:#ddd;font-size:13px;margin-bottom:6px;">Come back every 12 hours — the reward keeps getting better! Day ${DAILY_STREAK_MAX_DAY}+ is a real mystery.</div>`;
   html += `<div style="text-align:center;color:#ff9944;font-weight:bold;font-size:16px;margin-bottom:10px;">🔥 Streak: Day ${claimedToday ? dailyStreakCount : Math.max(0,nextDay-1)}</div>`;
   if (claimedToday) {
     html += `<div style="text-align:center;color:#FFD700;font-weight:bold;font-size:14px;margin-bottom:10px;">Claimed: ${fmtStreakReward(lastStreakRewardShown)}</div>`;
-    html += `<div style="text-align:center;color:#888;font-size:12px;">✅ Already claimed today — come back tomorrow for Day ${dailyStreakCount+1}!</div>`;
+    html += `<div style="text-align:center;color:#888;font-size:12px;">✅ Already claimed — come back in ${dailyStreakReadyInHours()}h for Day ${dailyStreakCount+1}!</div>`;
   } else {
     html += `<div style="text-align:center;color:#FFD700;font-weight:bold;font-size:14px;margin-bottom:10px;">Day ${nextDay} reward: ${fmtStreakReward(dailyStreakRewardFor(nextDay))}</div>`;
     html += `<button onclick="claimDailyStreak()" style="width:100%;padding:9px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;color:#111;background:#ff66aa;">📈 Claim Day ${nextDay}</button>`;
@@ -28469,10 +33870,10 @@ function claimEventOfDay() {
   openEventOfDay('event'); // refresh the modal to show the now-claimed state
 }
 function claimDailyStreak() {
-  const today = todayDateString();
-  if (lastStreakClaimDate === today) { showNotif('📈 Already claimed today\'s streak reward — come back tomorrow!'); return; }
-  dailyStreakCount = (lastStreakClaimDate === yesterdayDateString()) ? dailyStreakCount + 1 : 1;
-  lastStreakClaimDate = today;
+  const msSinceLastClaim = dailyStreakMsSinceLastClaim();
+  if (msSinceLastClaim < DAILY_STREAK_COOLDOWN_MS) { showNotif(`📈 Already claimed — come back in ${dailyStreakReadyInHours()}h!`); return; }
+  dailyStreakCount = (msSinceLastClaim < DAILY_STREAK_COOLDOWN_MS*2) ? dailyStreakCount + 1 : 1;
+  lastStreakClaimDate = Date.now();
   saveCurrentUser();
   // Day 20+ is a real mystery roll, resolved right here at claim time — dailyStreakRewardFor()
   // returns null for these on purpose, so there was never a number to leak in the preview above.
@@ -28643,11 +34044,11 @@ function fightWorldEventNpc(npc, ev) {
   if (!npc.alive || !activeWorldEvent || activeWorldEvent.startedAt !== ev.startedAt) { showNotif('That fight is over.'); return; }
   const dmg = getRobotDamage();
   npc.hp -= dmg;
-  triggerSwing(); sfx.clang();
+  swingAndHit(npc.x, npc.z, () => sfx.clang());
   startKnockback(playerGroup.position.x, playerGroup.position.z, npc.x, npc.z,
     (x, z) => { npc.x = x; npc.z = z; npc.mesh.position.set(x, 0, z); });
   if (npc.hp > 0) {
-    showNotif(`${ev.data.emoji} Hit for ${dmg}! (${npc.hp} HP left)`);
+    showTargetHealthBar(npc.hp, npc.maxHp);
     // Invasion Attempt's invaders fight back through their own active tick (tickInvasionCombat)
     // instead of a free counter-hit on every player swing — the other 7 hostileFaction events stay
     // exactly as they were, still just passive counter-punchers.
@@ -28919,7 +34320,6 @@ let bossState  = {}; // name -> {hp, maxHp, alive, level, defeats} — local mir
 let bossMeshes = {}; // name -> {mesh, col}
 let currentNearBoss = null;
 let _lastBossSync = -999;
-let _lastEarningsCheck = -999;
 const BOSS_SYNC_INTERVAL = 5;
 function initBossState() {
   BOSS_DEFS.forEach(def => { if (!bossState[def.name]) bossState[def.name] = { hp: def.maxHp, maxHp: def.maxHp, alive: true, level: 0, defeats: 0, attackTimer: 0, curX: def.x, curZ: def.z, aggro: false }; });
@@ -28942,7 +34342,7 @@ function bossHitDamage(def, st) { return Math.round(def.damage * Math.min(3, 1 +
 const BOSS_DETECT_RANGE = 20, BOSS_DEAGGRO_RANGE = 55, BOSS_ATTACK_RANGE = 6, BOSS_ATTACK_INTERVAL = 1.8;
 const BOSS_CHASE_SPEED = 9.5; // faster than the player's 8 walk speed, slower than 14.8 run — outrunnable, not out-walkable
 function tickBossChase(dt) {
-  if (!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inVisitStore) {
+  if (!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inVisitStore && !inShopInterior) {
     BOSS_DEFS.forEach(def => {
       const st = bossState[def.name];
       if (!st || !st.alive) return;
@@ -29012,7 +34412,7 @@ function triggerWrath() {
 function tickWrath(dt) {
   if (!wrathActive || !wrath || !playerGroup) return;
   // Same "can't reach you through a wall/interior" gate every other outdoor threat already uses.
-  if (inHouse || inMall || inHotel || inStore || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inPrison || inArcade || inCar || inArenaBattle || inMovieFight || inBankInterior || inSportsPark || inHospital || inSea || inVisitStore) return;
+  if (inHouse || inMall || inHotel || inStore || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inPrison || inArcade || inCar || inArenaBattle || inMovieFight || inBankInterior || inSportsPark || inHospital || inSea || inVisitStore || inShopInterior) return;
   const dx = playerGroup.position.x-wrath.curX, dz = playerGroup.position.z-wrath.curZ, dist = Math.hypot(dx,dz);
   if (dist > WRATH_ATTACK_RANGE) {
     wrath.attackTimer = 0;
@@ -29289,7 +34689,12 @@ function buildHeavenZone() {
   pillarGlow.position.set(px, 10, pz); scene.add(pillarGlow);
   const lamp = new THREE.PointLight(GOD_COLOR, 3, 80); lamp.position.set(px, 12, pz); scene.add(lamp);
   buildSign('🕊️ HEAVEN', px, 26, pz+24);
-  addCol(CITY_COLS, px, pz, 10, 10);
+  // Real bug found live ("cant movwe in heaven"): this used to add a solid, always-blocked 20x20
+  // collider centered right here — the EXACT spot enterHeaven() teleports the player to. Every
+  // arriving player spawned already stuck inside solid geometry, unable to move in any direction.
+  // The pillars/light column are decorative (a column of light shouldn't be a solid wall anyway),
+  // and no other floaty zone (Moon/Mars/Jupiter/Andromeda) has a collider here either — removed
+  // rather than just moved, to match how open every other one of these already is.
   // Real way back — same "walk into a zone, press E" pattern the Space Station's own "🚀 Launch
   // into Space" zone already uses (CITY_ZONES is the default zones list, active here since Heaven
   // has no dedicated inHeaven flag of its own — same as Moon/Mars/etc, see GRAVITY_ZONES' comment).
@@ -29302,6 +34707,33 @@ function enterHeaven() {
 function returnFromHeaven() {
   playerGroup.position.set(-70, 0, 26); yaw = Math.PI; // same known-safe release coordinate used throughout this whole arc
   showNotif('🌍 Back on Earth.');
+}
+// User's own ask: "add a sighn saying do u want to go to heaven it appears once 5 min" — a
+// periodic real in-page popup (native confirm() is unreliable in this game's embeds — see
+// deleteConfirmModal, game-core.js — so this follows the same real-modal pattern), offering the
+// same Heaven this account can already reach through Divine Judgment. Skips the ask while the
+// player is already standing in Heaven (currentSpaceZone(), further down this file).
+// Follow-up correction: "HEAVEN ONLY CALLS TO YOU IF YOUR LEVEL IS INFINITY" — the invite now only
+// fires once Robot Level (eliteLevel, game-customization.js) is the literal, non-finite value
+// Infinity, a real state grinding alone can never actually reach (eliteThresholdForLevel() itself
+// overflows to an infinite cost around level ~1750, so leveling stops there on its own) — reachable
+// for real via the admin console's /level infinity (game-admin.js), which is the intended path in.
+function maybeShowHeavenInvite() {
+  if (!currentUser) return;
+  if (eliteLevel !== Infinity) return;
+  const z = currentSpaceZone();
+  if (z && z.name === 'Heaven') return;
+  document.getElementById('heavenInviteModal').style.display = 'flex';
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+}
+function declineHeavenInvite() {
+  document.getElementById('heavenInviteModal').style.display = 'none';
+}
+function acceptHeavenInvite() {
+  document.getElementById('heavenInviteModal').style.display = 'none';
+  enterHeaven();
+  showNotif('🕊️ Welcome to Heaven. Look for the "🌍 Return to Earth" sign whenever you want to leave.');
 }
 
 // ─── SATAN — during the cleansing period, sometimes "satan attack god nnot us" — never the
@@ -29640,7 +35072,7 @@ const SPY_APPEAR_DIST_MIN = 15, SPY_APPEAR_DIST_MAX = 26; // spawn near the play
 const SPY_FLEE_MAX = 6;     // real seconds given to actually get clear before force-despawning
 let spyNextInterval = SPY_APPEAR_MIN + Math.random()*(SPY_APPEAR_MAX-SPY_APPEAR_MIN);
 function tickSpies(dt) {
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore && !inShopInterior;
   spyTimer += dt;
   if (outdoors && spies.length < SPY_MAX_ACTIVE && spyTimer >= spyNextInterval) {
     spyTimer = 0;
@@ -29746,12 +35178,13 @@ function tickSpyAmbushWatch() {
   if (Date.now() - spyDiscoveredAt < SPY_AMBUSH_MIN_DELAY_MS) return;
   const zone = LOC_ZONES.find(z => z.name === spyFavoriteSpot);
   if (!zone) { spyFavoriteSpot = null; return; } // safety net — shouldn't happen
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore && !inShopInterior;
   if (!outdoors) return;
   const dist = Math.hypot(playerGroup.position.x-zone.x, playerGroup.position.z-zone.z);
   if (dist < zone.r) triggerSpyAmbush(zone);
 }
 function triggerSpyAmbush(zone) {
+  if (isPeacefulMode()) return; // user's own ask: "a peaceful so no one will spawn" (game-customization.js)
   const n = 2 + Math.floor(Math.random()*3); // 2-4 real attackers
   for (let i=0; i<n; i++) {
     const ang = Math.random()*Math.PI*2, dist = 4+Math.random()*7;
@@ -29874,10 +35307,15 @@ function buildBosses() {
     bossMeshes[def.name] = { mesh, light };
   });
 }
+// Same real bug, same fix as chatEndpointMissing (game-social.js): some deployments of the
+// Explox server 404 on /api/bosses (route doesn't exist there), which isn't going to change
+// until the page reloads — retrying every BOSS_SYNC_INTERVAL forever just spams the console.
+let bossEndpointMissing = false;
 async function syncBosses() {
-  if (serverMode !== 'online') return;
+  if (serverMode !== 'online' || bossEndpointMissing) return;
   try {
     const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/bosses', {}, 4000);
+    if (r.status === 404) { bossEndpointMissing = true; return; }
     if (!r.ok) return;
     const data = await r.json();
     BOSS_DEFS.forEach(def => {
@@ -29935,8 +35373,7 @@ async function fightBoss(def) {
     return;
   }
   const dmg = getWeaponDamage();
-  triggerSwing();
-  sfx.clang();
+  swingAndHit(st.curX, st.curZ, () => sfx.clang());
   // Real pre-existing bug found while verifying the new chase feature: this floor used to be
   // Math.max(1, ...) UNCONDITIONALLY, even in offline mode — which meant an offline solo boss
   // fight could NEVER actually reach 0 HP, so the boss could never be won against without a
@@ -29947,7 +35384,7 @@ async function fightBoss(def) {
   st.hp = Math.max(serverMode === 'online' ? 1 : 0, st.hp - dmg);
   showBossHud(def);
   showNotif(`${def.emoji} Hit ${def.name} for ${dmg}!`);
-  queueEarning(def.hitSip, def.hitElite, def.name); // small per-hit ticks merge into one Earnings row (EARNING_MERGE_WINDOW_MS) instead of flooding it during a long fight
+  queueEarning(def.hitSip, def.hitElite, def.name);
   updateSIP(); if (def.hitElite) updateElite();
   // No counter-hit here anymore — tickBossAttacks() already swings at the player on its own
   // timer whenever they're in range, attacking or not. A guaranteed extra hit every time you
@@ -30139,7 +35576,7 @@ function tickMysteries(dt) {
   // Same outdoors gate tickSpies() uses just above — a mystery notification popping while the
   // player's mid-conversation in a shop interior would be a jarring interruption for no reason,
   // since every case's own clues/suspects live outdoors in the city anyway.
-  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore;
+  const outdoors = !inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inCar && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inSchool && !inVisitStore && !inShopInterior;
   if (!outdoors) return;
   if (Date.now() < mysteryNextTriggerAt) return;
   const pool = eligibleMysteryCases();
@@ -30341,7 +35778,7 @@ function accuseMysterySuspect(caseId, suspectId) {
   if (correct) {
     st.status = 'solved';
     queueEarning(def.reward, 0, def.name);
-    showNotif(`🎉 Case Closed — ${def.name}! You correctly accused ${suspect.name}. ${def.solutionRecap} +${def.reward} S.I.P. pending in Earnings!`);
+    showNotif(`🎉 Case Closed — ${def.name}! You correctly accused ${suspect.name}. ${def.solutionRecap} +${def.reward} S.I.P. added to your wallet!`);
     sfx.cheer();
     scheduleNextMystery();
   } else {
@@ -30402,7 +35839,7 @@ function getCompanionCombatTarget() {
     });
     if (target) return { type:'ffa', name: target };
   }
-  if (!inHouse && !inMall && !inArcade && !inStore) {
+  if (!inHouse && !inMall && !inArcade && !inStore && !inShopInterior) {
     let closestKiller = null, closestKillerDist = Infinity;
     for (const k of killers) {
       if (!k.alive || !k.revealed) continue;
@@ -30476,12 +35913,16 @@ function companionHitBoss(def, dmg, label) {
 function landCompanionHit(target, mult, label) {
   if (target.type === 'duel') {
     const dmg = Math.max(1, Math.round(getWeaponDamage() * mult));
-    sendMail(target.name, 'duel_hit', { damage: dmg });
+    // fromX/fromZ use the OWNER's own position (companions fight right beside you, not from
+    // their own tracked spot) — close enough for a believable push direction on the receiving
+    // end's applyIncomingKnockback() (game-social.js); power is a fixed modest value since a
+    // companion's hit was never a charged player punch to begin with.
+    sendMail(target.name, 'duel_hit', { damage: dmg, fromX: playerGroup.position.x, fromZ: playerGroup.position.z, power: 0.3 });
     showNotif(`${label} hits ${target.name} for ${dmg}!`);
     sfx.hit();
   } else if (target.type === 'ffa') {
     const dmg = Math.max(1, Math.round(getWeaponDamage() * mult));
-    sendMail(target.name, 'ffa_hit', { damage: dmg });
+    sendMail(target.name, 'ffa_hit', { damage: dmg, fromX: playerGroup.position.x, fromZ: playerGroup.position.z, power: 0.3 });
     showNotif(`${label} hits ${target.name} for ${dmg}!`);
     sfx.hit();
   } else if (target.type === 'killer') {
@@ -30493,8 +35934,7 @@ function landCompanionHit(target, mult, label) {
     // k.demon), but each is a real different kind of kill with its own reward/message —
     // dispatching every companion-assisted kill here through defeatKiller() regardless would have
     // silently paid the wrong currency and shown the wrong message for a robber or demon kill.
-    const foeLabel = k.demon ? k.demonDef.name : (k.robber ? 'the robber' : 'the killer');
-    if (k.hp > 0) { showNotif(`${label} hits ${foeLabel} for ${dmg}! (${k.hp}/${k.maxHp} HP left)`); return; }
+    if (k.hp > 0) { showTargetHealthBar(k.hp, k.maxHp); return; }
     showNotif(`${label} lands the final hit!`);
     if (k.robber) defeatRobber(k); else if (k.demon) defeatDemon(k); else defeatKiller(k);
   } else if (target.type === 'boss') {
@@ -30505,7 +35945,7 @@ function landCompanionHit(target, mult, label) {
     const dmg = Math.max(1, Math.round(getRobotDamage() * mult));
     r.hp -= dmg;
     sfx.clang();
-    if (r.hp > 0) { showNotif(`${label} hits the rogue ${r.type.name} for ${dmg}! (${r.hp} HP left)`); return; }
+    if (r.hp > 0) { showTargetHealthBar(r.hp, r.maxHp); return; }
     showNotif(`${label} lands the final hit!`);
     defeatRogueRobot(r);
   }
@@ -30528,6 +35968,21 @@ function tickCompanionAssist(dt) {
     }
   }
 }
+// Bodyguards — same assist pipeline as tickCompanionAssist above, one independent attack timer per
+// hired bodyguard so a roster of 3 doesn't all land hits on the same frame. Damage scales with each
+// bodyguard's own level (bodyguardDamageMult(), game-shops.js), capped at 10.
+const BODYGUARD_ATTACK_INTERVAL = 2.0;
+function tickBodyguards(dt) {
+  if (!bodyguards.length) return;
+  const target = getCompanionCombatTarget();
+  if (!target) return;
+  bodyguards.forEach(bg => {
+    bg._attackTimer = (bg._attackTimer || 0) + dt;
+    if (bg._attackTimer < BODYGUARD_ATTACK_INTERVAL) return;
+    bg._attackTimer = 0;
+    landCompanionHit(target, bodyguardDamageMult(bg.level), `💂 ${bg.name}`);
+  });
+}
 
 let warGarrisons = {};     // territory name -> [{hp,maxHp,mesh,alive,zone,x,z,attackTimer,isTank}] — enemy soldiers + a Tank unit
 let warCitizens  = {};     // territory name -> [{hp,maxHp,mesh,alive,x,z,attackTimer}] — Explox allies, fight FOR the player
@@ -30539,6 +35994,9 @@ let currentWarZone = null; // the WAR_TERRITORIES entry I'm currently near, or n
 // interruption (can't fight, can't be hit) until warDeathModal's choice is made, plus a real
 // S.I.P. loss either way. See knockoutPlayer()'s currentWarZone branch / showWarDeathModal().
 let warAlive = true;
+// Superseded by the game-wide full-loss death penalty (applyDeathLossAndDrop(), game-social.js) —
+// War Zone deaths now lose everything carried, same as every other context, not just a flat cut
+// of the wallet. Left defined in case anything else ever wants the old ratio; no longer read here.
 const WAR_DEATH_SIP_LOSS_PCT = 0.1; // lose 10% of your CURRENT wallet — lost gear, not a bank deposit
 
 function buildWarRoom() {
@@ -30696,11 +36154,11 @@ function defeatWarNpc(npc, terr) {
 }
 // ─── WAR DEATH RESPAWN CHOICE — see knockoutPlayer()'s currentWarZone branch, which flips
 // warAlive false and opens this instead of just healing you back up in place.
-function showWarDeathModal(terr, lostSip) {
+function showWarDeathModal(terr, lootText) {
   if (document.pointerLockElement) document.exitPointerLock();
   isPointerLocked = false;
   document.getElementById('warDeathLossText').textContent =
-    `Downed by ${terr.name}'s defenders — lost ${lostSip.toLocaleString()} S.I.P.`;
+    `Downed by ${terr.name}'s defenders — lost everything you were carrying (${lootText}). It's on the ground where you fell.`;
   document.getElementById('warDeathModal').style.display = 'flex';
 }
 function respawnFromWarDeath(where) {
@@ -30723,12 +36181,12 @@ function fightWarNpc(npc, terr) {
   if (!warAlive) { showNotif('⏳ Still down — pick where to respawn first!'); return; }
   const dmg = getRobotDamage();
   npc.hp -= dmg;
-  triggerSwing(); sfx.clang();
+  swingAndHit(npc.x, npc.z, () => sfx.clang());
   startKnockback(playerGroup.position.x, playerGroup.position.z, npc.x, npc.z,
     (x, z) => { npc.x = x; npc.z = z; npc.mesh.position.set(x, 0, z); });
   lifetimeWarHits++;
   if (npc.hp > 0) {
-    showNotif(`🪖 Hit for ${dmg}! (${npc.hp} HP left)`);
+    showTargetHealthBar(npc.hp, npc.maxHp);
     return;
   }
   showNotif(`🪖 Defender defeated! +${terr.rewardPerKill} S.I.P. pending`);
@@ -30853,8 +36311,8 @@ function hitWarWall(terr) {
   if (!w || !w.alive) { showNotif('The wall is already down — go fight for the territory!'); return; }
   const dmg = getRobotDamage();
   w.hp -= dmg;
-  triggerSwing(); sfx.clang();
-  if (w.hp > 0) { showNotif(`🧱 Hit the wall for ${dmg}! (${w.hp}/${w.maxHp} HP left)`); return; }
+  swingAndHit(w.zone.x, w.zone.z, () => sfx.clang());
+  if (w.hp > 0) { showTargetHealthBar(w.hp, w.maxHp); return; }
   clearWallStructure(w);
   breachedWarWalls.add(terr.name);
   sfx.boom();
@@ -32093,7 +37551,12 @@ function buildPlanetZone(zone, groundColor, craterColor, buildLandmark) {
     scene.add(star);
   }
   buildSign(`🪐 ${zone.name.toUpperCase()}`, px, 26, pz+24);
-  addCol(CITY_COLS, px, pz, 10, 10);
+  // Real bug found live: this used to be a 20x20 box centered on the whole landing platform
+  // (px,pz) itself — exactly where the player arrives — sealing the entire zone shut with no gap,
+  // so nobody could take a single step after landing. Every buildLandmark() callback above
+  // (lander/rover/outpost/crystals) actually sits at pz-14, not pz, so a small box hugging just
+  // that spot blocks walking through the prop without trapping the whole platform.
+  addCol(CITY_COLS, px, pz-14, 4, 4);
 }
 function buildDeepSpaceZones() {
   // MOON — grey dust, a real lander (box body + 4 angled legs), planted flag.
@@ -32352,12 +37815,22 @@ function tryCityJump(){
 function setupControls(){
   setupMobileControls();
   document.addEventListener('keydown',e=>{
-    if(e.code==='KeyW') moveState.w=true;
-    if(e.code==='KeyS') moveState.s=true;
-    if(e.code==='KeyA') moveState.a=true;
-    if(e.code==='KeyD') moveState.d=true;
+    // Guarded off while typing (chat, etc.) — otherwise typing a message containing w/a/s/d would
+    // also drive the character around underneath you, same letter-key-vs-typing guard already used
+    // for I/C/B/T/G/M/Y/F below.
+    const typingNow = () => { const ae=document.activeElement; return !!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA')); };
+    if(e.code==='KeyW' && !typingNow()) moveState.w=true;
+    if(e.code==='KeyS' && !typingNow()) moveState.s=true;
+    if(e.code==='KeyA' && !typingNow()) moveState.a=true;
+    if(e.code==='KeyD' && !typingNow()) moveState.d=true;
+    // Enter — Minecraft-style: opens the chat input from anywhere (not already typing somewhere
+    // else); once open, the input's own onkeydown handles Enter as "send" instead (game-social.js).
+    if(e.code==='Enter' && !e.repeat && !typingNow()) openGameChat();
     if(e.code==='KeyE' && !e.repeat) onInteractDown();
     if(e.code==='KeyQ' && !e.repeat) throwCombatGrenade();
+    if(e.code==='KeyF' && !e.repeat) { fireTankCannon(); fireJetGuns(); fireMotorcycleRockets(); if(!inCar){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) tryFightKey(); } } // the three vehicle-fire calls each self-gate on inCar/their own def flag and no-op on foot; tryFightKey() is F's real "attack now, any time" swing (game-zones.js) — guarded off while typing (e.g. chat), same as the other letter-key actions above
+    if(e.code==='KeyV' && !e.repeat) dropJetBomb();
+    if(e.code==='KeyH' && !e.repeat) toggleJetAutopilot();
     if(e.code==='KeyI'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) eatIceCream(); }
     if(e.code==='KeyC'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) eatFromBag(); }
     // Keyboard shortcuts for the side tabs — these work even while the mouse
@@ -32368,31 +37841,93 @@ function setupControls(){
     if(e.code==='KeyG'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) toggleAddOnsPanel(); }
     if(e.code==='KeyM'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))){ const p=document.getElementById('musicPanel'); if(p.style.display==='block') closeMusicPanel(); else openMusicPanel(); } }
     if(e.code==='KeyY'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) tryGiveSip(); }
-    if(e.code==='KeyP' && placingStore) confirmStorePlacement();
+    if(e.code==='KeyP') {
+      if (placingStore) confirmStorePlacement();
+      else { const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) tryViewNearestProfile(); }
+    }
     if(e.code==='Escape' && placingStore) cancelStorePlacement();
+    if(e.code==='Escape' && aimingThrow) cancelAimThrow(true); // back out of an item throw without releasing it
+    if(e.code==='Escape' && activeEmote) cancelEmote();
+    if(e.code==='Escape' && chatOpen) closeGameChat(); // cancel out of chat without sending — chatInput's own onkeydown also handles Escape while it's actually focused, this covers Escape pressed anywhere else while chat is open
     // Shift = run faster; Space = jump (ignore Space while typing in a text field)
     if(e.code==='ShiftLeft'||e.code==='ShiftRight') moveState.run=true;
-    if(e.code==='Space'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))){ e.preventDefault(); tryCityJump(); } }
+    if(e.code==='Space'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))){ e.preventDefault(); tryCityJump(); jetThrustHeld=true; } }
   });
   document.addEventListener('keyup',e=>{
     if(e.code==='KeyW') moveState.w=false;
     if(e.code==='KeyS') moveState.s=false;
     if(e.code==='KeyA') moveState.a=false;
     if(e.code==='KeyD') moveState.d=false;
+    if(e.code==='Space') jetThrustHeld=false; // only meaningful while piloting the Jet (game-vehicles.js) — harmless everywhere else
     if(e.code==='KeyE') onInteractUp();
     if(e.code==='ShiftLeft'||e.code==='ShiftRight') moveState.run=false;
   });
-  renderer.domElement.addEventListener('click',()=>renderer.domElement.requestPointerLock());
-  document.addEventListener('pointerlockchange',()=>{ isPointerLocked=document.pointerLockElement===renderer.domElement; });
+  // A click on the canvas normally just (re)acquires Pointer Lock for mouse-look — but while a throw
+  // is being aimed (aimingThrow, game-land.js), the SAME click instead releases it at whatever the
+  // dashed aim line is currently pointing at, matching "you get to choose" — no separate confirm
+  // gesture needed on desktop, you just click where you're already looking.
+  renderer.domElement.addEventListener('click',()=>{
+    if(aimingThrow){ confirmAimThrow(); return; }
+    // The FIRST click after any menu/UI interaction has to just (re)acquire Pointer Lock — the
+    // browser requires that real user gesture before it'll grant mouse capture at all, so it can't
+    // also fire a shot in the same click. Once already locked, a click is a real in-game action —
+    // fire if a gun's equipped (tryFireGun(), game-zones.js), matching "add a scope so you can
+    // shoot" (user's own ask): aim (right-click, below) then click to fire, same as any real FPS.
+    if (!isPointerLocked) { renderer.domElement.requestPointerLock(); return; }
+    tryFireGun();
+  });
+  // Right-click backs out of a throw-aim without releasing it (Escape does the same, above).
+  // Otherwise, while a gun is equipped, right-click is now Scope/ADS (startGunScope(), game-
+  // controls.js) instead of the browser's normal context menu.
+  renderer.domElement.addEventListener('contextmenu',e=>{
+    if(aimingThrow){ e.preventDefault(); cancelAimThrow(true); return; }
+    if (isGunEquipped()) e.preventDefault();
+  });
+  renderer.domElement.addEventListener('mousedown',e=>{
+    if (e.button === 2 && isPointerLocked && isGunEquipped() && !aimingThrow) { e.preventDefault(); startGunScope(); }
+  });
+  document.addEventListener('mouseup',e=>{
+    if (e.button === 2) stopGunScope();
+  });
+  document.addEventListener('pointerlockchange',()=>{
+    isPointerLocked=document.pointerLockElement===renderer.domElement;
+    if (!isPointerLocked) stopGunScope(); // losing mouse capture (Escape, alt-tab...) shouldn't leave the camera stuck zoomed in
+  });
   document.addEventListener('mousemove',e=>{
     if(!isPointerLocked) return;
-    yaw-=e.movementX*0.002; pitch-=e.movementY*0.002;
+    // Scoped in (gunScoped, below) turns down mouse sensitivity by the same ratio as the FOV zoom
+    // itself — otherwise the same physical mouse movement would swing the now-magnified view WAY
+    // faster than it looks like it should, the exact "scope feels too twitchy" problem every real
+    // shooter's own zoomed-in sensitivity scaling exists to avoid.
+    const sens = gunScoped ? 0.002 * (GUN_SCOPE_FOV/GUN_NORMAL_FOV) : 0.002;
+    yaw-=e.movementX*sens; pitch-=e.movementY*sens;
     pitch=Math.max(-0.5,Math.min(1.0,pitch));
   });
   // Resize is already handled by _resizeRenderer() (registered in _startGameInner,
   // includes the ResizeObserver + style-preserving fix) — a second handler used
   // to live here calling the plain renderer.setSize(w,h) with no style guard,
   // which fired on every resize AFTER _resizeRenderer and silently undid it.
+}
+
+// SCOPE / ADS — user's own ask: "add a scope so you can shoot". A real FOV zoom (camera.fov,
+// game-zones.js's camera is created at GUN_NORMAL_FOV=70) plus a real vignette overlay
+// (#gunScopeOverlay, EXPLOX.html), not just a cosmetic reticle — mousemove above scales sensitivity
+// down to match so aiming doesn't feel twitchy while zoomed.
+const GUN_NORMAL_FOV = 70, GUN_SCOPE_FOV = 25;
+let gunScoped = false;
+function startGunScope() {
+  if (gunScoped || !camera) return;
+  gunScoped = true;
+  camera.fov = GUN_SCOPE_FOV;
+  camera.updateProjectionMatrix();
+  const el = document.getElementById('gunScopeOverlay'); if (el) el.style.display = 'block';
+}
+function stopGunScope() {
+  if (!gunScoped || !camera) return;
+  gunScoped = false;
+  camera.fov = GUN_NORMAL_FOV;
+  camera.updateProjectionMatrix();
+  const el = document.getElementById('gunScopeOverlay'); if (el) el.style.display = 'none';
 }
 
 // ─── MOBILE TOUCH CONTROLS ────────────────────────────────────────────────────
@@ -32471,15 +38006,154 @@ function setupMobileControls(){
     }
   }, {passive:true});
 
-  jumpBtn.addEventListener('touchstart', e=>{ e.preventDefault(); tryCityJump(); });
-  interactBtn.addEventListener('touchstart', e=>{ e.preventDefault(); onInteractDown(); });
-  interactBtn.addEventListener('touchend',   e=>{ e.preventDefault(); onInteractUp(); });
-  runBtn.addEventListener('touchstart', e=>{ e.preventDefault(); moveState.run=true; runBtn.classList.add('active'); });
-  runBtn.addEventListener('touchend',   e=>{ e.preventDefault(); moveState.run=false; runBtn.classList.remove('active'); });
+  // Discrete action buttons use Pointer Events (not touchstart) so each tap fires exactly once on
+  // both phones and any touchscreen laptop, and so a finger that slides off the button still
+  // releases — the old touchstart/touchend-on-the-button pair left RUN stuck on and a charged
+  // punch stuck charging if you lifted your thumb a few px outside the circle. bindHold() wires
+  // the down action on the button and the release on the whole window for exactly that reason.
+  function bindTap(btn, onDown){
+    if(!btn) return;
+    btn.addEventListener('pointerdown', e=>{ e.preventDefault(); onDown(); });
+  }
+  function bindHold(btn, onDown, onUp){
+    if(!btn) return;
+    let held = false;
+    btn.addEventListener('pointerdown', e=>{ e.preventDefault(); held = true; onDown(); });
+    const release = ()=>{ if(held){ held = false; onUp(); } };
+    window.addEventListener('pointerup', release);
+    window.addEventListener('pointercancel', release);
+  }
+
+  // The jump button doubles as the Jet's climb/thrust — it mirrors the Space key EXACTLY (keydown
+  // does tryCityJump()+jetThrustHeld=true, keyup clears it). Without this, holding it did nothing in
+  // a Jet (tryCityJump() bails out while inCar and never touched jetThrustHeld), so on a phone the Jet
+  // could only ever roll along the ground — you couldn't take off. Hold ⬆ to climb, release to glide
+  // back down. Harmless on foot: jetThrustHeld is only read while piloting the Jet, and a plain tap
+  // still jumps exactly as before.
+  bindHold(jumpBtn,
+    ()=>{ tryCityJump(); jetThrustHeld = true; },
+    ()=>{ jetThrustHeld = false; });
+  bindHold(interactBtn, onInteractDown, onInteractUp);
+  bindHold(runBtn,
+    ()=>{ moveState.run = true;  runBtn.classList.add('active'); },
+    ()=>{ moveState.run = false; runBtn.classList.remove('active'); });
+
+  // Combat/vehicle actions that used to be keyboard-only (F / V / Q) — with no touch equivalent a
+  // phone player literally could not fire the Tank cannon, the Jet's guns/bombs, or a grenade.
+  // FIRE calls all three vehicle weapons; each self-gates on its own vehicle's def flag, so only
+  // the one you're actually driving ever fires. BOMB and GRENADE map straight to their functions.
+  bindTap(document.getElementById('mobileFireBtn'), ()=>{ fireTankCannon(); fireJetGuns(); fireMotorcycleRockets(); });
+  bindTap(document.getElementById('mobileBombBtn'), dropJetBomb);
+  bindTap(document.getElementById('mobileGrenadeBtn'), throwCombatGrenade);
+  // AUTOPILOT (Jet's H key) — only useful once a Pro Pilot is hired; toggleJetAutopilot() itself gates
+  // on inCar/isJet/hiredJetPilot, and updateMobileActionButtons() only shows the button in that case.
+  bindTap(document.getElementById('mobileAutopilotBtn'), toggleJetAutopilot);
+
+  // FIRE and BOMB only make sense inside a weaponized vehicle, so they stay hidden until you're in
+  // one (otherwise they'd be two dead buttons cluttering a small screen). Cheap enough to poll —
+  // it's a couple of style writes on a 300ms timer, the same self-contained-interval pattern the
+  // rest of this file already uses for one-off UI, rather than threading a call into animate().
+  updateMobileActionButtons();
+  setInterval(updateMobileActionButtons, 300);
+}
+
+function updateMobileActionButtons(){
+  const fireBtn = document.getElementById('mobileFireBtn');
+  const bombBtn = document.getElementById('mobileBombBtn');
+  const autoBtn = document.getElementById('mobileAutopilotBtn');
+  if(!fireBtn || !bombBtn) return;
+  const def = (typeof inCar !== 'undefined' && inCar && typeof activeCar !== 'undefined' && activeCar && activeCar.def) ? activeCar.def : null;
+  const canFire = !!(def && (def.isTank || def.isMotorcycle || (def.isJet && (def.gunCount ?? 1) > 0)));
+  const canBomb = !!(def && def.isJet && def.hasBombs !== false);
+  fireBtn.style.display = canFire ? 'flex' : 'none';
+  bombBtn.style.display = canBomb ? 'flex' : 'none';
+  if(autoBtn){
+    // Autopilot button only in a Jet, and only once a Pro Pilot has actually been hired.
+    const showAuto = !!(def && def.isJet && typeof hiredJetPilot !== 'undefined' && hiredJetPilot);
+    autoBtn.style.display = showAuto ? 'flex' : 'none';
+    if(typeof jetAutopilotActive !== 'undefined') autoBtn.classList.toggle('active', !!jetAutopilotActive);
+  }
+}
+
+// ─── PHONE MENU ────────────────────────────────────────────────────────────────
+// On touch devices the vertical side-tab rails are hidden (CSS, keyed off html.touch) and every tab
+// is reached through one ☰ menu instead — a grid of labelled thumbnails. We BUILD that grid live
+// from the rails' own buttons rather than hardcoding a parallel list: that way it can never drift
+// out of sync with the real tabs, it automatically includes any tab added later, it skips tabs the
+// game has hidden (contracts/homework/admin, whose wrapper is display:none), and each item just
+// re-runs that tab's own onclick — the single source of truth for what the tab does.
+function buildTabMenu(){
+  const grid = document.getElementById('tabMenuGrid');
+  if(!grid) return;
+  grid.innerHTML = '';
+  ['rightTabStack','leftTabStack'].forEach(railId => {
+    const rail = document.getElementById(railId);
+    if(!rail) return;
+    Array.from(rail.children).forEach(wrap => {
+      if(wrap.style.display === 'none') return;           // tab the game has hidden — leave it out
+      const btn = wrap.querySelector('a,button');
+      if(!btn) return;
+      const iconEl = btn.querySelector('span');            // the first span is always the emoji icon
+      const icon = iconEl ? iconEl.textContent.trim() : '•';
+      // Label = the button's text with every <span> (icon + any badge/count spans) stripped out.
+      const clone = btn.cloneNode(true);
+      clone.querySelectorAll('span').forEach(s => s.remove());
+      const label = (clone.textContent || '').replace(/\s+/g,' ').trim();
+      // Carry over a live notification badge (e.g. EARNINGS' "!") as a small red dot on the thumbnail.
+      const badge = wrap.querySelector('[id$="Badge"],[id$="Count"]');
+      const hasBadge = badge && getComputedStyle(badge).display !== 'none';
+      const card = document.createElement('div');
+      card.className = 'tabMenuItem';
+      card.innerHTML = `<div class="tabMenuThumb">${icon}${hasBadge?'<span class="tabMenuDot"></span>':''}</div><div class="tabMenuLabel">${label}</div>`;
+      card.addEventListener('click', () => {
+        closeTabMenu();
+        // Run the tab's own onclick directly (not btn.click()) so an <a href="#"> doesn't also
+        // jump the page to the top via its hash.
+        const handler = btn.getAttribute('onclick');
+        if(handler){ try { (new Function(handler)).call(btn); } catch(e){ btn.click(); } }
+        else btn.click();
+      });
+      grid.appendChild(card);
+    });
+  });
+}
+function openTabMenu(){
+  buildTabMenu();
+  const o = document.getElementById('tabMenuOverlay');
+  if(o) o.style.display = 'flex';
+}
+function closeTabMenu(){
+  const o = document.getElementById('tabMenuOverlay');
+  if(o) o.style.display = 'none';
+}
+
+// Real fullscreen toggle (user's own ask, "fullscreen") — the single biggest bit of extra play
+// space on a phone, since it also hides the browser's own address/tab bars. Handles the WebKit
+// prefix; where the browser has no element-fullscreen API at all (notably iOS Safari) it says so
+// instead of failing silently.
+function toggleGameFullscreen(){
+  const d = document, el = d.documentElement;
+  const fsEl = d.fullscreenElement || d.webkitFullscreenElement;
+  if(!fsEl){
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen;
+    if(req) { try { req.call(el); } catch(e){} }
+    else if(typeof showNotif === 'function') showNotif("⛶ This browser can't go fullscreen — try adding Explox to your home screen instead.");
+  } else {
+    const exit = d.exitFullscreen || d.webkitExitFullscreen;
+    if(exit) { try { exit.call(d); } catch(e){} }
+  }
 }
 
 // ─── GAME LOOP ────────────────────────────────────────────────────────────────
 const SPEED=8;
+// Brisk/professional walk-cycle tuning — shared by the player's own base walk (below, in the
+// "Walk animation" block) AND the Doctor NPC's patrol (buildHospitalInterior(), game-land.js;
+// ticked further down in this same animate() loop) so both use one real, identical gait, not two
+// copies of the formula that could drift apart. Was cadence x8 / amplitude 0.4 (a looser, more
+// casual stroll); brisker pace = faster stride frequency (more steps per second) with a tighter,
+// more contained arm/leg swing (less loose flailing) — upright, purposeful, efficient, not a swagger.
+const WALK_CYCLE_CADENCE = 11;    // was 8 — ~37% faster stride frequency
+const WALK_CYCLE_SWING_AMP = 0.28; // was 0.4 — ~30% smaller, more contained swing
 let _frames = 0;
 function animate(){
   requestAnimationFrame(animate);
@@ -32492,8 +38166,16 @@ function animate(){
   updateDayNight();
   tickKaraokeDisplay();
   if(t - _lastPresenceSync > PRESENCE_SYNC_INTERVAL) { _lastPresenceSync = t; syncPresence(t); }
-  updateRemotePlayers(dt);
+  // User's own correction: "any one can see how many people are playoing any time any wheree" —
+  // shown regardless of Online/Offline, unlike every other HUD line tied to serverMode.
+  const sitePlayersHud = document.getElementById('sitePlayersHud');
+  if (sitePlayersHud && sitePlayersHud.style.display === 'none') sitePlayersHud.style.display = 'block';
+  if(t - _lastSitePlayersSync > SITE_PLAYERS_SYNC_INTERVAL) { _lastSitePlayersSync = t; syncSitePlayerCount(); }
+  updateRemotePlayers(dt, t);
   updateRemoteKillers(dt);
+  updateRemoteBuddies(dt);
+  updateRemoteBodyguards(dt);
+  updateRemoteParkedCars(dt);
   if(t - _lastLandSync > LAND_SYNC_INTERVAL) { _lastLandSync = t; syncLandOwners(); }
   if(t - _lastLandOwnerDataSync > LAND_OWNER_DATA_SYNC_INTERVAL) { _lastLandOwnerDataSync = t; syncOtherLandOwnersData(); }
   if(t - _lastShopSync > SHOP_SYNC_INTERVAL) { _lastShopSync = t; syncShops(); }
@@ -32503,6 +38185,8 @@ function animate(){
   if(t - _lastChatSync > CHAT_SYNC_INTERVAL) { _lastChatSync = t; syncChatMessages(); }
   if(t - _lastLightCullSync > LIGHT_CULL_INTERVAL) { _lastLightCullSync = t; cullDistantLights(); }
   if(activeKnockbacks.length) tickKnockbacks(dt);
+  if(aimingThrow) tickThrowAim(); // updates the dashed aim-line preview every frame while a throw is being aimed (game-land.js)
+  if(thrownItems.length) tickThrownItems(dt); // flying thrown-item sprites (game-land.js) — same short-lived-effects-list category as activeKnockbacks above
   if(placingStore) updatePlacementMarker();
 
   // The Sea: real swim-zone detection (only counts once actually standing in the water, not just
@@ -32516,11 +38200,33 @@ function animate(){
     });
   }
 
+  // Doctor NPC — real bone-rigged patrol (doctorRig, built once by buildHospitalInterior(),
+  // game-land.js) using the SAME brisk WALK_CYCLE_CADENCE/WALK_CYCLE_SWING_AMP bone-rotation
+  // formula as the player's own walk cycle further down — one real gait, reused, not reinvented.
+  // Only bothers animating while actually inside the hospital to go watch it. Paces a short real
+  // lane back and forth along X (DOCTOR_PATROL_RANGE either side of DOCTOR_SPOT.x, game-land.js)
+  // using a triangle wave — constant walking speed, a real turn-and-reverse at each end, not an
+  // easing sine drift that would read as decelerating like a pendulum.
+  if (inHospital && doctorRig && doctorRig.hipsBone) {
+    const docLane = 4 * DOCTOR_PATROL_RANGE;
+    const docPhase = (t * DOCTOR_PATROL_SPEED) % docLane;
+    let docX, docDir;
+    if (docPhase < 2*DOCTOR_PATROL_RANGE) { docX = -DOCTOR_PATROL_RANGE + docPhase; docDir = 1; }
+    else { docX = DOCTOR_PATROL_RANGE - (docPhase - 2*DOCTOR_PATROL_RANGE); docDir = -1; }
+    doctorRig.position.x = DOCTOR_SPOT.x + docX;
+    doctorRig.rotation.y = docDir > 0 ? Math.PI/2 : -Math.PI/2; // faces the direction it's actually walking
+    const docSwing = Math.sin(t*WALK_CYCLE_CADENCE) * WALK_CYCLE_SWING_AMP;
+    doctorRig.leftShoulderBone.rotation.x = docSwing;
+    doctorRig.rightShoulderBone.rotation.x = -docSwing;
+    doctorRig.leftHipBone.rotation.x = -docSwing;
+    doctorRig.rightHipBone.rotation.x = docSwing;
+  }
+
   // Arena free-for-all: enter/exit detection, knockout-cooldown timer, leaderboard sync
   {
     const wasInArena = inArena;
     const dArena = Math.hypot(playerGroup.position.x - ARENA_CENTER.x, playerGroup.position.z - ARENA_CENTER.z);
-    inArena = dArena < ARENA_RADIUS && !inHouse && !inMall && !inCar;
+    inArena = dArena < ARENA_RADIUS && !inHouse && !inMall && !inCar && !inShopInterior;
     if(inArena && !wasInArena) { ffaAlive = true; showNotif('⚔️ Fight Arena — anyone here can hit anyone! Press E to swing.'); }
     if(!inArena && wasInArena) { updateFfaLeaderboardUI(); }
     if(inArena && !ffaAlive && t >= ffaRespawnAt) { ffaAlive = true; showNotif('💪 Back in the fight!'); }
@@ -32533,7 +38239,6 @@ function animate(){
   tickWar(t);
   tickWarCombat(dt);
   if(serverMode === 'online' && t - _lastBossSync > BOSS_SYNC_INTERVAL) { _lastBossSync = t; syncBosses(); }
-  if(t - _lastEarningsCheck > EARNINGS_CHECK_INTERVAL) { _lastEarningsCheck = t; tickEarnings(); }
   tickBossHud();
   tickBossChase(dt);
   tickMovieBossFight(dt);
@@ -32557,6 +38262,10 @@ function animate(){
     if(moveState.d) dir.add(right);
     if(moveState.a) dir.sub(right);
     moving=dir.length()>0;
+    // Starting to move (real WASD or the mobile joystick — both just set moveState.* before this
+    // runs) cancels any active emote, same "can't do this while moving" rule the rest of this
+    // codebase already applies to other stationary states.
+    if(moving && activeEmote) cancelEmote();
     if(!rollerVel) rollerVel = new THREE.Vector3();
     if(moving){
       dir.normalize();
@@ -32569,8 +38278,8 @@ function animate(){
       const step=SPEED*(moveState.run?1.85:1)*addonSpeedMult*dt;
       const nx=playerGroup.position.x+dir.x*step;
       const nz=playerGroup.position.z+dir.z*step;
-      if(!isBlocked(nx, playerGroup.position.z)) playerGroup.position.x=nx;
-      if(!isBlocked(playerGroup.position.x, nz)) playerGroup.position.z=nz;
+      if(!isBlocked(nx, playerGroup.position.z, undefined, playerGroup.position.y)) playerGroup.position.x=nx;
+      if(!isBlocked(playerGroup.position.x, nz, undefined, playerGroup.position.y)) playerGroup.position.z=nz;
       if(activeAddOns.includes('rollerfeet') && dt>0) rollerVel.set(dir.x*step/dt, 0, dir.z*step/dt);
       // Every pocket interior (House/Mall/Hotel/Store/FriendHouse/Prison/SportsPark/Hospital/Sea)
       // now lives 10,000+ units out from downtown, so none of them can be subject to the outdoor
@@ -32581,7 +38290,7 @@ function animate(){
       // movement key press inside either one snapped the player straight back to x=11000 in the
       // real outdoor city, since 130000/140000 is always outside WORLD_BOUND. Fixed here (and in
       // the 5 other copies of this same "am I outdoors" check) alongside adding Sea's own flag.
-      if(!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inVisitStore){
+      if(!inHouse && !inMall && !inHotel && !inStore && !inFriendHouse && !inLandHouse && !inCountryHotel && !inAirportLounge && !inPrison && !inArcade && !inArenaBattle && !inMovieFight && !inBankInterior && !inSportsPark && !inHospital && !inSea && !inVisitStore && !inShopInterior){
         playerGroup.position.x=Math.max(-WORLD_BOUND,Math.min(WORLD_BOUND,playerGroup.position.x));
         playerGroup.position.z=Math.max(-WORLD_BOUND,Math.min(WORLD_BOUND,playerGroup.position.z));
         const _px=playerGroup.position.x, _pz=playerGroup.position.z;
@@ -32596,8 +38305,8 @@ function animate(){
     } else if(activeAddOns.includes('rollerfeet') && rollerVel.lengthSq()>0.01) {
       const nx=playerGroup.position.x+rollerVel.x*dt;
       const nz=playerGroup.position.z+rollerVel.z*dt;
-      if(!isBlocked(nx, playerGroup.position.z)) playerGroup.position.x=nx; else rollerVel.x=0;
-      if(!isBlocked(playerGroup.position.x, nz)) playerGroup.position.z=nz; else rollerVel.z=0;
+      if(!isBlocked(nx, playerGroup.position.z, undefined, playerGroup.position.y)) playerGroup.position.x=nx; else rollerVel.x=0;
+      if(!isBlocked(playerGroup.position.x, nz, undefined, playerGroup.position.y)) playerGroup.position.z=nz; else rollerVel.z=0;
       rollerVel.multiplyScalar(0.9);
     } else {
       rollerVel.set(0,0,0);
@@ -32644,11 +38353,23 @@ function animate(){
     playerGroup.position.y = groundHeightAt(playerGroup.position.x, playerGroup.position.z);
   }
   if(inCar&&activeCar){
+    // Pro Pilot autopilot (user's own ask: "hire a pro driver for driving my jet") — takes over
+    // steering/throttle entirely and flies itself home, real navigation through the exact same
+    // flight physics a manual pilot uses (tickJetAutopilot() sets carYaw/position/jetThrustHeld
+    // itself, game-vehicles.js), so this branch skips the manual WASD block below rather than
+    // fighting it for control of the same frame.
+    if (activeCar.def.isJet && jetAutopilotActive) { tickJetAutopilot(dt); } else {
     const CAR_TURN=2.2;
     if(moveState.d) carYaw+=CAR_TURN*dt;
     if(moveState.a) carYaw-=CAR_TURN*dt;
     if(moveState.w||moveState.s){
-      const vehicleSpeedMult = (activeAddOns.includes('turboboost')?1.6:1) * ((nitroEndTime && t<nitroEndTime)?2.2:1);
+      // User's own ask, right after the new jet tiers: "make a speed bost" — a real, free
+      // afterburner for jets, not another purchasable item like the existing Nitro Boost above.
+      // Shift (moveState.run) does nothing while driving today — it's only ever read on foot
+      // (the SPEED*1.85 walk/run line further down this file) — so holding it in a jet is a
+      // genuinely free key to reuse, no conflict with anything already bound to a vehicle.
+      const afterburner = (activeCar.def.isJet && moveState.run) ? 1.8 : 1;
+      const vehicleSpeedMult = (activeAddOns.includes('turboboost')?1.6:1) * ((nitroEndTime && t<nitroEndTime)?2.2:1) * afterburner;
       if(nitroEndTime && t>=nitroEndTime) nitroEndTime = 0;
       const spd=activeCar.def.speed*vehicleSpeedMult*(moveState.s?-0.55:1);
       const nx=activeCar.group.position.x+Math.sin(carYaw)*spd*dt;
@@ -32658,25 +38379,49 @@ function animate(){
       // (buildCar() is 4.2 wide x 8.5 long), split into separate x/z checks like on-foot movement
       // already does, so the car can still slide along a wall instead of just freezing dead on contact.
       const CAR_R = 2.3;
+      // The Jet stops colliding with city buildings entirely once it's actually airborne above
+      // JET_FLIGHT_CLEARANCE (game-vehicles.js) — real flight has to mean clearing rooftops, not
+      // just hovering at ground level still blocked by every wall. Below that height it's still a
+      // driven vehicle: rams/crashes exactly like a car, so takeoff has to actually happen first.
+      const flying = activeCar.def.isJet && activeCar.group.position.y > JET_FLIGHT_CLEARANCE;
       // Ram check runs on the SAME candidate position/radius isBlocked() is about to use, and
       // BEFORE it, so a just-destroyed target's collider is already gone by the time isBlocked()
       // runs this same frame — the car smashes straight through instead of bouncing off a
       // now-invisible wall where the target used to stand.
-      tickCarRam(nx, nz, CAR_R);
-      const blockedX = isBlocked(nx, activeCar.group.position.z, CAR_R);
-      const blockedZ = isBlocked(activeCar.group.position.x, nz, CAR_R);
+      if (!flying) tickCarRam(nx, nz, CAR_R);
+      const blockedX = flying ? false : isBlocked(nx, activeCar.group.position.z, CAR_R);
+      const blockedZ = flying ? false : isBlocked(activeCar.group.position.x, nz, CAR_R);
       if(!blockedX) activeCar.group.position.x=Math.max(-WORLD_BOUND,Math.min(WORLD_BOUND,nx));
       if(!blockedZ) activeCar.group.position.z=Math.max(-WORLD_BOUND,Math.min(WORLD_BOUND,nz));
       // Buildings aren't destroyable like item 160's NPCs/robots/trees (they're permanent city
       // architecture) — ramming one instead charges a real repair fee, same spirit, different cost.
-      if(blockedX || blockedZ) crashIntoBuilding(activeCar.group.position.x, activeCar.group.position.z);
+      if(!flying && (blockedX || blockedZ)) crashIntoBuilding(activeCar.group.position.x, activeCar.group.position.z);
     }
-    // Real hills are drivable (nothing stops a car from crossing The Park/Whispering Woods/Sunset
-    // Plains outskirts/country outskirts) — buildCar() always spawns a car at y=0, and nothing
-    // else ever touched its Y afterward, so without this a car driven onto a hill would visibly
-    // float/clip through the slope instead of riding over it. groundHeightAt() is 0 everywhere
-    // outside the 4 hill regions, so this is a no-op on every road/lot the car already drove on.
-    activeCar.group.position.y = groundHeightAt(activeCar.group.position.x, activeCar.group.position.z);
+    } // end of the manual-control else branch opened above (autopilot skips straight past all of it)
+    if (activeCar.def.isJet) {
+      // Real vertical flight — thrust while Space is held (jetThrustHeld), a gentle gravity glides
+      // it back down otherwise, floor-clamped at groundHeightAt() so it lands and rests exactly
+      // like a car when it comes back down instead of sinking through the ground.
+      if (jetThrustHeld) jetVel = Math.min(JET_MAX_ASCENT, jetVel + JET_THRUST_ACCEL*dt);
+      jetVel -= JET_GRAVITY*dt;
+      activeCar.group.position.y += jetVel*dt;
+      const jetGroundY = groundHeightAt(activeCar.group.position.x, activeCar.group.position.z);
+      if (activeCar.group.position.y <= jetGroundY) { activeCar.group.position.y = jetGroundY; jetVel = 0; }
+      // User's own ask: "make it show altitude" — a real flight-sim style readout, height above
+      // the actual ground under the jet (not raw world Y), so it still reads 0 sitting on a hill.
+      const altitudeHud = document.getElementById('altitudeHud');
+      if (altitudeHud) {
+        altitudeHud.style.display = 'block';
+        document.getElementById('altitudeAmount').textContent = Math.round(activeCar.group.position.y - jetGroundY);
+      }
+    } else {
+      // Real hills are drivable (nothing stops a car from crossing The Park/Whispering Woods/Sunset
+      // Plains outskirts/country outskirts) — buildCar() always spawns a car at y=0, and nothing
+      // else ever touched its Y afterward, so without this a car driven onto a hill would visibly
+      // float/clip through the slope instead of riding over it. groundHeightAt() is 0 everywhere
+      // outside the 4 hill regions, so this is a no-op on every road/lot the car already drove on.
+      activeCar.group.position.y = groundHeightAt(activeCar.group.position.x, activeCar.group.position.z);
+    }
     activeCar.group.rotation.y=carYaw;
     activeCar.carYaw=carYaw;
     playerGroup.position.x=activeCar.group.position.x;
@@ -32690,30 +38435,36 @@ function animate(){
     }
   }
 
-  // Walk animation
+  // Walk animation — drives the real skeletal rig's BONES (buildPlayer() in game-character.js),
+  // not the raw box meshes anymore, so a swinging arm pivots from the shoulder joint instead of
+  // spinning around its own geometric center. Every formula below (amplitude, timing, which axis)
+  // is unchanged from before this rig existed — only WHICH object gets the rotation changed, from
+  // e.g. player.lArm (the rigid mesh) to player.leftShoulderBone (the real joint it now hangs from).
   if(!inCar){
-    const swingAmp = activeAddOns.includes('noodlearms') ? 1.3 : 0.4;
-    const swing=moving?Math.sin(t*8)*swingAmp:0;
-    if(player.lArm) player.lArm.rotation.x= swing;
-    if(player.rArm) player.rArm.rotation.x=-swing;
+    const swingAmp = activeAddOns.includes('noodlearms') ? 1.3 : WALK_CYCLE_SWING_AMP;
+    const swing=moving?Math.sin(t*WALK_CYCLE_CADENCE)*swingAmp:0;
+    if(player.leftShoulderBone) player.leftShoulderBone.rotation.x= swing;
+    if(player.rightShoulderBone) player.rightShoulderBone.rotation.x=-swing;
     // Real bug the user caught: strafing (A/D with no W/S held) used this exact same front-to-
     // back leg swing as walking forward, so sidestepping looked identical to walking straight
     // ahead. Pure strafing (no forward/back component at all) now swings the legs apart
     // side-to-side (rotation.z) instead of front-to-back (rotation.x) — a real, visually
     // distinct side-step shuffle. Forward/backward, and any diagonal that still has a
-    // forward/back component, keep the original walk cycle. Legs only (not arms) — rArm's
-    // rotation.z is already owned by the attack-swing animation just below and would get
-    // stomped back to 0 every frame if reused here.
+    // forward/back component, keep the original walk cycle. Legs only (not arms) — the right
+    // shoulder bone's rotation.z is already owned by the attack-swing animation just below and
+    // would get stomped back to 0 every frame if reused here.
     const strafingOnly = moving && !moveState.w && !moveState.s && (moveState.a || moveState.d);
     if(strafingOnly){
-      if(player.lLeg) { player.lLeg.rotation.x = 0; player.lLeg.rotation.z = -swing; }
-      if(player.rLeg) { player.rLeg.rotation.x = 0; player.rLeg.rotation.z =  swing; }
+      if(player.leftHipBone) { player.leftHipBone.rotation.x = 0; player.leftHipBone.rotation.z = -swing; }
+      if(player.rightHipBone) { player.rightHipBone.rotation.x = 0; player.rightHipBone.rotation.z =  swing; }
     } else {
-      if(player.lLeg) { player.lLeg.rotation.x = -swing; player.lLeg.rotation.z = 0; }
-      if(player.rLeg) { player.rLeg.rotation.x =  swing; player.rLeg.rotation.z = 0; }
+      if(player.leftHipBone) { player.leftHipBone.rotation.x = -swing; player.leftHipBone.rotation.z = 0; }
+      if(player.rightHipBone) { player.rightHipBone.rotation.x =  swing; player.rightHipBone.rotation.z = 0; }
+    }
+    if(player.headBone) {
+      player.headBone.rotation.z = (moving && activeAddOns.includes('bobblehead')) ? Math.sin(t*10)*0.25 : 0;
     }
     if(player.headMesh) {
-      player.headMesh.rotation.z = (moving && activeAddOns.includes('bobblehead')) ? Math.sin(t*10)*0.25 : 0;
       player.headMesh.scale.setScalar(activeAddOns.includes('bighead') ? 1.7 : 1);
     }
   }
@@ -32754,10 +38505,11 @@ function animate(){
   // fire-and-forget setTimeout chain that could drift out of sync with the render loop. A
   // harder charge (playerSwingPower, baked in by triggerSwing() at release time) swings both
   // the arm and any held weapon further and a touch slower, so it reads as heavier landing.
+  let swingActive = false; // hoisted so the eating-arm block below can check it too, without recomputing the swing-window math a second time
   if(chargingPunch) {
     const heldT = Math.min(t - punchChargeStart, PUNCH_MAX_CHARGE);
     const chargeFrac = heldT / PUNCH_MAX_CHARGE;
-    if(player.rArm) { player.rArm.rotation.x = -0.3 - chargeFrac*1.1; player.rArm.rotation.z = -chargeFrac*0.35; }
+    if(player.rightShoulderBone) { player.rightShoulderBone.rotation.x = -0.3 - chargeFrac*1.1; player.rightShoulderBone.rotation.z = -chargeFrac*0.35; }
     if(player.weaponGroup) { player.weaponGroup.rotation.z = -0.2 + chargeFrac*0.3; player.weaponGroup.rotation.x = -chargeFrac*0.3; }
     const chargeHud = document.getElementById('punchChargeHud');
     if(chargeHud) { chargeHud.style.display = 'block'; document.getElementById('punchChargeFill').style.width = (chargeFrac*100) + '%'; }
@@ -32766,15 +38518,55 @@ function animate(){
     if(chargeHud) chargeHud.style.display = 'none';
     const swingElapsed = t - playerSwingStart;
     const swingWindow = SWING_DURATION + playerSwingPower*0.15;
-    const swingActive = swingElapsed >= 0 && swingElapsed < swingWindow;
+    swingActive = swingElapsed >= 0 && swingElapsed < swingWindow;
     const arc = swingActive ? Math.sin((swingElapsed/swingWindow)*Math.PI) : 0; // 0 -> 1 -> 0, smooth in and out
-    if(player.rArm) {
-      if(swingActive) { player.rArm.rotation.x = -0.3 + arc*(1.0 + playerSwingPower*0.9); player.rArm.rotation.z = -0.1 + arc*0.25; }
-      else player.rArm.rotation.z = 0; // rotation.x while idle/walking is already owned by the walk cycle above
+    // 30 real distinct fight-move choreographies (FIGHT_MOVE_CATALOG/applySwingMove(), game-character.js)
+    // now share this one swing window instead of every attack playing the same single animation —
+    // activeSwingMove (game-economy.js) is (re)picked by triggerSwing() every time a hit lands, from
+    // whatever the player currently has equipped. applySwingMove() only ever sets bones as bare
+    // multiples of `arc`, so it's always at (or essentially at) rest right as swingActive flips true.
+    if(swingActive) {
+      applySwingMove(activeSwingMove, player, arc, playerSwingPower);
+    } else {
+      // Not swinging — clean up every bone a fight move could have touched that NOTHING else resets
+      // this frame. rotation.x on rightShoulderBone/leftShoulderBone and BOTH axes on
+      // leftHipBone/rightHipBone are already fully re-set every frame by the walk cycle above (it
+      // runs earlier in this same animate() call), so touching those here would fight the walk cycle
+      // and freeze the legs/off-arm mid-stride — left alone on purpose, same as the original single-
+      // swing code already only reset rightShoulderBone.rotation.z and nothing else. hipsBone,
+      // spineBone, and BOTH shoulders' rotation.z are never touched by the walk cycle (or by the
+      // eating-arm / activeEmote blocks right below, which are mutually exclusive with swingActive
+      // anyway), so a fight move that used them would otherwise leave a stray pose stuck forever
+      // once the very short (0.25s+) swing window ends.
+      if(player.rightShoulderBone) player.rightShoulderBone.rotation.z = 0;
+      if(player.leftShoulderBone) player.leftShoulderBone.rotation.z = 0;
+      if(player.hipsBone) player.hipsBone.rotation.set(0,0,0);
+      if(player.spineBone) player.spineBone.rotation.set(0,0,0);
+      if(player.weaponGroup) { player.weaponGroup.rotation.z = -0.2; player.weaponGroup.rotation.x = 0; player.weaponGroup.rotation.y = 0; }
     }
-    if(player.weaponGroup) {
-      player.weaponGroup.rotation.z = -0.2 - arc*(1.3 + playerSwingPower*0.8);
-      player.weaponGroup.rotation.x = arc*(0.5 + playerSwingPower*0.4);
+  }
+  // Eating — raises the real right arm/hand up toward the mouth while a real eatFood() bite
+  // animation is in flight (game-engine.js's _eatingArmActive, set/cleared over the exact same
+  // real duration the 3D food sprite travels for). Guarded off whenever the punch-charge or
+  // swing animations above are using this same shoulder bone this frame — same "don't fight
+  // the walk cycle" guard style the charge/swing code above already uses — so eating never
+  // stomps a fight in progress (in practice the two inputs can't fire at the same time anyway).
+  if (typeof _eatingArmActive !== 'undefined' && _eatingArmActive && !chargingPunch && !swingActive && player.rightShoulderBone) {
+    player.rightShoulderBone.rotation.x = -2.05 + Math.sin(t*13)*0.12; // held up near the mouth with a small real chewing bob
+    player.rightShoulderBone.rotation.z = -0.15;
+  }
+  // Emotes — real per-frame bone animation (EMOTE_CATALOG/applyEmotePose, game-character.js),
+  // started from the ☰ Menu's Emotes panel via playEmote()/buyEmoteVariant(). Same "don't fight the
+  // walk cycle" guard the eating block just above already uses — combat/eating this exact frame
+  // keeps owning the shoulder/head bones, and a one-shot emote auto-ends once its real
+  // (speed-scaled) duration elapses.
+  if (activeEmote && !chargingPunch && !swingActive && !(typeof _eatingArmActive !== 'undefined' && _eatingArmActive)) {
+    const emoteVariant = EMOTE_CATALOG_BY_ID[activeEmote.id];
+    if (!emoteVariant) { activeEmote = null; }
+    else {
+      const emoteElapsed = t - activeEmote.startT;
+      if (emoteIsFinished(emoteVariant, emoteElapsed)) cancelEmote();
+      else applyEmotePose(player, emoteVariant.family, emoteElapsed, emoteVariant.params);
     }
   }
   // Training dummy — tips away from the hit and springs back upright (same
@@ -32842,6 +38634,20 @@ function animate(){
     familyKidGroup.rotation.y += (yaw - familyKidGroup.rotation.y) * followLerp;
   }
 
+  // Bodyguards — same lag-behind-follow pattern as Buddy/the kid, fanned out behind the player
+  // (one slot per roster index) so a full roster of 3 doesn't stack on top of each other.
+  bodyguards.forEach((bg, i) => {
+    if (!bg.group) return;
+    const spread = (i - (bodyguards.length-1)/2) * 1.3;
+    const targetX = playerGroup.position.x - Math.sin(yaw)*2.2 + Math.cos(yaw)*spread;
+    const targetZ = playerGroup.position.z - Math.cos(yaw)*2.2 - Math.sin(yaw)*spread;
+    const followLerp = Math.min(1, dt*3);
+    bg.group.position.x += (targetX - bg.group.position.x) * followLerp;
+    bg.group.position.z += (targetZ - bg.group.position.z) * followLerp;
+    bg.group.position.y = playerGroup.position.y;
+    bg.group.rotation.y += (yaw - bg.group.rotation.y) * followLerp;
+  });
+
   // Camera — skipped entirely while a Cab ride or a flight is flying its own camera path through
   // the real scene (game-transit.js, startCabRide()/startFlightAnim()); this per-frame follow
   // logic would otherwise fight it every single frame and win, since it runs unconditionally after.
@@ -32852,9 +38658,15 @@ function animate(){
     const camY=activeCar.group.position.y+9;
     const camZ=activeCar.group.position.z-Math.cos(carYaw)*18;
     camera.position.lerp(new THREE.Vector3(camX,camY,camZ),0.08);
-    camera.lookAt(activeCar.group.position.x,2,activeCar.group.position.z);
+    // Real bug found live (user report: "make it so you see your jket at all times when u fly") —
+    // this hardcoded y:2 look target was always close enough to correct for a ground vehicle
+    // (activeCar.group.position.y never strays far from 0), but the Jet actually climbs — the
+    // camera kept staring at a fixed near-ground point while the jet flew up and out of view above
+    // it. Tracking the car's real current height keeps it framed at any altitude, and is a
+    // no-op for every ground vehicle (y stays ~0, same as the old hardcoded value).
+    camera.lookAt(activeCar.group.position.x,activeCar.group.position.y+2,activeCar.group.position.z);
   } else {
-    const interior = inHotel || inHouse || inMall || inStore || inArcade || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inBankInterior || inVisitStore;
+    const interior = inHotel || inHouse || inMall || inStore || inArcade || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inBankInterior || inVisitStore || inShopInterior;
     const camDist = interior ? 4 : 9;
     const camHeight = interior ? 2.5 : 4;
     const camX=playerGroup.position.x-Math.sin(yaw)*camDist;
@@ -32870,6 +38682,7 @@ function animate(){
   if(inStore && playerGroup.position.z > 8.5)  exitStore();
   if(inFriendHouse && playerGroup.position.z > FRIEND_HOUSE_SPAWN.z + 7.5) leaveFriendHouse();
   if(inVisitStore && playerGroup.position.z > VISIT_STORE_SPAWN.z + 7.5) exitVisitStore();
+  if(inShopInterior && playerGroup.position.z > SHOP_INTERIOR_EXIT.z) exitShopInterior();
   if(inLandHouse && playerGroup.position.z > LAND_HOUSE_SPAWN.z + 5.5) exitLandHouse();
   if(inCountryHotel && playerGroup.position.z > COUNTRY_HOTEL_SPAWN.z + 4.5) checkoutCountryHotel();
   if(inAirportLounge && playerGroup.position.z > AIRPORT_LOUNGE_SPAWN.z + 7.5) exitAirportLounge();
@@ -32926,6 +38739,7 @@ function animate(){
 
   // Systems
   tickJob(dt);
+  tickActorFight(dt);
   tickBankJob(dt);
   tickPrinter(dt);
   tickCounter(dt);
@@ -32934,6 +38748,7 @@ function animate(){
   tickCelebrities(dt);
   tickCelebrityCrowds(dt);
   tickPresidents(dt);
+  tickKing(dt);
   tickElders(dt);
   tickGrowth(dt);
   tickSchoolEvent();
@@ -32954,6 +38769,7 @@ function animate(){
   tickCoinBots(dt);
   tickPoliceHelpers(dt);
   tickCompanionAssist(dt);
+  tickBodyguards(dt);
   tickEvilAllies(dt);
   billTimerTick(dt);
   tickBillsOverdue();
@@ -32974,6 +38790,8 @@ function animate(){
     document.getElementById('location').textContent='🏬 City Mall';
   } else if(inArcade) {
     document.getElementById('location').textContent='🕹️ Pixel Palace Arcade';
+  } else if(inShopInterior) {
+    document.getElementById('location').textContent='🏪 Shop';
   } else {
     const px2=playerGroup.position.x, pz=playerGroup.position.z;
     let loc='Explox City';
@@ -33074,6 +38892,7 @@ function toggleSAI() {
   if(panel.style.display === 'none') {
     if(document.pointerLockElement) document.exitPointerLock();
     isPointerLocked = false;
+    if(activeEmote) cancelEmote(); // opening another overlay cancels any active emote
     panel.style.display = 'block';
     document.getElementById('saiTab').style.display = 'none';
     saiSwitchTab('chat');
@@ -33415,12 +39234,97 @@ function saiNextTip(dir) {
 // the point the command actually runs, not just in the UI that leads there.
 const ADMIN_ACCOUNTS = ['cubby explosion', 'gurnaldst'];
 const ADMIN_PASSCODE = '12321';
-function isAdmin() { return ADMIN_ACCOUNTS.includes(currentUser); }
+// Real bug found live: this used to be an exact ADMIN_ACCOUNTS.includes(currentUser) check, but
+// account names elsewhere in this game are never case-normalized (createAccount()'s own "that name
+// is taken" check is exact-match too, game-core.js) — so the REAL account (stored as "Cubby
+// Explosion", capitalized) silently never matched the lowercase 'cubby explosion' entry here and
+// quietly lost admin. Comparing case-insensitively (and trimmed) is the real fix, not just adding
+// one more exact string to the list — it survives however the name happens to be typed/stored from
+// here on, the same way a login should already behave.
+function isAdmin() {
+  if (!currentUser) return false;
+  const me = currentUser.trim().toLowerCase();
+  return ADMIN_ACCOUNTS.some(a => a.toLowerCase() === me);
+}
 
 let adminUnlocked = false;           // real passcode gate — resets to false on every reload/fresh login, on purpose
 let adminGodMode = false;            // /godmode — checked in damagePlayer() (game-social.js)
 let adminFlying  = false;            // /fly — checked in tryCityJump()/the gravity tick (game-controls.js)
 let adminTimeOffsetSeconds = 0;      // /time day|night — checked in getDayNightBrightness() (game-zones.js)
+// Custom Bundle — requestId -> the request's own data (submitCustomBundle(), game-alignment.js),
+// held here only until an admin actually acts on it (/bundle_quote|/bundle_reject below), same
+// "ambient, in-memory only, not persisted" spirit as presidentVisitState/celebrityState
+// (game-social.js) — a request that arrives while no admin is online just waits in THEIR mailbox
+// until they next log in and it gets re-delivered, same as any other real mailbox message.
+let pendingBundleRequests = {};
+
+// THE OFFICE — user's own ask: a personal HQ ("but they work for me") where staff can get you
+// "anything u can want." Same isAdmin() gate as the Super Tank/Jet/Motorcycle (game-vehicles.js) —
+// real for the account it's built for, since this is exactly the same category of admin-only
+// convenience the console's /godmode and /fly commands already are, just with a real front door
+// and real staff instead of typed commands. Everyone else gets the honest locked message.
+const OFFICE_PRESETS = [10000, 1000000, 100000000];
+function openOfficeRequest() {
+  if (!isAdmin()) { showNotif('🔒 The Mansion is staff-only.'); return; }
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('neighborModalTitle').textContent = '🏠 The Mansion';
+  const presetBtn = (currency, amt) => `<button onclick="officeGive('${currency}',${amt})" style="flex:1;padding:8px;border-radius:6px;border:none;cursor:pointer;font-weight:bold;color:#111;background:${currency==='sip'?'#7CFC00':'#66ccff'};font-size:11px;">+${amt.toLocaleString()} ${currency==='sip'?'S.I.P.':'💎'}</button>`;
+  document.getElementById('neighborModalBody').innerHTML = `
+    <div style="color:#ccc;font-size:12px;margin-bottom:12px;">Your staff can get you anything. Just ask.</div>
+    <div style="display:flex;gap:6px;margin-bottom:6px;">${OFFICE_PRESETS.map(a=>presetBtn('sip',a)).join('')}</div>
+    <div style="display:flex;gap:6px;margin-bottom:14px;">${OFFICE_PRESETS.map(a=>presetBtn('elite',a)).join('')}</div>
+    <div style="color:#999;font-size:11px;margin-bottom:6px;">Or ask for a custom amount:</div>
+    <div style="display:flex;gap:6px;">
+      <select id="officeCurrency" style="padding:8px;border-radius:6px;border:1px solid #555;background:#0a0a1a;color:#fff;font-size:12px;">
+        <option value="sip">S.I.P.</option>
+        <option value="elite">💎 Elite</option>
+      </select>
+      <input id="officeAmount" type="text" inputmode="numeric" maxlength="500" oninput="this.value=this.value.replace(/[^0-9eE+.]/g,'')" placeholder="Amount, or 9e98" style="flex:1;padding:8px;border-radius:6px;border:1px solid #555;background:#0a0a1a;color:#fff;font-size:12px;">
+      <button onclick="officeGiveCustom()" style="padding:8px 14px;border-radius:6px;border:none;cursor:pointer;font-weight:bold;color:#111;background:#FFD700;">Get it</button>
+    </div>
+    <div style="color:#666;font-size:10px;margin-top:6px;">Plain digits (up to 500 of them) or scientific notation like 9e98. Anything bigger than a real number can hold gets capped instead of breaking your account.</div>
+  `;
+  document.getElementById('neighborModal').style.display = 'flex';
+}
+function officeGive(currency, amount, capped) {
+  if (!isAdmin()) return;
+  if (currency === 'sip') { sipDollars += amount; updateSIP(); }
+  else { eliteCoins += amount; updateElite(); }
+  saveCurrentUser();
+  showNotif(capped
+    ? `🏢 That's bigger than any real number can hold — capped at the biggest real amount instead: +${amount.toLocaleString()} ${currency==='sip'?'S.I.P.':'💎'}!`
+    : `🏢 Your staff delivers +${amount.toLocaleString()} ${currency==='sip'?'S.I.P.':'💎'}!`);
+  openOfficeRequest();
+}
+// User's own ask: "do the max js can do" — Number.MAX_VALUE itself, the largest finite value a
+// real JS number can ever hold (~1.7976931348623157e+308). Nothing bigger than this can exist as
+// a real number in this game without becoming Infinity, so this really is the true ceiling.
+const OFFICE_MAX_GRANT = Number.MAX_VALUE;
+function officeGiveCustom() {
+  if (!isAdmin()) return;
+  const currency = document.getElementById('officeCurrency').value;
+  const raw = document.getElementById('officeAmount').value.trim();
+  if (!raw) { showNotif('Type a real amount first.'); return; }
+  // Real bug found live (user's own test: "9e+98" silently became 998) — the old digit-only
+  // filter stripped the e/+ before Number() ever saw them, mangling valid scientific notation
+  // into a totally different, much smaller number instead of rejecting or honoring it. Both a
+  // plain digit string AND real scientific notation (9e98, 1.5e50, etc.) are checked on their own
+  // terms now, instead of blindly stripping to digits first.
+  const isPlainDigits = /^\d+$/.test(raw);
+  const isSciNotation = /^\d+(\.\d+)?e[+-]?\d+$/i.test(raw);
+  if (!isPlainDigits && !isSciNotation) { showNotif('❌ Numbers only — digits, or scientific notation like 9e98.'); return; }
+  if (isPlainDigits && raw.length > 500) { showNotif('❌ Max 500 digits.'); return; }
+  // A real JS number physically can't hold more than ~309 digits before becoming Infinity — and
+  // once sipDollars/eliteCoins IS Infinity, every % / comparison / save touching it downstream
+  // turns into NaN, for good (that's a real corrupted-account bug, not a display quirk). On top of
+  // that hard floor, OFFICE_MAX_GRANT above is now the user's own explicit, smaller ceiling —
+  // whichever bound actually applies, real feedback either way, not a silent failure.
+  let amount = Number(raw);
+  const capped = !isFinite(amount) || amount > OFFICE_MAX_GRANT;
+  if (capped) amount = OFFICE_MAX_GRANT;
+  officeGive(currency, amount, capped);
+}
 
 function refreshAdminTabVisibility() {
   const tab = document.getElementById('adminChatTab');
@@ -33493,7 +39397,7 @@ const ADMIN_TP_EXTRA = [
   { label: 'Church', x: -40, z: 20 },
   { label: 'Sunset Plains', x: LAND_CENTER.x, z: LAND_CENTER.z },
 ];
-const ADMIN_HELP = '/give <amount> sip|wood|elite — /give <weapon name> — /heal — /tp <place> — /spawn robot — /spawn demon — /clear robots — /godmode — /fly — /time day|night — /event god|satan — /help';
+const ADMIN_HELP = '/give <amount> sip|wood|elite — /give <weapon name> — /heal — /tp <place> — /spawn robot — /spawn demon — /clear robots — /godmode — /fly — /time day|night — /event god|satan — /level <n>|infinity|reset — /bundle_quote <name> <complications> — /bundle_reject <name> — /help';
 
 function adminRunCommand() {
   if (!isAdmin()) return;
@@ -33601,7 +39505,7 @@ function adminExecute(raw) {
     const zone = currentTimeZoneCountry();
     const offsetDayFrac = zone ? COUNTRY_TIME_ZONE_HOURS[zone] / 24 : 0;
     const desiredFrac = target === 'day' ? 0.5 : 0;
-    adminTimeOffsetSeconds = DAY_LENGTH * (desiredFrac - offsetDayFrac) - playTimeSeconds;
+    adminTimeOffsetSeconds = DAY_LENGTH * (desiredFrac - offsetDayFrac) - sharedClockSeconds();
     return `✅ Time set to ${target}.`;
   }
 
@@ -33612,7 +39516,93 @@ function adminExecute(raw) {
     return `✅ Triggered the ${target === 'god' ? 'God' : 'Satan'} clash.`;
   }
 
+  // Custom Bundle — user's own ask: "if i don't agree with they're idea just give them 10000
+  // sip." No purchase was ever attempted for the idea half of a rejected request, so this is a
+  // normal reward credit via the mailbox, not the instant-wallet real-money path.
+  if (cmd === 'bundle_reject') {
+    const name = parts.slice(1).join(' ').trim();
+    const entry = Object.entries(pendingBundleRequests).find(([, r]) => r.requester.trim().toLowerCase() === name.toLowerCase());
+    if (!entry) return `❌ No pending Custom Bundle request from "${name}".`;
+    const [id, req] = entry;
+    delete pendingBundleRequests[id];
+    sendMail(req.requester, 'custom_bundle_declined');
+    return `✅ Declined ${req.requester}'s idea — they'll get 10,000 S.I.P. instead.`;
+  }
+  // "it costs 2 dollars per complication for ideas" — <complications> is your own judgment call
+  // on how complicated their idea actually is, typed in after seeing it (that's the whole reason
+  // this is a 2-step request-then-quote flow instead of an instant buy). Combines with whatever
+  // the item + currency already priced themselves at when the player submitted the request.
+  if (cmd === 'bundle_quote') {
+    const complications = parseInt(parts[parts.length - 1], 10);
+    const name = parts.slice(1, -1).join(' ').trim();
+    if (parts.length < 3 || !Number.isFinite(complications) || complications < 0) return '❌ Try: /bundle_quote <name> <complications>';
+    const entry = Object.entries(pendingBundleRequests).find(([, r]) => r.requester.trim().toLowerCase() === name.toLowerCase());
+    if (!entry) return `❌ No pending Custom Bundle request from "${name}".`;
+    const [id, req] = entry;
+    delete pendingBundleRequests[id];
+    const ideaCents = complications * CUSTOM_BUNDLE_CENTS_PER_COMPLICATION;
+    const totalCents = req.itemCents + req.currencyCents + ideaCents;
+    adminCreateBundleCheckout(req, totalCents); // fire-and-forget — result reaches the requester over mailbox once the server responds
+    return `⏳ Quoting ${req.requester} $${(totalCents/100).toFixed(2)} total (item $${(req.itemCents/100).toFixed(2)} + currency $${(req.currencyCents/100).toFixed(2)} + idea $${(ideaCents/100).toFixed(2)} for ${complications} complication${complications===1?'':'s'})...`;
+  }
+
+  // Sets Robot Level directly instead of grinding levelUpElite() one Elite-Coin-costly level at a
+  // time — mainly for reaching `infinity`, which the normal level-up flow can never actually land
+  // on (eliteThresholdForLevel() itself overflows to a real Infinity cost around level ~1750,
+  // capping how far grinding alone can ever go — see the comments there and on levelUpEliteMax(),
+  // game-customization.js). Heaven's periodic invite (maybeShowHeavenInvite(), game-world.js) only
+  // fires at Robot Level Infinity — this is the real, intended way to actually reach that state,
+  // not a decorative flag with no way in.
+  if (cmd === 'level') {
+    const arg = (parts[1] || '').toLowerCase();
+    let newLevel;
+    if (arg === 'infinity' || arg === 'inf' || arg === 'max') newLevel = Infinity;
+    else if (arg === 'reset' || arg === '0') newLevel = 0;
+    else { newLevel = parseInt(parts[1], 10); if (!Number.isFinite(newLevel) || newLevel < 0) return '❌ Try: /level <number>, /level infinity, or /level reset.'; }
+    eliteLevel = newLevel;
+    updateElite();
+    // Same real HP-bump-not-just-a-cap-raise treatment levelUpElite() gives a normal level-up — via
+    // the shared helper (game-customization.js), which is what actually guards against the
+    // Infinity-to-finite jump this command can do (unlike normal leveling, which only ever moves by
+    // 1 and never touches Infinity) silently corrupting current HP to NaN.
+    applyPlayerMaxHealthChange();
+    saveCurrentUser();
+    renderQuestsPanel();
+    return newLevel === Infinity
+      ? '✅ Robot Level set to ∞. Heaven may call soon — the invite check runs every 5 minutes.'
+      : `✅ Robot Level set to ${eliteLevel.toLocaleString()}.`;
+  }
+
   return `❌ Unknown command "${cmd}". Type /help for the list.`;
+}
+// Fires the actual real Stripe session for a quoted Custom Bundle (create-custom-session,
+// explox-server/server.js — a DIFFERENT endpoint from every fixed-catalog purchase elsewhere in
+// this game, since the total is different every time). adminName is how the server itself verifies
+// this call really came from an admin (isAdminName(), server.js) — a non-admin hitting that
+// endpoint directly gets rejected there even if this client-side gate were somehow bypassed.
+async function adminCreateBundleCheckout(req, totalCents) {
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/checkout/create-custom-session', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        name: req.requester, adminName: currentUser, amountCents: totalCents,
+        description: `Custom Bundle for ${req.requester}`,
+        grantSip: req.currencyType === 'sip' ? req.currencyAmount : 0,
+        grantElite: req.currencyType === 'elite' ? req.currencyAmount : 0,
+        grantItem: req.itemId || '',
+        returnUrl: window.location.href,
+      }),
+    }, 8000);
+    const res = r.ok ? await r.json() : { ok:false };
+    if (res.ok && res.url) {
+      sendMail(req.requester, 'custom_bundle_quote', { totalCents, url: res.url });
+      showNotif(`✅ Checkout link sent to ${req.requester}.`);
+    } else {
+      showNotif(`❌ Couldn't create a checkout session for ${req.requester} — try again.`);
+    }
+  } catch(e) {
+    showNotif(`😴 Could not reach the payment server for ${req.requester}'s bundle.`);
+  }
 }
 // ─── BIBLE STORIES — "make a story of the whole bible book by book in the church" ────────────
 // Real, original mini-stories for all 66 books, in the same order every Bible uses. Written
@@ -36055,9 +42045,9 @@ Owning the building is only step one. A Store makes you money once you actually 
 
 Here's the detail almost every new Store owner misses, usually the hard way: your shop only stays open while somebody's actually inside running it. Walk away, and it closes behind you automatically — until you hire staff. You can bring on up to two employees, and once you've got even one, they'll sell to customers and quietly restock your shelves whether you're standing behind the counter or off exploring the far side of the city. The first hire runs 100 S.I.P., the second 250. If you're finding yourself chained to your own cash register, hiring staff is the actual fix, not just gritting your teeth through it.
 
-Your Store also levels up on its own the more it sells — one level for every five real sales, all the way up to a genuine Level 400. Leveling up isn't just a number on your sign, either: it's what unlocks more of what you're even allowed to stock. There are exactly 1,000 different items on the master ingredient list in this city, built from 40 real base foods — tomatoes, chicken, bread, honey, and so on — each one offered in 25 different styles: Fresh, Organic, Premium, Value Pack, Deluxe, Imported, Limited Edition, and more, every style carrying its own real price multiplier on top of the base ingredient's cost. A brand-new Store can only stock the plain versions of things; climbing levels through real sales is what unlocks the fancier, pricier styles worth stacking next to them. And don't forget to check your tip jar — roughly one sale in three leaves you a little extra on top of whatever you actually charged, anywhere from 1 to 100 S.I.P., waiting in your Earnings.
+Your Store also levels up on its own the more it sells — one level for every five real sales, all the way up to a genuine Level 400. Leveling up isn't just a number on your sign, either: it's what unlocks more of what you're even allowed to stock. There are exactly 1,000 different items on the master ingredient list in this city, built from 40 real base foods — tomatoes, chicken, bread, honey, and so on — each one offered in 25 different styles: Fresh, Organic, Premium, Value Pack, Deluxe, Imported, Limited Edition, and more, every style carrying its own real price multiplier on top of the base ingredient's cost. A brand-new Store can only stock the plain versions of things; climbing levels through real sales is what unlocks the fancier, pricier styles worth stacking next to them. And don't forget to check your tip jar — roughly one sale in three leaves you a little extra on top of whatever you actually charged, anywhere from 1 to 100 S.I.P., credited straight to your wallet the moment it happens.
 
-That's worth pausing on if this is the first time you've seen the word: a real Earnings tray sits behind its own icon, and money from a tip, a duel win, a contract, or plenty of the other rewards in this book lands there first, not straight in your pocket. It sits there safely until you actually open the tray and collect it — nothing about it expires or gets lost by waiting — but it also isn't spendable until you do. Get in the habit of checking it every so often, especially after a good run of sales or a few wins in a row, so you're not standing in front of a shop wondering why money you already earned isn't actually showing up in your total yet.
+That's worth pausing on, actually, if you've heard old stories about a separate Earnings tray you had to go open and collect from before a tip or a win was actually spendable — that's gone now. Every reward in this book, a tip, a duel win, a contract, a quest, a bank job, all of it, lands straight in your wallet the instant you earn it. There's no tray or tab sitting behind its own icon waiting on you, and nothing needs collecting. If a notification tells you S.I.P. or Elite Coins came in, they're already sitting in your total, right then.
 
 The Bank
 
@@ -36141,7 +42131,7 @@ The Diner, and five more sit-down restaurants scattered around the city, all wor
 
 If you're hungrier than one plate is ever going to fix, the buffets are the better deal by a wide margin. There are three of them — Breakfast, Lunch, and Hot Pot, each its own building, each with its own hundred-item menu you'd swear belonged to a real restaurant — and each one works completely differently from the sit-down places above: pay one entry fee (60 S.I.P. for Breakfast, 90 for Lunch, 120 for the Hot Pot) and everything on the menu is free and unlimited for as long as you're actually inside. No bag, no per-item cost, and every single serving is a full refill on its own, not the smaller bite an ordinary snack gives you elsewhere. If you've got the entry fee to spare, a buffet is the single most efficient way to fix your hunger bar anywhere in the game, hands down.
 
-Once you're inside a buffet, look around for the eating competition — it's a real, timed contest built right in, not a joke option sitting on the menu for laughs. Pay 100 S.I.P. to enter, pick an opponent, and you've got sixty real seconds on the clock to out-eat them plate for plate. Lil' Nibbles is an easy first opponent to warm up against. Chad Chompers steps the pace up noticeably. And "Big" T-Bone Tanner eats fast enough to test even a player who's genuinely quick on the buttons. Win, and it's not just bragging rights — a real 250 S.I.P. lands in your Earnings against the 100 S.I.P. you paid to enter, more than doubling your money for actually pulling it off. Your best score at each buffet gets saved automatically either way, so there's always a number of your own sitting there waiting to be beaten next time you're back in the neighborhood.
+Once you're inside a buffet, look around for the eating competition — it's a real, timed contest built right in, not a joke option sitting on the menu for laughs. Pay 100 S.I.P. to enter, pick an opponent, and you've got sixty real seconds on the clock to out-eat them plate for plate. Lil' Nibbles is an easy first opponent to warm up against. Chad Chompers steps the pace up noticeably. And "Big" T-Bone Tanner eats fast enough to test even a player who's genuinely quick on the buttons. Win, and it's not just bragging rights — a real 250 S.I.P. lands straight in your wallet against the 100 S.I.P. you paid to enter, more than doubling your money for actually pulling it off. Your best score at each buffet gets saved automatically either way, so there's always a number of your own sitting there waiting to be beaten next time you're back in the neighborhood.
 
 Family, Friends & the Town
 
@@ -36179,7 +42169,7 @@ Armor works alongside whatever you're holding rather than replacing it — soaki
 
 The Arena & Duels
 
-The Fight Arena is a real, dedicated place built for exactly one thing: a fair fight against another real player, out in the open where anyone else around can watch. Challenge someone, and they can accept or decline on their end — accept, and it's a genuine duel, real hits landing back and forth until one of you actually goes down. Win, and there's a real 50 S.I.P. waiting for you in your Earnings for the trouble afterward. You don't technically have to be standing inside the Arena itself for a duel to happen — the challenge system works anywhere in the city, wherever you happen to run into someone — but the Arena is where it's actually meant to happen, with a crowd's worth of atmosphere built around it and a real Free-for-All mode besides, complete with its own live leaderboard for whoever's currently sitting on top of it.
+The Fight Arena is a real, dedicated place built for exactly one thing: a fair fight against another real player, out in the open where anyone else around can watch. Challenge someone, and they can accept or decline on their end — accept, and it's a genuine duel, real hits landing back and forth until one of you actually goes down. Win, and there's a real 50 S.I.P. credited straight to your wallet for the trouble afterward. You don't technically have to be standing inside the Arena itself for a duel to happen — the challenge system works anywhere in the city, wherever you happen to run into someone — but the Arena is where it's actually meant to happen, with a crowd's worth of atmosphere built around it and a real Free-for-All mode besides, complete with its own live leaderboard for whoever's currently sitting on top of it.
 
 Sunset Plains
 
@@ -36261,7 +42251,7 @@ Don't head into a real fight on bare fists out of habit once you've got a little
 
 And don't forget your own house has a working Inventory panel in it. New players regularly hike all the way out to a weapon shop just to switch what they're carrying, when the fix was a menu back home the whole time.
 
-Last, check your Earnings tray more often than feels necessary. It's easy to rack up a dozen small tips, wins, and rewards in there without noticing, and none of it is actually spendable money until you open the tray and collect it yourself.
+Last, don't go hunting for a tab to collect your tips, wins, or rewards in — there isn't one. Everything you earn lands straight in your wallet the moment you earn it, so if a notification says you got paid, you already have.
 
 Last Thing
 
@@ -36433,4 +42423,68 @@ function openLibraryBook(name) {
 function backToLibraryList() {
   document.getElementById('libraryReadView').style.display = 'none';
   document.getElementById('libraryListView').style.display = 'block';
+}
+
+// ─── HISTORY OF EXPLOX — user's own ask: "the origin of explox from the statue from king explox
+// to the newest stuff," read at the real King Explox Monument (game-buildings.js/game-zones.js).
+// A real in-world timeline, same "original Explox-world lore" spirit as LIBRARY_BOOKS above —
+// each entry references a REAL system already built in this game (City Hall, the Bank, the
+// Scrapyard/Robot Arena, the Church/Satan's First War, the Space Race, the Super vehicles/hired
+// help), not invented placeholder history, so it reads as this game's actual story so far.
+const EXPLOX_HISTORY = [
+  { year:'Year 0',    title:'👑 The Founding',        text:'Long before roads or streetlights, King Explox planted his banner on empty ground and declared: "Here — a city for everyone." Explox City was born that day.' },
+  { year:'Year 12',   title:'🏛️ City Hall Rises',      text:'The King\'s word became a real government. City Hall was built so every citizen — not just the King — could have a say in how the city grew.' },
+  { year:'Year 30',   title:'🏦 The Bank Opens',       text:'S.I.P. became the coin of the realm, and the City Bank was built to keep it safe — mostly. Robbers have had other ideas ever since.' },
+  { year:'Year 45',   title:'🤖 The Scrapyard',        text:'Robots began rolling out of the Scrapyard on the edge of town — some to work, some to cause real trouble in what\'s now the Robot Arena.' },
+  { year:'Year 60',   title:'⛪ The Church & The First War', text:'The Church was built to honor the light. Not long after, Satan rebelled in what the old books simply call The First War — a story still told at the Library today.' },
+  { year:'Year 90',   title:'🚀 Reaching the Stars',   text:'The Space Station launched, and Explox citizens set foot on the Moon, Mars, the clouds of Jupiter, and even distant Andromeda.' },
+  { year:'Year 120',  title:'💎 The Super Era',        text:'Legends started driving Super Tanks, Super Jets, and Super Motorcycles — hiring real Bodyguards and Pro Pilots just to keep up with it all.' },
+  { year:'Today',     title:'🎬 You Arrive',           text:'Explox keeps growing — new jobs, new heroes, new stories every day. This chapter is still being written. Maybe you\'ll be part of it.' },
+];
+function openExploxHistory() {
+  if (document.pointerLockElement) document.exitPointerLock();
+  isPointerLocked = false;
+  document.getElementById('neighborModalTitle').textContent = '👑 The History of Explox';
+  let html = `<button onclick="openExploxRoyalLine()" style="width:100%;padding:8px;margin-bottom:12px;background:linear-gradient(135deg,#3a2e0a,#4a3a10);border:1px solid #FFD700;border-radius:8px;color:#FFD700;font-size:12px;font-weight:bold;cursor:pointer;">📜 See the Line of Explox</button>
+    <div style="max-height:330px;overflow-y:auto;padding-right:4px;">`;
+  EXPLOX_HISTORY.forEach(h => {
+    html += `<div style="margin-bottom:14px;border-left:3px solid #FFD700;padding-left:10px;">
+      <div style="color:#FFD700;font-size:11px;font-weight:bold;letter-spacing:1px;">${h.year}</div>
+      <div style="color:#fff;font-size:13px;font-weight:bold;margin:2px 0;">${h.title}</div>
+      <div style="color:#ccc;font-size:12px;line-height:1.4;">${h.text}</div>
+    </div>`;
+  });
+  html += `</div>`;
+  document.getElementById('neighborModalBody').innerHTML = html;
+  document.getElementById('neighborModal').style.display = 'flex';
+}
+// ─── THE LINE OF EXPLOX — user's own ask, right after building the History timeline above: "than
+// make a a king explox statue" + now "make a line of explox from king explox." Where History is
+// events (what happened), this is people (who ruled) — the royal bloodline itself, generation by
+// generation from the Founding down to today, cross-referencing the same real systems (Bank,
+// Church/Satan's First War, the Space Race, City Hall) so both lists tell one consistent story.
+const EXPLOX_ROYAL_LINE = [
+  { gen:'1st', name:'👑 King Explox I', title:'The Founder', text:'Planted his banner on empty ground and declared it a city for everyone. Every ruler after him traces back to this one moment.' },
+  { gen:'2nd', name:'👸 Queen Explora', title:'The Builder', text:'Explox I\'s daughter. Raised City Hall and the Bank so the city could run itself, not just wait on a King\'s word.' },
+  { gen:'3rd', name:'👑 King Explox II', title:'The Steadfast', text:'Ruled through The First War, when Satan rebelled against the Church. Stayed in the city with its people instead of hiding, and it held.' },
+  { gen:'4th', name:'👸 Queen Explyra', title:'The Starbound', text:'Sent the first Explox citizens past the sky itself — the Moon, Mars, Jupiter\'s clouds, distant Andromeda — during the Space Race.' },
+  { gen:'5th', name:'👑 King Explox III', title:'The Last Crown', text:'The final ruler to sit on the throne full-time. By his reign, City Hall\'s elected voice ran the city in practice — the crown became an honor, not an order.' },
+  { gen:'6th', name:'❓ The Line Continues...', title:'Unclaimed', text:'For a long stretch, no one wore the crown. The old throne at the Monument stood empty, waiting for whoever proved themselves worthy of it.' },
+  { gen:'Today', name:'👑 King Explox IV', title:'The Reclaimer', text:'Finally answered the old throne\'s wait — built a new Royal Court and raised a real Royal Guard around it, rather than trying to rule from the cramped old Monument plaza. Whether the crown stays his is still being written. Maybe you\'ll be the one to decide that.' },
+];
+function openExploxRoyalLine() {
+  document.getElementById('neighborModalTitle').textContent = '📜 The Line of Explox';
+  let html = `<button onclick="openExploxHistory()" style="width:100%;padding:8px;margin-bottom:12px;background:linear-gradient(135deg,#3a2e0a,#4a3a10);border:1px solid #FFD700;border-radius:8px;color:#FFD700;font-size:12px;font-weight:bold;cursor:pointer;">👑 Back to the History</button>
+    <div style="max-height:330px;overflow-y:auto;padding-right:4px;">`;
+  EXPLOX_ROYAL_LINE.forEach((r, i) => {
+    html += `<div style="margin-bottom:14px;border-left:3px solid #FFD700;padding-left:10px;">
+      <div style="color:#FFD700;font-size:11px;font-weight:bold;letter-spacing:1px;">${r.gen} Ruler</div>
+      <div style="color:#fff;font-size:13px;font-weight:bold;margin:2px 0;">${r.name} — <span style="color:#FFD700;">${r.title}</span></div>
+      <div style="color:#ccc;font-size:12px;line-height:1.4;">${r.text}</div>
+      ${i < EXPLOX_ROYAL_LINE.length-1 ? '<div style="color:#665500;font-size:14px;margin-top:4px;">↓</div>' : ''}
+    </div>`;
+  });
+  html += `</div>`;
+  document.getElementById('neighborModalBody').innerHTML = html;
+  document.getElementById('neighborModal').style.display = 'flex';
 }

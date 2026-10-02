@@ -24,6 +24,12 @@ let adminUnlocked = false;           // real passcode gate — resets to false o
 let adminGodMode = false;            // /godmode — checked in damagePlayer() (game-social.js)
 let adminFlying  = false;            // /fly — checked in tryCityJump()/the gravity tick (game-controls.js)
 let adminTimeOffsetSeconds = 0;      // /time day|night — checked in getDayNightBrightness() (game-zones.js)
+// Custom Bundle — requestId -> the request's own data (submitCustomBundle(), game-alignment.js),
+// held here only until an admin actually acts on it (/bundle_quote|/bundle_reject below), same
+// "ambient, in-memory only, not persisted" spirit as presidentVisitState/celebrityState
+// (game-social.js) — a request that arrives while no admin is online just waits in THEIR mailbox
+// until they next log in and it gets re-delivered, same as any other real mailbox message.
+let pendingBundleRequests = {};
 
 // THE OFFICE — user's own ask: a personal HQ ("but they work for me") where staff can get you
 // "anything u can want." Same isAdmin() gate as the Super Tank/Jet/Motorcycle (game-vehicles.js) —
@@ -164,7 +170,7 @@ const ADMIN_TP_EXTRA = [
   { label: 'Church', x: -40, z: 20 },
   { label: 'Sunset Plains', x: LAND_CENTER.x, z: LAND_CENTER.z },
 ];
-const ADMIN_HELP = '/give <amount> sip|wood|elite — /give <weapon name> — /heal — /tp <place> — /spawn robot — /spawn demon — /clear robots — /godmode — /fly — /time day|night — /event god|satan — /level <n>|infinity|reset — /help';
+const ADMIN_HELP = '/give <amount> sip|wood|elite — /give <weapon name> — /heal — /tp <place> — /spawn robot — /spawn demon — /clear robots — /godmode — /fly — /time day|night — /event god|satan — /level <n>|infinity|reset — /bundle_quote <name> <complications> — /bundle_reject <name> — /help';
 
 function adminRunCommand() {
   if (!isAdmin()) return;
@@ -272,7 +278,7 @@ function adminExecute(raw) {
     const zone = currentTimeZoneCountry();
     const offsetDayFrac = zone ? COUNTRY_TIME_ZONE_HOURS[zone] / 24 : 0;
     const desiredFrac = target === 'day' ? 0.5 : 0;
-    adminTimeOffsetSeconds = DAY_LENGTH * (desiredFrac - offsetDayFrac) - playTimeSeconds;
+    adminTimeOffsetSeconds = DAY_LENGTH * (desiredFrac - offsetDayFrac) - sharedClockSeconds();
     return `✅ Time set to ${target}.`;
   }
 
@@ -281,6 +287,36 @@ function adminExecute(raw) {
     if (target !== 'god' && target !== 'satan') return '❌ Try: /event god or /event satan.';
     startDivineClash(target);
     return `✅ Triggered the ${target === 'god' ? 'God' : 'Satan'} clash.`;
+  }
+
+  // Custom Bundle — user's own ask: "if i don't agree with they're idea just give them 10000
+  // sip." No purchase was ever attempted for the idea half of a rejected request, so this is a
+  // normal reward credit via the mailbox, not the instant-wallet real-money path.
+  if (cmd === 'bundle_reject') {
+    const name = parts.slice(1).join(' ').trim();
+    const entry = Object.entries(pendingBundleRequests).find(([, r]) => r.requester.trim().toLowerCase() === name.toLowerCase());
+    if (!entry) return `❌ No pending Custom Bundle request from "${name}".`;
+    const [id, req] = entry;
+    delete pendingBundleRequests[id];
+    sendMail(req.requester, 'custom_bundle_declined');
+    return `✅ Declined ${req.requester}'s idea — they'll get 10,000 S.I.P. instead.`;
+  }
+  // "it costs 2 dollars per complication for ideas" — <complications> is your own judgment call
+  // on how complicated their idea actually is, typed in after seeing it (that's the whole reason
+  // this is a 2-step request-then-quote flow instead of an instant buy). Combines with whatever
+  // the item + currency already priced themselves at when the player submitted the request.
+  if (cmd === 'bundle_quote') {
+    const complications = parseInt(parts[parts.length - 1], 10);
+    const name = parts.slice(1, -1).join(' ').trim();
+    if (parts.length < 3 || !Number.isFinite(complications) || complications < 0) return '❌ Try: /bundle_quote <name> <complications>';
+    const entry = Object.entries(pendingBundleRequests).find(([, r]) => r.requester.trim().toLowerCase() === name.toLowerCase());
+    if (!entry) return `❌ No pending Custom Bundle request from "${name}".`;
+    const [id, req] = entry;
+    delete pendingBundleRequests[id];
+    const ideaCents = complications * CUSTOM_BUNDLE_CENTS_PER_COMPLICATION;
+    const totalCents = req.itemCents + req.currencyCents + ideaCents;
+    adminCreateBundleCheckout(req, totalCents); // fire-and-forget — result reaches the requester over mailbox once the server responds
+    return `⏳ Quoting ${req.requester} $${(totalCents/100).toFixed(2)} total (item $${(req.itemCents/100).toFixed(2)} + currency $${(req.currencyCents/100).toFixed(2)} + idea $${(ideaCents/100).toFixed(2)} for ${complications} complication${complications===1?'':'s'})...`;
   }
 
   // Sets Robot Level directly instead of grinding levelUpElite() one Elite-Coin-costly level at a
@@ -311,4 +347,33 @@ function adminExecute(raw) {
   }
 
   return `❌ Unknown command "${cmd}". Type /help for the list.`;
+}
+// Fires the actual real Stripe session for a quoted Custom Bundle (create-custom-session,
+// explox-server/server.js — a DIFFERENT endpoint from every fixed-catalog purchase elsewhere in
+// this game, since the total is different every time). adminName is how the server itself verifies
+// this call really came from an admin (isAdminName(), server.js) — a non-admin hitting that
+// endpoint directly gets rejected there even if this client-side gate were somehow bypassed.
+async function adminCreateBundleCheckout(req, totalCents) {
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/checkout/create-custom-session', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        name: req.requester, adminName: currentUser, amountCents: totalCents,
+        description: `Custom Bundle for ${req.requester}`,
+        grantSip: req.currencyType === 'sip' ? req.currencyAmount : 0,
+        grantElite: req.currencyType === 'elite' ? req.currencyAmount : 0,
+        grantItem: req.itemId || '',
+        returnUrl: window.location.href,
+      }),
+    }, 8000);
+    const res = r.ok ? await r.json() : { ok:false };
+    if (res.ok && res.url) {
+      sendMail(req.requester, 'custom_bundle_quote', { totalCents, url: res.url });
+      showNotif(`✅ Checkout link sent to ${req.requester}.`);
+    } else {
+      showNotif(`❌ Couldn't create a checkout session for ${req.requester} — try again.`);
+    }
+  } catch(e) {
+    showNotif(`😴 Could not reach the payment server for ${req.requester}'s bundle.`);
+  }
 }

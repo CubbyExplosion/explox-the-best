@@ -2,6 +2,7 @@
 const CITY_ZONES = [
   { x:HOUSE_DOOR.x, z:HOUSE_DOOR.z, r:5,  label:'Enter Your House',            action: () => enterHouse()},
   { x:-45, z:-107, r:3.5, label:'🅿️ Park Car Here', action: () => parkCarAtHome()},
+  { x:60, z:110, r:9, label:'🅿️ Park Car Here (Uptown Lot)', action: () => parkCarAtUptownLot()},
   // The 5 shop zones are listed BEFORE "Work as Shopkeeper" below on purpose — updatePrompt()
   // checks zones in this exact array order and stops at the first radius match, and Shopkeeper's
   // big r:16 area (centered right behind the shops) actually overlaps Coffee Shop and Outfit
@@ -103,7 +104,7 @@ const HOUSE_ZONES = [
   // The Computer and Guest-spot zones used to sit at pre-migration coordinates (x:358/346) — real
   // dead zones ever since the house interior moved out to the HOUSE_SPAWN.x=10000 pocket lane, over
   // 9,600 units away. Fixed to the room's real coordinates, matching where the desk/figure actually are.
-  { x:HOUSE_SPAWN.x+8, z:0.5, r:2.2, label:'💻 Use Computer', action: () => openSIB(), isComputer:true },
+  { x:HOUSE_SPAWN.x+8, z:0.5, r:2.2, label:'💻 Use Computer', action: () => openComputerDesktop(), isComputer:true },
   { x:HOUSE_SPAWN.x-7, z:HOUSE_SPAWN.z+6, r:2.5, label:'', action: () => sayGoodbyeToGuest(), isGuestSpot:true },
   { x:HOUSE_SPAWN.x+5.5, z:-5,   r:2.5, label:'🛏️ Sleep',        action: () => sleepAtHome()},
   { x:HOUSE_SPAWN.x-4,   z:3,    r:2.2, label:'🛋️ Sit on Sofa',  action: () => sitOnSofa()},
@@ -259,6 +260,68 @@ function tryFightKey() {
   if (!tryCombatSwing()) triggerSwing();
 }
 
+// GUN FREE-AIM — user's own ask: "add a scope so you can shoot... see bullets when you shoot".
+// Every combat function up to now (tryCombatSwing() above) is PROXIMITY-based — walk up to
+// something, press E/F. A gun is the one weapon category where "aim at whatever's actually in
+// your crosshair, at real range" makes more sense than "whatever's nearest within 3 units" — so
+// this is a real THREE.Raycaster shot from the camera's own look direction, not a reskin of the
+// existing swing. Deliberately covers the open-world ambient threats (robots/rogue robots/
+// killers+robbers+demons+Satan+Killer Supreme) — the exact same dispatch tryCombatSwing() uses
+// for its own killers-array branch, kept in lockstep on purpose — and leaves the rarer contextual
+// fights (Robot Arena, Movie Fight boss, World Bosses, the training dummy) on the existing
+// proximity system for now; they're each their own pocket space anyway, not somewhere a free-aim
+// shot across the open world would ever reach.
+const GUN_RANGE = 70;
+function tryFireGun() {
+  if (!isGunEquipped() || !camera || !scene || playerSeated || inCar) return false;
+  const targets = []; // [{mesh, fn}]
+  robots.forEach(r => { if (r.alive && r.mesh) targets.push({ mesh:r.mesh, fn:() => fightRobot(r) }); });
+  rogueRobots.forEach(r => { if (r.alive && r.mesh) targets.push({ mesh:r.mesh, fn:() => fightRogueRobot(r) }); });
+  killers.forEach(k => {
+    if (!k.alive || !k.revealed || !k.mesh) return;
+    const fn = k.robber ? () => fightRobber(k) : k.demon ? () => fightDemon(k) : k.satanBoss ? () => fightSatanBoss(k) : k.killerSupreme ? () => fightKillerSupreme(k) : () => fightKiller(k);
+    targets.push({ mesh:k.mesh, fn });
+  });
+  const meshToFn = new Map(targets.map(t => [t.mesh, t.fn]));
+  const raycaster = new THREE.Raycaster();
+  const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+  const origin = new THREE.Vector3(); camera.getWorldPosition(origin);
+  raycaster.set(origin, dir);
+  raycaster.far = GUN_RANGE;
+  const hits = raycaster.intersectObjects(targets.map(t => t.mesh), true); // recursive — a mob's mesh is a Group of parts, not one solid object
+  if (hits.length) {
+    // Walk up from whatever specific child part the raycast actually hit (a leg, a barrel...) to
+    // the registered root mesh, since meshToFn only ever keys off the top-level group. The fight
+    // function itself already fires its own real tracer + gunshot sound when a gun is equipped
+    // (swingAndHit() -> fireWarShot(), game-economy.js — every combat function already routes
+    // through it) — no second tracer needed here for a landed shot.
+    let obj = hits[0].object;
+    while (obj && !meshToFn.has(obj)) obj = obj.parent;
+    if (obj) meshToFn.get(obj)();
+  } else {
+    // A miss never reaches any fight function, so it would otherwise show NOTHING at all — this
+    // is the one case that actually needs its own tracer, out to the shot's max range.
+    spawnGunTracer(origin, origin.clone().addScaledVector(dir, GUN_RANGE));
+  }
+  return true;
+}
+// A thin, fast-fading beam — same real THREE.Mesh-box-tracer technique fireWarShot() (game-world.js)
+// already uses for War NPC/Bank-wall gunfire, just oriented along the player's OWN shot instead of
+// a fixed two-point NPC line, since this one's direction changes with the camera every single shot.
+// Only used for a MISS (see tryFireGun() above) — a landed hit already gets a real tracer from the
+// fight function's own existing swingAndHit()->fireWarShot() call.
+function spawnGunTracer(from, to) {
+  const dist = from.distanceTo(to);
+  const tracer = new THREE.Mesh(
+    new THREE.BoxGeometry(0.04, 0.04, dist),
+    new THREE.MeshBasicMaterial({ color: 0xffee88, transparent:true, opacity:0.9 })
+  );
+  tracer.position.copy(from).lerp(to, 0.5);
+  tracer.lookAt(to);
+  scene.add(tracer);
+  setTimeout(() => scene.remove(tracer), 70);
+}
+
 function handleInteract() {
   const px2 = playerGroup.position.x, pz = playerGroup.position.z;
   // Stand up if seated — takes priority over everything else, same as exiting a car
@@ -354,23 +417,24 @@ function updatePrompt() {
     const dx=px2-pc.group.position.x, dz=pz-pc.group.position.z;
     if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent=`[E] ${pc.def.emoji} Get in ${pc.def.name}`; el.style.display='block'; return; }
   }
-  // Tank/Jet/Motorcycle are real-money items (see enterPremiumVehicle(), game-vehicles.js) —
-  // a non-admin sees an honest locked hint here instead of "Get in", same gate handleInteract() enforces.
+  // Tank/Jet/Motorcycle/Future Jet are real-money items (see canUsePremiumVehicle(),
+  // game-vehicles.js) — a player who hasn't bought or rented one sees an honest locked hint here
+  // instead of "Get in", same gate handleInteract() enforces.
   if (dealershipTank) {
     const dx=px2-dealershipTank.group.position.x, dz=pz-dealershipTank.group.position.z;
-    if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent = isAdmin() ? `[E] ${dealershipTank.def.emoji} Get in ${dealershipTank.def.name}` : `🔒 ${dealershipTank.def.name} — buy in 🛍️ SHOP`; el.style.display='block'; return; }
+    if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent = canUsePremiumVehicle(dealershipTank.def.id) ? `[E] ${dealershipTank.def.emoji} Get in ${dealershipTank.def.name}` : `🔒 ${dealershipTank.def.name} — buy/rent in 🛍️ SHOP`; el.style.display='block'; return; }
   }
   if (dealershipJet) {
     const dx=px2-dealershipJet.group.position.x, dz=pz-dealershipJet.group.position.z;
-    if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent = isAdmin() ? `[E] ${dealershipJet.def.emoji} Get in ${dealershipJet.def.name}` : `🔒 ${dealershipJet.def.name} — buy in 🛍️ SHOP`; el.style.display='block'; return; }
+    if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent = canUsePremiumVehicle(dealershipJet.def.id) ? `[E] ${dealershipJet.def.emoji} Get in ${dealershipJet.def.name}` : `🔒 ${dealershipJet.def.name} — buy/rent in 🛍️ SHOP`; el.style.display='block'; return; }
   }
   if (dealershipFutureJet) {
     const dx=px2-dealershipFutureJet.group.position.x, dz=pz-dealershipFutureJet.group.position.z;
-    if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent = isAdmin() ? `[E] ${dealershipFutureJet.def.emoji} Get in ${dealershipFutureJet.def.name}` : `🔒 ${dealershipFutureJet.def.name} — buy in 🛍️ SHOP`; el.style.display='block'; return; }
+    if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent = canUsePremiumVehicle(dealershipFutureJet.def.id) ? `[E] ${dealershipFutureJet.def.emoji} Get in ${dealershipFutureJet.def.name}` : `🔒 ${dealershipFutureJet.def.name} — buy/rent in 🛍️ SHOP`; el.style.display='block'; return; }
   }
   if (dealershipMotorcycle) {
     const dx=px2-dealershipMotorcycle.group.position.x, dz=pz-dealershipMotorcycle.group.position.z;
-    if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent = isAdmin() ? `[E] ${dealershipMotorcycle.def.emoji} Get in ${dealershipMotorcycle.def.name}` : `🔒 ${dealershipMotorcycle.def.name} — buy in 🛍️ SHOP`; el.style.display='block'; return; }
+    if(Math.sqrt(dx*dx+dz*dz)<7) { el.textContent = canUsePremiumVehicle(dealershipMotorcycle.def.id) ? `[E] ${dealershipMotorcycle.def.emoji} Get in ${dealershipMotorcycle.def.name}` : `🔒 ${dealershipMotorcycle.def.name} — buy/rent in 🛍️ SHOP`; el.style.display='block'; return; }
   }
   if (dealershipCab) {
     const dx=px2-dealershipCab.group.position.x, dz=pz-dealershipCab.group.position.z;
@@ -380,7 +444,7 @@ function updatePrompt() {
   for(const z of zones) {
     if(Math.sqrt((px2-z.x)**2+(pz-z.z)**2) < z.r) {
       if(z.isComputer) {
-        el.textContent = ownedComputers.length>0 ? '[E] 💻 Open SIB Browser' : '[E] 💻 No computer (buy one at the Computer Shop)';
+        el.textContent = ownedComputers.length>0 ? '[E] 💻 Use Computer' : '[E] 💻 No computer (buy one at the Computer Shop)';
         el.style.display='block'; return;
       }
       if(z.isJobZone) {
@@ -1207,15 +1271,24 @@ function getSeasonInfo() {
   return {season, sk, holiday, skySky, fogFog, mmdd};
 }
 
-// ─── DAY/NIGHT CYCLE — runs off playTimeSeconds (real seconds actually played, same clock
-// tickGrowth already uses for growth stages), NOT the real-world wall clock, so it advances at
-// the same steady pace no matter what timezone or time of day you actually play at. One full
-// day+night takes DAY_LENGTH real seconds; brightness follows a smooth cosine curve (0 at
-// midnight, 1 at noon) instead of hard day/night cuts, so dawn and dusk fade in and out. Season
-// effects above still own the "full daylight" base sky/fog color (seasonSkyColor/seasonFogColor)
-// — this system only darkens toward that base at night, it never fights season for ownership of
-// scene.background/scene.fog.color. ──────────────────────────────────────────────────────────
+// ─── DAY/NIGHT CYCLE — one full day+night takes DAY_LENGTH real seconds; brightness follows a
+// smooth cosine curve (0 at midnight, 1 at noon) instead of hard day/night cuts, so dawn and dusk
+// fade in and out. Season effects above still own the "full daylight" base sky/fog color
+// (seasonSkyColor/seasonFogColor) — this system only darkens toward that base at night, it never
+// fights season for ownership of scene.background/scene.fog.color. ────────────────────────────
 const DAY_LENGTH = 1800; // real seconds for one full day+night cycle (30 minutes)
+// SHARED WORLD CLOCK — "make the time and weather be the same everywhere" (user's own ask): both
+// day/night and weather used to derive from playTimeSeconds, each player's own accumulated PLAY
+// time — since no two accounts have ever played the exact same number of seconds, two players
+// standing side by side could see a different time of day AND different weather. Date.now() is
+// the one clock every player's device already agrees on with no server round-trip needed, so both
+// systems now derive their PHASE from it instead — the cycle LENGTHS are unchanged (still exactly
+// DAY_LENGTH per day, still a weather reroll every WEATHER_CYCLE_SECONDS), so this doesn't tie
+// day/night to real sunrise/sunset either, it just makes every player's cycle line up. The
+// per-country time-zone offset below (COUNTRY_TIME_ZONE_HOURS, a separate earlier ask) still
+// applies on top of this shared base, same as before. playTimeSeconds itself is untouched — still
+// exactly what growth/aging (tickGrowth) and every cooldown elsewhere in the game use.
+function sharedClockSeconds() { return Date.now() / 1000; }
 let seasonSkyColor, seasonFogColor; // THREE.Color, lazily created in applySeasonEffects (THREE isn't loaded yet at parse time)
 let _dayNightColors = null;         // lazily built cache of THREE.Color helpers, see updateDayNight
 let _judgmentColor = null;          // lazily built cache for the Wrath/Satan sky override, see updateDayNight
@@ -1262,10 +1335,11 @@ function isPlayerIndoors() {
   return inHouse || inMall || inHotel || inStore || inFriendHouse || inLandHouse || inCountryHotel || inAirportLounge || inPrison || inArcade || inArenaBattle || inMovieFight || inBankInterior || inSportsPark || inHospital || inSchool || inVisitStore || inShopInterior;
 }
 // ─── TIME ZONES — user's own ask: "and time zones". Each real Earth country gets a real-ish UTC
-// offset matching its actual real-world zone, so the SAME moment of real playtime looks like a
-// different time of day depending which country you're standing in — the same real reason time
-// zones exist on the actual Earth. Downtown Explox and the Space Station stay on the base clock
-// (no offset) — deep space doesn't have a real "time zone", and Downtown is the home reference.
+// offset matching its actual real-world zone, so the SAME moment on the shared world clock
+// (sharedClockSeconds() above) looks like a different time of day depending which country you're
+// standing in — the same real reason time zones exist on the actual Earth. Downtown Explox and
+// the Space Station stay on the base clock (no offset) — deep space doesn't have a real "time
+// zone", and Downtown is the home reference.
 const COUNTRY_TIME_ZONE_HOURS = { Japan:9, France:1, Brazil:-3, Egypt:2, UK:0, Australia:10, Canada:-5, Italy:1 };
 function currentTimeZoneCountry() {
   if (!playerGroup) return null;
@@ -1280,7 +1354,7 @@ function getDayNightBrightness() {
   const offsetDayFrac = zone ? COUNTRY_TIME_ZONE_HOURS[zone] / 24 : 0;
   // adminTimeOffsetSeconds (game-admin.js, /time day|night) shifts ONLY this display calculation —
   // playTimeSeconds itself is left untouched since it also drives character growth/aging.
-  const frac = ((((playTimeSeconds + adminTimeOffsetSeconds) / DAY_LENGTH) + offsetDayFrac) % 1 + 1) % 1; // 0..1, 0 = midnight; double-mod keeps negative UTC offsets positive
+  const frac = ((((sharedClockSeconds() + adminTimeOffsetSeconds) / DAY_LENGTH) + offsetDayFrac) % 1 + 1) % 1; // 0..1, 0 = midnight; double-mod keeps negative UTC offsets positive
   const raw = (1 - Math.cos(frac * Math.PI * 2)) / 2;       // 0 at midnight, 1 at noon
   return { frac, raw, zone };
 }
@@ -1423,12 +1497,14 @@ function updateSeasonHud() {
 // The old system was a static 1:1 function of season (winter=always snow, fall=always leaves,
 // else always nothing). This replaces it with real day-to-day variety, using the EXACT same trick
 // DAY_LENGTH/getDayNightBrightness() already use above: the current weather is DERIVED fresh from
-// playTimeSeconds every time it's needed, split into WEATHER_CYCLE_SECONDS-long windows, instead of
-// being a separately-persisted timer. Each window's weather is a deterministic weighted pick seeded
-// from (window index + current season), so reloading the page resumes the SAME weather instead of
-// rerolling — zero new save fields needed, exactly like day/night. 4 real minutes/state gives
-// ~7-8 changes across one 30-minute DAY_LENGTH day, which reads as "weather actually changes today"
-// without flickering between conditions every few seconds.
+// sharedClockSeconds() every time it's needed, split into WEATHER_CYCLE_SECONDS-long windows,
+// instead of being a separately-persisted timer. Each window's weather is a deterministic weighted
+// pick seeded from (window index + current season), so reloading the page resumes the SAME weather
+// instead of rerolling — zero new save fields needed, exactly like day/night. Using the shared
+// clock (not playTimeSeconds) also means every player computes the same window index at the same
+// real moment, so weather matches for everyone instead of drifting per-account. 4 real
+// minutes/state gives ~7-8 changes across one 30-minute DAY_LENGTH day, which reads as "weather
+// actually changes today" without flickering between conditions every few seconds.
 const WEATHER_CYCLE_SECONDS = 240;
 const WEATHER_TYPES = {
   clear:  {emoji:'☀️',  name:'Clear',        particle:null},
@@ -1466,7 +1542,7 @@ function _weatherHash01(str) {
   for (let i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
   return h / 4294967295;
 }
-function currentWeatherWindow() { return Math.floor(playTimeSeconds / WEATHER_CYCLE_SECONDS); }
+function currentWeatherWindow() { return Math.floor(sharedClockSeconds() / WEATHER_CYCLE_SECONDS); }
 function pickWeatherForWindow(windowIdx, sk) {
   const weights = WEATHER_WEIGHTS[sk];
   const roll = _weatherHash01(windowIdx + '_' + sk) * 100; // weight rows sum to 100

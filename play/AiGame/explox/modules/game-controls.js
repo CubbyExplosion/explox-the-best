@@ -62,9 +62,13 @@ function setupControls(){
     if(e.code==='KeyG'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) toggleAddOnsPanel(); }
     if(e.code==='KeyM'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))){ const p=document.getElementById('musicPanel'); if(p.style.display==='block') closeMusicPanel(); else openMusicPanel(); } }
     if(e.code==='KeyY'){ const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) tryGiveSip(); }
-    if(e.code==='KeyP' && placingStore) confirmStorePlacement();
+    if(e.code==='KeyP') {
+      if (placingStore) confirmStorePlacement();
+      else { const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))) tryViewNearestProfile(); }
+    }
     if(e.code==='Escape' && placingStore) cancelStorePlacement();
     if(e.code==='Escape' && aimingThrow) cancelAimThrow(true); // back out of an item throw without releasing it
+    if(e.code==='Escape' && activeEmote) cancelEmote();
     if(e.code==='Escape' && chatOpen) closeGameChat(); // cancel out of chat without sending — chatInput's own onkeydown also handles Escape while it's actually focused, this covers Escape pressed anywhere else while chat is open
     // Shift = run faster; Space = jump (ignore Space while typing in a text field)
     if(e.code==='ShiftLeft'||e.code==='ShiftRight') moveState.run=true;
@@ -85,25 +89,66 @@ function setupControls(){
   // gesture needed on desktop, you just click where you're already looking.
   renderer.domElement.addEventListener('click',()=>{
     if(aimingThrow){ confirmAimThrow(); return; }
-    renderer.domElement.requestPointerLock();
+    // The FIRST click after any menu/UI interaction has to just (re)acquire Pointer Lock — the
+    // browser requires that real user gesture before it'll grant mouse capture at all, so it can't
+    // also fire a shot in the same click. Once already locked, a click is a real in-game action —
+    // fire if a gun's equipped (tryFireGun(), game-zones.js), matching "add a scope so you can
+    // shoot" (user's own ask): aim (right-click, below) then click to fire, same as any real FPS.
+    if (!isPointerLocked) { renderer.domElement.requestPointerLock(); return; }
+    tryFireGun();
   });
-  // Right-click backs out of an aim without releasing it (Escape does the same, above) — otherwise
-  // leave the browser's normal context menu alone.
+  // Right-click backs out of a throw-aim without releasing it (Escape does the same, above).
+  // Otherwise, while a gun is equipped, right-click is now Scope/ADS (startGunScope(), game-
+  // controls.js) instead of the browser's normal context menu.
   renderer.domElement.addEventListener('contextmenu',e=>{
-    if(!aimingThrow) return;
-    e.preventDefault();
-    cancelAimThrow(true);
+    if(aimingThrow){ e.preventDefault(); cancelAimThrow(true); return; }
+    if (isGunEquipped()) e.preventDefault();
   });
-  document.addEventListener('pointerlockchange',()=>{ isPointerLocked=document.pointerLockElement===renderer.domElement; });
+  renderer.domElement.addEventListener('mousedown',e=>{
+    if (e.button === 2 && isPointerLocked && isGunEquipped() && !aimingThrow) { e.preventDefault(); startGunScope(); }
+  });
+  document.addEventListener('mouseup',e=>{
+    if (e.button === 2) stopGunScope();
+  });
+  document.addEventListener('pointerlockchange',()=>{
+    isPointerLocked=document.pointerLockElement===renderer.domElement;
+    if (!isPointerLocked) stopGunScope(); // losing mouse capture (Escape, alt-tab...) shouldn't leave the camera stuck zoomed in
+  });
   document.addEventListener('mousemove',e=>{
     if(!isPointerLocked) return;
-    yaw-=e.movementX*0.002; pitch-=e.movementY*0.002;
+    // Scoped in (gunScoped, below) turns down mouse sensitivity by the same ratio as the FOV zoom
+    // itself — otherwise the same physical mouse movement would swing the now-magnified view WAY
+    // faster than it looks like it should, the exact "scope feels too twitchy" problem every real
+    // shooter's own zoomed-in sensitivity scaling exists to avoid.
+    const sens = gunScoped ? 0.002 * (GUN_SCOPE_FOV/GUN_NORMAL_FOV) : 0.002;
+    yaw-=e.movementX*sens; pitch-=e.movementY*sens;
     pitch=Math.max(-0.5,Math.min(1.0,pitch));
   });
   // Resize is already handled by _resizeRenderer() (registered in _startGameInner,
   // includes the ResizeObserver + style-preserving fix) — a second handler used
   // to live here calling the plain renderer.setSize(w,h) with no style guard,
   // which fired on every resize AFTER _resizeRenderer and silently undid it.
+}
+
+// SCOPE / ADS — user's own ask: "add a scope so you can shoot". A real FOV zoom (camera.fov,
+// game-zones.js's camera is created at GUN_NORMAL_FOV=70) plus a real vignette overlay
+// (#gunScopeOverlay, EXPLOX.html), not just a cosmetic reticle — mousemove above scales sensitivity
+// down to match so aiming doesn't feel twitchy while zoomed.
+const GUN_NORMAL_FOV = 70, GUN_SCOPE_FOV = 25;
+let gunScoped = false;
+function startGunScope() {
+  if (gunScoped || !camera) return;
+  gunScoped = true;
+  camera.fov = GUN_SCOPE_FOV;
+  camera.updateProjectionMatrix();
+  const el = document.getElementById('gunScopeOverlay'); if (el) el.style.display = 'block';
+}
+function stopGunScope() {
+  if (!gunScoped || !camera) return;
+  gunScoped = false;
+  camera.fov = GUN_NORMAL_FOV;
+  camera.updateProjectionMatrix();
+  const el = document.getElementById('gunScopeOverlay'); if (el) el.style.display = 'none';
 }
 
 // ─── MOBILE TOUCH CONTROLS ────────────────────────────────────────────────────
@@ -351,6 +396,7 @@ function animate(){
   updateRemoteKillers(dt);
   updateRemoteBuddies(dt);
   updateRemoteBodyguards(dt);
+  updateRemoteParkedCars(dt);
   if(t - _lastLandSync > LAND_SYNC_INTERVAL) { _lastLandSync = t; syncLandOwners(); }
   if(t - _lastLandOwnerDataSync > LAND_OWNER_DATA_SYNC_INTERVAL) { _lastLandOwnerDataSync = t; syncOtherLandOwnersData(); }
   if(t - _lastShopSync > SHOP_SYNC_INTERVAL) { _lastShopSync = t; syncShops(); }
@@ -453,8 +499,17 @@ function animate(){
       const step=SPEED*(moveState.run?1.85:1)*addonSpeedMult*dt;
       const nx=playerGroup.position.x+dir.x*step;
       const nz=playerGroup.position.z+dir.z*step;
-      if(!isBlocked(nx, playerGroup.position.z, undefined, playerGroup.position.y)) playerGroup.position.x=nx;
-      if(!isBlocked(playerGroup.position.x, nz, undefined, playerGroup.position.y)) playerGroup.position.z=nz;
+      // Real bug found live: a misplaced collider (e.g. a player-placed Store with no spawn-clearance
+      // check — see isStoreSpotValid(), game-vehicles.js) can end up overlapping the player's CURRENT
+      // position. isBlocked() only ever tests the NEXT position, so a player already penetrating a
+      // collider could never take a single valid step back out — nx/nz stay permanently inside the
+      // same box every frame since the position never advances. alreadyStuck lets movement through
+      // unconditionally in that one abnormal case (checked against current position, not the
+      // candidate one) so a bad collider can inconvenience a spawn, never truly trap a player; normal
+      // collision (not already overlapping anything) is completely unchanged.
+      const alreadyStuck = isBlocked(playerGroup.position.x, playerGroup.position.z, undefined, playerGroup.position.y);
+      if(alreadyStuck || !isBlocked(nx, playerGroup.position.z, undefined, playerGroup.position.y)) playerGroup.position.x=nx;
+      if(alreadyStuck || !isBlocked(playerGroup.position.x, nz, undefined, playerGroup.position.y)) playerGroup.position.z=nz;
       if(activeAddOns.includes('rollerfeet') && dt>0) rollerVel.set(dir.x*step/dt, 0, dir.z*step/dt);
       // Every pocket interior (House/Mall/Hotel/Store/FriendHouse/Prison/SportsPark/Hospital/Sea)
       // now lives 10,000+ units out from downtown, so none of them can be subject to the outdoor
@@ -923,6 +978,7 @@ function animate(){
   tickCelebrities(dt);
   tickCelebrityCrowds(dt);
   tickPresidents(dt);
+  tickKing(dt);
   tickElders(dt);
   tickGrowth(dt);
   tickSchoolEvent();

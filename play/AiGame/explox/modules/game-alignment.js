@@ -97,7 +97,7 @@ function fightActorStunt() {
   if (Math.hypot(dx, dz) > ACTOR_STUNT_RANGE) { showNotif('🎬 Get closer to the stunt double!'); return; }
   actorFightTarget.hp -= getWeaponDamage();
   sfx.clang();
-  if (actorFightTarget.hp > 0) { showNotif(`🎬 Hit! (${actorFightTarget.hp} HP left)`); return; }
+  if (actorFightTarget.hp > 0) { showTargetHealthBar(actorFightTarget.hp, actorFightTarget.maxHp); return; }
   scene.remove(actorFightTarget.mesh);
   actorFightTarget = null;
   showNotif('🎬 Cut! Great scene!');
@@ -435,6 +435,16 @@ const CURRENCY_SHOP_PACKAGES = [
   // follow-up) after the Motorcycle was added to the bundle's contents.
   { id:'super_package', sip:10000, elite:1000, label:'💎 Super Package', desc:'🛡️ Super Tank + ✈️ Super Jet + 🏍️ Super Motorcycle + 10,000 S.I.P. + 1,000 💎', price:'$35.00', vip:true, grantsTank:true, grantsJet:true, grantsMotorcycle:true },
 ];
+// Weekly rentals — cheaper temporary access to the same 4 Super vehicles as an alternative to
+// buying them outright above. Billed weekly by Stripe until cancelled (explox-server's
+// RENTAL_PRODUCTS table has the real prices; these are just display copies, same "server is the
+// source of truth on price" rule as CURRENCY_SHOP_PACKAGES).
+const VEHICLE_RENTAL_PACKAGES = [
+  { id:'rent_super_tank',       label:'🛡️ Super Tank',       desc:'Rent for a week, cancel anytime.', price:'$3.00/week' },
+  { id:'rent_super_jet',        label:'✈️ Super Jet',        desc:'Rent for a week, cancel anytime.', price:'$4.00/week' },
+  { id:'rent_super_motorcycle', label:'🏍️ Super Motorcycle', desc:'Rent for a week, cancel anytime.', price:'$2.50/week' },
+  { id:'rent_future_jet',       label:'🚀 Future Jet',       desc:'Rent for a week, cancel anytime.', price:'$3.50/week' },
+];
 function toggleCurrencyShopPanel() {
   const panel = document.getElementById('currencyShopPanel');
   if (panel.style.display === 'none') {
@@ -453,29 +463,167 @@ function closeCurrencyShopPanel() {
 function renderCurrencyShopPanel() {
   const list = document.getElementById('currencyShopList');
   if (!list) return; // panel HTML not loaded yet (e.g. called before startGame())
-  list.innerHTML = `<div style="color:#ffcc66;font-size:10.5px;text-align:center;background:rgba(255,204,102,0.1);border:1px dashed #886600;border-radius:8px;padding:6px;margin-bottom:8px;">Sorry, payments are unavailable.</div>` +
-    CURRENCY_SHOP_PACKAGES.map(p => `
+  list.innerHTML = CURRENCY_SHOP_PACKAGES.map(p => `
     <div style="background:${p.vip ? 'linear-gradient(90deg,#3a2a00,#4a3800)' : 'rgba(255,255,255,0.05)'};border:2px solid ${p.vip ? '#FFD700' : '#333'};border-radius:10px;padding:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
       <div>
         <div style="color:#fff;font-size:12px;font-weight:bold;">${p.label}</div>
         ${p.desc ? `<div style="color:#aaa;font-size:10px;">${p.desc}</div>` : ''}
         <div style="color:#7CFC00;font-size:12px;font-weight:bold;margin-top:2px;">${p.price}</div>
       </div>
-      <button onclick="buyCurrencyPackage('${p.id}')" style="padding:7px 12px;background:#444;border:none;border-radius:6px;color:#ccc;font-size:11px;font-weight:bold;cursor:pointer;white-space:nowrap;">🚧 Soon</button>
-    </div>`).join('');
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <button onclick="buyCurrencyPackage('${p.id}')" style="padding:7px 12px;background:#5a3fd6;border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:bold;cursor:pointer;white-space:nowrap;">💳 Buy</button>
+        <button onclick="buyCurrencyPackageEmbedded('${p.id}')" style="padding:4px 12px;background:none;border:1px solid #5a3fd6;border-radius:6px;color:#a88fff;font-size:9px;cursor:pointer;white-space:nowrap;" title="Try the payment form inside the game instead of a separate page">🖼️ Inline</button>
+      </div>
+    </div>`).join('') +
+    `<div style="color:#88ccff;font-size:12px;font-weight:bold;margin:14px 0 8px;">🔄 Weekly Vehicle Rentals</div>` +
+    VEHICLE_RENTAL_PACKAGES.map(p => `
+    <div style="background:rgba(255,255,255,0.05);border:2px solid #336699;border-radius:10px;padding:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+      <div>
+        <div style="color:#fff;font-size:12px;font-weight:bold;">${p.label}</div>
+        <div style="color:#aaa;font-size:10px;">${p.desc}</div>
+        <div style="color:#7CFC00;font-size:12px;font-weight:bold;margin-top:2px;">${p.price}</div>
+      </div>
+      <button onclick="buyCurrencyPackage('${p.id}')" style="padding:7px 12px;background:#336699;border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:bold;cursor:pointer;white-space:nowrap;">🔄 Rent</button>
+    </div>`).join('') +
+    renderCustomBundleSection();
 }
-// No payment processor is wired up yet — that needs a parent to actually create a Stripe/PayPal
-// business account first. IMPORTANT for whoever implements this later, user's own explicit rule:
-// once a real USD purchase succeeds, credit sipDollars/eliteCoins directly (updateSIP()/
-// updateElite()) — NEVER route it through queueEarning()/the Earnings tab. Earnings is a fun
-// "go collect it" delay for stuff you earned playing (robbery, quests, giveaways); a customer who
-// just paid real money needs to get exactly what they paid for immediately, with zero risk of it
-// sitting uncollected, getting lost, or looking like it wasn't delivered — that's the kind of
-// thing that gets a real business sued, not just a bad review.
-function buyCurrencyPackage(id) {
-  const pkg = CURRENCY_SHOP_PACKAGES.find(p => p.id === id);
-  if (!pkg) return;
-  showNotif(`Sorry, payments are unavailable.`);
+// ─── CUSTOM BUNDLE — user's own ask: pick one item + an amount of currency + type up one idea for
+// the game; item and currency price themselves off the SAME rate ($1 per 100 = 1 cent per unit,
+// applied to the item's existing S.I.P. cost too, per the user's own choice), but the idea has no
+// fixed price — only an admin can judge how "complicated" it is. So this is a REQUEST, not an
+// instant purchase: it goes to every ADMIN_ACCOUNTS name over the same mailbox everything else
+// player-to-player already uses (handleMailboxMessage(), game-social.js), and an admin either
+// runs /bundle_reject <name> (instant 10,000 S.I.P. consolation, no money changes hands) or
+// /bundle_quote <name> <complications> (game-admin.js — $2/complication, generates a REAL Stripe
+// checkout via the server's new create-custom-session endpoint and mails the player the link).
+const CUSTOM_BUNDLE_CENTS_PER_UNIT = 1;   // $1 per 100 S.I.P.-equivalent units == 1 cent/unit
+const CUSTOM_BUNDLE_CENTS_PER_COMPLICATION = 200; // $2 per complication, an admin's own call
+// Every catalog that already has a flat S.I.P. cost field, combined into one lookup so the
+// bundle's item slot prices off the SAME number the item already costs to buy normally — no
+// separate price list to maintain. Elite-Coin-only costs (priceElite) aren't handled here, kept
+// simple on purpose; WEAPONS/ARMOR use `.cost`, the rest use `.price`.
+function findCustomBundleItem(query) {
+  if (!query) return null;
+  const q = query.trim().toLowerCase();
+  const pools = [
+    ...WEAPONS.map(w => ({ id:w.id, name:w.name, cost:w.cost })),
+    ...ARMOR.map(a => ({ id:a.id, name:a.name, cost:a.cost })),
+    ...CAR_CATALOG.map(c => ({ id:c.id, name:c.name, cost:c.price })),
+    ...FURNITURE_CATALOG.map(f => ({ id:f.id, name:f.name, cost:f.price })),
+    ...COMPUTER_CATALOG.map(c => ({ id:c.id, name:c.name, cost:c.price })),
+  ];
+  return pools.find(p => p.name.toLowerCase() === q || p.id.toLowerCase() === q) || null;
+}
+function renderCustomBundleSection() {
+  return `<div style="color:#ffcc44;font-size:12px;font-weight:bold;margin:14px 0 8px;">🎁 Custom Bundle</div>
+    <div style="background:rgba(255,255,255,0.05);border:2px solid #ffcc44;border-radius:10px;padding:10px;">
+      <div style="color:#aaa;font-size:10px;margin-bottom:8px;">Pick one item + an amount of currency + type up one idea for the game. The item and currency price themselves automatically ($1 per 100); your idea gets reviewed by the developer, who'll either quote you a real price or send you 10,000 S.I.P. instead.</div>
+      <input id="bundleItemInput" list="bundleItemList" placeholder="Item name (e.g. Katana)" oninput="updateCustomBundleTotal()" style="width:100%;box-sizing:border-box;padding:6px 8px;margin-bottom:6px;background:#111;border:1px solid #555;border-radius:6px;color:#fff;font-size:11px;">
+      <datalist id="bundleItemList">${[...WEAPONS, ...ARMOR, ...CAR_CATALOG, ...FURNITURE_CATALOG, ...COMPUTER_CATALOG].map(i => `<option value="${i.name}">`).join('')}</datalist>
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <input id="bundleCurrencyAmount" type="number" min="0" value="0" placeholder="Amount" oninput="updateCustomBundleTotal()" style="flex:1;padding:6px 8px;background:#111;border:1px solid #555;border-radius:6px;color:#fff;font-size:11px;">
+        <select id="bundleCurrencyType" onchange="updateCustomBundleTotal()" style="padding:6px 8px;background:#111;border:1px solid #555;border-radius:6px;color:#fff;font-size:11px;">
+          <option value="sip">S.I.P.</option>
+          <option value="elite">💎 Elite Coins</option>
+        </select>
+      </div>
+      <textarea id="bundleIdeaInput" maxlength="300" rows="2" placeholder="Your idea for the game..." style="width:100%;box-sizing:border-box;padding:6px 8px;margin-bottom:6px;background:#111;border:1px solid #555;border-radius:6px;color:#fff;font-size:11px;resize:vertical;"></textarea>
+      <div style="color:#7CFC00;font-size:12px;font-weight:bold;margin-bottom:8px;">Item + currency so far: $<span id="bundleTotalSoFar">0.00</span> <span style="color:#888;font-weight:normal;font-size:10px;">(+ whatever the idea gets quoted at)</span></div>
+      <button onclick="submitCustomBundle()" style="width:100%;padding:8px;background:#ffcc44;border:none;border-radius:6px;color:#111;font-size:11px;font-weight:bold;cursor:pointer;">📨 Submit Request</button>
+    </div>`;
+}
+function updateCustomBundleTotal() {
+  const el = document.getElementById('bundleTotalSoFar');
+  if (!el) return;
+  const item = findCustomBundleItem(document.getElementById('bundleItemInput').value);
+  const amount = Math.max(0, Math.floor(Number(document.getElementById('bundleCurrencyAmount').value) || 0));
+  const cents = (item ? item.cost : 0) * CUSTOM_BUNDLE_CENTS_PER_UNIT + amount * CUSTOM_BUNDLE_CENTS_PER_UNIT;
+  el.textContent = (cents / 100).toFixed(2);
+}
+function submitCustomBundle() {
+  if (serverMode !== 'online') { showNotif('🔒 Custom Bundle requests need Online mode — pick it on the login screen.'); return; }
+  if (!currentUser) { showNotif('❌ Log in first!'); return; }
+  const itemQuery = document.getElementById('bundleItemInput').value.trim();
+  const item = findCustomBundleItem(itemQuery);
+  if (itemQuery && !item) { showNotif(`❌ Couldn't find an item called "${itemQuery}" — pick one from the list.`); return; }
+  const amount = Math.max(0, Math.floor(Number(document.getElementById('bundleCurrencyAmount').value) || 0));
+  const currencyType = document.getElementById('bundleCurrencyType').value;
+  const idea = document.getElementById('bundleIdeaInput').value.trim();
+  if (!item && !amount && !idea) { showNotif('❌ Pick an item, an amount, or type an idea first!'); return; }
+  const requestId = 'bundle_' + Date.now();
+  ADMIN_ACCOUNTS.forEach(a => sendMail(a, 'custom_bundle_request', {
+    requestId, requester: currentUser, itemName: item ? item.name : null, itemId: item ? item.id : null,
+    itemCents: item ? item.cost * CUSTOM_BUNDLE_CENTS_PER_UNIT : 0,
+    currencyAmount: amount, currencyType, currencyCents: amount * CUSTOM_BUNDLE_CENTS_PER_UNIT, idea
+  }));
+  showNotif('📨 Sent! The developer will review your idea and follow up.');
+  document.getElementById('bundleItemInput').value = '';
+  document.getElementById('bundleCurrencyAmount').value = '0';
+  document.getElementById('bundleIdeaInput').value = '';
+  updateCustomBundleTotal();
+}
+// Real Stripe Checkout integration (explox-server's /api/checkout/create-session — see
+// entitlements.js). Works for both CURRENCY_SHOP_PACKAGES (one-time) and
+// VEHICLE_RENTAL_PACKAGES (weekly subscription) ids, since the server tells them apart on its
+// own. User's own explicit rule, still honored: once a real purchase succeeds, currency credits
+// directly (see handleStripeReturn() in game-core.js) — NEVER routed through queueEarning()/the
+// Earnings tab. Earnings is a fun "go collect it" delay for stuff earned by playing; a customer
+// who just paid real money needs exactly what they paid for immediately, with zero risk of it
+// sitting uncollected — that's the kind of thing that gets a real business sued.
+async function buyCurrencyPackage(id) {
+  if (serverMode !== 'online') { showNotif('🔒 Real purchases need Online mode — pick it on the login screen.'); return; }
+  if (!currentUser) { showNotif('❌ Log in first!'); return; }
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/checkout/create-session', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ name: currentUser, productId: id, returnUrl: window.location.href })
+    }, 6000);
+    const res = r.ok ? await r.json() : { ok:false };
+    if (res.ok && res.url) {
+      // Full-page navigation to Stripe loses all JS state (currentUser included) — stash it so
+      // handleStripeReturn() (game-core.js) knows whose account to credit when Stripe sends the
+      // player back here after payment.
+      localStorage.setItem('explox_pending_purchase_name', currentUser);
+      window.location.href = res.url;
+    } else {
+      showNotif('❌ Payments aren\'t set up on the server yet — try again later.');
+    }
+  } catch(e) {
+    showNotif('😴 Could not reach the payment server. Try again later.');
+  }
+}
+// Stripe's PUBLISHABLE key — safe to embed client-side by design (unlike the secret key, which
+// only ever lives on explox-server and never reaches the browser). User's own ask to try using
+// it: mounts Stripe's own Embedded Checkout UI right inside the game (embeddedCheckoutModal,
+// EXPLOX.html) instead of the redirect-to-a-separate-page flow buyCurrencyPackage() above uses —
+// same server session/webhook/entitlements underneath either way, per create-session's own
+// comment (explox-server/server.js). TEST-mode key while this is being built/verified — swap for
+// the live one only once the whole payment system is deliberately switched to live mode.
+const STRIPE_PUBLISHABLE_KEY = 'pk_test_51UFAO7B7UKdtTNdsuf2yIYIw1aLGyTuO2qxaUAqdtnQ23uKzHLyYr2tJtKO2tXAdk05lkuAtvpCOlwM2xsd2Lnad00vs1ScwsA';
+let _embeddedCheckout = null;
+async function buyCurrencyPackageEmbedded(id) {
+  if (serverMode !== 'online') { showNotif('🔒 Real purchases need Online mode — pick it on the login screen.'); return; }
+  if (!currentUser) { showNotif('❌ Log in first!'); return; }
+  try {
+    const r = await fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/checkout/create-session', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ name: currentUser, productId: id, returnUrl: window.location.href, embedded: true })
+    }, 8000);
+    const res = r.ok ? await r.json() : { ok:false };
+    if (!res.ok || !res.clientSecret) { showNotif('❌ Payments aren\'t set up on the server yet — try again later.'); return; }
+    localStorage.setItem('explox_pending_purchase_name', currentUser); // same round-trip stash handleStripeReturn() (game-core.js) reads back after the embedded form redirects on completion
+    const stripeClient = Stripe(STRIPE_PUBLISHABLE_KEY);
+    document.getElementById('embeddedCheckoutContainer').innerHTML = '';
+    _embeddedCheckout = await stripeClient.initEmbeddedCheckout({ clientSecret: res.clientSecret });
+    _embeddedCheckout.mount('#embeddedCheckoutContainer');
+    document.getElementById('embeddedCheckoutModal').style.display = 'flex';
+  } catch(e) {
+    showNotif('😴 Could not reach the payment server. Try again later.');
+  }
+}
+function closeEmbeddedCheckout() {
+  document.getElementById('embeddedCheckoutModal').style.display = 'none';
+  if (_embeddedCheckout) { _embeddedCheckout.destroy(); _embeddedCheckout = null; }
 }
 
 // ─── TEST LAB TAB — user's own ask: a private place to drop new mini-game files and try them

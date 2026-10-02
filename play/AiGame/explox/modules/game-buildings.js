@@ -198,6 +198,40 @@ function buildCity() {
   kingLight.position.set(0,6,-10); scene.add(kingLight);
   addCol(CITY_COLS, 0,-10, 3,3);
 
+  // THE ROYAL COURT — user's own ask: "make it so there is a king for explox and he has an army
+  // protecting him". A NEW throne room, separate from the old King Explox Monument just above
+  // (which stays exactly as the historical shrine it already was — the current King doesn't rule
+  // from that cramped little plaza). Placed at (200,100): checked clear of every LOC_ZONES circle
+  // (game-zones.js) and every Celebrity patrol loop (Chaz Diamond's own loop runs through (0,0)-
+  // (40,40), which is exactly why this ISN'T at the old Monument either) before picking the spot.
+  // The King NPC + his 6 Royal Guards themselves are generateRoyalCourtNPCs() (game-character.js);
+  // this is just the physical room they stand in.
+  box(20,0.5,20, 0xa89a78, 200,0.25,100);           // stone court floor
+  box(6,0.6,6,   0x8a7a58, 200,0.55,100);           // raised dais
+  box(1.2,2.2,1.2, 0x4B0082, 200,1.9,102.5);        // throne back
+  box(1.6,0.3,1.4, 0x4B0082, 200,1.05,101.8);       // throne seat
+  box(0.25,3,0.25, 0xFFD700, 197,1.5,100);          // banner pole
+  box(0.25,3,0.25, 0xFFD700, 203,1.5,100);          // banner pole
+  box(0.25,3,0.25, 0xFFD700, 200,1.5,97);           // banner pole
+  box(1.2,1.6,0.05, 0x8B0000, 197,2.6,100);         // banner cloth
+  box(1.2,1.6,0.05, 0x8B0000, 203,2.6,100);         // banner cloth
+  box(1.2,1.6,0.05, 0x8B0000, 200,2.6,97);          // banner cloth
+  buildSign('👑 THE ROYAL COURT', 200,4.2,102.5);
+  const courtLight = new THREE.PointLight(0xFFD700, 1.0, 30);
+  courtLight.position.set(200,5,100); scene.add(courtLight);
+  addCol(CITY_COLS, 200,102.5, 1,1); // the throne itself blocks walking through it
+
+  // UPTOWN LOT — user's own ask for "a new parking lot", right alongside the ask that other
+  // players can actually see a parked car (syncPresence(), game-character.js — this is just the
+  // physical ground; parkCarAtUptownLot()/carLocationSpot() (game-vehicles.js) place the car
+  // itself once someone actually parks here). Checked clear of Restaurant Row (20,80,r30), School
+  // (70,60,r22), Transit Hub (0,50,r22) and Uptown Plaza (250,150,r30)'s own LOC_ZONES circles.
+  // No addCol walls — an open lot, same "flat marked pavement, nothing to collide with" style as
+  // the Mall's own parking plaza above.
+  box(24,0.08,18, 0x3a3a3a, 60,0.04,110);
+  for(let i=0;i<4;i++) { box(0.3,0.06,4, 0xffffff, 51+i*6,0.08,110); }
+  buildSign('🅿️ UPTOWN LOT', 60,3.5,101.5);
+
   // THE OFFICE, now THE MANSION — user's own ask: "the office is a house the biggest best and
   // nobody exept mer and staff can come." Same admin-only gate as before (isAdmin(), game-admin.js
   // — ADMIN_ACCOUNTS already covers exactly "me and staff": 'cubby explosion' + 'gurnaldst') and

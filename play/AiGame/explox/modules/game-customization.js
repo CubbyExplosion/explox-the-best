@@ -517,6 +517,10 @@ function eliteThresholdForLevel(level) { // cost in Elite Coins to go from level
 // robots. The player's own weapon upgrades (Weapon Shop, WEAPON_DAMAGE/ROBOT_BONUS_DAMAGE below)
 // stay a real, uncapped way to keep growing stronger against them regardless of this cap.
 const ROBOT_POWER_MULT_CAP = 8;   // ≈ level 20 worth of the old uncapped formula
+// The Robot-Level-based portion stays capped (see the comment above) so it can never runaway on
+// its own — but the player's own deliberate mob-difficulty CHOICE (mobDifficultyMult() above)
+// multiplies on top, uncapped by this same cap, since picking Nightmare/Apocalypse on purpose is
+// a different thing than accidentally leveling into unkillable robots.
 function robotPowerMult() { return Math.min(ROBOT_POWER_MULT_CAP, 1 + eliteLevel * 0.35) * mobDifficultyMult(); } // HP/damage/reward scale
 // Robot SIZE used to also scale with the viewing player's own Robot Level, same formula as
 // power above — but robots aren't networked objects (each client spawns its own local copies),
@@ -828,14 +832,14 @@ function queueEarning(sip, elite, source) {
 
 // ─── WATCH-AD REWARD — "get ads so they watch them, others advertise" + "make the rewarded and
 // the break thing" (user's own asks). Uses Google's real H5 Games Ads Ad Placement API
-// (adBreak()/adConfig(), loaded in index.html's <head> — see the setup comment there for the
+// (adBreak()/adConfig(), loaded in EXPLOX.html's <head> — see the setup comment there for the
 // placeholder publisher ID you need to swap in). One-time config call, tells the ad SDK this game
 // has audio and to start preloading ad breaks in the background.
 adConfig({ preloadAdBreaks: 'on', sound: 'on' });
 const REWARD_AD_SIP = 5; // user's own ask, lowered from the original 150 — a token thank-you, not meant to be a real income source
 const REWARD_AD_COOLDOWN_MS = 5 * 60 * 1000; // 5 real minutes between claims, on top of whatever frequency capping Google's own ad delivery already applies
 let nextRewardAdAt = 0;
-// Called by the 📺 Watch Ad HUD button (index.html). type:'reward' is Google's real opt-in ad
+// Called by the 📺 Watch Ad HUD button (EXPLOX.html). type:'reward' is Google's real opt-in ad
 // format — beforeReward hands back showAdFn(); calling it immediately is fine here since the
 // player's own click on the HUD button IS the real opt-in gesture Google requires, so there's no
 // need for a second confirm step on top of it (unlike Google's own doc example, which adds one
@@ -1340,6 +1344,7 @@ try { refreshPreviews(); } catch(e) { console.warn('refreshPreviews startup erro
 window.addEventListener('load', () => {
   refreshPreviews();
   loadLoginScreen();
+  handleStripeReturn(); // came back from a real Stripe purchase? (game-core.js) — no-op otherwise
   const createBtn = document.getElementById('createAccBtn');
   if(createBtn) createBtn.addEventListener('click', createAccount);
   const pwInput = document.getElementById('newAccPw');
