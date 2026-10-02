@@ -167,12 +167,15 @@ const SAI_KB = [
   { keys:['emote','emotes','dance','dances','dancing'], reply:'🎭 ☰ Menu → EMOTES has over 100 emotes across 14 styles — dances, sits and more — and variants of the same style really do move differently. Many unlock with S.I.P.' },
   { keys:['fight move','fight moves','moves tab','my moves','equip a move','combat moves'], reply:'🥊 ☰ Menu → MOVES has 30 fight moves — 10 free and 20 you unlock with S.I.P. — and you equip 3 at a time. They change how your F swing looks and feels.' },
   { keys:['daily event','daily events','daily reward','daily rewards','daily streak','streak','event of the day'], reply:"🎁 ☰ Menu → DAILY EVENTS opens today's Event of the Day — claim your reward, and come back day after day to build a streak!" },
-  { keys:['offline','offline mode','online mode','play online','play with friends','play with others','multiplayer','save my progress','does it save','is my progress saved','my account','forgot my password','create an account'], reply:'🌍 On the account screen pick 🟢 ONLINE (a shared world — chat, trading, hiring, S.I.P. gifts, and your progress is saved to your account on any device) or 🔴 OFFLINE (just you; progress is saved in that one browser only, so clearing site data erases it). Online runs on a free server that can take up to a minute to wake up — just wait for the loading bar.' },
+  { keys:['offline','offline mode','online mode','play online','play with friends','play with others','multiplayer','save my progress','does it save','is my progress saved','my account','forgot my password','create an account'], reply:'🌍 On the account screen pick 🟢 ONLINE (a shared world — chat, hiring, buying from player stores, S.I.P. gifts, and your progress is saved to your account on any device) or 🔴 OFFLINE (just you; progress is saved in that one browser only, so clearing site data erases it). Online runs on a free server that can take up to a minute to wake up — just wait for the loading bar.' },
   { keys:['pay a player','send sip','give sip','gift sip','send money','give money','give someone sip','tip a player'], reply:'💸 ONLINE only: type /pay name amount in chat (like /pay Sam 50) to send S.I.P. to someone who is online right now — or stand next to them and press Y.' },
   { keys:['hunger','hungry','bladder','toilet','bathroom','sleep','sleepy','tired','vomit','throw up'], reply:'🍔 Watch Hunger, Bladder and energy in the corner HUD. Eat from your Bag with C (one bite per press), buy a meal at the Diner (x=110, z=-25), or cook at home. Use the toilet and sleep in the bed inside your house. Eat too much too fast and you will throw up!' },
   { keys:['craft','crafting','crafting table','whispering woods','chop','chop wood','chopping','wood','trees','lumber'], reply:'🪓 Whispering Woods (x=200, z=-320) is full of choppable trees — each gives 🪵 3 wood and grows back after about 45 seconds. Use the Crafting Table there, and feed robot wreckage into The Grinder (x=300, z=268) for 🔩 scrap. Lots of shop items also have a 🔨 Craft button that costs wood, scrap and materials instead of S.I.P. — but crafting is HARD, so expect a big pile. Short on time? Hire players to gather for you (☰ Menu → HIRE)!' },
   { keys:['throw','throw an item','throw items','throwing'], reply:'🎯 Open your Bag (B) and press the 🎯 Throw button on an item or food, aim the dashed line, then click to confirm (right-click or Esc cancels; on a phone use the THROW / Cancel buttons).' },
-  { keys:['exgun','ex gun','rpg shooter'], reply:'🔫 EXGUN is a separate RPG shooter from the same creator — look for the "Try EXGUN" link on the Explox account screen or on the Explox website.' },
+  { keys:['trade','trading','trade items','swap items','exchange items','trade with players'], reply:"🤝 There is no direct trade window between players, but there are good ways to get stuff to each other: sell almost anything you own (even a car) at a player store for your own asking price and buy what other players have on their shelves, or send S.I.P. with /pay name amount (ONLINE mode). You can also hire players to gather for you (☰ Menu → HIRE)." },
+  { keys:['exgun','rpg shooter'], reply:'🔫 EXGUN is a separate RPG shooter from the same creator — look for the "Try EXGUN" link on the Explox account screen or on the Explox website.' },
+  { keys:['elite coin','elite coins','get diamonds','more diamonds','earn diamonds','free diamonds','drop diamonds','get elite coins'], reply:"💎 Elite Coins are rarer than S.I.P. — tough robots at the Scrapyard (x=300, z=250) drop them, and quests pay them too (☰ Menu → QUESTS). Spend them to level up your Robot Level. The Bank keeps its own 💎 balance, and ☰ Menu → SHOP has optional packs that cost real money (ask a parent first)." },
+  { keys:['outfit','outfits','clothes','clothing','dress up','customize','customise','customization','change my look','change my appearance','skins'], reply:"👕 Make your character look like YOU: pick hair, hats, skin, shirt, pants and shoes on the Customize Your Character screen, buy full outfit sets at the Outfit Shop on Shopping Street and the boutiques in the Mall, and unlock whole matching skin bundles. Some items cost S.I.P., and your look saves with your account." },
   { keys:['library','book','bookshelf','read a book','lore'], reply:'📚 The Library is at x=-75, z=60 — walk in and pick a book off the shelf! Every book is a real, original Explox story: city origin myths, side adventures, and more, all written just for this world. New books get added over time, so check back!' },
   { keys:['church','pray','prayer','worship','blessing'], reply:"⛪ The Church is at x=-40, z=20 — a real, peaceful building you can walk into. Type what's on your heart and pray (once per real hour): sometimes you're just healed, sometimes you're granted a real reward, and sometimes you get a genuine quest to complete!" },
   { keys:['bible','bible stories','scripture'], reply:'📖 Click the Bible Stories button inside the Church to read all 66 real books of the Bible retold as original Explox stories, from Genesis all the way to Revelation!' },
@@ -223,7 +226,6 @@ const SAI_KB = [
   { keys:['black market','underground','dealer'], reply:'🕴️ Talk to the Shady Dealer (x=34, z=3) to go bad. The Black Market is southwest at x=-80, z=-71. Your Wanted level will rise!' },
   { keys:['robo arsenal','fight robot','emp hammer','plasma cutter','rail spike'], reply:'🤖 The Robo Arsenal shop is at The Scrapyard (x=282, z=268). It sells the EMP Hammer, Plasma Cutter and Rail Spike — weak against people, but they hit robots way harder than a regular sword!' },
   { keys:['safe','combo'],           reply:'🔐 Enter the bank and click "Open Safe". First time: create a combo. The safe holds secret items and mini-game weapons!' },
-  { keys:['map','where'],            reply:'🗺️ Switch to the Map tab! Click any location dot to draw a navigation line on the ground to follow.' },
   { keys:['mini game','minigame','throne','obby','parkour','geo dash','geodash','geometry dash','special forces'], reply:'🎮 Open ☰ Menu → MINI GAMES for 29 real mini-games! The big ones: Capture the Throne, Robot War, Survival Horde, Tower Defense Fight, Olympics Parkour, Obby, Rooftop Parkour, Geo Dash and Survival Life — plus classics like 2048, Minesweeper, Connect Four, Blackjack, Pong, Air Hockey, Archery, Fishing Derby, Flappy Cube and Space Invaders.' },
   { keys:['season','winter','summer','holiday','calendar'],  reply:'📅 Click the season badge (top-right) to open the calendar. Holidays and your birthday are marked!' },
   { keys:['bag','inventory','item'], reply:'🎒 Press B (or open ☰ Menu → BAG) to see all your items. Buy things from shops and they show up here — and you can throw them or eat food from it too!' },
@@ -235,18 +237,43 @@ const SAI_KB = [
   { keys:['fast travel','teleport','warp','shortcut'], reply:'🚇 Use S.I.T.S. at the Transit Hub (center of city, x=0, z=-40) to fast-travel anywhere! Pick a line, click your stop, and you\'re there in seconds.' },
   { keys:['airport','fly','flight','plane','airline','ticket'], reply:"✈️ The City Airport is southwest at x=-200, z=-200. Walk up and press E to enter the real Airport Lounge — eat a local dish, buy a souvenir and travel electronics, THEN board! Real destinations: all 8 countries (70-100 S.I.P.) plus the Space Station (150 S.I.P.). Land and check into a real Country Hotel for 50 S.I.P.!" },
   { keys:['boss','bosses','mega-bot','storm titan','scrap king','frost colossus','sahara golem','void serpent'], reply:'⚔️ 6 bosses guard the far edges of the map — some are hundreds of units out, way past the city! Switch to the new Bosses tab (next to Map) to see each one\'s live distance and hit 🧭 Go to drop a compass beacon straight to it, no matter how far away.' },
+  { keys:['map','where'],            reply:'🗺️ Switch to the Map tab! Click any location dot to draw a navigation line on the ground to follow.' },
 ];
 
+const SAI_FALLBACK = '🤔 I\'m not sure about that. Try asking about: controls, locations, jobs, hiring players, bank, safe, weapons, shops, your computer, mini games, dying, or the map!';
+function saiFindEntry(lq) {
+  for(const entry of SAI_KB) {
+    if(entry.keys.some(k => saiKeyMatches(lq, k))) return entry;
+  }
+  return null;
+}
+// User's own ask: "make it so it understands different wording and typos." bot-fuzzy.js sits in
+// FRONT of the exact keyword matcher above — it fixes spelling against SAI's own keyword list,
+// rewrites a few common paraphrases into the words the keys already use, and (only if nothing
+// matches) picks the closest answer or offers "did you mean". A correctly-spelled question is
+// passed through untouched, so everything that worked before still works the same. Kept free of
+// DOM access so it can be tested directly.
+let _saiFuzzy = null;
+function saiAnswer(q) {
+  const lq = q.toLowerCase();
+  if(typeof BotFuzzy === 'undefined') { const e0 = saiFindEntry(lq); return e0 ? e0.reply : SAI_FALLBACK; }
+  if(!_saiFuzzy) _saiFuzzy = BotFuzzy.build(SAI_KB.map(e => ({ keys: e.keys, text: e.reply })), SAI_KB.length);
+  // Tie-breaker for spelling guesses: how specific an answer would this wording produce?
+  const tester = t => { let best = 0; for(const en of SAI_KB) for(const k of en.keys) if(k.length > best && saiKeyMatches(t, k)) best = k.length; return best; };
+  const p = BotFuzzy.prepare(_saiFuzzy, lq, tester);
+  const e = saiFindEntry(p.text);
+  if(e) return (p.typos.length ? `(Reading that as "${p.display.trim()}") ` : '') + e.reply;
+  const r = BotFuzzy.retrieve(_saiFuzzy, p.text);
+  if(r.confident) return 'Not 100% sure what you meant, but this should help — ' + SAI_KB[r.index].reply;
+  if(r.suggestions.length) return SAI_FALLBACK + ' Did you mean: ' + r.suggestions.map(i => '"' + SAI_KB[i].keys[0] + '"').join(' or ') + '?';
+  return SAI_FALLBACK;
+}
 function saiAsk() {
   const input = document.getElementById('saiInput');
   const q = input.value.trim(); if(!q) return;
   input.value = '';
   saiAddMsg('You: ' + q, 'user');
-  const lq = q.toLowerCase();
-  let reply = '🤔 I\'m not sure about that. Try asking about: controls, locations, jobs, hiring players, bank, safe, weapons, shops, your computer, mini games, dying, or the map!';
-  for(const entry of SAI_KB) {
-    if(entry.keys.some(k => saiKeyMatches(lq, k))) { reply = entry.reply; break; }
-  }
+  const reply = saiAnswer(q);
   setTimeout(() => saiAddMsg('🤖 ' + reply, 'sai'), 400);
 }
 

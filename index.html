@@ -179,6 +179,13 @@
   .aboutText { max-width:740px; margin:0 auto; display:flex; flex-direction:column; gap:18px; color:var(--muted); font-size:15px; line-height:1.85; }
   .aboutText strong { color:var(--text); }
 
+  /* How was it made — credit box for the real soundtrack */
+  .madeCredit { max-width:740px; margin:28px auto 0; background:var(--card); border:1px solid rgba(0,242,254,0.1); border-left:3px solid var(--cyan); border-radius:6px; padding:22px 26px; }
+  .madeCredit h3 { font-size:17px; color:var(--text); margin-bottom:8px; }
+  .madeCredit p { font-size:14px; color:var(--muted); line-height:1.75; }
+  .madeCredit strong { color:var(--cyan); }
+  .madeCredit ul { margin:12px 0 0 20px; color:var(--muted); font-size:14px; line-height:1.9; }
+
   /* Feature grid */
   .featureGrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:20px; }
   .card {
@@ -373,6 +380,31 @@
     <p>When you want a break from city life without actually leaving the game, Explox has a growing arcade of mini-games reachable in a couple of clicks — everything from Capture the Throne and Robot War to Tower Defense, Obby, Rooftop Parkour, and a whole shelf of smaller classics like 2048, Pong, Blackjack, and Tic-Tac-Toe. New ones get added regularly, and none of them require you to save and quit your main character to play.</p>
     <p>The city keeps moving even when you're not actively pushing a button. Day turns to night and back again on a real cycle, weather shifts between clear skies, rain, storms, snow, fog, and breezy leaf-fall depending on the season — and as of the latest update, every player sees the exact same sky and the exact same weather at the exact same moment, so if you and a friend are standing in the same spot, you're standing under the same clouds.</p>
     <p>Explox is built and updated by one person, Cubby Explosion, adding new content in public one feature at a time rather than shipping once and walking away — which is also why the list above will keep getting longer. It's free to play today, it's meant to stay that way, and the fastest way to actually understand any of this is to stop reading about it and go create a character.</p>
+  </div>
+</section>
+
+<section id="how-was-it-made">
+  <div class="sectionHead">
+    <div class="eyebrow">Behind the scenes</div>
+    <h2>How Was It Made?</h2>
+  </div>
+  <div class="aboutText">
+    <p><strong>The world.</strong> Explox is drawn live in your browser with <strong>Three.js</strong>, a library that turns plain JavaScript into real 3D graphics. There's no game engine to install and no app store — the whole game is ordinary web code, split into many separate files that load together when you press Play.</p>
+    <p><strong>The online part.</strong> Accounts, saved progress, chat, the shared weather and the other players you see walking around all run through a small <strong>Node.js server</strong> with a <strong>MongoDB</strong> database. Your browser checks in with it about once a second, which is how everyone ends up seeing the same city at the same time.</p>
+    <p><strong>The people behind it.</strong> Every feature starts as an idea from Cubby Explosion, who decides what Explox needs next and play-tests it. <strong>Claude</strong>, an AI assistant made by Anthropic, helps write the code. That's why the game keeps growing one feature at a time instead of arriving all at once.</p>
+  </div>
+  <div class="madeCredit">
+    <h3>🎵 The real soundtracks were made by gurnaldst</h3>
+    <p>Explox has 57 music tracks, and they come from two different places. The <strong>50 background tracks</strong> are synthesized live by the game's own code using the browser's Web Audio — there's no recording behind them. The <strong>7 real soundtracks</strong> are actual songs, and every one of them was made by <strong>gurnaldst</strong>:</p>
+    <ul>
+      <li>🎉 Explox Theme Song</li>
+      <li>Rise and Shine</li>
+      <li>Up and Away</li>
+      <li>Shine Like the Morning Sun</li>
+      <li>What a Beautiful Day</li>
+      <li>Good World</li>
+      <li>Rise Up Today</li>
+    </ul>
   </div>
 </section>
 
@@ -601,6 +633,7 @@
   A 3D city-life game, built one feature at a time by Cubby Explosion.
 </footer>
 
+<script src="play/AiGame/explox/modules/bot-fuzzy.js?v=20261002l"></script>
 <script>
 function toggleThemeSong(){
   var audio = document.getElementById('themeAudio');
@@ -898,6 +931,7 @@ function toggleThemeSong(){
     { k:['clock in','get a job','job in explox','get fired','jobs','a job','work in explox'], a:"Clock in at almost any of the 300+ shops (or from the JOB tab in the ☰ Menu) and do real timed tasks to get paid — wander off the job too long and you're auto-fired. You can even guard the City Bank from robbers." },
     { k:['rating','review','star'], a:"Scroll down — there's a real worldwide rating you can tap into, one honest vote per visitor, no fake numbers." },
     { k:['how long','built','develop','since when'], a:"It's been in real, ongoing development for over a month — check the live 'Days in development' counter near the top of this page." },
+    { k:['how was it made','how is it made','how was explox made','how did you make','how was this made','soundtrack','who made the music','who made the songs','who made the theme','gurnaldst','gernaldst'], a:"Explox is drawn live in your browser with Three.js, and a small Node.js + MongoDB server handles accounts, saves, chat and other players. Cubby Explosion decides what to build, and Claude (an AI assistant) helps write the code. The 7 real soundtracks — including the Explox Theme Song — were made by gurnaldst; the other 50 tracks are synthesized by the game's own code. There's a full 'How Was It Made?' section further up this page." },
     { k:['who made','who built','kid','developer','creator','made by'], a:"It's being built by Cubby Explosion 6001, one real feature at a time." },
     { k:['what can i do','what is explox','about explox','what is this game','tell me about explox','explain explox','explain the game'], a:"A whole 3D city-life game: get a job, run a store, hire other players, make friends, marry, raise a family, fly to 8 countries, watch real movies, use a real computer with a web browser and 100 apps, and play 29 mini-games." },
     { k:['how many shops','number of shops','shopping district'], a:"300+ shops total — 100 outdoors across 25 categories, plus 200 more inside the Mall Shopping Wing. Ask me about a shop category by name, like 'toy store' or 'bike shop'!" },
@@ -924,7 +958,7 @@ function toggleThemeSong(){
     { k:['call a cab','taxi in explox'], a:"Call a real Cab from anywhere to ride to any location in the city, or even to another country — the fare is based on real distance." },
     { k:['trash safe'], a:"The Trash Safe is a real shared drop box — anyone can leave you S.I.P. or items in it, but only your own passcode can open it back up." },
     { k:['does it rain','weather change','real weather'], a:"Yes — the weather actually changes on its own over time: clear skies, rain, thunderstorms, snow, fog, and breezy days, all matching the season." },
-    { k:['hospital','see a doctor'], a:"There's a real Hospital — see the Doctor for a fee to fully heal up and cure being sick." },
+    { k:['hospital','see a doctor','doctor'], a:"There's a real Hospital — see the Doctor for a fee to fully heal up and cure being sick." },
     { k:['sports park','play sports'], a:"The Sports Park is real — shoot hoops, take a penalty kick, swing at baseball, go bowling, or hit the gym, all in one place." },
     { k:['go swimming','swim in explox','swimming'], a:"There's a real Sea you can swim in — walk onto the sandy beach, wade into the water, and dive under or surface whenever you want." },
     { k:['escape prison','break out of jail','jail break'], a:"Getting arrested sends you to a real jail cell — you can serve your time, work out for good behavior, or try to dig your way out without getting caught." },
@@ -940,14 +974,19 @@ function toggleThemeSong(){
     { k:['difficulty','peaceful','peaceful mode','too hard','too many enemies'], a:"You control how dangerous the world is: ☰ Menu → DIFFICULTY has 10 tiers from the gentle Baby Steps up to Apocalypse, and Peaceful mode turns off roaming danger entirely." },
     { k:['emote','emotes','dance','dances','dancing','fight moves'], a:"Open ☰ Menu → EMOTES for over 100 emotes (dances, sits and more) and MOVES for 30 fight moves — 10 free and 20 you unlock with S.I.P., 3 equipped at a time." },
     { k:['daily event','daily events','daily reward','daily rewards','daily streak'], a:"☰ Menu → DAILY EVENTS opens today's Event of the Day — claim your reward and come back each day to build a streak." },
-    { k:['offline','online mode','play online','play offline','play with friends','play with others','multiplayer'], a:"On the account screen pick ONLINE (a shared world — chat, trading, hiring, S.I.P. gifts, and your progress saves to your account on any device) or OFFLINE (just you, saved in that one browser only). Online runs on a free server that can take up to a minute to wake up." },
+    { k:['offline','online mode','play online','play offline','play with friends','play with others','multiplayer'], a:"On the account screen pick ONLINE (a shared world — chat, hiring, buying from player stores, S.I.P. gifts, and your progress saves to your account on any device) or OFFLINE (just you, saved in that one browser only). Online runs on a free server that can take up to a minute to wake up." },
     { k:['pay a player','send sip','give sip','send money','give money','gift sip'], a:"Online, type /pay name amount in chat (like /pay Sam 50) to send S.I.P. to someone who's online right now — or stand next to them and press Y." },
     { k:['profile','stats','my stats','total kills','my bio'], a:"☰ Menu → PROFILE shows your bio, total kills and level, and STATS shows your full lifetime numbers — kills, quests, bosses, store sales, daily streak, play time and more." },
     { k:['craft','crafting','chop wood','whispering woods','gather wood','scrap metal'], a:"Chop trees in Whispering Woods for wood and grind robot wreckage at the Scrapyard's Grinder for scrap, then craft items instead of buying them — crafting costs a lot of materials, so it's a real grind. Or hire other players to gather for you." },
-    { k:['exgun','ex gun','rpg shooter'], a:"EXGUN is a separate RPG shooter from the same creator — tap \"Try EXGUN\" on the Explox account screen to check it out." },
+    { k:['exgun','rpg shooter'], a:"EXGUN is a separate RPG shooter from the same creator — tap \"Try EXGUN\" on the Explox account screen to check it out." },
+    { k:['trade','trading','trade items','swap items','exchange items','trade with players'], a:"There's no direct player-to-player trade window, but you can sell almost anything you own (even a car) at player stores for your own asking price and buy what other players have on their shelves, send S.I.P. with /pay in online mode, or hire players to gather for you." },
+    { k:['buy from a player','sell items','sell my car','sell a car','player stores','sell to players'], a:"You can sell almost anything you own (even a car) at a player store — you choose the asking price and it goes on the shelf for others to buy (a fair price sells fast). You can also visit another player's store and buy what's on their shelf with S.I.P., and the seller is paid even if they're offline." },
     { k:['joke','jokes','tell me a joke'], a:"Explox has a Joke Generator app in the in-game App Store that pulls real jokes from a live joke database — thousands to find!" },
     { k:['real money','buy sip','buy diamonds','in app purchase','microtransaction','shop tab','premium'], a:"Explox is free to play and everything can be earned by playing. There's an optional shop with S.I.P. and 💎 packs that cost real money — never required, and kids should always ask a parent first." }
   ];
+  // Only the hand-written rules above take part in "closest answer" lookups; the generated
+  // movie/menu/neighbor/price rules below are exact-match only (but still feed spelling fixes).
+  var HAND_RULE_COUNT = RULES.length;
 
   // ── Data-driven facts, generated from the game's REAL data (not made up) ──
   var MOVIES = [
@@ -1094,12 +1133,15 @@ function toggleThemeSong(){
 
   // Word-boundary matching (not raw substring) so short keywords like "hi" can't false-match
   // inside unrelated words like "high" — a real bug caught by testing "how much is high tops".
-  function reply(raw){
-    var q = raw.toLowerCase().replace(/-/g, ' ');
+  // Returns { a: answer|null, len: length of the matched keyword (0 = no match) }.
+  // Ignore accents and apostrophes when matching: "creme brulee" = "crème brûlée", "whats in japan" = "what's in japan".
+  function fold(s){ return (s.normalize ? s.normalize('NFD').replace(/[̀-ͯ]/g, '') : s).replace(/['’]/g, ''); }
+  function exactMatch(q){
     var best = null, bestLen = 0;
+    q = fold(q);
     for (var i=0;i<RULES.length;i++){
       for (var j=0;j<RULES[i].k.length;j++){
-        var kw = RULES[i].k[j];
+        var kw = fold(RULES[i].k[j]);
         // Longer keywords also accept a plural ending ("mini games", "apps") — before this, asking
         // about "mini games" missed the 'mini game' rule entirely. Short keys (hi, tip, age...) are
         // excluded so "his" can never trigger the 'hi' greeting.
@@ -1107,8 +1149,30 @@ function toggleThemeSong(){
         if (kw.length > bestLen && new RegExp(pattern).test(q)) { best = RULES[i].a; bestLen = kw.length; }
       }
     }
-    return best || "Not sure about that one! Try asking about a specific movie, country, restaurant, shop, or neighbor by name — or ask me for 'tips' to get started, or just tap Play Now and explore for yourself!";
+    return { a: best, len: bestLen };
   }
+
+  var DEFAULT_REPLY = "Not sure about that one! Try asking about a specific movie, country, restaurant, shop, or neighbor by name — or ask me for 'tips' to get started, or just tap Play Now and explore for yourself!";
+  var fuzzyCtx = null;
+
+  // "Understands different wording and typos": bot-fuzzy.js (shared with SAI in the game) fixes
+  // spelling against this bot's OWN keywords and rewrites common paraphrases first; if that still
+  // finds nothing it picks the closest hand-written answer or offers "did you mean". A correctly
+  // spelled question reaches exactMatch() unchanged, so everything that worked before still does.
+  function reply(raw){
+    var q = raw.toLowerCase().replace(/-/g, ' ');
+    if (!window.BotFuzzy) return exactMatch(q).a || DEFAULT_REPLY;
+    if (!fuzzyCtx) fuzzyCtx = BotFuzzy.build(RULES.map(function(r){ return { keys:r.k, text:r.a }; }), HAND_RULE_COUNT);
+    var p = BotFuzzy.prepare(fuzzyCtx, q, function(t){ return exactMatch(t).len; });
+    var m = exactMatch(p.text);
+    if (m.a) return (p.typos.length ? '(Reading that as "' + p.display.trim() + '") ' : '') + m.a;
+    var r = BotFuzzy.retrieve(fuzzyCtx, p.text);
+    if (r.confident) return 'Not 100% sure what you meant, but this should help — ' + RULES[r.index].a;
+    if (r.suggestions.length) return DEFAULT_REPLY + ' Did you mean: ' + r.suggestions.map(function(i){ return '"' + RULES[i].k[0] + '"'; }).join(' or ') + '?';
+    return DEFAULT_REPLY;
+  }
+  // Test hook only (lets a test page call the real matcher without driving the chat UI).
+  chat.faqReply = reply; chat.faqRules = RULES;
 
   function addBubble(text, who){
     var b = document.createElement('div');
