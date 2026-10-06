@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  TODO BEFORE PUBLISHING: four yellow "[...]" boxes on this page (search for class="todo")
+  need a grown-up to fill them in: who runs Explox (legal name), the refund rule, which
+  country/state's laws apply, and a contact email. A parent (or a lawyer) should also read the
+  whole page, because Explox takes real-money payments and is played by kids. Delete this
+  comment when done.
+-->
+<title>Terms of Service — Explox | Cubby Explosion</title>
+<meta name="description" content="The rules for playing Explox, the free 3D city-life browser game: accounts, fair play, S.I.P. and in-game items, optional purchases, ads, and your information.">
+<meta name="author" content="Cubby Explosion">
+<meta property="og:title" content="Explox Terms of Service">
+<meta property="og:description" content="The rules for playing Explox — in plain English, with a short kid-friendly version at the top.">
+<meta property="og:site_name" content="Explox">
+<meta property="og:type" content="article">
+<style>
+  :root {
+    --bg: #0f111a;
+    --card: #1a1c28;
+    --cyan: #00f2fe;
+    --purple: #9b51e0;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --good: #4ade80;
+    --warn: #fbbf24;
+    --bad: #f87171;
+    --grad: linear-gradient(135deg,var(--cyan),var(--purple));
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior:smooth; scroll-padding-top:84px; }
+  body { font-family:Arial,Helvetica,sans-serif; background:var(--bg); color:var(--text); line-height:1.65; overflow-x:hidden; }
+  a { color:var(--cyan); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  a:focus-visible, summary:focus-visible, button:focus-visible { outline:2px solid var(--cyan); outline-offset:3px; border-radius:4px; }
+
+  /* NAV (same look as the home page) */
+  nav { position:fixed; top:0; left:0; right:0; z-index:50; display:flex; align-items:center; justify-content:space-between;
+        padding:14px 6vw; background:rgba(15,17,26,0.85); backdrop-filter:blur(8px); border-bottom:1px solid rgba(0,242,254,0.25); }
+  .navLogo { font-size:20px; font-weight:bold; letter-spacing:3px; color:var(--cyan); text-shadow:0 0 12px rgba(0,242,254,0.6); }
+  .navLogo:hover { text-decoration:none; }
+  .navRight { display:flex; align-items:center; gap:18px; }
+  .navLink { color:var(--muted); font-size:13px; font-weight:bold; letter-spacing:1px; white-space:nowrap; }
+  .navLink.active { color:var(--cyan); }
+  .navPlay { background:var(--grad); color:#0a0c14; padding:9px 22px; border-radius:6px; font-weight:bold; font-size:13px; letter-spacing:1px; box-shadow:0 4px 14px rgba(0,242,254,0.35); white-space:nowrap; }
+  .navPlay:hover { text-decoration:none; }
+
+  /* HERO */
+  header.hero { padding:130px 6vw 30px; text-align:center; position:relative; }
+  header.hero::before { content:''; position:absolute; inset:0; pointer-events:none;
+    background: radial-gradient(circle at 20% 10%, rgba(0,242,254,0.12), transparent 45%), radial-gradient(circle at 85% 40%, rgba(155,81,224,0.18), transparent 50%); }
+  .eyebrow { position:relative; color:var(--purple); font-size:12px; font-weight:bold; letter-spacing:3px; text-transform:uppercase; }
+  header.hero h1 { position:relative; margin-top:12px; font-size:clamp(34px,6vw,56px); font-weight:900; line-height:1.1;
+    background:var(--grad); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  header.hero p.lead { position:relative; max-width:640px; margin:18px auto 0; color:var(--muted); font-size:clamp(15px,2vw,18px); }
+  .updated { position:relative; margin-top:12px; color:var(--muted); font-size:13px; }
+
+  /* TABLE OF CONTENTS CHIPS */
+  .toc { max-width:900px; margin:28px auto 0; display:flex; flex-wrap:wrap; gap:8px; justify-content:center; position:relative; }
+  .toc a { background:rgba(0,242,254,0.07); border:1px solid rgba(0,242,254,0.25); color:var(--text); font-size:13px; padding:7px 14px; border-radius:999px; }
+  .toc a:hover { background:rgba(0,242,254,0.16); text-decoration:none; }
+
+  /* LAYOUT */
+  main { max-width:900px; margin:0 auto; padding:30px 5vw 60px; }
+  section.term { margin-top:46px; }
+  .termHead { display:flex; align-items:center; gap:14px; margin-bottom:10px; }
+  .termNum { flex:none; width:38px; height:38px; border-radius:50%; background:var(--grad); color:#0a0c14; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:17px; }
+  .termHead h2 { font-size:clamp(20px,3vw,27px); font-weight:900; line-height:1.2; }
+  section.term > p, section.term > ul { color:#cbd5e1; margin-top:12px; }
+  section.term ul { padding-left:22px; }
+  section.term li { margin-top:7px; }
+  strong { color:#fff; }
+
+  /* THE SHORT VERSION */
+  .quick { background:var(--card); border:1px solid rgba(0,242,254,0.25); border-left:4px solid var(--cyan); border-radius:8px; padding:22px 24px; margin-top:10px; }
+  .quick h2 { font-size:20px; }
+  .quick ul { margin-top:12px; padding-left:22px; color:#cbd5e1; }
+  .quick li { margin-top:8px; }
+
+  /* CALLOUTS */
+  .note { margin-top:16px; padding:14px 16px; border-radius:8px; font-size:14px; background:var(--card); border-left:4px solid var(--cyan); color:#cbd5e1; }
+  .note b.label { display:block; font-size:11px; letter-spacing:2px; text-transform:uppercase; margin-bottom:4px; color:var(--cyan); }
+  .note.warn { border-left-color:var(--warn); } .note.warn b.label { color:var(--warn); }
+
+  /* THINGS A GROWN-UP STILL HAS TO FILL IN */
+  mark.todo { background:var(--warn); color:#1a1a1a; padding:1px 7px; border-radius:4px; font-weight:bold; }
+
+  /* FOOTER */
+  .ctaBand { text-align:center; padding:56px 6vw; background:linear-gradient(135deg,rgba(0,242,254,0.08),rgba(155,81,224,0.12)); border-top:1px solid rgba(0,242,254,0.2); }
+  .ctaBand h2 { font-size:clamp(22px,4vw,32px); font-weight:900; }
+  .ctaBand p { color:var(--muted); margin-top:10px; }
+  .btnPrimary { display:inline-flex; align-items:center; gap:10px; margin-top:22px; padding:14px 32px; border-radius:6px; font-weight:bold; font-size:16px; letter-spacing:1px;
+    background:var(--grad); color:#0a0c14; box-shadow:0 8px 24px rgba(0,242,254,0.35); }
+  .btnPrimary:hover { text-decoration:none; }
+  footer { text-align:center; padding:26px 6vw 40px; color:var(--muted); font-size:13px; }
+  footer .navLogo { margin-right:8px; font-size:15px; }
+
+  @media (max-width:560px) {
+    .navLink { display:none; }
+    .navPlay { padding:8px 14px; }
+    .quick { padding:18px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="navLogo" href="../">EXPLOX</a>
+  <div class="navRight">
+    <a class="navLink" href="../">Home</a>
+    <a class="navLink" href="../how-to-play/">How to Play</a>
+    <a class="navLink active" href="./" aria-current="page">Terms</a>
+    <a class="navPlay" href="../play/">▶ PLAY</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="eyebrow">The rules of the game</div>
+  <h1>Explox Terms of Service</h1>
+  <p class="lead">These are the rules for playing Explox, written in plain English. There's a short version for kids right below, and the full details after it.</p>
+  <p class="updated">Last updated: October 3, 2026</p>
+  <div class="toc" aria-label="Sections">
+    <a href="#who">Who can play</a>
+    <a href="#account">Your account</a>
+    <a href="#fair">Playing fair</a>
+    <a href="#sip">S.I.P. &amp; items</a>
+    <a href="#buying">Real-money purchases</a>
+    <a href="#ads">Ads</a>
+    <a href="#players">Other players</a>
+    <a href="#info">Your information</a>
+    <a href="#changes">Changes &amp; contact</a>
+  </div>
+</header>
+
+<main>
+
+  <div class="quick" id="short">
+    <h2>⚡ The short version (for kids)</h2>
+    <ul>
+      <li><strong>Be kind.</strong> No bullying, mean words, cheating, or hacking. Everyone online is a real person.</li>
+      <li><strong>Keep your password secret</strong> and never tell anyone your real name, address, phone number, school, or email in chat.</li>
+      <li><strong>S.I.P. and Elite are game money</strong> — not real money. They can't be turned into cash.</li>
+      <li><strong>You can lose stuff in the game</strong> (like things you're carrying when you get knocked out). That's part of playing.</li>
+      <li><strong>Buying things with real money is optional</strong> and needs a parent or another adult to say yes.</li>
+      <li><strong>Explox shows ads.</strong> Some you can choose to watch to earn S.I.P.</li>
+      <li><strong>We can remove people who break the rules,</strong> and we may change or fix the game as it grows.</li>
+    </ul>
+    <p style="margin-top:12px;color:var(--muted);font-size:14px;">If you're under 13, please read this page with a parent or guardian. Playing means you agree to the full rules below.</p>
+  </div>
+
+  <section class="term" id="intro">
+    <div class="termHead"><div class="termNum">1</div><h2>What these Terms are</h2></div>
+    <p>Explox is a free-to-play 3D city-life game that runs in your web browser. It's made by SIP (Super Important Projects), a group that includes Cubby Explosion. In these Terms, "<strong>Explox</strong>", "<strong>we</strong>" and "<strong>us</strong>" mean the people who make and run the game and this website. "<strong>You</strong>" means the person playing.</p>
+    <p>The game is run by <mark class="todo">[WHO RUNS EXPLOX — a grown-up fills in the legal name here]</mark>.</p>
+    <p>By opening the game, making an account, or buying something, you agree to these Terms. If you don't agree, please don't play. You can always read this page again from the link at the bottom of our website.</p>
+  </section>
+
+  <section class="term" id="who">
+    <div class="termHead"><div class="termNum">2</div><h2>Who can play</h2></div>
+    <p>Explox is made for kids and families, and anyone can play it for free.</p>
+    <ul>
+      <li><strong>If you are under 13</strong>, a parent or guardian should read these Terms with you before you make an account, and should know what you're playing.</li>
+      <li><strong>Real-money purchases</strong> must only be made by an adult, or by a young person with a parent or guardian's clear permission and help. If you're not sure, ask first.</li>
+      <li>We don't ask for your real name, email address, home address or phone number to play. Please keep it that way — see <a href="#info">Your information</a>.</li>
+    </ul>
+  </section>
+
+  <section class="term" id="account">
+    <div class="termHead"><div class="termNum">3</div><h2>Your account</h2></div>
+    <p>You can play <strong>Offline</strong> (your progress is saved only in that one browser) or <strong>Online</strong> with an account (your progress is saved on our server, and you share the world with other players). An account is just a <strong>username and a password</strong>.</p>
+    <ul>
+      <li><strong>Keep your password private.</strong> Never share it — not even with a friend or someone who says they work for Explox. We will never ask you for it.</li>
+      <li>You're responsible for what happens on your account. If you think someone else is using it, tell us right away.</li>
+      <li>Pick a username that's friendly and doesn't pretend to be someone else, a real person, or the Explox team. We can change or remove names that aren't okay.</li>
+      <li>Your account belongs to you alone. Please don't sell, trade, or give away accounts.</li>
+      <li>If you forget your password, we may not be able to get your progress back, so choose something you'll remember.</li>
+    </ul>
+  </section>
+
+  <section class="term" id="fair">
+    <div class="termHead"><div class="termNum">4</div><h2>Playing fair &amp; being kind</h2></div>
+    <p>Explox only works if everyone plays nicely. You agree <strong>not</strong> to:</p>
+    <ul>
+      <li>bully, threaten, harass, or be hateful or cruel to anyone, in chat, in your profile, or in the game world;</li>
+      <li>post anything rude, scary, or not okay for kids, or anything that shares someone's private information (including your own);</li>
+      <li>cheat, hack, use bugs or glitches to get things you shouldn't, or use tools that change how the game works;</li>
+      <li>try to break into other people's accounts, or to break, overload, or attack the game, its server, or this website;</li>
+      <li>trick other players into giving you things, or pretend to be an admin or a member of the Explox team;</li>
+      <li>use another person's real name or picture, or a real celebrity or politician's, in a way that could mislead people or hurt them.</li>
+    </ul>
+    <p><strong>What happens if rules are broken:</strong> we (and admins we trust) can delete messages, mute or warn people, take back items or S.I.P. that were gained unfairly, and pause or end accounts. We try to be fair, but we decide when a rule has been broken.</p>
+    <div class="note"><b class="label">See something wrong?</b>If someone is being unkind, or you find a bug, tell us instead of using it. Reporting a bug honestly is always better than taking advantage of it.</div>
+  </section>
+
+  <section class="term" id="sip">
+    <div class="termHead"><div class="termNum">5</div><h2>S.I.P., Elite &amp; in-game items</h2></div>
+    <p><strong>S.I.P.</strong> and <strong>Elite</strong> are the game's pretend money, and everything you collect — cars, houses, outfits, weapons, armor, furniture, pets — is a game item. All of it:</p>
+    <ul>
+      <li>is <strong>for use inside Explox only</strong>, and has no real-world value;</li>
+      <li>can't be cashed out, sold for real money, or traded for real money, gift cards, or anything outside the game;</li>
+      <li>is a licence to use the item in the game, not something you own like a physical object;</li>
+      <li>may be changed, re-balanced, repriced, reset, or removed when we update the game.</li>
+    </ul>
+    <p><strong>Losing things is part of the game.</strong> For example, if you get knocked out you can lose the items you're carrying (your bank, safe, houses, cars and outfits are kept). Games also have bugs and updates. We try hard to keep your progress safe, but we can't promise nothing will ever be lost, and losing in-game things is not a reason for a refund.</p>
+  </section>
+
+  <section class="term" id="buying">
+    <div class="termHead"><div class="termNum">6</div><h2>Real-money purchases (optional)</h2></div>
+    <p>Explox is free to play. You can <em>choose</em> to buy extras with real money, such as packs of S.I.P. or Elite, special items (like premium vehicles or armor), and rentals. You never have to buy anything to play.</p>
+    <ul>
+      <li><strong>Who can buy:</strong> adults, or young people with a parent or guardian's permission (see <a href="#who">Who can play</a>).</li>
+      <li><strong>How you pay:</strong> payments are handled by <strong>Stripe</strong>, a payment company. You type your payment details on Stripe's secure checkout, not into Explox — we never see or keep your card number.</li>
+      <li><strong>Prices</strong> are shown in US dollars at checkout before you pay. Taxes may be added where the law requires it.</li>
+      <li><strong>What you get:</strong> purchased S.I.P./Elite and items are added to your account right after payment. They're game items, so section 5 applies to them too.</li>
+      <li><strong>Rentals</strong> (like renting a vehicle) are subscriptions that renew until you cancel. You can cancel any time. When a rental ends, you lose access to the rented item.</li>
+      <li><strong>Problems:</strong> if you were charged but didn't receive what you bought, contact us (see <a href="#changes">Changes &amp; contact</a>) and we'll fix it or refund you.</li>
+      <li><strong>Refunds:</strong> <mark class="todo">[A GROWN-UP DECIDES THE REFUND RULE — for example, "purchases are final once delivered, except where the law says otherwise"]</mark></li>
+    </ul>
+    <p>Nothing in these Terms takes away any rights you have under the law where you live.</p>
+  </section>
+
+  <section class="term" id="ads">
+    <div class="termHead"><div class="termNum">7</div><h2>Ads</h2></div>
+    <p>Explox is free partly because it shows ads, provided by Google. Some ads are <strong>optional</strong> — for example, you can press a button to watch an ad and earn S.I.P. Other ads can appear at certain moments, like after you respawn.</p>
+    <ul>
+      <li>We don't choose or control the ads themselves, and we're not responsible for advertisers or the websites they link to.</li>
+      <li>Never share personal information with an ad, and ask a grown-up before you click anything that leaves the game.</li>
+      <li>If you use an ad blocker, some features that need ads (like the optional "watch an ad" reward) may not work.</li>
+    </ul>
+  </section>
+
+  <section class="term" id="players">
+    <div class="termHead"><div class="termNum">8</div><h2>Other players &amp; shared features</h2></div>
+    <p>In Online mode you share the world with real people. Chat is seen by everyone online, and you can send S.I.P., hire other players for jobs, visit and shop at other players' stores, and see leaderboards.</p>
+    <ul>
+      <li>Everything players trade, pay, or hire each other for happens <strong>in game money only</strong>. Please never trade real money, gift cards, or accounts for game items — we can't help if that goes wrong.</li>
+      <li>Be honest in trades and jobs. Scams and tricks aren't allowed (see <a href="#fair">Playing fair</a>), and we can undo trades that were unfair or caused by a bug.</li>
+      <li>Other players aren't part of the Explox team. We're not responsible for what they say or do, so be careful, and tell us about anyone who makes you uncomfortable.</li>
+      <li>Your name and some game stats (like your S.I.P. and records) can appear on public leaderboards and profiles.</li>
+    </ul>
+  </section>
+
+  <section class="term" id="content">
+    <div class="termHead"><div class="termNum">9</div><h2>Our stuff &amp; your stuff</h2></div>
+    <ul>
+      <li><strong>Explox is ours.</strong> The game, its code, characters, art, music, and website belong to the people who made them (and the artists who made individual pieces). You may play and enjoy it, but you may not copy it, sell it, or use it to make a competing product without permission.</li>
+      <li><strong>What you write is yours,</strong> but when you post chat messages, a profile, a bio, a rating, or a comment, you let us show it in the game and on the website to other people, and keep it as part of running the game.</li>
+      <li>Only post things you're allowed to share. Don't post other people's creations as your own.</li>
+      <li>We love hearing your ideas for the game. If you suggest one, we may use it without owing you anything.</li>
+    </ul>
+  </section>
+
+  <section class="term" id="info">
+    <div class="termHead"><div class="termNum">10</div><h2>Your information</h2></div>
+    <p>We keep this as small as we can. Here is what Explox handles:</p>
+    <ul>
+      <li><strong>Your account:</strong> your username and a password that is scrambled in your browser before it's sent to us, plus your game progress and the dates you joined and last played.</li>
+      <li><strong>What you share in the game:</strong> chat messages (the most recent ones are kept so everyone can catch up), your profile and bio, and game stats that may show on leaderboards.</li>
+      <li><strong>Offline play:</strong> saved only in your own browser. Clearing your browser's site data erases it.</li>
+      <li><strong>Payments:</strong> handled by Stripe. We receive confirmation of what you bought, not your card details.</li>
+      <li><strong>Ads:</strong> Google shows the ads and may use cookies or similar identifiers to do it. See Google's own policies for how they work.</li>
+      <li><strong>Ratings and comments</strong> left on our home page are public, so don't put anything private in them.</li>
+      <li><strong>Services we rely on</strong> (to host the website, run the game server, store accounts, take payments, and show ads) handle data for us. We don't sell your information.</li>
+    </ul>
+    <div class="note warn"><b class="label">Please don't share</b>Don't put your real full name, home address, phone number, email, school, or photos of yourself in chat, your profile, or comments. If you did by mistake, tell us and we'll help remove it. Parents and guardians: you can ask us to delete your child's account and its information at any time (see <a href="#changes">Changes &amp; contact</a>).</div>
+  </section>
+
+  <section class="term" id="service">
+    <div class="termHead"><div class="termNum">11</div><h2>The game isn't perfect</h2></div>
+    <ul>
+      <li>Explox is offered <strong>"as is"</strong>. It's built one feature at a time, so it may have bugs, go offline, or be slow. The free game server naps when it's quiet and can take up to about a minute to wake.</li>
+      <li>We may add, change, pause, or remove any part of the game (including items, prices, and features), or stop the game completely.</li>
+      <li>We may suspend or end an account that breaks these Terms, and you can stop playing and ask us to delete your account at any time.</li>
+      <li>To the fullest extent the law allows, we aren't responsible for lost progress, lost in-game items, or indirect losses that come from playing. Some places don't allow these limits, so they only apply where the law lets them. Nothing here limits responsibility we can't legally limit.</li>
+      <li>These Terms follow the laws of <mark class="todo">[COUNTRY / STATE WHOSE LAWS APPLY — a grown-up fills this in]</mark>.</li>
+    </ul>
+  </section>
+
+  <section class="term" id="changes">
+    <div class="termHead"><div class="termNum">12</div><h2>Changes &amp; contact</h2></div>
+    <p>We may update these Terms as Explox grows. When we do, we'll change the "Last updated" date at the top. If you keep playing after a change, that means you accept the new Terms. If a change is a big one, we'll try to tell players in the game too.</p>
+    <p>Questions, problems with a purchase, a bug to report, or a request to delete an account? Contact us at <mark class="todo">[CONTACT EMAIL — a grown-up fills this in]</mark>.</p>
+    <div class="note"><b class="label">Thanks for playing</b>Explox is a game made to be fun for everyone. Playing fair and being kind is what keeps it that way. 💙</div>
+  </section>
+
+</main>
+
+<div class="ctaBand">
+  <h2>Got it? Go live your Explox life.</h2>
+  <p>Free to play, right in your browser — no download, no install.</p>
+  <a class="btnPrimary" href="../play/">▶ Play Explox Now</a>
+</div>
+
+<footer>
+  <a class="navLogo" href="../">EXPLOX</a>
+  A 3D city-life game, built one feature at a time by Cubby Explosion. · <a href="./">Terms</a>
+</footer>
+
+</body>
+</html>

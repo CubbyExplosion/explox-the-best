@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Block Obby</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#7ec8ff; font-family:Arial, sans-serif; touch-action:none; user-select:none; -webkit-user-select:none; }
+  canvas { display:block; }
+  #hud { position:fixed; top:10px; left:12px; right:12px; display:flex; justify-content:space-between; color:#fff; font-weight:bold; font-size:18px; text-shadow:0 2px 4px #0008; pointer-events:none; }
+  #msg { position:fixed; top:22%; left:0; right:0; text-align:center; color:#fff; font-size:28px; font-weight:bold; text-shadow:0 3px 8px #000a; pointer-events:none; opacity:0; transition:opacity .3s; }
+  #overlay { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#102040cc; color:#fff; text-align:center; padding:20px; }
+  #overlay h1 { font-size:46px; margin:0 0 6px; } #overlay p { max-width:420px; line-height:1.45; margin:6px 0; }
+  button { font-size:22px; font-weight:bold; padding:14px 34px; border:none; border-radius:14px; background:#27ae60; color:#fff; cursor:pointer; margin-top:14px; }
+  #stick { position:fixed; left:22px; bottom:26px; width:130px; height:130px; border-radius:50%; background:#ffffff33; border:3px solid #fff8; display:none; }
+  #knob { position:absolute; left:40px; top:40px; width:50px; height:50px; border-radius:50%; background:#fffc; }
+  #jump { position:fixed; right:24px; bottom:34px; width:96px; height:96px; border-radius:50%; background:#e67e22cc; border:3px solid #fff; color:#fff; font-size:18px; font-weight:bold; display:none; align-items:center; justify-content:center; }
+  .touch #stick { display:block; } .touch #jump { display:flex; }
+</style>
+</head>
+<body>
+<div id="hud"><span id="time">📏 0</span><span id="coins">🪙 0</span><span id="cp">🏁 Start</span><span id="pause" style="pointer-events:auto; cursor:pointer;">⏸</span></div>
+<div id="msg"></div>
+<div id="stick"><div id="knob"></div></div>
+<div id="jump">JUMP</div>
+<div id="overlay">
+  <h1>🧱 Block Obby</h1>
+  <p>An endless obby! Keep jumping forward as far as you can: you earn <b>10 S.I.P. for every 10 platforms</b>. Red = lava, green = checkpoint, blue platforms move. It gets harder the further you go. Esc / ⏸ pauses.</p>
+  <p id="how">WASD / arrows to move · Space to jump · drag the mouse (or Q / E) to turn the camera · R to go back to the checkpoint</p>
+  <p id="best"></p>
+  <button id="resume" style="display:none; background:#2980b9;">▶ Resume</button>
+  <button id="go">▶ Play</button>
+  <button id="back" style="display:none; background:#c0392b;">⬅ Back to Explox</button>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+// ---------- setup ----------
+const isTouch = matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window;
+if (isTouch) { document.body.classList.add('touch'); document.getElementById('how').textContent = 'Left stick to move · JUMP button to jump · drag on the right side to turn the camera'; }
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x7ec8ff);
+scene.fog = new THREE.Fog(0x7ec8ff, 60, 220);
+const camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.1, 500);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x6688aa, 0.9));
+const sun = new THREE.DirectionalLight(0xffffff, 1.1);
+sun.position.set(30, 60, 20);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+Object.assign(sun.shadow.camera, { left: -40, right: 40, top: 40, bottom: -40, near: 1, far: 200 });
+scene.add(sun, sun.target);
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+// ---------- level ----------
+let seed = 7;
+const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const boxes = [];            // collidable: { mesh, hx, hy, hz, lava, move, base, delta }
+const coinsList = [];
+const cps = [];              // checkpoints: { pos }
+function addBox(x, y, z, w, h, d, color, opts) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color }));
+  m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; scene.add(m);
+  const b = Object.assign({ mesh: m, hx: w / 2, hy: h / 2, hz: d / 2, delta: new THREE.Vector3() }, opts || {});
+  b.base = m.position.clone();
+  boxes.push(b); return b;
+}
+function addCoin(x, y, z) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.12, 16), new THREE.MeshLambertMaterial({ color: 0xffd700, emissive: 0x553300 }));
+  m.rotation.x = Math.PI / 2; m.position.set(x, y, z); scene.add(m); coinsList.push(m);
+}
+// endless generator: pieces are created ahead of the player and removed far behind the last checkpoint
+const G = { i: 0, x: 0, y: 0, z: 0, prevDepth: 12 };
+const DY = [0, 0, 1, 0, -0.5, 1, 0, 0, -1.5];
+const sea = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), new THREE.MeshBasicMaterial({ color: 0xff5522 }));
+sea.rotation.x = -Math.PI / 2; scene.add(sea);
+function clearWorld() {
+  boxes.forEach(b => { scene.remove(b.mesh); b.mesh.geometry.dispose(); b.mesh.material.dispose(); });
+  boxes.length = 0;
+  coinsList.forEach(c => scene.remove(c)); coinsList.length = 0; cps.length = 0;
+}
+function startWorld() {
+  clearWorld();
+  seed = 1 + Math.floor(Math.random() * 2000000000);
+  Object.assign(G, { i: 0, x: 0, y: 0, z: 0, prevDepth: 12 });
+  addBox(0, -0.5, 0, 12, 1, 12, 0x8bc34a, { idx: 0 });
+  cps.push({ pos: new THREE.Vector3(0, 1.2, 0), z: 0 });
+  genAhead(0);
+}
+function genNext() {
+  const i = ++G.i;
+  const gap = 2.2 + rnd() * 1.3 + Math.min(0.5, i * 0.004);
+  const dir = (rnd() - 0.5) * 5;
+  const w = Math.max(2.4, 4.2 - i * 0.02 - rnd() * 0.5);
+  const kind = i % 12 === 0 ? 'cp' : i % 7 === 0 ? 'lava' : i % 5 === 0 ? 'move' : i % 9 === 0 ? 'beam' : 'plain';
+  const depth = { cp: 7, lava: 11, move: 4.2, beam: 8, plain: w }[kind];
+  G.z -= G.prevDepth / 2 + gap + depth / 2; G.y += DY[i % 9];
+  G.x = Math.max(-8, Math.min(8, kind === 'move' ? G.x : G.x + dir));
+  const x = G.x, y = G.y, z = G.z;
+  if (kind === 'cp') {
+    addBox(x, y - 0.5, z, 7, 1, 7, 0x2ecc71, { idx: i });
+    addBox(x + 3.1, y + 1.2, z - 3.1, 0.3, 3.4, 0.3, 0xffffff);
+    addBox(x + 2.3, y + 2.6, z - 3.1, 1.6, 0.8, 0.1, 0x27ae60, { deco: true });
+    cps.push({ pos: new THREE.Vector3(x, y + 1.2, z), z });
+  } else if (kind === 'lava') {
+    addBox(x, y - 0.5, z, 9, 1, 11, 0xbdbdbd, { idx: i });
+    addBox(x, y + 0.1, z, 9, 0.2, 3, 0xe74c3c, { lava: true });
+  } else if (kind === 'move') {
+    addBox(x, y - 0.5, z, 4.2, 1, 4.2, 0x3498db, { idx: i, move: { axis: 'x', amp: 3.2, speed: 1.1 + (i % 4) * 0.12, phase: i } });
+  } else if (kind === 'beam') {
+    addBox(x, y - 0.5, z, 1.7, 1, 8, 0x9b59b6, { idx: i });
+  } else {
+    addBox(x, y - 0.5, z, w, 1, w, i % 2 ? 0xf1c40f : 0xe67e22, { idx: i });
+  }
+  G.prevDepth = depth;
+  if (i % 3 === 1) addCoin(x, y + 1.5, z);
+}
+function genAhead(pz) {
+  while (G.z > pz - 130) genNext();
+  // drop everything far behind the last checkpoint (it is where you respawn)
+  const keepZ = player.spawn.z + 60;
+  for (let k = cps.length - 1; k >= 0; k--) if (cps[k].z > keepZ) cps.splice(k, 1);
+  for (let k = boxes.length - 1; k >= 0; k--) {
+    const b = boxes[k];
+    if (b.base.z > keepZ && b !== player.ground) { scene.remove(b.mesh); b.mesh.geometry.dispose(); b.mesh.material.dispose(); boxes.splice(k, 1); }
+  }
+  for (let k = coinsList.length - 1; k >= 0; k--) if (coinsList[k].position.z > keepZ) { scene.remove(coinsList[k]); coinsList.splice(k, 1); }
+}
+
+// ---------- player ----------
+const HX = 0.4, HY = 0.9;
+const player = { pos: new THREE.Vector3(0, 1 + HY, 0), vel: new THREE.Vector3(), ground: null, spawn: new THREE.Vector3(0, 1.2, 0) };
+const body = new THREE.Group();
+const mk = (w, h, d, c, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: c })); m.position.set(x, y, z); m.castShadow = true; body.add(m); return m; };
+mk(0.8, 0.9, 0.5, 0x2980b9, 0, 0.05, 0); mk(0.6, 0.6, 0.6, 0xffcc99, 0, 0.8, 0);
+const legL = mk(0.32, 0.6, 0.35, 0x34495e, -0.2, -0.75, 0), legR = mk(0.32, 0.6, 0.35, 0x34495e, 0.2, -0.75, 0);
+const armL = mk(0.25, 0.8, 0.3, 0xffcc99, -0.55, 0.05, 0), armR = mk(0.25, 0.8, 0.3, 0xffcc99, 0.55, 0.05, 0);
+scene.add(body);
+
+// ---------- input ----------
+const keys = {};
+addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'Space') e.preventDefault(); if (e.code === 'KeyR') respawn(); });
+addEventListener('keyup', e => keys[e.code] = false);
+let camYaw = 0, camPitch = 0.45, jumpHeld = false, stickX = 0, stickY = 0;
+let dragId = null, lastX = 0, lastY = 0;
+renderer.domElement.addEventListener('pointerdown', e => { if (isTouch && e.clientX < innerWidth * 0.4) return; dragId = e.pointerId; lastX = e.clientX; lastY = e.clientY; });
+addEventListener('pointermove', e => { if (e.pointerId !== dragId) return; camYaw -= (e.clientX - lastX) * 0.006; camPitch = Math.max(0.1, Math.min(1.2, camPitch + (e.clientY - lastY) * 0.004)); lastX = e.clientX; lastY = e.clientY; });
+addEventListener('pointerup', e => { if (e.pointerId === dragId) dragId = null; });
+const stickEl = document.getElementById('stick'), knob = document.getElementById('knob'); let stickId = null;
+stickEl.addEventListener('pointerdown', e => { stickId = e.pointerId; stickEl.setPointerCapture(e.pointerId); moveStick(e); });
+stickEl.addEventListener('pointermove', e => { if (e.pointerId === stickId) moveStick(e); });
+const endStick = e => { if (e.pointerId === stickId) { stickId = null; stickX = stickY = 0; knob.style.left = knob.style.top = '40px'; } };
+stickEl.addEventListener('pointerup', endStick); stickEl.addEventListener('pointercancel', endStick);
+function moveStick(e) {
+  const r = stickEl.getBoundingClientRect(); let dx = e.clientX - (r.left + 65), dy = e.clientY - (r.top + 65);
+  const l = Math.hypot(dx, dy), max = 50; if (l > max) { dx = dx / l * max; dy = dy / l * max; }
+  stickX = dx / max; stickY = dy / max; knob.style.left = (40 + dx) + 'px'; knob.style.top = (40 + dy) + 'px';
+}
+const jumpEl = document.getElementById('jump');
+jumpEl.addEventListener('pointerdown', e => { jumpHeld = true; e.preventDefault(); });
+jumpEl.addEventListener('pointerup', () => jumpHeld = false); jumpEl.addEventListener('pointercancel', () => jumpHeld = false);
+
+// ---------- game state ----------
+let running = false, timeSec = 0, coins = 0, finished = false, bobT = 0, coyote = 0, jumpBuf = 0;
+const $ = id => document.getElementById(id);
+function say(t) { const m = $('msg'); m.textContent = t; m.style.opacity = 1; clearTimeout(say.t); say.t = setTimeout(() => m.style.opacity = 0, 1800); }
+// S.I.P. is earned by distance: 10 S.I.P. for every 10 platforms you reach. The wallet is saved in this browser.
+const store = {
+  get(k) { try { return parseInt(localStorage.getItem(k), 10) || 0; } catch (e) { return 0; } },
+  set(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} }
+};
+// Opened from inside Explox (?embed=1, in a frame): payouts are sent to the Explox page, which puts them in your real S.I.P. wallet.
+const EMBED = new URLSearchParams(location.search).get('embed') === '1' && window.parent !== window;
+let sip = store.get('blockobby_sip'), runSip = 0, maxIdx = 0;
+function showBest() { $('best').textContent = (EMBED ? '💰 Paid straight into your Explox wallet' : `💰 Wallet: ${sip} S.I.P.`) + ` · 🏆 Best run: ${store.get('blockobby_best')} platforms`; }
+if (EMBED) { $('back').style.display = 'inline-block'; $('back').onclick = () => parent.postMessage({ type: 'blockobby-close' }, location.origin); }
+showBest();
+function reachPlatform(idx) {
+  if (idx <= maxIdx) return;
+  const before = Math.floor(maxIdx / 10); maxIdx = idx;
+  const gained = Math.floor(maxIdx / 10) - before;
+  if (gained > 0) {
+    runSip += gained * 10;
+    if (EMBED) { for (let g = 0; g < gained; g++) parent.postMessage({ type: 'blockobby-sip', platforms: maxIdx }, location.origin); say(`💰 +${gained * 10} S.I.P. sent to your Explox wallet!  (${maxIdx} platforms)`); }
+    else { sip += gained * 10; store.set('blockobby_sip', sip); say(`💰 +${gained * 10} S.I.P.!  (${maxIdx} platforms)`); }
+  }
+  if (maxIdx > store.get('blockobby_best')) store.set('blockobby_best', maxIdx);
+}
+function respawn() { player.pos.copy(player.spawn).y += HY - 1.2 + 1.2; player.vel.set(0, 0, 0); player.ground = null; }
+function resetAll() { coins = 0; timeSec = 0; maxIdx = 0; runSip = 0; player.spawn.set(0, 1.2, 0); player.ground = null; startWorld(); respawn(); $('cp').textContent = '🏁 Start'; }
+$('go').onclick = () => { $('overlay').style.display = 'none'; if (!running) resetAll(); running = true; };
+function pauseMenu() {   // Esc / P: stop and show the wallet (your S.I.P. is already saved)
+  if (!running) return; running = false;
+  $('overlay').style.display = 'flex'; $('overlay').querySelector('h1').textContent = '⏸ Paused';
+  $('how').textContent = `This run: ${maxIdx} platforms · +${runSip} S.I.P. ${EMBED ? '(sent to Explox)' : '(saved)'}`; $('go').textContent = '↻ New run'; showBest();
+  $('resume').style.display = 'inline-block';
+}
+$('resume').onclick = () => { $('overlay').style.display = 'none'; running = true; $('resume').style.display = 'none'; };
+addEventListener('keydown', e => { if (e.code === 'Escape' || e.code === 'KeyP') pauseMenu(); });
+$('pause').onclick = pauseMenu;
+
+// ---------- physics ----------
+const SPEED = 7.5, JUMP = 9.5, GRAV = 26;
+function overlaps(b) {
+  if (b.deco) return false;
+  const p = b.mesh.position;
+  return Math.abs(player.pos.x - p.x) < HX + b.hx && Math.abs(player.pos.y - p.y) < HY + b.hy && Math.abs(player.pos.z - p.z) < HX + b.hz;
+}
+function collide(axis) {
+  for (const b of boxes) {
+    if (!overlaps(b)) continue;
+    const p = b.mesh.position;
+    if (axis === 'y') {
+      if (player.vel.y <= 0 && player.pos.y > p.y) { player.pos.y = p.y + b.hy + HY; player.vel.y = 0; player.ground = b; }
+      else { player.pos.y = p.y - b.hy - HY; if (player.vel.y > 0) player.vel.y = 0; }
+    } else {
+      const h = axis === 'x' ? b.hx : b.hz;
+      const d = player.pos[axis] - p[axis];
+      player.pos[axis] = p[axis] + (d >= 0 ? 1 : -1) * (h + HX + 0.001);
+      player.vel[axis] = 0;
+    }
+  }
+}
+function update(dt) {
+  // moving platforms
+  boxes.forEach(b => {
+    if (!b.move) return;
+    const prev = b.mesh.position.clone();
+    const o = Math.sin(timeNow * b.move.speed + b.move.phase) * b.move.amp;
+    b.mesh.position.copy(b.base); b.mesh.position[b.move.axis] += o;
+    b.delta.copy(b.mesh.position).sub(prev);
+  });
+  if (player.ground && player.ground.move) player.pos.add(player.ground.delta);
+  // input
+  let ix = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + stickX;
+  let iz = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0) + stickY;
+  if (keys.KeyQ) camYaw += dt * 2; if (keys.KeyE) camYaw -= dt * 2;
+  const l = Math.hypot(ix, iz); if (l > 1) { ix /= l; iz /= l; }
+  const sin = Math.sin(camYaw), cos = Math.cos(camYaw);
+  const wx = ix * cos + iz * sin, wz = -ix * sin + iz * cos;
+  player.vel.x = wx * SPEED; player.vel.z = wz * SPEED;
+  if (l > 0.1) body.rotation.y = Math.atan2(wx, wz);
+  // jump (with a little forgiveness: coyote time + buffered press)
+  const jumpKey = keys.Space || jumpHeld;
+  jumpBuf = jumpKey ? 0.12 : Math.max(0, jumpBuf - dt);
+  coyote = player.ground ? 0.1 : Math.max(0, coyote - dt);
+  if (jumpKey && coyote > 0 && !update.jumped) { player.vel.y = JUMP; coyote = 0; update.jumped = true; player.ground = null; }
+  if (!jumpKey) update.jumped = false;
+  player.vel.y -= GRAV * dt;
+  const wasGround = player.ground; player.ground = null;
+  player.pos.x += player.vel.x * dt; collide('x');
+  player.pos.z += player.vel.z * dt; collide('z');
+  player.pos.y += player.vel.y * dt; collide('y');
+  if (!player.ground && wasGround && player.vel.y <= 0 && coyote === 0) coyote = 0.1;
+  // hazards
+  if (player.ground && player.ground.lava) { say('🔥 Ouch! Lava!'); respawn(); }
+  if (player.pos.y < player.spawn.y - 16) { say('💨 You fell!'); respawn(); }
+  // progress: landing on a numbered platform counts it (10 S.I.P. per 10 platforms)
+  if (player.ground && player.ground.idx !== undefined) reachPlatform(player.ground.idx);
+  // checkpoints
+  cps.forEach(c => { if (c.pos !== player.spawn && Math.hypot(player.pos.x - c.pos.x, player.pos.z - c.pos.z) < 3.4 && Math.abs(player.pos.y - c.pos.y) < 3 && c.pos.z < player.spawn.z) { player.spawn.copy(c.pos); $('cp').textContent = '🏁 Checkpoint saved'; say('🏁 Checkpoint!'); } });
+  // coins
+  for (let k = coinsList.length - 1; k >= 0; k--) { const c = coinsList[k]; if (c.position.distanceTo(player.pos) < 1.3) { scene.remove(c); coinsList.splice(k, 1); coins++; } }
+  // keep the course going forever
+  if (G.z > player.pos.z - 100) genAhead(player.pos.z);
+}
+
+// ---------- loop ----------
+let last = performance.now(), timeNow = 0;
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now; timeNow += dt;
+  if (running) { timeSec += dt; update(dt); } else boxes.forEach(b => { if (b.move) b.mesh.position[b.move.axis] = b.base[b.move.axis] + Math.sin(timeNow * b.move.speed + b.move.phase) * b.move.amp; });
+  body.position.copy(player.pos);
+  const speed = Math.hypot(player.vel.x, player.vel.z); bobT += dt * speed * 1.6;
+  const sw = player.ground ? Math.sin(bobT) * Math.min(1, speed / 4) * 0.7 : 0.5;
+  legL.rotation.x = sw; legR.rotation.x = -sw; armL.rotation.x = -sw; armR.rotation.x = sw;
+  coinsList.forEach(c => c.rotation.z += dt * 3);
+  sea.position.set(player.pos.x, player.spawn.y - 14, player.pos.z);
+  const cd = 9 + 2 * camPitch, tx = player.pos.x + Math.sin(camYaw) * Math.cos(camPitch) * cd, ty = player.pos.y + 1 + Math.sin(camPitch) * cd, tz = player.pos.z + Math.cos(camYaw) * Math.cos(camPitch) * cd;
+  camera.position.lerp(new THREE.Vector3(tx, ty, tz), 1 - Math.pow(0.0005, dt));
+  camera.lookAt(player.pos.x, player.pos.y + 0.8, player.pos.z);
+  sun.position.set(player.pos.x + 30, player.pos.y + 60, player.pos.z + 20); sun.target.position.copy(player.pos);
+  $('time').textContent = '📏 ' + maxIdx + ' platforms · 💰 ' + (EMBED ? '+' + runSip : sip) + ' S.I.P.'; $('coins').textContent = '🪙 ' + coins;
+  renderer.render(scene, camera);
+}
+resetAll(); requestAnimationFrame(frame);
+window.__obby = { player, boxes, update, cps, coinsList, G, genAhead, get state() { return { running, coins, timeSec, maxIdx, sip, runSip }; } };
+</script>
+</body>
+</html>

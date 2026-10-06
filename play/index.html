@@ -344,6 +344,24 @@
       #previewBox    { width:auto; max-width:130px; min-width:0; }
       #customOptions { width:auto; max-width:520px; flex:1; max-height:none; }
     }
+    /* PLAY lives at the very end of the (scrolling) customization screen, so on a phone you
+       had to scroll past every option to find it. On phones/landscape phones pin it to the
+       bottom of the screen instead, as a big full-width tap target. dvh = the VISIBLE height
+       (100vh is taller than the screen on mobile browsers, which hid the button under the
+       address bar). */
+    @media (max-width: 900px), (max-height: 500px) and (min-width: 480px) {
+      #playBtn { position:sticky; bottom:0; z-index:5; flex-shrink:0; align-self:stretch;
+        margin:16px 0 0; min-height:56px; padding:14px 20px calc(14px + env(safe-area-inset-bottom));
+        border-radius:0; font-size:20px; box-shadow:0 -8px 18px rgba(0,0,0,0.55);
+        touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+      #playBtn:active { background:#c73652; }
+      #customScreen { padding-bottom:0 !important; }
+    }
+    @supports (height:100dvh) {
+      @media (max-width: 900px), (max-height: 500px) and (min-width: 480px) {
+        #customScreen { height:100dvh; }
+      }
+    }
 
     /* ── LOGIN SCREEN ── */
     #loginScreen {
@@ -3081,6 +3099,7 @@ function closeMgPanel(){
 
 <script src="https://js.stripe.com/v3/"></script>
 <script src="AiGame/explox/three.min.js"></script>
+<script src="AiGame/explox/modules/game-realism.js?v=7"></script>
 <!-- game.js (24,500 lines) was split into these files, in this exact order, so the game still
      runs identically — each file is one coherent subsystem instead of one giant file. See
      AiGame/explox/modules/README.md for how this was done and how to keep it split going forward. -->
@@ -3108,7 +3127,16 @@ function closeMgPanel(){
 <script src="AiGame/explox/modules/game-admin.js?v=20261002l"></script>
 <script src="AiGame/explox/modules/game-bible.js?v=20261002l"></script>
 <script src="AiGame/explox/modules/game-library.js?v=20261002l"></script>
+<script src="AiGame/explox/modules/game-safety.js?v=2"></script>
+<script src="AiGame/explox/modules/game-ambience.js?v=1"></script>
+<script src="AiGame/explox/modules/game-obby.js?v=1"></script>
 <script src="AiGame/explox/game-builder.js"></script>
+<script>
+// Faster repeat visits: cache the game's files in the browser (see sw.js — stale-while-revalidate, so updates still arrive on the next load).
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+}
+</script>
 <script>
 window.addEventListener('load', function() {
   var btn = document.getElementById('createAccBtn');
