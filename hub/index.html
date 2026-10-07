@@ -66,7 +66,7 @@
 <body>
 <header class="top"><div class="wrap">
   <div class="logo">🧨 Cubby <span>Explosion</span></div>
-  <nav><a href="#games">Games</a><a href="#mini">Mini games</a><a href="#exploxmini">Explox mini games</a><a href="#contact">Contact</a><a href="https://www.youtube.com/channel/UCIdFOg3xN0mP2RxihrIumMQ" target="_blank" rel="noopener">YouTube</a></nav>
+  <nav><a href="#games">Games</a><a href="#mini">Mini games</a><a href="#exploxmini">Explox mini games</a><a href="#about">About</a><a href="#contact">Contact</a><a href="https://www.youtube.com/channel/UCIdFOg3xN0mP2RxihrIumMQ" target="_blank" rel="noopener">YouTube</a></nav>
 </div></header>
 
 <main class="wrap">
@@ -102,6 +102,17 @@
     <div class="grid small" id="minilist"></div>
   </section>
 
+  <section id="about">
+    <h2>👋 About us</h2>
+    <p class="sub">Who makes these games, and why.</p>
+    <div class="card" style="gap:12px;">
+      <p style="color:var(--text);">We're <b>Cubby Explosion</b>, and we make free games that run right in your web browser — no download, no installing, and they work on computers and phones. Everything here is built one feature at a time, with players' ideas in mind.</p>
+      <p style="color:var(--text);"><b>Explox</b> is made by a group called <b>SIP</b> (Super Important Projects). Cubby Explosion decides what the game needs next and play-tests it, <b>Hubby</b> helps with the code and the sound, and <b>gurnaldst</b> made the real soundtracks. <b>City Life</b>, <b>Block Obby</b> and the mini games come from the same team.</p>
+      <p style="color:var(--text);">Have an idea or found a bug? Use the message box below — you can even attach a screenshot. And please watch the videos on <a href="https://www.youtube.com/channel/UCIdFOg3xN0mP2RxihrIumMQ" target="_blank" rel="noopener">our YouTube channel</a>!</p>
+      <div><span class="tag">Free to play</span><span class="tag">No download</span><span class="tag">Phone &amp; PC</span><span class="tag">New updates often</span></div>
+    </div>
+  </section>
+
   <section id="contact">
     <h2>💬 Message me</h2>
     <p class="sub">Found a bug, have an idea, or just want to say hi? Send me a message — you can add photos or screenshots too. <b>Only I can read messages</b>; other visitors can never see them.</p>
@@ -120,6 +131,15 @@
       <div><button class="btn" id="csend" type="submit">📨 Send message</button></div>
       <div id="status" role="status"></div>
     </form>
+    <div id="replies" class="card" style="margin-top:16px; display:none;">
+      <h3 style="margin:0">📬 Replies to your messages</h3>
+      <p class="note" style="margin:0">Only you can see these. They are linked to this browser by a private code, so keep this page's data (or save your code below) to read them later.</p>
+      <div id="rlist"></div>
+    </div>
+    <div class="card" style="margin-top:12px;">
+      <h3 style="margin:0">🔑 Have a reply code?</h3>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;"><input type="text" id="tcode" placeholder="Paste your code" maxlength="24" style="flex:1; min-width:200px; padding:10px; border-radius:10px; border:1px solid #ffffff26; background:#0e1424; color:#eef2ff;"><button class="btn" type="button" id="tgo">Check</button></div>
+    </div>
   </section>
 </main>
 
@@ -177,6 +197,28 @@ function renderPrev() {
     d.append(im, x); box.append(d);
   });
 }
+// Each message you send gets a private code (kept in this browser) that lets you — and only you — read my reply.
+function tickets() { try { return JSON.parse(localStorage.getItem('cubby_tickets') || '[]').filter(t => /^[a-f0-9]{24}$/.test(t)).slice(-10); } catch (e) { return []; } }
+function saveTickets(t) { try { localStorage.setItem('cubby_tickets', JSON.stringify([...new Set(t)].slice(-10))); } catch (e) {} }
+async function loadReplies() {
+  const t = tickets(); if (!t.length) return;
+  try {
+    const r = await fetch(API + '/api/contact/replies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tickets: t }) });
+    const j = await r.json(); if (!j.ok || !j.threads.length) return;
+    const box = $('rlist'); box.innerHTML = '';
+    j.threads.sort((a, b) => b.at - a.at).forEach(th => {
+      const d = document.createElement('div'); d.style.cssText = 'border-top:1px solid #ffffff14; padding:10px 0;';
+      const q = document.createElement('div'); q.className = 'note'; q.textContent = 'You wrote: ' + th.message;
+      d.append(q);
+      if (!th.replies.length) { const w = document.createElement('div'); w.className = 'note'; w.textContent = '⏳ No reply yet — check back soon.'; d.append(w); }
+      th.replies.forEach(rp => { const p = document.createElement('div'); p.style.cssText = 'background:#0e1424; border-left:3px solid var(--accent); padding:8px 10px; margin-top:6px; border-radius:8px; white-space:pre-wrap;'; p.textContent = '💬 ' + rp.text + '  — ' + new Date(rp.at).toLocaleDateString(); d.append(p); });
+      box.append(d);
+    });
+    $('replies').style.display = 'flex';
+  } catch (e) {}
+}
+$('tgo').onclick = () => { const c = $('tcode').value.trim().toLowerCase(); if (!/^[a-f0-9]{24}$/.test(c)) { status('That code does not look right (24 letters/numbers).', 'err'); return; } saveTickets([...tickets(), c]); $('tcode').value = ''; loadReplies(); };
+loadReplies();
 function status(t, cls) { const s = $('status'); s.textContent = t; s.className = cls || ''; }
 $('cfiles').addEventListener('change', async e => {
   const files = [...e.target.files]; e.target.value = '';
@@ -198,7 +240,11 @@ $('cform').addEventListener('submit', async e => {
       body: JSON.stringify({ name: $('cname').value, reply: $('creply').value, message, photos }) });
     clearTimeout(t);
     const j = await r.json().catch(() => ({}));
-    if (r.ok && j.ok) { status('✅ Sent! Thank you — I will read it soon.', 'ok'); $('cform').reset(); photos = []; renderPrev(); }
+    if (r.ok && j.ok) {
+      status('✅ Sent! Thank you — I will read it soon.' + (j.ticket ? ' Your private reply code: ' + j.ticket + ' (saved in this browser — check "Replies" below later).' : ''), 'ok');
+      if (j.ticket) { const t = tickets(); t.push(j.ticket); saveTickets(t); loadReplies(); }
+      $('cform').reset(); photos = []; renderPrev();
+    }
     else status('❌ ' + (j.error || 'Could not send. Try again in a minute.'), 'err');
   } catch (err) { status('❌ Could not reach the server (it may be waking up). Please try again in a minute.', 'err'); }
   $('csend').disabled = false;

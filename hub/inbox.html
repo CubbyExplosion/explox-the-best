@@ -55,6 +55,13 @@ async function load() {
         m.photos.forEach(src => { if (!/^data:image\/(jpeg|png|webp|gif);base64,/.test(src)) return; const im = new Image(); im.src = src; im.alt = 'photo'; im.onclick = () => window.open().document.write('<img src="' + src + '" style="max-width:100%">'); ph.append(im); });
         card.append(ph);
       }
+      (m.replies || []).forEach(rp => { const r = el('div', 'text', '↩ You (' + new Date(rp.at).toLocaleString() + '): ' + rp.text); r.style.cssText = 'background:#0e1424; border-left:3px solid #3ddc84; padding:8px 10px; margin-top:8px; border-radius:8px;'; card.append(r); });
+      const box = el('div'); box.style.cssText = 'margin-top:10px; display:grid; gap:6px;';
+      const ta = document.createElement('textarea'); ta.placeholder = 'Write a reply…'; ta.maxLength = 2000; ta.style.cssText = 'width:100%; min-height:70px; padding:10px; border-radius:10px; border:1px solid #ffffff26; background:#0e1424; color:#fff; font:inherit; box-sizing:border-box;';
+      const note = el('div', 'muted', m.hasTicket === false ? '' : 'The sender can read your reply on the website with their private code (messages sent before this feature have no code).');
+      const sb = el('button', '', '↩ Send reply'); sb.style.justifySelf = 'start';
+      sb.onclick = async () => { const text = ta.value.trim(); if (!text) return; sb.disabled = true; const { json } = await post('/api/contact/reply', { key: KEY, id: m.id, text }); if (json.ok) load(); else { alert(json.error || 'Could not send the reply.'); sb.disabled = false; } };
+      box.append(ta, sb, note); card.append(box);
       const d = el('button', 'del', '🗑 Delete'); d.style.marginTop = '10px';
       d.onclick = async () => { if (!confirm('Delete this message for good?')) return; await post('/api/contact/delete', { key: KEY, id: m.id }); load(); };
       card.append(d); list.append(card);
