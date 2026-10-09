@@ -649,7 +649,7 @@ function blast(p, d) {
   if (R.battle && window.rdBattleBlastVeh) window.rdBattleBlastVeh(p, d);
   noise(0.6, 3000, 120, 1.2, 'lowpass'); tone(70, 0.5, 0.9, 'sine', 0, 30); burst(p, 0xffaa44, 26, 9, 0.12, fx.sparks, 6); burst(p, 0x444444, 14, 5, 0.25, fx.blood, 1.5);
   const light = new THREE.PointLight(0xffa050, 4, 24); light.position.copy(p).add(new THREE.Vector3(0, 1, 0)); scene.add(light); setTimeout(() => scene.remove(light), 120);
-  enemies.forEach(e => { if (!e.alive) return; const dist = Math.hypot(e.mesh.position.x - p.x, e.mesh.position.z - p.z); if (dist < d.radius) { const f = 1 - dist / d.radius; e.hp -= d.dmg * f * f * 1.4 + d.dmg * 0.15 * f; if (e.hp <= 0) killEnemy(e, false); } });
+  enemies.forEach(e => { if (!e.alive) return; const dist = Math.hypot(e.mesh.position.x - p.x, e.mesh.position.z - p.z); if (dist < d.radius) { const f = 1 - dist / d.radius; e.hp -= d.dmg * f * f * 1.4 + d.dmg * 0.15 * f; if (e.hp <= 0) { e.blastP = { x: p.x, z: p.z, f }; killEnemy(e, false); } } });
   const pd = Math.hypot(playerPos.x - p.x, playerPos.z - p.z);
   if (pd < d.radius) { const f = 1 - pd / d.radius; ['chest', 'legs', 'arms', 'stomach'].forEach(z => hurtPlayer({ dmg: d.dmg * f * 0.35, pen: 6 }, z, 1)); R.shake = Math.min(1.5, R.shake + 1); }
   enemies.forEach(e => { if (e.alive && Math.hypot(e.mesh.position.x - p.x, e.mesh.position.z - p.z) < 60) { e.alertT = Math.max(e.alertT, 9); e.lastKnown.x = p.x; e.lastKnown.z = p.z; } });

@@ -72,13 +72,30 @@ window.rdVoice = speak;
 
 // ───────── watch every soldier ─────────
 const dying = [];
+// blown-up soldiers are launched away from the blast, tumbling, and land far off
+const flying = [];
+function startFly(e) {
+  const m = e.mesh, b = e.blastP; if (!m || !b) return false; let dx = m.position.x - b.x, dz = m.position.z - b.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+  const far = 10 + b.f * 26 + Math.random() * 6; m.rotation.order = 'YXZ';
+  flying.push({ e, m, x0: m.position.x, z0: m.position.z, dx, dz, far, up: 6 + b.f * 9, t0: performance.now(), dur: 1500 + b.f * 900, sx: (Math.random() < 0.5 ? -1 : 1) * (4 + Math.random() * 5), sz: (Math.random() - 0.5) * 8 });
+  return true;
+}
+function stepFly() {
+  const now = performance.now();
+  for (let i = flying.length - 1; i >= 0; i--) {
+    const f = flying[i], k = Math.min(1, (now - f.t0) / f.dur), d = f.far * (1 - (1 - k) * (1 - k));
+    f.m.position.x = f.x0 + f.dx * d; f.m.position.z = f.z0 + f.dz * d; f.m.position.y = Math.max(0.22, 4 * f.up * k * (1 - k));
+    f.m.rotation.x = -Math.PI / 2 * Math.min(1, k * 3) - f.sx * k * 2; f.m.rotation.z = f.sz * k;
+    if (k >= 1) { f.m.rotation.x = -Math.PI / 2; f.m.rotation.z = 0; f.m.position.y = 0.22; const R = window.RAID; (R.containers || []).forEach(c => { if (c.mesh === f.m) { c.x = f.m.position.x; c.z = f.m.position.z; } }); flying.splice(i, 1); }
+  }
+}
 function list() { const l = (typeof enemies !== 'undefined' && enemies) ? enemies.slice() : []; try { if (window.BATTLE && window.BATTLE.allies) l.push.apply(l, window.BATTLE.allies); } catch (x) {} return l; }
 function tick() {
   const R = window.RAID; if (!R || !R.on || R.over) return; const now = performance.now() / 1000;
   list().forEach(e => {
     if (!e.mesh) return; const s = e._v || (e._v = { hp: e.hp, alive: e.alive !== false, alert: false, t: 0, cough: now + 6 + Math.random() * 8 });
     const al = e.alive !== false;
-    if (s.alive && !al) { speak(e.lastBlast ? 'scream' : 'death', e, e.type === 'heavy' || e.type === 'boss'); startFall(e); }
+    if (s.alive && !al) { if (e.blastP && startFly(e)) speak('scream', e); else { speak('death', e, e.type === 'heavy' || e.type === 'boss'); startFall(e); } }
     else if (al) {
       if (e.hp < s.hp - 0.5 && now - s.t > 0.45) { speak('hurt', e); s.t = now; }
       const alerted = (e.alertT || 0) > 0; if (alerted && !s.alert && now - s.t > 0.3 && Math.random() < 0.75) { speak('shout', e); s.t = now; } s.alert = alerted;
@@ -96,6 +113,7 @@ function startFall(e) {
   dying.push({ e, m, flatX, flatY, side, spin, t0, pool });
 }
 function step() {
+  stepFly();
   const now = performance.now();
   for (let i = dying.length - 1; i >= 0; i--) {
     const d = dying[i], k = Math.min(1, (now - d.t0) / 650), ease = k * k * (3 - 2 * k), bounce = k > 0.85 ? Math.sin((k - 0.85) / 0.15 * Math.PI) * 0.03 : 0;
