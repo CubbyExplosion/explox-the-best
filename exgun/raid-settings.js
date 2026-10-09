@@ -8,7 +8,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 (function () {
 'use strict';
-const DEFAULTS = { smooth: false, shadows: 'high', time: 'auto', sens: 1, fov: 78, vol: 0.55 };
+const DEFAULTS = { smooth: false, shadows: 'high', time: 'auto', sens: 1, fov: 78, vol: 0.55, hyper: 'auto' };
 let saved = {}; try { saved = JSON.parse(localStorage.getItem('exgun_settings') || '{}') || {}; } catch (e) {}
 const S = window.RDSET = Object.assign({}, DEFAULTS, saved);
 function save() { try { localStorage.setItem('exgun_settings', JSON.stringify(S)); } catch (e) {} }
@@ -46,7 +46,8 @@ const TIMES = [['auto', 'Auto (random)'], ['dawn', '🌅 Dawn'], ['morning', '�
 function opt(group, val, label) { return `<span class="stOpt ${String(S[group]) === String(val) ? 'on' : ''}" data-g="${group}" data-v="${val}">${label}</span>`; }
 function render() {
   scr.innerHTML = `<div class="box"><h1>⚙️ SETTINGS</h1>
-   <div class="stRow"><b>Model style</b><small>Blocky is the classic look. Smooth rounds every edge and uses finer curves — guns, soldiers and props look less like blocks. Applies from your next raid.</small>${opt('smooth', false, '🧱 Blocky')}${opt('smooth', true, '⚪ Smooth (realistic)')}</div>
+   <div class="stRow"><b>Model style</b><small>🧱 <b>Blocky</b> is the classic look. ⚪ <b>Smooth = HYPER-REALISTIC</b>: rounded models, real human soldiers with a walk cycle, textured walls and ground with relief, reflective puddles, bloom, ambient occlusion, light shafts, film colour, shell casings, bullet holes and echoing sound. It needs a stronger device. Applies from your next raid.</small>${opt('smooth', false, '🧱 Blocky')}${opt('smooth', true, '⚪ Smooth — hyper-realistic')}</div>
+   <div class="stRow"><b>Hyper-realism quality</b><small>Only used with Smooth. High has everything. Medium drops the ambient-occlusion shadows. Low keeps just bloom and the realistic models. Auto = High on computers, Medium on phones.</small>${opt('hyper', 'auto', 'Auto')}${opt('hyper', 'high', 'High')}${opt('hyper', 'medium', 'Medium')}${opt('hyper', 'low', 'Low')}</div>
    <div class="stRow"><b>Shadow quality</b><small>Lower this if the game runs slowly on your device.</small>${opt('shadows', 'high', 'High')}${opt('shadows', 'medium', 'Medium')}${opt('shadows', 'low', 'Low')}${opt('shadows', 'off', 'Off')}</div>
    <div class="stRow"><b>Time of day</b><small>Auto picks a random time for every raid (harder sectors lean towards dusk and night).</small>${TIMES.map(t => opt('time', t[0], t[1])).join('')}</div>
    <div class="stRow"><b>Mouse sensitivity: <span id="stSensV">${S.sens.toFixed(2)}×</span></b><input type="range" id="stSens" min="0.3" max="2.5" step="0.05" value="${S.sens}"></div>

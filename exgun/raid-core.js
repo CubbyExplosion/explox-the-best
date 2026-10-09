@@ -173,7 +173,7 @@ function buildViewmodel() {
     h.position.set(x, y, z); h.rotation.y = ry || 0; g.add(h); return h; };
   hand(0.0, pistol ? -0.05 : -0.1, 0.012, 0);                                         // trigger hand on the grip
   hand(pistol ? -0.035 : -0.012, (a.gripY || -0.02) - 0.03, pistol ? -0.0 : (a.gripZ || -0.4), 0.15);      // support hand under the handguard (or cupping the pistol grip)
-  const flash = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  const flash = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); if (window.rdPostEnabled) flash.material.color.setRGB(5.5, 4.2, 2.8);   // HDR flash so it blooms in hyper mode
   const mz = m.muzzleZ - (R.mods && R.mods.muzzle === 'mz_supp' ? 0.2 : 0); flash.position.set(0, 0.034, mz - 0.03); flash.rotation.y = 0; g.add(flash);
   const flash2 = flash.clone(); flash2.rotation.y = Math.PI / 2; flash.add(flash2);
   const light = new THREE.PointLight(0xffb060, 0, 14); light.position.set(0, 0.05, mz - 0.25); g.add(light);
