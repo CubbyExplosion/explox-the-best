@@ -240,7 +240,7 @@ window.rdHyperShot = function (muzzle, cam) {
   const m = new THREE.Mesh(casingGeo, brass); cam.updateMatrixWorld(); const p = cam.localToWorld(new THREE.Vector3(0.1, -0.1, -0.35)); m.position.copy(p); scene.add(m);
   const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion), up = new THREE.Vector3(0, 1, 0), back = new THREE.Vector3(0, 0, 1).applyQuaternion(cam.quaternion);
   parts.push({ m, v: right.multiplyScalar(rnd(2, 3.4)).add(up.multiplyScalar(rnd(1.4, 2.6))).add(back.multiplyScalar(rnd(0.2, 0.8))), w: new THREE.Vector3(rnd(-18, 18), rnd(-18, 18), rnd(-18, 18)), t: 3.5, kind: 'casing', bounces: 0 }); if (parts.length > 60) { const o = parts.shift(); scene.remove(o.m); }
-  void muzzle;
+  try { const api = window.RDX.api; api.burst(muzzle, 0x9a9a9a, 3, 0.8, 0.07, api.getFx().blood, -0.9); } catch (e) { }          // a wisp of muzzle smoke
 };
 window.rdHyperReload = function () {
   if (!window.rdPostEnabled) return; const m = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.13, 0.065), new THREE.MeshStandardMaterial({ color: 0x1d1f22, metalness: 0.7, roughness: 0.45 })); camera.updateMatrixWorld(); m.position.copy(camera.localToWorld(new THREE.Vector3(0.1, -0.24, -0.4))); m.castShadow = true; scene.add(m);
@@ -283,5 +283,52 @@ window.rdHyperInit = function (scene, renderer, camera, atmo) {
   try { upgradeScene(scene); puddles(scene, atmo); } catch (e) { console.warn('hyper material pass failed', e); }
   setupAudio(); window.rdPostEnabled = true;
 };
-window.rdHyper = { pbr, upgradeScene, post, HY, quality };
+// ───────────────────────── the gun in your hands (Smooth mode) ─────────────────────────
+// gloved hands with jointed fingers, knuckle guards, a velcro wrist strap and a camo sleeve (with a watch on the support hand)
+window.rdHyperHand = function (left, pistol) {
+  const M = window.rdMats(), h = new THREE.Group(), side = left ? -1 : 1;
+  const glove = new THREE.MeshStandardMaterial({ color: 0x1d1f22, roughness: 0.82, map: tex('rock', 'map', 2, 2), normalMap: tex('rock', 'normalMap', 3, 3), normalScale: new THREE.Vector2(0.55, 0.55) });
+  const hard = M.dark, sleeve = new THREE.MeshStandardMaterial({ color: 0x4a5238, roughness: 0.95, map: tex('concrete', 'map', 2, 2), normalMap: tex('concrete', 'normalMap', 2, 2), normalScale: new THREE.Vector2(0.8, 0.8) });
+  const add = (parent, geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; parent.add(m); return m; };
+  add(h, new THREE.BoxGeometry(0.078, 0.038, 0.092), glove, 0, 0, 0);                                         // palm
+  add(h, new THREE.BoxGeometry(0.068, 0.012, 0.03), hard, 0, 0.024, -0.048);                                  // knuckle guard
+  const curl = left && !pistol ? 0.85 : -0.95;                                                                // support hand wraps up under the handguard, trigger hand wraps down round the grip
+  for (let i = 0; i < 4; i++) {
+    const f1 = new THREE.Group(); f1.position.set(-0.0285 + i * 0.019, -0.002, -0.046); f1.rotation.x = curl * (i === 0 ? 0.55 : 1); h.add(f1);
+    add(f1, new THREE.BoxGeometry(0.017, 0.017, 0.036), glove, 0, 0, -0.018);
+    const f2 = new THREE.Group(); f2.position.set(0, 0, -0.036); f2.rotation.x = curl * 1.1; f1.add(f2); add(f2, new THREE.BoxGeometry(0.0155, 0.015, 0.03), glove, 0, 0, -0.015);
+    const f3 = new THREE.Group(); f3.position.set(0, 0, -0.03); f3.rotation.x = curl * 0.9; f2.add(f3); add(f3, new THREE.BoxGeometry(0.014, 0.013, 0.024), glove, 0, 0, -0.012);
+  }
+  const th = new THREE.Group(); th.position.set(-side * 0.042, 0.004, -0.014); th.rotation.set(-0.15, side * 0.6, -side * 0.2); h.add(th); add(th, new THREE.BoxGeometry(0.02, 0.018, 0.04), glove, 0, 0, -0.02);
+  const th2 = new THREE.Group(); th2.position.set(0, 0, -0.04); th2.rotation.y = side * 0.25; th.add(th2); add(th2, new THREE.BoxGeometry(0.018, 0.016, 0.03), glove, 0, 0, -0.015);
+  const wr = add(h, new THREE.CylinderGeometry(0.043, 0.047, 0.07, 16), glove, 0, 0, 0.078); wr.rotation.x = Math.PI / 2;                    // wrist cuff
+  add(h, new THREE.BoxGeometry(0.1, 0.014, 0.03), hard, 0, 0.002, 0.08);                                                                   // velcro strap
+  const fa = add(h, new THREE.CylinderGeometry(0.052, 0.062, 0.36, 16), sleeve, 0, -0.012, 0.29); fa.rotation.x = Math.PI / 2 + 0.12;       // forearm in a camo sleeve
+  const cuff = add(h, new THREE.CylinderGeometry(0.064, 0.064, 0.04, 16), sleeve, 0, -0.004, 0.125); cuff.rotation.x = Math.PI / 2 + 0.12; cuff.scale.set(1.06, 1, 1.06);
+  if (left) { add(h, new THREE.BoxGeometry(0.036, 0.01, 0.04), hard, 0, 0.05, 0.1); add(h, new THREE.CylinderGeometry(0.013, 0.013, 0.004, 14), new THREE.MeshStandardMaterial({ color: 0xcfd6dc, metalness: 0.8, roughness: 0.2 }), 0, 0.058, 0.1); }   // wristwatch
+  return h;
+};
+const _tmp = new THREE.Vector3(), ease = t => t * t * (3 - 2 * t), seg = (p, a, b) => clamp((p - a) / (b - a), 0, 1);
+// per-frame: inertia when you turn, breathing, and the full reload choreography (support hand drops the mag, fetches a new one, seats it, returns)
+window.rdHyperVm = function (vm, dt, R, yaw, pitch, moving, sprint) {
+  vm.t = (vm.t || 0) + dt; const ads = R.ads || 0, g = vm.g;
+  const vy = (yaw - vm.yy) / Math.max(dt, 0.001), vp = (pitch - vm.py) / Math.max(dt, 0.001); vm.yy = yaw; vm.py = pitch;                          // turning speed in rad/s
+  vm.lagY += (clamp(vy * 0.012, -0.14, 0.14) - vm.lagY) * Math.min(1, dt * 9); vm.lagX += (clamp(-vp * 0.010, -0.1, 0.1) - vm.lagX) * Math.min(1, dt * 9);
+  g.rotation.y += vm.lagY * (1 - ads * 0.7); g.rotation.x += vm.lagX * (1 - ads * 0.7); g.position.x += vm.lagY * 0.04 * (1 - ads); g.position.y += vm.lagX * 0.04 * (1 - ads);
+  g.position.y += Math.sin(vm.t * 1.4) * 0.0014 * (1 - ads * 0.75) + (moving && !sprint ? Math.sin(vm.t * 9) * 0.0016 : 0); g.rotation.z += Math.sin(vm.t * 0.9) * 0.004 * (1 - ads * 0.8);
+  // reload
+  const hL = vm.handL, mg = vm.magGroup; hL.position.copy(vm.lRest); hL.rotation.z = 0; if (mg) { mg.position.set(0, 0, 0); mg.visible = true; }
+  const p = R.reload > 0 && R.reloadTotal > 0 ? 1 - R.reload / R.reloadTotal : -1; if (p < 0) return;
+  const a = vm.anch || {}, well = new THREE.Vector3((a.magX || 0) + 0.0, (a.magY || -0.09) - 0.06, a.magZ || -0.15), low = well.clone().add(new THREE.Vector3(0.0, -0.2, 0.02)), pouch = new THREE.Vector3(-0.12, -0.34, 0.1);
+  g.rotation.z += 0.22 * Math.sin(Math.min(1, p / 0.2) * Math.PI / 2) * (p < 0.82 ? 1 : 1 - seg(p, 0.82, 1)); g.rotation.x += 0.1 * Math.sin(Math.min(1, p / 0.2) * Math.PI / 2) * (p < 0.82 ? 1 : 1 - seg(p, 0.82, 1));
+  if (!mg || vm.pistolInt) { hL.position.lerp(well, Math.sin(p * Math.PI) * 0.6); return; }
+  if (p < 0.18) hL.position.lerpVectors(vm.lRest, well, ease(p / 0.18));
+  else if (p < 0.38) { const k = ease(seg(p, 0.18, 0.38)); hL.position.lerpVectors(well, low, k); mg.position.copy(hL.position).sub(well); }
+  else if (p < 0.6) { const k = ease(seg(p, 0.38, 0.6)); hL.position.lerpVectors(low, pouch, k); mg.visible = false; }
+  else if (p < 0.78) { const k = ease(seg(p, 0.6, 0.78)); hL.position.lerpVectors(pouch, low, k); mg.position.copy(hL.position).sub(well); }
+  else if (p < 0.9) { const k = ease(seg(p, 0.78, 0.9)); hL.position.lerpVectors(low, well, k); mg.position.copy(hL.position).sub(well); }
+  else { const k = ease(seg(p, 0.9, 1)); hL.position.lerpVectors(well, vm.lRest, k); if (p > 0.9 && p < 0.93) g.position.y -= 0.01; }
+  hL.rotation.z = Math.sin(clamp(p / 0.9, 0, 1) * Math.PI) * 0.5; void _tmp;
+};
+window.rdHyper = { pbr, tex, upgradeScene, post, HY, quality };
 })();

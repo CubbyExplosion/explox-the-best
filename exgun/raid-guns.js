@@ -18,7 +18,7 @@ function ctex(w, h, draw, rep) {
 }
 let MATS = null;
 function mats() {
-  if (MATS) return MATS;
+  const smoothNow = !!(window.RDSET && window.RDSET.smooth); if (MATS && MATS._sm === smoothNow) return MATS;
   // gentle textures: the parts are tiny, so strong noise would shimmer; these only add a hint of grain and brushing
   const brushed = ctex(128, 128, (x, w, h) => { x.fillStyle = '#b4b6ba'; x.fillRect(0, 0, w, h); for (let i = 0; i < 120; i++) { const v = 150 + Math.random() * 70 | 0; x.fillStyle = `rgba(${v},${v},${v + 4},0.22)`; x.fillRect(0, Math.random() * h, w, 1 + Math.random() * 2); } });
   const grain = ctex(64, 64, (x, w, h) => { x.fillStyle = '#b0b0b0'; x.fillRect(0, 0, w, h); for (let i = 0; i < 300; i++) { const v = 150 + Math.random() * 60 | 0; x.fillStyle = `rgba(${v},${v},${v},0.3)`; x.fillRect(Math.random() * w, Math.random() * h, 2, 2); } });
@@ -37,6 +37,8 @@ function mats() {
     glass: S({ color: 0x4a7aa0, metalness: 0.9, roughness: 0.04, transparent: true, opacity: 0.55 }),
     dot: new THREE.MeshBasicMaterial({ color: 0xff2a1a }), brass: S({ color: 0xb8913a, metalness: 0.9, roughness: 0.3 })
   };
+  MATS._sm = smoothNow;
+  if (smoothNow && window.rdHyper && window.rdHyper.tex) { try { const T = window.rdHyper.tex; ['metal', 'dark', 'steel'].forEach(k => { MATS[k].normalMap = T('concrete', 'normalMap', 1, 1); MATS[k].normalScale = new THREE.Vector2(0.25, 0.25); MATS[k].envMapIntensity = 1.4; }); ['poly', 'glove', 'tan'].forEach(k => { MATS[k].normalMap = T('rock', 'normalMap', 2, 2); MATS[k].normalScale = new THREE.Vector2(0.5, 0.5); }); } catch (e) { } }
   return MATS;
 }
 window.rdMats = mats;
@@ -153,13 +155,14 @@ const MODEL_FOR = { pistol: 'pistol', pistol45: 'pistol45', revolver: 'revolver'
 
 function addMagazine(g, M, a, magAtt) {
   if (a.noMag) return;
+  const mg = new THREE.Group(); g.add(mg); g.userData.magGroup = mg;           // the magazine is its own group so the reload animation can pull it out
   const att = magAtt && R_ATT[magAtt], mul = att && att.magMul ? Math.min(1.9, att.magMul) : 1, drum = att && att.vis === 'drum', w = a.magW || 0.03;
-  if (drum) { const d = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.062, 0.06, 20), M.dark); d.rotation.z = Math.PI / 2; d.position.set(a.magX, a.magY - 0.07, a.magZ - 0.02); g.add(d); B(g, 0.026, 0.05, 0.05, M.dark, a.magX, a.magY - 0.02, a.magZ - 0.01); B(g, 0.064, 0.012, 0.06, M.poly, a.magX, a.magY - 0.07, a.magZ - 0.02); return; }
+  if (drum) { const d = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.062, 0.06, 20), M.dark); d.rotation.z = Math.PI / 2; d.position.set(a.magX, a.magY - 0.07, a.magZ - 0.02); mg.add(d); B(mg, 0.026, 0.05, 0.05, M.dark, a.magX, a.magY - 0.02, a.magZ - 0.01); B(mg, 0.064, 0.012, 0.06, M.poly, a.magX, a.magY - 0.07, a.magZ - 0.02); return; }
   const len = (a.magShort ? 0.1 : 0.15) * mul;
-  if (a.curvedMag) { for (let i = 0; i < 4; i++) { const t = i / 3; B(g, w, len / 3.2, 0.055, M.dark, a.magX, a.magY - t * len * 0.8, a.magZ - t * t * 0.07 - 0.0, 0.18 + t * 0.12); } }
-  else B(g, w, len, 0.05, M.dark, a.magX, a.magY - len / 2 + 0.02, a.magZ, 0.04);
-  B(g, w + 0.004, 0.012, 0.058, M.poly, a.magX, a.magY - len + (a.curvedMag ? -0.0 : 0.02), a.magZ - (a.curvedMag ? 0.07 : 0), 0.1);
-  if (a.pistolGrip && mul > 1) B(g, 0.031, 0.04 * (mul - 1) * 2, 0.054, M.metal, 0, -0.14, 0.02, 0.18);       // longer grip for pistol magazines
+  if (a.curvedMag) { for (let i = 0; i < 4; i++) { const t = i / 3; B(mg, w, len / 3.2, 0.055, M.dark, a.magX, a.magY - t * len * 0.8, a.magZ - t * t * 0.07 - 0.0, 0.18 + t * 0.12); } }
+  else B(mg, w, len, 0.05, M.dark, a.magX, a.magY - len / 2 + 0.02, a.magZ, 0.04);
+  B(mg, w + 0.004, 0.012, 0.058, M.poly, a.magX, a.magY - len + (a.curvedMag ? -0.0 : 0.02), a.magZ - (a.curvedMag ? 0.07 : 0), 0.1);
+  if (a.pistolGrip && mul > 1) B(mg, 0.031, 0.04 * (mul - 1) * 2, 0.054, M.metal, 0, -0.14, 0.02, 0.18);       // longer grip for pistol magazines
 }
 // every attachment draws itself from its "vis" tag (see raid-armory.js); g = grade 1..3 makes the better parts a little bigger
 function addAttachments(g, M, a, mods) {

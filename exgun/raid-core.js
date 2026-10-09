@@ -165,14 +165,15 @@ function buildViewmodel() {
   if (vm) camera.remove(vm.g);
   const M = window.rdMats(), m = window.rdBuildGunModel(R.weaponId, R.mods), a = m.anchors, g = new THREE.Group(); g.add(m.group);
   const pistol = /^pistol|revolver/.test(gun().model);
-  const hand = (x, y, z, ry) => { const h = new THREE.Group(); const palm = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.05, 0.095), M.glove); h.add(palm);
+  const hand = (window.rdPostEnabled && window.rdHyperHand) ? ((x, y, z, ry, left) => { const h = window.rdHyperHand(!!left, pistol); h.position.set(x, y, z); h.rotation.y = ry || 0; g.add(h); return h; })        // Smooth: gloved hands with real fingers
+    : (x, y, z, ry) => { const h = new THREE.Group(); const palm = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.05, 0.095), M.glove); h.add(palm);
     for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.016, 0.06), M.glove); f.position.set(-0.026 + i * 0.0175, -0.03, -0.02); f.rotation.x = 0.7; h.add(f); }
     const th = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.018, 0.06), M.glove); th.position.set(0.045, 0.0, -0.03); th.rotation.y = 0.4; h.add(th);
     const cuff = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.07, 0.06), M.camo); cuff.position.set(0, 0.0, 0.08); h.add(cuff);
     const arm = new THREE.Mesh(new THREE.BoxGeometry(0.095, 0.085, 0.4), M.camo); arm.position.set(0.02, -0.03, 0.3); arm.rotation.x = 0.18; h.add(arm);
     h.position.set(x, y, z); h.rotation.y = ry || 0; g.add(h); return h; };
-  hand(0.0, pistol ? -0.05 : -0.1, 0.012, 0);                                         // trigger hand on the grip
-  hand(pistol ? -0.035 : -0.012, (a.gripY || -0.02) - 0.03, pistol ? -0.0 : (a.gripZ || -0.4), 0.15);      // support hand under the handguard (or cupping the pistol grip)
+  const handR = hand(0.0, pistol ? -0.05 : -0.1, 0.012, 0);                                         // trigger hand on the grip
+  const handL = hand(pistol ? -0.035 : -0.012, (a.gripY || -0.02) - 0.03, pistol ? -0.0 : (a.gripZ || -0.4), 0.15, true);      // support hand under the handguard (or cupping the pistol grip)
   const flash = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); if (window.rdPostEnabled) flash.material.color.setRGB(5.5, 4.2, 2.8);   // HDR flash so it blooms in hyper mode
   const mz = m.muzzleZ - (R.mods && R.mods.muzzle === 'mz_supp' ? 0.2 : 0); flash.position.set(0, 0.034, mz - 0.03); flash.rotation.y = 0; g.add(flash);
   const flash2 = flash.clone(); flash2.rotation.y = Math.PI / 2; flash.add(flash2);
@@ -180,7 +181,8 @@ function buildViewmodel() {
   const len = Math.abs(m.muzzleZ) + 0.35, sc = Math.max(0.55, Math.min(0.95, 0.95 / len));
   const ax = 0.14 * Math.max(0.45, Math.min(1, camera.aspect / 1.6));             // on a tall phone screen keep the gun nearer the middle
   g.scale.setScalar(sc * Math.max(0.8, Math.min(1, camera.aspect / 1.2))); g.position.set(ax, -0.16, -0.38); camera.add(g);
-  vm = { g, flash, light, muzzleZ: mz, base: g.position.clone(), model: gun().model, sightY: m.sightY, railZ: a.railZ || -0.1, scale: g.scale.x };
+  vm = { g, flash, light, muzzleZ: mz, base: g.position.clone(), model: gun().model, sightY: m.sightY, railZ: a.railZ || -0.1, scale: g.scale.x,
+    handR, handL, rRest: handR.position.clone(), lRest: handL.position.clone(), anch: a, magGroup: m.group.userData.magGroup || null, gunGroup: m.group, pistol, lagX: 0, lagY: 0, py: pitch, yy: yaw };
 }
 function buildViewmodelBasic() {
   if (vm) { camera.remove(vm.g); }
@@ -617,6 +619,7 @@ window.updatePlayerMovement = function (dt) {
     const tz = vm.base.z + (adsPos.z - vm.base.z) * R.ads + R.kick * 0.07;
     vm.g.position.x += (tx - vm.g.position.x) * Math.min(1, dt * 18); vm.g.position.y += (ty - vm.g.position.y) * Math.min(1, dt * 18); vm.g.position.z += (tz - vm.g.position.z) * Math.min(1, dt * 22);
     vm.g.rotation.x = R.kick * 0.09 + rl * 0.5 + (sprint ? 0.35 : 0); vm.g.rotation.y = sprint ? -0.5 : 0; vm.g.rotation.z = rl * 0.3;
+    if (window.rdPostEnabled && window.rdHyperVm && vm.handL) window.rdHyperVm(vm, dt, R, yaw, pitch, moving, sprint);       // Smooth: weapon sway, breathing, hand animations, reload
     vm.g.visible = !(g.scope && R.ads > 0.85);
     if (R.flash > 0) { R.flash -= dt; if (R.flash <= 0) { vm.flash.material.opacity = 0; vm.light.intensity = 0; } }
   }
