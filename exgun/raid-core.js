@@ -313,7 +313,7 @@ window.applyDamageToEnemy = function (e, dmg) { e.hp -= dmg; if (e.hp <= 0 && e.
 
 function enemyShoot(e, dist) {
   const d = R_ENEMY[e.type], a = R_AMMO[d.ammo];
-  const m = e.mesh.userData.muzzle.clone(); e.mesh.localToWorld(m);
+  e.mesh.updateMatrixWorld(true); const m = e.mesh.userData.muzzle.clone(); e.mesh.localToWorld(m); if (window.rdNpcFlash) window.rdNpcFlash(e, m);
   const target = new THREE.Vector3(playerPos.x, EYE_HEIGHT - 0.25, playerPos.z);
   const moving = moveState.w || moveState.a || moveState.s || moveState.d;
   let p = d.acc * (R.diff ? R.diff.acc : 1) * clamp(1.15 - dist / (d.sight * 1.1), 0.12, 1) * (R.crouch ? 0.85 : 1) * (moving ? 0.8 : 1) * (R.ads > 0.5 ? 0.92 : 1);
@@ -354,7 +354,7 @@ window.tickEnemyAI = function (dt) {
     else e.alertT = Math.max(0, e.alertT - dt);
     if (e.alertT > 0) {
       const lk = e.lastKnown; const ddx = lk.x - m.position.x, ddz = lk.z - m.position.z;
-      m.rotation.y = Math.atan2(sees ? dx : ddx, sees ? dz : ddz);
+      { const want = Math.atan2(sees ? dx : ddx, sees ? dz : ddz); let da = want - m.rotation.y; while (da > Math.PI) da -= 6.2832; while (da < -Math.PI) da += 6.2832; m.rotation.y += clamp(da, -9 * dt, 9 * dt); }
       const dd = sees ? dist : Math.hypot(ddx, ddz);
       if (!sees || dd > d.pref[1]) moveEnemy(e, lk.x, lk.z, d.speed, dt);
       else if (dd < d.pref[0]) moveEnemy(e, m.position.x - ddx, m.position.z - ddz, d.speed * 0.8, dt);
@@ -647,7 +647,7 @@ function throwNade() {
 }
 function blast(p, d) {
   if (R.battle && window.rdBattleBlastVeh) window.rdBattleBlastVeh(p, d);
-  noise(0.6, 3000, 120, 1.2, 'lowpass'); tone(70, 0.5, 0.9, 'sine', 0, 30); burst(p, 0xffaa44, 26, 9, 0.12, fx.sparks, 6); burst(p, 0x444444, 14, 5, 0.25, fx.blood, 1.5);
+  noise(0.6, 3000, 120, 1.2, 'lowpass'); tone(70, 0.5, 0.9, 'sine', 0, 30); if (window.rdExplosion) window.rdExplosion(p, d); else { burst(p, 0xffaa44, 26, 9, 0.12, fx.sparks, 6); burst(p, 0x444444, 14, 5, 0.25, fx.blood, 1.5); }
   const light = new THREE.PointLight(0xffa050, 4, 24); light.position.copy(p).add(new THREE.Vector3(0, 1, 0)); scene.add(light); setTimeout(() => scene.remove(light), 120);
   enemies.forEach(e => { if (!e.alive) return; const dist = Math.hypot(e.mesh.position.x - p.x, e.mesh.position.z - p.z); if (dist < d.radius) { const f = 1 - dist / d.radius; e.hp -= d.dmg * f * f * 1.4 + d.dmg * 0.15 * f; if (e.hp <= 0) { e.blastP = { x: p.x, z: p.z, f }; killEnemy(e, false); } } });
   const pd = Math.hypot(playerPos.x - p.x, playerPos.z - p.z);

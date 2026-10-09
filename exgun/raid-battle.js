@@ -175,7 +175,7 @@ function objectiveFor(b) {
   const hz = b.team === 'A' ? -(BT.half - 40) : (BT.half - 40); return { x: rnd(-30, 30), z: hz };
 }
 function botShoot(b, t, dist) {
-  const d = b.d, a = R_AMMO[d.ammo], m = b.mesh.userData.muzzle.clone(); b.mesh.localToWorld(m); const tp = targetPos(t), target = new THREE.Vector3(tp.x, t === 'player' ? (R.veh ? 1.6 : 1.45) : 1.3, tp.z);
+  const d = b.d, a = R_AMMO[d.ammo], m = b.mesh.userData.muzzle.clone(); b.mesh.updateMatrixWorld(true); b.mesh.localToWorld(m); if (window.rdNpcFlash) window.rdNpcFlash(b, m); const tp = targetPos(t), target = new THREE.Vector3(tp.x, t === 'player' ? (R.veh ? 1.6 : 1.45) : 1.3, tp.z);
   let p = d.acc * (BT.diff === 0 ? 0.7 : BT.diff === 2 ? 1.2 : 1) * (BT.nmAcc || 1) * clamp(1.15 - dist / (d.sight * 1.1), 0.12, 1);
   if (t === 'player' && !R.veh) p *= (R.crouch ? 0.85 : 1) * (R.ads > 0.5 ? 0.92 : 1) * ((moveState.w || moveState.a || moveState.s || moveState.d) ? 0.8 : 1);
   const pd = dist2(m.x, m.z, playerPos.x, playerPos.z), vol = clamp(1 - pd / 130, 0, 0.8); if (vol > 0.04) A().sfxShot(a.cal, vol * 0.5);
