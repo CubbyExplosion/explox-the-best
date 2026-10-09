@@ -122,6 +122,7 @@ const BOT_CLASSES = {
 };
 const MIX = ['rifle', 'rifle', 'rifle', 'rifle', 'rifle', 'rifle', 'smg', 'smg', 'smg', 'marks', 'marks', 'gunner'];
 function botMesh(team, cls) {
+  if (window.RDSET && window.RDSET.smooth && window.rdHyperBot) return window.rdHyperBot(team, cls);
   const g = new THREE.Group(), tone = new THREE.MeshStandardMaterial({ color: team === 'A' ? 0x3c4a5a : 0x5a3c3a, roughness: 0.9 }), vest = new THREE.MeshStandardMaterial({ color: team === 'A' ? 0x2a5aa8 : 0xa83a2a, roughness: 0.8 });
   const skin = new THREE.MeshStandardMaterial({ color: 0xb98a68, roughness: 0.8 }), dark = new THREE.MeshStandardMaterial({ color: 0x15171a, metalness: 0.8, roughness: 0.4 });
   const P = (geo, mat, x, y, z, zone) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.userData.zone = zone; m.castShadow = true; g.add(m); return m; };

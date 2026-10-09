@@ -378,7 +378,7 @@ window.tickEnemyAI = function (dt) {
 // ───────────────────────── player damage, armor, bleeding, healing ─────────────────────────
 function armorFor(zone) { return zone === 'head' ? R.helmet : (zone === 'chest' || zone === 'stomach') ? R.vest : null; }
 function hurtPlayer(a, zone, mul, fromPos) {
-  if (!R.on || R.over) return;
+  if (!R.on || R.over || R.dead) return;                          // a dead player cannot be hurt again (this used to freeze the respawn timer)
   let dmg = a.dmg * (mul || 1) * (R.buff.resist > 0 ? 0.8 : 1);
   const item = armorFor(zone); let pen = true;
   if (item && item.dur > 0) {
@@ -452,7 +452,7 @@ function startReload() {
   if (ammoReserve() <= 0) { rdToast('No ammo for this type — press T to swap', 1200); return; }
   audioOn();
   R.reloadTotal = g.perShell ? g.reload : (R.mag > 0 ? g.tac : g.reload); R.reload = R.reloadTotal; R.reloadFull = R.mag === 0 ? 1 : 0; R.ads = Math.max(0, R.ads - 0.4);
-  sfx.reloadOut(); if (!g.perShell) setTimeout(() => sfx.reloadIn(), R.reloadTotal * 600);
+  if (window.rdHyperReload && !g.perShell) window.rdHyperReload(); sfx.reloadOut(); if (!g.perShell) setTimeout(() => sfx.reloadIn(), R.reloadTotal * 600);
 }
 function finishReload() {
   const g = gun(); R.reload = 0;
@@ -528,7 +528,7 @@ function fireBullets() {
         anyHit = true; if (zone === 'head') anyHead = true;
         if (e.hp <= 0 && e.alive) { killEnemy(e, zone === 'head'); anyKill = true; }
       }
-    } else if (wall < w.range * 2) { burst(end, 0xffc070, 4, 4, 0.04, fx.sparks, 12); sfx.impact(); }
+    } else if (wall < w.range * 2) { burst(end, 0xffc070, 4, 4, 0.04, fx.sparks, 12); sfx.impact(); if (window.rdHyperImpact) window.rdHyperImpact(end, dir); }
     addTracer(muzzle, end, a.tracer, 0.05);
   }
   // recoil, camera kick, flash, gunshot sound, alert enemies that can hear it
@@ -540,6 +540,7 @@ function fireBullets() {
   const hearR = sup ? 14 : 60;                     // a suppressed gun is only heard up close
   enemies.forEach(e => { if (e.alive && e.alertT <= 0 && Math.hypot(e.mesh.position.x - playerPos.x, e.mesh.position.z - playerPos.z) < hearR) { e.alertT = 9; e.lastKnown.x = playerPos.x; e.lastKnown.z = playerPos.z; } });
   if (anyHit) showHitMarker(anyKill ? 'kill' : anyHead ? 'head' : 'hit');
+  if (window.rdHyperShot) window.rdHyperShot(muzzle, camera);
   if (g.mode === 'bolt' || g.mode === 'pump') setTimeout(() => sfx.rack(), 280);
 }
 function showHitMarker(kind) {
@@ -709,7 +710,7 @@ function rdUpdate(dt, elapsed) {
   if (R.use) { R.use.t -= dt; if (R.use.t <= 0) finishUse(); }
   updateBuffs(dt); updateNades(dt);
   // bleeding
-  if (R.bleed > 0) { const d = R.bleed * 0.7 * dt; R.z.stomach -= d; if (R.z.stomach < 0) { R.z.chest += R.z.stomach * 0.8; R.z.stomach = 0; } syncHp(); if (R.z.chest <= 0) { rdEnd('died'); return; } }
+  if (R.bleed > 0 && !R.dead) { const d = R.bleed * 0.7 * dt; R.z.stomach -= d; if (R.z.stomach < 0) { R.z.chest += R.z.stomach * 0.8; R.z.stomach = 0; } syncHp(); if (R.z.chest <= 0) { rdEnd('died'); return; } }
   // fire
   if (fireHeld) window.tryFire(elapsed);
   // enemies
@@ -885,6 +886,7 @@ function applyLook() {
   if (window.rdAtmosphere) {                                         // real sun, sky, clouds, haze, shadows that follow you (raid-sky.js)
     R.atmo = window.rdAtmosphere(scene, renderer, camera, themeForMap(R.mapIndex), R.mapIndex, R.diff, currentBuildings, blockedAt);
   } else if (window.rdMakeEnv) { const th = themeForMap(R.mapIndex); R.env = window.rdMakeEnv(renderer, th.sky, th.ground); if (R.env) scene.environment = R.env; }
+  if (window.rdHyperInit) window.rdHyperInit(scene, renderer, camera, R.atmo);                    // Smooth model style = hyper-realistic rendering (raid-hyper.js); does nothing in Blocky
 }
 
 // end of raid. reason: 'extracted' | 'died' | 'mia'
@@ -941,9 +943,9 @@ window.animate = function () {
     if (!R.invOpen) { updatePlayerMovement(dt); rdUpdate(dt, elapsed); }
     updateRemotePlayers(dt); syncExgunPresence(elapsed);
   }
-  if (renderer) renderer.render(scene, camera);
+  if (renderer) { if (window.rdPostEnabled && window.rdPostRender) window.rdPostRender(scene, camera, dt); else renderer.render(scene, camera); }
 };
 // expose a few things for the UI file and tests
 window.rdApplyLook = applyLook;
-window.RDX = { api: { buildHud, sfx, noise, tone, burst, addTracer, sfxShot, blast, lineClear, rayBuildings, buildViewmodel, healPool, rdToast, getFx: () => fx, audioOn, keysDown, hurtPlayer, startReload, syncHp, totalHp, packCount, spreadNow, clearFx, takeItems }, quickUse, throwNade, cycleNade, explodeNade, updateNades, healPool, startUse, startReload, cycleAmmo, toggleMode, hurtPlayer, fireBullets, totalHp, takeItems, nearestContainer, nearbyExtract, buildViewmodel, syncHp, MAX_TOTAL, rdUpdate };
+window.RDX = { api: { getAudio: () => ({ AC, master }), buildHud, sfx, noise, tone, burst, addTracer, sfxShot, blast, lineClear, rayBuildings, buildViewmodel, healPool, rdToast, getFx: () => fx, audioOn, keysDown, hurtPlayer, startReload, syncHp, totalHp, packCount, spreadNow, clearFx, takeItems }, quickUse, throwNade, cycleNade, explodeNade, updateNades, healPool, startUse, startReload, cycleAmmo, toggleMode, hurtPlayer, fireBullets, totalHp, takeItems, nearestContainer, nearbyExtract, buildViewmodel, syncHp, MAX_TOTAL, rdUpdate };
 })();
