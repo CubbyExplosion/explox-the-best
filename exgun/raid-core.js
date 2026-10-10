@@ -867,7 +867,7 @@ window.rdEnterRaid = function (mapIndex, loadout) {
   R.spawn = { x: playerPos.x, z: playerPos.z };
   // enemies were placed during buildMapScene, using the (possibly stale) spawn: push any that ended up too close to the player away
   enemies.forEach(e => { if (Math.hypot(e.mesh.position.x - playerPos.x, e.mesh.position.z - playerPos.z) < 24) { const p = freeSpot(40); e.mesh.position.set(p.x, 0, p.z); e.home = { x: p.x, z: p.z }; e.wp = { x: p.x, z: p.z }; } });
-  spawnContainers(); spawnExtracts();
+  if (!(window.rdOWSpawn && window.rdOWSpawn())) { spawnContainers(); spawnExtracts(); }
   applyLook(); scene.add(camera); buildViewmodel();
   document.body.classList.add('rdOn');
   document.getElementById('hudMapName').textContent = mapNameForMap(mapIndex);
@@ -899,6 +899,7 @@ function applyLook() {
   if (window.rdAtmosphere) {                                         // real sun, sky, clouds, haze, shadows that follow you (raid-sky.js)
     R.atmo = window.rdAtmosphere(scene, renderer, camera, themeForMap(R.mapIndex), R.mapIndex, R.diff, currentBuildings, blockedAt);
   } else if (window.rdMakeEnv) { const th = themeForMap(R.mapIndex); R.env = window.rdMakeEnv(renderer, th.sky, th.ground); if (R.env) scene.environment = R.env; }
+  if (window.rdOWLook) window.rdOWLook();
   if (window.rdHyperInit) window.rdHyperInit(scene, renderer, camera, R.atmo);                    // Smooth model style = hyper-realistic rendering (raid-hyper.js); does nothing in Blocky
 }
 
