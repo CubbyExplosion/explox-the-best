@@ -24,6 +24,7 @@ button,input,textarea,select{font:inherit}
 #tray{font-size:12px;text-align:right;line-height:1.2;padding:0 6px;white-space:nowrap}
 #startm{position:absolute;left:8px;bottom:50px;width:300px;background:var(--glass);backdrop-filter:blur(16px);border-radius:14px;border:1px solid rgba(255,255,255,.15);padding:10px;display:none;z-index:99998}
 #startm.show{display:block}
+#startm{max-height:calc(100% - 60px);overflow:auto}
 #startm .it{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;cursor:pointer}
 #startm .it:hover{background:rgba(255,255,255,.15)}
 #startm .it span{font-size:20px;width:26px;text-align:center}
@@ -89,7 +90,7 @@ const WALLS = ['linear-gradient(135deg,#1e3a8a,#7c3aed 60%,#ec4899)', 'linear-gr
 let set = {}, FS = null, user = 'Guest';
 try { set = JSON.parse(localStorage.getItem('cubbyos_set') || '{}'); } catch (e) { }
 const saveSet = () => { try { localStorage.setItem('cubbyos_set', JSON.stringify(set)); } catch (e) { } };
-const defFS = () => ({ t: 'd', c: { home: { t: 'd', c: { [user]: { t: 'd', c: { Desktop: { t: 'd', c: {} }, Documents: { t: 'd', c: { 'readme.txt': { t: 'f', d: 'Welcome to Cubby OS!\n\nThis is a computer simulator. Everything here is pretend, but your files are really saved in your browser.\n\nTry the Terminal: type "help".\nTry Paint, Snake and the Browser too.\n' }, 'todo.txt': { t: 'f', d: '- build a PC\n- beat Snake\n- hack the planet (just kidding)\n' } } }, Pictures: { t: 'd', c: {} } } } } }, system: { t: 'd', c: { 'kernel.sys': { t: 'f', d: '[locked]' } } } } });
+const defFS = () => ({ t: 'd', c: { home: { t: 'd', c: { [user]: { t: 'd', c: { Desktop: { t: 'd', c: {} }, Documents: { t: 'd', c: { 'readme.txt': { t: 'f', d: 'Welcome to Cubby OS!\n\nThis is a computer simulator. Everything here is pretend, but your files are really saved in your browser.\n\nTry the Terminal: type "help".\nTry Paint, Snake and the Browser too.\n\nOpen Friends to play online: share a room code and chat, draw and play Tic-Tac-Toe together.\nOpen the App Store to install more apps and games.\n' }, 'todo.txt': { t: 'f', d: '- build a PC\n- beat Snake\n- hack the planet (just kidding)\n' } } }, Pictures: { t: 'd', c: {} } } } } }, system: { t: 'd', c: { 'kernel.sys': { t: 'f', d: '[locked]' } } } } });
 function loadFS() { try { const s = localStorage.getItem('cubbyos_fs_' + user); FS = s ? JSON.parse(s) : defFS(); } catch (e) { FS = defFS(); } }
 const saveFS = () => { try { localStorage.setItem('cubbyos_fs_' + user, JSON.stringify(FS)); } catch (e) { alert('Disk full! Delete some files.'); } };
 function norm(path, cwd) { const parts = path.startsWith('/') ? [] : cwd.slice(); path.split('/').forEach(p => { if (!p || p === '.') return; if (p === '..') parts.pop(); else if (p === '~') { parts.length = 0; parts.push('home', user); } else parts.push(p); }); return parts; }
@@ -249,14 +250,185 @@ function appSettings(b, w) {
   b.addEventListener('input', e => { if (e.target.id === 'ac') { set.acc = e.target.value; saveSet(); applyTheme(); } }); draw();
 }
 
+// ───── online friends rooms ─────
+const SERVER = 'https://explox-server.onrender.com';
+function roomConn(code, onData) {
+  const c = { code, ms: 0, ss: 0, sv: 0, say: [], strokes: [], clear: false, state: undefined, members: [], ok: false, err: null, busy: false, dead: false };
+  async function tick() {
+    if (c.dead || c.busy) return; c.busy = true; const body = { room: code, name: user, msgSince: c.ms, strokeSince: c.ss, stateVer: c.sv }, say = c.say.shift();
+    if (say) body.say = say; if (c.strokes.length) body.strokes = c.strokes.splice(0, 60); if (c.clear) { body.clear = true; c.clear = false; } if (c.state !== undefined) { body.state = c.state; c.state = undefined; }
+    try {
+      const r = await fetch(SERVER + '/api/os/room', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), d = await r.json();
+      if (!d.ok) c.err = d.error || 'error'; else { c.ok = true; c.err = null; c.members = d.members; c.ms = Math.max(c.ms, d.mid); c.ss = Math.max(c.ss, d.sid); c.sv = d.sver; if (!c.dead) onData(d); }
+    } catch (e) { c.ok = false; c.err = 'offline'; }
+    c.busy = false;
+  }
+  c.timer = setInterval(tick, 1000); c.stop = () => { c.dead = true; clearInterval(c.timer); }; tick(); return c;
+}
+const newCode = () => { const a = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 5; i++) s += a[Math.floor(Math.random() * a.length)]; return s; };
+
+function appFriends(b, w, arg) {
+  let conn = null;
+  const joinView = (pre) => {
+    b.innerHTML = `<div style="padding:18px;max-width:420px;margin:auto"><h2 style="margin-top:0">👥 Friends</h2><p style="opacity:.8">Play online with friends: everyone who types the <b>same room code</b> chats, draws on a shared whiteboard and can play Tic-Tac-Toe together.</p><input class="in" id="rc" maxlength="8" placeholder="Room code" value="${esc(pre || '')}" style="text-transform:uppercase;width:150px"> <button class="btn p" data-a="join">Join</button> <button class="btn" data-a="new">Create a new room</button><p id="fe" style="color:#fca5a5;font-size:13px"></p><p style="opacity:.6;font-size:12px">Chat is filtered (no swearing, links or phone numbers). The server may need ~30 seconds to wake up the first time.</p></div>`;
+    b.onclick = e => { const a = e.target.dataset.a; if (a === 'new') b.querySelector('#rc').value = newCode(); if (a === 'join' || a === 'new') { const c = b.querySelector('#rc').value.toUpperCase().replace(/[^A-Z0-9]/g, ''); if (c.length < 3) return b.querySelector('#fe').textContent = 'Room codes are 3–8 letters or numbers.'; roomView(c); } };
+  };
+  const roomView = code => {
+    w.setTitle('Friends — room ' + code);
+    const link = location.origin + location.pathname + '?room=' + code;
+    b.innerHTML = ''; b.onclick = null; b.style.display = 'flex'; b.style.flexDirection = 'column';
+    const top = el('div', 'tool', `<b>Room ${code}</b><span id="mem" style="opacity:.8;font-size:12px"></span><span style="flex:1"></span><button class="btn" data-a="chat">💬 Chat</button><button class="btn" data-a="board">🎨 Board</button><button class="btn" data-a="ttt">❌⭕ Tic-Tac-Toe</button><button class="btn" data-a="copy">🔗 Invite</button><button class="btn" data-a="leave">Leave</button>`), stat = el('div', '', ''); stat.style.cssText = 'font-size:12px;padding:3px 8px;background:#0e1118;color:#fbbf24'; const area = el('div'); area.style.cssText = 'flex:1;position:relative;overflow:hidden'; b.append(top, stat, area);
+    const pChat = el('div'), pBoard = el('div'), pTtt = el('div'); [pChat, pBoard, pTtt].forEach(p => { p.style.cssText = 'position:absolute;inset:0;display:none;flex-direction:column'; area.append(p); });
+    const show = k => { pChat.style.display = k === 'chat' ? 'flex' : 'none'; pBoard.style.display = k === 'board' ? 'flex' : 'none'; pTtt.style.display = k === 'ttt' ? 'flex' : 'none'; }; show('chat');
+    // chat
+    const log = el('div'); log.style.cssText = 'flex:1;overflow:auto;padding:8px;font-size:13px'; const row = el('div', 'tool', '<input class="in" id="ci" maxlength="300" placeholder="Say something nice…" style="flex:1"><button class="btn p" data-a="send">Send</button>'); pChat.append(log, row);
+    const sys = t => { const d = el('div', '', ''); d.style.cssText = 'opacity:.6;font-size:12px'; d.textContent = t; log.append(d); log.scrollTop = 1e9; };
+    sys('Welcome! Share the invite link so friends can join this room.');
+    const send = () => { const i = row.querySelector('#ci'), t = i.value.trim(); if (t) { conn.say.push(t); i.value = ''; } };
+    row.querySelector('#ci').onkeydown = e => { e.stopPropagation(); if (e.key === 'Enter') send(); };
+    // board
+    const bt = el('div', 'tool', '<input type="color" id="bc" value="#ffffff"><input type="range" id="bs" min="2" max="30" value="5"><button class="btn" data-a="bclear">Clear for everyone</button>'); const cv = el('canvas'); cv.width = 1000; cv.height = 600; cv.style.cssText = 'width:100%;flex:1;min-height:0;object-fit:contain;background:#111;touch-action:none;display:block'; pBoard.append(bt, cv); const c2 = cv.getContext('2d'); const wipe = () => { c2.fillStyle = '#111'; c2.fillRect(0, 0, 1000, 600); }; wipe();
+    const seg = s => { c2.strokeStyle = s.c; c2.lineWidth = s.w; c2.lineCap = 'round'; c2.beginPath(); c2.moveTo(s.x0, s.y0); c2.lineTo(s.x1, s.y1); c2.stroke(); };
+    let down = false, lx = 0, ly = 0; const pt = e => { const r = cv.getBoundingClientRect(), sc = Math.min(r.width / 1000, r.height / 600), ox = (r.width - 1000 * sc) / 2, oy = (r.height - 600 * sc) / 2; return [clamp((e.clientX - r.left - ox) / sc, 0, 1000), clamp((e.clientY - r.top - oy) / sc, 0, 600)]; };
+    cv.onpointerdown = e => { down = true; [lx, ly] = pt(e); cv.setPointerCapture(e.pointerId); }; cv.onpointerup = () => down = false;
+    cv.onpointermove = e => { if (!down) return; const [x, y] = pt(e), s = { x0: lx, y0: ly, x1: x, y1: y, c: pBoard.querySelector('#bc').value, w: +pBoard.querySelector('#bs').value }; seg(s); conn.strokes.push(s); lx = x; ly = y; };
+    // tic-tac-toe
+    let T = null; const tHead = el('div'); tHead.style.cssText = 'text-align:center;padding:10px;font-size:15px'; const tGrid = el('div'); tGrid.style.cssText = 'display:grid;grid-template-columns:repeat(3,80px);gap:6px;margin:auto;justify-content:center'; const tBtn = el('div', 'tool', '<button class="btn" data-a="tnew">New game</button><button class="btn" data-a="tsit">Take a seat</button>'); tBtn.style.justifyContent = 'center'; pTtt.append(tHead, tGrid, tBtn);
+    const LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+    const winner = bd => { for (const l of LINES) if (bd[l[0]] && bd[l[0]] === bd[l[1]] && bd[l[0]] === bd[l[2]]) return bd[l[0]]; return bd.every(v => v) ? 'draw' : null; };
+    const drawT = () => { T = T || { t: 'ttt', b: Array(9).fill(''), turn: 'X', X: '', O: '' }; const win = winner(T.b), mine = T.X === user ? 'X' : T.O === user ? 'O' : '';
+      tHead.innerHTML = `❌ ${esc(T.X || '— (empty seat)')} &nbsp;vs&nbsp; ⭕ ${esc(T.O || '— (empty seat)')}<br><b>${win ? (win === 'draw' ? "It's a draw!" : (T[win] || win) + ' (' + win + ') wins! 🎉') : !T.X || !T.O ? 'Waiting for two players — click a square or "Take a seat"' : (T[T.turn] === user ? 'Your turn!' : esc(T[T.turn]) + "'s turn")}</b>`;
+      tGrid.innerHTML = ''; T.b.forEach((v, i) => { const q = el('button', 'btn', v === 'X' ? '❌' : v === 'O' ? '⭕' : ''); q.style.cssText = 'width:80px;height:80px;font-size:34px'; q.onclick = () => { if (win || v) return; if (!T.X && !mine) T.X = user; else if (!T.O && T.X !== user && !mine) T.O = user; const m = T.X === user ? 'X' : T.O === user ? 'O' : ''; if (!m || T.turn !== m || !T.X || !T.O) return drawT(); T.b[i] = m; T.turn = m === 'X' ? 'O' : 'X'; conn.state = T; drawT(); }; tGrid.append(q); }); };
+    drawT();
+    // wiring
+    top.onclick = e => { const a = e.target.dataset.a; if (!a) return; if (['chat', 'board', 'ttt'].includes(a)) show(a); else if (a === 'copy') { try { navigator.clipboard.writeText(link); sys('Invite link copied: ' + link); } catch (er) { sys('Invite link: ' + link); } show('chat'); } else if (a === 'leave') { conn.stop(); w.setTitle('Friends'); b.style.display = ''; joinView(); } };
+    pChat.onclick = e => { if (e.target.dataset.a === 'send') send(); }; pBoard.onclick = e => { if (e.target.dataset.a === 'bclear') { wipe(); conn.clear = true; } };
+    pTtt.onclick = e => { const a = e.target.dataset.a; if (a === 'tnew') { T = { t: 'ttt', b: Array(9).fill(''), turn: 'X', X: T ? T.X : '', O: T ? T.O : '' }; conn.state = T; drawT(); } else if (a === 'tsit') { if (!T.X) T.X = user; else if (!T.O && T.X !== user) T.O = user; conn.state = T; drawT(); } };
+    let known = []; w.onclose = () => conn && conn.stop();
+    conn = roomConn(code, d => {
+      d.msgs.forEach(m => { const x = el('div', '', ''); x.innerHTML = `<b style="color:${m.from === user ? '#60a5fa' : '#a3e635'}">${esc(m.from)}:</b> `; x.append(document.createTextNode(m.text)); log.append(x); }); if (d.msgs.length) log.scrollTop = 1e9;
+      d.strokes.forEach(s => s.clear ? wipe() : seg(s));
+      if (d.state && d.state.t === 'ttt') { T = d.state; drawT(); }
+      const now = d.members; now.filter(n => !known.includes(n) && n !== user).forEach(n => sys('➕ ' + n + ' joined')); known.filter(n => !now.includes(n)).forEach(n => sys('➖ ' + n + ' left')); known = now;
+    });
+    const upd = setInterval(() => { if (!document.body.contains(b)) return clearInterval(upd); top.querySelector('#mem').textContent = ' · ' + conn.members.length + ' online'; stat.style.display = conn.err ? 'block' : 'none'; stat.textContent = conn.err === 'slow_down' ? 'Slow down a little!' : conn.err === 'full' ? 'This room is full (12 players).' : conn.err === 'offline' ? 'Connecting to the server… (it may take ~30 s to wake up)' : conn.err ? 'Server problem: ' + conn.err : ''; }, 700);
+  };
+  if (arg) roomView(String(arg).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)); else joinView();
+}
+
+// ───── app store ─────
+const STORE = [
+  ['mines', '💣', 'Minesweeper', 'Find all the mines without blowing up.'],
+  ['g2048', '🔢', '2048', 'Slide tiles and merge them up to 2048.'],
+  ['pong', '🏓', 'Pong', 'Beat the computer to 7 points.'],
+  ['memory', '🃏', 'Memory Match', 'Flip cards and find the pairs.'],
+  ['piano', '🎹', 'Piano', 'Play music with your keyboard (A S D F G H J K).'],
+  ['stopwatch', '⏱️', 'Stopwatch & Timer', 'Time laps or count down.'],
+  ['sticky', '🗒️', 'Sticky Note', 'A note that stays on your computer.'],
+  ['ball8', '🎱', 'Magic 8-Ball', 'Ask a question. Get a very wise answer.']
+];
+Object.assign(APPS, {
+  friends: { title: 'Friends', icon: '👥', w: 520, h: 420, init: appFriends },
+  store: { title: 'App Store', icon: '🛍️', w: 480, h: 420, init: appStore },
+  mines: { title: 'Minesweeper', icon: '💣', w: 340, h: 420, init: appMines, store: 1 },
+  g2048: { title: '2048', icon: '🔢', w: 340, h: 440, init: app2048, store: 1 },
+  pong: { title: 'Pong', icon: '🏓', w: 440, h: 340, init: appPong, store: 1 },
+  memory: { title: 'Memory Match', icon: '🃏', w: 360, h: 420, init: appMemory, store: 1 },
+  piano: { title: 'Piano', icon: '🎹', w: 420, h: 220, init: appPiano, store: 1 },
+  stopwatch: { title: 'Stopwatch', icon: '⏱️', w: 320, h: 320, init: appStopwatch, store: 1 },
+  sticky: { title: 'Sticky Note', icon: '🗒️', w: 260, h: 260, init: appSticky, store: 1 },
+  ball8: { title: 'Magic 8-Ball', icon: '🎱', w: 300, h: 340, init: appBall, store: 1 }
+});
+const installed = id => (set.installed || []).includes(id);
+function appStore(b, w) {
+  const draw = (prog) => {
+    b.innerHTML = '<div style="padding:12px"><h2 style="margin:0 0 4px">🛍️ App Store</h2><div style="opacity:.7;font-size:13px;margin-bottom:10px">Free apps. Installed apps appear on your desktop and in the Start menu.</div>' + STORE.map(([id, ic, n, d]) => `<div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;background:rgba(255,255,255,.06);margin-bottom:6px"><div style="font-size:30px">${ic}</div><div style="flex:1"><b>${n}</b><div style="opacity:.7;font-size:12px">${d}</div>${prog && prog[0] === id ? `<div class="bar" style="margin-top:4px"><i style="width:${prog[1]}%"></i></div>` : ''}</div>${installed(id) ? `<button class="btn" data-o="${id}">Open</button><button class="btn" data-u="${id}">Remove</button>` : `<button class="btn p" data-i="${id}" ${prog ? 'disabled' : ''}>Install</button>`}</div>`).join('') + '</div>';
+  };
+  b.onclick = e => { const d = e.target.dataset; if (d.o) openApp(d.o); else if (d.u) { set.installed = (set.installed || []).filter(x => x !== d.u); saveSet(); buildDesktop(); wins.filter(x => x.app === d.u).forEach(x => x.close()); draw(); } else if (d.i) { let p = 0; const iv = setInterval(() => { p += 8 + Math.random() * 14; if (p >= 100) { clearInterval(iv); set.installed = (set.installed || []).concat(d.i); saveSet(); buildDesktop(); beep(784, .15); draw(); } else draw([d.i, p]); }, 150); } }; draw();
+}
+
+function appMines(b, w) {
+  const N = 9, M = 10; let g, over, first, flag = false;
+  const nb = i => { const x = i % N, y = Math.floor(i / N), r = []; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { if (!dx && !dy) continue; const X = x + dx, Y = y + dy; if (X >= 0 && Y >= 0 && X < N && Y < N) r.push(Y * N + X); } return r; };
+  const init = () => { g = Array.from({ length: N * N }, () => ({ m: 0, o: 0, f: 0, n: 0 })); over = 0; first = 1; draw(); };
+  const place = safe => { let k = 0; while (k < M) { const i = Math.floor(Math.random() * N * N); if (i === safe || g[i].m) continue; g[i].m = 1; k++; } g.forEach((c, i) => c.n = nb(i).filter(j => g[j].m).length); };
+  const open = i => { const c = g[i]; if (c.o || c.f) return; c.o = 1; if (c.m) { over = -1; g.forEach(q => { if (q.m) q.o = 1; }); return; } if (!c.n) nb(i).forEach(open); };
+  const draw = () => { const left = g.filter(c => !c.o && !c.m).length; if (!over && !first && !left) over = 1; const COL = ['', '#60a5fa', '#4ade80', '#f87171', '#a78bfa', '#fb923c', '#22d3ee', '#fff', '#999'];
+    b.innerHTML = `<div class="tool"><button class="btn" data-a="new">🙂 New</button><button class="btn ${flag ? 'p' : ''}" data-a="flag">🚩 Flag mode</button><span>${over === 1 ? '🎉 You win!' : over === -1 ? '💥 Boom!' : 'Mines: ' + M}</span></div><div id="mg" style="display:grid;grid-template-columns:repeat(${N},32px);gap:2px;justify-content:center;padding:10px"></div>`; const gr = b.querySelector('#mg');
+    g.forEach((c, i) => { const q = el('button', '', c.f && !c.o ? '🚩' : c.o ? (c.m ? '💣' : c.n || '') : ''); q.style.cssText = `width:32px;height:32px;border:0;border-radius:4px;font-weight:700;color:${COL[c.n] || '#fff'};background:${c.o ? '#0e1118' : '#3a4560'};cursor:pointer`; q.onclick = () => { if (over) return; if (flag) { if (!c.o) c.f = !c.f; } else { if (c.f) return; if (first) { place(i); first = 0; } open(i); } draw(); }; q.oncontextmenu = e => { e.preventDefault(); if (!over && !c.o) { c.f = !c.f; draw(); } }; gr.append(q); }); };
+  b.onclick = e => { const a = e.target.dataset.a; if (a === 'new') init(); else if (a === 'flag') { flag = !flag; draw(); } }; init();
+}
+
+function app2048(b, w) {
+  let g, score = 0, best = +(set.best2048 || 0); const add = () => { const e = []; g.forEach((r, i) => r.forEach((v, j) => { if (!v) e.push([i, j]); })); if (e.length) { const [i, j] = e[Math.floor(Math.random() * e.length)]; g[i][j] = Math.random() < .9 ? 2 : 4; } };
+  const init = () => { g = Array.from({ length: 4 }, () => [0, 0, 0, 0]); score = 0; add(); add(); draw(); };
+  const mv = row => { const a = row.filter(v => v); for (let i = 0; i < a.length - 1; i++) if (a[i] === a[i + 1]) { a[i] *= 2; score += a[i]; a.splice(i + 1, 1); } while (a.length < 4) a.push(0); return a; };
+  const lines = d => { const L = []; for (let i = 0; i < 4; i++) { const l = []; for (let j = 0; j < 4; j++) l.push(d < 2 ? [i, j] : [j, i]); if (d % 2) l.reverse(); L.push(l); } return L; };
+  const move = d => { let ch = 0; lines(d).forEach(l => { const row = l.map(([r, c]) => g[r][c]), nr = mv(row); if (nr.some((v, i) => v !== row[i])) ch = 1; l.forEach(([r, c], i) => g[r][c] = nr[i]); }); if (ch) { add(); if (score > best) { best = score; set.best2048 = best; saveSet(); } draw(); } };
+  const draw = () => { const dead = !g.some((r, i) => r.some((v, j) => !v || (g[i][j + 1] === v) || (g[i + 1] && g[i + 1][j] === v)));
+    b.innerHTML = `<div class="tool"><button class="btn" data-a="new">New</button><span>Score ${score} · Best ${best} ${dead ? '· GAME OVER' : ''}</span></div><div style="display:grid;grid-template-columns:repeat(4,64px);gap:6px;justify-content:center;padding:12px">${g.flat().map(v => `<div style="height:64px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:${v > 999 ? 18 : 24}px;background:${v ? `hsl(${40 - Math.log2(v) * 12},80%,${60 - Math.log2(v) * 2}%)` : '#2b3246'};color:${v > 4 ? '#fff' : '#333'}">${v || ''}</div>`).join('')}</div><div style="text-align:center"><button class="btn" data-m="2">⬆</button><br><button class="btn" data-m="0">⬅</button> <button class="btn" data-m="3">⬇</button> <button class="btn" data-m="1">➡</button></div>`; };
+  b.onclick = e => { if (e.target.dataset.a === 'new') init(); else if (e.target.dataset.m != null) move(+e.target.dataset.m); };
+  const key = e => { if (!w.el.classList.contains('focus')) return; const d = { ArrowLeft: 0, ArrowRight: 1, ArrowUp: 2, ArrowDown: 3 }[e.code]; if (d != null) { e.preventDefault(); move(d); } }; addEventListener('keydown', key); w.onclose = () => removeEventListener('keydown', key); init();
+}
+
+function appPong(b, w) {
+  const cv = el('canvas'); cv.width = 400; cv.height = 260; cv.style.cssText = 'width:100%;display:block;background:#0b0e14;touch-action:none'; b.append(cv); const c = cv.getContext('2d'); let py = 100, ay = 100, bx = 200, by = 130, vx = 180, vy = 90, ps = 0, as = 0, last = performance.now(), raf, run = true, ky = 0;
+  const reset = d => { bx = 200; by = 130; vx = 180 * d; vy = (Math.random() - .5) * 200; };
+  const step = now => { if (!run) return; raf = requestAnimationFrame(step); const dt = Math.min(.04, (now - last) / 1000); last = now; py = clamp(py + ky * 260 * dt, 0, 200); bx += vx * dt; by += vy * dt; if (by < 4 || by > 256) { vy = -vy; by = clamp(by, 4, 256); }
+    ay += clamp(by - 30 - ay, -150 * dt, 150 * dt); ay = clamp(ay, 0, 200);
+    if (bx < 22 && bx > 8 && by > py && by < py + 60 && vx < 0) { vx = -vx * 1.06; vy += (by - py - 30) * 4; beep(440, .04, 'square'); } if (bx > 378 && bx < 392 && by > ay && by < ay + 60 && vx > 0) { vx = -vx * 1.04; vy += (by - ay - 30) * 3; beep(330, .04, 'square'); }
+    if (bx < -10) { as++; reset(1); beep(150, .2, 'sawtooth'); } if (bx > 410) { ps++; reset(-1); beep(880, .15); }
+    c.fillStyle = '#0b0e14'; c.fillRect(0, 0, 400, 260); c.fillStyle = '#334'; for (let y = 0; y < 260; y += 20) c.fillRect(198, y, 4, 10); c.fillStyle = '#fff'; c.fillRect(10, py, 8, 60); c.fillRect(382, ay, 8, 60); c.beginPath(); c.arc(bx, by, 5, 0, 7); c.fill(); c.font = '24px monospace'; c.fillText(ps, 160, 30); c.fillText(as, 220, 30);
+    if (ps >= 7 || as >= 7) { c.font = '28px sans-serif'; c.fillText(ps >= 7 ? 'You win! 🎉' : 'Computer wins', 110, 130); c.font = '14px sans-serif'; c.fillText('click to play again', 140, 155); run = false; } };
+  cv.onpointermove = e => { const r = cv.getBoundingClientRect(); py = clamp((e.clientY - r.top) / r.height * 260 - 30, 0, 200); }; cv.onclick = () => { if (!run) { ps = as = 0; reset(1); run = true; last = performance.now(); raf = requestAnimationFrame(step); } };
+  const kd = e => { if (!w.el.classList.contains('focus')) return; if (e.code === 'ArrowUp' || e.code === 'KeyW') { ky = -1; e.preventDefault(); } if (e.code === 'ArrowDown' || e.code === 'KeyS') { ky = 1; e.preventDefault(); } }, ku = e => { if (['ArrowUp', 'ArrowDown', 'KeyW', 'KeyS'].includes(e.code)) ky = 0; }; addEventListener('keydown', kd); addEventListener('keyup', ku);
+  w.onclose = () => { run = false; cancelAnimationFrame(raf); removeEventListener('keydown', kd); removeEventListener('keyup', ku); }; raf = requestAnimationFrame(step);
+}
+
+function appMemory(b, w) {
+  let cards, open, moves, lock; const E = ['🐱', '🐶', '🦊', '🐸', '🐼', '🦁', '🐙', '🦄'];
+  const init = () => { cards = E.concat(E).map(e => ({ e, f: 0, m: 0 })).sort(() => Math.random() - .5); open = []; moves = 0; lock = false; draw(); };
+  const draw = () => { const done = cards.every(c => c.m); b.innerHTML = `<div class="tool"><button class="btn" data-a="new">New game</button><span>Moves: ${moves} ${done ? '· 🎉 You did it!' : ''}</span></div><div style="display:grid;grid-template-columns:repeat(4,70px);gap:8px;justify-content:center;padding:14px">${cards.map((c, i) => `<button data-i="${i}" style="height:70px;font-size:34px;border:0;border-radius:10px;background:${c.f || c.m ? '#1e293b' : 'var(--acc)'};cursor:pointer;opacity:${c.m ? .5 : 1}">${c.f || c.m ? c.e : '?'}</button>`).join('')}</div>`; };
+  b.onclick = e => { const d = e.target.dataset; if (d.a === 'new') return init(); if (d.i == null || lock) return; const c = cards[d.i]; if (c.f || c.m) return; c.f = 1; open.push(c); beep(500, .04, 'triangle'); if (open.length === 2) { moves++; if (open[0].e === open[1].e) { open.forEach(x => { x.m = 1; x.f = 0; }); open = []; beep(880, .1); } else { lock = true; setTimeout(() => { open.forEach(x => x.f = 0); open = []; lock = false; draw(); }, 800); } } draw(); }; init();
+}
+
+function appPiano(b, w) {
+  const keys = [['C', 261.6, 'a'], ['D', 293.7, 's'], ['E', 329.6, 'd'], ['F', 349.2, 'f'], ['G', 392, 'g'], ['A', 440, 'h'], ['B', 493.9, 'j'], ['C', 523.3, 'k']];
+  b.innerHTML = '<div style="display:flex;height:100%;padding:12px;gap:4px;align-items:stretch">' + keys.map(([n, f, k], i) => `<button data-f="${f}" style="flex:1;border:0;border-radius:0 0 8px 8px;background:#f8fafc;color:#333;font-weight:700;cursor:pointer;display:flex;align-items:flex-end;justify-content:center;padding-bottom:10px">${n}<br>${k.toUpperCase()}</button>`).join('') + '</div>';
+  const play = f => { try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); const o = ac.createOscillator(), g = ac.createGain(); o.type = 'triangle'; o.frequency.value = f; g.gain.setValueAtTime(.25, ac.currentTime); g.gain.exponentialRampToValueAtTime(.001, ac.currentTime + 1.2); o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 1.2); } catch (e) { } };
+  b.onclick = e => { const f = e.target.closest('[data-f]'); if (f) play(+f.dataset.f); };
+  const kd = e => { if (!w.el.classList.contains('focus')) return; const k = keys.find(x => x[2] === e.key.toLowerCase()); if (k && !e.repeat) { play(k[1]); const btn = b.querySelector(`[data-f="${k[1]}"]`); btn.style.background = '#93c5fd'; setTimeout(() => btn.style.background = '#f8fafc', 150); } }; addEventListener('keydown', kd); w.onclose = () => removeEventListener('keydown', kd);
+}
+
+function appStopwatch(b, w) {
+  let t0 = 0, acc = 0, run = false, laps = [], cd = 0, cdRun = false, iv; const fmt = ms => { const s = ms / 1000; return Math.floor(s / 60) + ':' + (s % 60 < 10 ? '0' : '') + (s % 60).toFixed(2); };
+  b.innerHTML = '<div style="padding:12px;text-align:center"><div id="sw" style="font-size:40px;font-family:monospace">0:00.00</div><button class="btn p" data-a="go">Start</button> <button class="btn" data-a="lap">Lap</button> <button class="btn" data-a="rst">Reset</button><div id="laps" style="font-size:13px;opacity:.8;margin:6px 0;max-height:70px;overflow:auto"></div><hr style="border-color:#333"><div>Timer: <input class="in" id="tm" type="number" min="1" max="3600" value="10" style="width:70px"> seconds <button class="btn" data-a="tgo">Start timer</button></div><div id="td" style="font-size:30px;font-family:monospace;margin-top:6px"></div></div>';
+  const q = s => b.querySelector(s), cur = () => acc + (run ? performance.now() - t0 : 0);
+  iv = setInterval(() => { q('#sw').textContent = fmt(cur()); if (cdRun) { const l = cd - performance.now(); if (l <= 0) { cdRun = false; q('#td').textContent = '⏰ Time!'; beep(880, .3, 'square'); setTimeout(() => beep(880, .3, 'square'), 400); } else q('#td').textContent = (l / 1000).toFixed(1) + 's'; } }, 50);
+  b.onclick = e => { const a = e.target.dataset.a; if (a === 'go') { if (run) { acc = cur(); run = false; e.target.textContent = 'Start'; } else { t0 = performance.now(); run = true; e.target.textContent = 'Stop'; } } else if (a === 'lap' && run) { laps.push(fmt(cur())); q('#laps').innerHTML = laps.map((l, i) => `Lap ${i + 1}: ${l}`).join('<br>'); } else if (a === 'rst') { acc = 0; run = false; laps = []; q('#laps').innerHTML = ''; b.querySelector('[data-a=go]').textContent = 'Start'; } else if (a === 'tgo') { cd = performance.now() + (+q('#tm').value || 10) * 1000; cdRun = true; } };
+  b.querySelector('#tm').onkeydown = e => e.stopPropagation(); w.onclose = () => clearInterval(iv);
+}
+
+function appSticky(b) {
+  const ta = el('textarea'); ta.value = set.sticky || ''; ta.placeholder = 'Write a note…'; ta.style.cssText = 'width:100%;height:100%;border:0;background:#fde68a;color:#422;font:16px "Segoe Print",cursive;padding:12px;resize:none;outline:0'; ta.oninput = () => { set.sticky = ta.value; saveSet(); }; b.append(ta);
+}
+
+function appBall(b) {
+  const A = ['It is certain.', 'Without a doubt.', 'Yes, definitely.', 'Most likely.', 'Ask again later.', 'Cannot predict now.', "Don't count on it.", 'My sources say no.', 'Very doubtful.', 'Signs point to yes.', 'Absolutely not.', 'Only if you eat a snack first.'];
+  b.innerHTML = '<div style="text-align:center;padding:16px"><input class="in" id="q8" placeholder="Ask a yes/no question…" style="width:90%"><div id="ball" style="width:170px;height:170px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#555,#000 70%);margin:16px auto;display:flex;align-items:center;justify-content:center;font-size:14px;padding:30px;color:#9cf;text-align:center">8</div><button class="btn p" data-a="ask">Shake!</button></div>';
+  b.querySelector('#q8').onkeydown = e => { e.stopPropagation(); if (e.key === 'Enter') b.querySelector('[data-a=ask]').click(); };
+  b.onclick = e => { if (e.target.dataset.a === 'ask') { const ball = b.querySelector('#ball'); ball.textContent = '…'; beep(200, .1, 'triangle'); setTimeout(() => ball.textContent = A[Math.floor(Math.random() * A.length)], 500); } };
+}
+
 // ───── desktop / start / system ─────
-const ICONS = [['files', 'This PC', '💻'], ['notepad', 'Notepad', '📝'], ['terminal', 'Terminal', '⌨️'], ['paint', 'Paint', '🎨'], ['browser', 'Browser', '🌐'], ['calc', 'Calculator', '🧮'], ['snake', 'Snake', '🐍'], ['taskmgr', 'Task Manager', '📊'], ['settings', 'Settings', '⚙️']];
+const CORE = ['files', 'notepad', 'terminal', 'paint', 'browser', 'calc', 'snake', 'taskmgr', 'friends', 'store', 'settings'], NAMES = { files: 'This PC' };
+const appList = () => CORE.concat((set.installed || []).filter(i => APPS[i] && APPS[i].store)).map(id => [id, NAMES[id] || APPS[id].title, APPS[id].icon]);
 function applyTheme() { $('desk').style.background = WALLS[set.wall | 0]; document.documentElement.style.setProperty('--acc', set.acc || '#3b82f6'); }
 function buildDesktop() {
-  const d = $('desk'); d.innerHTML = ''; ICONS.forEach(([id, n, ic]) => { const i = el('div', 'ico', `<b>${ic}</b>${n}`); i.ondblclick = () => openApp(id); i.onclick = e => { document.querySelectorAll('.ico.sel').forEach(x => x.classList.remove('sel')); i.classList.add('sel'); e.stopPropagation(); if (matchMedia('(pointer:coarse)').matches) openApp(id); }; d.append(i); });
+  const d = $('desk'); d.innerHTML = ''; appList().forEach(([id, n, ic]) => { const i = el('div', 'ico', `<b>${ic}</b>${n}`); i.ondblclick = () => openApp(id); i.onclick = e => { document.querySelectorAll('.ico.sel').forEach(x => x.classList.remove('sel')); i.classList.add('sel'); e.stopPropagation(); if (matchMedia('(pointer:coarse)').matches) openApp(id); }; d.append(i); });
   const dk = node(HOME().concat('Desktop')); if (dk) Object.keys(dk.c).forEach(k => { const i = el('div', 'ico', `<b>${dk.c[k].t === 'd' ? '📁' : '📄'}</b>${esc(k)}`); i.ondblclick = () => dk.c[k].t === 'd' ? openApp('files', '~/Desktop/' + k) : openApp('notepad', '~/Desktop/' + k); d.append(i); });
   d.onclick = () => { document.querySelectorAll('.ico.sel').forEach(x => x.classList.remove('sel')); $('startm').classList.remove('show'); $('startb').classList.remove('on'); };
-  $('startm').innerHTML = ICONS.map(([id, n, ic]) => `<div class="it" data-o="${id}"><span>${ic}</span>${n}</div>`).join('') + '<hr><div class="it" data-o="_off"><span>⏻</span>Shut down</div><div class="it" data-o="_re"><span>🔄</span>Restart</div><div class="it" data-o="_out"><span>👤</span>Sign out (' + esc(user) + ')</div>';
+  $('startm').innerHTML = appList().map(([id, n, ic]) => `<div class="it" data-o="${id}"><span>${ic}</span>${n}</div>`).join('') + '<hr><div class="it" data-o="_off"><span>⏻</span>Shut down</div><div class="it" data-o="_re"><span>🔄</span>Restart</div><div class="it" data-o="_out"><span>👤</span>Sign out (' + esc(user) + ')</div>';
   applyTheme();
 }
 $('startb').onclick = e => { e.stopPropagation(); const s = $('startm'); s.classList.toggle('show'); $('startb').classList.toggle('on', s.classList.contains('show')); };
@@ -269,7 +441,8 @@ function boot() {
   $('screen').style.display = 'none'; show('boot'); const L = ['Cubby BIOS v1.0', 'CPU: Cubby-Core x8 @ 4.2GHz (pretend)', 'Memory test: 16384 MB OK', 'Detecting drives… 1 found', 'Loading Cubby OS…', '', '██████████████████████ 100%'], b = $('boot'); b.textContent = ''; let i = 0;
   const iv = setInterval(() => { b.textContent += L[i++] + '\n'; beep(300 + i * 40, .03, 'square'); if (i >= L.length) { clearInterval(iv); setTimeout(() => { show('login'); $('uname').value = set.user || ''; $('uname').focus(); }, 500); } }, 280);
 }
-function signin() { user = ($('uname').value.trim().replace(/[^\w ]/g, '') || 'Guest').slice(0, 14); set.user = user; saveSet(); loadFS(); show(''); $('screen').style.display = 'block'; buildDesktop(); beep(523, .12); setTimeout(() => beep(659, .12), 130); setTimeout(() => beep(784, .25), 260); const r = node(HOME().concat('Documents', 'readme.txt')); if (r && !set.seen) { set.seen = 1; saveSet(); openApp('notepad', '~/Documents/readme.txt'); } }
+function signin() { user = ($('uname').value.trim().replace(/[^\w ]/g, '') || 'Guest').slice(0, 14); set.user = user; saveSet(); loadFS(); show(''); $('screen').style.display = 'block'; buildDesktop(); beep(523, .12); setTimeout(() => beep(659, .12), 130); setTimeout(() => beep(784, .25), 260); const r = node(HOME().concat('Documents', 'readme.txt')); if (r && !set.seen) { set.seen = 1; saveSet(); openApp('notepad', '~/Documents/readme.txt'); }
+  const rp = new URLSearchParams(location.search).get('room'); if (rp) openApp('friends', rp); }
 function logout() { closeAll(); $('screen').style.display = 'none'; show('login'); $('uname').value = user; }
 function shutdown(restart) { closeAll(); $('screen').style.display = 'none'; if (restart) return boot(); show('off'); }
 function bsod() { closeAll(); $('screen').style.display = 'none'; show('bsod'); beep(100, .8, 'sawtooth'); let p = 0; const iv = setInterval(() => { p += 7 + Math.random() * 10; $('bsodp').textContent = Math.min(100, Math.round(p)) + '% complete'; if (p >= 100) { clearInterval(iv); setTimeout(boot, 700); } }, 350); }
