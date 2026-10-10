@@ -620,17 +620,17 @@ window.updatePlayerMovement = function (dt) {
   camera.rotation.x = pitch + R.recoilP + sway * 0.7 + (Math.random() - 0.5) * shk;
   camera.rotation.z = (moveState.d ? -0.012 : moveState.a ? 0.012 : 0) * (1 - R.ads);
   // ADS zoom
-  const baseFov = (window.RDSET && window.RDSET.fov) || 78, targetFov = baseFov - R.ads * (baseFov - baseFov / g.zoom); if (Math.abs(camera.fov - targetFov) > 0.05) { camera.fov = targetFov; camera.updateProjectionMatrix(); }
+  const baseFov = (window.RDSET && window.RDSET.fov) || 78, targetFov = baseFov - R.ads * (baseFov - baseFov / (g.zoom * window.rdZoomMul(g))); if (Math.abs(camera.fov - targetFov) > 0.05) { camera.fov = targetFov; camera.updateProjectionMatrix(); }
   // gun model: sway, recoil kick, ADS centre, reload dip, sprint tilt
   if (vm) {
-    const adsPos = new THREE.Vector3(0, -vm.sightY * vm.scale, -(g.scope ? 0.22 : 0.3) - vm.railZ * vm.scale);      // puts the gun's sight on the screen centre
+    const adsPos = new THREE.Vector3(0, -vm.sightY * vm.scale, -(window.rdScoped(g) ? 0.22 : 0.3) - vm.railZ * vm.scale);      // puts the gun's sight on the screen centre
     const rl = R.reload > 0 ? Math.sin((1 - R.reload / R.reloadTotal) * Math.PI) : 0;
     const tx = vm.base.x + (adsPos.x - vm.base.x) * R.ads + (sprint ? 0.05 : 0), ty = vm.base.y + (adsPos.y - vm.base.y) * R.ads - rl * 0.18 + (moving ? Math.sin(performance.now() / 130) * 0.004 * (1 - R.ads) : 0);
     const tz = vm.base.z + (adsPos.z - vm.base.z) * R.ads + R.kick * 0.07;
     vm.g.position.x += (tx - vm.g.position.x) * Math.min(1, dt * 18); vm.g.position.y += (ty - vm.g.position.y) * Math.min(1, dt * 18); vm.g.position.z += (tz - vm.g.position.z) * Math.min(1, dt * 22);
     vm.g.rotation.x = R.kick * 0.09 + rl * 0.5 + (sprint ? 0.35 : 0); vm.g.rotation.y = sprint ? -0.5 : 0; vm.g.rotation.z = rl * 0.3;
     if (window.rdPostEnabled && window.rdHyperVm && vm.handL) window.rdHyperVm(vm, dt, R, yaw, pitch, moving, sprint);       // Smooth: weapon sway, breathing, hand animations, reload
-    vm.g.visible = !(g.scope && R.ads > 0.85);
+    vm.g.visible = !(window.rdScoped(g) && R.ads > 0.85); if (window.rdScopeFrame) window.rdScopeFrame(dt, g, R);
     if (R.flash > 0) { R.flash -= dt; if (R.flash <= 0) { vm.flash.material.opacity = 0; vm.light.intensity = 0; } }
   }
 };
@@ -793,7 +793,7 @@ function rdHud(dt) {
   $('rdVignette').style.opacity = 0.35 + low * 0.55;
   if (renderer) renderer.domElement.style.filter = low > 0.05 ? `saturate(${1 - low * 0.75}) contrast(${1 + low * 0.1})` : 'none';
   $('crosshair').style.display = R.ads > 0.3 ? 'none' : 'block';
-  $('rdScope').style.display = (g.scope && R.ads > 0.85) ? 'block' : 'none';
+  $('rdScope').style.display = (window.rdScoped(g) && R.ads > 0.85) ? 'block' : 'none';
 }
 
 // ───────────────────────── raid start / end ─────────────────────────
@@ -926,12 +926,12 @@ document.addEventListener('mouseup', e => { if (e.button === 2) R.adsHeld = fals
 // mouse look with the Settings sensitivity (replaces the original handler during a raid); looking slows down a little while aiming down sights
 document.addEventListener('mousemove', e => {
   if (!inGame || !R.on || !isLocked) return; e.stopImmediatePropagation();
-  const s = ((window.RDSET && window.RDSET.sens) || 1) * (1 - R.ads * 0.45) * (R.ads > 0.5 ? 1 / Math.sqrt(gun().zoom) : 1);
+  const s = ((window.RDSET && window.RDSET.sens) || 1) * (1 - R.ads * 0.45) * (R.ads > 0.5 ? 1 / Math.sqrt(gun().zoom * window.rdZoomMul(gun())) : 1);
   yaw -= e.movementX * 0.0022 * s; pitch -= e.movementY * 0.0020 * s; pitch = Math.max(-1.3, Math.min(1.3, pitch));
 }, true);
 window.rdSetVolume = function (v) { if (master) master.gain.value = v; };
 window.addEventListener('pointerup', () => { R.semiReady = true; });
-document.addEventListener('wheel', e => { if (R.on && R.ads > 0.5 && gun().scope) e.preventDefault(); }, { passive: false });
+document.addEventListener('wheel', e => { if (R.on && R.ads > 0.5 && window.rdScoped(gun())) e.preventDefault(); }, { passive: false });
 document.addEventListener('keydown', e => {
   if (!inGame || !R.on || e.repeat) return;
   const k = e.code;
