@@ -41,6 +41,7 @@ function upgrade(b) {
 }
 window.rdBotUpgrade = upgrade;
 function setNear(b, near) {
+  if (b._hyBody) { b._near = near; return; }
   if (b._near === near) return; b._near = near; b.mesh.children.forEach(c => { if (c._lo) c.visible = !near; else { c.visible = near; if (c.isMesh) c.castShadow = near; } });
 }
 // ───────── grenades ─────────
