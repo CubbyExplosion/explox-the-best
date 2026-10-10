@@ -68,7 +68,7 @@ function build() {
   s += `</svg>`;
   let pills = `<span class="pill ${sel < 0 ? 'on' : ''}" data-c="-1">🌍 World</span>` + COUNTRIES.map((k, idx) => { const a = Math.ceil(idx * PER - 0.001) || 1, b = idx === COUNTRIES.length - 1 ? 100 : Math.floor((idx + 1) * PER - 0.001); return `<span class="pill ${idx === sel ? 'on' : ''}" data-c="${idx}">${k[1]} ${k[0]} <small>${a}–${b}</small></span>`; }).join('');
   let list = '';
-  if (c) { list = `<div style="margin-top:8px;color:#9a8a80;font-size:12px">${c[1]} <b style="color:#ffd9b0">${c[0]}</b> — region “${c[5]}”. Tap a sector to deploy:</div>` + sectors.filter(i => countryOf(i) === sel).map(i => { const d = rDifficulty(i); return `<span class="sbtn" data-i="${i}" style="border-color:${d.color}88">${isHiddenMap(i) ? '★ ' : ''}Sector ${i} · <b style="color:${d.color}">${d.name}</b></span>`; }).join(''); }
+  if (c) { list = `<div style="margin:8px 0"><button class="rdBtnS go" data-explore="${sel}">🗺️ EXPLORE ${c[0].toUpperCase()} — open country map</button> <small style="color:#9a8a80">a full map of ${c[0]} with its own landmarks, enemies, bank and extraction points</small></div>` + `<div style="margin-top:8px;color:#9a8a80;font-size:12px">${c[1]} <b style="color:#ffd9b0">${c[0]}</b> — region “${c[5]}”. Or tap a sector to deploy:</div>` + sectors.filter(i => countryOf(i) === sel).map(i => { const d = rDifficulty(i); return `<span class="sbtn" data-i="${i}" style="border-color:${d.color}88">${isHiddenMap(i) ? '★ ' : ''}Sector ${i} · <b style="color:${d.color}">${d.name}</b></span>`; }).join(''); }
   else list = `<div style="margin-top:8px;color:#9a8a80;font-size:12px">Green zones are safe, red are deadly. Tap a country to zoom in. ${sectors.length} sectors available.</div>`;
   return `${s}<div>${pills}</div>${list}`;
 }
@@ -82,6 +82,7 @@ function render() {
   box.innerHTML = build();
   box.querySelectorAll('.cty,.pill').forEach(el => el.addEventListener('click', () => { sel = el.classList.contains('pill') || sel !== parseInt(el.dataset.c, 10) ? parseInt(el.dataset.c, 10) : sel; render(); }));
   box.querySelectorAll('.pin').forEach(el => el.addEventListener('click', ev => { ev.stopPropagation(); enterMap(parseInt(el.dataset.m, 10)); }));
+  box.querySelectorAll('[data-explore]').forEach(el => el.addEventListener('click', ev => { ev.stopPropagation(); enterMap((window.COUNTRY_BASE || 200) + parseInt(el.dataset.explore, 10)); }));
   box.querySelectorAll('.sec,.sbtn').forEach(el => el.addEventListener('click', ev => { ev.stopPropagation(); enterMap(parseInt(el.dataset.i, 10)); }));
 }
 const prev = window.renderMapGrid;
