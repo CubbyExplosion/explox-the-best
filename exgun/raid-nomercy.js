@@ -151,6 +151,7 @@ function start(m) {
   R.z = Object.assign({}, R_ZONES); R.bleed = 0; R.pain = 0; R.stamina = 100; R.buff = { speed: 0, regen: 0, regenT: 0, resist: 0, steady: 0 }; R.flashT = 0; R.nades = []; R.smokes = []; R.fires = []; R.use = null; R.hold = null;
   const prevT = window.RDSET.time; window.RDSET.time = m.time; window.rdApplyLook(); window.RDSET.time = prevT; scene.add(camera); I().giveKit(); api.syncHp();
   buildNmHud(); document.body.classList.add('rdOn', 'btOn', 'nmOn'); document.getElementById('hudMapName').textContent = m.name; inGame = true; showScreen('gameScreen');
+  try { if (window.rdMergeMap) window.rdMergeMap(); } catch (e) { }
   I().kill(`☠️ ${m.name} (${th.label}): fight through the gate, cross the courtyards and hold E at the war table in the keep. One life!`, 6500);
 }
 // ───────────────────────── per-frame ─────────────────────────

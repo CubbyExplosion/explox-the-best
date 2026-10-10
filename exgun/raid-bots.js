@@ -56,7 +56,7 @@ function stepNades(dt) {
 // ───────── per-frame ─────────
 let last = performance.now(), lodT = 0, fpsAcc = 0, fpsN = 0, fpsT = 0;
 function frame(dt) {
-  const R = window.RAID; if (!BT.on || !R || !R.on || R.over) return; const pp = playerPos;
+  const R = window.RAID; if (!BT.on || !R || !R.on || R.over) return; if (BT.t < 1.5 && !BT._lp && window.rdLightPool) { BT._lp = true; const z = new THREE.Vector3(0, 5, 0); for (let i = 0; i < 4; i++) window.rdLightPool.take(0xffffff, 0, 10, z, 1); } else if (BT.t > 3) BT._lp = false; if (BT.mode === 'endless' && BT.en && BT.en.frozen) return; const pp = playerPos;
   fpsAcc += dt; fpsN++; fpsT += dt;
   if (fpsT > 1.5) { const avg = fpsAcc / fpsN; fpsAcc = fpsN = 0; fpsT = 0; if (BT.hc && !BT.hc.over) { const T = BT.hc.T, cur = BT.hc.capNow || T.cap; BT.hc.capNow = avg > 0.045 ? Math.max(30, Math.floor(cur * 0.85)) : avg < 0.026 ? Math.min(T.cap, cur + 5) : cur; } }
   lodT -= dt; const doLod = lodT <= 0; if (doLod) lodT = 0.3;
@@ -64,7 +64,8 @@ function frame(dt) {
   const list = enemies.concat(BT.allies);
   for (let i = 0; i < list.length; i++) {
     const b = list[i]; if (!b.mesh) continue; if (!b._up) upgrade(b); if (b.mesh.userData.hy) continue; const m = b.mesh.position, d = Math.hypot(m.x - pp.x, m.z - pp.z);
-    if (doLod) setNear(b, b._near ? d < FAR : d < NEAR);
+    if (doLod) { setNear(b, b._near ? d < FAR : d < NEAR); b.mesh.visible = d < 200 || !!b._wasVis; if (b.hp < (b._php === undefined ? b.hp : b._php)) b._hitAt = BT.t; b._php = b.hp; }
+    if (!doLod && b.hp < (b._php === undefined ? b.hp : b._php)) { b._hitAt = BT.t; b._php = b.hp; }
     if (!b._near || !b.alive) { if (!b.alive && b._legs && !b._dead) { b._dead = true; b._legs.forEach(l => l.rotation.x = 0); b.mesh.scale.y = 1; } continue; }
     // walk cycle
     const sp = Math.hypot(m.x - b._lx, m.z - b._lz) / Math.max(dt, 0.001); b._lx = m.x; b._lz = m.z; b._spd = (b._spd || 0) + (Math.min(sp, 6) - (b._spd || 0)) * Math.min(1, dt * 8); b._ph += b._spd * dt * 2.2;

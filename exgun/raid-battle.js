@@ -196,7 +196,8 @@ function botUpdate(b, dt) {
   const t = b.target && targetAlive(b.target) ? b.target : null;
   if (t) {
     const tp = targetPos(t), dx = tp.x - m.x, dz = tp.z - m.z, dist = Math.hypot(dx, dz) || 1e-4; b.mesh.rotation.y = Math.atan2(dx, dz);
-    if (dist > d.pref[1]) moveBot(b, tp.x, tp.z, d.speed, dt); else if (dist < d.pref[0]) moveBot(b, m.x - dx, m.z - dz, d.speed * 0.8, dt);
+    if (BT.covers && BT.covers.length && !(b._cv && BT.t < b._cv.until) && b._hitAt && BT.t - b._hitAt < 1.2 && dist > 9 && Math.random() < dt * 1.5) { let bc = null, bd = 22; for (const c of BT.covers) { const dd = Math.abs(c.x - m.x) + Math.abs(c.z - m.z); if (dd < bd) { const ox = c.x - tp.x, oz = c.z - tp.z, ol = Math.hypot(ox, oz) || 1; bd = dd; bc = { x: c.x + ox / ol * 1.7, z: c.z + oz / ol * 1.7, until: BT.t + rnd(5, 9) }; } } if (bc && !window.blockedAt(bc.x, bc.z)) b._cv = bc; }
+    if (b._cv && BT.t < b._cv.until) { moveBot(b, b._cv.x, b._cv.z, d.speed, dt); } else if (dist > d.pref[1]) moveBot(b, tp.x, tp.z, d.speed, dt); else if (dist < d.pref[0]) moveBot(b, m.x - dx, m.z - dz, d.speed * 0.8, dt);
     else { b.strafeT -= dt; if (b.strafeT <= 0) { b.strafe *= -1; b.strafeT = rnd(1, 2.6); } moveBot(b, m.x + (-dz / dist) * b.strafe * 5, m.z + (dx / dist) * b.strafe * 5, d.speed * 0.6, dt); }
     if (dist < d.sight) {
       if (b.restT > 0) b.restT -= dt;
@@ -519,6 +520,7 @@ const origTick = window.tickEnemyAI;
 window.tickEnemyAI = function (dt) {
   if (!BT.on) return origTick(dt);
   if (BT.ended) return; BT.t += dt; R.t = BT.t;
+  if (BT.mode === 'endless' && window.rdENFrozen && window.rdENFrozen(dt)) { hudUpdate(dt); return; }
   const lod = (b) => { if ((BT.mode === 'hardcore' || BT.mode === 'endless') && b.alive) { const d = Math.abs(b.mesh.position.x - playerPos.x) + Math.abs(b.mesh.position.z - playerPos.z); if (d > 170) { b._ta = (b._ta || 0) + dt; if (b._ta < 0.25) return; botUpdate(b, b._ta); b._ta = 0; return; } } botUpdate(b, dt); };
   enemies.forEach(lod); BT.allies.forEach(BT.mode === 'endless' ? lod : (b => botUpdate(b, dt)));
   vehiclesUpdate(dt); updateShells(dt);
@@ -562,6 +564,7 @@ function startBattle(real) {
   R.z = Object.assign({}, R_ZONES); R.bleed = 0; R.pain = 0; R.stamina = 100; R.buff = { speed: 0, regen: 0, regenT: 0, resist: 0, steady: 0 }; R.flashT = 0; R.nades = []; R.smokes = []; R.fires = []; R.use = null; R.hold = null;
   window.rdApplyLook(); scene.add(camera); giveKit(); A().syncHp();
   document.body.classList.add('rdOn', 'btOn'); document.getElementById('hudMapName').textContent = 'Team Battle'; inGame = true; showScreen('gameScreen'); userState.kills = userState.kills || 0;
+  try { if (window.rdMergeMap) window.rdMergeMap(); } catch (e) { }
   kill(`⚔️ Battle started — ${BT.diff === 0 ? 'Easy' : BT.diff === 2 ? 'Hard' : 'Normal'} bots. Capture the points 🚩 and use vehicles (F)!`, 5200);
 }
 // the button on the sector screen

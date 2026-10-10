@@ -7,6 +7,17 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 (function () {
 'use strict';
+// ───────── fixed pool of lights (never add/remove lights during play: that recompiles every shader) ─────────
+const LP = []; let lpI = 0;
+window.rdLightPool = {
+  take(color, intensity, dist, pos, ms) {
+    if (typeof scene === 'undefined' || !scene) return { intensity: 0, userData: {} }; while (LP.length < 4) { const l = new THREE.PointLight(0xffffff, 0, 10); l.userData = { free: true }; LP.push(l); }
+    let L = LP.find(l => l.userData.free) || LP[lpI++ % LP.length]; if (!L.parent || L.parent !== scene) scene.add(L);
+    L.color.set(color); L.intensity = intensity; L.distance = dist; L.position.copy(pos); L.userData.free = false; L.userData.t0 = performance.now(); L.userData.ms = ms || 0; L.userData.i0 = intensity;
+    if (ms) { clearTimeout(L.userData.to); L.userData.to = setTimeout(() => { L.intensity = 0; L.userData.free = true; }, ms); } return L;
+  }
+};
+
 let texFire = null, texSmoke = null, texFlash = null, texRing = null, scorchTex = null;
 function mk(size, draw) { const c = document.createElement('canvas'); c.width = c.height = size; draw(c.getContext('2d'), size); const t = new THREE.CanvasTexture(c); return t; }
 function textures() {
@@ -29,7 +40,7 @@ window.rdExplosion = function (p, d) {
     const R = Math.max(5, (d && d.radius) || 8), scale = Math.min(1.6, R / 8), t0 = performance.now(), gy = Math.max(0, p.y || 0);
     const o = { t0, parts: [], scale };
     // 1) the flash: a hot white core + light
-    o.flash = spr(texFlash, 0xffffff, THREE.AdditiveBlending, p.x, gy + 1, p.z, 5 * scale, 1); o.light = new THREE.PointLight(0xffb060, 14, 40 * scale); o.light.position.set(p.x, gy + 1.6, p.z); scene.add(o.light);
+    o.flash = spr(texFlash, 0xffffff, THREE.AdditiveBlending, p.x, gy + 1, p.z, 5 * scale, 1); o.light = window.rdLightPool.take(0xffb060, 14, 40 * scale, new THREE.Vector3(p.x, gy + 1.6, p.z), 0);
     // 2) the fireball: overlapping fire puffs that rise and swell, then cool to smoke
     for (let i = 0; i < 16; i++) { const a = Math.random() * 6.28, r = Math.random() * 0.8 * scale, s = (1.6 + Math.random() * 1.8) * scale; const sp = spr(texFire, 0xffffff, THREE.AdditiveBlending, p.x + Math.cos(a) * r, gy + 0.5 + Math.random() * 0.8, p.z + Math.sin(a) * r, s, 0.95); o.parts.push({ sp, kind: 'fire', vx: Math.cos(a) * (1.5 + Math.random() * 2.2) * scale, vy: (1.8 + Math.random() * 3) * scale, vz: Math.sin(a) * (1.5 + Math.random() * 2.2) * scale, s0: s, life: 0.55 + Math.random() * 0.45, rot: (Math.random() - 0.5) * 2 }); }
     // 3) the smoke column: dark puffs that rise, widen and linger for several seconds
@@ -66,15 +77,15 @@ let fT = null;
 window.rdNpcFlash = function (e, pos) {
   try {
     if (typeof scene === 'undefined' || !scene) return; textures(); const dir = new THREE.Vector3(Math.sin(e.mesh.rotation.y), 0, Math.cos(e.mesh.rotation.y));
-    const sp = spr(texFlash, 0xffd9a0, THREE.AdditiveBlending, pos.x + dir.x * 0.12, pos.y, pos.z + dir.z * 0.12, 0.9 + Math.random() * 0.4, 1); const L = new THREE.PointLight(0xffb060, 3, 9); L.position.copy(pos); scene.add(L);
-    setTimeout(() => { scene.remove(sp); sp.material.dispose(); scene.remove(L); }, 55);
+    const sp = spr(texFlash, 0xffd9a0, THREE.AdditiveBlending, pos.x + dir.x * 0.12, pos.y, pos.z + dir.z * 0.12, 0.9 + Math.random() * 0.4, 1); if (typeof playerPos !== 'undefined' && Math.abs(pos.x - playerPos.x) + Math.abs(pos.z - playerPos.z) < 45) window.rdLightPool.take(0xffb060, 2.5, 9, pos, 55);
+    setTimeout(() => { scene.remove(sp); sp.material.dispose(); }, 55);
   } catch (x) { }
 };
 function step(now) {
   for (let i = live.length - 1; i >= 0; i--) {
     const SL = window.__expSlow || 1, o = live[i], t = (now - o.t0) / 1000 * SL, dt = Math.min(0.05, (now - (o.last || o.t0)) / 1000) * SL; o.last = now; const s = o.scale;
     if (o.flash) { const k = Math.min(1, t / 0.18); o.flash.scale.setScalar((5 + k * 10) * s); o.flash.material.opacity = Math.max(0, 1 - k); if (k >= 1) { scene.remove(o.flash); o.flash.material.dispose(); o.flash = null; } }
-    if (o.light) { const f = Math.max(0, 1 - t / 0.9); o.light.intensity = 14 * f * f * (0.85 + Math.random() * 0.3); if (f <= 0) { scene.remove(o.light); o.light = null; } }
+    if (o.light) { const f = Math.max(0, 1 - t / 0.9); o.light.intensity = 14 * f * f * (0.85 + Math.random() * 0.3); if (f <= 0) { o.light.intensity = 0; o.light.userData.free = true; o.light = null; } }
     if (o.ring) { const k = Math.min(1, t / 0.55), r = 0.6 + k * o.ring.userData.max; o.ring.scale.setScalar(r); o.ring.material.opacity = 0.7 * (1 - k); if (k >= 1) { scene.remove(o.ring); o.ring.geometry.dispose(); o.ring.material.dispose(); o.ring = null; } }
     let any = !!(o.flash || o.light || o.ring);
     o.parts.forEach(q => {
