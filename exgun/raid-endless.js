@@ -35,7 +35,7 @@ function start() {
   window.HOUSE3D.build({ endless: true }); buildBattlefield(); scene.add(camera); window.rdApplyLook(); playerPos.x = 0; playerPos.z = 15; yaw = Math.PI; pitch = 0; BT.covers = COVERS; BT.en.mortarT = 30; BT.en.ambT = 2; BT.en.insideT = 0; sky(); try { window.rdMergeMap(); } catch (e) { }
   const I_ = I(); [['jeep', 24, 22], ['jeep', 30, 22], ['apc', -26, 24], ['tank', -34, 24]].forEach(([k, x, z]) => I_.addVehicle(k, 'A', x, z, Math.PI, false));
   fillArmy(true); document.body.classList.add('hcOn'); ensureHud(); document.getElementById('hudMapName').textContent = 'Endless';
-  I_.kill('🌊 ENDLESS — you and 99 soldiers vs waves of 100. Wave 1 starts in 5 seconds. Hold the line!', 6000);
+  I_.kill('🌊 ENDLESS — you COMMAND the army: Z follow me · X hold here · C advance to where you aim · V fall back · Y call next wave. Wave 1 in 5 s!', 9000);
 }
 function ensureHud() { if ($('enHud')) return; if (!$('hcHud')) { const css = document.createElement('style'); css.textContent = 'body.hcOn #btTop{display:none!important}'; document.head.appendChild(css); } const css2 = document.createElement('style'); css2.textContent = '#enHud{position:fixed;top:8px;left:50%;transform:translateX(-50%);background:#000b;color:#fff;border:1px solid #4aa8ff;border-radius:10px;padding:6px 16px;z-index:19;font:bold 14px Arial;text-shadow:0 1px 3px #000;text-align:center;display:none} body.hcOn #enHud{display:block} #enHud small{display:block;font-weight:normal;color:#cfe3ff;font-size:11.5px} #enBanner{position:fixed;top:30%;left:50%;transform:translateX(-50%);z-index:40;color:#fff;font:900 46px Arial;text-shadow:0 0 18px #4aa8ff,0 3px 6px #000;letter-spacing:4px;opacity:0;transition:opacity .5s;pointer-events:none;text-align:center}'; document.head.appendChild(css2); const h = document.createElement('div'); h.id = 'enHud'; document.body.appendChild(h); const b = document.createElement('div'); b.id = 'enBanner'; document.body.appendChild(b); }
 function banner(t, ms) { const b = $('enBanner'); if (!b) return; b.textContent = t; b.style.opacity = '1'; clearTimeout(banner.t); banner.t = setTimeout(() => { b.style.opacity = '0'; }, ms || 2500); }
@@ -48,6 +48,35 @@ function fillArmy(first) {
   if (!first && n) I().kill(`🛡️ ${n} reinforcements joined your army`, 2500);
 }
 function rnd(a, b) { return a + Math.random() * (b - a); }
+
+// ───────── YOU COMMAND THE ARMY ─────────
+//   Z follow me · X hold here · C advance to where you aim · V fall back to the house · Y call the next wave early (during the break)
+const ORDERS = { follow: ['🚶 FOLLOW ME', '#7dffb0'], hold: ['✋ HOLD POSITION', '#ffd24a'], advance: ['⚔️ ADVANCE', '#ff7a4a'], fallback: ['🏠 FALL BACK', '#7ab0ff'] };
+let marker = null;
+function aimPoint() { const dir = new THREE.Vector3(); camera.getWorldDirection(dir); const o = camera.position; let x, z; if (dir.y < -0.03) { const t = Math.min(160, -o.y / dir.y); x = o.x + dir.x * t; z = o.z + dir.z * t; } else { x = o.x + dir.x * 60; z = o.z + dir.z * 60; } return { x: Math.max(-HALF + 6, Math.min(HALF - 6, x)), z: Math.max(-HALF + 6, Math.min(HALF - 6, z)) }; }
+function showMarker(p, col) {
+  if (!marker || !marker.parent) { marker = new THREE.Group(); const ring = new THREE.Mesh(new THREE.RingGeometry(5, 6, 40), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false })); ring.rotation.x = -Math.PI / 2; const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 14, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45 })); beam.position.y = 7; marker.add(ring, beam); marker.userData.nuke = true; marker.userData.keepMesh = true; scene.add(marker); }
+  marker.position.set(p.x, 0.15, p.z); marker.children.forEach(c => c.material.color.set(col)); marker.visible = true;
+}
+function say(kind, lines) { const el = BT.allies.filter(b => b.alive); for (let i = 0; i < 3 && el.length; i++) { const b = el[Math.floor(Math.random() * el.length)]; try { if (window.rdVoice) window.rdVoice('shout', b); } catch (e) { } } I().kill(lines, 2000); }
+function giveOrder(type, point) {
+  const E = BT.en; if (!E || E.over || R.dead || E.frozen) return; E.order = { type, x: point.x, z: point.z, at: BT.t };
+  BT.allies.forEach(b => { b._cv = null; b._oi = undefined; b.goal = null; });
+  if (type === 'follow') { E.order = { type }; if (marker) marker.visible = false; say(type, '🗣️ “On you, commander!”'); }
+  else { showMarker(point, ORDERS[type][1]); say(type, type === 'hold' ? '🗣️ “Holding this position!”' : type === 'advance' ? '🗣️ “Moving up!”' : '🗣️ “Falling back to the house!”'); }
+  const h = $('enHud'); if (h) h.dataset.order = ORDERS[type][0];
+}
+document.addEventListener('keydown', e => {
+  if (e.repeat || !BT.on || BT.mode !== 'endless' || !R.on || !BT.en || BT.en.over) return;
+  if (e.code === 'KeyZ') giveOrder('follow', playerPos); else if (e.code === 'KeyX') giveOrder('hold', { x: playerPos.x, z: playerPos.z }); else if (e.code === 'KeyC') giveOrder('advance', aimPoint()); else if (e.code === 'KeyV') giveOrder('fallback', { x: 0, z: 22 });
+  else if (e.code === 'KeyY' && BT.en.state === 'break') { BT.en.t = 0; I().kill('📣 Calling the next wave early!', 1500); }
+});
+// radio chatter: soldiers call out what is happening around you
+function chatter(dt) {
+  const E = BT.en; E.chT = (E.chT || 3) - dt; if (E.chT > 0) return; E.chT = rnd(4, 9); const al = BT.allies.filter(b => b.alive); if (!al.length) return; const b = al[Math.floor(Math.random() * al.length)], en = enemies.filter(x => x.alive); let msg = null;
+  if (en.length) { const e = en.reduce((a, c) => (!a || Math.hypot(c.mesh.position.x - b.mesh.position.x, c.mesh.position.z - b.mesh.position.z) < Math.hypot(a.mesh.position.x - b.mesh.position.x, a.mesh.position.z - b.mesh.position.z)) ? c : a, null); const dx = e.mesh.position.x - playerPos.x, dz = e.mesh.position.z - playerPos.z, ang = ((Math.atan2(-dx, -dz) - yaw) % 6.2832 + 9.4248) % 6.2832 - 3.1416, dir = Math.abs(ang) < 0.7 ? 'ahead' : Math.abs(ang) > 2.4 ? 'behind us' : ang > 0 ? 'on the left' : 'on the right', d = Math.round(Math.hypot(dx, dz)); const r = Math.random(); msg = r < 0.5 ? '🗣️ “Contact ' + dir + ', ' + d + ' m!”' : r < 0.7 ? '🗣️ “Reloading!”' : r < 0.85 ? '🗣️ “I need cover!”' : '🗣️ “Keep pushing!”'; }
+  if (msg) I().kill(msg, 1800);
+}
 // ───────── the battlefield: cover, wrecks, burning barrels ─────────
 const COVERS = [];
 function buildBattlefield() {
@@ -116,7 +145,7 @@ function startWave() {
   banner('🌊 WAVE ' + E.wave, 3000); I().kill(`🌊 WAVE ${E.wave}: ${WAVE} enemies incoming — soldiers ${E.wave > 1 ? 'are tougher' : 'attack'}!`, 3500);
 }
 window.rdENTick = function (dt) {
-  const E = BT.en; if (!E || E.over) return; ambience(dt); plumes(dt);
+  const E = BT.en; if (!E || E.over) return; ambience(dt); plumes(dt); chatter(dt);
   // the enemy notices if you camp in one spot: some soldiers swing round behind you
   { const dxp = playerPos.x - (E.lx === undefined ? playerPos.x : E.lx), dzp = playerPos.z - (E.lz === undefined ? playerPos.z : E.lz); E.lx = playerPos.x; E.lz = playerPos.z; R.idleT = (Math.hypot(dxp, dzp) < 0.05 ? (R.idleT || 0) + dt : 0); E.campT = (E.campT || 0) - dt; if (R.idleT > 8 && E.campT <= 0) { E.campT = 4; enemies.forEach(b => { if (b.alive && b.team === 'B' && Math.random() < 0.3) { b.flank = (Math.random() < 0.5 ? -1 : 1) * rnd(2.3, 3.0); b.role = 'flank'; } }); } }
   if (R.dead) { E.deadT = (E.deadT === undefined ? 6 : E.deadT) - dt; const el = $('btDead'); if (el && E.lives > 0) el.innerHTML = `<div style="font-size:30px;font-weight:900;color:#ff5544;letter-spacing:3px">YOU FELL</div><div style="margin:8px 0;color:#ddd">${E.lives} li${E.lives === 1 ? 'fe' : 'ves'} left · respawn in ${Math.max(0, Math.ceil(E.deadT))}…</div>`; if (E.deadT <= 0 && E.lives > 0) { E.deadT = undefined; I().respawnPlayer(I().baseSpawn('A')); } }
@@ -132,7 +161,7 @@ window.rdENTick = function (dt) {
 };
 window.rdENHud = function () {
   const h = $('enHud'), E = BT.en; if (!h || !E) return; const alive = enemies.filter(b => b.alive).length, ally = BT.allies.filter(b => b.alive).length + (R.dead ? 0 : 1);
-  h.innerHTML = E.frozen ? `🏠 INSIDE THE HOUSE — battle frozen · you are recovering<small>🌊 wave ${Math.max(1, E.wave)} · 🛡️ army ${ally}/${ARMY} · ❤️ lives ${E.lives}</small>` : `🌊 WAVE ${Math.max(1, E.wave)} — ${E.state === 'break' ? '<span style="color:#7dffb0">next wave in ' + Math.ceil(E.t) + 's</span>' : 'enemies left <span style="color:#ff8a6a">' + (alive + E.queue) + '</span>/' + WAVE}<small>🛡️ your army ${ally}/${ARMY} · ❤️ lives ${E.lives} · kills ${BT.stats.kills} · ☢️ nukes ${E.nukes || 0}</small>`;
+  h.innerHTML = E.frozen ? `🏠 INSIDE THE HOUSE — battle frozen · you are recovering<small>🌊 wave ${Math.max(1, E.wave)} · 🛡️ army ${ally}/${ARMY} · ❤️ lives ${E.lives}</small>` : `🌊 WAVE ${Math.max(1, E.wave)} — ${E.state === 'break' ? '<span style="color:#7dffb0">next wave in ' + Math.ceil(E.t) + 's</span>' : 'enemies left <span style="color:#ff8a6a">' + (alive + E.queue) + '</span>/' + WAVE}<small>🛡️ your army ${ally}/${ARMY} · ❤️ lives ${E.lives} · kills ${BT.stats.kills} · ☢️ nukes ${E.nukes || 0}</small><small>📻 Order: <b>${h.dataset.order || 'free (they hunt the enemy)'}</b> · Z follow · X hold · C advance · V fall back${E.state === 'break' ? ' · Y next wave' : ''}</small>`;
 };
 window.rdENDeath = function (reason) {
   const E = BT.en; if (!E || E.over || R.dead || BT.ended) return; if (reason === 'mia') return; R.dead = true; BT.stats.deaths++; E.lives--; E.deadT = 6; R.use = null; R.reload = 0; fireHeld = false; R.adsHeld = false; if (R.veh) I().exitVehicle(true);

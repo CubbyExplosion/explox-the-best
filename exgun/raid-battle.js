@@ -178,7 +178,9 @@ function objectiveFor(b) {
       }
       if (dd < 45) return { x: playerPos.x + rnd(-16, 16), z: playerPos.z + rnd(-16, 16) };
       const c = Math.cos(b.flank), s = Math.sin(b.flank); return { x: m.x + (dx * c - dz * s) / dd * (dd - 30), z: m.z + (dx * s + dz * c) / dd * (dd - 30) };
-    } let best = null, bd = 1e9; const mp = b.mesh.position; for (let i = 0; i < enemies.length; i += 3) { const e = enemies[i]; if (!e.alive) continue; const d = Math.abs(e.mesh.position.x - mp.x) + Math.abs(e.mesh.position.z - mp.z); if (d < bd) { bd = d; best = e; } } if (best) return { x: best.mesh.position.x + rnd(-10, 10), z: best.mesh.position.z + rnd(-10, 10) }; return { x: playerPos.x + rnd(-12, 12), z: playerPos.z + rnd(-12, 12) - 8 }; }
+    }
+    { const o = BT.en && BT.en.order; if (o) { if (o.type === 'follow') return { x: playerPos.x + rnd(-10, 10), z: playerPos.z + rnd(-10, 10) }; return { x: o.x + rnd(-8, 8), z: o.z + rnd(-8, 8) }; } }
+    let best = null, bd = 1e9; const mp = b.mesh.position; for (let i = 0; i < enemies.length; i += 3) { const e = enemies[i]; if (!e.alive) continue; const d = Math.abs(e.mesh.position.x - mp.x) + Math.abs(e.mesh.position.z - mp.z); if (d < bd) { bd = d; best = e; } } if (best) return { x: best.mesh.position.x + rnd(-10, 10), z: best.mesh.position.z + rnd(-10, 10) }; return { x: playerPos.x + rnd(-12, 12), z: playerPos.z + rnd(-12, 12) - 8 }; }
   if (BT.mode === 'hardcore') { if (R.dead) return { x: rnd(-60, 60), z: rnd(-60, 60) }; const m = b.mesh.position, dx = playerPos.x - m.x, dz = playerPos.z - m.z, dd = Math.hypot(dx, dz) || 1; if (b.flank === undefined) b.flank = rnd(-1.1, 1.1); if (dd < 45) return { x: playerPos.x + rnd(-14, 14), z: playerPos.z + rnd(-14, 14) }; const c = Math.cos(b.flank), s = Math.sin(b.flank), ux = (dx * c - dz * s) / dd, uz = (dx * s + dz * c) / dd; return { x: m.x + ux * (dd - 30), z: m.z + uz * (dd - 30) }; }       // Hardcore: they flank you from different angles
   if (BT.mode === 'nomercy') {                                    // fortress assault: attackers follow the breach route, defenders hold their posts
     if (b.guard) return { x: b.home.x + rnd(-5, 5), z: b.home.z + rnd(-5, 5) };
@@ -211,7 +213,9 @@ function botUpdate(b, dt) {
   if (t) {
     const tp = targetPos(t), dx = tp.x - m.x, dz = tp.z - m.z, dist = Math.hypot(dx, dz) || 1e-4; b.mesh.rotation.y = Math.atan2(dx, dz);
     if (BT.covers && BT.covers.length && !(b._cv && BT.t < b._cv.until) && b._hitAt && BT.t - b._hitAt < 1.2 && dist > 9 && Math.random() < dt * 1.5) { let bc = null, bd = 22; for (const c of BT.covers) { const dd = Math.abs(c.x - m.x) + Math.abs(c.z - m.z); if (dd < bd) { const ox = c.x - tp.x, oz = c.z - tp.z, ol = Math.hypot(ox, oz) || 1; bd = dd; bc = { x: c.x + ox / ol * 1.7, z: c.z + oz / ol * 1.7, until: BT.t + rnd(5, 9) }; } } if (bc && !window.blockedAt(bc.x, bc.z)) b._cv = bc; }
-    if (b._cv && BT.t < b._cv.until) { moveBot(b, b._cv.x, b._cv.z, d.speed, dt); } else if (dist > d.pref[1]) moveBot(b, tp.x, tp.z, d.speed, dt); else if (dist < d.pref[0]) moveBot(b, m.x - dx, m.z - dz, d.speed * 0.8, dt);
+    const ORD = (BT.mode === 'endless' && b.team === 'A' && BT.en && BT.en.order && BT.en.order.type !== 'advance') ? BT.en.order : null;
+    if (ORD) { const gx = ORD.type === 'follow' ? playerPos.x : ORD.x, gz = ORD.type === 'follow' ? playerPos.z : ORD.z, lim = ORD.type === 'follow' ? 16 : ORD.type === 'hold' ? 12 : 5; if (b._oi === undefined) b._oi = Math.random() * 6.28; const px = gx + Math.cos(b._oi) * Math.min(lim, 7), pz = gz + Math.sin(b._oi) * Math.min(lim, 7); if (Math.hypot(m.x - px, m.z - pz) > lim) moveBot(b, px, pz, d.speed, dt); }
+    else if (b._cv && BT.t < b._cv.until) { moveBot(b, b._cv.x, b._cv.z, d.speed, dt); } else if (dist > d.pref[1]) moveBot(b, tp.x, tp.z, d.speed, dt); else if (dist < d.pref[0]) moveBot(b, m.x - dx, m.z - dz, d.speed * 0.8, dt);
     else { b.strafeT -= dt; if (b.strafeT <= 0) { b.strafe *= -1; b.strafeT = rnd(1, 2.6); } moveBot(b, m.x + (-dz / dist) * b.strafe * 5, m.z + (dx / dist) * b.strafe * 5, d.speed * 0.6, dt); }
     if (dist < d.sight) {
       if (b.restT > 0) b.restT -= dt;
