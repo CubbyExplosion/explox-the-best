@@ -8,9 +8,9 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 (function () {
 'use strict';
-const DEFAULTS = { smooth: false, shadows: 'high', time: 'auto', sens: 1, fov: 78, vol: 0.55, hyper: 'auto' };
+const DEFAULTS = { smooth: false, shadows: 'high', time: 'auto', sens: 1, fov: 78, vol: 0.55, hyper: 'auto', real: undefined, weather: 'auto' };
 let saved = {}; try { saved = JSON.parse(localStorage.getItem('exgun_settings') || '{}') || {}; } catch (e) {}
-const S = window.RDSET = Object.assign({}, DEFAULTS, saved);
+const S = window.RDSET = Object.assign({}, DEFAULTS, saved); if (S.real === undefined) S.real = !(window.matchMedia && window.matchMedia('(pointer:coarse)').matches); if (S.real) S.smooth = true;      // REAL LIFE look is the default on computers
 function save() { try { localStorage.setItem('exgun_settings', JSON.stringify(S)); } catch (e) {} }
 
 // ───────── rounded geometry ─────────
@@ -46,6 +46,8 @@ const TIMES = [['auto', 'Auto (random)'], ['dawn', '🌅 Dawn'], ['morning', '�
 function opt(group, val, label) { return `<span class="stOpt ${String(S[group]) === String(val) ? 'on' : ''}" data-g="${group}" data-v="${val}">${label}</span>`; }
 function render() {
   scr.innerHTML = `<div class="box"><h1>⚙️ SETTINGS</h1>
+   <div class="stRow"><b>🌍 Real life look</b><small>Makes the game look like a real place: rounded models, the full realistic render pipeline, patchy grass/dirt ground, swaying grass, street lamps and parked cars, real weather (rain with lightning, fog), wind and birdsong. Needs a decent computer — it switches the extras off by itself if your frame rate drops. Applies from your next raid.</small>${opt('real', true, '🌍 Real life — ON')}${opt('real', false, 'Off')}</div>
+   <div class="stRow"><b>Weather</b><small>Only with Real life on.</small>${opt('weather', 'auto', 'Auto (random)')}${opt('weather', 'clear', '☀️ Clear')}${opt('weather', 'rain', '🌧️ Rain')}${opt('weather', 'fog', '🌫️ Fog')}</div>
    <div class="stRow"><b>Model style</b><small>🧱 <b>Blocky</b> is the classic look. ⚪ <b>Smooth = HYPER-REALISTIC</b>: rounded models, real human soldiers with a walk cycle, textured walls and ground with relief, reflective puddles, bloom, ambient occlusion, light shafts, film colour, shell casings, bullet holes and echoing sound. It needs a stronger device. Applies from your next raid.</small>${opt('smooth', false, '🧱 Blocky')}${opt('smooth', true, '⚪ Smooth — hyper-realistic')}</div>
    <div class="stRow"><b>Hyper-realism quality</b><small>Only used with Smooth. High has everything. Medium drops the ambient-occlusion shadows. Low keeps just bloom and the realistic models. Auto = High on computers, Medium on phones.</small>${opt('hyper', 'auto', 'Auto')}${opt('hyper', 'high', 'High')}${opt('hyper', 'medium', 'Medium')}${opt('hyper', 'low', 'Low')}</div>
    <div class="stRow"><b>Shadow quality</b><small>Lower this if the game runs slowly on your device.</small>${opt('shadows', 'high', 'High')}${opt('shadows', 'medium', 'Medium')}${opt('shadows', 'low', 'Low')}${opt('shadows', 'off', 'Off')}</div>
@@ -54,7 +56,7 @@ function render() {
    <div class="stRow"><b>Field of view: <span id="stFovV">${S.fov}°</span></b><input type="range" id="stFov" min="60" max="100" step="1" value="${S.fov}"></div>
    <div class="stRow"><b>Volume: <span id="stVolV">${Math.round(S.vol * 100)}%</span></b><input type="range" id="stVol" min="0" max="1" step="0.05" value="${S.vol}"></div>
    <div style="text-align:center;margin-top:16px"><button class="rdBtnS go" id="stClose">Done</button></div></div>`;
-  scr.querySelectorAll('.stOpt').forEach(el => el.addEventListener('click', () => { const g = el.dataset.g, v = el.dataset.v; S[g] = (g === 'smooth') ? v === 'true' : v; save(); if (g === 'smooth' && typeof window.rdClearGunIcons === 'function') window.rdClearGunIcons(); render(); }));
+  scr.querySelectorAll('.stOpt').forEach(el => el.addEventListener('click', () => { const g = el.dataset.g, v = el.dataset.v; S[g] = (g === 'smooth' || g === 'real') ? v === 'true' : v; if (g === 'real' && S.real) S.smooth = true; save(); if (g === 'smooth' && typeof window.rdClearGunIcons === 'function') window.rdClearGunIcons(); render(); }));
   const sl = (id, key, out, fmt) => { const el = document.getElementById(id); el.addEventListener('input', () => { S[key] = parseFloat(el.value); document.getElementById(out).textContent = fmt(S[key]); save(); if (key === 'vol' && window.rdSetVolume) window.rdSetVolume(S.vol); }); };
   sl('stSens', 'sens', 'stSensV', v => v.toFixed(2) + '×'); sl('stFov', 'fov', 'stFovV', v => v + '°'); sl('stVol', 'vol', 'stVolV', v => Math.round(v * 100) + '%');
   document.getElementById('stClose').onclick = () => scr.classList.remove('active');

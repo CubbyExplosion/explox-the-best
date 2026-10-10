@@ -36,6 +36,7 @@ function okMaterial(m) { return m && !Array.isArray(m) && (m.isMeshStandardMater
 window.rdMergeMap = function () {
   if (typeof scene === 'undefined' || !scene) return null; const R = window.RAID;
   if (scene.userData.mapMeshObj && scene.children.includes(scene.userData.mapMeshObj)) return scene.userData.mapMeshObj;
+  try { if (window.rdRealify) window.rdRealify(); } catch (e) { console.warn('realify', e); }
   scene.updateMatrixWorld(true); const skip = new Set();
   if (R) { (R.containers || []).forEach(c => { if (c.mesh) c.mesh.traverse(o => skip.add(o)); if (c.lid) skip.add(c.lid); }); (R.extracts || []).forEach(e => { if (e.ring) skip.add(e.ring); if (e.beam) skip.add(e.beam); }); }
   const parts = [], victims = [];
