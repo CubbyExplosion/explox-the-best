@@ -82,19 +82,55 @@ function launch(x, z, noTake) {
   setTimeout(() => { scene.remove(missile); detonate(x, z); }, 8000);
 }
 const gm = (c, o) => new THREE.MeshBasicMaterial(Object.assign({ color: c, transparent: true, depthWrite: false }, o || {}));
+// ── realistic mushroom cloud: hundreds of billowing smoke/fire puffs, a rolling vortex cap, a swirling stem, a ground dust wall, a shock dome,
+//    a condensation ring, debris and embers ──
+let ctex = null;
+function cloudTex(i) {
+  if (!ctex) { ctex = []; for (let v = 0; v < 3; v++) { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); for (let k = 0; k < 26; k++) { const px = 64 + (Math.random() - 0.5) * 60, py = 64 + (Math.random() - 0.5) * 60, r = 14 + Math.random() * 28, g = x.createRadialGradient(px, py, 0, px, py, r); g.addColorStop(0, `rgba(255,255,255,${0.22 + Math.random() * 0.2})`); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128); } const m = x.createRadialGradient(64, 64, 30, 64, 64, 64); m.addColorStop(0, 'rgba(0,0,0,0)'); m.addColorStop(1, 'rgba(0,0,0,1)'); x.globalCompositeOperation = 'destination-out'; x.fillStyle = m; x.fillRect(0, 0, 128, 128); ctex.push(new THREE.CanvasTexture(c)); } }
+  return ctex[i % 3];
+}
+function cloudFx(x, z, tag) {
+  const P = [], sprite = (o) => { const mat = new THREE.SpriteMaterial({ map: cloudTex(o.tex || 0), color: o.c, transparent: true, depthWrite: false, opacity: 0, blending: o.add ? THREE.AdditiveBlending : THREE.NormalBlending, rotation: Math.random() * 6.28 }); const s = new THREE.Sprite(mat); s.position.set(x, 1, z); s.scale.setScalar(1); tag(s); P.push(Object.assign({ s, life: 6, size: 20, grow: 1.6 }, o)); return P[P.length - 1]; };
+  const tmp = new THREE.Color(), brown = new THREE.Color(0x6a5a4c);
+  const col = (k, out) => { if (k < 0.35) out.setRGB(1, 0.95 - k * 1.1, 0.75 - k * 2.0); else if (k < 0.7) out.setRGB(1 - (k - 0.35) * 0.9, 0.56 - (k - 0.35) * 0.9, 0.05 + (k - 0.35) * 0.1); else out.setRGB(0.68 - (k - 0.7) * 0.9, 0.24 + (k - 0.7) * 0.5, 0.09 + (k - 0.7) * 0.4); return out; };
+  for (let i = 0; i < 70; i++) { const a = Math.random() * 6.28, el = Math.random() * 1.2, r = Math.random(); sprite({ kind: 'fire', add: true, tex: i, c: 0xffffff, size: 26 + Math.random() * 30, grow: 2.0, life: 2.6 + Math.random() * 2.4, delay: Math.random() * 0.8, vx: Math.cos(a) * Math.cos(el) * (18 + 35 * r), vy: 14 + Math.sin(el) * 30 + 16 * r, vz: Math.sin(a) * Math.cos(el) * (18 + 35 * r), drag: 1.1 }); }
+  for (let i = 0; i < 150; i++) sprite({ kind: 'stem', tex: i, c: 0x6a5a4c, size: 16 + Math.random() * 14, grow: 1.7, life: 14 + Math.random() * 10, delay: 0.3 + i * 0.055 + Math.random() * 0.1, rad: 4 + Math.random() * 7, ang: Math.random() * 6.28, rise: 36 + Math.random() * 14 });
+  for (let i = 0; i < 160; i++) sprite({ kind: 'cap', tex: i, c: 0x7a6a5c, size: 22 + Math.random() * 20, grow: 1.35, life: 36, delay: 2.0 + Math.random() * 1.2, phi: Math.random() * 6.28, th: Math.random() * 6.28, rr: 0.7 + Math.random() * 0.5 });
+  for (let i = 0; i < 70; i++) { const a = i / 70 * 6.28 + Math.random() * 0.1; sprite({ kind: 'dust', tex: i, c: 0x9a8668, size: 28 + Math.random() * 30, grow: 1.4, life: 9 + Math.random() * 5, delay: 0, ang: a, h: 6 + Math.random() * 14 }); }
+  for (let i = 0; i < 90; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(rnd(0.6, 2.2), rnd(0.4, 1.6), rnd(0.6, 2.2)), new THREE.MeshStandardMaterial({ color: 0x14110f, roughness: 1 })); m.position.set(x, 2, z); tag(m); const a = Math.random() * 6.28, v = rnd(30, 120); P.push({ kind: 'debris', m, vx: Math.cos(a) * v, vy: rnd(40, 140), vz: Math.sin(a) * v, wx: rnd(-6, 6), wz: rnd(-6, 6), life: 9, delay: 0.1 }); }
+  for (let i = 0; i < 120; i++) sprite({ kind: 'ember', add: true, tex: 0, c: 0xff8a30, size: 3 + Math.random() * 4, grow: 0.3, life: 8 + Math.random() * 8, delay: 0.4 + Math.random() * 3, ex: rnd(-60, 60), ey: rnd(30, 150), ez: rnd(-60, 60) });
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xfff0d8, transparent: true, opacity: 0.3, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false })); dome.position.set(x, 0, z); tag(dome);
+  const cond = new THREE.Mesh(new THREE.RingGeometry(0.96, 1, 64), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false })); cond.rotation.x = -Math.PI / 2; tag(cond);
+  const glow = document.createElement('div'); glow.style.cssText = 'position:fixed;inset:0;z-index:89;pointer-events:none;background:radial-gradient(ellipse at 50% 60%,rgba(255,150,40,.35),rgba(255,60,0,.12) 55%,transparent 80%);opacity:0'; document.body.appendChild(glow);
+  return {
+    update(t, dt) {
+      const capC = Math.min(210, 22 + t * 24), capR = Math.min(78, 14 + t * 9), minor = Math.min(34, 8 + t * 3.2);
+      P.forEach(p => {
+        const age = t - (p.delay || 0); if (age < 0) return;
+        if (p.kind === 'debris') { p.vy -= 55 * dt; p.m.position.x += p.vx * dt; p.m.position.y = Math.max(0.3, p.m.position.y + p.vy * dt); p.m.position.z += p.vz * dt; p.m.rotation.x += p.wx * dt; p.m.rotation.z += p.wz * dt; if (p.m.position.y <= 0.31) { p.vx *= 0.9; p.vz *= 0.9; p.vy = 0; } p.m.visible = age < 12; return; }
+        const k = age / p.life; const mat = p.s.material, s = p.s; if (k >= 1) { mat.opacity = 0; return; }
+        if (p.kind === 'fire') { p.vx *= (1 - p.drag * dt); p.vz *= (1 - p.drag * dt); p.vy *= (1 - 0.5 * dt); s.position.x += p.vx * dt; s.position.y += p.vy * dt; s.position.z += p.vz * dt; col(clamp(k * 1.05, 0, 1), mat.color); mat.opacity = (k < 0.08 ? k / 0.08 : 1) * clamp(1.15 - k, 0, 1) * 0.9; s.scale.setScalar(p.size * (1 + k * p.grow)); }
+        else if (p.kind === 'stem') { const y = Math.min(capC - 10, age * p.rise); p.ang += dt * (0.6 + 6 / (p.rad + 3)); const rr = p.rad + age * 0.5; s.position.set(x + Math.cos(p.ang) * rr, 4 + y, z + Math.sin(p.ang) * rr); const hot = clamp(1 - age / 3.5, 0, 1); col(0.45 + (1 - hot) * 0.5, tmp); mat.color.copy(tmp).lerp(brown, 1 - hot * 0.6); mat.opacity = (k < 0.05 ? k / 0.05 : 1) * clamp(1.0 - k, 0, 1) * 0.72; s.scale.setScalar(p.size * (1 + Math.min(age, 14) * 0.35)); }
+        else if (p.kind === 'cap') { p.phi += dt * (0.55 + 0.25 * p.rr); p.th += dt * 0.35; const ringR = capR + Math.cos(p.phi) * minor * p.rr, h = capC + Math.sin(p.phi) * minor * 0.8 * p.rr; s.position.set(x + Math.cos(p.th) * ringR, 8 + h, z + Math.sin(p.th) * ringR); const under = clamp(0.5 - Math.sin(p.phi) * 0.5, 0, 1), cool = clamp(age / 14, 0, 1); col(clamp(0.38 + cool * 0.45 - under * 0.3, 0, 1), mat.color); mat.opacity = (age < 1.2 ? age / 1.2 : 1) * clamp(1.35 - k * 1.1, 0, 1) * 0.8; s.scale.setScalar(p.size * (1 + Math.min(age, 20) * 0.1)); }
+        else if (p.kind === 'dust') { const Rr = Math.min(t * 200, 330) * (1 - 0.15 * clamp(t / 4, 0, 1)); s.position.set(x + Math.cos(p.ang) * Rr, p.h * (1 + age * 0.15), z + Math.sin(p.ang) * Rr); mat.opacity = (age < 0.5 ? age / 0.5 : 1) * clamp(1 - k * 1.1, 0, 1) * 0.55; s.scale.setScalar(p.size * (1 + age * 0.5)); }
+        else if (p.kind === 'ember') { s.position.set(x + p.ex + Math.sin(age * 2 + p.ey) * 6, p.ey - age * 4 + 20, z + p.ez + Math.cos(age * 2 + p.ey) * 6); mat.opacity = clamp(1 - k, 0, 1) * (0.5 + 0.5 * Math.sin(age * 12 + p.ex)); s.scale.setScalar(p.size); }
+      });
+      const dk = clamp(t / 1.4, 0, 1); dome.scale.setScalar(Math.max(1, 330 * (1 - Math.pow(1 - dk, 2.4)))); dome.material.opacity = 0.3 * clamp(1.15 - t / 1.9, 0, 1);
+      const ck = clamp((t - 3.5) / 7, 0, 1); cond.position.set(x, capC * 0.55 + 20, z); cond.scale.setScalar(30 + ck * 120); cond.material.opacity = Math.sin(ck * Math.PI) * 0.35;
+      glow.style.opacity = String(clamp(1.1 - t / 9, 0, 0.9));
+    },
+    done() { glow.remove(); }
+  };
+}
+
 function detonate(x, z) {
   if (!R.on) return; BT.nukePending = false; const pp = playerPos, pd = Math.hypot(x - pp.x, z - pp.z), t0 = performance.now(), objs = [], tag = o => { o.userData.nuke = true; scene.add(o); objs.push(o); return o; };
   // white-out + shake + light
   flashEl.style.transition = 'none'; flashEl.style.opacity = String(clamp(1.7 - pd / 280, 0.35, 1)); setTimeout(() => { flashEl.style.transition = 'opacity 3.5s ease-out'; flashEl.style.opacity = '0'; }, 120); R.shake = 2.2;
   const light = tag(new THREE.PointLight(0xffd8a0, 60, 900)); light.position.set(x, 60, z);
   // fireball, inner core, shock ring, dust wall, mushroom stem + cap, scorch
-  const fire = tag(new THREE.Mesh(new THREE.SphereGeometry(1, 28, 20), gm(0xfff2c8, { blending: THREE.AdditiveBlending }))); fire.position.set(x, 0, z);
-  const core = tag(new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), gm(0xffffff, { blending: THREE.AdditiveBlending }))); core.position.set(x, 0, z);
+  const cl = cloudFx(x, z, tag);
   const ring = tag(new THREE.Mesh(new THREE.RingGeometry(0.92, 1, 64), gm(0xffe9b8, { side: THREE.DoubleSide, blending: THREE.AdditiveBlending, opacity: 0.8 }))); ring.rotation.x = -Math.PI / 2; ring.position.set(x, 0.5, z);
-  const wall = tag(new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 48, 1, true), gm(0x9a8468, { side: THREE.DoubleSide, opacity: 0.6 }))); wall.position.set(x, 0, z);
-  const stem = tag(new THREE.Mesh(new THREE.CylinderGeometry(1, 1.6, 1, 24, 1, true), gm(0x6a4a32, { side: THREE.DoubleSide, opacity: 0.85 }))); stem.position.set(x, 0, z);
-  const cap = tag(new THREE.Mesh(new THREE.SphereGeometry(1, 28, 18), gm(0x8a5a38, { opacity: 0.9 }))); cap.scale.set(1, 0.55, 1); cap.position.set(x, 0, z);
-  const capGlow = tag(new THREE.Mesh(new THREE.SphereGeometry(1, 24, 14), gm(0xff7a22, { blending: THREE.AdditiveBlending, opacity: 0.6 }))); capGlow.position.set(x, 0, z);
   const scorch = new THREE.Mesh(new THREE.CircleGeometry(150, 40), new THREE.MeshBasicMaterial({ color: 0x0b0907, transparent: true, opacity: 0.82, depthWrite: false })); scorch.rotation.x = -Math.PI / 2; scorch.position.set(x, 0.06, z); scorch.userData.nuke = true; scene.add(scorch);
   // sound (arrives later the farther you are)
   const delay = Math.min(2.6, pd / 340), a = api(); try { a.noise(4.5, 3000, 40, 1.6, 'lowpass', delay); a.tone(32, 3.2, 1.2, 'sine', delay, 18); a.tone(58, 1.6, 0.9, 'sawtooth', delay, 28); a.noise(0.35, 8000, 1500, 1.0, 'highpass', delay); a.noise(5, 700, 50, 0.7, 'lowpass', delay + 0.5); a.noise(3, 500, 60, 0.5, 'lowpass', delay + 2); } catch (e) { }
@@ -112,16 +148,10 @@ function detonate(x, z) {
   } wave();
   // animation of the cloud
   (function anim() {
-    const t = (performance.now() - t0) / 1000; if (!R.on) { objs.forEach(o => scene.remove(o)); return; }
-    const fk = clamp(t / 2.2, 0, 1), fr = 8 + 82 * (1 - Math.pow(1 - fk, 2)); fire.scale.setScalar(fr); fire.position.y = fr * 0.55; fire.material.opacity = clamp(1.25 - t / 6, 0, 1); fire.material.color.setRGB(1, clamp(0.95 - t * 0.1, 0.35, 0.95), clamp(0.8 - t * 0.2, 0.1, 0.8));
-    core.scale.setScalar(fr * 0.55); core.position.y = fr * 0.55; core.material.opacity = clamp(1 - t / 1.6, 0, 1);
-    const rk = clamp(t * WAVE_SPEED, 1, 300); ring.scale.setScalar(rk); ring.material.opacity = clamp(0.8 - t / 2.2, 0, 0.8);
-    wall.scale.set(rk * 0.98, clamp(30 - t * 6, 4, 30), rk * 0.98); wall.position.y = wall.scale.y / 2; wall.material.opacity = clamp(0.6 - t / 9, 0, 0.6);
-    const rise = clamp(t * 38, 0, 170); stem.scale.set(14 + t * 2.2, rise, 14 + t * 2.2); stem.position.y = rise / 2; stem.material.opacity = clamp(1.1 - t / 26, 0, 0.85);
-    const capR = clamp(20 + t * 14, 20, 75), capY = rise + capR * 0.3; cap.scale.set(capR, capR * 0.55, capR); cap.position.y = capY; cap.material.opacity = clamp(1.1 - t / 30, 0, 0.9); cap.material.color.setRGB(clamp(0.54 - t * 0.008, 0.28, 0.54), clamp(0.35 - t * 0.006, 0.2, 0.35), clamp(0.22 - t * 0.004, 0.14, 0.22));
-    capGlow.scale.set(capR * 0.85, capR * 0.5, capR * 0.85); capGlow.position.y = capY - capR * 0.08; capGlow.material.opacity = clamp(0.7 - t / 12, 0, 0.7);
-    light.intensity = clamp(60 - t * 14, 0, 60) * (0.9 + Math.random() * 0.2); scorch.material.opacity = 0.82;
-    if (t < 34) { requestAnimationFrame(anim); setTimeout(() => { if (document.hidden) anim(); }, 60); } else objs.forEach(o => { scene.remove(o); });
+    const t = (performance.now() - t0) / 1000, dt = Math.min(0.1, (t - (anim.last || 0))); anim.last = t; if (!R.on) { objs.forEach(o => scene.remove(o)); cl.done(); return; }
+    const rk = clamp(t * WAVE_SPEED, 1, 330); ring.scale.setScalar(rk); ring.material.opacity = clamp(0.8 - t / 2.4, 0, 0.8); cl.update(t, dt);
+    light.intensity = clamp(60 - t * 9, 0, 60) * (0.9 + Math.random() * 0.2); scorch.material.opacity = 0.82;
+    if (t < 44) { requestAnimationFrame(anim); setTimeout(() => { if (document.hidden) anim(); }, 60); } else { objs.forEach(o => { scene.remove(o); if (o.material && o.material.dispose) o.material.dispose(); }); cl.done(); }
   })();
   // ringing ears for anyone who was close
   if (pd < 420) try { const A = a.getAudio(), m = A.master, v0 = m.gain.value, tt = A.AC.currentTime + delay; m.gain.setValueAtTime(v0, tt); m.gain.linearRampToValueAtTime(v0 * 0.2, tt + 0.1); m.gain.linearRampToValueAtTime(v0, tt + 7); const o = A.AC.createOscillator(), g = A.AC.createGain(); o.frequency.value = 5200; g.gain.setValueAtTime(0.0001, tt); g.gain.linearRampToValueAtTime(0.08, tt + 0.2); g.gain.exponentialRampToValueAtTime(0.0005, tt + 7); o.connect(g); g.connect(m); o.start(tt); o.stop(tt + 7.5); } catch (e) { }
