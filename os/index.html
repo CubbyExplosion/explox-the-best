@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Cubby OS — a computer simulator | S.I.P.</title>
+<meta name="description" content="Cubby OS: a free computer simulator in your browser. A fake desktop with windows, files, terminal, paint, snake, a browser and more. By Cubby Explosion and the S.I.P. team.">
+<style>
+:root{--acc:#3b82f6;--glass:rgba(24,28,40,.82)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;font-family:Segoe UI,system-ui,Arial,sans-serif;color:#fff;background:#000;user-select:none}
+button,input,textarea,select{font:inherit}
+#screen{position:fixed;inset:0;display:none}
+#desk{position:absolute;inset:0 0 44px 0;background-size:cover;padding:10px;display:grid;grid-auto-flow:column;grid-template-rows:repeat(auto-fill,92px);grid-auto-columns:86px;gap:4px;align-content:start}
+.ico{width:84px;height:88px;text-align:center;font-size:12px;border-radius:8px;padding:6px 2px;cursor:default;text-shadow:0 1px 3px #000}
+.ico b{display:block;font-size:34px;font-weight:400;line-height:1.3}
+.ico:hover,.ico.sel{background:rgba(255,255,255,.18)}
+#task{position:absolute;left:0;right:0;bottom:0;height:44px;background:var(--glass);backdrop-filter:blur(14px);display:flex;align-items:center;gap:6px;padding:0 8px;border-top:1px solid rgba(255,255,255,.12);z-index:99999}
+#startb{width:38px;height:34px;border-radius:8px;border:0;background:transparent;font-size:22px;color:#fff;cursor:pointer}
+#startb:hover,#startb.on{background:rgba(255,255,255,.18)}
+#tasks{flex:1;display:flex;gap:4px;overflow:hidden}
+.tb1{max-width:160px;min-width:40px;height:34px;border-radius:8px;border:0;background:rgba(255,255,255,.08);color:#fff;padding:0 10px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:3px solid transparent}
+.tb1.act{background:rgba(255,255,255,.2);border-bottom-color:var(--acc)}
+#tray{font-size:12px;text-align:right;line-height:1.2;padding:0 6px;white-space:nowrap}
+#startm{position:absolute;left:8px;bottom:50px;width:300px;background:var(--glass);backdrop-filter:blur(16px);border-radius:14px;border:1px solid rgba(255,255,255,.15);padding:10px;display:none;z-index:99998}
+#startm.show{display:block}
+#startm .it{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;cursor:pointer}
+#startm .it:hover{background:rgba(255,255,255,.15)}
+#startm .it span{font-size:20px;width:26px;text-align:center}
+#startm hr{border:0;border-top:1px solid rgba(255,255,255,.15);margin:6px 0}
+.win{position:absolute;background:#1d212c;border:1px solid rgba(255,255,255,.18);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.55);display:flex;flex-direction:column;overflow:hidden;min-width:220px;min-height:120px}
+.win.max{left:0!important;top:0!important;width:100%!important;height:calc(100% - 44px)!important;border-radius:0}
+.win.min{display:none}
+.wt{height:34px;display:flex;align-items:center;gap:8px;padding-left:10px;background:#12151d;cursor:move;flex:none;touch-action:none}
+.win.focus .wt{background:linear-gradient(90deg,#12151d,#1a2338)}
+.wt .t{flex:1;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wt button{width:42px;height:34px;border:0;background:transparent;color:#fff;font-size:14px;cursor:pointer}
+.wt button:hover{background:rgba(255,255,255,.15)}
+.wt button.x:hover{background:#e0322a}
+.wb{flex:1;overflow:auto;position:relative;background:#1d212c;resize:none;user-select:text}
+.rz{position:absolute;right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;touch-action:none;background:linear-gradient(135deg,transparent 50%,rgba(255,255,255,.35) 50%)}
+.tool{display:flex;gap:6px;padding:6px;background:#161a24;flex-wrap:wrap;align-items:center}
+.btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:6px;color:#fff;padding:4px 10px;cursor:pointer}
+.btn:hover{background:rgba(255,255,255,.2)}
+.btn.p{background:var(--acc);border-color:transparent}
+input.in,textarea.in{background:#0e1118;border:1px solid rgba(255,255,255,.2);border-radius:6px;color:#fff;padding:5px 8px}
+.term{background:#0b0e14;color:#8be28b;font-family:Consolas,monospace;font-size:13px;padding:8px;height:100%;overflow:auto;white-space:pre-wrap;word-break:break-all}
+.term input{background:transparent;border:0;outline:0;color:#fff;font:inherit;width:70%}
+.files{display:grid;grid-template-columns:repeat(auto-fill,90px);gap:6px;padding:10px}
+.fi{text-align:center;font-size:12px;padding:6px 2px;border-radius:8px;cursor:default;word-break:break-all}
+.fi b{display:block;font-size:34px;font-weight:400}
+.fi:hover{background:rgba(255,255,255,.1)}.fi.sel{background:rgba(59,130,246,.35)}
+.calc{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;padding:8px}
+.calc .disp{grid-column:1/-1;background:#0e1118;border-radius:8px;text-align:right;font-size:28px;padding:10px;min-height:56px;overflow:hidden}
+.calc button{height:48px;border-radius:8px;border:0;background:rgba(255,255,255,.12);color:#fff;font-size:18px;cursor:pointer}
+.calc button:hover{background:rgba(255,255,255,.22)}.calc button.o{background:var(--acc)}
+.page{background:#fff;color:#222;height:100%;padding:18px;overflow:auto;user-select:text}
+.page a{color:#1a56c0;cursor:pointer;text-decoration:underline}
+.bar{height:10px;background:#0e1118;border-radius:5px;overflow:hidden}.bar i{display:block;height:100%;background:var(--acc);transition:width .5s}
+table.tm{width:100%;border-collapse:collapse;font-size:13px}table.tm td{padding:5px 10px;border-bottom:1px solid rgba(255,255,255,.08)}
+.full{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;text-align:center;z-index:999999}
+.full.show{display:flex}
+#boot{background:#000;font-family:Consolas,monospace;align-items:flex-start;justify-content:flex-start;padding:20px;color:#ccc;font-size:14px;white-space:pre}
+#login{background:radial-gradient(circle at 30% 20%,#2a4a9a,#0b1020 70%)}
+#login .av{width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.15);font-size:60px;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+#bsod{background:#0a64c8;align-items:flex-start;padding:8vw;text-align:left;font-size:18px}
+#off{background:#000;color:#999}
+.big{font-size:28px;font-weight:700}
+</style>
+</head>
+<body>
+
+<div class="full show" id="boot"></div>
+<div class="full" id="login"><div class="av">🙂</div><div class="big" style="margin-bottom:8px">Cubby OS</div><input class="in" id="uname" maxlength="14" placeholder="Your name" style="text-align:center;margin-bottom:10px"><button class="btn p" id="signin" style="padding:8px 28px">Sign in ➜</button><div style="opacity:.6;margin-top:16px;font-size:13px">A computer simulator by Cubby Explosion · S.I.P.</div></div>
+<div class="full" id="bsod"><div style="font-size:90px">:(</div><div class="big">Your PC ran into a problem and needs to restart.</div><p id="bsodp">0% complete</p><p style="opacity:.8;font-size:14px">Stop code: SIMULATED_FAILURE (don't worry, it's only a game)</p></div>
+<div class="full" id="off"><div style="font-size:18px;margin-bottom:16px">It's now safe to turn off your computer.</div><button class="btn p" id="pwr" style="font-size:24px;padding:12px 26px">⏻ Power on</button></div>
+
+<div id="screen">
+  <div id="desk"></div>
+  <div id="startm"></div>
+  <div id="task"><button id="startb" title="Start">⊞</button><div id="tasks"></div><div id="tray"><span id="clk"></span></div></div>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id), el = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const WALLS = ['linear-gradient(135deg,#1e3a8a,#7c3aed 60%,#ec4899)', 'linear-gradient(160deg,#0f172a,#1e293b 50%,#0ea5e9)', 'linear-gradient(135deg,#134e4a,#16a34a 60%,#a3e635)', 'linear-gradient(135deg,#7f1d1d,#ea580c 60%,#facc15)', 'radial-gradient(circle at 70% 30%,#6d28d9,#0b0f1e 65%)', 'linear-gradient(135deg,#111,#333)'];
+let set = {}, FS = null, user = 'Guest';
+try { set = JSON.parse(localStorage.getItem('cubbyos_set') || '{}'); } catch (e) { }
+const saveSet = () => { try { localStorage.setItem('cubbyos_set', JSON.stringify(set)); } catch (e) { } };
+const defFS = () => ({ t: 'd', c: { home: { t: 'd', c: { [user]: { t: 'd', c: { Desktop: { t: 'd', c: {} }, Documents: { t: 'd', c: { 'readme.txt': { t: 'f', d: 'Welcome to Cubby OS!\n\nThis is a computer simulator. Everything here is pretend, but your files are really saved in your browser.\n\nTry the Terminal: type "help".\nTry Paint, Snake and the Browser too.\n' }, 'todo.txt': { t: 'f', d: '- build a PC\n- beat Snake\n- hack the planet (just kidding)\n' } } }, Pictures: { t: 'd', c: {} } } } } }, system: { t: 'd', c: { 'kernel.sys': { t: 'f', d: '[locked]' } } } } });
+function loadFS() { try { const s = localStorage.getItem('cubbyos_fs_' + user); FS = s ? JSON.parse(s) : defFS(); } catch (e) { FS = defFS(); } }
+const saveFS = () => { try { localStorage.setItem('cubbyos_fs_' + user, JSON.stringify(FS)); } catch (e) { alert('Disk full! Delete some files.'); } };
+function norm(path, cwd) { const parts = path.startsWith('/') ? [] : cwd.slice(); path.split('/').forEach(p => { if (!p || p === '.') return; if (p === '..') parts.pop(); else if (p === '~') { parts.length = 0; parts.push('home', user); } else parts.push(p); }); return parts; }
+function node(parts) { let n = FS; for (const p of parts) { if (!n || n.t !== 'd' || !n.c[p]) return null; n = n.c[p]; } return n; }
+const pstr = parts => '/' + parts.join('/');
+const HOME = () => ['home', user];
+
+// ───── sound ─────
+let ac = null; function beep(f, d, t) { try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); const o = ac.createOscillator(), g = ac.createGain(); o.type = t || 'sine'; o.frequency.value = f; g.gain.setValueAtTime(.12, ac.currentTime); g.gain.exponentialRampToValueAtTime(.001, ac.currentTime + d); o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + d); } catch (e) { } }
+
+// ───── window manager ─────
+let wins = [], zTop = 10, wid = 0;
+function focusWin(w) { wins.forEach(x => { x.el.classList.toggle('focus', x === w); x.tb.classList.toggle('act', x === w); }); if (w) { w.el.style.zIndex = ++zTop; w.el.classList.remove('min'); } }
+function makeWin(title, icon, wd, ht) {
+  const w = { id: ++wid, title, icon }, n = wins.length, desk = $('desk');
+  w.el = el('div', 'win'); w.el.style.cssText = `width:${Math.min(wd, innerWidth - 10)}px;height:${Math.min(ht, innerHeight - 60)}px;left:${Math.min(60 + n * 28, Math.max(0, innerWidth - wd - 10))}px;top:${30 + (n % 8) * 28}px`;
+  const tbar = el('div', 'wt', `<span>${icon}</span><span class="t">${esc(title)}</span>`), bmin = el('button', '', '–'), bmax = el('button', '', '▢'), bx = el('button', 'x', '✕');
+  tbar.append(bmin, bmax, bx); w.body = el('div', 'wb'); const rz = el('div', 'rz'); w.el.append(tbar, w.body, rz); $('screen').append(w.el);
+  w.tb = el('button', 'tb1', icon + ' ' + esc(title)); $('tasks').append(w.tb); wins.push(w); w.setTitle = t => { w.title = t; tbar.querySelector('.t').textContent = t; w.tb.textContent = icon + ' ' + t; };
+  w.close = () => { if (w.onclose) w.onclose(); w.el.remove(); w.tb.remove(); wins = wins.filter(x => x !== w); const top = wins[wins.length - 1]; if (top) focusWin(top); };
+  w.el.addEventListener('pointerdown', () => focusWin(w)); bx.onclick = w.close; bmin.onclick = () => { w.el.classList.add('min'); w.tb.classList.remove('act'); }; bmax.onclick = () => w.el.classList.toggle('max');
+  w.tb.onclick = () => { if (w.el.classList.contains('min') || !w.tb.classList.contains('act')) focusWin(w); else { w.el.classList.add('min'); w.tb.classList.remove('act'); } };
+  tbar.ondblclick = () => w.el.classList.toggle('max');
+  const drag = (h, fn) => h.addEventListener('pointerdown', e => { if (e.target.tagName === 'BUTTON' || w.el.classList.contains('max')) return; e.preventDefault(); const sx = e.clientX, sy = e.clientY, r = w.el.getBoundingClientRect(); h.setPointerCapture(e.pointerId); const mv = ev => fn(r, ev.clientX - sx, ev.clientY - sy), up = () => { h.removeEventListener('pointermove', mv); h.removeEventListener('pointerup', up); }; h.addEventListener('pointermove', mv); h.addEventListener('pointerup', up); });
+  drag(tbar, (r, dx, dy) => { w.el.style.left = clamp(r.left + dx, -r.width + 80, innerWidth - 60) + 'px'; w.el.style.top = clamp(r.top + dy, 0, innerHeight - 80) + 'px'; });
+  drag(rz, (r, dx, dy) => { w.el.style.width = Math.max(240, r.width + dx) + 'px'; w.el.style.height = Math.max(140, r.height + dy) + 'px'; });
+  focusWin(w); beep(660, .05, 'triangle'); return w;
+}
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// ───── apps ─────
+const APPS = {
+  files: { title: 'Files', icon: '📁', w: 560, h: 380, init: appFiles },
+  notepad: { title: 'Notepad', icon: '📝', w: 480, h: 360, init: appNotepad },
+  terminal: { title: 'Terminal', icon: '⌨️', w: 600, h: 380, init: appTerminal },
+  paint: { title: 'Paint', icon: '🎨', w: 560, h: 440, init: appPaint },
+  calc: { title: 'Calculator', icon: '🧮', w: 270, h: 400, init: appCalc },
+  snake: { title: 'Snake', icon: '🐍', w: 340, h: 420, init: appSnake },
+  browser: { title: 'Browser', icon: '🌐', w: 620, h: 420, init: appBrowser },
+  taskmgr: { title: 'Task Manager', icon: '📊', w: 420, h: 360, init: appTask },
+  settings: { title: 'Settings', icon: '⚙️', w: 440, h: 400, init: appSettings }
+};
+function openApp(id, arg) { const A = APPS[id]; if (!A) return null; const w = makeWin(A.title, A.icon, A.w, A.h); w.app = id; A.init(w.body, w, arg); return w; }
+
+function appNotepad(b, w, path) {
+  b.innerHTML = '<div class="tool"><button class="btn" data-a="open">Open…</button><button class="btn p" data-a="save">Save</button><button class="btn" data-a="as">Save as…</button><span id="ns" style="opacity:.7;font-size:12px"></span></div>';
+  const ta = el('textarea', 'in'); ta.style.cssText = 'position:absolute;top:44px;left:0;right:0;bottom:0;width:100%;resize:none;border-radius:0;border:0;font:14px Consolas,monospace;padding:10px'; b.append(ta); let cur = null; const st = t => b.querySelector('#ns').textContent = t;
+  const load = p => { const n = node(norm(p, HOME())); if (!n || n.t !== 'f') return st('Not found: ' + p); ta.value = n.d; cur = norm(p, HOME()); w.setTitle('Notepad — ' + cur[cur.length - 1]); st('Opened ' + pstr(cur)); };
+  const save = p => { const parts = norm(p, HOME()), name = parts.pop(), dir = node(parts); if (!dir || dir.t !== 'd' || !name) return st('Bad path'); dir.c[name] = { t: 'f', d: ta.value }; saveFS(); cur = parts.concat(name); w.setTitle('Notepad — ' + name); st('Saved ✔ ' + pstr(cur)); };
+  b.onclick = e => { const a = e.target.dataset.a; if (a === 'open') { const p = prompt('Open file (path):', '~/Documents/readme.txt'); if (p) load(p); } else if (a === 'save') { if (cur) save(pstr(cur)); else { const p = prompt('Save as (path):', '~/Documents/note.txt'); if (p) save(p); } } else if (a === 'as') { const p = prompt('Save as (path):', cur ? pstr(cur) : '~/Documents/note.txt'); if (p) save(p); } };
+  if (path) load(path);
+}
+
+function appFiles(b, w, start) {
+  let cwd = start ? norm(start, HOME()) : HOME(), sel = null;
+  const draw = () => {
+    const n = node(cwd); w.setTitle('Files — ' + pstr(cwd)); b.innerHTML = '';
+    const tool = el('div', 'tool', `<button class="btn" data-a="up">⬆ Up</button><button class="btn" data-a="home">🏠</button><button class="btn" data-a="nd">+ Folder</button><button class="btn" data-a="nf">+ File</button><button class="btn" data-a="del">🗑 Delete</button><span style="opacity:.7;font-size:12px">${esc(pstr(cwd))}</span>`), g = el('div', 'files'); b.append(tool, g);
+    Object.keys(n.c).sort((a, c) => (n.c[c].t === 'd') - (n.c[a].t === 'd') || a.localeCompare(c)).forEach(k => { const f = n.c[k], ic = f.t === 'd' ? '📁' : /\.png$/.test(k) ? '🖼️' : /\.(txt|md|js|html|json)$/.test(k) ? '📄' : '📦'; const it = el('div', 'fi' + (sel === k ? ' sel' : ''), `<b>${ic}</b>${esc(k)}`);
+      it.onclick = () => { sel = k; draw(); }; it.ondblclick = () => { if (f.t === 'd') { cwd = cwd.concat(k); sel = null; draw(); } else if (/\.png$/.test(k)) openApp('paint', pstr(cwd.concat(k))); else openApp('notepad', pstr(cwd.concat(k))); }; g.append(it); });
+    if (!Object.keys(n.c).length) g.append(el('div', '', '<i style="opacity:.5;padding:10px">This folder is empty</i>'));
+  };
+  b.onclick = e => { const a = e.target.dataset && e.target.dataset.a; if (!a) return; const n = node(cwd);
+    if (a === 'up') { cwd.pop(); sel = null; } else if (a === 'home') cwd = HOME();
+    else if (a === 'nd' || a === 'nf') { const nm = prompt(a === 'nd' ? 'Folder name:' : 'File name:', a === 'nd' ? 'New folder' : 'new.txt'); if (nm && !nm.includes('/')) { n.c[nm] = a === 'nd' ? { t: 'd', c: {} } : { t: 'f', d: '' }; saveFS(); } }
+    else if (a === 'del') { if (sel && confirm('Delete "' + sel + '"?')) { delete n.c[sel]; sel = null; saveFS(); } }
+    draw(); }; draw();
+}
+
+function appTerminal(b, w) {
+  const t = el('div', 'term'); b.append(t); let cwd = HOME(), hist = [], hi = 0;
+  const out = s => { t.insertBefore(document.createTextNode(s + '\n'), inp.parentNode); t.scrollTop = 1e9; };
+  const line = el('div'); const ps = el('span'); const inp = el('input'); inp.spellcheck = false; inp.autocapitalize = 'off'; line.append(ps, inp); t.append(line);
+  const prompt_ = () => { ps.textContent = user.toLowerCase() + '@cubby:' + (cwd.join('/') === ['home', user].join('/') ? '~' : pstr(cwd)) + '$ '; };
+  out('Cubby OS Terminal v1.0 — type "help" for commands.'); prompt_(); t.onclick = () => inp.focus(); setTimeout(() => inp.focus(), 50);
+  const CMD = {
+    help: () => out('help ls cd pwd cat echo mkdir touch rm clear whoami date uname neofetch history ping hack open <app> ps exit\nApps: ' + Object.keys(APPS).join(', ') + '\nTip: echo hi > file.txt writes a file. Try "sudo rm -rf /" if you dare.'),
+    ls: a => { const n = node(a[0] ? norm(a[0], cwd) : cwd); if (!n) return out('ls: no such directory'); if (n.t === 'f') return out(a[0]); out(Object.keys(n.c).map(k => n.c[k].t === 'd' ? k + '/' : k).join('  ') || '(empty)'); },
+    cd: a => { const p = a[0] ? norm(a[0], cwd) : HOME(), n = node(p); if (!n) out('cd: no such directory'); else if (n.t !== 'd') out('cd: not a directory'); else cwd = p; },
+    pwd: () => out(pstr(cwd)),
+    cat: a => { const n = a[0] && node(norm(a[0], cwd)); if (!n) out('cat: no such file'); else if (n.t === 'd') out('cat: is a directory'); else out(n.d); },
+    mkdir: a => { const p = norm(a[0] || '', cwd), nm = p.pop(), d = node(p); if (!nm || !d || d.t !== 'd') return out('mkdir: cannot create'); d.c[nm] = d.c[nm] || { t: 'd', c: {} }; saveFS(); },
+    touch: a => { const p = norm(a[0] || '', cwd), nm = p.pop(), d = node(p); if (!nm || !d || d.t !== 'd') return out('touch: cannot create'); d.c[nm] = d.c[nm] || { t: 'f', d: '' }; saveFS(); },
+    rm: a => { const p = norm(a[a.length - 1] || '', cwd), nm = p.pop(), d = node(p); if (p.length < 1 && nm) return out('rm: permission denied'); if (!d || !d.c[nm]) return out('rm: no such file'); delete d.c[nm]; saveFS(); },
+    clear: () => { [...t.childNodes].forEach(c => { if (c !== line) c.remove(); }); },
+    whoami: () => out(user), date: () => out(new Date().toString()), uname: () => out('CubbyOS 1.0 sim-x64'),
+    neofetch: () => out(`   ____      _     _\n  / ___|   _| |__ | |__  _   _      ${user}@cubby\n | |  | | | | '_ \\| '_ \\| | | |     ---------------\n | |__| |_| | |_) | |_) | |_| |     OS: Cubby OS 1.0\n  \\____\\__,_|_.__/|_.__/ \\__, |     Kernel: simulated\n                         |___/      Uptime: ${Math.round(performance.now() / 60000)} min\n                                    Shell: cubsh\n                                    Windows open: ${wins.length}\n                                    RAM: ${Math.round(40 + wins.length * 6)}% of 16 GB (pretend)`),
+    history: () => out(hist.map((h, i) => (i + 1) + '  ' + h).join('\n')),
+    ping: a => { const h = a[0] || 'localhost'; let i = 0; const iv = setInterval(() => { out(`64 bytes from ${h}: time=${(8 + Math.random() * 30).toFixed(1)} ms`); if (++i >= 4) clearInterval(iv); }, 350); },
+    hack: () => { const L = ['Connecting to mainframe…', 'Bypassing firewall…', 'Cracking password: ' + Math.random().toString(36).slice(2, 10), 'Downloading secret files…', 'ACCESS GRANTED 😎', '(it was a joke — nothing was hacked)']; let i = 0; const iv = setInterval(() => { out(L[i]); if (++i >= L.length) clearInterval(iv); }, 500); },
+    open: a => { if (APPS[a[0]]) openApp(a[0]); else out('open: unknown app. Apps: ' + Object.keys(APPS).join(', ')); },
+    ps: () => out('PID  NAME\n' + wins.map(x => String(x.id).padEnd(4) + ' ' + x.app).join('\n')),
+    exit: () => w.close(),
+    sudo: a => { if (a.join(' ').replace(/\s+/g, ' ') === 'rm -rf /') bsod(); else out('sudo: nice try.'); }
+  };
+  inp.onkeydown = e => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { const v = inp.value.trim(); out(ps.textContent + v); inp.value = ''; if (v) { hist.push(v); hi = hist.length; let redir = null, cmdl = v; const m = v.match(/^(echo\s+.*?)\s*>\s*(\S+)$/); if (m) { cmdl = m[1]; redir = m[2]; } const p = cmdl.split(/\s+/), c = p.shift();
+        if (redir) { const text = cmdl.replace(/^echo\s+/, '').replace(/^["']|["']$/g, ''), pp = norm(redir, cwd), nm = pp.pop(), d = node(pp); if (d && d.t === 'd' && nm) { d.c[nm] = { t: 'f', d: text + '\n' }; saveFS(); } else out('echo: cannot write'); }
+        else if (c === 'echo') out(p.join(' ').replace(/^["']|["']$/g, '')); else if (CMD[c]) CMD[c](p); else out(c + ': command not found'); } prompt_(); }
+    else if (e.key === 'ArrowUp') { hi = Math.max(0, hi - 1); inp.value = hist[hi] || ''; e.preventDefault(); } else if (e.key === 'ArrowDown') { hi = Math.min(hist.length, hi + 1); inp.value = hist[hi] || ''; e.preventDefault(); }
+  };
+}
+
+function appCalc(b) {
+  let cur = '';
+  b.innerHTML = '<div class="calc"><div class="disp" id="cd">0</div>' + ['C', '(', ')', '/', '7', '8', '9', '*', '4', '5', '6', '-', '1', '2', '3', '+', '0', '.', '⌫', '='].map(k => `<button class="${'/*-+='.includes(k) ? 'o' : ''}" data-k="${k}">${k}</button>`).join('') + '</div>';
+  const d = b.querySelector('#cd'); b.onclick = e => { const k = e.target.dataset.k; if (!k) return; if (k === 'C') cur = ''; else if (k === '⌫') cur = cur.slice(0, -1); else if (k === '=') { try { if (!/^[0-9+\-*/.() ]+$/.test(cur)) throw 0; cur = String(+Function('"use strict";return (' + cur + ')')().toFixed(10)); } catch (er) { cur = ''; d.textContent = 'Error'; return; } } else cur += k; d.textContent = cur || '0'; };
+}
+
+function appPaint(b, w, path) {
+  b.innerHTML = '<div class="tool"><input type="color" id="pc" value="#ffffff"><input type="range" id="ps" min="1" max="40" value="5"><button class="btn" data-a="er">Eraser</button><button class="btn" data-a="clr">Clear</button><button class="btn p" data-a="save">Save</button></div>';
+  const cv = el('canvas'); cv.width = 800; cv.height = 600; cv.style.cssText = 'width:100%;display:block;background:#111;touch-action:none'; const c = cv.getContext('2d'); c.fillStyle = '#111'; c.fillRect(0, 0, 800, 600); b.append(cv);
+  let er = false, down = false, lx = 0, ly = 0; const pt = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * 800 / r.width, (e.clientY - r.top) * 600 / r.height]; };
+  cv.onpointerdown = e => { down = true; [lx, ly] = pt(e); cv.setPointerCapture(e.pointerId); };
+  cv.onpointermove = e => { if (!down) return; const [x, y] = pt(e); c.strokeStyle = er ? '#111' : b.querySelector('#pc').value; c.lineWidth = +b.querySelector('#ps').value; c.lineCap = 'round'; c.beginPath(); c.moveTo(lx, ly); c.lineTo(x, y); c.stroke(); lx = x; ly = y; };
+  cv.onpointerup = () => down = false;
+  b.querySelector('.tool').onclick = e => { const a = e.target.dataset.a; if (a === 'er') { er = !er; e.target.classList.toggle('p', er); } else if (a === 'clr') { c.fillStyle = '#111'; c.fillRect(0, 0, 800, 600); } else if (a === 'save') { const nm = prompt('File name:', 'drawing.png'); if (!nm) return; const d = node(HOME().concat('Pictures')); d.c[nm.endsWith('.png') ? nm : nm + '.png'] = { t: 'f', d: cv.toDataURL('image/png') }; saveFS(); alert('Saved to ~/Pictures'); } };
+  if (path) { const n = node(norm(path, HOME())); if (n && n.d) { const im = new Image(); im.onload = () => c.drawImage(im, 0, 0); im.src = n.d; w.setTitle('Paint — ' + path.split('/').pop()); } }
+}
+
+function appSnake(b, w) {
+  const cv = el('canvas'); cv.width = cv.height = 300; cv.style.cssText = 'display:block;margin:8px auto;background:#0b0e14;border-radius:8px;max-width:100%'; const sc = el('div', '', ''); sc.style.cssText = 'text-align:center;font-size:14px;margin-top:6px'; b.append(sc, cv, el('div', '', '<div style="text-align:center;opacity:.6;font-size:12px">Arrow keys / WASD · tap sides on phone</div>'));
+  const c = cv.getContext('2d'), G = 15, S = 20; let sn, dir, nd, food, score, over, iv; const best = () => +(set.snakeBest || 0);
+  const reset = () => { sn = [[7, 7], [6, 7], [5, 7]]; dir = nd = [1, 0]; score = 0; over = false; place(); clearInterval(iv); iv = setInterval(tick, 115); };
+  const place = () => { do food = [Math.floor(Math.random() * G), Math.floor(Math.random() * G)]; while (sn.some(s => s[0] === food[0] && s[1] === food[1])); };
+  const tick = () => { if (over) return; dir = nd; const h = [sn[0][0] + dir[0], sn[0][1] + dir[1]]; if (h[0] < 0 || h[1] < 0 || h[0] >= G || h[1] >= G || sn.some(s => s[0] === h[0] && s[1] === h[1])) { over = true; if (score > best()) { set.snakeBest = score; saveSet(); } beep(120, .4, 'sawtooth'); draw(); return; } sn.unshift(h); if (h[0] === food[0] && h[1] === food[1]) { score++; beep(880, .06, 'square'); place(); } else sn.pop(); draw(); };
+  const draw = () => { c.fillStyle = '#0b0e14'; c.fillRect(0, 0, 300, 300); c.fillStyle = '#ef4444'; c.fillRect(food[0] * S + 2, food[1] * S + 2, S - 4, S - 4); sn.forEach((s, i) => { c.fillStyle = i ? '#22c55e' : '#86efac'; c.fillRect(s[0] * S + 1, s[1] * S + 1, S - 2, S - 2); }); sc.textContent = 'Score ' + score + ' · Best ' + best() + (over ? ' · GAME OVER — press Space / tap to retry' : ''); };
+  const key = e => { if (!w.el.classList.contains('focus')) return; const m = { ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1], ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0] }[e.code]; if (m && !(m[0] === -dir[0] && m[1] === -dir[1])) { nd = m; e.preventDefault(); } if (e.code === 'Space' && over) reset(); };
+  cv.onclick = e => { if (over) return reset(); const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, dx = x - r.width / 2, dy = y - r.height / 2, m = Math.abs(dx) > Math.abs(dy) ? [Math.sign(dx), 0] : [0, Math.sign(dy)]; if (!(m[0] === -dir[0] && m[1] === -dir[1])) nd = m; };
+  addEventListener('keydown', key); w.onclose = () => { clearInterval(iv); removeEventListener('keydown', key); }; reset(); draw();
+}
+
+function appBrowser(b, w) {
+  const PAGES = {
+    'cubby://home': () => `<h2>🔎 Cubby Search</h2><p>The pretend internet. Try:</p><p><a data-u="cubby://games">cubby://games</a> · <a data-u="cubby://news">cubby://news</a> · <a data-u="cubby://about">cubby://about</a> · <a data-u="cubby://shop">cubby://shop</a></p>`,
+    'cubby://games': () => `<h2>🎮 Games by Cubby Explosion</h2><p>These are real:</p><ul><li><a href="https://cubbyexplosion.github.io/explox-the-best/play/" target="_blank">Explox</a></li><li><a href="https://cubbyexplosion.github.io/explox-the-best/exgun/" target="_blank">EXGUN</a></li><li><a href="https://cubbyexplosion.github.io/city-life-game/play/" target="_blank">City Life</a></li><li><a href="https://cubbyexplosion.github.io/explox-the-best/hub/" target="_blank">The whole hub</a></li></ul>`,
+    'cubby://news': () => `<h2>📰 Cubby News</h2><ul><li>Local player beats Snake, refuses to say how.</li><li>Breaking: Terminal user types "hack", nothing happens (again).</li><li>Scientists confirm: turning it off and on again still works.</li><li>You have ${wins.length} window(s) open. Close some!</li></ul>`,
+    'cubby://about': () => `<h2>About Cubby OS</h2><p>A computer simulator made by Cubby Explosion and the S.I.P. team. Files you make are saved in your browser only.</p>`,
+    'cubby://shop': () => `<h2>🛒 Cubby Shop</h2><p>RGB RAM — 99 coins<br>Faster fan — 40 coins<br>Cat-ear headset — 150 coins</p><p style="opacity:.6">(Pretend shop. Nothing is sold.)</p>`
+  };
+  b.innerHTML = '<div class="tool"><button class="btn" data-a="back">◀</button><button class="btn" data-a="home">🏠</button><input class="in" id="url" style="flex:1;min-width:120px" value="cubby://home"><button class="btn p" data-a="go">Go</button></div>'; const pg = el('div', 'page'); pg.style.height = 'calc(100% - 44px)'; b.append(pg); let hist = [];
+  const go = (u, noPush) => { u = (u || '').trim(); if (!/^cubby:\/\//.test(u)) u = 'cubby://' + u.replace(/^\w+:\/\//, ''); if (!noPush) hist.push(u); b.querySelector('#url').value = u; pg.innerHTML = PAGES[u] ? PAGES[u]() : `<h2>404</h2><p>${esc(u)} doesn't exist on the pretend internet.</p><p><a data-u="cubby://home">Go home</a></p>`; w.setTitle('Browser — ' + u); };
+  b.onclick = e => { const a = e.target.dataset && e.target.dataset.a, u = e.target.dataset && e.target.dataset.u; if (u) go(u); else if (a === 'go') go(b.querySelector('#url').value); else if (a === 'home') go('cubby://home'); else if (a === 'back') { hist.pop(); go(hist[hist.length - 1] || 'cubby://home', true); } };
+  b.querySelector('#url').onkeydown = e => { e.stopPropagation(); if (e.key === 'Enter') go(e.target.value); }; go('cubby://home');
+}
+
+function appTask(b, w) {
+  const draw = () => { const cpu = clamp(4 + wins.length * 7 + Math.random() * 6, 0, 100), ram = clamp(30 + wins.length * 6 + Math.random() * 2, 0, 100);
+    b.innerHTML = `<div style="padding:12px"><div>CPU ${cpu.toFixed(0)}%</div><div class="bar"><i style="width:${cpu}%"></i></div><div style="margin-top:8px">RAM ${ram.toFixed(0)}% of 16 GB</div><div class="bar"><i style="width:${ram}%"></i></div></div><table class="tm">${wins.map(x => `<tr><td>${x.icon} ${esc(x.title)}</td><td>${(1 + Math.random() * 4 + (x.app === 'snake' ? 6 : 0)).toFixed(1)}% CPU</td><td><button class="btn" data-k="${x.id}">End task</button></td></tr>`).join('')}</table>`; };
+  b.onclick = e => { const k = e.target.dataset.k; if (k) { const x = wins.find(v => v.id == k); if (x) x.close(); draw(); } }; draw(); const iv = setInterval(draw, 1500); w.onclose = () => clearInterval(iv);
+}
+
+function appSettings(b, w) {
+  const draw = () => { b.innerHTML = `<div style="padding:14px"><h3 style="margin-top:0">Personalise</h3><div>Wallpaper</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">${WALLS.map((g, i) => `<div data-w="${i}" style="width:70px;height:44px;border-radius:8px;background:${g};cursor:pointer;border:3px solid ${(set.wall | 0) === i ? '#fff' : 'transparent'}"></div>`).join('')}</div><div>Accent colour <input type="color" id="ac" value="${set.acc || '#3b82f6'}"></div><h3>Account</h3><div>Signed in as <b>${esc(user)}</b></div><button class="btn" data-a="logout" style="margin-top:8px">Sign out</button><h3>Danger zone</h3><button class="btn" data-a="reset" style="background:#7f1d1d">Reset this computer</button><div style="opacity:.6;font-size:12px;margin-top:6px">Deletes all your files and settings.</div></div>`; };
+  b.onclick = e => { const wi = e.target.dataset.w, a = e.target.dataset.a; if (wi != null) { set.wall = +wi; saveSet(); applyTheme(); draw(); } else if (a === 'logout') logout(); else if (a === 'reset' && confirm('Really erase everything?')) { try { Object.keys(localStorage).filter(k => k.startsWith('cubbyos')).forEach(k => localStorage.removeItem(k)); } catch (er) { } location.reload(); } };
+  b.addEventListener('input', e => { if (e.target.id === 'ac') { set.acc = e.target.value; saveSet(); applyTheme(); } }); draw();
+}
+
+// ───── desktop / start / system ─────
+const ICONS = [['files', 'This PC', '💻'], ['notepad', 'Notepad', '📝'], ['terminal', 'Terminal', '⌨️'], ['paint', 'Paint', '🎨'], ['browser', 'Browser', '🌐'], ['calc', 'Calculator', '🧮'], ['snake', 'Snake', '🐍'], ['taskmgr', 'Task Manager', '📊'], ['settings', 'Settings', '⚙️']];
+function applyTheme() { $('desk').style.background = WALLS[set.wall | 0]; document.documentElement.style.setProperty('--acc', set.acc || '#3b82f6'); }
+function buildDesktop() {
+  const d = $('desk'); d.innerHTML = ''; ICONS.forEach(([id, n, ic]) => { const i = el('div', 'ico', `<b>${ic}</b>${n}`); i.ondblclick = () => openApp(id); i.onclick = e => { document.querySelectorAll('.ico.sel').forEach(x => x.classList.remove('sel')); i.classList.add('sel'); e.stopPropagation(); if (matchMedia('(pointer:coarse)').matches) openApp(id); }; d.append(i); });
+  const dk = node(HOME().concat('Desktop')); if (dk) Object.keys(dk.c).forEach(k => { const i = el('div', 'ico', `<b>${dk.c[k].t === 'd' ? '📁' : '📄'}</b>${esc(k)}`); i.ondblclick = () => dk.c[k].t === 'd' ? openApp('files', '~/Desktop/' + k) : openApp('notepad', '~/Desktop/' + k); d.append(i); });
+  d.onclick = () => { document.querySelectorAll('.ico.sel').forEach(x => x.classList.remove('sel')); $('startm').classList.remove('show'); $('startb').classList.remove('on'); };
+  $('startm').innerHTML = ICONS.map(([id, n, ic]) => `<div class="it" data-o="${id}"><span>${ic}</span>${n}</div>`).join('') + '<hr><div class="it" data-o="_off"><span>⏻</span>Shut down</div><div class="it" data-o="_re"><span>🔄</span>Restart</div><div class="it" data-o="_out"><span>👤</span>Sign out (' + esc(user) + ')</div>';
+  applyTheme();
+}
+$('startb').onclick = e => { e.stopPropagation(); const s = $('startm'); s.classList.toggle('show'); $('startb').classList.toggle('on', s.classList.contains('show')); };
+$('startm').onclick = e => { const o = e.target.closest('[data-o]'); if (!o) return; $('startm').classList.remove('show'); $('startb').classList.remove('on'); const k = o.dataset.o; if (k === '_off') shutdown(); else if (k === '_re') { shutdown(true); } else if (k === '_out') logout(); else openApp(k); };
+setInterval(() => { const d = new Date(); $('clk').innerHTML = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + '<br>' + d.toLocaleDateString(); }, 1000);
+
+const show = id => ['boot', 'login', 'bsod', 'off'].forEach(x => $(x).classList.toggle('show', x === id));
+function closeAll() { wins.slice().forEach(w => w.close()); wins = []; }
+function boot() {
+  $('screen').style.display = 'none'; show('boot'); const L = ['Cubby BIOS v1.0', 'CPU: Cubby-Core x8 @ 4.2GHz (pretend)', 'Memory test: 16384 MB OK', 'Detecting drives… 1 found', 'Loading Cubby OS…', '', '██████████████████████ 100%'], b = $('boot'); b.textContent = ''; let i = 0;
+  const iv = setInterval(() => { b.textContent += L[i++] + '\n'; beep(300 + i * 40, .03, 'square'); if (i >= L.length) { clearInterval(iv); setTimeout(() => { show('login'); $('uname').value = set.user || ''; $('uname').focus(); }, 500); } }, 280);
+}
+function signin() { user = ($('uname').value.trim().replace(/[^\w ]/g, '') || 'Guest').slice(0, 14); set.user = user; saveSet(); loadFS(); show(''); $('screen').style.display = 'block'; buildDesktop(); beep(523, .12); setTimeout(() => beep(659, .12), 130); setTimeout(() => beep(784, .25), 260); const r = node(HOME().concat('Documents', 'readme.txt')); if (r && !set.seen) { set.seen = 1; saveSet(); openApp('notepad', '~/Documents/readme.txt'); } }
+function logout() { closeAll(); $('screen').style.display = 'none'; show('login'); $('uname').value = user; }
+function shutdown(restart) { closeAll(); $('screen').style.display = 'none'; if (restart) return boot(); show('off'); }
+function bsod() { closeAll(); $('screen').style.display = 'none'; show('bsod'); beep(100, .8, 'sawtooth'); let p = 0; const iv = setInterval(() => { p += 7 + Math.random() * 10; $('bsodp').textContent = Math.min(100, Math.round(p)) + '% complete'; if (p >= 100) { clearInterval(iv); setTimeout(boot, 700); } }, 350); }
+$('signin').onclick = signin; $('uname').onkeydown = e => { if (e.key === 'Enter') signin(); }; $('pwr').onclick = boot;
+boot();
+</script>
+</body>
+</html>
