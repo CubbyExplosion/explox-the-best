@@ -49,7 +49,7 @@ let cur = null;
 function close(success) { if (!cur) return; ui.classList.remove('on'); clearInterval(cur.tm); const c = cur.c; cur = null; if (R && R.on) { R.invOpen = false; try { if (renderer && !IS_TOUCH) renderer.domElement.requestPointerLock(); } catch (e) { } } return c; }
 window.rdSafeCrack = function (c) {
   const now = performance.now(); if (c._lockUntil && now < c._lockUntil) { window.rdToast('🔒 The safe is jammed — locked out for ' + Math.ceil((c._lockUntil - now) / 1000) + ' s', 2200); return; }
-  const lv = level(), vault = c.type === 'bankvault', len = clamp((vault ? 4 : 3) + Math.floor(lv * 0.65), 3, 6), tries = clamp(13 - len - (vault ? 1 : 0), 6, 10), time = Math.max(35, Math.round(120 - lv * 11 - (vault ? 25 : 0)));
+  const lv = level(), vault = c.type === 'bankvault', len = clamp((vault ? 4 : 3) + Math.floor(lv * 0.65), 3, 6), tries = clamp(17 - len - (vault ? 1 : 0), 10, 14), time = Math.max(75, Math.round(190 - lv * 12 - (vault ? 30 : 0)));
   if (!c._code || c._code.length !== len) c._code = Array.from({ length: len }, () => Math.floor(Math.random() * 10));
   if (vault) c._items0 = {};      // touching a bank vault safe sets off the alarm
   cur = { c, len, tries, time, left: time, guess: [], hist: [] }; if (document.pointerLockElement) document.exitPointerLock(); R.invOpen = true; draw(); ui.classList.add('on');
