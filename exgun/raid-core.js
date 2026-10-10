@@ -523,6 +523,7 @@ function fireBullets() {
     raycaster.set(origin, dir); raycaster.far = Math.max(w.range * 2, 80);
     const hits = raycaster.intersectObjects(aliveMeshes, true);
     const wall = rayBuildings(origin.x, origin.z, dir.x, dir.z, raycaster.far) / Math.max(0.0001, Math.hypot(dir.x, dir.z));
+    if (window.rdSafeShot) window.rdSafeShot(origin, dir, Math.min(wall, w.range * 2), hits.length ? hits[0].distance : 1e9, a.dmg * (g.dmgMul || 1), a);
     let end = origin.clone().addScaledVector(dir, Math.min(wall, w.range * 2, 120));
     const vh = (R.battle && window.rdBattleRay) ? window.rdBattleRay(origin, dir, Math.min(wall, w.range * 2)) : null;
     if (vh && (!hits.length || vh.dist < hits[0].distance)) { end = origin.clone().addScaledVector(dir, vh.dist); window.rdBattleVehHit(vh.v, a, vh.dist); anyHit = true; }
@@ -656,6 +657,7 @@ function throwNade() {
   if (!R.pack[R.nade]) R.nade = Object.keys(R.pack).find(id => id.startsWith('gren:')) || null;
 }
 function blast(p, d) {
+  if (window.rdSafeBlast) window.rdSafeBlast(p, d);
   if (R.battle && window.rdBattleBlastVeh) window.rdBattleBlastVeh(p, d);
   noise(0.6, 3000, 120, 1.2, 'lowpass'); tone(70, 0.5, 0.9, 'sine', 0, 30); if (window.rdExplosion) window.rdExplosion(p, d); else { burst(p, 0xffaa44, 26, 9, 0.12, fx.sparks, 6); burst(p, 0x444444, 14, 5, 0.25, fx.blood, 1.5); }
   if (window.rdLightPool) window.rdLightPool.take(0xffa050, 4, 24, p.clone().add(new THREE.Vector3(0, 1, 0)), 120); else { const light = new THREE.PointLight(0xffa050, 4, 24); light.position.copy(p).add(new THREE.Vector3(0, 1, 0)); scene.add(light); setTimeout(() => scene.remove(light), 120); }

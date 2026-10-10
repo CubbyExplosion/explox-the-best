@@ -191,6 +191,7 @@ function cloudFx(x, z, tag) {
 
 function detonate(x, z) {
   if (!R.on) return; BT.nukePending = false; const pp = playerPos, pd = Math.hypot(x - pp.x, z - pp.z), t0 = performance.now(), objs = [], tag = o => { o.userData.nuke = true; scene.add(o); objs.push(o); return o; };
+  if (window.rdSafeBlast) window.rdSafeBlast(new THREE.Vector3(x, 0, z), { dmg: 99999, radius: 250 });
   // white-out + shake + light
   flashEl.style.transition = 'none'; flashEl.style.opacity = String(clamp(1.7 - pd / 280, 0.35, 1)); setTimeout(() => { flashEl.style.transition = 'opacity 3.5s ease-out'; flashEl.style.opacity = '0'; }, 120); R.shake = 2.2;
   const light = window.rdLightPool.take(0xffd8a0, 60, 900, new THREE.Vector3(x, 60, z), 0);
