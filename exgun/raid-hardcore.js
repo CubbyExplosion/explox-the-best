@@ -46,6 +46,7 @@ function start(T) {
   const half = Math.ceil(T.veh / 2), I_ = I();
   for (let i = 0; i < half; i++) I_.addVehicle(PLAYER_VEH[i % 5], 'A', -26 + i * 13, T.half - 36, Math.PI, false);
   for (let i = 0; i < T.veh - half; i++) I_.addVehicle(ENEMY_VEH[i % 5], 'B', -40 + i * 20, -(T.half - 36), 0, true);
+  if (T.cap > 60) window.rdPostEnabled = false;                                  // big armies: switch the heavy post-processing off so it stays smooth
   document.body.classList.add('hcOn'); ensureHud(); wave(true); document.getElementById('hudMapName').textContent = 'Hardcore · ' + T.label;
   I_.kill(`☠️ ${T.label}: ${T.npcs} NPCs and ${T.veh} vehicles vs you. One life. Press F by your vehicle to drive it.`, 6500);
 }
@@ -66,11 +67,11 @@ function spawnBot() {
   } finally { window.RDSET.smooth = keep; }
   return false;
 }
-function wave(first) { const T = BT.hc.T; let alive = enemies.filter(b => b.alive).length, guard = 0; while (BT.hc.queue > 0 && alive < T.cap && guard++ < (first ? 200 : 6)) { if (spawnBot()) alive++; else break; } }
+function wave(first) { const T = BT.hc.T, cap = BT.hc.capNow || T.cap; let alive = enemies.filter(b => b.alive).length, guard = 0; while (BT.hc.queue > 0 && alive < cap && guard++ < (first ? 200 : 6)) { if (spawnBot()) alive++; else break; } }
 window.rdHCTick = function (dt) {
   if (!BT.hc || BT.hc.over) return; BT.hc.t = (BT.hc.t || 0) + dt;
   BT.hc.wT = (BT.hc.wT || 0) - dt; if (BT.hc.wT <= 0) { BT.hc.wT = 0.5; wave(false); }
-  BT.hc.cT = (BT.hc.cT || 0) - dt; if (BT.hc.cT <= 0) { BT.hc.cT = 2; enemies = enemies.filter(b => { if (b.alive) return true; if (b._dd === undefined) b._dd = BT.t; if (BT.t - b._dd > 20) { scene.remove(b.mesh); return false; } return true; }); }     // clear old corpses
+  BT.hc.cT = (BT.hc.cT || 0) - dt; if (BT.hc.cT <= 0) { BT.hc.cT = 2; enemies = enemies.filter(b => { if (b.alive) return true; if (b._dd === undefined) b._dd = BT.t; if (BT.t - b._dd > 10) { scene.remove(b.mesh); return false; } return true; }); }     // clear old corpses
   const alive = enemies.filter(b => b.alive).length, left = alive + BT.hc.queue;
   if (left <= 0 && BT.hc.spawned >= BT.hc.T.npcs) { finish('win'); return; }
   if (BT.t >= BT.duration) finish('time');

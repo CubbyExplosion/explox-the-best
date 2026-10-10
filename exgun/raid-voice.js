@@ -112,7 +112,7 @@ function tick() {
 }
 // dead soldiers topple instead of snapping flat, then a blood pool spreads under them
 function startFall(e) {
-  const m = e.mesh; if (!m || e._fell) return; e._fell = true; const flatX = m.rotation.x, flatY = m.position.y; if (window.rdPostEnabled !== true) return;
+  const m = e.mesh; if (!m || e._fell) return; e._fell = true; const flatX = m.rotation.x, flatY = m.position.y; if (m.userData.hy) return;
   m.rotation.order = 'YXZ'; const side = Math.random() < 0.5 ? -1 : 1, spin = (Math.random() - 0.5) * 0.9, t0 = performance.now();
   m.rotation.x = 0; m.position.y = 0; let pool = null;
   try { pool = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshStandardMaterial({ color: 0x4a0707, roughness: 0.25, metalness: 0.1, transparent: true, opacity: 0.85, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })); pool.rotation.x = -Math.PI / 2; pool.position.set(m.position.x, 0.02, m.position.z); pool.scale.setScalar(0.01); scene.add(pool); } catch (x) {}

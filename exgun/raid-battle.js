@@ -140,7 +140,7 @@ function makeBot(team, clsKey, slot, pos, extra) {
   const b = { mesh, team, cls: clsKey, d, hp, maxHp: hp, ac: d.ac, acHead: d.acHead, alive: true, slot, type: 'raider', tier: 2, def: { emoji: team === 'A' ? '🔵' : '🔴', name: d.name, tier: 2 }, alertT: 0, lastKnown: { x: sp.x, z: sp.z },
     target: null, scanT: rnd(0, 0.5), fireCd: rnd(0.4, 1.2), burstLeft: 0, restT: rnd(0.5, 2), strafe: Math.random() < 0.5 ? 1 : -1, strafeT: rnd(1, 2.5), side: Math.random() < 0.5 ? 1 : -1, stuck: 0, respawnAt: 0, goal: null };
   if (extra) { if (extra.ac !== undefined) { b.ac = extra.ac; b.acHead = extra.acHead !== undefined ? extra.acHead : b.acHead; } if (extra.guard) { b.guard = true; b.home = { x: sp.x, z: sp.z }; } if (extra.elite) b.def.name = 'Elite ' + d.name; if (extra.boss) { b.boss = true; b.def.name = 'WARLORD'; } }
-  mesh.userData.enemy = b; return b;
+  mesh.userData.enemy = b; if (window.rdBotUpgrade) window.rdBotUpgrade(b); return b;
 }
 function spawnTeams(realTeammates) {
   enemies = []; BT.allies = [];
@@ -164,7 +164,7 @@ function moveBot(b, tx, tz, speed, dt) {
   if (!moved) { b.stuck = 0.7; if (Math.random() < 0.3) b.side *= -1; } else b.stuck = Math.max(0, b.stuck - dt); return d;
 }
 function objectiveFor(b) {
-  if (BT.mode === 'hardcore') return R.dead ? { x: rnd(-60, 60), z: rnd(-60, 60) } : { x: playerPos.x + rnd(-14, 14), z: playerPos.z + rnd(-14, 14) };       // Hardcore: the whole army comes for you
+  if (BT.mode === 'hardcore') { if (R.dead) return { x: rnd(-60, 60), z: rnd(-60, 60) }; const m = b.mesh.position, dx = playerPos.x - m.x, dz = playerPos.z - m.z, dd = Math.hypot(dx, dz) || 1; if (b.flank === undefined) b.flank = rnd(-1.1, 1.1); if (dd < 45) return { x: playerPos.x + rnd(-14, 14), z: playerPos.z + rnd(-14, 14) }; const c = Math.cos(b.flank), s = Math.sin(b.flank), ux = (dx * c - dz * s) / dd, uz = (dx * s + dz * c) / dd; return { x: m.x + ux * (dd - 30), z: m.z + uz * (dd - 30) }; }       // Hardcore: they flank you from different angles
   if (BT.mode === 'nomercy') {                                    // fortress assault: attackers follow the breach route, defenders hold their posts
     if (b.guard) return { x: b.home.x + rnd(-5, 5), z: b.home.z + rnd(-5, 5) };
     if (!R.dead && !BT.ended) return { x: playerPos.x + rnd(-7, 7), z: playerPos.z + rnd(-3, 9) };           // your squad sticks with you: it advances when you do
@@ -515,7 +515,8 @@ const origTick = window.tickEnemyAI;
 window.tickEnemyAI = function (dt) {
   if (!BT.on) return origTick(dt);
   if (BT.ended) return; BT.t += dt; R.t = BT.t;
-  enemies.forEach(b => botUpdate(b, dt)); BT.allies.forEach(b => botUpdate(b, dt));
+  const lod = (b) => { if (BT.mode === 'hardcore' && b.alive) { const d = Math.abs(b.mesh.position.x - playerPos.x) + Math.abs(b.mesh.position.z - playerPos.z); if (d > 170) { b._ta = (b._ta || 0) + dt; if (b._ta < 0.25) return; botUpdate(b, b._ta); b._ta = 0; return; } } botUpdate(b, dt); };
+  enemies.forEach(lod); BT.allies.forEach(b => botUpdate(b, dt));
   vehiclesUpdate(dt); updateShells(dt);
   if (BT.mode === 'hardcore') { if (window.rdHCTick) window.rdHCTick(dt); hudUpdate(dt); return; }
   if (BT.mode === 'nomercy') { if (window.rdNMTick) window.rdNMTick(dt); hudUpdate(dt); return; }

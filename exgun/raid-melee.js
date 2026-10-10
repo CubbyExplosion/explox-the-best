@@ -53,6 +53,7 @@ function frame(dt) {
   const R = window.RAID; if (!R || !R.on || R.over) return;
   lst().forEach(e => {
     const m = e.mesh; if (!m) return; const s = e._rx || (e._rx = { hp: e.hp, seq: e.hitSeq, ax: 0, az: 0, vx: 0, vz: 0, tw: 0, vt: 0, px: 0, pz: 0, stumble: 0 });
+    if (!s.dirty && typeof playerPos !== 'undefined' && Math.abs(m.position.x - playerPos.x) + Math.abs(m.position.z - playerPos.z) > 110 && e.hp >= s.hp - 0.4) { s.hp = e.hp; return; }
     const hy = m.userData && m.userData.hy, tgt = hy ? hy.inner : m;
     if (e.alive === false) { if (s.dirty) { tgt.rotation.z = 0; if (hy) tgt.rotation.y = 0; s.dirty = false; } s.hp = e.hp; return; }
     if (e.hp < s.hp - 0.4) react(e, s, s.hp - e.hp); s.hp = e.hp;

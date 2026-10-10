@@ -14,6 +14,7 @@ const M = {};
 function mats() {
   if (M.dark) return M; const S = o => new THREE.MeshStandardMaterial(o);
   M.dark = S({ color: 0x1d1e20, roughness: 0.55, metalness: 0.7 }); M.rubber = S({ color: 0x0c0c0d, roughness: 1 }); M.rim = S({ color: 0x9aa0a6, roughness: 0.3, metalness: 0.9 }); M.steel = S({ color: 0x55595e, roughness: 0.4, metalness: 0.85 });
+  const tc = document.createElement('canvas'); tc.width = 32; tc.height = 128; const tx = tc.getContext('2d'); tx.fillStyle = '#1a1a1a'; tx.fillRect(0, 0, 32, 128); tx.fillStyle = '#3a3836'; for (let i = 0; i < 16; i++) tx.fillRect(2, i * 8 + 1, 28, 5); const tt = new THREE.CanvasTexture(tc); tt.wrapS = tt.wrapT = THREE.RepeatWrapping; tt.repeat.set(1, 10); M.track = S({ color: 0xffffff, map: tt, roughness: 1 });
   M.lamp = new THREE.MeshBasicMaterial({ color: 0xfff2c0 }); M.tail = new THREE.MeshBasicMaterial({ color: 0xc01010 }); M.canvas = S({ color: 0x4a5238, roughness: 1 }); M.olive = S({ color: 0x3f4a35, roughness: 0.8, metalness: 0.3 });
   return M;
 }
@@ -48,7 +49,7 @@ function decorate(v) {
     D(0.9, 0.1, 0.9, m.dark, 0.7, 1.96, -1.4); D(0.7, 0.05, 0.7, m.steel, 0.7, 2.03, -1.4); Cy(0.02, 0.02, 2.4, m.dark, 1.2, 3.0, -2.4); Cy(0.02, 0.02, 1.8, m.dark, -1.2, 2.8, -2.4); Cy(0.5, 0.5, 0.3, m.rubber, 0, 1.6, -3.1, g, Math.PI / 2);
     D(1.3, 0.5, 0.1, m.dark, 0, 0.9, 3.15); const sh = D(1.0, 0.6, 0.08, m.dark, 0, 0.7, 0.75, v.turret); void sh; const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.6), numTex(Math.floor(rnd(100, 999)), enemy ? '#ffeeee' : '#eef')); pl.position.set(1.31, 1.4, 0.6); pl.rotation.y = Math.PI / 2; g.add(pl); v._exh = [new THREE.Vector3(-1.2, 0.8, -3.0)]; v._eng = new THREE.Vector3(0, 1.8, 2.6);
   } else if (k === 'tank') {
-    const tl = (s) => { for (let i = 0; i < 28; i++) { const z = -3.3 + i * 0.236; D(0.98, 0.07, 0.17, m.rubber, s * 2.0, 0.0 + 1.28, z); D(0.98, 0.07, 0.17, m.rubber, s * 2.0, 0.07, z); } D(0.98, 0.07, 6.6, m.rubber, s * 2.0, 1.3, 0).visible = true; [-3.4, 3.4].forEach(z => Cy(0.62, 0.62, 0.9, m.steel, s * 2.0, 0.68, z, g, 0, Math.PI / 2)); D(0.12, 0.8, 6.0, m.steel, s * 2.55, 0.9, 0); D(0.2, 0.3, 1.8, m.dark, s * 2.2, 1.45, 2.6); };
+    const tl = (s) => { D(1.0, 0.1, 6.8, m.track, s * 2.0, 1.32, 0); D(1.0, 0.1, 6.8, m.track, s * 2.0, 0.05, 0); [-3.4, 3.4].forEach(z => Cy(0.62, 0.62, 0.9, m.steel, s * 2.0, 0.68, z, g, 0, Math.PI / 2)); D(0.12, 0.8, 6.0, m.steel, s * 2.55, 0.9, 0); D(0.2, 0.3, 1.8, m.dark, s * 2.2, 1.45, 2.6); };
     [-1, 1].forEach(tl); [-1, 1].forEach(s => { D(0.3, 0.06, 0.9, m.dark, s * 2.0, 1.45, -3.6); D(0.35, 0.35, 0.1, m.lamp, s * 1.0, 1.35, 4.05); D(0.2, 0.2, 0.06, m.tail, s * 1.3, 1.3, -3.34); });
     D(2.2, 0.1, 1.6, m.dark, 0, 1.62, -2.6); for (let i = 0; i < 6; i++) D(2.0, 0.03, 0.08, m.steel, 0, 1.68, -3.2 + i * 0.22); D(0.8, 0.6, 0.8, m.olive, 1.2, 1.9, -3.0); D(0.5, 0.4, 0.6, m.canvas, -1.1, 1.9, -3.0); Cy(0.025, 0.025, 3.0, m.dark, -1.4, 3.4, -3.2); D(1.2, 0.04, 0.5, m.dark, 0, 1.0, 4.2);
     const T = v.turret; Cy(0.45, 0.5, 0.2, m.dark, -0.6, 1.15, -0.3, T); Cy(0.05, 0.05, 0.9, m.dark, -0.6, 1.5, -0.3, T); D(0.4, 0.15, 0.2, m.dark, -0.6, 1.2, 0.1, T); for (let i = 0; i < 3; i++) { Cy(0.07, 0.07, 0.3, m.dark, -1.3, 0.8, 0.3 + i * 0.25, T, Math.PI / 2); Cy(0.07, 0.07, 0.3, m.dark, 1.3, 0.8, 0.3 + i * 0.25, T, Math.PI / 2); }
