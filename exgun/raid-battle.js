@@ -164,6 +164,7 @@ function moveBot(b, tx, tz, speed, dt) {
   if (!moved) { b.stuck = 0.7; if (Math.random() < 0.3) b.side *= -1; } else b.stuck = Math.max(0, b.stuck - dt); return d;
 }
 function objectiveFor(b) {
+  if (BT.mode === 'hardcore') return R.dead ? { x: rnd(-60, 60), z: rnd(-60, 60) } : { x: playerPos.x + rnd(-14, 14), z: playerPos.z + rnd(-14, 14) };       // Hardcore: the whole army comes for you
   if (BT.mode === 'nomercy') {                                    // fortress assault: attackers follow the breach route, defenders hold their posts
     if (b.guard) return { x: b.home.x + rnd(-5, 5), z: b.home.z + rnd(-5, 5) };
     if (!R.dead && !BT.ended) return { x: playerPos.x + rnd(-7, 7), z: playerPos.z + rnd(-3, 9) };           // your squad sticks with you: it advances when you do
@@ -202,12 +203,12 @@ function botUpdate(b, dt) {
     }
   } else {
     if (b.heard && b.heard.until > BT.t) { b.goal = { x: b.heard.x, z: b.heard.z }; b.goalT = 3; b.heard.until -= 0; }       // gunfire / an alarm: go and look
-    else if (!b.goal || dist2(m.x, m.z, b.goal.x, b.goal.z) < 4 || (b.goalT -= dt) < 0) { b.goal = objectiveFor(b); b.goalT = b.guard ? 5 : BT.mode === 'nomercy' ? 2.5 : 12; }
+    else if (!b.goal || dist2(m.x, m.z, b.goal.x, b.goal.z) < 4 || (b.goalT -= dt) < 0) { b.goal = objectiveFor(b); b.goalT = b.guard ? 5 : BT.mode !== 'battle' ? 2.5 : 12; }
     b.mesh.rotation.y = Math.atan2(b.goal.x - m.x, b.goal.z - m.z); moveBot(b, b.goal.x, b.goal.z, d.speed, dt);
   }
 }
 function botDie(b, how) {
-  if (!b.alive) return; b.alive = false; b.mesh.rotation.order = 'YXZ'; b.mesh.rotation.x = -Math.PI / 2; b.mesh.position.y = 0.22; b.respawnAt = BT.mode === 'nomercy' ? 0 : BT.t + 8 + Math.random() * 3;     // no respawns in No Mercy
+  if (!b.alive) return; b.alive = false; b.mesh.rotation.order = 'YXZ'; b.mesh.rotation.x = -Math.PI / 2; b.mesh.position.y = 0.22; b.respawnAt = BT.mode !== 'battle' ? 0 : BT.t + 8 + Math.random() * 3;     // no respawns in No Mercy
   const team = BT[b.team]; team.tickets = Math.max(0, team.tickets - 1); b.target = null;
   if (b.team === 'B' && how === 'player') { BT.stats.kills++; }
   if (b.boss && window.rdNMBossDown) window.rdNMBossDown(how);
@@ -259,7 +260,7 @@ function damageVehicle(v, dmg, src) {
   if (v.hp <= 0) destroyVehicle(v, src);
 }
 function destroyVehicle(v, src) {
-  v.alive = false; v.hp = 0; v.respawnAt = BT.mode === 'nomercy' ? 0 : BT.t + 50; const p = v.pos.clone().add(new THREE.Vector3(0, 1.2, 0)); A().noise(0.7, 3500, 100, 1.3, 'lowpass'); A().tone(60, 0.6, 0.9, 'sine', 0, 28);
+  v.alive = false; v.hp = 0; v.respawnAt = BT.mode !== 'battle' ? 0 : BT.t + 50; const p = v.pos.clone().add(new THREE.Vector3(0, 1.2, 0)); A().noise(0.7, 3500, 100, 1.3, 'lowpass'); A().tone(60, 0.6, 0.9, 'sine', 0, 28);
   A().burst(p, 0xff9a33, 30, 10, 0.16, A().getFx().sparks, 7); A().burst(p, 0x333333, 16, 5, 0.3, A().getFx().blood, 1.4);
   v.mesh.traverse(o => { if (o.isMesh && o.material && o.material.color) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.18); } });
   if (R.veh === v) { const veh = v; exitVehicle(true); ['chest', 'legs', 'arms', 'stomach'].forEach(z => A().hurtPlayer({ dmg: 45, pen: 6 }, z, 1)); veh.occ = null; kill('💥 Your vehicle was destroyed!', 2600); }
@@ -373,7 +374,8 @@ function vehicleAI(v, dt) {
     cand.forEach(c => { const dd = dist2(m.x, m.z, c.x, c.z); if (dd < bd && A().lineClear(m.x, m.z, c.x, c.z)) { bd = dd; best = c; } }); v.target = best;
   }
   let throttle = 0, gx, gz; const tg = v.target;
-  if (d.static) v.goal = { x: m.x, z: m.z };                       // fixed turrets never go anywhere
+  if (BT.mode === 'hardcore' && mine === 'B' && !d.static) v.goal = { x: playerPos.x + rnd(-12, 12), z: playerPos.z + rnd(-12, 12) };
+  else if (d.static) v.goal = { x: m.x, z: m.z };                       // fixed turrets never go anywhere
   else if (!v.goal || dist2(m.x, m.z, v.goal.x, v.goal.z) < 10 || (v.goalT -= dt) < 0) { const pts = BT.points.filter(p => mine === 'B' ? p.own > -0.95 : p.own < 0.95); const p = pts.length ? pts[rint(0, pts.length - 1)] : BT.points[1]; v.goal = { x: p.x + rnd(-14, 14), z: p.z + rnd(-14, 14) }; v.goalT = 25; }
   if (tg && dist2(m.x, m.z, tg.x, tg.z) < (d.cannon ? 50 : 25)) { gx = tg.x; gz = tg.z; throttle = d.cannon ? 0.15 : 0.4; } else { gx = v.goal.x; gz = v.goal.z; throttle = 0.9; }
   const want = Math.atan2(gx - m.x, gz - m.z); let diff = want - v.yaw; while (diff > Math.PI) diff -= 6.283; while (diff < -Math.PI) diff += 6.283; const steer = Math.abs(diff) < 0.12 ? 0 : (diff > 0 ? 1 : -1);
@@ -429,6 +431,7 @@ function balanceTeam(dt) {
 }
 // ───────── player death / respawn ─────────
 window.rdBattleDeath = function (reason) {
+  if (BT.mode === 'hardcore' && window.rdHCFail) { window.rdHCFail(reason === 'mia' ? 'time' : 'died'); return; }
   if (BT.mode === 'nomercy' && window.rdNMFail) { window.rdNMFail(reason === 'mia' ? 'time' : 'died'); return; }      // No Mercy: one life
   if (reason === 'mia') { return; }                                   // the battle has its own clock
   if (R.dead || BT.ended) return; R.dead = true; BT.stats.deaths++; BT.A.tickets = Math.max(0, BT.A.tickets - 1); R.deadT = 6; if (R.veh) exitVehicle(true); R.use = null; R.reload = 0; fireHeld = false; R.adsHeld = false;
@@ -496,6 +499,7 @@ function buildHud() {
 function hudUpdate(dt) {
   BT.hudT = (BT.hudT || 0) - dt; if (BT.hudT > 0) return; BT.hudT = 0.12;
   if (BT.mode === 'nomercy' && window.rdNMHud) window.rdNMHud();
+  if (BT.mode === 'hardcore' && window.rdHCHud) window.rdHCHud();
   $('btTA').textContent = BT.A.tickets; $('btTB').textContent = BT.B.tickets; const aliveA = BT.allies.filter(b => b.alive).length + (R.dead ? 0 : 1) + BT.realTeammates, aliveB = enemies.filter(b => b.alive).length;
   $('btAA').textContent = `(${aliveA}/${TEAM_A})`; $('btBA').textContent = `(${aliveB}/${TEAM_B})`; const left = Math.max(0, BT.duration - BT.t); $('btClock').textContent = '⏱ ' + Math.floor(left / 60) + ':' + String(Math.floor(left % 60)).padStart(2, '0') + ' · 👥 ' + BT.realTeammates + ' real';
   BT.points.forEach((p, i) => { const el = $('btP' + i); el.style.background = p.own > 0.05 ? '#2a6fe0' : p.own < -0.05 ? '#d8342a' : '#888'; el.style.opacity = 0.45 + Math.abs(p.own) * 0.55; });
@@ -513,6 +517,7 @@ window.tickEnemyAI = function (dt) {
   if (BT.ended) return; BT.t += dt; R.t = BT.t;
   enemies.forEach(b => botUpdate(b, dt)); BT.allies.forEach(b => botUpdate(b, dt));
   vehiclesUpdate(dt); updateShells(dt);
+  if (BT.mode === 'hardcore') { if (window.rdHCTick) window.rdHCTick(dt); hudUpdate(dt); return; }
   if (BT.mode === 'nomercy') { if (window.rdNMTick) window.rdNMTick(dt); hudUpdate(dt); return; }
   pointsUpdate(dt); balanceTeam(dt); deadTick(dt); hudUpdate(dt); checkEnd();
   // keep the shadow camera and presence happy while driving
