@@ -48,6 +48,7 @@ const ui = document.createElement('div'); ui.id = 'scrk'; document.body.appendCh
 let cur = null;
 function close(success) { if (!cur) return; ui.classList.remove('on'); clearInterval(cur.tm); const c = cur.c; cur = null; if (R && R.on) { R.invOpen = false; try { if (renderer && !IS_TOUCH) renderer.domElement.requestPointerLock(); } catch (e) { } } return c; }
 window.rdSafeCrack = function (c) {
+  if (c.type === 'killsafe') { window.rdKillSafe(c); return; }
   const now = performance.now(); if (c._lockUntil && now < c._lockUntil) { window.rdToast('🔒 The safe is jammed — locked out for ' + Math.ceil((c._lockUntil - now) / 1000) + ' s', 2200); return; }
   const lv = level(), vault = c.type === 'bankvault', len = clamp((vault ? 4 : 3) + Math.floor(lv * 0.65), 3, 6), tries = clamp(17 - len - (vault ? 1 : 0), 10, 14), time = Math.max(75, Math.round(190 - lv * 12 - (vault ? 30 : 0)));
   if (!c._code || c._code.length !== len) c._code = Array.from({ length: len }, () => Math.floor(Math.random() * 10));
@@ -114,6 +115,44 @@ document.addEventListener('keydown', e => { if (!cur) return; if (/^Digit[0-9]$|
         const c = { type: 'hpsafe', name: '🛡️ Armored Safe — ' + (HP + Math.round(lv * 400)) + ' HP (shoot or bomb it!)', x, z, items: {}, mesh: body, lid: null, opened: false, time: 0.3, hp: HP + Math.round(lv * 400), maxHp: HP + Math.round(lv * 400), locked: true, sprite, _col: col }; c._items0 = c.items; refresh(c); m.containers.push(c); hpSafes.push(c); break;
       }
     } catch (e) { console.warn('hp safes', e); }
+    return r;
+  };
+})();
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// KILL-LOCK SAFES — a black-and-red safe with a skull on it that will not open until you have KILLED 5 ENEMIES.
+// Hold F on it to arm it: 5 guards storm out of the hills towards you. Every enemy you kill (any enemy) counts; the sign above shows 0/5…5/5.
+// At 5/5 it unlocks with a rich stash. 2 per map.
+// ═══════════════════════════════════════════════════════════════════════════════
+(function () {
+  const R = window.RAID, rnd = (a, b) => a + Math.random() * (b - a), NEED = 5; let ks = [];
+  function lvl() { const d = window.RAID.diff; return d ? (d.id >= 10 ? Math.min(6, (d.id - 10) / 3.3) : d.id >= 5 ? 4 : d.id) : 0; }
+  function label(c) { const cv = document.createElement('canvas'); cv.width = 256; cv.height = 80; const x = cv.getContext('2d'); x.fillStyle = 'rgba(10,6,6,.85)'; x.fillRect(0, 0, 256, 80); x.strokeStyle = c.open ? '#6adf5a' : '#ff3a2a'; x.lineWidth = 3; x.strokeRect(2, 2, 252, 76); x.textAlign = 'center'; x.fillStyle = '#ffd24a'; x.font = 'bold 20px Arial'; x.fillText(c.open ? '🔓 UNLOCKED — hold F to loot' : c.armed ? '💀 KILL 5 ENEMIES' : '💀 KILL-LOCK SAFE · hold F to arm', 128, 28); if (!c.open) { for (let i = 0; i < NEED; i++) { x.fillStyle = i < c.kills ? '#ff3a2a' : '#3a2020'; x.beginPath(); x.arc(46 + i * 41, 56, 13, 0, 6.3); x.fill(); x.strokeStyle = '#ff9a8a'; x.lineWidth = 1.5; x.stroke(); } } else { x.fillStyle = '#9fd'; x.font = '16px Arial'; x.fillText('5/5 enemies killed', 128, 58); } return new THREE.CanvasTexture(cv); }
+  function repaint(c) { c.sprite.material.map = label(c); c.sprite.material.needsUpdate = true; c.mesh.material.emissive.setRGB(c.open ? 0 : c.armed ? 0.35 : 0.08, 0, 0); }
+  function loot() { const t = R_CONTAINERS.safe.table, lv = lvl(), out = {}, n = 5 + Math.floor(lv / 2); for (let i = 0; i < n; i++) { const e = (window.rdLootPick || (tb => tb[Math.floor(Math.random() * tb.length)]))(t), base = Math.floor(e[2] + Math.random() * (e[3] - e[2] + 1)); out[e[0]] = (out[e[0]] || 0) + (R_AMMO[e[0]] ? Math.round(base * 1.3) : base); } if (lvl() >= 1) out.gold_bar = (out.gold_bar || 0) + 1; return out; }
+  window.rdKillSafe = function (c) {
+    if (c.open) return; if (c.armed) { window.rdToast('💀 Kill ' + (NEED - c.kills) + ' more enem' + (NEED - c.kills === 1 ? 'y' : 'ies') + ' to open it (' + c.kills + '/' + NEED + ')', 2200); return; }
+    c.armed = true; c.base = R.kills || 0; c.kills = 0; repaint(c); window.rdToast('💀 The safe is armed — guards are coming! Kill 5 enemies to open it.', 3500);
+    try { window.RDX.api.tone(220, 0.5, 0.4, 'sawtooth', 0, 90); window.RDX.api.noise(0.6, 900, 200, 0.4, 'lowpass'); } catch (e) { }
+    const lv = lvl(), pool = lv < 1 ? ['scav', 'scav', 'raider', 'knifer', 'scav'] : lv < 3 ? ['raider', 'raider', 'pmc', 'knifer', 'scav'] : ['pmc', 'pmc', 'raider', 'knifer', 'pmc'], h = window.OW && window.OW.h;
+    if (h) for (let i = 0; i < NEED; i++) for (let t = 0; t < 30; t++) { const a = rnd(0, 6.28), r = rnd(20, 30), x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r; if (!window.blockedAt(x, z)) { const e = h.spawnEnemy(pool[i % pool.length], x, z); e.alertT = 14; e.lastKnown.x = c.x; e.lastKnown.z = c.z; e.home = { x: c.x, z: c.z }; e.wp = { x: c.x, z: c.z }; break; } }
+  };
+  setInterval(() => {
+    const m = window.RAID; if (!m || !m.on) return;
+    ks.forEach(c => { if (!c.armed || c.open) return; const k = Math.min(NEED, (m.kills || 0) - c.base); if (k !== c.kills) { c.kills = k; if (k >= NEED) { c.open = true; c.locked = false; c.time = 0.3; c.name = '🔓 Kill-lock safe (open — loot it)'; c.items = loot(); c._items0 = c.items; window.rdToast('🔓 5 kills! The safe clicks open — hold F to loot it!', 3500); try { window.RDX.api.tone(880, 0.12, 0.3, 'square'); window.RDX.api.tone(1320, 0.2, 0.3, 'square', 0.12); } catch (e) { } } else window.rdToast('💀 ' + k + '/' + NEED + ' enemies killed', 1000); repaint(c); } });
+  }, 150);
+  const prev = window.rdEnterRaid;
+  window.rdEnterRaid = function (i) {
+    const r = prev.apply(this, arguments); ks = []; const m = window.RAID; if (i === 103 || (window.HOUSE3D && window.HOUSE3D.on)) return r;
+    try { const half = (typeof ARENA_HALF !== 'undefined' ? ARENA_HALF : 66) - 8;
+      for (let k = 0; k < 2; k++) for (let t = 0; t < 60; t++) {
+        const x = rnd(-half, half), z = rnd(-half, half); if (window.blockedAt(x, z) || window.blockedAt(x + 2, z) || window.blockedAt(x - 2, z) || window.blockedAt(x, z + 2) || window.blockedAt(x, z - 2) || Math.hypot(x - m.spawn.x, z - m.spawn.z) < 30) continue;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.7, 1.5), new THREE.MeshStandardMaterial({ color: 0x1a1214, metalness: 0.8, roughness: 0.4, emissive: 0x140000 })); body.position.set(x, 0.85, z); body.rotation.y = rnd(0, 6.28); body.castShadow = true; scene.add(body);
+        const door = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.4, 0.08), new THREE.MeshStandardMaterial({ color: 0x8a1818, metalness: 0.7, roughness: 0.4 })); door.position.set(0, 0, 0.77); body.add(door);
+        const skull = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 10), new THREE.MeshStandardMaterial({ color: 0xe8e0d0, roughness: 0.6 })); skull.position.set(0, 0.15, 0.85); skull.scale.set(1, 1.1, 0.5); body.add(skull); [-1, 1].forEach(s => { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff2a1a })); eye.position.set(s * 0.1, 0.2, 0.95); body.add(eye); });
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: null, transparent: true })); sprite.scale.set(3.0, 0.94, 1); sprite.position.set(x, 2.7, z); scene.add(sprite);
+        const col = { x, z, hw: 1.3, hd: 1.2 }; currentBuildings.push(col);
+        const c = { type: 'killsafe', name: '💀 Kill-lock safe (kill 5 enemies to open)', x, z, items: {}, mesh: body, lid: null, opened: false, time: 0.4, locked: true, armed: false, open: false, kills: 0, base: 0, sprite, _col: col }; c._items0 = c.items; repaint(c); m.containers.push(c); ks.push(c); break; } } catch (e) { console.warn('kill safes', e); }
     return r;
   };
 })();
