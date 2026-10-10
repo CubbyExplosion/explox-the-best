@@ -53,6 +53,8 @@ function throwNade(b, tp) {
 function stepNades(dt) {
   for (let i = nades.length - 1; i >= 0; i--) { const n = nades[i]; if (n.t < n.T) { n.t += dt; const k = Math.min(1, n.t / n.T); n.m.position.lerpVectors(n.from, n.to, k); n.m.position.y = n.from.y * (1 - k) + n.to.y * k + Math.sin(k * Math.PI) * 5; } else { n.fuse -= dt; if (n.fuse <= 0) { scene.remove(n.m); nades.splice(i, 1); try { window.RDX.api.blast(n.to.clone(), { kind: 'frag', dmg: 130, radius: 6 }); } catch (e) { } } } }
 }
+// when a soldier is shot, the ones nearby know where the enemy is and turn towards it
+function callBackup(b) { const pp = playerPos, m = b.mesh.position; enemies.forEach(o => { if (o !== b && o.alive && Math.abs(o.mesh.position.x - m.x) + Math.abs(o.mesh.position.z - m.z) < 40) o.heard = { x: pp.x, z: pp.z, until: BT.t + 6 }; }); }
 // ───────── per-frame ─────────
 let last = performance.now(), lodT = 0, fpsAcc = 0, fpsN = 0, fpsT = 0;
 function frame(dt) {
@@ -65,6 +67,7 @@ function frame(dt) {
   for (let i = 0; i < list.length; i++) {
     const b = list[i]; if (!b.mesh) continue; if (!b._up) upgrade(b); if (b.mesh.userData.hy) continue; const m = b.mesh.position, d = Math.hypot(m.x - pp.x, m.z - pp.z);
     if (doLod) { setNear(b, b._near ? d < FAR : d < NEAR); b.mesh.visible = d < 200 || !!b._wasVis; if (b.hp < (b._php === undefined ? b.hp : b._php)) b._hitAt = BT.t; b._php = b.hp; }
+    if (b._hitAt === BT.t && b._cbT !== BT.t && BT.mode === 'endless' && b.team === 'B' && b.alive) { b._cbT = BT.t; callBackup(b); }
     if (!doLod && b.hp < (b._php === undefined ? b.hp : b._php)) { b._hitAt = BT.t; b._php = b.hp; }
     if (!b._near || !b.alive) { if (!b.alive && b._legs && !b._dead) { b._dead = true; b._legs.forEach(l => l.rotation.x = 0); b.mesh.scale.y = 1; } continue; }
     // walk cycle
@@ -74,7 +77,14 @@ function frame(dt) {
     if (b._gun) { if (b.burstLeft < b._burst) b._kick = 0.07; b._kick = Math.max(0, (b._kick || 0) - dt * 0.6); b._gun.position.z = b._gunZ - b._kick; } b._burst = b.burstLeft;
     const wantCrouch = b.target && b.restT > 0 && b._spd < 0.8 ? 1 : 0; b._crouch += (wantCrouch - b._crouch) * Math.min(1, dt * 6); b.mesh.scale.y = 1 - 0.14 * b._crouch;
     // grenades at the player
-    b._gcd -= dt; if (b._gcd <= 0 && b.team === 'B' && b.target === 'player' && d > 10 && d < 30 && !window.RAID.dead) { b._gcd = rnd(9, 16); if (Math.random() < 0.7) throwNade(b, pp); else b._gcd = 3; }
+    b._gcd -= dt;
+    if (b._gcd <= 0 && b.team === 'B' && !window.RAID.dead && b.target === 'player' && d > 10 && d < 30) { b._gcd = rnd(9, 16); if (Math.random() < 0.7) throwNade(b, pp); else b._gcd = 3; }
+    else if (b._gcd <= 0 && b.team === 'B' && BT.mode === 'endless' && b.target && b.target !== 'player' && b.target.mesh) {            // smart: grenade a cluster of your soldiers
+      const tp = b.target.mesh.position, dt2 = Math.hypot(tp.x - m.x, tp.z - m.z); if (dt2 > 10 && dt2 < 28) { let n = 0; BT.allies.forEach(a => { if (a.alive && Math.abs(a.mesh.position.x - tp.x) + Math.abs(a.mesh.position.z - tp.z) < 8) n++; }); b._gcd = rnd(7, 13); if (n >= 3 && Math.random() < 0.8) throwNade(b, tp); }
+    }
+    if (BT.mode === 'endless' && b.team === 'B' && b.alive && b.hp < b.maxHp * 0.25 && !b._retreat && BT.covers && BT.covers.length) {                // smart: wounded soldiers fall back behind cover instead of charging
+      b._retreat = BT.t + 8; let bc = null, bd = 1e9; BT.covers.forEach(c => { const dp = Math.hypot(c.x - pp.x, c.z - pp.z), dm = Math.hypot(c.x - m.x, c.z - m.z); if (dp > d + 6 && dm < 30 && dm < bd) { bd = dm; bc = c; } }); if (bc) { const ox = bc.x - pp.x, oz = bc.z - pp.z, ol = Math.hypot(ox, oz) || 1; b._cv = { x: bc.x + ox / ol * 1.7, z: bc.z + oz / ol * 1.7, until: BT.t + 7 }; } }
+    if (b._retreat && BT.t > b._retreat + 12) b._retreat = 0;
   }
 }
 function tick() { const now = performance.now(), dt = Math.min(0.1, (now - last) / 1000); last = now; try { frame(dt); } catch (e) { } }

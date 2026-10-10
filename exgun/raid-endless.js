@@ -105,7 +105,7 @@ function spawnEnemyBatch(k) {
   const W = BT.en.wave, hp = 1 + 0.07 * (W - 1), acc = 1 + 0.035 * (W - 1), pElite = Math.min(0.5, 0.05 + W * 0.02), pHeavy = Math.min(0.5, W * 0.03);
   withBlocky(() => { for (let i = 0; i < k && BT.en.queue > 0; i++) {
     const a = rnd(0, 6.2832), rr = HALF - 14 + rnd(-6, 4), x = Math.cos(a) * rr, z = Math.sin(a) * rr; if (Math.abs(x) > HALF - 5 || Math.abs(z) > HALF - 5 || window.blockedAt(x, z)) continue; const r = Math.random(), cls = r < pHeavy * 0.5 ? 'gunner' : r < pHeavy ? 'marks' : I().MIX[Math.floor(Math.random() * I().MIX.length)], el = Math.random() < pElite;
-    const b = I().makeBot('B', cls, -1, { x, z }, { hpMul: hp * (el ? 1.4 : 1), elite: el, ac: el ? (I().BOT_CLASSES[cls].ac || 0) + 1 : undefined }); b.alertT = 10; b._accMul = acc; enemies.push(b); BT.en.queue--; BT.en.spawned++; } });
+    const b = I().makeBot('B', cls, -1, { x, z }, { hpMul: hp * (el ? 1.4 : 1), elite: el, ac: el ? (I().BOT_CLASSES[cls].ac || 0) + 1 : undefined }); b.alertT = 10; b._accMul = acc; const rr2 = Math.random(); b.role = rr2 < 0.25 ? 'suppress' : rr2 < 0.6 ? 'flank' : 'assault'; if (b.role === 'flank') b.flank = (Math.random() < 0.5 ? -1 : 1) * rnd(0.8, 1.6); if (b.role === 'suppress') b.d = Object.assign({}, b.d, { pref: [26, 46], sight: Math.max(b.d.sight, 70) }); else if (b.role === 'assault') b.d = Object.assign({}, b.d, { pref: [6, 18] }); enemies.push(b); BT.en.queue--; BT.en.spawned++; } });
   BT.nmAcc = 1 + 0.035 * (W - 1);
 }
 function startWave() {
@@ -117,6 +117,8 @@ function startWave() {
 }
 window.rdENTick = function (dt) {
   const E = BT.en; if (!E || E.over) return; ambience(dt); plumes(dt);
+  // the enemy notices if you camp in one spot: some soldiers swing round behind you
+  { const dxp = playerPos.x - (E.lx === undefined ? playerPos.x : E.lx), dzp = playerPos.z - (E.lz === undefined ? playerPos.z : E.lz); E.lx = playerPos.x; E.lz = playerPos.z; R.idleT = (Math.hypot(dxp, dzp) < 0.05 ? (R.idleT || 0) + dt : 0); E.campT = (E.campT || 0) - dt; if (R.idleT > 8 && E.campT <= 0) { E.campT = 4; enemies.forEach(b => { if (b.alive && b.team === 'B' && Math.random() < 0.3) { b.flank = (Math.random() < 0.5 ? -1 : 1) * rnd(2.3, 3.0); b.role = 'flank'; } }); } }
   if (R.dead) { E.deadT = (E.deadT === undefined ? 6 : E.deadT) - dt; const el = $('btDead'); if (el && E.lives > 0) el.innerHTML = `<div style="font-size:30px;font-weight:900;color:#ff5544;letter-spacing:3px">YOU FELL</div><div style="margin:8px 0;color:#ddd">${E.lives} li${E.lives === 1 ? 'fe' : 'ves'} left · respawn in ${Math.max(0, Math.ceil(E.deadT))}…</div>`; if (E.deadT <= 0 && E.lives > 0) { E.deadT = undefined; I().respawnPlayer(I().baseSpawn('A')); } }
   if (E.state === 'break') { E.t -= dt; if (E.t <= 0) startWave(); return; }
   E.batchT -= dt; if (E.batchT <= 0 && E.queue > 0) { E.batchT = 0.45; spawnEnemyBatch(10); }

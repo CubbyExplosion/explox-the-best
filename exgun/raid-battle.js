@@ -164,7 +164,21 @@ function moveBot(b, tx, tz, speed, dt) {
   if (!moved) { b.stuck = 0.7; if (Math.random() < 0.3) b.side *= -1; } else b.stuck = Math.max(0, b.stuck - dt); return d;
 }
 function objectiveFor(b) {
-  if (BT.mode === 'endless') { if (b.team === 'B') { if (R.dead) return { x: rnd(-60, 60), z: rnd(-60, 60) }; const m = b.mesh.position, dx = playerPos.x - m.x, dz = playerPos.z - m.z, dd = Math.hypot(dx, dz) || 1; if (b.flank === undefined) b.flank = rnd(-1.1, 1.1); if (dd < 45) return { x: playerPos.x + rnd(-16, 16), z: playerPos.z + rnd(-16, 16) }; const c = Math.cos(b.flank), s = Math.sin(b.flank); return { x: m.x + (dx * c - dz * s) / dd * (dd - 30), z: m.z + (dx * s + dz * c) / dd * (dd - 30) }; } let best = null, bd = 1e9; const mp = b.mesh.position; for (let i = 0; i < enemies.length; i += 3) { const e = enemies[i]; if (!e.alive) continue; const d = Math.abs(e.mesh.position.x - mp.x) + Math.abs(e.mesh.position.z - mp.z); if (d < bd) { bd = d; best = e; } } if (best) return { x: best.mesh.position.x + rnd(-10, 10), z: best.mesh.position.z + rnd(-10, 10) }; return { x: playerPos.x + rnd(-12, 12), z: playerPos.z + rnd(-12, 12) - 8 }; }
+  if (BT.mode === 'endless') { if (b.team === 'B') {
+      if (R.dead) return { x: rnd(-60, 60), z: rnd(-60, 60) };
+      const m = b.mesh.position, dx = playerPos.x - m.x, dz = playerPos.z - m.z, dd = Math.hypot(dx, dz) || 1; if (b.flank === undefined) b.flank = rnd(-1.1, 1.1);
+      const role = b.role || 'assault';
+      // suppressors hold a firing position 28–48 m out, in cover if there is any
+      if (role === 'suppress' && dd < 52) { if (dd > 30) { /* keep closing to firing range */ } else return { x: m.x, z: m.z }; }
+      // otherwise leapfrog: pick the cover prop that is clearly closer to the player, not too far away, and (for flankers) off to the side
+      if (BT.covers && BT.covers.length && dd > 14) {
+        let bc = null, bs = 1e9; const ang = Math.atan2(dz, dx) + b.flank * 0.6, tx = playerPos.x - Math.cos(ang) * 18, tz = playerPos.z - Math.sin(ang) * 18;
+        for (const c of BT.covers) { const dm = Math.hypot(c.x - m.x, c.z - m.z); if (dm < 6 || dm > 38) continue; const dp = Math.hypot(c.x - playerPos.x, c.z - playerPos.z); if (dp > dd - 8 || dp < 10) continue; const sc = Math.hypot(c.x - tx, c.z - tz) + dm * 0.4; if (sc < bs) { bs = sc; bc = c; } }
+        if (bc) { const ox = bc.x - playerPos.x, oz = bc.z - playerPos.z, ol = Math.hypot(ox, oz) || 1; return { x: bc.x + ox / ol * 1.7 + rnd(-0.6, 0.6), z: bc.z + oz / ol * 1.7 + rnd(-0.6, 0.6) }; }
+      }
+      if (dd < 45) return { x: playerPos.x + rnd(-16, 16), z: playerPos.z + rnd(-16, 16) };
+      const c = Math.cos(b.flank), s = Math.sin(b.flank); return { x: m.x + (dx * c - dz * s) / dd * (dd - 30), z: m.z + (dx * s + dz * c) / dd * (dd - 30) };
+    } let best = null, bd = 1e9; const mp = b.mesh.position; for (let i = 0; i < enemies.length; i += 3) { const e = enemies[i]; if (!e.alive) continue; const d = Math.abs(e.mesh.position.x - mp.x) + Math.abs(e.mesh.position.z - mp.z); if (d < bd) { bd = d; best = e; } } if (best) return { x: best.mesh.position.x + rnd(-10, 10), z: best.mesh.position.z + rnd(-10, 10) }; return { x: playerPos.x + rnd(-12, 12), z: playerPos.z + rnd(-12, 12) - 8 }; }
   if (BT.mode === 'hardcore') { if (R.dead) return { x: rnd(-60, 60), z: rnd(-60, 60) }; const m = b.mesh.position, dx = playerPos.x - m.x, dz = playerPos.z - m.z, dd = Math.hypot(dx, dz) || 1; if (b.flank === undefined) b.flank = rnd(-1.1, 1.1); if (dd < 45) return { x: playerPos.x + rnd(-14, 14), z: playerPos.z + rnd(-14, 14) }; const c = Math.cos(b.flank), s = Math.sin(b.flank), ux = (dx * c - dz * s) / dd, uz = (dx * s + dz * c) / dd; return { x: m.x + ux * (dd - 30), z: m.z + uz * (dd - 30) }; }       // Hardcore: they flank you from different angles
   if (BT.mode === 'nomercy') {                                    // fortress assault: attackers follow the breach route, defenders hold their posts
     if (b.guard) return { x: b.home.x + rnd(-5, 5), z: b.home.z + rnd(-5, 5) };
@@ -178,7 +192,7 @@ function objectiveFor(b) {
 }
 function botShoot(b, t, dist) {
   const d = b.d, a = R_AMMO[d.ammo], m = b.mesh.userData.muzzle.clone(); b.mesh.updateMatrixWorld(true); b.mesh.localToWorld(m); if (window.rdNpcFlash) window.rdNpcFlash(b, m); const tp = targetPos(t), target = new THREE.Vector3(tp.x, t === 'player' ? (R.veh ? 1.6 : 1.45) : 1.3, tp.z);
-  let p = d.acc * (BT.diff === 0 ? 0.7 : BT.diff === 2 ? 1.2 : 1) * (BT.nmAcc || 1) * clamp(1.15 - dist / (d.sight * 1.1), 0.12, 1);
+  let p = d.acc * (BT.diff === 0 ? 0.7 : BT.diff === 2 ? 1.2 : 1) * (BT.nmAcc || 1) * clamp(1.15 - dist / (d.sight * 1.1), 0.12, 1) * (BT.mode === 'endless' && t === 'player' && (R.idleT || 0) > 4 ? 1.35 : 1);
   if (t === 'player' && !R.veh) p *= (R.crouch ? 0.85 : 1) * (R.ads > 0.5 ? 0.92 : 1) * ((moveState.w || moveState.a || moveState.s || moveState.d) ? 0.8 : 1);
   const pd = dist2(m.x, m.z, playerPos.x, playerPos.z), vol = clamp(1 - pd / 130, 0, 0.8); if (vol > 0.04) A().sfxShot(a.cal, vol * 0.5);
   const hit = Math.random() < p, API = A();
