@@ -51,19 +51,19 @@ function ensureHud() {
   document.head.appendChild(css); hud = document.createElement('div'); hud.id = 'nukeHud'; document.body.appendChild(hud); flashEl = document.createElement('div'); flashEl.id = 'nukeFlash'; document.body.appendChild(flashEl);
   const c = document.createElement('div'); c.id = 'nukeCount'; document.body.appendChild(c);
 }
-const hc = () => BT.on && BT.mode === 'hardcore' && BT.hc && !BT.hc.over, nukesLeft = () => { if (!hc()) return 0; if (BT.hc.nukes === undefined) BT.hc.nukes = 2; return BT.hc.nukes; };
+const en = () => BT.on && BT.mode === 'endless' && BT.en && !BT.en.over, hc = () => (BT.on && BT.mode === 'hardcore' && BT.hc && !BT.hc.over) || en(), nukesLeft = () => { if (en()) return BT.en.nukes || 0; if (!hc()) return 0; if (BT.hc.nukes === undefined) BT.hc.nukes = 2; return BT.hc.nukes; };
 // nukes you bought (Armory & Shop → Throwables, ⚙️500) live in your stash; the free ones (Hardcore: 2, Team Battle: after 15 kills) are used first
 const owned = () => { try { return window.RDUI.stashN('gren:nuke_1'); } catch (e) { return 0; } };
 const freeLeft = () => hc() ? nukesLeft() : (BT.on && BT.mode === 'battle' && !BT.nukeUsed && BT.stats && BT.stats.kills >= NEED ? 1 : 0);
 function ready() { return freeLeft() + owned() > 0; }
-function takeNuke() { if (hc() && nukesLeft() > 0) BT.hc.nukes = nukesLeft() - 1; else if (!hc() && freeLeft() > 0) BT.nukeUsed = true; else if (owned() > 0) { window.RDUI.stashAdd('gren:nuke_1', -1); try { saveUserData(); } catch (e) { } } }
+function takeNuke() { if (en() && nukesLeft() > 0) BT.en.nukes = nukesLeft() - 1; else if (hc() && nukesLeft() > 0) BT.hc.nukes = nukesLeft() - 1; else if (!hc() && freeLeft() > 0) BT.nukeUsed = true; else if (owned() > 0) { window.RDUI.stashAdd('gren:nuke_1', -1); try { saveUserData(); } catch (e) { } } }
 setInterval(() => {
-  nadeTick(); const okMode = BT.on && (BT.mode === 'battle' || hc()); if (!okMode || !R.on) { if (hud) hud.style.display = 'none'; return; } ensureHud(); const f = freeLeft(), o = owned(); hud.style.display = (BT.mode === 'battle' && BT.nukeUsed && !o) || (hc() && !f && !o) ? 'none' : 'block';
+  nadeTick(); const okMode = BT.on && (BT.mode === 'battle' || BT.mode === 'endless' || hc()); if (!okMode || !R.on) { if (hud) hud.style.display = 'none'; return; } ensureHud(); const f = freeLeft(), o = owned(); hud.style.display = (BT.mode === 'battle' && BT.nukeUsed && !o) || (hc() && !f && !o) ? 'none' : 'block';
   hud.textContent = ready() ? '☢️ Nukes: ' + (f + o) + (o ? ' (' + o + ' bought)' : '') + ' — aim at the ground 150 m+ away and press N' : '☢️ Nuke: ' + (BT.stats ? BT.stats.kills : 0) + '/' + NEED + ' kills (or buy one in the Armory)';
   hud.style.color = ready() ? '#ff7a4a' : '#ffe08a';
 }, 120);
 document.addEventListener('keydown', e => {
-  if (e.code !== 'KeyN' || e.repeat || !BT.on || !(BT.mode === 'battle' || hc()) || !R.on || R.dead) return; ensureHud();
+  if (e.code !== 'KeyN' || e.repeat || !BT.on || !(BT.mode === 'battle' || BT.mode === 'endless' || hc()) || !R.on || R.dead) return; ensureHud();
   if (BT.nukePending) return; if (!ready()) { window.rdToast(`☢️ No nuke: earn one with ${NEED} kills (you have ${BT.stats.kills}) or buy one in the Armory & Shop for ⚙️500`, 3000); return; }
   const dir = new THREE.Vector3(); camera.getWorldDirection(dir); const o = camera.position; let x, z;
   if (dir.y < -0.02) { const t = -o.y / dir.y; x = o.x + dir.x * t; z = o.z + dir.z * t; } else { x = o.x + dir.x * 220; z = o.z + dir.z * 220; }

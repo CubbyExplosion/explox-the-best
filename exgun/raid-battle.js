@@ -164,6 +164,7 @@ function moveBot(b, tx, tz, speed, dt) {
   if (!moved) { b.stuck = 0.7; if (Math.random() < 0.3) b.side *= -1; } else b.stuck = Math.max(0, b.stuck - dt); return d;
 }
 function objectiveFor(b) {
+  if (BT.mode === 'endless') { if (b.team === 'B') { if (R.dead) return { x: rnd(-60, 60), z: rnd(-60, 60) }; const m = b.mesh.position, dx = playerPos.x - m.x, dz = playerPos.z - m.z, dd = Math.hypot(dx, dz) || 1; if (b.flank === undefined) b.flank = rnd(-1.1, 1.1); if (dd < 45) return { x: playerPos.x + rnd(-16, 16), z: playerPos.z + rnd(-16, 16) }; const c = Math.cos(b.flank), s = Math.sin(b.flank); return { x: m.x + (dx * c - dz * s) / dd * (dd - 30), z: m.z + (dx * s + dz * c) / dd * (dd - 30) }; } let best = null, bd = 1e9; const mp = b.mesh.position; for (let i = 0; i < enemies.length; i += 3) { const e = enemies[i]; if (!e.alive) continue; const d = Math.abs(e.mesh.position.x - mp.x) + Math.abs(e.mesh.position.z - mp.z); if (d < bd) { bd = d; best = e; } } if (best) return { x: best.mesh.position.x + rnd(-10, 10), z: best.mesh.position.z + rnd(-10, 10) }; return { x: playerPos.x + rnd(-12, 12), z: playerPos.z + rnd(-12, 12) - 8 }; }
   if (BT.mode === 'hardcore') { if (R.dead) return { x: rnd(-60, 60), z: rnd(-60, 60) }; const m = b.mesh.position, dx = playerPos.x - m.x, dz = playerPos.z - m.z, dd = Math.hypot(dx, dz) || 1; if (b.flank === undefined) b.flank = rnd(-1.1, 1.1); if (dd < 45) return { x: playerPos.x + rnd(-14, 14), z: playerPos.z + rnd(-14, 14) }; const c = Math.cos(b.flank), s = Math.sin(b.flank), ux = (dx * c - dz * s) / dd, uz = (dx * s + dz * c) / dd; return { x: m.x + ux * (dd - 30), z: m.z + uz * (dd - 30) }; }       // Hardcore: they flank you from different angles
   if (BT.mode === 'nomercy') {                                    // fortress assault: attackers follow the breach route, defenders hold their posts
     if (b.guard) return { x: b.home.x + rnd(-5, 5), z: b.home.z + rnd(-5, 5) };
@@ -375,6 +376,7 @@ function vehicleAI(v, dt) {
   }
   let throttle = 0, gx, gz; const tg = v.target;
   if (BT.mode === 'hardcore' && mine === 'B' && !d.static) v.goal = { x: playerPos.x + rnd(-12, 12), z: playerPos.z + rnd(-12, 12) };
+  else if (BT.mode === 'endless' && mine === 'B' && !d.static) v.goal = { x: playerPos.x + rnd(-14, 14), z: playerPos.z + rnd(-14, 14) };
   else if (d.static) v.goal = { x: m.x, z: m.z };                       // fixed turrets never go anywhere
   else if (!v.goal || dist2(m.x, m.z, v.goal.x, v.goal.z) < 10 || (v.goalT -= dt) < 0) { const pts = BT.points.filter(p => mine === 'B' ? p.own > -0.95 : p.own < 0.95); const p = pts.length ? pts[rint(0, pts.length - 1)] : BT.points[1]; v.goal = { x: p.x + rnd(-14, 14), z: p.z + rnd(-14, 14) }; v.goalT = 25; }
   if (tg && dist2(m.x, m.z, tg.x, tg.z) < (d.cannon ? 50 : 25)) { gx = tg.x; gz = tg.z; throttle = d.cannon ? 0.15 : 0.4; } else { gx = v.goal.x; gz = v.goal.z; throttle = 0.9; }
@@ -431,6 +433,7 @@ function balanceTeam(dt) {
 }
 // ───────── player death / respawn ─────────
 window.rdBattleDeath = function (reason) {
+  if (BT.mode === 'endless' && window.rdENDeath) { window.rdENDeath(reason); return; }
   if (BT.mode === 'hardcore' && window.rdHCFail) { window.rdHCFail(reason === 'mia' ? 'time' : 'died'); return; }
   if (BT.mode === 'nomercy' && window.rdNMFail) { window.rdNMFail(reason === 'mia' ? 'time' : 'died'); return; }      // No Mercy: one life
   if (reason === 'mia') { return; }                                   // the battle has its own clock
@@ -500,6 +503,7 @@ function hudUpdate(dt) {
   BT.hudT = (BT.hudT || 0) - dt; if (BT.hudT > 0) return; BT.hudT = 0.12;
   if (BT.mode === 'nomercy' && window.rdNMHud) window.rdNMHud();
   if (BT.mode === 'hardcore' && window.rdHCHud) window.rdHCHud();
+  if (BT.mode === 'endless' && window.rdENHud) window.rdENHud();
   $('btTA').textContent = BT.A.tickets; $('btTB').textContent = BT.B.tickets; const aliveA = BT.allies.filter(b => b.alive).length + (R.dead ? 0 : 1) + BT.realTeammates, aliveB = enemies.filter(b => b.alive).length;
   $('btAA').textContent = `(${aliveA}/${TEAM_A})`; $('btBA').textContent = `(${aliveB}/${TEAM_B})`; const left = Math.max(0, BT.duration - BT.t); $('btClock').textContent = '⏱ ' + Math.floor(left / 60) + ':' + String(Math.floor(left % 60)).padStart(2, '0') + ' · 👥 ' + BT.realTeammates + ' real';
   BT.points.forEach((p, i) => { const el = $('btP' + i); el.style.background = p.own > 0.05 ? '#2a6fe0' : p.own < -0.05 ? '#d8342a' : '#888'; el.style.opacity = 0.45 + Math.abs(p.own) * 0.55; });
@@ -515,9 +519,10 @@ const origTick = window.tickEnemyAI;
 window.tickEnemyAI = function (dt) {
   if (!BT.on) return origTick(dt);
   if (BT.ended) return; BT.t += dt; R.t = BT.t;
-  const lod = (b) => { if (BT.mode === 'hardcore' && b.alive) { const d = Math.abs(b.mesh.position.x - playerPos.x) + Math.abs(b.mesh.position.z - playerPos.z); if (d > 170) { b._ta = (b._ta || 0) + dt; if (b._ta < 0.25) return; botUpdate(b, b._ta); b._ta = 0; return; } } botUpdate(b, dt); };
-  enemies.forEach(lod); BT.allies.forEach(b => botUpdate(b, dt));
+  const lod = (b) => { if ((BT.mode === 'hardcore' || BT.mode === 'endless') && b.alive) { const d = Math.abs(b.mesh.position.x - playerPos.x) + Math.abs(b.mesh.position.z - playerPos.z); if (d > 170) { b._ta = (b._ta || 0) + dt; if (b._ta < 0.25) return; botUpdate(b, b._ta); b._ta = 0; return; } } botUpdate(b, dt); };
+  enemies.forEach(lod); BT.allies.forEach(BT.mode === 'endless' ? lod : (b => botUpdate(b, dt)));
   vehiclesUpdate(dt); updateShells(dt);
+  if (BT.mode === 'endless') { if (window.rdENTick) window.rdENTick(dt); hudUpdate(dt); return; }
   if (BT.mode === 'hardcore') { if (window.rdHCTick) window.rdHCTick(dt); hudUpdate(dt); return; }
   if (BT.mode === 'nomercy') { if (window.rdNMTick) window.rdNMTick(dt); hudUpdate(dt); return; }
   pointsUpdate(dt); balanceTeam(dt); deadTick(dt); hudUpdate(dt); checkEnd();

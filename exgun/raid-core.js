@@ -891,7 +891,7 @@ function applyLook() {
   const cv = document.createElement('canvas'); cv.width = cv.height = 256; const cx = cv.getContext('2d'); cx.fillStyle = '#888'; cx.fillRect(0, 0, 256, 256);
   for (let i = 0; i < 3500; i++) { const v = rint(90, 190); cx.fillStyle = `rgba(${v},${v},${v},0.35)`; cx.fillRect(Math.random() * 256, Math.random() * 256, rnd(1, 3), rnd(1, 3)); }
   const tex = new THREE.CanvasTexture(cv); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(40, 40); tex.anisotropy = 4;
-  scene.traverse(o => { if (o.isMesh && o.geometry.type === 'PlaneGeometry' && Math.abs(o.rotation.x + Math.PI / 2) < 0.01 && o.material && o.material.color) { o.material = new THREE.MeshStandardMaterial({ color: o.material.color.getHex(), map: tex, roughness: 0.95, metalness: 0 }); o.receiveShadow = true; } });
+  scene.traverse(o => { if (o.isMesh && o.geometry.type === 'PlaneGeometry' && !o.userData.keepMat && Math.abs(o.rotation.x + Math.PI / 2) < 0.01 && o.material && o.material.color) { o.material = new THREE.MeshStandardMaterial({ color: o.material.color.getHex(), map: tex, roughness: 0.95, metalness: 0 }); o.receiveShadow = true; } });
   scene.fog = new THREE.Fog(scene.background ? scene.background.getHex() : 0x222222, 30, 170);
   // reflections for the metal gun and props: a sky/ground environment tinted like this sector
   if (R.env) { try { R.env.dispose(); } catch (e) {} R.env = null; }
