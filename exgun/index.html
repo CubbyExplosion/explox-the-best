@@ -1236,7 +1236,7 @@ function buildRemotePlayerMesh(o) {
 async function syncExgunPresence(elapsed) {
   if (!currentUser || !inGame || elapsed - _lastPresenceSync < PRESENCE_SYNC_INTERVAL) return;
   _lastPresenceSync = elapsed;
-  const mapIdStr = String(currentMapIndex); // server compares GET query (always a string) against the POSTed value with ===, so both sides must be strings
+  const mapIdStr = String(currentMapIndex) + (window.PARTY && window.PARTY.code ? '~' + window.PARTY.code : ''); // server compares GET query (always a string) against the POSTed value with ===, so both sides must be strings
   const body = {
     name: currentUser, mapId: mapIdStr,
     x: playerPos.x, y: 0, z: playerPos.z, yaw,
@@ -1324,14 +1324,15 @@ function animate() {
 <script src="raid-house3d.js?v=7"></script>
 <script src="raid-merge.js?v=1"></script>
 <script src="raid-countries.js?v=1"></script>
-<script src="raid-shop.js?v=3"></script>
+<script src="raid-party.js?v=1"></script>
+<script src="raid-shop.js?v=4"></script>
 <script src="raid-battle.js?v=16"></script>
 <script src="raid-nomercy.js?v=2"></script>
 <script src="raid-hardcore.js?v=2"></script>
 <script src="raid-endless.js?v=6"></script>
 <script src="raid-vehicles.js?v=2"></script>
 <script src="raid-bots.js?v=5"></script>
-<script src="raid-explosives.js?v=10"></script>
+<script src="raid-explosives.js?v=11"></script>
 <script src="raid-voice.js?v=4"></script>
 <script src="raid-explosion.js?v=3"></script>
 <script src="raid-melee.js?v=3"></script>

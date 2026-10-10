@@ -11,7 +11,7 @@
 (function () {
 'use strict';
 const R = window.RAID, BT = window.BATTLE, api = () => window.RDX.api, rnd = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const NEED = 15, KILL_R = 150, BURN_R = 230, WAVE_SPEED = 220;
+const NEED = 15, KILL_R = 150, BURN_R = 230, WAVE_SPEED = 220, SAFE_R = 65, HURT_R = 150;      // you must aim at least SAFE_R from yourself (the Endless arena is only 250 m wide); within SAFE_R of ground zero you die, out to HURT_R you are hurt
 Object.assign(R_NADE, {
   pipe_1:  { kind: 'frag', name: 'Pipe Bomb', emoji: '🔩', price: 80, dmg: 140, radius: 5.5, fuse: 2.2 },
   dyn_1:   { kind: 'frag', name: 'Dynamite Bundle', emoji: '🧨', price: 320, dmg: 320, radius: 9, fuse: 4 },
@@ -35,7 +35,7 @@ function nadeTick() {
   if (!R.on || !R.nades) return; const now = performance.now();
   R.nades.slice().forEach(n => {
     const k = n.def.kind; if (k !== 'c4' && k !== 'mine' && k !== 'airstrike' && k !== 'nuke') return; const m = n.m;
-    if (k === 'nuke') { if (m.position.y <= 0.1 && n.age > 0.15) { const j = R.nades.indexOf(n); if (j >= 0) R.nades.splice(j, 1); scene.remove(m); const d = Math.hypot(m.position.x - playerPos.x, m.position.z - playerPos.z); if (d < KILL_R + 5) { R.pack['gren:nuke_1'] = (R.pack['gren:nuke_1'] || 0) + 1; window.rdToast('☢️ Too close to your own feet — throw it 150 m+ away! (nuke returned)', 3200); } else if (!BT.nukePending) launch(m.position.x, m.position.z, true); } return; }
+    if (k === 'nuke') { if (m.position.y <= 0.1 && n.age > 0.15) { const j = R.nades.indexOf(n); if (j >= 0) R.nades.splice(j, 1); scene.remove(m); const d = Math.hypot(m.position.x - playerPos.x, m.position.z - playerPos.z); if (d < SAFE_R) { R.pack['gren:nuke_1'] = (R.pack['gren:nuke_1'] || 0) + 1; window.rdToast('☢️ Too close to your own feet — throw it at least ' + SAFE_R + ' m away! (nuke returned)', 3200); } else if (!BT.nukePending) launch(m.position.x, m.position.z, true); } return; }
     if (!n._landed) { if (m.position.y <= 0.1 && n.age > 0.15) { n._landed = true; n._t0 = now; n.v.set(0, 0, 0); m.position.y = 0.08; if (k === 'c4') { m.scale.set(2.4, 1.3, 1.6); m.material.color.set(0x5a5a3a); window.rdToast('📦 C4 planted — press X to detonate (' + (R.nades.filter(x => x.def.kind === 'c4').length) + ' charge(s))', 2600); } else if (k === 'mine') { m.scale.set(2.2, 0.35, 2.2); m.material.color.set(0x3a3a2a); window.rdToast('⭕ Mine armed in 1.5 s', 1800); } else { m.material.color.set(0xff3a2a); m.material.emissive = new THREE.Color(0xff2a10); window.rdToast('✈️ Airstrike inbound in 3 s — get clear!', 2600); } } return; }
     n.v.set(0, 0, 0); m.position.y = 0.08;
     if (k === 'mine') { if (now - n._t0 < 1500) return; m.material.emissive = new THREE.Color(Math.sin(now / 150) > 0 ? 0xff0000 : 0x000000); const L = (typeof enemies !== 'undefined' ? enemies : []).some(e => e.alive && Math.hypot(e.mesh.position.x - m.position.x, e.mesh.position.z - m.position.z) < 3.4) || (BT.on && BT.vehicles.some(v => v.alive && v.team === 'B' && Math.hypot(v.pos.x - m.position.x, v.pos.z - m.position.z) < v.def.r + 1.5)); if (L) det(n); }
@@ -59,7 +59,7 @@ function ready() { return freeLeft() + owned() > 0; }
 function takeNuke() { if (en() && nukesLeft() > 0) BT.en.nukes = nukesLeft() - 1; else if (hc() && nukesLeft() > 0) BT.hc.nukes = nukesLeft() - 1; else if (!hc() && freeLeft() > 0) BT.nukeUsed = true; else if (owned() > 0) { window.RDUI.stashAdd('gren:nuke_1', -1); try { saveUserData(); } catch (e) { } } }
 setInterval(() => {
   nadeTick(); const okMode = BT.on && (BT.mode === 'battle' || BT.mode === 'endless' || hc()); if (!okMode || !R.on) { if (hud) hud.style.display = 'none'; return; } ensureHud(); const f = freeLeft(), o = owned(); hud.style.display = (BT.mode === 'battle' && BT.nukeUsed && !o) || (hc() && !f && !o) ? 'none' : 'block';
-  hud.textContent = ready() ? '☢️ Nukes: ' + (f + o) + (o ? ' (' + o + ' bought)' : '') + ' — aim at the ground 150 m+ away and press N' : '☢️ Nuke: ' + (BT.stats ? BT.stats.kills : 0) + '/' + NEED + ' kills (or buy one in the Armory)';
+  hud.textContent = ready() ? '☢️ Nukes: ' + (f + o) + (o ? ' (' + o + ' bought)' : '') + ' — aim at the ground 65 m+ away and press N' : '☢️ Nuke: ' + (BT.stats ? BT.stats.kills : 0) + '/' + NEED + ' kills (or buy one in the Armory)';
   hud.style.color = ready() ? '#ff7a4a' : '#ffe08a';
 }, 120);
 document.addEventListener('keydown', e => {
@@ -68,7 +68,7 @@ document.addEventListener('keydown', e => {
   const dir = new THREE.Vector3(); camera.getWorldDirection(dir); const o = camera.position; let x, z;
   if (dir.y < -0.02) { const t = -o.y / dir.y; x = o.x + dir.x * t; z = o.z + dir.z * t; } else { x = o.x + dir.x * 220; z = o.z + dir.z * 220; }
   x = clamp(x, -BT.half + 10, BT.half - 10); z = clamp(z, -BT.half + 10, BT.half - 10); const d = Math.hypot(x - playerPos.x, z - playerPos.z);
-  if (d < KILL_R + 5) { window.rdToast(`☢️ Too close — the blast kills everything within ${KILL_R} m. Aim farther away (you are ${Math.round(d)} m from that spot).`, 3200); return; }
+  if (d < SAFE_R) { window.rdToast(`☢️ Too close — you would die in the blast. Aim at least ${SAFE_R} m away (that spot is ${Math.round(d)} m from you).`, 3200); return; }
   launch(x, z);
 });
 // ───────── the bomber: a jet flies in, drops the nuke 2.5 s before impact and leaves a contrail ─────────
@@ -207,7 +207,7 @@ function detonate(x, z) {
     if (!R.on) return; const el = performance.now() - t0;
     ents().forEach(b => { if (!b.alive || hit.has(b)) return; const d = Math.hypot(b.mesh.position.x - x, b.mesh.position.z - z); if (el < arrival(d)) return; hit.add(b); b.hp -= 1000; if (true) { const foe = b.team === 'B'; I.botDie(b, foe ? 'player' : 'ally'); if (foe) { R.xpGain += 6; userState.xp += 6; } b.mesh.position.y = 0.22; } else { b.hp = Math.max(1, b.hp * 0.2); } });
     BT.vehicles.forEach(v => { if (!v.alive || hit.has(v)) return; const d = Math.hypot(v.pos.x - x, v.pos.z - z); if (el < arrival(d)) return; hit.add(v); I.damageVehicle(v, d < 300 ? 99999 : 1000, 'player'); });
-    if (!hit.has('p') && !R.dead) { const d = Math.hypot(playerPos.x - x, playerPos.z - z); if (d <= BURN_R && el >= arrival(d)) { hit.add('p'); R.shake = 2; if (d < KILL_R + 25) { ['chest', 'head', 'stomach'].forEach(zn => a.hurtPlayer({ dmg: 900, pen: 9 }, zn, 1)); } else a.hurtPlayer({ dmg: 70, pen: 6 }, 'chest', 1); flashEl.style.transition = 'none'; flashEl.style.opacity = '0.9'; setTimeout(() => { flashEl.style.transition = 'opacity 2.5s'; flashEl.style.opacity = '0'; }, 80); } }
+    if (!hit.has('p') && !R.dead) { const d = Math.hypot(playerPos.x - x, playerPos.z - z); if (d <= HURT_R && el >= arrival(d)) { hit.add('p'); R.shake = 2; if (d < SAFE_R) { ['chest', 'head', 'stomach'].forEach(zn => a.hurtPlayer({ dmg: 900, pen: 9 }, zn, 1)); } else a.hurtPlayer({ dmg: 70, pen: 6 }, 'chest', 1); flashEl.style.transition = 'none'; flashEl.style.opacity = '0.9'; setTimeout(() => { flashEl.style.transition = 'opacity 2.5s'; flashEl.style.opacity = '0'; }, 80); } }
     if (!wave.merged && scene.userData.mapMeshObj && el >= arrival(60)) { wave.merged = true; const rm = window.rdMapRemove(p => Math.hypot(p.x - x, p.z - z) < KILL_R * 0.9 && p.y < 80 && p.gt !== 'PlaneGeometry' && p.gt !== 'CircleGeometry' && p.gt !== 'RingGeometry'); for (let q = 0; q < Math.min(60, rm); q++) { const rb = new THREE.Mesh(new THREE.BoxGeometry(rnd(1, 4), rnd(0.5, 2), rnd(1, 4)), new THREE.MeshStandardMaterial({ color: 0x1c1a18, roughness: 1 })); const a = Math.random() * 6.28, r = Math.random() * KILL_R * 0.8; rb.position.set(x + Math.cos(a) * r, 0.5, z + Math.sin(a) * r); rb.rotation.y = rnd(0, 3); rb.userData.nuke = true; scene.add(rb); } }
     // buildings and trees inside the zone are flattened as the shockwave passes
     scene.children.slice().forEach(o => { if (!o.isMesh || o.userData.nuke || o.userData.vehicle || !o.geometry || o.geometry.type === 'PlaneGeometry' || o.geometry.type === 'CircleGeometry' || !o.visible) return; const d = Math.hypot(o.position.x - x, o.position.z - z); if (d < KILL_R * 0.9 && el >= arrival(d) && o.position.y < 80) { o.visible = false; if (d < 70 && Math.random() < 0.5) { const r = new THREE.Mesh(new THREE.BoxGeometry(rnd(1, 4), rnd(0.5, 2), rnd(1, 4)), new THREE.MeshStandardMaterial({ color: 0x1c1a18, roughness: 1 })); r.position.set(o.position.x + rnd(-3, 3), 0.5, o.position.z + rnd(-3, 3)); r.rotation.y = rnd(0, 3); r.userData.nuke = true; scene.add(r); } } });
