@@ -10,7 +10,7 @@
 (function () {
 'use strict';
 const IDX = 101, IDX2 = 102, HALF = 360, R = window.RAID, rnd = (a, b) => a + Math.random() * (b - a), rint = (a, b) => Math.floor(a + Math.random() * (b - a + 1)), rdToast = (...a) => window.RDX.api.rdToast(...a);
-function rollLoot(table, rolls) { const mul = R.diff ? R.diff.loot : 1, out = {}, n = rint(rolls[0], rolls[1]), tot = table.reduce((s, e) => s + e[1], 0); for (let i = 0; i < n; i++) { let r = Math.random() * tot, e = table[0]; for (const t of table) { r -= t[1]; if (r <= 0) { e = t; break; } } const base = rint(e[2], e[3]); out[e[0]] = (out[e[0]] || 0) + (R_AMMO[e[0]] ? Math.max(1, Math.round(base * mul)) : base); } return out; }
+function rollLoot(table, rolls) { const mul = R.diff ? R.diff.loot : 1, out = {}, n = rint(rolls[0], rolls[1]), tot = table.reduce((s, e) => s + e[1], 0); for (let i = 0; i < n; i++) { const e = window.rdLootPick ? window.rdLootPick(table) : (() => { let r = Math.random() * tot, q = table[0]; for (const t of table) { r -= t[1]; if (r <= 0) { q = t; break; } } return q; })(); const base = rint(e[2], e[3]); out[e[0]] = (out[e[0]] || 0) + (R_AMMO[e[0]] ? Math.max(1, Math.round(base * mul)) : base); } return out; }
 const OW = window.OW = { on: false, banks: [], towns: [], extracts: [], camps: [], prevHighest: 1 };
 const origTheme = window.themeForMap, origName = window.mapNameForMap, origDiff = window.rDifficulty, origBuild = window.buildMapScene, origEnd = window.rdEnd;
 const THEME = { name: 'Open World', style: 'ruin', sky: 0x9cc4ec, ground: 0x56683f, colors: [0xb9b2a4, 0xa39b8c, 0x8d8578, 0xc9c1b0] };

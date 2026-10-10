@@ -226,7 +226,7 @@ function freeSpot(minFromSpawn, tries) {
 }
 function rollLoot(table, rolls) {
   const out = {}; const n = rint(rolls[0], rolls[1]); const lootMul = R.diff ? R.diff.loot : 1;
-  for (let i = 0; i < n; i++) { const e = wpick(table); const base = rint(e[2], e[3]); const qty = (R_AMMO[e[0]] ? Math.max(1, Math.round(base * lootMul)) : base); out[e[0]] = (out[e[0]] || 0) + qty; }
+  for (let i = 0; i < n; i++) { const e = (window.rdLootPick || wpick)(table); const base = rint(e[2], e[3]); const qty = (R_AMMO[e[0]] ? Math.max(1, Math.round(base * lootMul)) : base); out[e[0]] = (out[e[0]] || 0) + qty; }
   return out;
 }
 function spawnContainers() {
@@ -747,7 +747,7 @@ function handleHold(dt) {
     R.holdT += dt;
     if (R.holdT >= need) {
       R.hold = null; R.holdT = 0; keysDown.E = keysDown.F = false;
-      if (kind === 'extract') rdEnd('extracted'); else takeItems(target);
+      if (kind === 'extract') rdEnd('extracted'); else if (target.locked && window.rdSafeCrack) window.rdSafeCrack(target); else takeItems(target);
     }
   } else { R.hold = null; R.holdT = 0; }
 }
