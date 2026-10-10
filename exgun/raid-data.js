@@ -99,6 +99,7 @@ const R_ENEMY = {
   scav:  { name: 'Scav',     emoji: '🧟', hp: 90,  ac: 0, acHead: 0, ammo: '9mm_fmj', dmgMul: 0.8, acc: 0.24, burst: [1, 3],  gap: 0.36, rest: [1.6, 3.0], sight: 32, pref: [10, 22], speed: 2.5, tier: 1, color: 0x6b5a45, vest: 0x4a4036 },
   raider:{ name: 'Raider',   emoji: '🥷', hp: 120, ac: 2, acHead: 1, ammo: '556_fmj', dmgMul: 0.9, acc: 0.32, burst: [2, 4],  gap: 0.20, rest: [1.3, 2.4], sight: 42, pref: [14, 28], speed: 3.0, tier: 2, color: 0x3d4a3a, vest: 0x2c3329 },
   pmc:   { name: 'PMC',      emoji: '🪖', hp: 150, ac: 4, acHead: 3, ammo: '762_fmj', dmgMul: 1.0, acc: 0.42, burst: [2, 5],  gap: 0.16, rest: [1.0, 1.9], sight: 55, pref: [18, 34], speed: 3.3, tier: 4, color: 0x30343a, vest: 0x1d2024 },
+  knifer:{ name: 'Cutthroat', emoji: '🔪', hp: 105, ac: 0, acHead: 0, ammo: '9mm_fmj', dmgMul: 1, melee: true, dmg: 24, acc: 0, burst: [1, 1], gap: 1.0, rest: [0, 0], sight: 38, pref: [1, 2], speed: 4.1, tier: 2, color: 0x4a3a34, vest: 0x2a2220 },
   boss:  { name: 'Warlord',  emoji: '👹', hp: 320, ac: 5, acHead: 4, ammo: '762_ap',  dmgMul: 1.1, acc: 0.48, burst: [3, 6],  gap: 0.14, rest: [0.8, 1.5], sight: 62, pref: [16, 30], speed: 3.0, tier: 7, color: 0x5a1f1f, vest: 0x2a0f0f }
 };
 // what each enemy may drop on death: [itemId, chance, min, max]
@@ -106,6 +107,7 @@ const R_ENEMY_DROPS = {
   scav:   [['9mm_fmj', 0.85, 6, 18], ['bandage', 0.30, 1, 1], ['scrap_metal', 0.4, 1, 2], ['vest_1', 0.07, 1, 1], ['cash_roll', 0.10, 1, 1]],
   raider: [['556_fmj', 0.85, 10, 24], ['bandage', 0.35, 1, 2], ['painkiller', 0.20, 1, 1], ['vest_2', 0.18, 1, 1], ['helm_1', 0.20, 1, 1], ['cash_roll', 0.2, 1, 1]],
   pmc:    [['762_fmj', 0.85, 10, 20], ['medkit', 0.35, 1, 1], ['vest_3', 0.22, 1, 1], ['helm_2', 0.28, 1, 1], ['hard_drive', 0.25, 1, 1], ['gold_watch', 0.18, 1, 1]],
+  knifer: [['bandage', 0.4, 1, 1], ['scrap_metal', 0.5, 1, 3], ['cash_roll', 0.18, 1, 1], ['painkiller', 0.18, 1, 1], ['vest_1', 0.08, 1, 1]],
   boss:   [['762_ap', 1, 12, 24], ['vest_4', 0.5, 1, 1], ['helm_3', 0.5, 1, 1], ['medkit', 1, 1, 2], ['laptop', 0.6, 1, 1], ['gpu', 0.4, 1, 1], ['cash_roll', 1, 2, 3]]
 };
 

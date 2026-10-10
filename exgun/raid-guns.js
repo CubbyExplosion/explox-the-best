@@ -244,7 +244,7 @@ window.rdBuildEnemyMesh = function (type, def) {
   const gunId = { scav: 'pistol_mk1', raider: 'rifle_ak74', pmc: 'carbine_m4', boss: 'lmg_40' }[type] || 'pistol_mk1';
   const m = window.rdBuildGunModel(gunId, {}, { noShadow: false }), s = type === 'scav' ? 0.9 : 0.8;
   m.group.scale.setScalar(s); m.group.rotation.y = Math.PI; m.group.position.set(0.2, 1.22, 0.22);
-  m.group.traverse(o => { if (o.isMesh) o.userData.zone = 'arms'; }); g.add(m.group);
+  m.group.userData.isGun = true; m.group.traverse(o => { if (o.isMesh) o.userData.zone = 'arms'; }); g.add(m.group);
   g.userData.isEnemyRoot = true; g.userData.muzzle = new THREE.Vector3(0.2, 1.24, 0.22 + Math.abs(m.muzzleZ) * s);
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
   return g;

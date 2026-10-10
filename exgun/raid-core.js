@@ -283,6 +283,7 @@ function spawnRaidEnemies() {
   const n = rint(df.enemies[0], df.enemies[1]);
   const list = [];
   for (let i = 0; i < n; i++) { const r = Math.random(); list.push(r < df.mix[0] ? 'scav' : r < df.mix[0] + df.mix[1] ? 'raider' : 'pmc'); }
+  for (let i = 0; i < list.length; i++) if ((list[i] === 'scav' || list[i] === 'raider') && Math.random() < 0.2) list[i] = 'knifer';            // some enemies rush you with knives
   if (Math.random() < df.boss) for (let b = 0; b < df.bosses; b++) list.push('boss');
   list.forEach(type => {
     const d = R_ENEMY[type], p = freeSpot(type === 'scav' ? 26 : 38);
@@ -356,6 +357,15 @@ window.tickEnemyAI = function (dt) {
       const lk = e.lastKnown; const ddx = lk.x - m.position.x, ddz = lk.z - m.position.z;
       { const want = Math.atan2(sees ? dx : ddx, sees ? dz : ddz); let da = want - m.rotation.y; while (da > Math.PI) da -= 6.2832; while (da < -Math.PI) da += 6.2832; m.rotation.y += clamp(da, -9 * dt, 9 * dt); }
       const dd = sees ? dist : Math.hypot(ddx, ddz);
+      if (d.melee) {                                                           // knife fighter: sprints straight at you and stabs when close
+        e.fireCd -= dt; e.lunge = Math.max(0, (e.lunge || 0) - dt * 4);
+        if (dd > 1.5) moveEnemy(e, lk.x, lk.z, d.speed * (sees && dd < 16 ? 1.3 : 1), dt);
+        else if (sees && e.fireCd <= 0) {
+          e.fireCd = d.gap * rnd(0.85, 1.2); e.lunge = 1; if (window.rdStab) window.rdStab(e);
+          if (!R.dead) { hurtPlayer({ dmg: d.dmg, pen: 1.5 }, ['chest', 'stomach', 'arms', 'legs', 'chest'][rint(0, 4)], 1, e.mesh.position); if (R.bleed < 1 && Math.random() < 0.45) { R.bleed = 1; } R.shake = Math.min(1.4, R.shake + 0.5); }
+        }
+        return;
+      }
       if (!sees || dd > d.pref[1]) moveEnemy(e, lk.x, lk.z, d.speed, dt);
       else if (dd < d.pref[0]) moveEnemy(e, m.position.x - ddx, m.position.z - ddz, d.speed * 0.8, dt);
       else {
@@ -525,7 +535,7 @@ function fireBullets() {
         if (a.fire) e.burnT = 3;
         const A = zone === 'head' ? e.acHead : (zone === 'chest' || zone === 'stomach') ? e.ac : 0;
         if (A > 0) { const chance = clamp(0.55 + (a.pen - A) * 0.18, 0.04, 0.97); dmg *= Math.random() < chance ? 0.85 : 0.25; }
-        e.hp -= dmg; e.alertT = 10; e.lastKnown.x = playerPos.x; e.lastKnown.z = playerPos.z; end = h.point.clone();
+        e.hitZone = zone; e.hitSeq = (e.hitSeq || 0) + 1; e.hp -= dmg; e.alertT = 10; e.lastKnown.x = playerPos.x; e.lastKnown.z = playerPos.z; end = h.point.clone();
         burst(h.point, 0x8a0f0f, 5, 3, 0.05, fx.blood, 9);
         anyHit = true; if (zone === 'head') anyHead = true;
         if (e.hp <= 0 && e.alive) { killEnemy(e, zone === 'head'); anyKill = true; }
