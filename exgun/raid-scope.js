@@ -51,3 +51,15 @@ window.rdScopeFrame = function (dt, g, R) {
   if (readout) { readout.z.textContent = (g.zoom * zk).toFixed(1) + '×'; readout.b.textContent = holding ? '● BREATH HELD ' + breath.toFixed(1) + 's' : gasp > 0 ? '… catching breath' : 'hold SHIFT to steady'; readout.b.setAttribute('fill', gasp > 0 ? '#f96' : '#9f9'); }
 };
 })();
+
+// ───────── a scope in EVERY mode: press O to cycle the optic (none → red dot → 4× → 8×) in Team Battle, No Mercy, Hardcore, Endless, Open World and Explox City.
+// In normal sector raids use the optics you installed in the Armory (they work there too).
+(function () {
+  const LIST = [null, 'opt_reddot', 'opt_acog', 'opt_scope8'];
+  document.addEventListener('keydown', e => {
+    const R = window.RAID; if (e.code !== 'KeyO' || e.repeat || !R || !R.on || R.dead || R.over) return;
+    const free = (window.BATTLE && window.BATTLE.on) || (window.OW && window.OW.on); if (!free) { window.rdToast('🔭 In sector raids use the optic you installed in the Armory. Scopes cycle with O in the big modes.', 2800); return; }
+    const cur = LIST.indexOf(R.mods && R.mods.optic ? R.mods.optic : null), next = LIST[(cur + 1) % LIST.length]; R.mods = Object.assign({}, R.mods); if (next) R.mods.optic = next; else delete R.mods.optic;
+    try { R.gs = rGunStats(R.weaponId, R.mods); if (next === 'opt_scope8') { R.gs.zoom = Math.max(R.gs.zoom, 6); R.gs.scope = true; } } catch (x) { } const name = next ? R_ATT[next].name : 'Iron sights'; window.rdToast('🔭 ' + name + (next ? ' — hold right mouse to aim' : ''), 1800);
+  });
+})();
