@@ -76,19 +76,19 @@ document.addEventListener('keydown', e => { if (!cur) return; if (/^Digit[0-9]$|
 })();
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ARMORED SAFES — 500 HP. No code, no lock to pick: you SHOOT or BOMB the safe until it breaks (grenades, C4, mines, shells, even a nuke).
+// ARMORED SAFES — 1500 HP and up (more on harder maps), big steel vaults. No code, no lock to pick: you SHOOT or BOMB the safe until it breaks (grenades, C4, mines, shells, even a nuke).
 // Armour-piercing rounds hurt it much more than pistol ammo; once it is broken open you can loot a big stash of rare items.
 // ═══════════════════════════════════════════════════════════════════════════════
 (function () {
   const R = window.RAID, clamp = (v, a, b) => Math.max(a, Math.min(b, v)), rnd = (a, b) => a + Math.random() * (b - a);
-  const HP = 500; let hpSafes = [];
-  function barTex(c) { const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64; const x = cv.getContext('2d'); x.fillStyle = 'rgba(10,10,12,.82)'; x.fillRect(0, 0, 256, 64); x.strokeStyle = '#ffb000'; x.lineWidth = 3; x.strokeRect(2, 2, 252, 60); x.fillStyle = '#ffd24a'; x.font = 'bold 20px Arial'; x.textAlign = 'center'; x.fillText(c.broken ? '💥 BROKEN — hold F to loot' : '🛡️ ARMORED SAFE · shoot or bomb it', 128, 24); x.fillStyle = '#331'; x.fillRect(16, 36, 224, 14); const f = clamp(c.hp / HP, 0, 1); x.fillStyle = f > 0.5 ? '#6adf5a' : f > 0.25 ? '#ffb000' : '#ff3a2a'; x.fillRect(16, 36, 224 * f, 14); x.fillStyle = '#fff'; x.font = '12px Arial'; x.fillText(Math.max(0, Math.round(c.hp)) + ' / ' + HP + ' HP', 128, 48); return new THREE.CanvasTexture(cv); }
-  function refresh(c) { c.sprite.material.map = barTex(c); c.sprite.material.needsUpdate = true; const f = clamp(c.hp / HP, 0, 1); c.mesh.material.color.setRGB(0.2 + (1 - f) * 0.1, 0.22 - (1 - f) * 0.08, 0.26 - (1 - f) * 0.1); c.mesh.material.emissive.setRGB((1 - f) * 0.5, (1 - f) * 0.12, 0); }
+  const HP = 1500; let hpSafes = [];       // base health; harder maps add 400 per difficulty step
+  function barTex(c) { const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64; const x = cv.getContext('2d'); x.fillStyle = 'rgba(10,10,12,.82)'; x.fillRect(0, 0, 256, 64); x.strokeStyle = '#ffb000'; x.lineWidth = 3; x.strokeRect(2, 2, 252, 60); x.fillStyle = '#ffd24a'; x.font = 'bold 20px Arial'; x.textAlign = 'center'; x.fillText(c.broken ? '💥 BROKEN — hold F to loot' : '🛡️ ARMORED SAFE · shoot or bomb it', 128, 24); x.fillStyle = '#331'; x.fillRect(16, 36, 224, 14); const f = clamp(c.hp / c.maxHp, 0, 1); x.fillStyle = f > 0.5 ? '#6adf5a' : f > 0.25 ? '#ffb000' : '#ff3a2a'; x.fillRect(16, 36, 224 * f, 14); x.fillStyle = '#fff'; x.font = '12px Arial'; x.fillText(Math.max(0, Math.round(c.hp)) + ' / ' + c.maxHp + ' HP', 128, 48); return new THREE.CanvasTexture(cv); }
+  function refresh(c) { c.sprite.material.map = barTex(c); c.sprite.material.needsUpdate = true; const f = clamp(c.hp / c.maxHp, 0, 1); c.mesh.material.color.setRGB(0.2 + (1 - f) * 0.1, 0.22 - (1 - f) * 0.08, 0.26 - (1 - f) * 0.1); c.mesh.material.emissive.setRGB((1 - f) * 0.5, (1 - f) * 0.12, 0); }
   function lootFor(lv) { const t = R_CONTAINERS.safe.table, rich = t.filter(x => { try { return rItem(x[0]).value >= 140; } catch (e) { return false; } }), pool = t.concat(rich), out = {}; const n = 5 + Math.floor(lv / 2); for (let i = 0; i < n; i++) { const e = (window.rdLootPick || (tb => tb[Math.floor(Math.random() * tb.length)]))(pool), base = Math.floor(e[2] + Math.random() * (e[3] - e[2] + 1)); out[e[0]] = (out[e[0]] || 0) + (R_AMMO[e[0]] ? Math.round(base * 1.4) : base); } if (lv >= 2) out.gold_bar = (out.gold_bar || 0) + 1; return out; }
   function breakIt(c) {
     if (c.broken) return; c.broken = true; c.hp = 0; c.locked = false; c.time = 0.3; c.name = '💥 Broken armored safe (loot it)'; const d = window.RAID.diff, k = d ? (d.id >= 10 ? Math.min(6, (d.id - 10) / 3.3) : d.id) : 0; c.items = lootFor(k); c._items0 = c.items; c.opened = false;
     try { const api = window.RDX.api, p = new THREE.Vector3(c.x, 0.9, c.z); api.burst(p, 0xffaa44, 26, 8, 0.1, api.getFx().sparks, 8); api.burst(p, 0x333333, 12, 4, 0.3, api.getFx().blood, 1); api.noise(0.5, 3000, 150, 1.0, 'lowpass'); api.tone(90, 0.4, 0.8, 'sine', 0, 40); } catch (e) { }
-    c.mesh.scale.y = 0.72; c.mesh.rotation.z = 0.12; refresh(c); const i = currentBuildings.indexOf(c._col); if (i >= 0) currentBuildings.splice(i, 1); window.rdToast('💥 The armored safe BREAKS OPEN — hold F to loot it!', 3000);
+    c.mesh.scale.y = 0.72; c.mesh.rotation.z = 0.1; c.mesh.position.y = 0.83; refresh(c); const i = currentBuildings.indexOf(c._col); if (i >= 0) currentBuildings.splice(i, 1); window.rdToast('💥 The armored safe BREAKS OPEN — hold F to loot it!', 3000);
   }
   function damage(c, dmg, hitP) {
     if (c.broken || dmg <= 0) return; c.hp -= dmg; try { const api = window.RDX.api; if (hitP) api.burst(hitP, 0xffd080, 5, 5, 0.05, api.getFx().sparks, 10); api.tone(1900 + Math.random() * 600, 0.05, 0.2, 'square'); } catch (e) { }
@@ -96,22 +96,22 @@ document.addEventListener('keydown', e => { if (!cur) return; if (/^Digit[0-9]$|
   }
   // a bullet: closest approach of the ray to the safe's centre
   window.rdSafeShot = function (origin, dir, wallDist, enemyDist, dmg, ammo) {
-    for (let i = 0; i < hpSafes.length; i++) { const c = hpSafes[i]; if (c.broken || !c.mesh.parent) continue; const cx = c.x - origin.x, cy = 0.9 - origin.y, cz = c.z - origin.z, t = cx * dir.x + cy * dir.y + cz * dir.z; if (t < 0.3 || t > wallDist + 1.6 || t > enemyDist) continue; const px = cx - dir.x * t, py = cy - dir.y * t, pz = cz - dir.z * t; if (Math.hypot(px, py, pz) < 0.95) { const m = clamp(0.4 + ((ammo && ammo.pen) || 1) * 0.12, 0.4, 1.8); damage(c, dmg * m, origin.clone().addScaledVector(dir, t - 0.5)); return; } }
+    for (let i = 0; i < hpSafes.length; i++) { const c = hpSafes[i]; if (c.broken || !c.mesh.parent) continue; const cx = c.x - origin.x, cy = 1.15 - origin.y, cz = c.z - origin.z, t = cx * dir.x + cy * dir.y + cz * dir.z; if (t < 0.3 || t > wallDist + 2.4 || t > enemyDist) continue; const px = cx - dir.x * t, py = cy - dir.y * t, pz = cz - dir.z * t; if (Math.hypot(px, py, pz) < 1.6) { const m = clamp(0.12 + ((ammo && ammo.pen) || 1) * 0.075, 0.12, 1.0); damage(c, dmg * m, origin.clone().addScaledVector(dir, t - 0.5)); return; } }
   };
-  window.rdSafeBlast = function (p, d) { hpSafes.forEach(c => { if (c.broken) return; const dd = Math.hypot(c.x - p.x, c.z - p.z), rad = (d.radius || 6) + 1.5; if (dd < rad) damage(c, (d.dmg || 100) * (1 - dd / rad) * 1.7, new THREE.Vector3(c.x, 1, c.z)); }); };
+  window.rdSafeBlast = function (p, d) { hpSafes.forEach(c => { if (c.broken) return; const dd = Math.hypot(c.x - p.x, c.z - p.z), rad = (d.radius || 6) + 2.4; if (dd < rad) damage(c, (d.dmg || 100) * (1 - dd / rad) * 1.1, new THREE.Vector3(c.x, 1.2, c.z)); }); };
   const prev = window.rdEnterRaid;
   window.rdEnterRaid = function (i) {
     const r = prev.apply(this, arguments); hpSafes = []; const m = window.RAID; if (i === 103 || (window.HOUSE3D && window.HOUSE3D.on)) return r;
     try {
       const d = m.diff, lv = d ? (d.id >= 10 ? Math.min(6, (d.id - 10) / 3.3) : d.id) : 0, n = 3 + Math.round(lv), half = (typeof ARENA_HALF !== 'undefined' ? ARENA_HALF : 66) - 8;
       for (let k = 0; k < n; k++) for (let t = 0; t < 60; t++) {
-        const x = rnd(-half, half), z = rnd(-half, half); if (window.blockedAt(x, z) || window.blockedAt(x + 1.5, z) || window.blockedAt(x - 1.5, z) || window.blockedAt(x, z + 1.5) || window.blockedAt(x, z - 1.5) || Math.hypot(x - m.spawn.x, z - m.spawn.z) < 25) continue;
-        const body = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.4, 1.2), new THREE.MeshStandardMaterial({ color: 0x2a2f36, metalness: 0.85, roughness: 0.35 })); body.position.set(x, 0.7, z); body.rotation.y = rnd(0, 6.28); body.castShadow = true; scene.add(body);
-        [-1, 1].forEach(s => { const st = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.42, 1.22), new THREE.MeshStandardMaterial({ color: 0xe0b020, roughness: 0.6 })); st.position.x = s * 0.5; body.add(st); });
-        const dial = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.08, 14), new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.2 })); dial.rotation.x = Math.PI / 2; dial.position.set(0, 0.1, 0.63); body.add(dial);
-        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: null, transparent: true })); sprite.scale.set(2.6, 0.65, 1); sprite.position.set(x, 2.1, z); scene.add(sprite);
-        const col = { x, z, hw: 0.95, hd: 0.95 }; currentBuildings.push(col);
-        const c = { type: 'hpsafe', name: '🛡️ Armored Safe — 500 HP (shoot or bomb it!)', x, z, items: {}, mesh: body, lid: null, opened: false, time: 0.3, hp: HP, locked: true, sprite, _col: col }; c._items0 = c.items; refresh(c); m.containers.push(c); hpSafes.push(c); break;
+        const x = rnd(-half, half), z = rnd(-half, half); if (window.blockedAt(x, z) || window.blockedAt(x + 2.4, z) || window.blockedAt(x - 2.4, z) || window.blockedAt(x, z + 2.4) || window.blockedAt(x, z - 2.4) || Math.hypot(x - m.spawn.x, z - m.spawn.z) < 25) continue;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.3, 2.0), new THREE.MeshStandardMaterial({ color: 0x2a2f36, metalness: 0.85, roughness: 0.35 })); body.position.set(x, 1.15, z); body.rotation.y = rnd(0, 6.28); body.castShadow = true; scene.add(body);
+        [-1, 1].forEach(s => { const st = new THREE.Mesh(new THREE.BoxGeometry(0.3, 2.32, 2.04), new THREE.MeshStandardMaterial({ color: 0xe0b020, roughness: 0.6 })); st.position.x = s * 0.85; body.add(st); });
+        const dial = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.12, 18), new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.2 })); dial.rotation.x = Math.PI / 2; dial.position.set(0, 0.15, 1.04); const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.06, 8, 20), new THREE.MeshStandardMaterial({ color: 0x777b80, metalness: 0.9, roughness: 0.3 })); wheel.position.set(0, 0.15, 1.08); body.add(wheel); [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(q => { const rv = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.08, 8), new THREE.MeshStandardMaterial({ color: 0x999999, metalness: 0.9 })); rv.rotation.x = Math.PI / 2; rv.position.set(q[0] * 1.1, q[1] * 0.95, 1.03); body.add(rv); }); body.add(dial);
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: null, transparent: true })); sprite.scale.set(3.2, 0.8, 1); sprite.position.set(x, 3.3, z); scene.add(sprite);
+        const col = { x, z, hw: 1.6, hd: 1.4 }; currentBuildings.push(col);
+        const c = { type: 'hpsafe', name: '🛡️ Armored Safe — ' + (HP + Math.round(lv * 400)) + ' HP (shoot or bomb it!)', x, z, items: {}, mesh: body, lid: null, opened: false, time: 0.3, hp: HP + Math.round(lv * 400), maxHp: HP + Math.round(lv * 400), locked: true, sprite, _col: col }; c._items0 = c.items; refresh(c); m.containers.push(c); hpSafes.push(c); break;
       }
     } catch (e) { console.warn('hp safes', e); }
     return r;
