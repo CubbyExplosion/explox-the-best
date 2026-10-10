@@ -71,15 +71,81 @@ document.addEventListener('keydown', e => {
   if (d < KILL_R + 5) { window.rdToast(`☢️ Too close — the blast kills everything within ${KILL_R} m. Aim farther away (you are ${Math.round(d)} m from that spot).`, 3200); return; }
   launch(x, z);
 });
+// ───────── the bomber: a jet flies in, drops the nuke 2.5 s before impact and leaves a contrail ─────────
+function makeJet() {
+  const g = new THREE.Group(), steel = new THREE.MeshStandardMaterial({ color: 0x6d737a, metalness: 0.7, roughness: 0.35 }), dark = new THREE.MeshStandardMaterial({ color: 0x25282c, metalness: 0.6, roughness: 0.5 }); steel.fog = false; dark.fog = false;
+  const fus = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 0.8, 16, 12), steel); fus.rotation.x = Math.PI / 2; g.add(fus);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(1.1, 5, 12), steel); nose.rotation.x = Math.PI / 2; nose.position.z = 10.5; g.add(nose);
+  const canopy = new THREE.Mesh(new THREE.SphereGeometry(0.9, 10, 8), new THREE.MeshStandardMaterial({ color: 0x1a2a3a, metalness: 0.9, roughness: 0.1, fog: false })); canopy.scale.set(0.8, 0.7, 2.2); canopy.position.set(0, 0.95, 5); g.add(canopy);
+  const wingShape = new THREE.Shape(); wingShape.moveTo(0, 3); wingShape.lineTo(11, -3.5); wingShape.lineTo(11, -5.2); wingShape.lineTo(0, -6); wingShape.closePath();
+  [-1, 1].forEach(s => { const w = new THREE.Mesh(new THREE.ExtrudeGeometry(wingShape, { depth: 0.18, bevelEnabled: false }), steel); w.rotation.x = Math.PI / 2; w.rotation.z = s < 0 ? Math.PI : 0; w.scale.x = 1; w.position.set(0, -0.2, 1); if (s < 0) { w.scale.x = -1; } g.add(w); const fin = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.6, 2.4), dark); fin.position.set(s * 1.6, 1.3, -7.2); fin.rotation.z = s * 0.2; g.add(fin); const tail = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.14, 1.8), steel); tail.position.set(s * 2.2, 0.2, -7.8); g.add(tail); const eng = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.7, 4, 10), dark); eng.rotation.x = Math.PI / 2; eng.position.set(s * 1.5, -0.25, -6.6); g.add(eng); });
+  const flames = [-1, 1].map(s => { const f = new THREE.Mesh(new THREE.ConeGeometry(0.55, 7, 8), new THREE.MeshBasicMaterial({ color: 0xffa24a, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); f.rotation.x = -Math.PI / 2; f.position.set(s * 1.5, -0.25, -12.2); g.add(f); return f; });
+  const bay = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.3, 4), dark); bay.position.set(0, -1.05, 1); g.add(bay);
+  const strobe = new THREE.Mesh(new THREE.SphereGeometry(0.3, 6, 6), new THREE.MeshBasicMaterial({ color: 0xff2a2a, fog: false })); strobe.position.set(0, 2.6, -7.2); g.add(strobe);
+  g.userData.nuke = true; g.userData.flames = flames; g.userData.strobe = strobe; g.scale.setScalar(1.6); return g;
+}
+function jetFlight(x, z, t0) {
+  const ang = Math.random() * 6.2832, dx = Math.sin(ang), dz = Math.cos(ang), SP = 200, ALT = 230, REL = 5.5, LEAD = 500;                              // flies along (dx,dz) over the target, releases the bomb 500 m before it
+  const jet = makeJet(); jet.userData.nuke = true; jet.rotation.y = Math.atan2(dx, dz); scene.add(jet);
+  const trail = [], puffMat = () => new THREE.SpriteMaterial({ map: cloudTex(1), color: 0xffffff, transparent: true, depthWrite: false, opacity: 0.5, fog: false });
+  const missile = new THREE.Group(), body = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 7, 10), new THREE.MeshStandardMaterial({ color: 0xd8d8d8, metalness: 0.6, roughness: 0.4, fog: false })); missile.add(body);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.6, 2, 10), new THREE.MeshStandardMaterial({ color: 0xaa2a2a, fog: false })); nose.position.y = -4.5; nose.rotation.x = Math.PI; missile.add(nose);
+  const flame = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.1, 12, 10), new THREE.MeshBasicMaterial({ color: 0xffa040, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); flame.position.y = 9; missile.add(flame);
+  missile.scale.setScalar(1.8); missile.visible = false; missile.userData.nuke = true; scene.add(missile);
+  const startX = x - dx * (LEAD + SP * REL), startZ = z - dz * (LEAD + SP * REL), relX = x - dx * LEAD, relZ = z - dz * LEAD; let puffT = 0, last = performance.now(), dead = false;
+  const vel = new THREE.Vector3(), nextP = new THREE.Vector3();
+  (function step() {
+    if (dead) return; if (!R.on) { scene.remove(jet); scene.remove(missile); trail.forEach(p => scene.remove(p.s)); return; }
+    const now = performance.now(), t = (now - t0) / 1000, dt = Math.min(0.1, (now - last) / 1000); last = now;
+    jet.position.set(startX + dx * SP * t, ALT, startZ + dz * SP * t); jet.rotation.z = Math.sin(t * 1.3) * 0.03; jet.userData.flames.forEach(f => { f.scale.y = 0.8 + Math.random() * 0.4; }); jet.userData.strobe.visible = Math.sin(t * 9) > 0.6;
+    puffT -= dt; if (puffT <= 0 && t < 14) { puffT = 0.06; [-1.5, 1.5].forEach(s => { const sp = new THREE.Sprite(puffMat()); sp.position.copy(jet.position).add(new THREE.Vector3(dx * -20 + dz * s * 1.6 * 1.6, -0.5, dz * -20 - dx * s * 1.6 * 1.6)); sp.scale.setScalar(5); scene.add(sp); sp.userData.nuke = true; trail.push({ s: sp, age: 0 }); }); }
+    for (let i = trail.length - 1; i >= 0; i--) { const p = trail[i]; p.age += dt; p.s.scale.setScalar(5 + p.age * 9); p.s.material.opacity = Math.max(0, 0.5 * (1 - p.age / 9)); if (p.age > 9) { scene.remove(p.s); p.s.material.dispose(); trail.splice(i, 1); } }
+    if (t >= REL) { missile.visible = true; const k = Math.min(1, (t - REL) / 2.5), kk = Math.min(1, (t - REL + 0.05) / 2.5); missile.position.set(relX + (x - relX) * k, ALT * (1 - k * k) + 5, relZ + (z - relZ) * k); nextP.set(relX + (x - relX) * kk, ALT * (1 - kk * kk) + 5, relZ + (z - relZ) * kk); vel.copy(nextP).sub(missile.position); if (vel.lengthSq() > 1e-6) missile.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), vel.normalize().negate()); if (k >= 1) missile.visible = false; }
+    if (t < 20) { requestAnimationFrame(step); setTimeout(() => { if (document.hidden) step(); }, 50); } else { dead = true; scene.remove(jet); scene.remove(missile); setTimeout(() => trail.forEach(p => scene.remove(p.s)), 9000); }
+  })();
+  return { dx, dz, SP, startX, startZ, REL };
+}
+// ───────── sound: jet flyby, bomb whistle, and a layered, echoing detonation ─────────
+let revIR = null;
+function audioCtx() { const a = window.RDX.api.getAudio(); return a && a.AC ? a : null; }
+function noiseBuf(AC, sec) { const b = AC.createBuffer(1, Math.ceil(AC.sampleRate * sec), AC.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; }
+function reverb(AC) { if (revIR) return revIR; const len = AC.sampleRate * 5, b = AC.createBuffer(2, len, AC.sampleRate); for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); } const cv = AC.createConvolver(); cv.buffer = b; return revIR = cv; }
+function jetSound(flight, tx, tz) {
+  const A = audioCtx(); if (!A) return; const AC = A.AC, t0 = AC.currentTime, pass = flight.REL;                                                       // closest approach to the target at t = pass (+0.9 s: it is 500 m past by then)
+  const o1 = AC.createOscillator(), o2 = AC.createOscillator(), n = AC.createBufferSource(), lp = AC.createBiquadFilter(), bp = AC.createBiquadFilter(), g = AC.createGain(), pan = AC.createStereoPanner ? AC.createStereoPanner() : null;
+  o1.type = 'sawtooth'; o2.type = 'sawtooth'; n.buffer = noiseBuf(AC, 3); n.loop = true; lp.type = 'lowpass'; bp.type = 'bandpass'; bp.Q.value = 0.7;
+  const pp = playerPos, rel = (flight.dx * (pp.z - tz) - flight.dz * (pp.x - tx)), side = rel > 0 ? 1 : -1, lat = Math.abs(rel) + 40, DUR = 14;
+  o1.frequency.setValueAtTime(310, t0); o1.frequency.linearRampToValueAtTime(310, t0 + pass); o1.frequency.exponentialRampToValueAtTime(205, t0 + pass + 3); o2.frequency.setValueAtTime(468, t0); o2.frequency.exponentialRampToValueAtTime(310, t0 + pass + 3);        // Doppler: pitch falls once it passes
+  lp.frequency.setValueAtTime(700, t0); lp.frequency.linearRampToValueAtTime(2600, t0 + pass); lp.frequency.exponentialRampToValueAtTime(500, t0 + pass + 5); bp.frequency.setValueAtTime(900, t0); bp.frequency.exponentialRampToValueAtTime(380, t0 + DUR);
+  const vol = clamp(1.1 - lat / 1500, 0.25, 0.9); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.05 * vol, t0 + 1.5); g.gain.exponentialRampToValueAtTime(0.5 * vol, t0 + pass + 0.4); g.gain.exponentialRampToValueAtTime(0.0008, t0 + DUR);
+  const nz = AC.createGain(); nz.gain.value = 1.4; o1.connect(lp); o2.connect(lp); n.connect(bp); bp.connect(nz); nz.connect(lp); lp.connect(g); if (pan) { pan.pan.setValueAtTime(-side * 0.95, t0); pan.pan.linearRampToValueAtTime(-side * 0.1, t0 + pass); pan.pan.linearRampToValueAtTime(side * 0.95, t0 + DUR); g.connect(pan); pan.connect(A.master); } else g.connect(A.master);
+  o1.start(t0); o2.start(t0); n.start(t0); o1.stop(t0 + DUR + 0.2); o2.stop(t0 + DUR + 0.2); n.stop(t0 + DUR + 0.2);
+  // the bomb falling: a descending whistle with a wobble
+  const w = AC.createOscillator(), wg = AC.createGain(), wl = AC.createOscillator(), wlg = AC.createGain(); w.type = 'sine'; const ws = t0 + pass; w.frequency.setValueAtTime(3200, ws); w.frequency.exponentialRampToValueAtTime(700, ws + 2.5); wl.frequency.value = 9; wlg.gain.value = 60; wl.connect(wlg); wlg.connect(w.frequency); wg.gain.setValueAtTime(0.0001, ws); wg.gain.exponentialRampToValueAtTime(0.16, ws + 2.3); wg.gain.linearRampToValueAtTime(0, ws + 2.52); w.connect(wg); wg.connect(A.master); w.start(ws); wl.start(ws); w.stop(ws + 2.6); wl.stop(ws + 2.6);
+}
+function nukeSound(delay, dist) {
+  const A = audioCtx(); if (!A) return; const AC = A.AC, t = AC.currentTime + delay, vol = clamp(1.25 - dist / 1100, 0.45, 1.25), rv = reverb(AC), wet = AC.createGain(), dry = AC.createGain(), out = AC.createGain(); wet.gain.value = 0.55; dry.gain.value = 1; out.gain.value = vol; rv.connect(wet); wet.connect(out); dry.connect(out); out.connect(A.master);
+  const sat = AC.createWaveShaper(), curve = new Float32Array(256); for (let i = 0; i < 256; i++) { const x = i / 128 - 1; curve[i] = Math.tanh(x * 3.2); } sat.curve = curve;
+  const nb = noiseBuf(AC, 6), src = (buf, off) => { const s = AC.createBufferSource(); s.buffer = buf; s.start(t + (off || 0), Math.random()); return s; }, send = n => { n.connect(dry); n.connect(rv); };
+  // 1) the crack: a very short, very bright burst
+  { const s = src(nb), hp = AC.createBiquadFilter(), g = AC.createGain(); hp.type = 'highpass'; hp.frequency.value = 2500; g.gain.setValueAtTime(1.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.12); s.connect(hp); hp.connect(g); send(g); s.stop(t + 0.2); }
+  // 2) the blast: a roaring wall of noise that darkens as it rolls away
+  { const s = src(nb), lp = AC.createBiquadFilter(), g = AC.createGain(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(5000, t); lp.frequency.exponentialRampToValueAtTime(70, t + 5); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(1.7, t + 0.05); g.gain.exponentialRampToValueAtTime(0.5, t + 1.2); g.gain.exponentialRampToValueAtTime(0.001, t + 6); s.connect(lp); lp.connect(sat); sat.connect(g); send(g); s.stop(t + 6.2); }
+  // 3) the thump you feel in your chest: sub-bass sweeps with distortion
+  { const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(24, t + 2.8); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(1.8, t + 0.04); g.gain.exponentialRampToValueAtTime(0.001, t + 4.2); o.connect(sat); sat.connect(g); send(g); o.start(t); o.stop(t + 4.4);
+    const o2 = AC.createOscillator(), g2 = AC.createGain(); o2.type = 'triangle'; o2.frequency.setValueAtTime(52, t); o2.frequency.exponentialRampToValueAtTime(18, t + 4); g2.gain.setValueAtTime(0.0001, t + 0.1); g2.gain.exponentialRampToValueAtTime(1.1, t + 0.4); g2.gain.exponentialRampToValueAtTime(0.001, t + 5); o2.connect(g2); send(g2); o2.start(t); o2.stop(t + 5.2); }
+  // 4) the long rolling rumble with slow pulsing, then fire crackle, then a distant echo of the blast bouncing back
+  { const s = src(nb, 0.6), lp = AC.createBiquadFilter(), g = AC.createGain(), lfo = AC.createOscillator(), lg = AC.createGain(); lp.type = 'lowpass'; lp.frequency.value = 130; lfo.frequency.value = 3.2; lg.gain.value = 0.25; lfo.connect(lg); lg.connect(g.gain); g.gain.setValueAtTime(0.0001, t + 0.6); g.gain.exponentialRampToValueAtTime(0.9, t + 1.4); g.gain.exponentialRampToValueAtTime(0.001, t + 9); s.connect(lp); lp.connect(g); send(g); lfo.start(t); lfo.stop(t + 9.5); s.stop(t + 9.6); }
+  { const s = src(nb, 1.8), bp = AC.createBiquadFilter(), g = AC.createGain(); bp.type = 'lowpass'; bp.frequency.value = 600; g.gain.setValueAtTime(0.0001, t + 1.8); g.gain.exponentialRampToValueAtTime(0.45, t + 2.0); g.gain.exponentialRampToValueAtTime(0.001, t + 5.5); s.connect(bp); bp.connect(g); send(g); s.stop(t + 6); }                  // echo
+  for (let i = 0; i < 60; i++) { const at = t + 2 + Math.random() * 9, s = AC.createBufferSource(), g = AC.createGain(), hp = AC.createBiquadFilter(); s.buffer = nb; hp.type = 'bandpass'; hp.frequency.value = 1500 + Math.random() * 3000; g.gain.setValueAtTime(0.14 * (1 - (at - t) / 12), at); g.gain.exponentialRampToValueAtTime(0.001, at + 0.05); s.connect(hp); hp.connect(g); g.connect(dry); s.start(at, Math.random() * 3); s.stop(at + 0.07); }   // fire crackle
+}
+
 function launch(x, z, noTake) {
   BT.nukePending = true; if (!noTake) takeNuke(); const cnt = document.getElementById('nukeCount'); cnt.style.display = 'block'; let left = 8; window.rdToast('☢️ TACTICAL NUKE LAUNCHED — everyone within ' + KILL_R + ' m of the target will die!', 4500);
   const t0 = performance.now(), siren = setInterval(() => { try { api().tone(((performance.now() - t0) / 450 | 0) % 2 ? 520 : 760, 0.45, 0.4, 'square'); } catch (e) { } }, 450);
   const tick = setInterval(() => { left--; cnt.textContent = '☢️ NUKE IN ' + left; if (left <= 0) { clearInterval(tick); clearInterval(siren); cnt.style.display = 'none'; } }, 1000); cnt.textContent = '☢️ NUKE IN 8';
-  // the missile: a glowing streak that falls through the last 2.5 s
-  const missile = new THREE.Group(); const body = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 9, 10), new THREE.MeshStandardMaterial({ color: 0xd8d8d8, metalness: 0.6, roughness: 0.4 })); missile.add(body); const nose = new THREE.Mesh(new THREE.ConeGeometry(0.6, 2, 10), new THREE.MeshStandardMaterial({ color: 0xaa2a2a })); nose.position.y = -5.5; nose.rotation.x = Math.PI; missile.add(nose);
-  const tail = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 0.2, 60, 10), new THREE.MeshBasicMaterial({ color: 0xffa040, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false })); tail.position.y = 34; missile.add(tail); missile.userData.nuke = true; scene.add(missile);
-  const fallStart = t0 + 5500; (function fall() { const now = performance.now(); if (!R.on) { scene.remove(missile); return; } if (now < fallStart) { missile.position.set(x, 900, z); } else { const k = Math.min(1, (now - fallStart) / 2500); missile.position.set(x, 900 * (1 - k * k) + 6, z); if (k >= 1) { scene.remove(missile); return; } } requestAnimationFrame(fall); setTimeout(() => { if (document.hidden) fall(); }, 40); })();
-  setTimeout(() => { scene.remove(missile); detonate(x, z); }, 8000);
+  const flight = jetFlight(x, z, t0); jetSound(flight, x, z);
+  setTimeout(() => { detonate(x, z); }, 8000);
 }
 const gm = (c, o) => new THREE.MeshBasicMaterial(Object.assign({ color: c, transparent: true, depthWrite: false }, o || {}));
 // ── realistic mushroom cloud: hundreds of billowing smoke/fire puffs, a rolling vortex cap, a swirling stem, a ground dust wall, a shock dome,
@@ -133,7 +199,7 @@ function detonate(x, z) {
   const ring = tag(new THREE.Mesh(new THREE.RingGeometry(0.92, 1, 64), gm(0xffe9b8, { side: THREE.DoubleSide, blending: THREE.AdditiveBlending, opacity: 0.8 }))); ring.rotation.x = -Math.PI / 2; ring.position.set(x, 0.5, z);
   const scorch = new THREE.Mesh(new THREE.CircleGeometry(150, 40), new THREE.MeshBasicMaterial({ color: 0x0b0907, transparent: true, opacity: 0.82, depthWrite: false })); scorch.rotation.x = -Math.PI / 2; scorch.position.set(x, 0.06, z); scorch.userData.nuke = true; scene.add(scorch);
   // sound (arrives later the farther you are)
-  const delay = Math.min(2.6, pd / 340), a = api(); try { a.noise(4.5, 3000, 40, 1.6, 'lowpass', delay); a.tone(32, 3.2, 1.2, 'sine', delay, 18); a.tone(58, 1.6, 0.9, 'sawtooth', delay, 28); a.noise(0.35, 8000, 1500, 1.0, 'highpass', delay); a.noise(5, 700, 50, 0.7, 'lowpass', delay + 0.5); a.noise(3, 500, 60, 0.5, 'lowpass', delay + 2); } catch (e) { }
+  const delay = Math.min(2.6, pd / 340), a = api(); try { nukeSound(delay, pd); } catch (e) { }
   // everyone caught by the shockwave
   const I = window.BTX.i, hit = new Set(), ents = () => [].concat(enemies, BT.allies);
   const dead = [], arrival = d => d / WAVE_SPEED * 1000;
