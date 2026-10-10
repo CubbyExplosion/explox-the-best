@@ -49,15 +49,16 @@ function ensureHud() {
   document.head.appendChild(css); hud = document.createElement('div'); hud.id = 'nukeHud'; document.body.appendChild(hud); flashEl = document.createElement('div'); flashEl.id = 'nukeFlash'; document.body.appendChild(flashEl);
   const c = document.createElement('div'); c.id = 'nukeCount'; document.body.appendChild(c);
 }
-function ready() { return BT.on && BT.mode === 'battle' && !BT.nukeUsed && BT.stats && BT.stats.kills >= NEED; }
+const hc = () => BT.on && BT.mode === 'hardcore' && BT.hc && !BT.hc.over, nukesLeft = () => { if (!hc()) return 0; if (BT.hc.nukes === undefined) BT.hc.nukes = 2; return BT.hc.nukes; };
+function ready() { return (BT.on && BT.mode === 'battle' && !BT.nukeUsed && BT.stats && BT.stats.kills >= NEED) || nukesLeft() > 0; }
 setInterval(() => {
-  nadeTick(); if (!BT.on || BT.mode !== 'battle' || !R.on) { if (hud) hud.style.display = 'none'; return; } ensureHud(); hud.style.display = BT.nukeUsed ? 'none' : 'block';
-  hud.textContent = ready() ? '☢️ NUKE READY — aim at the ground 150 m+ away and press N' : '☢️ Nuke: ' + (BT.stats ? BT.stats.kills : 0) + '/' + NEED + ' kills';
+  nadeTick(); const okMode = BT.on && (BT.mode === 'battle' || hc()); if (!okMode || !R.on) { if (hud) hud.style.display = 'none'; return; } ensureHud(); hud.style.display = (BT.mode === 'battle' ? BT.nukeUsed : nukesLeft() <= 0) ? 'none' : 'block';
+  hud.textContent = hc() ? '☢️ Nukes left: ' + nukesLeft() + ' — aim at the ground 150 m+ away and press N' : ready() ? '☢️ NUKE READY — aim at the ground 150 m+ away and press N' : '☢️ Nuke: ' + (BT.stats ? BT.stats.kills : 0) + '/' + NEED + ' kills';
   hud.style.color = ready() ? '#ff7a4a' : '#ffe08a';
 }, 120);
 document.addEventListener('keydown', e => {
-  if (e.code !== 'KeyN' || e.repeat || !BT.on || BT.mode !== 'battle' || !R.on || R.dead) return; ensureHud();
-  if (BT.nukeUsed || BT.nukePending) return; if (!ready()) { window.rdToast(`☢️ The nuke needs ${NEED} kills (you have ${BT.stats.kills})`, 2200); return; }
+  if (e.code !== 'KeyN' || e.repeat || !BT.on || !(BT.mode === 'battle' || hc()) || !R.on || R.dead) return; ensureHud();
+  if (BT.nukePending || (BT.mode === 'battle' && BT.nukeUsed)) return; if (!ready()) { window.rdToast(`☢️ The nuke needs ${NEED} kills (you have ${BT.stats.kills})`, 2200); return; }
   const dir = new THREE.Vector3(); camera.getWorldDirection(dir); const o = camera.position; let x, z;
   if (dir.y < -0.02) { const t = -o.y / dir.y; x = o.x + dir.x * t; z = o.z + dir.z * t; } else { x = o.x + dir.x * 220; z = o.z + dir.z * 220; }
   x = clamp(x, -BT.half + 10, BT.half - 10); z = clamp(z, -BT.half + 10, BT.half - 10); const d = Math.hypot(x - playerPos.x, z - playerPos.z);
@@ -65,7 +66,7 @@ document.addEventListener('keydown', e => {
   launch(x, z);
 });
 function launch(x, z) {
-  BT.nukePending = true; BT.nukeUsed = true; const cnt = document.getElementById('nukeCount'); cnt.style.display = 'block'; let left = 8; window.rdToast('☢️ TACTICAL NUKE LAUNCHED — everyone within ' + KILL_R + ' m of the target will die!', 4500);
+  BT.nukePending = true; if (hc()) BT.hc.nukes = nukesLeft() - 1; else BT.nukeUsed = true; const cnt = document.getElementById('nukeCount'); cnt.style.display = 'block'; let left = 8; window.rdToast('☢️ TACTICAL NUKE LAUNCHED — everyone within ' + KILL_R + ' m of the target will die!', 4500);
   const t0 = performance.now(), siren = setInterval(() => { try { api().tone(((performance.now() - t0) / 450 | 0) % 2 ? 520 : 760, 0.45, 0.4, 'square'); } catch (e) { } }, 450);
   const tick = setInterval(() => { left--; cnt.textContent = '☢️ NUKE IN ' + left; if (left <= 0) { clearInterval(tick); clearInterval(siren); cnt.style.display = 'none'; } }, 1000); cnt.textContent = '☢️ NUKE IN 8';
   // the missile: a glowing streak that falls through the last 2.5 s
@@ -120,5 +121,5 @@ function detonate(x, z) {
   if (pd < 420) try { const A = a.getAudio(), m = A.master, v0 = m.gain.value, tt = A.AC.currentTime + delay; m.gain.setValueAtTime(v0, tt); m.gain.linearRampToValueAtTime(v0 * 0.2, tt + 0.1); m.gain.linearRampToValueAtTime(v0, tt + 7); const o = A.AC.createOscillator(), g = A.AC.createGain(); o.frequency.value = 5200; g.gain.setValueAtTime(0.0001, tt); g.gain.linearRampToValueAtTime(0.08, tt + 0.2); g.gain.exponentialRampToValueAtTime(0.0005, tt + 7); o.connect(g); g.connect(m); o.start(tt); o.stop(tt + 7.5); } catch (e) { }
   window.rdToast('☢️ NUKE DETONATED', 3000);
 }
-window.rdNukeAt = (x, z) => { BT.nukeUsed = true; detonate(x, z); };
+window.rdNukeAt = (x, z) => { if (!hc()) BT.nukeUsed = true; detonate(x, z); };
 })();
