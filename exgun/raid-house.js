@@ -69,15 +69,16 @@ function render() {
   el.querySelectorAll('[data-put]').forEach(b => b.onclick = () => { const id = b.dataset.put, box = h.box[s.id]; let want = b.dataset.n === 'all' ? stashN(id) : 1, moved = 0; while (want-- > 0 && stashN(id) > 0) { box[id] = (box[id] || 0) + 1; if (used(box) > s.slots) { box[id]--; if (!box[id]) delete box[id]; break; } stashAdd(id, -1); moved++; } if (!moved) alert('The safe is full (' + s.slots + ' slots).'); saveUserData(); render(); });
   el.querySelectorAll('[data-take]').forEach(b => b.onclick = () => { const id = b.dataset.take, box = h.box[s.id], n = b.dataset.n === 'all' ? box[id] : 1; box[id] -= n; if (box[id] <= 0) delete box[id]; stashAdd(id, n); saveUserData(); render(); });
 }
-function open() { if (!$('rdHouse')) { const d = document.createElement('div'); d.id = 'rdHouse'; d.className = 'rdScreen'; d.style.zIndex = 76; document.body.appendChild(d); } if (!selSafe) { const h = H(); selSafe = h.eq || h.owned[0] || null; } render(); $('rdHouse').classList.add('active'); }
+function open() { if (!$('rdHouse')) { const d = document.createElement('div'); d.id = 'rdHouse'; d.className = 'rdScreen'; d.style.zIndex = 76; document.body.appendChild(d); } if (!selSafe) { const h = H(); selSafe = h.eq || h.owned[0] || null; } render(); $('rdHouse').classList.add('active'); if (document.pointerLockElement) document.exitPointerLock(); }
 window.rdOpenHouse = open;
-function addBtn() { const bar = document.querySelector('#mapSelectTop > div:last-child'); if (!bar || $('rdHouseBtn')) return; const b = document.createElement('button'); b.className = 'msBtn'; b.id = 'rdHouseBtn'; b.style.cssText = 'background:linear-gradient(#8a5a2a,#5a3a1a);color:#fff;border-color:#d0a93a'; b.textContent = '🏠 MY HOUSE'; b.onclick = open; bar.insertBefore(b, bar.firstChild); }
+function addBtn() { const bar = document.querySelector('#mapSelectTop > div:last-child'); if (!bar || $('rdHouseBtn')) return; const b = document.createElement('button'); b.className = 'msBtn'; b.id = 'rdHouseBtn'; b.style.cssText = 'background:linear-gradient(#8a5a2a,#5a3a1a);color:#fff;border-color:#d0a93a'; b.textContent = '🏠 MY HOUSE'; b.onclick = () => (window.rdEnterHouse3D ? window.rdEnterHouse3D() : open()); bar.insertBefore(b, bar.firstChild); }
 addBtn(); document.addEventListener('DOMContentLoaded', addBtn); setTimeout(addBtn, 400); setTimeout(addBtn, 1500); setInterval(addBtn, 3000);
 
 // ───────── bringing the safe into a raid ─────────
 const origEnter = window.rdEnterRaid;
 window.rdEnterRaid = function (i, loadout) {
   const r = origEnter.apply(this, arguments); const h = H(), R = window.RAID;
+  if (R.mapIndex === 103) { R.safe = null; return r; }
   if (h.eq && h.owned.includes(h.eq)) { const box = h.box[h.eq] || (h.box[h.eq] = {}); R.safe = { id: h.eq, cap: cap(h.eq), items: box }; window.rdToast(`🔐 ${byId(h.eq).name} brought along (${used(box)}/${cap(h.eq)} slots). Tab → "→ Safe" to protect loot.`, 4200); } else R.safe = null;
   return r;
 };
@@ -96,5 +97,5 @@ function augment() {
   wrap.querySelectorAll('[data-fromsafe]').forEach(b => b.onclick = () => { const id = b.dataset.fromsafe; R.pack[id] = (R.pack[id] || 0) + S.items[id]; delete S.items[id]; window.rdRefreshInventory && window.rdRefreshInventory(); });
 }
 new MutationObserver(() => { try { augment(); } catch (e) { } }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-window.HOUSE = { SAFES, H };
+window.HOUSE = { SAFES, H, openSafe: id => { selSafe = id; open(); }, open2D: open };
 })();
