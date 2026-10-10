@@ -18,6 +18,7 @@ Object.assign(R_NADE, {
   cluster_1: { kind: 'frag', name: 'Cluster Grenade', emoji: '💥', price: 380, dmg: 210, radius: 11, fuse: 3 },
   c4_1:    { kind: 'c4', name: 'C4 Charge (press X)', emoji: '📦', price: 450, dmg: 430, radius: 9.5, fuse: 9999 },
   mine_1:  { kind: 'mine', name: 'Proximity Mine', emoji: '⭕', price: 260, dmg: 300, radius: 7.5, fuse: 9999 },
+  nuke_1:  { kind: 'nuke', name: 'Tactical Nuke', emoji: '☢️', price: 500, fuse: 9999 },
   air_1:   { kind: 'airstrike', name: 'Airstrike Marker', emoji: '✈️', price: 900, dmg: 270, radius: 9.5, fuse: 9999 }
 });
 try { R_CONTAINERS.weaponbox.table.push(['gren:c4_1', 2, 1, 1], ['gren:mine_1', 3, 1, 2], ['gren:pipe_1', 5, 1, 3], ['gren:dyn_1', 2, 1, 1], ['gren:air_1', 1, 1, 1]); } catch (e) { }
@@ -33,7 +34,8 @@ let wasLanded = new WeakSet();
 function nadeTick() {
   if (!R.on || !R.nades) return; const now = performance.now();
   R.nades.slice().forEach(n => {
-    const k = n.def.kind; if (k !== 'c4' && k !== 'mine' && k !== 'airstrike') return; const m = n.m;
+    const k = n.def.kind; if (k !== 'c4' && k !== 'mine' && k !== 'airstrike' && k !== 'nuke') return; const m = n.m;
+    if (k === 'nuke') { if (m.position.y <= 0.1 && n.age > 0.15) { const j = R.nades.indexOf(n); if (j >= 0) R.nades.splice(j, 1); scene.remove(m); const d = Math.hypot(m.position.x - playerPos.x, m.position.z - playerPos.z); if (d < KILL_R + 5) { R.pack['gren:nuke_1'] = (R.pack['gren:nuke_1'] || 0) + 1; window.rdToast('☢️ Too close to your own feet — throw it 150 m+ away! (nuke returned)', 3200); } else if (!BT.nukePending) launch(m.position.x, m.position.z, true); } return; }
     if (!n._landed) { if (m.position.y <= 0.1 && n.age > 0.15) { n._landed = true; n._t0 = now; n.v.set(0, 0, 0); m.position.y = 0.08; if (k === 'c4') { m.scale.set(2.4, 1.3, 1.6); m.material.color.set(0x5a5a3a); window.rdToast('📦 C4 planted — press X to detonate (' + (R.nades.filter(x => x.def.kind === 'c4').length) + ' charge(s))', 2600); } else if (k === 'mine') { m.scale.set(2.2, 0.35, 2.2); m.material.color.set(0x3a3a2a); window.rdToast('⭕ Mine armed in 1.5 s', 1800); } else { m.material.color.set(0xff3a2a); m.material.emissive = new THREE.Color(0xff2a10); window.rdToast('✈️ Airstrike inbound in 3 s — get clear!', 2600); } } return; }
     n.v.set(0, 0, 0); m.position.y = 0.08;
     if (k === 'mine') { if (now - n._t0 < 1500) return; m.material.emissive = new THREE.Color(Math.sin(now / 150) > 0 ? 0xff0000 : 0x000000); const L = (typeof enemies !== 'undefined' ? enemies : []).some(e => e.alive && Math.hypot(e.mesh.position.x - m.position.x, e.mesh.position.z - m.position.z) < 3.4) || (BT.on && BT.vehicles.some(v => v.alive && v.team === 'B' && Math.hypot(v.pos.x - m.position.x, v.pos.z - m.position.z) < v.def.r + 1.5)); if (L) det(n); }
@@ -50,23 +52,27 @@ function ensureHud() {
   const c = document.createElement('div'); c.id = 'nukeCount'; document.body.appendChild(c);
 }
 const hc = () => BT.on && BT.mode === 'hardcore' && BT.hc && !BT.hc.over, nukesLeft = () => { if (!hc()) return 0; if (BT.hc.nukes === undefined) BT.hc.nukes = 2; return BT.hc.nukes; };
-function ready() { return (BT.on && BT.mode === 'battle' && !BT.nukeUsed && BT.stats && BT.stats.kills >= NEED) || nukesLeft() > 0; }
+// nukes you bought (Armory & Shop → Throwables, ⚙️500) live in your stash; the free ones (Hardcore: 2, Team Battle: after 15 kills) are used first
+const owned = () => { try { return window.RDUI.stashN('gren:nuke_1'); } catch (e) { return 0; } };
+const freeLeft = () => hc() ? nukesLeft() : (BT.on && BT.mode === 'battle' && !BT.nukeUsed && BT.stats && BT.stats.kills >= NEED ? 1 : 0);
+function ready() { return freeLeft() + owned() > 0; }
+function takeNuke() { if (hc() && nukesLeft() > 0) BT.hc.nukes = nukesLeft() - 1; else if (!hc() && freeLeft() > 0) BT.nukeUsed = true; else if (owned() > 0) { window.RDUI.stashAdd('gren:nuke_1', -1); try { saveUserData(); } catch (e) { } } }
 setInterval(() => {
-  nadeTick(); const okMode = BT.on && (BT.mode === 'battle' || hc()); if (!okMode || !R.on) { if (hud) hud.style.display = 'none'; return; } ensureHud(); hud.style.display = (BT.mode === 'battle' ? BT.nukeUsed : nukesLeft() <= 0) ? 'none' : 'block';
-  hud.textContent = hc() ? '☢️ Nukes left: ' + nukesLeft() + ' — aim at the ground 150 m+ away and press N' : ready() ? '☢️ NUKE READY — aim at the ground 150 m+ away and press N' : '☢️ Nuke: ' + (BT.stats ? BT.stats.kills : 0) + '/' + NEED + ' kills';
+  nadeTick(); const okMode = BT.on && (BT.mode === 'battle' || hc()); if (!okMode || !R.on) { if (hud) hud.style.display = 'none'; return; } ensureHud(); const f = freeLeft(), o = owned(); hud.style.display = (BT.mode === 'battle' && BT.nukeUsed && !o) || (hc() && !f && !o) ? 'none' : 'block';
+  hud.textContent = ready() ? '☢️ Nukes: ' + (f + o) + (o ? ' (' + o + ' bought)' : '') + ' — aim at the ground 150 m+ away and press N' : '☢️ Nuke: ' + (BT.stats ? BT.stats.kills : 0) + '/' + NEED + ' kills (or buy one in the Armory)';
   hud.style.color = ready() ? '#ff7a4a' : '#ffe08a';
 }, 120);
 document.addEventListener('keydown', e => {
   if (e.code !== 'KeyN' || e.repeat || !BT.on || !(BT.mode === 'battle' || hc()) || !R.on || R.dead) return; ensureHud();
-  if (BT.nukePending || (BT.mode === 'battle' && BT.nukeUsed)) return; if (!ready()) { window.rdToast(`☢️ The nuke needs ${NEED} kills (you have ${BT.stats.kills})`, 2200); return; }
+  if (BT.nukePending) return; if (!ready()) { window.rdToast(`☢️ No nuke: earn one with ${NEED} kills (you have ${BT.stats.kills}) or buy one in the Armory & Shop for ⚙️500`, 3000); return; }
   const dir = new THREE.Vector3(); camera.getWorldDirection(dir); const o = camera.position; let x, z;
   if (dir.y < -0.02) { const t = -o.y / dir.y; x = o.x + dir.x * t; z = o.z + dir.z * t; } else { x = o.x + dir.x * 220; z = o.z + dir.z * 220; }
   x = clamp(x, -BT.half + 10, BT.half - 10); z = clamp(z, -BT.half + 10, BT.half - 10); const d = Math.hypot(x - playerPos.x, z - playerPos.z);
   if (d < KILL_R + 5) { window.rdToast(`☢️ Too close — the blast kills everything within ${KILL_R} m. Aim farther away (you are ${Math.round(d)} m from that spot).`, 3200); return; }
   launch(x, z);
 });
-function launch(x, z) {
-  BT.nukePending = true; if (hc()) BT.hc.nukes = nukesLeft() - 1; else BT.nukeUsed = true; const cnt = document.getElementById('nukeCount'); cnt.style.display = 'block'; let left = 8; window.rdToast('☢️ TACTICAL NUKE LAUNCHED — everyone within ' + KILL_R + ' m of the target will die!', 4500);
+function launch(x, z, noTake) {
+  BT.nukePending = true; if (!noTake) takeNuke(); const cnt = document.getElementById('nukeCount'); cnt.style.display = 'block'; let left = 8; window.rdToast('☢️ TACTICAL NUKE LAUNCHED — everyone within ' + KILL_R + ' m of the target will die!', 4500);
   const t0 = performance.now(), siren = setInterval(() => { try { api().tone(((performance.now() - t0) / 450 | 0) % 2 ? 520 : 760, 0.45, 0.4, 'square'); } catch (e) { } }, 450);
   const tick = setInterval(() => { left--; cnt.textContent = '☢️ NUKE IN ' + left; if (left <= 0) { clearInterval(tick); clearInterval(siren); cnt.style.display = 'none'; } }, 1000); cnt.textContent = '☢️ NUKE IN 8';
   // the missile: a glowing streak that falls through the last 2.5 s
