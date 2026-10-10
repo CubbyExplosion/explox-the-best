@@ -141,6 +141,7 @@ function wireDeploy() {
 function deploy() {
   const r = raidState(), w = weaponById(sel.weaponId);
   if (sel.map == null) return;
+  { const medN = Object.keys(sel.meds || {}).reduce((a, id) => a + Math.min(sel.meds[id], stashN(id)), 0); if (!(sel.ammoN > 0) || stashN(sel.ammoId) <= 0) { alert('🔫 You cannot deploy without bullets! Pick ammo for your gun (buy some in the Armory & Shop if your stash is empty).'); return; } if (medN <= 0) { alert('🩹 You cannot deploy without healthcare! Bring at least one bandage or medical item (buy some in the Armory & Shop if your stash is empty).'); return; } }
   if (sel.protect) { const fee = Math.round(weaponCost(w.tier) * 0.2); if (userState.scrap < fee) { alert('Not enough scrap for insurance.'); return; } userState.scrap -= fee; }
   const pack = {};
   if (sel.ammoN > 0) { pack[sel.ammoId] = sel.ammoN; stashAdd(sel.ammoId, -sel.ammoN); }
