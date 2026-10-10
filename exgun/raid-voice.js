@@ -62,6 +62,12 @@ function speak(kind, e, big) {
   const A = ctx(); if (!A || !e || !e.mesh) return; const cam = camera, m = e.mesh.position; if (!cam) return;
   const dx = m.x - cam.position.x, dz = m.z - cam.position.z, dist = Math.hypot(dx, dz); if (dist > 70) return;
   if (!e._pitch) e._pitch = 0.82 + Math.random() * 0.36;
+  if (e.type === 'demon') e._pitch = 0.45;
+  if (e.def && /Bot$/.test(e.def.name)) {                                              // robots do not scream: beeps, zaps and a dying whine
+    if (kind === 'cough') return; const api = window.RDX.api, v = Math.max(0.06, 1 / (1 + dist * 0.12)) * 0.5;
+    try { if (kind === 'shout') { api.tone(880, 0.09, v, 'square'); api.tone(1320, 0.09, v, 'square', 0.1); } else if (kind === 'hurt') { api.noise(0.12, 5000, 800, v * 1.2, 'bandpass'); api.tone(300, 0.08, v * 0.6, 'sawtooth', 0, 120); } else { api.tone(700, 0.7, v, 'sawtooth', 0, 60); api.noise(0.5, 4000, 300, v, 'bandpass'); api.noise(0.2, 6000, 1000, v, 'highpass', 0.5); } } catch (x) { }
+    return;
+  }
   const AC = A.AC, out = AC.createGain(), pan = AC.createStereoPanner ? AC.createStereoPanner() : null, lp = AC.createBiquadFilter();
   const yw = (typeof yaw !== "undefined" ? yaw : 0), rx = dx * Math.cos(yw) - dz * Math.sin(yw);                       // sideways offset relative to where you look
   const vol = Math.max(0.02, 1 / (1 + dist * 0.12)) * 0.75; out.gain.value = vol; lp.type = 'lowpass'; lp.frequency.value = Math.max(900, 7000 - dist * 90);

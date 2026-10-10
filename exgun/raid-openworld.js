@@ -9,15 +9,17 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 (function () {
 'use strict';
-const IDX = 101, HALF = 360, R = window.RAID, rnd = (a, b) => a + Math.random() * (b - a), rint = (a, b) => Math.floor(a + Math.random() * (b - a + 1)), rdToast = (...a) => window.RDX.api.rdToast(...a);
+const IDX = 101, IDX2 = 102, HALF = 360, R = window.RAID, rnd = (a, b) => a + Math.random() * (b - a), rint = (a, b) => Math.floor(a + Math.random() * (b - a + 1)), rdToast = (...a) => window.RDX.api.rdToast(...a);
 function rollLoot(table, rolls) { const mul = R.diff ? R.diff.loot : 1, out = {}, n = rint(rolls[0], rolls[1]), tot = table.reduce((s, e) => s + e[1], 0); for (let i = 0; i < n; i++) { let r = Math.random() * tot, e = table[0]; for (const t of table) { r -= t[1]; if (r <= 0) { e = t; break; } } const base = rint(e[2], e[3]); out[e[0]] = (out[e[0]] || 0) + (R_AMMO[e[0]] ? Math.max(1, Math.round(base * mul)) : base); } return out; }
 const OW = window.OW = { on: false, banks: [], towns: [], extracts: [], camps: [], prevHighest: 1 };
 const origTheme = window.themeForMap, origName = window.mapNameForMap, origDiff = window.rDifficulty, origBuild = window.buildMapScene, origEnd = window.rdEnd;
 const THEME = { name: 'Open World', style: 'ruin', sky: 0x9cc4ec, ground: 0x56683f, colors: [0xb9b2a4, 0xa39b8c, 0x8d8578, 0xc9c1b0] };
+const THEME2 = { name: 'Explox City', style: 'ruin', sky: 0x8fb6e0, ground: 0x5a6b45, colors: [0xb9b2a4, 0xa39b8c] };
+const DIFF2 = Object.assign({}, R_DIFFS[3], { id: 6, name: 'Explox City', color: '#c46aff', enemies: [0, 0], containers: [0, 0, 0, 0], time: 45, loot: 1.3, acc: 1.0, hp: 1.0, note: 'The real Explox map — killers, robots, demons and cartel.' });
 const DIFF = Object.assign({}, R_DIFFS[2], { id: 5, name: 'Open World', color: '#6ad0ff', enemies: [0, 0], containers: [0, 0, 0, 0], time: 45, loot: 1.25, acc: 1.0, hp: 1.0, note: 'A whole country. Rob the banks, survive, extract.' });
-window.themeForMap = i => i === IDX ? THEME : origTheme(i);
-window.mapNameForMap = i => i === IDX ? '🌍 OPEN WORLD' : origName(i);
-window.rDifficulty = i => i === IDX ? DIFF : origDiff(i);
+window.themeForMap = i => i === IDX ? THEME : i === IDX2 ? THEME2 : origTheme(i);
+window.mapNameForMap = i => i === IDX ? '🌍 OPEN WORLD' : i === IDX2 ? '🏙️ EXPLOX CITY' : origName(i);
+window.rDifficulty = i => i === IDX ? DIFF : i === IDX2 ? DIFF2 : origDiff(i);
 R_LOOT.gold_bar = { name: 'Gold Bar', emoji: '🪙', value: 950, w: 6 };
 const BANKDEF = { name: 'Vault Safe', color: 0x8a6d1d, size: [1.4, 1.5, 0.9], rolls: [3, 4], table: [['gold_bar', 30, 1, 2], ['cash_roll', 40, 2, 3], ['gold_watch', 16, 1, 2], ['hard_drive', 9, 1, 1], ['laptop', 6, 1, 1], ['gpu', 6, 1, 1]] };
 const TELLERDEF = { name: 'Teller Drawer', color: 0x555b60, size: [0.8, 0.5, 0.6], rolls: [1, 2], table: [['cash_roll', 60, 1, 2], ['gold_watch', 8, 1, 1], ['9mm_fmj', 20, 10, 24], ['bandage', 10, 1, 1]] };
@@ -164,6 +166,7 @@ function buildWorld() {
   scene.background = new THREE.Color(THEME.sky); scene.fog = new THREE.Fog(THEME.sky, 60, 420);
   scene.add(new THREE.AmbientLight(0xffffff, 0.55)); const sun = new THREE.DirectionalLight(0xffeecc, 0.85); sun.position.set(40, 60, 20); scene.add(sun);
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2 + 700, HALF * 2 + 700), new THREE.MeshStandardMaterial({ color: THEME.ground, roughness: 1 })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+  OW.labels = TOWNS.map(t => ({ x: t.x, z: t.z, name: t.name, dy: t.r * 15 + 8 }));
   buildRoads(); TOWNS.forEach(buildTown); CAMPS.forEach(buildCamp); buildNature();
   // loot lying around in the towns
   TOWNS.forEach((t, ti) => { const n = ti === 0 ? 22 : t.bank ? 12 : 9; for (let k = 0; k < n; k++) { for (let tr = 0; tr < 12; tr++) { const x = t.x + rr(-t.c * 15, t.c * 15), z = t.z + rr(-t.r * 15, t.r * 15); if (!free(x, z, 1.4)) continue; const r = Math.random(); placeContainer(r < 0.4 ? 'crate' : r < 0.7 ? 'locker' : r < 0.9 ? 'weaponbox' : 'safe', x, z); break; } } });
@@ -175,10 +178,10 @@ function buildWorld() {
   if (camera) { camera.far = 1200; camera.updateProjectionMatrix(); }
 }
 window.buildMapScene = function (i) {
-  if (i !== IDX) { ARENA_HALF = 66; OW.on = false; if (camera) { camera.far = 500; camera.updateProjectionMatrix(); } return origBuild(i); }
-  OW.on = true; OW.prevHighest = (typeof userState !== 'undefined' && userState && userState.highestMapUnlocked) || 1; ARENA_HALF = HALF; buildWorld(); setTimeout(() => { try { userState.highestMapUnlocked = OW.prevHighest; saveUserData(); } catch (e) { } }, 50);
+  if (i !== IDX && i !== IDX2) { ARENA_HALF = 66; OW.on = false; if (camera) { camera.far = 500; camera.updateProjectionMatrix(); } return origBuild(i); }
+  OW.on = true; OW.prevHighest = (typeof userState !== 'undefined' && userState && userState.highestMapUnlocked) || 1; ARENA_HALF = HALF; OW.mode = i === IDX2 ? 'explox' : 'world'; if (i === IDX2) window.rdBuildExplox(); else buildWorld(); setTimeout(() => { try { userState.highestMapUnlocked = OW.prevHighest; saveUserData(); } catch (e) { } }, 50);
 };
-window.rdOWSpawn = function () { if (!OW.on) return false; placeExtracts(); return true; };
+window.rdOWSpawn = function () { if (!OW.on) return false; if (OW.mode === 'explox') window.rdExploxExtracts(); else placeExtracts(); return true; };
 window.rdEnd = function (reason) { const was = OW.on; if (was) { try { userState.highestMapUnlocked = OW.prevHighest; } catch (e) { } } const r = origEnd.apply(this, arguments); if (was) { OW.on = false; ARENA_HALF = 66; if (camera) { camera.far = 500; camera.updateProjectionMatrix(); } hideHud(); } return r; };
 window.rdOWLook = function () { if (!OW.on || !scene.fog) return; if (scene.fog.isFogExp2) scene.fog.density *= 0.4; else { scene.fog.near = 80; scene.fog.far = 520; } };
 
@@ -222,7 +225,7 @@ function draw(cv, scale, follow) {
   OW.banks.forEach(b => { g.fillStyle = b.cleared ? '#777' : b.alarm ? '#ff4a3a' : '#ffd24a'; g.beginPath(); g.arc(b.x, b.z, (follow ? 7 : 9) / k * (follow ? 1 : 1.6), 0, 6.3); g.fill(); });
   OW.extracts.forEach(e => { g.strokeStyle = '#4dffa0'; g.lineWidth = 2 / k; g.beginPath(); g.arc(e.x, e.z, 6 / k * (follow ? 1 : 1.5), 0, 6.3); g.stroke(); });
   g.setTransform(1, 0, 0, 1, 0, 0);
-  if (!follow) { g.font = 'bold 15px Arial'; g.fillStyle = '#e8e0d0'; g.textAlign = 'center'; TOWNS.forEach(t => g.fillText(t.name, c + t.x * k, c + t.z * k - t.r * 15 * k - 8)); g.fillStyle = '#ffd24a'; OW.banks.forEach(b => g.fillText('🏦', c + b.x * k, c + b.z * k + 5)); g.fillStyle = '#4dffa0'; OW.extracts.forEach(e => g.fillText(e.name, c + e.x * k, c + e.z * k + (e.z > 0 ? -12 : 20))); g.fillStyle = '#fff'; g.textAlign = 'left'; g.fillText('Hold M to close · yellow = bank · ring = extraction · you are the arrow', 14, 22);
+  if (!follow) { g.font = 'bold 15px Arial'; g.fillStyle = '#e8e0d0'; g.textAlign = 'center'; (OW.labels || []).forEach(t => g.fillText(t.name, c + t.x * k, c + t.z * k - (t.dy || 12))); g.fillStyle = '#ffd24a'; OW.banks.forEach(b => g.fillText('🏦', c + b.x * k, c + b.z * k + 5)); g.fillStyle = '#4dffa0'; OW.extracts.forEach(e => g.fillText(e.name, c + e.x * k, c + e.z * k + (e.z > 0 ? -12 : 20))); g.fillStyle = '#fff'; g.textAlign = 'left'; g.fillText('Hold M to close · yellow = bank · ring = extraction · you are the arrow', 14, 22);
     const ax = c + playerPos.x * k, az = c + playerPos.z * k; g.save(); g.translate(ax, az); g.rotate(-yaw + Math.PI); g.fillStyle = '#ff3a3a'; g.beginPath(); g.moveTo(0, -11); g.lineTo(7, 8); g.lineTo(-7, 8); g.closePath(); g.fill(); g.restore(); }
   else { g.fillStyle = '#ff3a3a'; g.beginPath(); g.moveTo(c, c - 8); g.lineTo(c + 5, c + 6); g.lineTo(c - 5, c + 6); g.closePath(); g.fill(); g.strokeStyle = '#ffffff44'; g.lineWidth = 1; g.beginPath(); g.arc(c, c, c - 2, 0, 6.3); g.stroke(); }
 }
@@ -233,4 +236,7 @@ setInterval(() => {
 // entry button next to NO MERCY / TEAM BATTLE on the sector screen
 function addBtn() { const bar = document.querySelector('#mapSelectTop > div:last-child'); if (!bar || document.getElementById('owBtn')) return; const b = document.createElement('button'); b.className = 'msBtn'; b.id = 'owBtn'; b.style.cssText = 'background:linear-gradient(#2f8a4a,#1f5f33);color:#fff;border-color:#4dffa0'; b.textContent = '🌍 OPEN WORLD'; b.onclick = () => window.enterMap(IDX); bar.insertBefore(b, bar.firstChild); }
 addBtn(); document.addEventListener('DOMContentLoaded', addBtn); setTimeout(addBtn, 400); setTimeout(addBtn, 1500); setInterval(addBtn, 3000);
+OW.h = { box, col, free, plane, stdMat, winTex, placeContainer, spawnEnemy, buildBank, signTex, rr: rnd, rnd, rint, HALF, rollLoot, labelsReset: () => { OW.banks = []; OW.towns = []; OW.camps = []; OW.extracts = []; OW.labels = []; } };
+function addBtn2() { const bar = document.querySelector('#mapSelectTop > div:last-child'); if (!bar || document.getElementById('exBtn')) return; const b = document.createElement('button'); b.className = 'msBtn'; b.id = 'exBtn'; b.style.cssText = 'background:linear-gradient(#7a3fb0,#4f2a78);color:#fff;border-color:#c46aff'; b.textContent = '🏙️ EXPLOX CITY'; b.onclick = () => window.enterMap(IDX2); bar.insertBefore(b, bar.firstChild); }
+addBtn2(); document.addEventListener('DOMContentLoaded', addBtn2); setTimeout(addBtn2, 400); setTimeout(addBtn2, 1500); setInterval(addBtn2, 3000);
 })();

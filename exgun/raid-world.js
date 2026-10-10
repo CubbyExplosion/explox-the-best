@@ -64,6 +64,7 @@ function build() {
       + (hid ? `<polygon points="${p.x},${p.y - mr * 1.5} ${p.x + mr},${p.y} ${p.x},${p.y + mr * 1.5} ${p.x - mr},${p.y}" fill="#ffd34a" stroke="#fff" stroke-width="${mr * 0.18}"/>` : `<circle cx="${p.x}" cy="${p.y}" r="${mr}" fill="${d.color}" stroke="#fff" stroke-width="${mr * 0.2}"/>`)
       + (sel >= 0 ? `<text x="${p.x}" y="${p.y - mr * 1.5}" text-anchor="middle" font-size="${mr * 1.9}" fill="#fff" stroke="#000" stroke-width="${mr * 0.3}" paint-order="stroke">${i}</text>` : '') + `<circle cx="${p.x}" cy="${p.y}" r="${mr * 2.2}" fill="transparent"/></g>`;
   });
+  if (sel < 0) [[102, '🏙️ EXPLOX CITY', -32, 8, '#c46aff'], [101, '🌍 OPEN WORLD', -32, -14, '#4dffa0']].forEach(p => { const x = X(p[2]), y = Y(p[3]); s += `<g class="pin" data-m="${p[0]}" style="cursor:pointer"><title>${p[1]} — click to deploy</title><circle cx="${x}" cy="${y}" r="${vw * 0.011}" fill="${p[4]}" stroke="#fff" stroke-width="${vw * 0.002}"/><text x="${x}" y="${y - vw * 0.017}" text-anchor="middle" font-size="${vw * 0.0125}" fill="#fff" stroke="#000" stroke-width="${vw * 0.002}" paint-order="stroke">${p[1]}</text></g>`; });
   s += `</svg>`;
   let pills = `<span class="pill ${sel < 0 ? 'on' : ''}" data-c="-1">🌍 World</span>` + COUNTRIES.map((k, idx) => { const a = Math.ceil(idx * PER - 0.001) || 1, b = idx === COUNTRIES.length - 1 ? 100 : Math.floor((idx + 1) * PER - 0.001); return `<span class="pill ${idx === sel ? 'on' : ''}" data-c="${idx}">${k[1]} ${k[0]} <small>${a}–${b}</small></span>`; }).join('');
   let list = '';
@@ -80,6 +81,7 @@ function render() {
   grid.style.display = mode === 'world' ? 'none' : ''; box.style.display = mode === 'world' ? '' : 'none'; if (mode !== 'world') return;
   box.innerHTML = build();
   box.querySelectorAll('.cty,.pill').forEach(el => el.addEventListener('click', () => { sel = el.classList.contains('pill') || sel !== parseInt(el.dataset.c, 10) ? parseInt(el.dataset.c, 10) : sel; render(); }));
+  box.querySelectorAll('.pin').forEach(el => el.addEventListener('click', ev => { ev.stopPropagation(); enterMap(parseInt(el.dataset.m, 10)); }));
   box.querySelectorAll('.sec,.sbtn').forEach(el => el.addEventListener('click', ev => { ev.stopPropagation(); enterMap(parseInt(el.dataset.i, 10)); }));
 }
 const prev = window.renderMapGrid;
