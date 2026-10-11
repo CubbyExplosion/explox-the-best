@@ -184,7 +184,7 @@ function appTerminal(b, w) {
     open: a => { if (APPS[a[0]]) openApp(a[0]); else out('open: unknown app. Apps: ' + Object.keys(APPS).join(', ')); },
     ps: () => out('PID  NAME\n' + wins.map(x => String(x.id).padEnd(4) + ' ' + x.app).join('\n')),
     exit: () => w.close(),
-    drill: a => { out('Starting a hacker drill… (phish, malware, ransom or brute)'); hackEvent(a[0], true); },
+    drill: a => { out('Starting a hacker drill… (malware, ransom or brute)'); hackEvent(a[0], true); },
     sudo: a => { if (a.join(' ').replace(/\s+/g, ' ') === 'rm -rf /') bsod(); else out('sudo: nice try.'); }
   };
   inp.onkeydown = e => {
@@ -949,7 +949,7 @@ function appStore(b, w) {
   b.onclick = e => { const d = e.target.dataset; if (d.cat) { cat = d.cat; pills(); list(); } else if (d.o) { openApp(d.o); list(); } else if (d.u) { set.installed = (set.installed || []).filter(x => x !== d.u); saveSet(); buildDesktop(); wins.filter(x => x.app === d.u).forEach(x => x.close()); list(); } else if (d.i) { let p = 0; prog = [d.i, 0]; const iv = setInterval(() => { p += 10 + Math.random() * 20; if (p >= 100) { clearInterval(iv); prog = null; set.installed = (set.installed || []).concat(d.i); saveSet(); buildDesktop(); beep(784, .15); } else prog[1] = p; if (b.isConnected) list(); }, 150); list(); } };
 }
 // ═════════ CYBER HACKERS — pretend attackers raid your Cubby OS. Cubby Shield defends. (All fictional game events.) ═════════
-const HNAMES = ['xX_Glitch_Xx', 'Null_Byte', 'Phantom404', 'ZeroCool', 'Cipher_Cat', 'DarkPixel', 'Ghost.exe', 'Pwnda'], HLABEL = { phish: 'phishing', malware: 'malware', ransom: 'ransomware', brute: 'password-guessing' };
+const HNAMES = ['xX_Glitch_Xx', 'Null_Byte', 'Phantom404', 'ZeroCool', 'Cipher_Cat', 'DarkPixel', 'Ghost.exe', 'Pwnda'], HLABEL = { malware: 'malware', ransom: 'ransomware', brute: 'password-guessing' };
 let MAL = [], hNext = 60, hLock = false, hid = 0, malT = 0, hBruteIv = null;
 const hlog = t => { (set.hlog || (set.hlog = [])).unshift(new Date().toLocaleTimeString() + ' — ' + t); set.hlog.length = Math.min(set.hlog.length, 30); saveSet(); };
 function hnote(html, kind, ms) { let n = $('hnote'); if (!n) { n = el('div'); n.id = 'hnote'; n.style.cssText = 'position:fixed;right:12px;bottom:130px;max-width:330px;border-radius:10px;padding:12px;z-index:100001;font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,.5);border:1px solid'; document.body.append(n); } const c = { bad: ['#7f1d1d', '#f87171'], good: ['#14532d', '#4ade80'], warn: ['#78350f', '#fbbf24'] }[kind || 'warn']; n.style.background = c[0]; n.style.borderColor = c[1]; n.innerHTML = html; n.style.display = 'block'; clearTimeout(n._t); n._t = setTimeout(() => n.style.display = 'none', ms || 7000); beep(kind === 'good' ? 900 : 200, .15, kind === 'good' ? 'sine' : 'sawtooth'); }
@@ -961,19 +961,9 @@ function hackEvent(force, bypass) {
   const name = pickR(HNAMES), t = HLABEL[force] ? force : pickR(Object.keys(HLABEL));
   if (!bypass && Math.random() < (set.shield || 0) * .12) { hlog(`Shield blocked a ${HLABEL[t]} attack from ${name}`); hnote(`🛡️ <b>Cubby Shield</b> blocked a ${HLABEL[t]} attack from <b>${esc(name)}</b>.`, 'good'); return; }
   hnote(`⚠️ <b>Hacker detected!</b> ${esc(name)} is launching a ${HLABEL[t]} attack!`, 'bad');
-  ({ phish: hPhish, malware: hMalware, ransom: hRansom, brute: hBrute })[t](name);
+  ({ malware: hMalware, ransom: hRansom, brute: hBrute })[t](name);
 }
 
-function hPhish(name) {
-  const st = { done: false }, T = ['🎁 Congratulations!!!', '⚠️ VIRUS FOUND!', '💰 You won cash', '🔔 Update required', '📦 Parcel waiting'], count = () => wins.filter(x => x.app === 'phish').length;
-  const spawn = () => {
-    if (count() >= 8) return; const w = makeWin(pickR(T), '🎁', 330, 220); w.app = 'phish'; w.ram = 90; w.el.style.left = rnd(Math.max(10, innerWidth - 350)) + 'px'; w.el.style.top = rnd(Math.max(10, innerHeight - 280)) + 'px';
-    w.body.innerHTML = `<div style="padding:12px;text-align:center;background:linear-gradient(135deg,#7c3aed,#db2777);height:100%"><div style="font-size:21px;font-weight:900">🎉 YOU WON A FREE SUPER PC!!! 🎉</div><div style="margin:4px 0">Only seconds left!</div><button class="btn" data-claim="1" style="background:#16a34a;font-size:18px;padding:8px 16px">CLAIM NOW</button> <button class="btn" data-fake="1">✕ Close</button> <button class="btn" data-fake="1">OK</button> <button class="btn" data-claim="1">Install</button></div>`;
-    w.body.onclick = e => { if (st.done) return; if (e.target.dataset.claim) { st.done = true; wins.filter(x => x.app === 'phish').forEach(x => { x.onclose = null; x.close(); }); const l = loseSip(25); hlog(`Clicked a pop-up from ${name} (-${l} S.I.P.)`); hnote(`😬 <b>Oops!</b> That pop-up was a trap and ${l} S.I.P. went missing.<br>Tip: only the ✕ in the window’s title bar is safe.`, 'bad', 10000); } else if (e.target.dataset.fake) { beep(200, .1, 'sawtooth'); spawn(); spawn(); } };
-    w.onclose = () => { if (!st.done && count() <= 1) hlog('Cleared the phishing pop-ups from ' + name); };
-  };
-  spawn(); spawn(); spawn(); hnote('⚠️ <b>Pop-up swarm!</b> Close them with the ✕ in the title bar. The buttons inside are traps!', 'bad', 8000);
-}
 function hMalware(name) { const k = 2 + (Math.random() < .4 ? 1 : 0), names = []; for (let i = 0; i < k; i++) { const m = { id: ++hid, n: pickR(['totally-legit.exe', 'free-ram-booster.exe', 'definitely_not_a_virus.exe', 'update_helper.exe', 'crypto_miner_lite.exe']), ram: 1000 + rnd(1500) }; MAL.push(m); names.push(m.n); } hlog(`${name} planted ${k} malware programs`); hnote(`🦠 ${k} malware programs are eating your RAM, stealing S.I.P. and <b>copying themselves</b>!<br>End them in the <a style="color:#fff;text-decoration:underline;cursor:pointer" onclick="openApp('taskmgr')">Task Manager</a> or scan in Cubby Shield (scans can miss some).`, 'bad', 11000); updTray(); }
 
 function hBrute(name) {
