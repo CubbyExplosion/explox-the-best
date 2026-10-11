@@ -1004,8 +1004,48 @@ function appShield(b, w) {
 APPS.shield = { title: 'Cubby Shield', icon: '🛡️', w: 440, h: 480, init: appShield, ram: 90 };
 setInterval(() => { if ($('screen').style.display !== 'block' || hLock || set.hackers === false) return; if (--hNext <= 0) { hackEvent(); hNext = 55 + rnd(80); } if (MAL.length) { malT++; if (malT % 10 === 0) { loseSip(MAL.length * 2); updTray(); } if (malT % 45 === 0 && MAL.length < 6) { MAL.push({ id: ++hid, n: MAL[0].n, ram: 1000 + rnd(1000) }); hnote('🦠 A malware program copied itself!', 'bad'); updTray(); } } }, 1000);
 
+// ═════════ CUBBY STOCKS — a pretend stock market. Trade with S.I.P. (not real money, not real companies). ═════════
+const STK = [['CUBY', 'Cubby Corp', 60, .012], ['EXPL', 'Explox Inc', 45, .02], ['GUNN', 'EXGUN Arms', 30, .025], ['PZZA', 'Pizza Planet', 22, .015], ['MOON', 'Moon Mining', 12, .04], ['RAMM', 'RAM Factory', 80, .018], ['SHLD', 'Shield Security', 55, .016], ['SNKE', 'Snake Foods', 15, .022], ['CITY', 'CitySoft', 70, .014], ['TURB', 'Turbo Cars', 38, .03], ['MEOW', 'Cat Toys Ltd', 9, .035], ['CL9', 'Cloud Nine', 100, .012]];
+const GOODN = ['{n} announces record profits', '{n} launches a hit product', '{n} wins a huge contract', '{n} is loved by gamers everywhere', '{n} opens a shiny new office'], BADN = ['{n} recalls a product', '{n} had a (pretend) outage', '{n} CEO tripped over a cable', '{n} loses a big customer', '{n} gets a funny-looking bug'];
+const gauss = () => { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+function mkt() {
+  if (!set.mkt || !set.mkt.s) { set.mkt = { t: Date.now(), s: {}, news: [], day: 1 }; STK.forEach(([y, n, p]) => { const h = []; let q = p; for (let i = 0; i < 60; i++) { q = Math.max(1, q * (1 + gauss() * .01)); h.push(+q.toFixed(2)); } set.mkt.s[y] = { p: h[h.length - 1], h, mom: 0 }; }); }
+  return set.mkt;
+}
+function mktTick(quiet) {
+  const M = mkt();
+  STK.forEach(([y, n, p0, vol]) => { const s = M.s[y]; s.p = Math.max(1, s.p * (1 + gauss() * vol * .6 + s.mom + (p0 - s.p) / p0 * .004)); s.mom *= .8; s.h.push(+s.p.toFixed(2)); if (s.h.length > 150) s.h.shift(); });
+  if (Math.random() < (quiet ? .02 : .09)) { const [y, n] = pickR(STK), good = Math.random() < .5, txt = pickR(good ? GOODN : BADN).replace('{n}', n); M.s[y].mom += good ? .03 + Math.random() * .03 : -(.03 + Math.random() * .03); M.s[y].p = Math.max(1, M.s[y].p * (good ? 1.05 : .95)); M.news.unshift({ y, good, t: txt, at: Date.now() }); if (M.news.length > 12) M.news.pop(); }
+}
+function appStocks(b, w) {
+  const M = mkt(), H = () => set.hold || (set.hold = {}), pv = y => M.s[y].p, fmtp = x => x.toFixed(2);
+  const catchup = Math.min(150, Math.floor((Date.now() - M.t) / 3000)); for (let i = 0; i < catchup; i++) mktTick(true); M.t = Date.now();
+  let sel = 'CUBY', qty = 1;
+  const worth = () => Object.keys(H()).reduce((s, y) => s + H()[y].n * pv(y), 0);
+  const spark = (cv, h, big) => { const c = cv.getContext('2d'), W = cv.width, Hh = cv.height, lo = Math.min(...h), hi = Math.max(...h), r = hi - lo || 1; c.clearRect(0, 0, W, Hh); c.strokeStyle = h[h.length - 1] >= h[0] ? '#4ade80' : '#f87171'; c.lineWidth = big ? 2 : 1.5; c.beginPath(); h.forEach((v, i) => { const x = i / (h.length - 1) * (W - 2) + 1, y = Hh - 3 - (v - lo) / r * (Hh - 6); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); if (big) { c.fillStyle = '#9ca3af'; c.font = '11px sans-serif'; c.fillText(fmtp(hi), 4, 12); c.fillText(fmtp(lo), 4, Hh - 4); } };
+  const draw = () => {
+    const nw = worth(), s = M.s[sel], hold = H()[sel] || { n: 0, avg: 0 }, chg = (s.h[s.h.length - 1] / s.h[Math.max(0, s.h.length - 31)] - 1) * 100, pl = hold.n ? (s.p - hold.avg) * hold.n : 0, nm = STK.find(x => x[0] === sel)[1];
+    b.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 10px;background:#161a24;align-items:center"><b>📈 Cubby Stocks</b><span style="flex:1"></span><span>💰 Cash <b>${sipBal()}</b> S.I.P.</span><span>📦 Stocks <b>${Math.floor(nw)}</b></span><span>🏆 Net worth <b>${Math.floor(sipBal() + nw)}</b></span></div>
+    <div style="display:flex;height:calc(100% - 44px);min-height:0"><div id="lst" style="width:250px;flex:none;overflow:auto;border-right:1px solid rgba(255,255,255,.1)">${STK.map(([y, n]) => { const q = M.s[y], c = (q.h[q.h.length - 1] / q.h[Math.max(0, q.h.length - 31)] - 1) * 100; return `<div data-s="${y}" style="display:flex;align-items:center;gap:6px;padding:7px 8px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);background:${y === sel ? 'rgba(59,130,246,.25)' : ''}"><div style="flex:1;min-width:0"><b>${y}</b>${H()[y] ? ' <span style="font-size:10px;color:#fbbf24">×' + H()[y].n + '</span>' : ''}<div style="font-size:10px;opacity:.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${n}</div></div><canvas data-sp="${y}" width="50" height="24"></canvas><div style="text-align:right;width:56px"><b>${fmtp(q.p)}</b><div style="font-size:10px;color:${c >= 0 ? '#4ade80' : '#f87171'}">${c >= 0 ? '▲' : '▼'} ${Math.abs(c).toFixed(1)}%</div></div></div>`; }).join('')}</div>
+    <div style="flex:1;overflow:auto;padding:10px;min-width:0"><div style="display:flex;justify-content:space-between;align-items:baseline"><h3 style="margin:0">${sel} <span style="font-size:12px;opacity:.7;font-weight:400">${nm}</span></h3><div style="font-size:22px;font-weight:700">${fmtp(s.p)} <span style="font-size:13px;color:${chg >= 0 ? '#4ade80' : '#f87171'}">${chg >= 0 ? '▲' : '▼'} ${Math.abs(chg).toFixed(1)}%</span></div></div>
+    <canvas id="big" width="400" height="130" style="width:100%;background:#0e1118;border-radius:8px;margin:6px 0"></canvas>
+    <div style="font-size:13px">You own <b>${hold.n}</b> shares${hold.n ? ` · avg ${fmtp(hold.avg)} · <span style="color:${pl >= 0 ? '#4ade80' : '#f87171'}">${pl >= 0 ? '+' : ''}${pl.toFixed(0)} S.I.P.</span>` : ''}</div>
+    <div style="margin:8px 0">Shares: ${[1, 5, 25, 100].map(q => `<button class="btn ${qty === q ? 'p' : ''}" data-q="${q}">${q}</button>`).join(' ')} <button class="btn ${qty === 0 ? 'p' : ''}" data-q="0">Max</button></div>
+    <div><button class="btn p" data-buy="1" style="background:#16a34a">Buy ${qty || 'max'}</button> <button class="btn" data-sell="1" style="background:#b91c1c" ${hold.n ? '' : 'disabled'}>Sell ${qty || 'all'}</button> <span style="font-size:11px;opacity:.6">1% fee on every trade</span></div><div id="msg" style="min-height:20px;font-size:13px;margin-top:4px"></div>
+    <div style="margin-top:8px;font-size:12px;opacity:.7">📰 News</div>${M.news.slice(0, 5).map(n => `<div style="font-size:12px;padding:2px 0;color:${n.good ? '#86efac' : '#fca5a5'}">${n.good ? '▲' : '▼'} ${esc(n.t)}</div>`).join('') || '<div style="font-size:12px;opacity:.5">Quiet day on the market…</div>'}<div style="font-size:10px;opacity:.5;margin-top:10px">Pretend market using pretend companies and S.I.P. Prices change every 3 seconds, even a little while you are away.</div></div></div>`;
+    b.querySelectorAll('[data-sp]').forEach(cv => spark(cv, M.s[cv.dataset.sp].h.slice(-40))); spark(b.querySelector('#big'), s.h.slice(-100), true);
+  };
+  const msg = (t, ok) => { const m = b.querySelector('#msg'); if (m) { m.textContent = t; m.style.color = ok ? '#86efac' : '#fca5a5'; } };
+  b.onclick = e => { const d = e.target.closest('[data-s],[data-q],[data-buy],[data-sell]'); if (!d) return; const D = d.dataset, p = pv(sel), hold = H()[sel] || { n: 0, avg: 0 };
+    if (D.s) { sel = D.s; draw(); } else if (D.q != null) { qty = +D.q; draw(); }
+    else if (D.buy) { let n = qty || Math.floor(sipBal() / (p * 1.01)); const cost = Math.ceil(p * n * 1.01); if (n < 1) return msg('Not enough S.I.P. for even one share.'); if (cost > sipBal()) return msg(`You need ${cost} S.I.P. (you have ${sipBal()}). Work a shift in Cubby Jobs!`); addSip(-cost); const h = H(); h[sel] = { n: hold.n + n, avg: (hold.avg * hold.n + p * n) / (hold.n + n) }; saveSet(); beep(700, .06); draw(); msg(`Bought ${n} × ${sel} for ${cost} S.I.P.`, true); }
+    else if (D.sell) { const n = qty ? Math.min(qty, hold.n) : hold.n; if (n < 1) return; const get = Math.floor(p * n * .99); addSip(get); const rest = hold.n - n; if (rest) H()[sel] = { n: rest, avg: hold.avg }; else delete H()[sel]; saveSet(); beep(900, .06); draw(); msg(`Sold ${n} × ${sel} for ${get} S.I.P. (${get - Math.round(hold.avg * n) >= 0 ? 'profit' : 'loss'} ${get - Math.round(hold.avg * n)})`, get >= hold.avg * n); } };
+  const iv = setInterval(() => { mktTick(); M.t = Date.now(); saveSet(); if (b.isConnected) draw(); }, 3000); w.onclose = () => { clearInterval(iv); M.t = Date.now(); saveSet(); }; draw();
+}
+APPS.stocks = { title: 'Cubby Stocks', icon: '📈', w: 700, h: 520, init: appStocks, ram: 220 };
+
 // ───── desktop / start / system ─────
-const CORE = ['files', 'notepad', 'terminal', 'paint', 'browser', 'calc', 'snake', 'taskmgr', 'friends', 'jobs', 'shield', 'store', 'settings'], NAMES = { files: 'This PC', store: 'Cubby’s Apps' };
+const CORE = ['files', 'notepad', 'terminal', 'paint', 'browser', 'calc', 'snake', 'taskmgr', 'friends', 'jobs', 'stocks', 'shield', 'store', 'settings'], NAMES = { files: 'This PC', store: 'Cubby’s Apps' };
 const appList = () => CORE.concat((set.installed || []).filter(i => APPS[i] && APPS[i].store)).map(id => [id, NAMES[id] || APPS[id].title, APPS[id].icon]);
 function applyTheme() { $('desk').style.background = WALLS[set.wall | 0]; document.documentElement.style.setProperty('--acc', set.acc || '#3b82f6'); }
 function buildDesktop() {
