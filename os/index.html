@@ -1676,6 +1676,25 @@ function appSuin(b, w) {
     if (/\b(roll (a )?(dice|die)|dice)\b/.test(low)) return say('🎲 You rolled a ' + (1 + rnd(6)) + '!');
     if (/\b(what('s| is) the time|what time)\b/.test(low)) return say('It’s ' + new Date().toLocaleTimeString() + '.');
     if (/\b(what('s| is) (the |today'?s? )?date|what day)\b/.test(low)) return say('Today is ' + new Date().toDateString() + '.');
+    // 2b. "spend all my money" — Suin proposes a plan and ALWAYS asks first
+    if (/\bspend\b.*\b(all|everything|every)\b.*\b(money|s\.?i\.?p|coins?)\b|\bspend (all|everything)\b|\buse (all|up) my (money|s\.?i\.?p)\b/.test(low)) {
+      if (model === 'sain') return say('Sain 1 never spends your S.I.P. Switch to Exin 1 or Cuin 1 if you want help spending it (they still ask first).');
+      if (!agentOn()) return say('Agent mode is OFF, so I can only chat. Turn it on if you want me to spend for you.');
+      const bal = sipBal(); if (bal < 5) return say('You only have ' + bal + ' S.I.P. — not enough to spend. Work a shift in Cubby Jobs first!');
+      // work out what each plan would buy (without doing anything yet)
+      let b1 = bal, up = set.ramUpg || 0, ramN = 0, ramC = 0; while (up < MAX_UPG) { const p = Math.round(120 * Math.pow(1.3, up)); if (p > b1) break; b1 -= p; ramC += p; ramN++; up++; }
+      let b2 = bal, lv2 = set.shield || 0, shN = 0, shC = 0; while (lv2 < 5) { const p = SHIELD_COST[lv2]; if (p > b2) break; b2 -= p; shC += p; shN++; lv2++; }
+      const cp = mkt().s.CUBY.p, shares = Math.floor(bal / (cp * 1.01)), stC = Math.ceil(cp * shares * 1.01);
+      const d = bubble('bot', `You have <b>${bal} S.I.P.</b>. I won’t spend anything until you pick and confirm. What should I spend it on?<div style="margin-top:6px;display:flex;flex-direction:column;gap:4px"><button class="btn" data-pl="ram" ${ramN ? '' : 'disabled'}>🧠 RAM sticks — ${ramN} stick(s) for ${ramC} S.I.P.</button><button class="btn" data-pl="shield" ${shN ? '' : 'disabled'}>🛡️ Cubby Shield upgrades — ${shN} level(s) for ${shC} S.I.P.</button><button class="btn" data-pl="stock" ${shares ? '' : 'disabled'}>📈 ${shares} shares of Cubby Corp (CUBY) for ${stC} S.I.P. (price can go down!)</button><button class="btn" data-pl="no">✖ Keep my money</button></div>`);
+      const pick = await new Promise(res => { d.onclick = e => { const k = e.target.dataset.pl; if (k) { d.querySelectorAll('button').forEach(x => x.disabled = true); res(k); } }; });
+      if (pick === 'no') { log('You kept your money'); return say('Good thinking — your S.I.P. is safe. 💰'); }
+      const desc = pick === 'ram' ? `buy ${ramN} RAM stick(s) for ${ramC} S.I.P.` : pick === 'shield' ? `buy ${shN} Shield level(s) for ${shC} S.I.P.` : `buy ${shares} shares of CUBY for ${stC} S.I.P.`;
+      if (!(await ask('Final check: ' + desc + '. This can’t be undone (except selling stocks). Allow?'))) { log('You denied spending'); return say('Okay, I didn’t spend anything.'); }
+      if (pick === 'ram') { for (let i = 0; i < ramN; i++) { addSip(-ramPrice()); set.ramUpg = (set.ramUpg || 0) + 1; } updTray(); }
+      else if (pick === 'shield') { for (let i = 0; i < shN; i++) { addSip(-SHIELD_COST[set.shield || 0]); set.shield = (set.shield || 0) + 1; } }
+      else { addSip(-stC); const h = set.hold || (set.hold = {}), o = h.CUBY || { n: 0, avg: 0 }; h.CUBY = { n: o.n + shares, avg: (o.avg * o.n + cp * shares) / (o.n + shares) }; }
+      saveSet(); log('Spent S.I.P.: ' + desc); return say(`✅ Done! I ${desc}. You now have ${sipBal()} S.I.P.`, 'Spent S.I.P. (you allowed it)');
+    }
     // 3. status
     if (/\b(ram|memory)\b/.test(low) && !/\bbuy|upgrade|more\b/.test(low)) return say(`🧠 RAM: ${(ramUsed() / 1024).toFixed(1)} GB used of ${ramCap() / 1024} GB. Free: ${Math.max(0, ramCap() - ramUsed())} MB. You have ${sipBal()} S.I.P.`);
     if (/\b(s\.?i\.?p|money|balance|how much do i have)\b/.test(low) && !/\bbuy\b/.test(low)) return say(`💰 You have ${sipBal()} S.I.P. (pretend money). Work a shift in Cubby Jobs to earn more.`);
