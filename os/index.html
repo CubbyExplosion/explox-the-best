@@ -167,7 +167,7 @@ function appTerminal(b, w) {
   const prompt_ = () => { ps.textContent = user.toLowerCase() + '@cubby:' + (cwd.join('/') === ['home', user].join('/') ? '~' : pstr(cwd)) + '$ '; };
   out('Cubby OS Terminal v1.0 — type "help" for commands.'); prompt_(); t.onclick = () => inp.focus(); setTimeout(() => inp.focus(), 50);
   const CMD = {
-    help: () => out('help ls cd pwd cat echo mkdir touch rm clear whoami date uname neofetch history ping hack open <app> ps exit\nApps: ' + Object.keys(APPS).join(', ') + '\nTip: echo hi > file.txt writes a file. Try "sudo rm -rf /" if you dare.'),
+    help: () => out('help ls cd pwd cat echo mkdir touch rm clear whoami date uname neofetch history ping hack drill open <app> ps exit\nApps: ' + Object.keys(APPS).join(', ') + '\nTip: echo hi > file.txt writes a file. Try "sudo rm -rf /" if you dare.'),
     ls: a => { const n = node(a[0] ? norm(a[0], cwd) : cwd); if (!n) return out('ls: no such directory'); if (n.t === 'f') return out(a[0]); out(Object.keys(n.c).map(k => n.c[k].t === 'd' ? k + '/' : k).join('  ') || '(empty)'); },
     cd: a => { const p = a[0] ? norm(a[0], cwd) : HOME(), n = node(p); if (!n) out('cd: no such directory'); else if (n.t !== 'd') out('cd: not a directory'); else cwd = p; },
     pwd: () => out(pstr(cwd)),
@@ -184,6 +184,7 @@ function appTerminal(b, w) {
     open: a => { if (APPS[a[0]]) openApp(a[0]); else out('open: unknown app. Apps: ' + Object.keys(APPS).join(', ')); },
     ps: () => out('PID  NAME\n' + wins.map(x => String(x.id).padEnd(4) + ' ' + x.app).join('\n')),
     exit: () => w.close(),
+    drill: a => { out('Starting a hacker drill… (phish, malware, ransom or brute)'); hackEvent(a[0], true); },
     sudo: a => { if (a.join(' ').replace(/\s+/g, ' ') === 'rm -rf /') bsod(); else out('sudo: nice try.'); }
   };
   inp.onkeydown = e => {
@@ -896,7 +897,7 @@ function appPixel(b) {
 // ═════════ RAM, S.I.P. and jobs ═════════
 const CORE_RAM = { files: 200, notepad: 120, terminal: 150, paint: 350, browser: 700, calc: 60, snake: 80, taskmgr: 100, friends: 300, store: 250, settings: 80, jobs: 150 };
 const BASE_RAM = 2200, MAX_UPG = 14;
-const ramCap = () => (8 + 4 * (set.ramUpg || 0)) * 1024, ramUsed = () => BASE_RAM + wins.reduce((s, w) => s + (w.ram || 0), 0);
+const ramCap = () => (8 + 4 * (set.ramUpg || 0)) * 1024, ramUsed = () => BASE_RAM + wins.reduce((s, w) => s + (w.ram || 0), 0) + MAL.reduce((s, m) => s + m.ram, 0);
 const sipBal = () => set.sip == null ? (set.sip = 20) : set.sip, addSip = n => { set.sip = sipBal() + n; saveSet(); updTray(); };
 const ramPrice = () => Math.round(120 * Math.pow(1.3, set.ramUpg || 0));
 function updTray() { const t = $('resT'); if (!t) return; const u = ramUsed(), c = ramCap(), full = u / c > .9; t.innerHTML = `<span style="color:${full ? '#fca5a5' : '#fff'}">🧠 ${(u / 1024).toFixed(1)} / ${c / 1024} GB</span><br>💰 ${sipBal()} S.I.P.`; }
@@ -931,8 +932,8 @@ Object.keys(CORE_RAM).forEach(k => { if (APPS[k]) APPS[k].ram = CORE_RAM[k]; });
 
 function appTask(b, w) {
   const draw = () => { const u = ramUsed(), c = ramCap(), cpu = clamp(4 + wins.length * 5 + Math.random() * 6, 0, 100);
-    b.innerHTML = `<div style="padding:12px"><div>🧠 RAM ${(u / 1024).toFixed(1)} of ${c / 1024} GB (${Math.round(u / c * 100)}%)</div><div class="bar"><i style="width:${u / c * 100}%;background:${u / c > .9 ? '#ef4444' : ''}"></i></div><div style="margin-top:8px">⚙️ CPU ${cpu.toFixed(0)}%</div><div class="bar"><i style="width:${cpu}%"></i></div><button class="btn p" data-j="1" style="margin-top:10px">💼 Earn S.I.P. &amp; buy more RAM</button></div><table class="tm"><tr><td>🖥️ Cubby OS (system)</td><td>${BASE_RAM} MB</td><td></td></tr>${wins.slice().sort((a, c2) => (c2.ram || 0) - (a.ram || 0)).map(x => `<tr><td>${x.icon} ${esc(x.title)}</td><td>${x.ram || 0} MB</td><td><button class="btn" data-k="${x.id}">End task</button></td></tr>`).join('')}</table>`; updTray(); };
-  b.onclick = e => { const k = e.target.dataset.k; if (k) { const x = wins.find(v => v.id == k); if (x) x.close(); draw(); } else if (e.target.dataset.j) openApp('jobs'); }; draw(); const iv = setInterval(draw, 1500); w.onclose = () => clearInterval(iv);
+    b.innerHTML = `<div style="padding:12px"><div>🧠 RAM ${(u / 1024).toFixed(1)} of ${c / 1024} GB (${Math.round(u / c * 100)}%)</div><div class="bar"><i style="width:${u / c * 100}%;background:${u / c > .9 ? '#ef4444' : ''}"></i></div><div style="margin-top:8px">⚙️ CPU ${cpu.toFixed(0)}%</div><div class="bar"><i style="width:${cpu}%"></i></div><button class="btn p" data-j="1" style="margin-top:10px">💼 Earn S.I.P. &amp; buy more RAM</button></div><table class="tm"><tr><td>🖥️ Cubby OS (system)</td><td>${BASE_RAM} MB</td><td></td></tr>${wins.slice().sort((a, c2) => (c2.ram || 0) - (a.ram || 0)).map(x => `<tr><td>${x.icon} ${esc(x.title)}</td><td>${x.ram || 0} MB</td><td><button class="btn" data-k="${x.id}">End task</button></td></tr>`).join('')}${MAL.map(m => `<tr style="color:#fca5a5"><td>⚠️ ${esc(m.n)}</td><td>${m.ram} MB</td><td><button class="btn" data-mk="${m.id}">End task</button></td></tr>`).join('')}</table>`; updTray(); };
+  b.onclick = e => { const k = e.target.dataset.k; if (k) { const x = wins.find(v => v.id == k); if (x) x.close(); draw(); } else if (e.target.dataset.j) openApp('jobs'); else if (e.target.dataset.mk) { killMal(+e.target.dataset.mk); draw(); } }; draw(); const iv = setInterval(draw, 1500); w.onclose = () => clearInterval(iv);
 }
 
 // ═════════ Cubby's Apps (the store) ═════════
@@ -947,8 +948,70 @@ function appStore(b, w) {
   b.querySelector('#sq').oninput = e => { q = e.target.value.toLowerCase(); list(); }; b.querySelector('#sq').onkeydown = e => e.stopPropagation();
   b.onclick = e => { const d = e.target.dataset; if (d.cat) { cat = d.cat; pills(); list(); } else if (d.o) { openApp(d.o); list(); } else if (d.u) { set.installed = (set.installed || []).filter(x => x !== d.u); saveSet(); buildDesktop(); wins.filter(x => x.app === d.u).forEach(x => x.close()); list(); } else if (d.i) { let p = 0; prog = [d.i, 0]; const iv = setInterval(() => { p += 10 + Math.random() * 20; if (p >= 100) { clearInterval(iv); prog = null; set.installed = (set.installed || []).concat(d.i); saveSet(); buildDesktop(); beep(784, .15); } else prog[1] = p; if (b.isConnected) list(); }, 150); list(); } };
 }
+// ═════════ CYBER HACKERS — pretend attackers raid your Cubby OS. Cubby Shield defends. (All fictional game events.) ═════════
+const HNAMES = ['xX_Glitch_Xx', 'Null_Byte', 'Phantom404', 'ZeroCool', 'Cipher_Cat', 'DarkPixel', 'Ghost.exe', 'Pwnda'], HLABEL = { phish: 'phishing', malware: 'malware', ransom: 'ransomware', brute: 'password-guessing' };
+let MAL = [], hNext = 100, hLock = false, hid = 0, malT = 0, hBruteIv = null;
+const hlog = t => { (set.hlog || (set.hlog = [])).unshift(new Date().toLocaleTimeString() + ' — ' + t); set.hlog.length = Math.min(set.hlog.length, 30); saveSet(); };
+function hnote(html, kind, ms) { let n = $('hnote'); if (!n) { n = el('div'); n.id = 'hnote'; n.style.cssText = 'position:fixed;right:12px;bottom:130px;max-width:330px;border-radius:10px;padding:12px;z-index:100001;font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,.5);border:1px solid'; document.body.append(n); } const c = { bad: ['#7f1d1d', '#f87171'], good: ['#14532d', '#4ade80'], warn: ['#78350f', '#fbbf24'] }[kind || 'warn']; n.style.background = c[0]; n.style.borderColor = c[1]; n.innerHTML = html; n.style.display = 'block'; clearTimeout(n._t); n._t = setTimeout(() => n.style.display = 'none', ms || 7000); beep(kind === 'good' ? 900 : 200, .15, kind === 'good' ? 'sine' : 'sawtooth'); }
+function killMal(id, viaScan) { const i = MAL.findIndex(m => m.id === id); if (i < 0) return; const m = MAL.splice(i, 1)[0]; addSip(viaScan ? 5 : 10); hlog('Removed malware ' + m.n); hnote(`✅ Removed <b>${esc(m.n)}</b>. +${viaScan ? 5 : 10} S.I.P.`, 'good'); updTray(); }
+function loseSip(n) { const l = Math.min(n, sipBal()); addSip(-l); return l; }
+function hClear() { hLock = false; const r = $('ransom'); if (r) r.remove(); const b = $('hbrute'); if (b) b.remove(); clearInterval(hBruteIv); }
+
+function hackEvent(force, bypass) {
+  const name = pickR(HNAMES), t = HLABEL[force] ? force : pickR(Object.keys(HLABEL));
+  if (!bypass && Math.random() < (set.shield || 0) * .18) { hlog(`Shield blocked a ${HLABEL[t]} attack from ${name}`); addSip(2); hnote(`🛡️ <b>Cubby Shield</b> blocked a ${HLABEL[t]} attack from <b>${esc(name)}</b>. +2 S.I.P.`, 'good'); return; }
+  hnote(`⚠️ <b>Hacker detected!</b> ${esc(name)} is launching a ${HLABEL[t]} attack!`, 'bad');
+  ({ phish: hPhish, malware: hMalware, ransom: hRansom, brute: hBrute })[t](name);
+}
+
+function hPhish(name) {
+  const w = makeWin('🎁 Congratulations!!!', '🎁', 380, 270); w.app = 'phish'; w.ram = 80; let done = false; const flip = Math.random() < .5;
+  w.body.innerHTML = `<div style="padding:16px;text-align:center;background:linear-gradient(135deg,#7c3aed,#db2777);height:100%"><div style="font-size:26px;font-weight:900">🎉 YOU WON A FREE SUPER PC!!! 🎉</div><p style="margin:6px 0">Only <b>3 minutes</b> left to claim your prize!</p><button class="btn" data-claim="1" style="background:#16a34a;font-size:20px;padding:10px 20px;margin:4px">CLAIM NOW!!!</button><br><button class="btn" data-claim="1" style="margin:4px">Download prize.exe</button><div style="${flip ? 'text-align:left' : 'text-align:right'};margin-top:10px"><button class="btn" data-safe="1" style="font-size:10px;opacity:.6;padding:1px 6px">no thanks</button></div></div>`;
+  w.body.onclick = e => { if (done) return; if (e.target.dataset.claim) { done = true; const l = loseSip(15); hlog(`Got phished by ${name} (-${l} S.I.P.)`); w.close(); hnote(`🎣 <b>You got phished!</b> Lost ${l} S.I.P.<br>Lesson: surprise prizes with a countdown are scams. Never click them.`, 'bad', 9000); } else if (e.target.dataset.safe) { w.close(); } };
+  w.onclose = () => { if (!done) { done = true; addSip(3); hlog('Closed a phishing pop-up from ' + name + ' (+3)'); hnote('👍 Good call! You closed the scam pop-up. +3 S.I.P.', 'good'); } };
+}
+function hMalware(name) { const m = { id: ++hid, n: pickR(['totally-legit.exe', 'free-ram-booster.exe', 'definitely_not_a_virus.exe', 'update_helper.exe', 'crypto_miner_lite.exe']), ram: 800 + rnd(1000) }; MAL.push(m); hlog(`${name} planted ${m.n}`); hnote(`🦠 <b>${esc(m.n)}</b> is eating ${m.ram} MB of your RAM and stealing S.I.P.!<br>End it in the <a style="color:#fff;text-decoration:underline;cursor:pointer" onclick="openApp('taskmgr')">Task Manager</a> or run a scan in Cubby Shield.`, 'bad', 10000); updTray(); }
+
+function hBrute(name) {
+  clearInterval(hBruteIv); let p = 0; let bar = $('hbrute'); if (bar) bar.remove(); bar = el('div'); bar.id = 'hbrute'; bar.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);width:min(380px,92vw);background:#1f0a0a;border:2px solid #ef4444;border-radius:12px;padding:12px;z-index:100002;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.6)'; document.body.append(bar);
+  const draw = () => { bar.innerHTML = `<b>🔑 ${esc(name)} is guessing your password!</b><div class="bar" style="margin:8px 0;height:12px"><i style="width:${p}%;background:#ef4444"></i></div><button class="btn p" id="blk" style="background:#16a34a">🛡️ BLOCK ATTACK</button>`; bar.querySelector('#blk').onclick = () => { clearInterval(hBruteIv); bar.remove(); addSip(8); hlog('Blocked a password attack from ' + name + ' (+8)'); hnote('🛡️ Attack blocked! +8 S.I.P.', 'good'); }; }; draw();
+  hBruteIv = setInterval(() => { p += 5; if (p >= 100) { clearInterval(hBruteIv); bar.remove(); const l = loseSip(20); hlog(`${name} guessed your password (-${l})`); hnote(`😱 ${esc(name)} cracked your password and stole ${l} S.I.P.<br>Tip: block attacks fast, or upgrade Cubby Shield.`, 'bad', 9000); } else { const i = bar.querySelector('.bar i'); if (i) i.style.width = p + '%'; } }, 1000);
+}
+
+function hRansom(name) {
+  hLock = true; const cmds = shuf(['block 10.0.0.37', 'close port 8080', 'kill ghost.exe', 'enable firewall', 'reset password', 'isolate network', 'scan drive c', 'update shield']).slice(0, 4); let step = 0, t = 30, iv;
+  const ov = el('div'); ov.id = 'ransom'; ov.style.cssText = 'position:fixed;inset:0;z-index:1000000;background:#1a0000;color:#ff6b6b;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;font-family:Consolas,monospace'; document.body.append(ov);
+  const end = (ok, paid) => { clearInterval(iv); ov.remove(); hLock = false; if (ok) { addSip(20); hlog(`Beat ${name}'s ransomware (+20)`); hnote('🏆 You beat the hacker! Files unlocked. +20 S.I.P.', 'good', 9000); } else if (paid) { hlog(`Paid ${name}'s ransom (-50)`); hnote('💸 You paid the ransom. (Never pay real hackers!)', 'warn'); } else { const l = loseSip(25); hlog(`Ransomware from ${name} won (-${l})`); hnote(`🔒 Time ran out. The hacker took ${l} S.I.P. Files unlocked.`, 'bad', 9000); } };
+  const draw = () => { ov.innerHTML = `<div style="font-size:70px">💀</div><h1 style="margin:0">YOUR FILES ARE LOCKED</h1><p style="color:#fca5a5">${esc(name)} says: “Pay up or lose it all.”</p><p>Time left: <b id="rt">${t}</b>s &nbsp;·&nbsp; Fight back — type each command and press Enter:</p><div style="font-size:22px;color:#fff;margin:6px">${cmds.map((c, i) => `<div style="opacity:${i < step ? .3 : 1}">${i < step ? '✔' : i === step ? '▶' : '•'} ${c}</div>`).join('')}</div><input id="rc" class="in" style="width:min(320px,80vw);font:18px Consolas,monospace;text-align:center" autocomplete="off" placeholder="type here"><div style="margin-top:12px"><button class="btn" id="pay" ${sipBal() < 50 ? 'disabled' : ''}>💸 Pay 50 S.I.P. instead</button></div>`; const i = ov.querySelector('#rc'); i.onkeydown = e => { e.stopPropagation(); if (e.key === 'Enter') { if (i.value.trim().toLowerCase() === cmds[step]) { beep(900, .06); if (++step >= cmds.length) return end(true); draw(); } else { beep(180, .1, 'sawtooth'); i.value = ''; } } }; i.focus(); ov.querySelector('#pay').onclick = () => { addSip(-50); end(false, true); }; };
+  draw(); iv = setInterval(() => { t--; const e = ov.querySelector('#rt'); if (e) e.textContent = t; if (t <= 0) end(false); }, 1000);
+}
+
+// ── Cubby Shield (defence app) ──
+const SHIELD_COST = [80, 160, 320, 640, 1280];
+const PHISH_Q = [['“Your account will be deleted in 1 hour! Click here and enter your password.”', 1, 'Urgent threats plus a password request is a classic scam.'], ['“Mum: Dinner is at 6. Love you!” from your family’s saved contact.', 0, 'A normal message from someone you know.'], ['“You are our 1,000,000th visitor! Claim your free console!”', 1, 'Surprise prizes are almost always scams.'], ['“Your school sent the homework sheet you asked about.”', 0, 'Expected and from a known sender.'], ['“Download this free VIP game hack.exe to get unlimited coins.”', 1, 'Files like this often hide malware.'], ['“Security alert from g00gle-support.biz: verify your login now.”', 1, 'Look-alike web addresses are a trick.'], ['“Reminder: your Cubby OS update is ready in Settings.”', 0, 'It points you to your own settings, not a link.'], ['“Send me your password so I can fix your computer.”', 1, 'Nobody honest ever needs your password.']];
+function appShield(b, w) {
+  let tab = 'status', scan = null, quiz = null;
+  const lv = () => set.shield || 0;
+  const draw = () => {
+    const head = `<div style="display:flex;gap:6px;padding:8px;background:#161a24;flex-wrap:wrap"><button class="btn ${tab === 'status' ? 'p' : ''}" data-t="status">🛡️ Status</button><button class="btn ${tab === 'scan' ? 'p' : ''}" data-t="scan">🔍 Scan</button><button class="btn ${tab === 'train' ? 'p' : ''}" data-t="train">🎓 Training</button><span style="flex:1"></span><b>💰 ${sipBal()}</b></div>`; let body = '';
+    if (tab === 'status') { const next = SHIELD_COST[lv()]; body = pad(`<div style="text-align:center"><div style="font-size:56px">${lv() ? '🛡️' : '⚠️'}</div><h2 style="margin:4px">Shield level ${lv()} / 5</h2><div style="opacity:.8">Blocks about <b>${lv() * 18}%</b> of hacker attacks automatically.</div><div class="bar" style="margin:10px 0"><i style="width:${lv() * 20}%"></i></div>${next ? `<button class="btn p" data-up="1" ${sipBal() < next ? 'disabled' : ''}>Upgrade for ${next} S.I.P.</button>` : '<b>Maximum shield!</b>'}</div><div style="margin:12px 0">Hacker raids: <button class="btn ${set.hackers === false ? '' : 'p'}" data-h="1">${set.hackers === false ? 'OFF' : 'ON'}</button> <button class="btn" data-drill="1">⚡ Practice drill</button></div><div style="font-size:12px;opacity:.8">Threat log:</div><div style="font-size:12px;max-height:130px;overflow:auto;background:#0e1118;border-radius:8px;padding:8px">${(set.hlog || []).map(esc).join('<br>') || 'No attacks yet.'}</div>`); }
+    else if (tab === 'scan') body = pad(`<div style="text-align:center"><div style="font-size:56px">${scan === null ? '🔍' : scan < 100 ? '⏳' : MAL.length ? '🦠' : '✅'}</div>${scan === null ? `<p>Scan for malware. Found threats are removed (+5 S.I.P. each).</p><p style="opacity:.7">Malware now: <b>${MAL.length}</b></p><button class="btn p" data-s="1">Start scan</button>` : scan < 100 ? `<div class="bar" style="margin:14px"><i style="width:${scan}%"></i></div>Scanning… ${Math.round(scan)}%` : `<h3>${scan === 100 ? 'Scan complete' : ''}</h3><p>${w._found ? `Removed <b>${w._found}</b> threat(s)! +${w._found * 5} S.I.P.` : 'Your computer is clean ✅'}</p><button class="btn" data-s="1">Scan again</button>`}</div>`);
+    else { if (!quiz) quiz = { q: shuf(PHISH_Q).slice(0, 5), i: 0, score: 0, fb: '' }; body = quiz.i >= 5 ? pad(`<div style="text-align:center"><h2>${quiz.score}/5 correct</h2><p>${quiz.score >= 4 ? 'You spot scams like a pro! 🕵️' : 'Keep practising!'}</p><button class="btn p" data-qr="1">Try again</button></div>`) : pad(`<div style="opacity:.7">Scam or safe? ${quiz.i + 1}/5</div><div style="font-size:17px;margin:14px 0;min-height:70px">${esc(quiz.q[quiz.i][0])}</div><button class="btn" data-a="1" style="background:#b91c1c;padding:8px 20px">🎣 Scam</button> <button class="btn" data-a="0" style="background:#15803d;padding:8px 20px">✅ Safe</button><div style="margin-top:12px;font-size:13px;min-height:40px;color:#fbbf24">${quiz.fb}</div>`); }
+    b.innerHTML = head + body;
+  };
+  b.onclick = e => { const d = e.target.dataset;
+    if (d.t) { tab = d.t; draw(); } else if (d.up) { const c = SHIELD_COST[lv()]; if (c && sipBal() >= c) { addSip(-c); set.shield = lv() + 1; saveSet(); hlog('Shield upgraded to level ' + lv()); beep(784, .2); draw(); } }
+    else if (d.h) { set.hackers = set.hackers === false; saveSet(); draw(); } else if (d.drill) { hackEvent(null, true); }
+    else if (d.s) { scan = 0; w._found = 0; draw(); const iv = setInterval(() => { scan += 8 + Math.random() * 10; if (scan >= 100) { clearInterval(iv); scan = 100; w._found = MAL.length; MAL.slice().forEach(m => killMal(m.id, true)); beep(880, .2); } if (b.isConnected) draw(); else clearInterval(iv); }, 200); }
+    else if (d.a != null && quiz && quiz.i < 5) { const ok = +d.a === quiz.q[quiz.i][1]; if (ok) { quiz.score++; addSip(1); beep(880, .06); } else beep(180, .12, 'sawtooth'); quiz.fb = (ok ? '✔ Correct! ' : '✖ Not quite. ') + quiz.q[quiz.i][2]; draw(); setTimeout(() => { if (!b.isConnected || !quiz) return; quiz.i++; quiz.fb = ''; draw(); }, 1600); }
+    else if (d.qr) { quiz = null; draw(); } };
+  draw();
+}
+APPS.shield = { title: 'Cubby Shield', icon: '🛡️', w: 440, h: 480, init: appShield, ram: 90 };
+setInterval(() => { if ($('screen').style.display !== 'block' || hLock || set.hackers === false) return; if (--hNext <= 0) { hackEvent(); hNext = 100 + rnd(120); } if (MAL.length && ++malT % 10 === 0) { const l = loseSip(MAL.length); if (l) updTray(); } }, 1000);
+
 // ───── desktop / start / system ─────
-const CORE = ['files', 'notepad', 'terminal', 'paint', 'browser', 'calc', 'snake', 'taskmgr', 'friends', 'jobs', 'store', 'settings'], NAMES = { files: 'This PC', store: 'Cubby’s Apps' };
+const CORE = ['files', 'notepad', 'terminal', 'paint', 'browser', 'calc', 'snake', 'taskmgr', 'friends', 'jobs', 'shield', 'store', 'settings'], NAMES = { files: 'This PC', store: 'Cubby’s Apps' };
 const appList = () => CORE.concat((set.installed || []).filter(i => APPS[i] && APPS[i].store)).map(id => [id, NAMES[id] || APPS[id].title, APPS[id].icon]);
 function applyTheme() { $('desk').style.background = WALLS[set.wall | 0]; document.documentElement.style.setProperty('--acc', set.acc || '#3b82f6'); }
 function buildDesktop() {
@@ -970,8 +1033,8 @@ function boot() {
 }
 function signin() { user = ($('uname').value.trim().replace(/[^\w ]/g, '') || 'Guest').slice(0, 14); set.user = user; saveSet(); loadFS(); show(''); $('screen').style.display = 'block'; buildDesktop(); beep(523, .12); setTimeout(() => beep(659, .12), 130); setTimeout(() => beep(784, .25), 260); const r = node(HOME().concat('Documents', 'readme.txt')); if (r && !set.seen) { set.seen = 1; saveSet(); openApp('notepad', '~/Documents/readme.txt'); }
   const rp = new URLSearchParams(location.search).get('room'); if (rp) openApp('friends', rp); }
-function logout() { closeAll(); $('screen').style.display = 'none'; show('login'); $('uname').value = user; }
-function shutdown(restart) { closeAll(); $('screen').style.display = 'none'; if (restart) return boot(); show('off'); }
+function logout() { closeAll(); hClear(); $('screen').style.display = 'none'; show('login'); $('uname').value = user; }
+function shutdown(restart) { closeAll(); MAL.length = 0; hClear(); $('screen').style.display = 'none'; if (restart) return boot(); show('off'); }
 function bsod() { closeAll(); $('screen').style.display = 'none'; show('bsod'); beep(100, .8, 'sawtooth'); let p = 0; const iv = setInterval(() => { p += 7 + Math.random() * 10; $('bsodp').textContent = Math.min(100, Math.round(p)) + '% complete'; if (p >= 100) { clearInterval(iv); setTimeout(boot, 700); } }, 350); }
 $('resT').onclick = () => openApp('taskmgr'); $('signin').onclick = signin; $('uname').onkeydown = e => { if (e.key === 'Enter') signin(); }; $('pwr').onclick = boot;
 boot();
