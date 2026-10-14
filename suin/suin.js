@@ -808,7 +808,8 @@ function wordsOf(text) {
 function overlapScore(wordsA, wordsB) {
   const setB = new Set(wordsB);
   let score = 0;
-  for (const w of wordsA) {
+  // count each shared word once, so a repeated word ("what ... what") can't inflate the score
+  for (const w of new Set(wordsA)) {
     if (setB.has(w)) score++;
   }
   return score;
