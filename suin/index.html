@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Suin — My AI Chatbot</title>
+<style>
+  html, body {
+    height: 100%;
+    margin: 0;
+  }
+  body {
+    font-family: Verdana, Arial, sans-serif;
+    background: #1b1f2a;
+    color: #eee;
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+  }
+
+  /* Background themes only re-paint body's background — the sidebar and
+     chat bubbles keep their own explicit dark colors regardless of theme,
+     so the app stays readable no matter which background is picked. */
+  body.theme-black { background: #1b1f2a; }
+  body.theme-white { background: #ffffff; }
+  body.theme-green { background: #1b4d2e; }
+  body.theme-blue { background: #14315c; }
+  body.theme-blackwhite { background: linear-gradient(135deg, #000000, #ffffff); }
+  body.theme-greenblue { background: linear-gradient(135deg, #1b4d2e, #14315c); }
+  body.theme-piano { background: #1b1f2a; }
+  body.theme-stars { background: #0a0e27; }
+  body.theme-snow { background: #3a4a5a; }
+  body.theme-notes { background: #2a1f3d; }
+
+  #themePicker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .themeSwatch {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    padding: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    background: #1b1f2a;
+  }
+  .themeSwatch.active { border-color: #ffd166; }
+
+  #loginScreen {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+  }
+  #loginScreen svg { width: 130px; height: 130px; }
+  #loginScreen h1 { margin: 0; font-size: 22px; }
+  #loginScreen p { margin: 0; color: #9aa4b8; font-size: 14px; }
+  #loginNameInput {
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: none;
+    font-size: 15px;
+    width: 220px;
+    text-align: center;
+  }
+  #loginBtn { background: #ffd166; color: #1b1f2a; font-weight: bold; }
+  #loginBtn:hover { background: #ffc233; }
+
+  #sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: #14161f;
+    border-right: 1px solid #2a2f42;
+    box-sizing: border-box;
+    padding: 16px;
+    display: none;
+    flex-direction: column;
+    gap: 16px;
+  }
+  #sidebarLogo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #sidebarLogo svg { width: 30px; height: 30px; }
+  #sidebarLogo span { font-weight: bold; font-size: 18px; }
+  #currentUserLabel {
+    font-size: 13px;
+    color: #9aa4b8;
+    flex-shrink: 0;
+  }
+  #switchUserBtn {
+    background: transparent;
+    border: 1px solid #3a4058;
+    color: #9aa4b8;
+    text-align: left;
+    width: 100%;
+    font-size: 13px;
+    padding: 6px 10px;
+    flex-shrink: 0;
+  }
+  #switchUserBtn:hover { background: #262b3a; color: #eee; }
+  #newChatBtn {
+    background: transparent;
+    border: 1px solid #3a4058;
+    color: #eee;
+    text-align: left;
+    width: 100%;
+    flex-shrink: 0;
+  }
+  #newChatBtn:hover { background: #262b3a; }
+
+  #chatList {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .chatListRow {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .chatListItem {
+    background: transparent;
+    border: none;
+    color: #9aa4b8;
+    text-align: left;
+    width: 100%;
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .chatListItem:hover { background: #1e2130; color: #eee; }
+  .chatListItem.active { background: #262b3a; color: #ffd166; }
+
+  .deleteChatBtn {
+    background: transparent;
+    border: none;
+    color: #6b7280;
+    flex-shrink: 0;
+    padding: 4px 8px;
+    font-size: 15px;
+    line-height: 1;
+    border-radius: 6px;
+  }
+  .deleteChatBtn:hover { background: #3a2020; color: #ff6b6b; }
+
+  #mainArea {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  #animatedBg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    pointer-events: none;
+    display: none;
+  }
+  body.theme-piano #animatedBg,
+  body.theme-stars #animatedBg,
+  body.theme-snow #animatedBg,
+  body.theme-notes #animatedBg { display: block; }
+
+  .logo {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 4px;
+    flex-shrink: 0;
+  }
+  .logo svg { width: 110px; height: 110px; }
+  /* A small dark pill behind this text keeps it readable on every
+     background theme, including gradients where a single fixed text
+     color can't stay high-contrast across the whole gradient. */
+  .subtitle {
+    color: #eee;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 2px 10px;
+    border-radius: 10px;
+    margin-bottom: 18px;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  #chatBox {
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    background: transparent;
+    padding: 14px;
+    overflow-y: auto;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .msg {
+    max-width: 75%;
+    padding: 8px 12px;
+    border-radius: 14px;
+    line-height: 1.35;
+    font-size: 15px;
+    word-wrap: break-word;
+    white-space: pre-line;
+  }
+  .msg.user {
+    align-self: flex-end;
+    background: #4a7dff;
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+  .suinCanvas {
+    display: block;
+    margin-top: 8px;
+    border-radius: 8px;
+  }
+  .msg.suin {
+    align-self: flex-start;
+    background: #3a4058;
+    color: #eee;
+    border-bottom-left-radius: 4px;
+  }
+
+  #inputRow {
+    width: 100%;
+    flex-shrink: 0;
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  #chatInput {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: none;
+    font-size: 15px;
+  }
+  button {
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: none;
+    background: #4a7dff;
+    color: white;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  button:hover { background: #3a6bef; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  #chatInput:disabled { opacity: 0.6; }
+
+  #micBtn, #voiceToggleBtn, #photoBtn {
+    background: transparent;
+    border: 1px solid #3a4058;
+    padding: 10px 12px;
+    flex-shrink: 0;
+  }
+  #micBtn:hover, #voiceToggleBtn:hover, #photoBtn:hover { background: #262b3a; }
+  #micBtn.listening { background: #ff6b6b; border-color: #ff6b6b; }
+  #voiceToggleBtn.muted { opacity: 0.5; }
+
+  .suinPhoto {
+    display: block;
+    margin-top: 8px;
+    max-width: 220px;
+    border-radius: 8px;
+  }
+
+  .msg.thinking {
+    font-style: italic;
+    color: #9aa4b8;
+    animation: pulse 1s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  #learnedCount {
+    margin-top: 20px;
+    font-size: 13px;
+    color: #eee;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 3px 12px;
+    border-radius: 10px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- Shared SVG defs used by every Suin badge on the page (login screen,
+     sidebar, main area). This has to live somewhere that's ALWAYS in the
+     rendered page — putting it inside #mainArea (which starts hidden with
+     display:none) broke the login screen's badge, since browsers won't use
+     a gradient/path defined inside a display:none element as a paint
+     source for other elements, even elsewhere in the same document. -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="goldGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fdf1b8"/>
+      <stop offset="45%" stop-color="#d4af37"/>
+      <stop offset="100%" stop-color="#8a6b1e"/>
+    </linearGradient>
+    <path id="topArc" d="M 30,100 A 70,70 0 1,1 170,100"/>
+  </defs>
+</svg>
+
+<div id="loginScreen">
+  <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="100" cy="100" r="96" fill="#0d0d0d"/>
+    <circle cx="100" cy="100" r="88" fill="none" stroke="url(#goldGrad)" stroke-width="16"/>
+    <circle cx="100" cy="100" r="50" fill="none" stroke="url(#goldGrad)" stroke-width="1.5"/>
+    <text x="100" y="112" font-size="34" font-weight="bold" text-anchor="middle" fill="url(#goldGrad)" letter-spacing="1">SUIN</text>
+  </svg>
+  <h1>Welcome to Suin</h1>
+  <p>What's your name?</p>
+  <input id="loginNameInput" type="text" placeholder="Type your name..." autocomplete="off" maxlength="35">
+  <button id="loginBtn">Let's Chat!</button>
+  <p style="margin-top:6px;">or</p>
+  <div id="googleSignInDiv"></div>
+</div>
+
+<div id="sidebar">
+  <div id="sidebarLogo">
+    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="100" cy="100" r="96" fill="#0d0d0d"/>
+      <circle cx="100" cy="100" r="88" fill="none" stroke="url(#goldGrad)" stroke-width="16"/>
+      <circle cx="100" cy="100" r="50" fill="none" stroke="url(#goldGrad)" stroke-width="1.5"/>
+      <text x="100" y="112" font-size="34" font-weight="bold" text-anchor="middle" fill="url(#goldGrad)" letter-spacing="1">SUIN</text>
+    </svg>
+    <span>Suin</span>
+  </div>
+  <div id="currentUserLabel"></div>
+  <div id="themePicker"></div>
+  <button id="newChatBtn">+ New Chat</button>
+  <div id="chatList"></div>
+  <button id="switchUserBtn">Switch User</button>
+</div>
+
+<div id="mainArea">
+  <canvas id="animatedBg"></canvas>
+  <div class="logo">
+    <svg id="suinBadge" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="100" cy="100" r="96" fill="#0d0d0d"/>
+      <circle cx="100" cy="100" r="88" fill="none" stroke="url(#goldGrad)" stroke-width="16"/>
+      <circle cx="100" cy="100" r="80" fill="none" stroke="url(#goldGrad)" stroke-width="1.5"/>
+
+      <!-- rim ticks + wreath leaves are added by buildLogoDecorations() in suin.js -->
+      <g id="logoTicks"></g>
+      <g id="logoWreathLeft"></g>
+      <g id="logoWreathRight"></g>
+
+      <text font-size="13" letter-spacing="4" fill="url(#goldGrad)" font-weight="bold">
+        <textPath href="#topArc" startOffset="50%" text-anchor="middle">ORIGINAL</textPath>
+      </text>
+
+      <circle cx="100" cy="100" r="50" fill="none" stroke="url(#goldGrad)" stroke-width="1.5"/>
+      <text x="100" y="112" font-size="34" font-weight="bold" text-anchor="middle" fill="url(#goldGrad)" letter-spacing="1">SUIN</text>
+    </svg>
+  </div>
+  <div class="subtitle">a chatbot that learns from examples</div>
+
+  <div id="chatBox"></div>
+
+  <div id="inputRow">
+    <input id="chatInput" type="text" placeholder="Say something to Suin..." autocomplete="off" maxlength="100000">
+    <input id="photoInput" type="file" accept="image/*" style="display:none">
+    <button id="photoBtn" title="Show Suin a picture">📷</button>
+    <button id="micBtn" title="Speak to Suin">🎤</button>
+    <button id="voiceToggleBtn" title="Mute/unmute Suin's voice">🔊</button>
+    <button id="sendBtn">Send</button>
+  </div>
+
+  <div id="learnedCount"></div>
+</div>
+
+<!-- TensorFlow.js + MobileNet: a real neural network trained on over a
+     million real photos, loaded free from a public CDN. It runs entirely
+     inside this browser tab (no account, no payment, no server of ours) —
+     the only network use is this one-time download. -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
+<!-- Three.js: the same free 3D engine the Explox project uses, for the
+     "make a 3d X" feature — real vertices/triangles/lighting, not a flat
+     canvas drawing. -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="suin.js"></script>
+<script>document.write('<script src="suin-agent.js?v=' + Date.now() + '"><\/script>');</script>
+<script src="https://accounts.google.com/gsi/client" onload="initGoogleSignIn()"></script>
+</body>
+</html>
