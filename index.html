@@ -854,16 +854,29 @@ function toggleThemeSong(){
   var savedUser = localStorage.getItem(USER_KEY);
   if (savedUser) showLoggedIn(savedUser); else showLoggedOut();
 
+  // identical to hashPassword() in the Explox game (game.js) — they must match or the server will never accept the login
+  function hashPassword(pw){
+    var h = 5381, sum = 0;
+    for (var i = 0; i < pw.length; i++) { h = (Math.imul(h, 33) ^ pw.charCodeAt(i)) >>> 0; sum += pw.charCodeAt(i); }
+    return 'h_' + h.toString(16).padStart(8, '0') + '_' + sum;
+  }
+  function checkLogin(name, pwSend){
+    return fetch(EXPLOX_SERVER + '/api/login', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ name: name, pw: pwSend })
+    }).then(function(r){ return r.json(); });
+  }
+
   loginBtn.addEventListener('click', function(){
     var name = loginUser.value.trim();
     var pw = loginPw.value;
     if (!name || !pw) { loginMsg.textContent = 'Enter your Explox username and password.'; return; }
     loginBtn.disabled = true;
-    loginMsg.textContent = 'Checking your Explox account…';
-    fetch(EXPLOX_SERVER + '/api/login', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ name: name, pw: pw })
-    }).then(function(r){ return r.json(); }).then(function(d){
+    loginMsg.textContent = 'Checking your Explox account… (if the server was asleep this can take up to a minute)';
+    // The game never sends the real password: it sends hashPassword(pw) and the server stores/compares that hash.
+    // Sending the plain password here (the old code) could never match a real account, so logging in to comment always failed.
+    // We send the hash first; if an older account stored its password un-hashed we also try that.
+    checkLogin(name, hashPassword(pw)).then(function(d){ return (d && d.ok) ? d : checkLogin(name, pw); }).then(function(d){
       loginBtn.disabled = false;
       if (d && d.ok) {
         localStorage.setItem(USER_KEY, name);
@@ -871,7 +884,7 @@ function toggleThemeSong(){
         loginPw.value = '';
         showLoggedIn(name);
       } else {
-        loginMsg.textContent = "That username/password doesn't match an Explox account.";
+        loginMsg.textContent = "That username/password doesn't match an online Explox account. (Accounts made in Offline mode only exist on your own device, so they can't be used here.)";
       }
     }).catch(function(){
       loginBtn.disabled = false;
