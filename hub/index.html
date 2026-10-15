@@ -128,7 +128,7 @@
 
   <section id="contact">
     <h2>💬 Message me</h2>
-    <p class="sub">Found a bug, have an idea, or just want to say hi? Send me a message — you can add photos or screenshots too. <b>Only I can read messages</b>; other visitors can never see them.</p>
+    <p class="sub">Found a bug, have an idea, or just want to say hi? Send me a message — you can add photos or screenshots too. <b>Messages are public:</b> your name (if you type one) and your message appear on this page for everyone, along with my reply. Photos and the “how can I reply” box are <b>never</b> shown.</p>
     <form id="cform" autocomplete="off">
       <div class="row">
         <label>Your name (optional)<input type="text" id="cname" maxlength="60" placeholder="e.g. Sam"></label>
@@ -140,10 +140,15 @@
         <div class="photos" id="cprev"></div>
       </div>
       <input class="hp" type="text" id="chp" tabindex="-1" autocomplete="off" aria-hidden="true">
-      <div class="note">Please don't send passwords or private details of other people. Photos are shrunk to save space.</div>
+      <div class="note">⚠️ Everyone can read your message, so please don't write your full name, address, school, phone number, email or passwords in it (the website hides emails, phone numbers and links automatically). Photos are shrunk to save space and stay private.</div>
       <div><button class="btn" id="csend" type="submit">📨 Send message</button></div>
       <div id="status" role="status"></div>
     </form>
+    <div id="wall" class="card" style="margin-top:16px;">
+      <h3 style="margin:0">🌍 Messages from visitors</h3>
+      <p class="note" style="margin:0">The newest messages sent to this page, and my replies.</p>
+      <div id="wlist" style="display:grid; gap:8px;">Loading…</div>
+    </div>
     <div id="replies" class="card" style="margin-top:16px; display:none;">
       <h3 style="margin:0">📬 Replies to your messages</h3>
       <p class="note" style="margin:0">Only you can see these. They are linked to this browser by a private code, so keep this page's data (or save your code below) to read them later.</p>
@@ -232,6 +237,26 @@ async function loadReplies() {
 }
 $('tgo').onclick = () => { const c = $('tcode').value.trim().toLowerCase(); if (!/^[a-f0-9]{24}$/.test(c)) { status('That code does not look right (24 letters/numbers).', 'err'); return; } saveTickets([...tickets(), c]); $('tcode').value = ''; loadReplies(); };
 loadReplies();
+// the public wall: only name + message + the owner's replies (the server never sends photos or contact details)
+function timeAgoW(ts) { const m = Math.floor(Math.max(0, Date.now() - ts) / 60000); if (m < 1) return 'just now'; if (m < 60) return m + 'm ago'; const h = Math.floor(m / 60); if (h < 24) return h + 'h ago'; const d = Math.floor(h / 24); return d < 30 ? d + 'd ago' : new Date(ts).toLocaleDateString(); }
+async function loadWall() {
+  const box = $('wlist'); if (!box) return;
+  try {
+    const r = await fetch(API + '/api/contact/public'); const j = await r.json();
+    if (!j.ok) throw new Error('x');
+    box.textContent = '';
+    if (!j.messages.length) { const e = document.createElement('div'); e.className = 'note'; e.textContent = 'No messages yet — be the first!'; box.append(e); return; }
+    j.messages.forEach(m => {
+      const c = document.createElement('div'); c.style.cssText = 'background:#0e1424; border-radius:10px; padding:10px 12px;';
+      const h = document.createElement('div'); h.className = 'note'; h.style.margin = '0 0 4px'; h.textContent = (m.name || 'Anonymous') + ' · ' + timeAgoW(m.at);
+      const t = document.createElement('div'); t.style.whiteSpace = 'pre-wrap'; t.textContent = m.message;
+      c.append(h, t);
+      (m.replies || []).forEach(rp => { const q = document.createElement('div'); q.style.cssText = 'background:#121a2e; border-left:3px solid var(--accent); padding:8px 10px; margin-top:8px; border-radius:8px; white-space:pre-wrap;'; q.textContent = '↩ Cubby Explosion: ' + rp.text; c.append(q); });
+      box.append(c);
+    });
+  } catch (e) { box.textContent = 'Couldn\'t load the messages right now.'; }
+}
+loadWall();
 function status(t, cls) { const s = $('status'); s.textContent = t; s.className = cls || ''; }
 $('cfiles').addEventListener('change', async e => {
   const files = [...e.target.files]; e.target.value = '';
@@ -255,7 +280,7 @@ $('cform').addEventListener('submit', async e => {
     const j = await r.json().catch(() => ({}));
     if (r.ok && j.ok) {
       status('✅ Sent! Thank you — I will read it soon.' + (j.ticket ? ' Your private reply code: ' + j.ticket + ' (saved in this browser — check "Replies" below later).' : ''), 'ok');
-      if (j.ticket) { const t = tickets(); t.push(j.ticket); saveTickets(t); loadReplies(); }
+      if (j.ticket) { const t = tickets(); t.push(j.ticket); saveTickets(t); loadReplies(); } setTimeout(loadWall, 600);
       $('cform').reset(); photos = []; renderPrev();
     }
     else status('❌ ' + (j.error || 'Could not send. Try again in a minute.'), 'err');
