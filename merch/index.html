@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>S.I.P. Merch — shirts and stickers with your name</title>
+<meta name="description" content="S.I.P. merch: shirts and stickers for Explox and EXGUN. Put your own name on it for $5 a letter.">
+<style>
+  :root { --bg:#0b1020; --panel:#141b33; --panel2:#1c2547; --text:#eef2ff; --muted:#9aa6cf; --accent:#ffcd30; --good:#5ee6a8; }
+  * { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--text); font:16px system-ui,"Segoe UI",sans-serif; }
+  .wrap { max-width:1000px; margin:0 auto; padding:16px; } h1 { margin:10px 0 2px; } .muted { color:var(--muted); font-size:14px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:14px; } @media (max-width:760px) { .grid { grid-template-columns:1fr; } }
+  .card { background:var(--panel); border:1px solid #ffffff1a; border-radius:14px; padding:14px; }
+  .designs { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; } .designs button { background:var(--panel2); border:2px solid transparent; border-radius:10px; padding:4px; cursor:pointer; color:var(--text); font-size:11px; }
+  .designs button.sel { border-color:var(--accent); } .designs img { width:100%; height:64px; object-fit:contain; display:block; }
+  label { display:block; margin:12px 0 4px; font-weight:600; } input[type=text], select { width:100%; padding:10px; border-radius:8px; border:1px solid #ffffff33; background:#0b1230; color:var(--text); font-size:18px; letter-spacing:2px; }
+  .price { margin:14px 0; padding:10px 12px; background:#0b1230; border-radius:10px; line-height:1.7; } .price b { color:var(--accent); } .total { font-size:22px; }
+  button.go { width:100%; padding:14px; font-size:18px; font-weight:700; border:0; border-radius:12px; background:var(--good); color:#06281a; cursor:pointer; } button.go:disabled { opacity:.5; cursor:default; }
+  .msg { min-height:20px; margin-top:8px; font-size:14px; } .err { color:#ff8a8a; } .note { background:#3a2a0a; border:1px solid #ffcd3055; border-radius:10px; padding:8px 10px; margin-top:10px; font-size:13px; }
+  canvas { width:100%; max-width:420px; display:block; margin:0 auto; background:#e9e9ee; border-radius:12px; }
+  .tipb { padding:8px 14px; border-radius:10px; border:2px solid #ffffff33; background:#1c2547; color:#eef2ff; cursor:pointer; font-weight:700; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>S.I.P. Merch</h1>
+  <div class="muted">Pick a design, type a name to put on it, and see it right away. <b>Your name costs $5 for every letter.</b></div>
+  <div class="grid">
+    <div class="card">
+      <div class="muted" style="margin-bottom:6px">1. Pick a design</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px"><button id="mDark" type="button" style="flex:1;padding:8px;border-radius:10px;border:2px solid var(--accent);background:#161a28;color:#fff;cursor:pointer">Dark</button><button id="mLight" type="button" style="flex:1;padding:8px;border-radius:10px;border:2px solid transparent;background:#f4f4f6;color:#161a28;cursor:pointer">Light</button></div>
+      <div class="designs" id="designs"></div>
+      <label style="display:flex;gap:10px;align-items:center;cursor:pointer"><input type="checkbox" id="want" style="width:22px;height:22px"> 2. Put my name on it <span class="muted">(+$5 for every letter)</span></label>
+      <div id="nameRow" style="display:none"><label for="name">Your name (letters only, up to <span id="maxL">12</span>)</label>
+      <input type="text" id="name" maxlength="14" placeholder="TYPE YOUR NAME" autocomplete="off" style="text-transform:uppercase"></div>
+      <div id="sizeRow"><label for="size">3. Shirt size</label>
+        <select id="size"><option value="">Choose a size…</option><option>S</option><option>M</option><option>L</option><option>XL</option></select></div>
+      <label id="bundRow" style="display:none;margin:10px 0;padding:10px;border-radius:10px;background:#1c2547;cursor:pointer"><input type="checkbox" id="bund"> <b>Add the matching sticker for just +$3</b> <span class="muted">(a sticker alone is $5, so you save $2)</span></label>
+      <div class="price" id="price"></div>
+      <button class="go" id="go" disabled>Order with a card</button>
+      <div class="msg" id="msg"></div>
+      <div class="note" style="background:#0f2a22">🎁 Every order comes with a <b>free 100 S.I.P. code</b> for Explox. You get it right after you pay.</div>
+      <div class="note">Pay on Stripe's secure page, and give your delivery address there. Don't put a real address, school or phone number in the name box: it is only for the name that gets printed.</div>
+    </div>
+    <div class="card" id="bonusCard" style="display:none">
+      <div style="font-weight:700;margin-bottom:6px">🎁 Your free 100 S.I.P.</div>
+      <div class="muted" style="margin-bottom:6px">Save this code. It works once.</div>
+      <div id="bonusCode" style="font-size:22px;font-weight:800;letter-spacing:1px;margin-bottom:10px;word-break:break-all"></div>
+      <div class="muted" style="margin-bottom:6px">Send it to an Explox account: type the account name (no passwords).</div>
+      <div style="display:flex;gap:8px"><input id="bonusName" maxlength="40" placeholder="Explox account name" style="flex:1;padding:8px;border-radius:8px;border:1px solid #ffffff33;background:#1c2547;color:#eef2ff"><button type="button" id="bonusGo" class="tipb">Send</button></div>
+      <div class="msg" id="bonusMsg"></div>
+    </div>
+    <div class="card" id="tipCard">
+      <div style="font-weight:700;margin-bottom:6px">Leave a tip 💛</div>
+      <div class="muted" style="margin-bottom:8px">Want to say thanks? You can tip from $1 up to $10. It is a gift, you get nothing back, and it is totally optional.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><button type="button" class="tipb" data-a="1">$1</button><button type="button" class="tipb" data-a="2">$2</button><button type="button" class="tipb" data-a="5">$5</button><button type="button" class="tipb" data-a="10">$10</button></div>
+      <div style="display:flex;gap:8px;align-items:center"><span>$</span><input id="tipAmt" type="number" min="1" max="10" step="1" value="5" style="width:80px;padding:8px;border-radius:8px;border:1px solid #ffffff33;background:#1c2547;color:#eef2ff"><button type="button" id="tipGo" class="go" style="flex:1;margin:0">Send a tip</button></div>
+      <div class="msg" id="tipMsg"></div>
+    </div>
+    <div class="card"><div class="muted" style="margin-bottom:6px">Preview (the real print may look a little different)</div><button id="flip" style="display:none;margin:0 0 8px;padding:8px 12px;border-radius:8px;border:1px solid #ffffff33;background:#1c2547;color:#eef2ff;cursor:pointer"></button><canvas id="cv" width="840" height="1000"></canvas></div>
+  </div>
+</div>
+<script>
+(function () {
+  const API = new URLSearchParams(location.search).get('api') || 'https://explox-server.onrender.com/api/merch';
+  const $ = (id) => document.getElementById(id);
+  const BASES = [['cubby_shirt','Cubby Explosion shirt','shirt'],['explox_shirt_1_character','Explox character shirt','shirt'],['explox_shirt_2_vehicle','Explox vehicle shirt','shirt'],['exgun_shirt_1_tank','EXGUN tank shirt','shirt'],['sip_shirt_logo','S.I.P. logo shirt','shirt'],['rich_shirt','RICH shirt','shirt'],['death_shirt','DEATH shirt','shirt'],['cubby_sticker','Cubby Explosion sticker','sticker'],['rich_sticker','RICH sticker','sticker'],['death_sticker','DEATH sticker','sticker'],['explox_sticker_1_character','Explox character sticker','sticker'],['explox_sticker_2_vehicle','Explox vehicle sticker','sticker'],['exgun_sticker_1_tank','EXGUN tank sticker','sticker'],['sip_sticker_logo','S.I.P. logo sticker','sticker']];
+  let mode = 'dark';
+  const allDesigns = [].concat(...['dark', 'light'].map((m) => BASES.map((b) => ({ id: b[0] + '_' + m, label: b[1] + ' (' + m + ')', type: b[2], mode: m }))));
+  let cfg = { letterCents: 500, maxLetters: 12, items: { shirt: { label: 'T-shirt', cents: 2500 }, sticker: { label: 'Sticker', cents: 500 } }, designs: allDesigns, enabled: null, test: false };
+  const EXTRA = {}; allDesigns.forEach((d) => { if (d.id.indexOf('cubby_shirt_') === 0) EXTRA[d.id] = { back: 'cubby_shirt_back_' + d.mode }; });
+  const withMode = (list) => list.map((d) => Object.assign(d, { mode: /_light$/.test(d.id) ? 'light' : 'dark' }, EXTRA[d.id] || {}));
+  cfg.designs = withMode(cfg.designs);
+  const BUND = 300; let showBack = false;
+  const imgs = {}, usd = (c) => '$' + (c / 100).toFixed(2); let design = cfg.designs[0].id;
+  const TEE = { dark: '#161a28', light: '#f4f4f6' };
+  function cleanName() { if (!$('want').checked) return ''; return $('name').value.toUpperCase().replace(/[^A-Z ]/g, '').replace(/\s+/g, ' ').replace(/^ /, ''); }
+  const letters = (n) => n.replace(/ /g, '').length, cur = () => cfg.designs.find((d) => d.id === design);
+  function load(id) { return new Promise((res) => { if (imgs[id]) return res(imgs[id]); const im = new Image(); im.onload = () => { imgs[id] = im; res(im); }; im.onerror = () => res(null); im.src = 'img/' + id + '.png'; }); }
+  const artId = (d) => (showBack && d.back ? d.back : d.id);
+  function drawTee(c, color) { c.fillStyle = color; c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = 4; c.beginPath(); [[300, 80], [400, 120], [500, 150], [600, 120], [700, 80], [930, 230], [840, 360], [740, 300], [740, 1020], [260, 1020], [260, 300], [160, 360], [70, 230]].forEach((p, i) => { const x = p[0] * 0.84, y = p[1] * 0.88 + 40; i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.closePath(); c.fill(); c.stroke(); c.save(); c.globalCompositeOperation = 'destination-out'; c.beginPath(); c.ellipse(420, 108, 82, 52, 0, 0, 7); c.fill(); c.restore(); }
+  function nameText(c, text, cx, cy, size, fill) { if (!text) return; c.font = '900 ' + size + 'px Impact, "Arial Black", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round'; c.lineWidth = size * 0.16; c.strokeStyle = '#0c0e1a'; c.strokeText(text, cx, cy); c.fillStyle = fill; c.fillText(text, cx, cy); }
+  async function draw() {
+    const cv = $('cv'), c = cv.getContext('2d'), d = cur(), name = showBack && d.back ? '' : cleanName(), im = await load(artId(d)); c.clearRect(0, 0, cv.width, cv.height); c.fillStyle = '#e9e9ee'; c.fillRect(0, 0, cv.width, cv.height);
+    if (d.type === 'shirt') { c.save(); c.translate(0, 20); drawTee(c, TEE[d.mode]); c.restore(); if (im) { const w = 330, h = w * im.height / im.width; c.drawImage(im, 420 - w / 2, 230, w, h); nameText(c, name, 420, 230 + h + 38, Math.min(66, 460 / Math.max(5, name.length) * 1.3), d.mode === 'light' ? '#c8282a' : '#ffcd30'); } }
+    else if (im) { const w = Math.min(520, 520 * 0.62 * im.width / im.height * 1.6), h = w * im.height / im.width; c.drawImage(im, 420 - w / 2, 80, w, h); if (name) { c.fillStyle = '#fff'; c.strokeStyle = '#bbb'; c.lineWidth = 3; const pw = Math.min(700, 120 + name.length * 46); c.beginPath(); c.roundRect ? c.roundRect(420 - pw / 2, 80 + h + 10, pw, 110, 40) : c.rect(420 - pw / 2, 80 + h + 10, pw, 110); c.fill(); c.stroke(); nameText(c, name, 420, 80 + h + 66, 72, '#ffcd30'); } }
+  }
+  function refresh() {
+    const d = cur(), want = $('want').checked, name = cleanName(), n = letters(name), bund = d.type === 'shirt' && $('bund').checked, base = cfg.items[d.type].cents, fee = cfg.letterCents * n, total = base + fee + (bund ? BUND : 0);
+    $('bundRow').style.display = d.type === 'shirt' ? '' : 'none'; $('sizeRow').style.display = d.type === 'shirt' ? '' : 'none'; $('flip').style.display = d.back ? '' : 'none'; $('flip').textContent = showBack ? 'Show the front' : 'Show the back (it says CUBBY EXPLOSION)'; $('nameRow').style.display = want ? '' : 'none';
+    $('price').innerHTML = cfg.items[d.type].label + ': <b>' + usd(base) + '</b><br>' + (bund ? 'Matching sticker: <b>' + usd(BUND) + '</b><br>' : '') + (want ? 'Your name, ' + n + ' letter' + (n === 1 ? '' : 's') + ' × ' + usd(cfg.letterCents) + ': <b>' + usd(fee) + '</b><br>' : 'No name on it<br>') + '<span class="total">Total: <b>' + usd(total) + '</b></span> <span class="muted">(plus delivery if charged)</span>';
+    const sizeOk = d.type !== 'shirt' || $('size').value; $('go').disabled = !((!want || (n > 0 && n <= cfg.maxLetters)) && sizeOk); $('go').textContent = (want && n === 0) ? 'Type a name first' : 'Order for ' + usd(total);
+    draw();
+  }
+  function setMode(m) { mode = m; design = design.replace(/_(dark|light)$/, '_' + m); showBack = false; $('mDark').style.borderColor = m === 'dark' ? 'var(--accent)' : 'transparent'; $('mLight').style.borderColor = m === 'light' ? 'var(--accent)' : 'transparent'; build(); refresh(); }
+  $('mDark').onclick = () => setMode('dark'); $('mLight').onclick = () => setMode('light');
+  function build() { const box = $('designs'); box.innerHTML = ''; cfg.designs.filter((d) => d.mode === mode).forEach((d) => { const b = document.createElement('button'); b.className = d.id === design ? 'sel' : ''; b.innerHTML = '<img src="img/' + d.id + '.png" alt=""><div>' + d.label + '</div>'; b.onclick = () => { design = d.id; showBack = false; build(); refresh(); }; box.appendChild(b); }); }
+  $('want').onchange = () => { if ($('want').checked) setTimeout(() => $('name').focus(), 50); refresh(); }; $('name').oninput = () => { const v = $('name').value.toUpperCase().replace(/[^A-Z ]/g, ''); $('name').value = v; refresh(); }; $('size').onchange = refresh; $('flip').onclick = () => { showBack = !showBack; refresh(); };
+  const d0 = () => cur(); $('bund').onchange = refresh;
+  $('go').onclick = async () => {
+    $('go').disabled = true; $('msg').className = 'msg'; $('msg').textContent = 'Opening the secure checkout…';
+    try { const r = await fetch(API + '/checkout', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ design, name: cleanName(), size: $('size').value, addSticker: d0().type === 'shirt' && $('bund').checked, returnUrl: location.origin + location.pathname }) }); const j = await r.json(); if (j.ok && j.url) { location.href = j.url; return; } $('msg').className = 'msg err'; $('msg').textContent = j.error || 'Could not start the order.'; } catch (e) { $('msg').className = 'msg err'; $('msg').textContent = 'Could not reach the shop. Check your internet and try again.'; }
+    refresh();
+  };
+  document.querySelectorAll('.tipb').forEach((b) => { b.onclick = () => { $('tipAmt').value = b.dataset.a; }; });
+  $('tipGo').onclick = async () => {
+    const a = Math.floor(Number($('tipAmt').value)); if (!(a >= 1 && a <= 10)) { $('tipMsg').className = 'msg err'; $('tipMsg').textContent = 'Pick a whole number from $1 to $10.'; return; }
+    $('tipGo').disabled = true; $('tipMsg').className = 'msg'; $('tipMsg').textContent = 'Opening the secure checkout…';
+    try { const r = await fetch(API + '/tip', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ dollars: a, returnUrl: location.origin + location.pathname }) }); const j = await r.json(); if (j.ok && j.url) { location.href = j.url; return; } $('tipMsg').className = 'msg err'; $('tipMsg').textContent = j.error || 'Could not start the tip.'; } catch (e) { $('tipMsg').className = 'msg err'; $('tipMsg').textContent = 'Could not reach the shop. Try again later.'; }
+    $('tipGo').disabled = false;
+  };
+  { const ms = new URLSearchParams(location.search).get('ms'); if (ms) fetch(API + '/bonus', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ session: ms }) }).then((r) => r.json()).then((j) => { if (j && j.ok) { $('bonusCard').style.display = ''; $('bonusCode').textContent = j.code; if (j.used) $('bonusMsg').textContent = 'This code was already used.'; $('bonusGo').onclick = async () => { const name = $('bonusName').value.trim(); if (!name) { $('bonusMsg').className = 'msg err'; $('bonusMsg').textContent = 'Type the Explox account name.'; return; } $('bonusGo').disabled = true; try { const r2 = await fetch(API.replace('/api/merch', '/api/exworld/sip/redeem'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: j.code, name }) }); const k = await r2.json(); $('bonusMsg').className = k.ok ? 'msg' : 'msg err'; $('bonusMsg').textContent = k.ok ? '✅ ' + k.sip + ' S.I.P. sent to ' + k.name + '!' : (k.error || 'Could not send it.'); } catch (e) { $('bonusMsg').className = 'msg err'; $('bonusMsg').textContent = 'Could not reach the server. Try again.'; } $('bonusGo').disabled = false; }; } }).catch(() => { }); }
+  const q = new URLSearchParams(location.search); if (q.get('tip')) { $('tipMsg').textContent = '💛 Thank you so much for the tip!'; } else if (q.get('paid')) { $('msg').textContent = '✅ Thank you! Your order is paid. We will print your name on it and send it to the address you gave.'; } else if (q.get('cancel')) { $('msg').textContent = 'The order was cancelled and nothing was charged.'; }
+  fetch(API + '/config').then((r) => r.json()).then((j) => { if (j && j.ok) { cfg = Object.assign(cfg, j); cfg.designs = withMode(j.designs); $('maxL').textContent = cfg.maxLetters; if (!j.enabled) $('msg').textContent = 'The merch shop is not open yet, but you can already try designs and names.'; else if (j.test) $('msg').textContent = 'TEST MODE: nothing real is charged.'; build(); refresh(); } }).catch(() => { });
+  build(); refresh();
+})();
+</script>
+</body>
+</html>

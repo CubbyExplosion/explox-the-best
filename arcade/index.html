@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>S.I.P. Arcade</title>
+<style>
+:root{--bg:#0f1426;--panel:#1a2140;--panel2:#232c55;--text:#eef2ff;--muted:#9aa7d6;--accent:#ffcd30}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px system-ui,"Segoe UI",sans-serif}
+header{padding:20px 16px;text-align:center}h1{margin:0;font-size:34px;letter-spacing:2px;color:var(--accent)}header p{color:var(--muted);margin:6px 0 0}
+main{max-width:980px;margin:0 auto;padding:0 14px 40px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+a.card{display:block;background:var(--panel);border-radius:16px;padding:16px;color:var(--text);text-decoration:none;border:2px solid transparent;transition:transform .12s,border-color .12s}
+a.card:hover{transform:translateY(-3px);border-color:var(--accent)}.ic{font-size:44px}.nm{font-size:22px;font-weight:800;margin:4px 0}.ds{color:var(--muted);font-size:14px;min-height:60px}.tag{display:inline-block;background:var(--panel2);border-radius:20px;padding:3px 10px;font-size:12px;margin:6px 6px 0 0}
+footer{text-align:center;color:var(--muted);padding:0 14px 30px;font-size:13px}
+</style></head><body>
+<header><h1>S.I.P. ARCADE</h1><p>9 games. Pick one and play!</p></header>
+<main id="m"></main>
+<footer>Everything runs on your own device. Scores save in this browser.</footer>
+<script>
+const G = [
+ ['🚀', 'Star Guard', 'star-guard', 'Blast waves of enemy ships, beat the bosses and upgrade your ship.', ['Shooter', 'Bosses', '3 ships']],
+ ['🏰', 'Tower Clash', 'tower-clash', 'Build towers, stop the monsters and survive 30 waves on 3 maps.', ['Strategy', '6 towers', '3 maps']],
+ ['🧱', 'Block Runner', 'block-runner', 'Run, jump and stomp through 12 blocky levels with bosses and hidden gems.', ['Platformer', '12 levels']],
+ ['🏎️', 'Turbo Kart', 'turbo-kart', 'Race 7 rivals on 4 tracks. Drift for boosts and use items.', ['Racing', '4 tracks']],
+ ['🐉', 'Dungeon Dive', 'dungeon-dive', 'Explore random dungeons, find loot and beat a boss on every floor.', ['Adventure', '3 classes', 'Bosses']],
+ ['🛡️', 'Tank War', 'tank-war', '20 levels of tank battles. Smash walls, defend your base, play with a friend.', ['Action', '20 levels', '2 players']],
+ ['🎵', 'Cube Dash', 'cube-dash', 'Jump to the beat through 10 music levels full of spikes and portals.', ['Rhythm', '10 levels']],
+ ['💎', 'Gem Miner', 'gem-miner', 'Dig deep, collect gems, sell them and upgrade your drill to reach the core.', ['Mining', 'Upgrades']],
+ ['👑', 'Kingdom Tycoon', 'kingdom-tycoon', 'Build a kingdom, grow your people and defend against raiders.', ['Builder', '28 buildings', '30 techs']],
+];
+const m = document.getElementById('m');
+G.forEach((g) => { const a = document.createElement('a'); a.className = 'card'; a.href = g[2] + '/index.html'; a.innerHTML = '<div class="ic"></div><div class="nm"></div><div class="ds"></div><div></div>'; a.children[0].textContent = g[0]; a.children[1].textContent = g[1]; a.children[2].textContent = g[3]; g[4].forEach((t) => { const s = document.createElement('span'); s.className = 'tag'; s.textContent = t; a.children[3].appendChild(s); }); m.appendChild(a); });
+</script></body></html>
