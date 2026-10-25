@@ -39,6 +39,7 @@ body.touch #touch{display:block}
 <button data-k="e" style="right:10px;bottom:14px">E</button>
 <button data-k="t" style="right:10px;bottom:154px">TNT</button>
 <button data-k="p" style="right:10px;top:10px;width:48px;height:48px;font-size:14px">| |</button>
+<button data-k="n" style="right:68px;top:10px;width:48px;height:48px;font-size:12px">MAP</button>
 </div>
 <div id="ov"></div>
 <script>
@@ -279,7 +280,10 @@ function pressAction(k){
  if(k==='e'){if(state==='play'&&!modal)interact();else if(modal)closeModal()}
  else if(k==='t'){if(state==='play'&&!modal)throwTnt()}
  else if(k==='p'){togglePause()}
+ else if(k==='n'){toggleMap()}
 }
+let showMap=true;try{showMap=localStorage.getItem('sip_gem-miner_map')!=='off'}catch(e){}
+function toggleMap(){showMap=!showMap;try{localStorage.setItem('sip_gem-miner_map',showMap?'on':'off')}catch(e){}toast(showMap?'Map on':'Map off')}
 addEventListener('keydown',e=>{
  ac();const k=KM[e.code];
  if(k){kb[k]=true;e.preventDefault();return}
@@ -288,6 +292,7 @@ addEventListener('keydown',e=>{
  else if(e.code==='Space'){e.preventDefault();pressAction('t')}
  else if(e.code==='KeyP'||e.code==='Escape'){if(modal)closeModal();else if(state==='play'||state==='pause')togglePause()}
  else if(e.code==='KeyM'){muted=!muted;toast(muted?'Sound off':'Sound on')}
+ else if(e.code==='KeyN'){if(state==='play'||state==='pause')toggleMap()}
  else if(e.code==='KeyR'){if(state==='play'&&!modal)rescue()}
  else if(e.code==='KeyT'){if(state==='play'&&!modal)showAch()}
 });
@@ -430,7 +435,7 @@ function showTitle(){
  showOv(`<h1>GEM MINER</h1><div class="sub">S.I.P. Arcade</div>
  <div class="how"><b>Goal:</b> dig down to the Core! Haul ore and gems back up, sell them, and upgrade your rig.<br>
  <b>Move:</b> A / D or arrows &nbsp; <b>Dig:</b> hold S (down), or push into a wall &nbsp; <b>Fly:</b> W / Up<br>
- <b>E</b> use buildings &nbsp; <b>Space</b> dynamite &nbsp; <b>R</b> emergency tow &nbsp; <b>T</b> trophies &nbsp; <b>P</b> pause &nbsp; <b>M</b> mute<br>
+ <b>E</b> use buildings &nbsp; <b>Space</b> dynamite &nbsp; <b>R</b> emergency tow &nbsp; <b>T</b> trophies &nbsp; <b>N</b> map on/off &nbsp; <b>P</b> pause &nbsp; <b>M</b> mute<br>
  There are 100 kinds of ore to find! Mining a block costs 0.01 fuel and flying a block costs 0.02. Watch your fuel, hull and cargo. Beware gas pockets, lava, falling rocks and cave critters!</div>
  ${hasSave()?'<button class="btn" data-a="cont">Continue</button><button class="btn dim" data-a="new">New Game</button>':'<button class="btn" data-a="new">Start Digging!</button>'}
  <button class="btn dim" data-a="ach">Trophies</button>`)}
@@ -659,7 +664,7 @@ function drawHud(tm){
  ctx.fillStyle='#ffd23a';ctx.font='bold 20px system-ui';ctx.fillText(price(P.coins)+' coins',vw-14,30);
  ctx.fillStyle='#fff';ctx.font='bold 12px system-ui';ctx.fillText(depthM()+' m  |  '+LAYERS[li][0],vw-14,46);
  // minimap
- if(vh>380){const top=Math.max(0,Math.min(H-100,Math.floor(P.y/TS)-50)),mx=vw-170,my=58;
+ if(vh>380&&showMap){const top=Math.max(0,Math.min(H-100,Math.floor(P.y/TS)-50)),mx=vw-170,my=58;
   mmT--;if(mmT<=0){mmT=8;const d=mmImg.data;for(let y=0;y<100;y++)for(let x=0;x<80;x++){const ty=top+y,t=tiles[idx(x,ty)],o=(y*80+x)*4;let r=0,g=0,b=0;
    if(ty<SURF){r=90;g=170;b=230}else if(!seen[idx(x,ty)]){r=22;g=16;b=14}else if(t===A){r=48;g=36;b=30}else if(t===LAVA){r=255;g=110;b=30}else if(t>=ORE0){const c=parseInt(ORES[t-ORE0].c.slice(1),16);r=c>>16;g=c>>8&255;b=c&255}else if(t===GAS){r=140;g=230;b=100}else{const c=parseInt((BASECOL[layerTile(ty)]||'#555555').slice(1),16);r=(c>>16)*.7;g=(c>>8&255)*.7;b=(c&255)*.7}
    d[o]=r;d[o+1]=g;d[o+2]=b;d[o+3]=255}mmx.putImageData(mmImg,0,0)}
