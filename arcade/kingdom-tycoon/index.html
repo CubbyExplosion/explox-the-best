@@ -12,6 +12,7 @@ canvas#cv{position:fixed;left:0;top:0;touch-action:none;display:block}
 .chip b{color:#ffe08a}
 button{font-family:inherit;cursor:pointer;border:2px solid #8a6a3a;background:#6b4a22;color:#fff;border-radius:8px;padding:5px 9px;font-size:14px}
 button:hover{background:#8a6030}button.on{background:#3d8f3d}button:disabled{opacity:.5}
+button.red{background:#b73030;border-color:#f6a0a0}
 button.big{font-size:18px;padding:10px 18px;background:#2f8f4a;border-color:#a6e6b4}
 #ctl{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
 #goals{position:fixed;right:6px;top:70px;width:230px;background:rgba(30,20,10,.82);border:2px solid #8a6a3a;border-radius:10px;padding:6px 8px;font-size:12px;z-index:4;max-height:36vh;overflow:auto}
@@ -77,7 +78,7 @@ manor:{n:'Manor',e:'\u{1F3E1}',cat:0,s:2,cost:{wood:30,stone:30,gold:30},hp:120,
 road:{n:'Road',e:'',cat:0,s:1,cost:{stone:1},hp:20,d:'Citizens walk 60% faster on roads. Drag to paint.'},
 well:{n:'Well',e:'\u{1FAA3}',cat:0,s:1,cost:{stone:10},hp:40,col:'#a5d0ea',roof:'#6a8',d:'Fresh water. +1 happiness.'},
 park:{n:'Park',e:'\u{1F337}',cat:0,s:1,cost:{wood:5,gold:10},hp:30,col:'#8fdc7a',roof:'#5b5',d:'A pretty garden. +3 happiness.'},
-warehouse:{n:'Warehouse',e:'\u{1F4E6}',cat:0,s:2,cost:{wood:40,stone:10},hp:100,col:'#b58a5a',roof:'#7a5530',d:'Raises storage limit by 150 for every resource.'},
+warehouse:{n:'Warehouse',e:'\u{1F4E6}',cat:0,s:2,cost:{wood:40,stone:10},hp:100,col:'#b58a5a',roof:'#7a5530',d:'Raises storage limit by 150 for every resource (+50 per upgrade level).'},
 farm:{n:'Farm',e:'\u{1F33E}',cat:1,s:2,cost:{wood:20},hp:70,jobs:2,cyc:5,out:{food:3,grain:2},col:'#e5c35a',roof:'#8bc34a',d:'Grows food and grain. Slows in winter. Rain helps!'},
 orchard:{n:'Orchard',e:'\u{1F34E}',cat:1,s:2,cost:{wood:25,gold:20},hp:70,jobs:2,cyc:6,out:{food:4},col:'#9fd873',roof:'#e57373',d:'Fruit trees: great in autumn, nothing in winter.'},
 mill:{n:'Mill',e:'\u{1F4A8}',cat:1,s:2,cost:{wood:30,stone:15},hp:90,jobs:1,cyc:5,in:{grain:2},out:{flour:2},col:'#e8dcc0',roof:'#a0522d',d:'Grinds grain into flour.'},
@@ -99,9 +100,16 @@ church:{n:'Church',e:'⛪',cat:5,s:2,cost:{stone:40,wood:20},hp:100,jobs:1,rp:.0
 school:{n:'School',e:'\u{1F4DA}',cat:5,s:2,cost:{wood:40,stone:20},hp:90,jobs:2,rp:.25,col:'#f0c27a',roof:'#2980b9',d:'Makes research points. +2 happiness.'},
 library:{n:'Library',e:'\u{1F4D6}',cat:5,s:2,cost:{wood:60,stone:40,gold:40},hp:100,jobs:2,rp:.5,col:'#d7b98e',roof:'#6c3483',d:'Lots of research points.'},
 healer:{n:'Healer',e:'⚕️',cat:5,s:2,cost:{wood:30,stone:15,gold:20},hp:80,jobs:1,col:'#f7e4e4',roof:'#27ae60',d:'Herbs and tea. +4 happiness.'},
+watchtower:{n:'Watchtower',e:'\u{1F5FC}',cat:4,s:1,cost:{wood:25,stone:10},hp:80,col:'#c9b48a',roof:'#8e5a2b',d:'Cheap lookout: weak arrows reach 8 tiles. Adds war power.'},
+fortress:{n:'Fortress',e:'\u{1F3EF}',cat:4,s:2,cost:{stone:120,wood:60,iron:20,gold:60},hp:400,train:3,max:2,col:'#aeb4bd',roof:'#7b241c',d:'Strong stone fort: great arrows, trains 3 soldiers, big war power.'},
+armory:{n:'Armory',e:'\u{1F6E1}\uFE0F',cat:4,s:2,cost:{wood:40,stone:40,iron:10},hp:110,max:1,col:'#9a8f88',roof:'#34495e',d:'Better gear: +15% war power. Only one.'},
+training:{n:'Training Grounds',e:'\u{1F3AF}',cat:4,s:2,cost:{wood:50,stone:30,gold:30},hp:100,max:2,col:'#c8b27a',roof:'#27ae60',d:'Barracks train 2 extra soldiers; +10% war power each (max 2).'},
+banner:{n:'Banner Pole',e:'\u{1F6A9}',cat:4,s:1,cost:{wood:5,gold:5},hp:30,col:'#e8d8a8',roof:'#e74c3c',d:'Proud banners: +2 war power each (max 10) and a little happiness.'},
 monument:{n:'Grand Statue',e:'\u{1F5FF}',cat:5,s:3,cost:{stone:200,gold:200,iron:30},hp:400,max:1,col:'#d5d0c0',roof:'#f1c40f',d:'A wonder everyone is proud of. +8 happiness. Only one.'}
 };
 const KEYS=Object.keys(D);
+const TW={tower:{rg:6,dm:7},watchtower:{rg:8,dm:4},castle:{rg:7,dm:7},fortress:{rg:7,dm:10}};
+const UPM=5;
 const START=['house','farm','lumber','quarry','well','road'];
 const TECH=[
 {id:'carp',n:'Carpentry',c:15,r:[],u:['warehouse'],b:{lumber:.2},d:'Lumber +20%. Warehouse.'},
@@ -133,6 +141,17 @@ const TECH=[
 {id:'medic',n:'Medicine',c:60,r:['educ'],u:['healer'],b:{},d:'Healers.'},
 {id:'writing',n:'Writing',c:70,r:['educ'],u:['library'],b:{rp:.05},d:'Libraries. Research +.05/s.'},
 {id:'tax',n:'Tax Reform',c:60,r:['writing'],u:[],b:{tax:.25},d:'Tax income +25%.'},
+{id:'watch',n:'Watchtowers',c:35,r:['archery'],u:['watchtower'],b:{},d:'Watchtowers.'},
+{id:'train',n:'Training Grounds',c:55,r:['drill'],u:['training'],b:{},d:'Training Grounds.'},
+{id:'armor',n:'Armory Craft',c:70,r:['smith','drill'],u:['armory'],b:{},d:'Armory.'},
+{id:'heraldry',n:'Heraldry',c:40,r:['drill'],u:['banner'],b:{},d:'Banner Poles.'},
+{id:'general',n:'Generals',c:80,r:['train'],u:[],b:{war:.15},d:'A general leads you: +15% war power.'},
+{id:'tactics',n:'Tactics',c:100,r:['general'],u:[],b:{war:.15},d:'+15% war power.'},
+{id:'fortress',n:'Fortress Building',c:110,r:['fort','armor'],u:['fortress'],b:{},d:'Fortresses.'},
+{id:'shield',n:'Shield Wall',c:90,r:['walls2'],u:[],b:{shield:.15},d:'Take 15% less damage in wars.'},
+{id:'supply',n:'Supply Wagons',c:80,r:['tactics'],u:[],b:{supply:.5},d:'War boosts work 50% better.'},
+{id:'spies',n:'Spies',c:60,r:['trade','archery'],u:[],b:{spy:1},d:'See exact rival strength.'},
+{id:'envoys',n:'Envoys',c:70,r:['diplo'],u:[],b:{envoy:1},d:'Peace treaties and gifts work better.'},
 {id:'wonder',n:'Wonders',c:120,r:['arch','writing'],u:['monument'],b:{},d:'Grand Statue.'}
 ];
 const TI={};TECH.forEach(t=>TI[t.id]=t);
@@ -147,9 +166,12 @@ const SC=[
  g:[['Techs researched',()=>nt(),12],['Markets',()=>cn('market'),2],['Gold stored',()=>S.res.gold,1200]]},
 {n:'Grand Kingdom',e:'\u{1F451}',d:'The big one: castle, statue, and a huge happy city.',start:{wood:200,stone:120,food:100,gold:150,iron:20},pop:14,techs:['carp','mason','irrig','trade'],rp:60,raid:8,gap:[5,7],rb:1,
  g:[['Citizens',()=>C.length,90],['Castle',()=>cn('castle'),1],['Grand Statue',()=>cn('monument'),1],['Happiness',()=>S.happy,60],['Raids repelled',()=>S.repelled,2]]},
+{n:'Rival Crowns',e:'\u{1F451}',d:'Four rival kingdoms may challenge you. Fight, trade or make peace!',start:{wood:200,stone:140,food:120,gold:160,iron:40,arms:4},pop:12,techs:['carp','mason','archery','mining','smith','drill','gates','trade'],rp:30,raid:99999,gap:[6,8],rb:0,war:4,
+ g:[['Wars won',()=>S.warsWon,2],['Citizens',()=>C.length,35],['Soldiers',()=>SO.length,6],['Treaties or allies',()=>S.rivals.filter(r=>r.ally||S.day<r.peace).length,1]]},
 {n:'Free Build',e:'\u{1F9F1}',d:'Sandbox! Lots of resources, no goals, raids optional.',start:{wood:600,stone:400,food:300,gold:500,iron:100,arms:5},pop:12,techs:[],rp:400,raid:99999,gap:[6,8],rb:0,free:1,g:[]}
 ];
 const goals=()=>S.keep?[]:SC[S.sc].g;
+SC[0].war=99;SC[1].war=99;SC[2].war=99;SC[3].war=20;SC[4].war=14;
 const cn=k=>(S&&S.cnt&&S.cnt[k])||0;
 const nt=()=>Object.keys(S.techs).length;
 const JC={farm:'#8bc34a',orchard:'#f06292',lumber:'#a1887f',quarry:'#b0bec5',mine:'#78909c',mill:'#fff3c4',bakery:'#ffb74d',market:'#ffca28',tavern:'#ce93d8',blacksmith:'#ef6c00',mint:'#fdd835',harbor:'#4fc3f7',church:'#fff',school:'#81d4fa',library:'#b39ddb',healer:'#a5d6a7',castle:'#e57373'};
@@ -216,7 +238,7 @@ function avail(k){if(START.includes(k))return true;for(const id in S.techs)if(TI
 function techFor(k){for(const t of TECH)if(t.u.includes(k))return t;return null}
 function bon(k){return(S.bon&&S.bon[k])||0}
 function recalcBon(){const b={};for(const t of TECH)if(S.techs[t.id])for(const k in t.b)b[k]=(b[k]||0)+t.b[k];S.bon=b}
-function storCap(){return 250+150*cn('warehouse')+(cn('castle')?100:0)}
+function storCap(){let c=250+(cn('castle')?100:0);for(const b of B)if(b.k==='warehouse')c+=150+50*((b.lv||1)-1);return c}
 function addRes(r,n){if(r==='gold')S.res.gold+=n;else S.res[r]=Math.min(storCap(),S.res[r]+n)}
 function maxhp(k){return D[k].hp*((k==='wall'||k==='gate')?1+bon('wall'):1)}
 function msg(t,cls){const l=$('log'),d=document.createElement('div');d.textContent=t;if(cls)d.className=cls;l.appendChild(d);while(l.children.length>5)l.removeChild(l.firstChild);setTimeout(()=>d.remove(),8000)}
@@ -226,7 +248,7 @@ function costStr(c){return Object.keys(c).map(r=>RES[r][0]+c[r]).join(' ')}
 function canAfford(c){for(const r in c)if(S.res[r]<c[r])return false;return true}
 
 // ================= buildings =================
-function addB(k,x,y,quiet){const d=D[k],b={id:UID++,k,x,y,w:d.s,h:d.s,hp:maxhp(k),prog:0,n:0,present:0,res:0,st:'',born:quiet?-9999:performance.now(),cd:0,tt:0};B.push(b);for(let j=0;j<d.s;j++)for(let i=0;i<d.s;i++)OCC[(y+j)*W+x+i]=b;S.cnt[k]=(S.cnt[k]||0)+1;return b}
+function addB(k,x,y,quiet){const d=D[k],b={id:UID++,k,x,y,w:d.s,h:d.s,hp:maxhp(k),prog:0,n:0,present:0,res:0,st:'',born:quiet?-9999:performance.now(),cd:0,tt:0,lv:1};B.push(b);for(let j=0;j<d.s;j++)for(let i=0;i<d.s;i++)OCC[(y+j)*W+x+i]=b;S.cnt[k]=(S.cnt[k]||0)+1;return b}
 function why(k,ax,ay){const d=D[k];if(!avail(k))return'Research '+(techFor(k)?techFor(k).n:'it')+' first';if(d.max&&cn(k)>=d.max)return'Only one allowed';
  for(const r in d.cost)if(S.res[r]<d.cost[r])return'Not enough '+RES[r][1];
  for(let j=0;j<d.s;j++)for(let i=0;i<d.s;i++){const X=ax+i,Y=ay+j;if(X<0||Y<0||X>=W||Y>=H)return'Outside the map';const t=T[Y*W+X];if(!buildable(t))return t===1?'Water in the way':'Clear it first (trees/rocks)';if(OCC[Y*W+X])return'Something is already there'}
@@ -259,8 +281,8 @@ function moveCit(c,dt){
  if(d>.12){let sp=1.7*dt;const o=OCC[Math.max(0,Math.min(H-1,Math.floor(c.y)))*W+Math.max(0,Math.min(W-1,Math.floor(c.x)))];if(o&&o.k==='road')sp*=1.6;if(S.weather==='storm')sp*=.7;if(danger)sp*=1.4;const st=Math.min(d,sp);c.x+=dx/d*st;c.y+=dy/d*st;c.walk=true}
  else{c.walk=false;if(c.mode==='job')c.work=true}}
 function assignJobs(){
- const vac=B.filter(b=>D[b.k].jobs&&b.n<D[b.k].jobs);
- for(const c of C)if(!c.job&&vac.length){let best=-1,bd=1e9;for(let i=0;i<vac.length;i++){const b=vac[i];if(b.n>=D[b.k].jobs)continue;const pr=(b.k==='farm'||b.k==='orchard'||b.k==='harbor')&&S.res.food<C.length*3?-8:0;const d=Math.hypot(b.x-c.x,b.y-c.y)+pr;if(d<bd){bd=d;best=i}}if(best>=0){c.job=vac[best];c.job.n++}}}
+ const vac=B.filter(b=>D[b.k].jobs&&b.n<jobsOf(b));
+ for(const c of C)if(!c.job&&vac.length){let best=-1,bd=1e9;for(let i=0;i<vac.length;i++){const b=vac[i];if(b.n>=jobsOf(b))continue;const pr=(b.k==='farm'||b.k==='orchard'||b.k==='harbor')&&S.res.food<C.length*3?-8:0;const d=Math.hypot(b.x-c.x,b.y-c.y)+pr;if(d<bd){bd=d;best=i}}if(best>=0){c.job=vac[best];c.job.n++}}}
 
 // ================= simulation =================
 function newDay(){
@@ -272,7 +294,9 @@ function newDay(){
  if(!SC[S.sc].free||S.raidsOn){if(S.day>=S.nextRaid&&!S.pending&&!RA.length)startRaid()}
  const s=season();if((S.day-1)%DPS===0){msg(SEI[s]+' '+SEASONS[s]+' has arrived!');if(s===3)msg('Winter: farms slow down. Eat from your stores!');if(s===2)msg('Autumn: harvest time! Store food for winter.')}
  if(S.day%(DPS*4)===1&&S.day>1)msg('Happy new year! Year '+(Math.floor((S.day-1)/(DPS*4))+1),'good');
- updHUD()}
+
+ let up=0;for(const b of B)if(b.lv>1)up+=2*(b.lv-1);if(up){S.res.gold=Math.max(0,S.res.gold-up)}
+ dayDiplo();updHUD()}
 function pickWeather(){const se=season(),r=Math.random();let w='clear';
  if(se===3)w=r<.55?'snow':'clear';else if(se===0)w=r<.3?'rain':'clear';else if(se===1)w=r<.12?'rain':r<.17?'storm':'clear';else w=r<.3?'rain':r<.37?'storm':'clear';
  if(w==='storm'&&S.weather!=='storm'){msg('A thunderstorm rolls in! Work slows down.','bad');sfx('thunder')}
@@ -283,7 +307,7 @@ function sec(){
  // happiness
  let h=50,c=k=>cn(k);
  let svc=Math.min(12,c('church')*4)+Math.min(10,c('tavern')*4)+Math.min(9,c('park')*3+c('well'))+Math.min(8,c('healer')*4)+Math.min(6,c('market')*3)+Math.min(4,c('school')*2)+(c('monument')?8:0)+(c('library')?3:0);
- h+=svc*Math.min(1,70/Math.max(pop,1));
+ h+=svc*Math.min(1,70/Math.max(pop,1))+Math.min(4,cn('banner')*.5);
  h+=S.res.food<=0?-30:(S.res.food>=pop*3?6:0);h+=TAXH[S.tax];
  let jobs=0;for(const b of B)jobs+=D[b.k].jobs||0;const unemp=C.filter(q=>!q.job).length;if(pop>6&&unemp/pop>.3)h-=6;
  if(S.weather==='storm')h-=3;if(season()===3)h-=2;
@@ -294,8 +318,11 @@ function sec(){
  if(pop<cap&&S.res.food>0&&S.happy>=30&&S.growT>=iv){S.growT=0;const hs=freeHouse(28,28);if(hs){const side=irnd(0,3);const ex=side===0?0:side===1?W-1:irnd(2,W-3),ey=side===2?0:side===3?H-1:irnd(2,H-3);spawnCit(hs,Math.max(1,ex),ey)}}
  if(S.happy<18&&pop>4&&Math.random()<.15){const i=irnd(0,pop-1);ft(C[i].x,C[i].y,'moved away','#f99');C.splice(i,1);msg('Unhappy citizens are leaving!','bad')}
  // training
- for(const b of B){const d=D[b.k];if(d.train){const mine=SO.filter(s=>s.home===b).length;b.tt++;if(mine<d.train&&b.tt>=6&&S.res.arms>=1&&S.res.gold>=15){b.tt=0;S.res.arms--;S.res.gold-=15;SO.push({x:b.x+b.w/2,y:b.y+b.h,hp:40,home:b,cd:0,off:rnd(-1.5,1.5),off2:rnd(0,1.5)});ft(b.x+1,b.y,'+Soldier','#8cf')}}}
+ for(const b of B){const d=D[b.k];if(d.train){const mine=SO.filter(s=>s.home===b).length;b.tt++;if(mine<d.train+(cn('training')?2:0)&&b.tt>=6&&S.res.arms>=1&&S.res.gold>=15){b.tt=0;S.res.arms--;S.res.gold-=15;SO.push({x:b.x+b.w/2,y:b.y+b.h,hp:40,home:b,cd:0,off:rnd(-1.5,1.5),off2:rnd(0,1.5)});ft(b.x+1,b.y,'+Soldier','#8cf')}}}
  if(S.trader){S.trader.t--;if(S.trader.t<=0){S.trader=null;$('offer').classList.add('hidden');msg('The trader packed up and left.')}}
+ if(!RA.length)for(const b of B)if(b.hp<maxhp(b.k))b.hp=Math.min(maxhp(b.k),b.hp+1.5);
+ if(cn('tower')>=3&&cn('wall')>=10)ach('fort');if(SO.length>=8)ach('army');
+ if(S.challenge&&!modalOpen&&!S.over)showChallenge();
  checkGoals();updHUD();updGoals();updSel();
  if(!S.over){if(S.day>3&&C.length===0&&S.everPop>2&&!SC[S.sc].free)end(false,'Everyone has moved away. The kingdom is empty.');
   else if(S.hadCastle&&!cn('castle')&&S.sc===4)end(false,'The castle fell to the bandits!');
@@ -310,7 +337,7 @@ function sim(dt){
  for(const b of B)b.present=0;
  for(const c of C){moveCit(c,dt);if(c.work)c.job.present++}
  prod(dt);mil(dt);
- let rp=.1+bon('rp');for(const b of B){const d=D[b.k];if(d.rp)rp+=d.rp*(d.jobs?b.present/d.jobs:1)}S.rp+=rp*dt;S.rpRate=rp;
+ let rp=.1+bon('rp');for(const b of B){const d=D[b.k];if(d.rp)rp+=d.rp*(d.jobs?b.present/jobsOf(b):1)}S.rp+=rp*dt;S.rpRate=rp;
  if(CART){CART.t+=dt;const tx=CART.arrived?CART.ex:CART.tx,ty=CART.arrived?CART.ey:CART.ty,dx=tx-CART.x,dy=ty-CART.y,d=Math.hypot(dx,dy);if(d>.3){CART.x+=dx/d*2.2*dt;CART.y+=dy/d*2.2*dt}else if(CART.arrived)CART=null;else CART.arrived=1;if(CART&&CART.arrived&&!S.trader)CART.leave=1}
  for(let i=PR.length-1;i>=0;i--){const p=PR[i];p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.g)p.vy+=90*dt;if(p.life<=0)PR.splice(i,1)}
  for(let i=AR.length-1;i>=0;i--){AR[i].t+=dt;if(AR[i].t>.25)AR.splice(i,1)}
@@ -322,19 +349,19 @@ function mult(b){const k=b.k,se=season();let m=1+bon(k);
  if(S.weather==='storm')m*=.7;return m}
 function prod(dt){
  const mk=Math.min;
- for(const b of B){const d=D[b.k];if(!d.cyc)continue;const rate=d.jobs?b.present/d.jobs:1;
+ for(const b of B){const d=D[b.k];if(!d.cyc)continue;const rate=d.jobs?b.present/jobsOf(b):1;
   if(rate<=0){b.st=b.n?'workers resting':'needs workers';continue}
   const m=mult(b);if(m<=0){b.st='out of season';continue}
   if(b.prog<d.cyc)b.prog+=dt*rate*m;
   if(b.prog<d.cyc){b.st='working';continue}
   if(d.need){const t=nearTile(b,d.need,d.rad);if(t===null){b.st='nothing nearby to gather';continue}b.tile=t}
-  let ok=true;if(d.in)for(const r in d.in)if(S.res[r]<d.in[r]){b.st='needs '+RES[r][1];ok=false;break}
+  const IO=io(b),inn=IO.inn;let ok=true;for(const r in inn)if(S.res[r]<inn[r]){b.st='needs '+RES[r][1];ok=false;break}
   if(!ok)continue;
-  const out=d.outf?{gold:3+mk(C.length,80)*.06}:d.out;
+  const out=IO.out;
   for(const r in out)if(r!=='gold'&&S.res[r]>=storCap()){b.st='storage full';ok=false;break}
   if(!ok)continue;
-  if(d.in)for(const r in d.in)S.res[r]-=d.in[r];
-  for(const r in out){let n=out[r];if(r==='gold'&&d.outf)n*=1+bon('trade')*.5;addRes(r,n);if(view.z>.5)ft(b.x+b.w/2,b.y,'+'+(Math.round(n*10)/10)+RES[r][0],'#fff',11)}
+  for(const r in inn)S.res[r]-=inn[r];
+  for(const r in out){let n=out[r];if(r==='gold'&&d.outf){const u5=5*(b.lv-1);n=(n-u5)*(1+bon('trade')*.5)+u5}addRes(r,n);if(view.z>.5)ft(b.x+b.w/2,b.y,'+'+(Math.round(n*10)/10)+RES[r][0],'#fff',11)}
   if(d.need===2&&Math.random()<.12){T[b.tile]=0;buildMiniPx(b.tile)}
   if(d.need===3&&Math.random()<.08){T[b.tile]=0;buildMiniPx(b.tile)}
   b.prog-=d.cyc;b.st='working'}}
@@ -369,9 +396,9 @@ function mil(dt){
   let nr=null,nd=24;for(const r of RA){const d=Math.hypot(r.x-s.x,r.y-s.y);if(d<nd){nd=d;nr=r}}
   if(nr){const dx=nr.x-s.x,dy=nr.y-s.y,d=Math.hypot(dx,dy);if(d>.8){s.x+=dx/d*2.3*dt;s.y+=dy/d*2.3*dt}else{nr.hp-=(9+9*bon('sold'))*dt;nr.hit=.2;sfx('hit')}}
   else{const tx=s.home.x+s.home.w/2+s.off,ty=s.home.y+s.home.h+.6+s.off2,dx=tx-s.x,dy=ty-s.y,d=Math.hypot(dx,dy);if(d>.3){s.x+=dx/d*1.8*dt;s.y+=dy/d*1.8*dt}if(s.hp<40)s.hp=Math.min(40,s.hp+3*dt)}}
- for(const b of B){if(b.k!=='tower'&&b.k!=='castle')continue;b.cd-=dt;if(b.cd>0)continue;const rg=b.k==='castle'?7:6;let nr=null,nd=rg;
+ for(const b of B){const tw=TW[b.k];if(!tw)continue;b.cd-=dt;if(b.cd>0)continue;let nr=null,nd=tw.rg;
   for(const r of RA){const d=Math.hypot(r.x-(b.x+b.w/2),r.y-(b.y+b.h/2));if(d<nd){nd=d;nr=r}}
-  if(nr){b.cd=1.1;nr.hp-=7*(1+bon('tower'));nr.hit=.2;AR.push({x0:b.x+b.w/2,y0:b.y+b.h/2,x1:nr.x,y1:nr.y,t:0});sfx('arrow')}}}
+  if(nr){b.cd=1.1;nr.hp-=tw.dm*(1+bon('tower'));nr.hit=.2;AR.push({x0:b.x+b.w/2,y0:b.y+b.h/2,x1:nr.x,y1:nr.y,t:0});sfx('arrow')}}}
 
 // ================= events =================
 function doEvent(){
@@ -396,6 +423,108 @@ function showOffer(){const o=$('offer'),t=S.trader;if(!t){o.classList.add('hidde
  $('oy').onclick=()=>{if(t.sell){if(S.res.gold<t.gold){msg('Not enough gold.','bad');sfx('err');return}S.res.gold-=t.gold;addRes(t.k,t.n)}else{if(S.res[t.k]<t.n){msg('Not enough '+RES[t.k][1]+'.','bad');sfx('err');return}S.res[t.k]-=t.n;S.res.gold+=t.gold}sfx('coin');msg('Deal done!','good');S.trader=null;showOffer();updHUD()};
  $('on').onclick=()=>{S.trader=null;sfx('click');showOffer()}}
 
+// ================= upgrades =================
+const jobsOf=b=>{const j=D[b.k].jobs||0;return j?j+(b.lv>=3?1:0)+(b.lv>=5?1:0):0};
+function io(b){const d=D[b.k],lv=b.lv||1;let out=d.outf?{gold:3+Math.min(C.length,80)*.06}:Object.assign({},d.out||{}),inn=Object.assign({},d.in||{});const up=5*(lv-1);
+ if(up&&Object.keys(out).length){const mk=Object.keys(out)[0];out[mk]+=up;for(const r in inn)inn[r]+=Math.round(up/2)}return{out,inn}}
+const canUp=b=>{const d=D[b.k];return !!((d.cyc&&(d.out||d.outf))||b.k==='warehouse')&&b.lv<UPM};
+function ucost(b){const L=b.lv+1,m=[0,0,1,2,4,7][L];return{gold:30*m,wood:25*m,stone:20*m}}
+function upInfo(b){if(!canUp(b))return b.lv>=UPM&&D[b.k].cyc?'<br><b style="color:#ffe08a">MAX LEVEL</b>':'';
+ const nb=Object.assign({},b,{lv:b.lv+1}),c=ucost(b),ok=canAfford(c);
+ return (b.k==='warehouse'?'<br>Next level: storage +'+(150+50*b.lv)+' (now +'+(150+50*(b.lv-1))+')':'<br>Next level: makes '+costStr(io(nb).out)+(Object.keys(io(nb).inn).length?', uses '+costStr(io(nb).inn):''))+'<br>Upgrade cost: '+costStr(c)+' (upkeep +2\u{1FA99}/day per level; needs more workers at Lv3, Lv5)<br><button id="upg" '+(ok?'':'disabled')+'>⬆ Upgrade to Lv'+(b.lv+1)+'</button>'}
+function upgrade(b){if(!canUp(b))return;const c=ucost(b);if(!canAfford(c)){msg('Not enough resources to upgrade','bad');sfx('err');return}for(const r in c)S.res[r]-=c[r];b.lv++;b.born=performance.now();sfx('tech');burst(b.x+b.w/2,b.y+b.h/2,'⬆️',5);msg(D[b.k].n+' upgraded to level '+b.lv+'!','good');updHUD();updSel()}
+
+// ================= rivals, diplomacy & war =================
+const RN=[{n:'Brightmoor',pers:'proud',col:'#d33c3c',m:1.2},{n:'Goldmarsh',pers:'greedy',col:'#e0b020',m:.95},{n:'Shadowfen',pers:'sneaky',col:'#8a52d0',m:1.0},{n:'Greenhollow',pers:'friendly',col:'#3aa860',m:.8}];
+const PERS={proud:'Proud',greedy:'Greedy',sneaky:'Sneaky',friendly:'Friendly'};
+const ACH=[['firstwin','First Victory','Win a war'],['iron','Iron Fist','Win 3 wars'],['peace','Peacemaker','Sign a peace treaty'],['ally','Best Friends','Ally with a rival'],['trade','Merchant','Trade with a rival'],['bold','Brave Peacekeeper','Decline a war challenge'],['sue','Wise Retreat','Sue for peace'],['fort','Fortified','3 towers and 10 walls'],['army','Big Army','Have 8 soldiers'],['unbroken','Flawless','Win a war on stance Defend']];
+function mkRivals(){return RN.map((r,i)=>({id:i,n:r.n,pers:r.pers,col:r.col,m:r.m*(.92+Math.random()*.2),rel:r.pers==='friendly'?35:r.pers==='greedy'?0:-5,ally:false,peace:0,cd:0,declined:0,tcd:0,partner:false}))}
+function ach(id){if(!S.ach)S.ach={};if(S.ach[id])return;S.ach[id]=1;const a=ACH.find(q=>q[0]===id);msg('\u{1F3C5} Achievement: '+a[1]+'!','good');sfx('tech')}
+function rstr(r){return Math.round((28+S.day*2.4)*r.m)}
+function power(){let p=SO.length*10+cn('tower')*8+cn('watchtower')*4+cn('wall')*.6+cn('gate')*3+cn('castle')*30+cn('fortress')*40+Math.min(10,cn('banner'))*2;
+ return Math.round(p*(1+bon('sold')+bon('war')+Math.min(1,cn('armory'))*.15+Math.min(2,cn('training'))*.1))}
+function estimate(r){const e=rstr(r),m=Math.max(1,power()),q=e/m;const t=q<.5?'Much weaker than you':q<.85?'Weaker than you':q<1.2?'About equal':q<1.8?'Stronger than you':'Much stronger!';
+ return t+(bon('spy')?' (exactly '+e+' vs your '+power()+')':' (about '+Math.round(e*(1+((r.id*37+S.day)%5-2)*.08))+')')}
+function dayDiplo(){for(const r of S.rivals){if(r.ally){if(r.rel<40)r.rel=40}else r.rel+=r.rel>0?-1:r.rel<0?1:0}
+ if(S.war&&!modalOpen)warRound(true);else maybeChallenge()}
+function maybeChallenge(){const sc=SC[S.sc];if(S.war||S.challenge||S.over||S.day<S.warCd)return;
+ const ws=sc.free?(S.raidsOn?8:1e9):(sc.war||1e9);if(S.day<ws)return;const mp=power();
+ for(const r of S.rivals){if(S.day<r.cd||r.ally||S.day<r.peace)continue;
+  let ch=.06+.03*r.declined;
+  if(r.pers==='proud')ch+=mp>=rstr(r)?.04:0;if(r.pers==='greedy')ch+=Math.min(.12,S.res.gold/3500);if(r.pers==='sneaky')ch+=mp<rstr(r)*.6?.12:0;
+  if(r.pers==='friendly')ch=r.rel<-20?.06:0;
+  ch*=Math.max(0,1-r.rel/120);
+  const force=sc.war===S.day&&!S.warsSeen&&r.id===0;
+  if(force||Math.random()<ch){S.warsSeen=1;makeChallenge(r);return}}}
+function makeChallenge(r){const t=Math.round((25+S.day*2)*(1+.15*r.declined));
+ const why={proud:'Your kingdom has grown too proud! '+r.n+' wants to test your strength on the field.',greedy:'Your stores are full! '+r.n+' wants your riches and declares war unless you pay.',sneaky:'Your guards look sleepy, says '+r.n+'. A "surprise" war is declared!',friendly:'Border quarrels got out of hand. '+r.n+' sadly challenges you to settle it in battle.'}[r.pers];
+ S.challenge={rid:r.id,tribute:t,why};r.cd=S.day+irnd(8,12)}
+function showChallenge(){const c=S.challenge,r=S.rivals[c.rid];if(!c)return;sfx('horn');
+ modal('<span style="color:'+r.col+'">⚑</span> War Challenge from '+r.n+'!','<p><b style="color:'+r.col+'">Kingdom of '+r.n+'</b> ('+PERS[r.pers]+')</p><p>'+c.why+'</p><p>Their army: <b>'+estimate(r)+'</b><br>Your army power: <b>'+power()+'</b></p><p>Demand: <b>fight</b>, or pay <b>'+c.tribute+' \u{1FA99}</b> tribute to decline'+(r.pers==='friendly'?' (a friendly gift will do)':'')+'.<br><small>Declining never ends your game, but may make rivals bolder.</small></p>',
+  [['⚔ ACCEPT WAR',acceptWar,'big red'],['\u{1F54A} DECLINE',declineWar,'big']])}
+function acceptWar(){const c=S.challenge,r=S.rivals[c.rid],mP=Math.max(25,power()),eP=rstr(r);S.challenge=null;
+ S.war={rid:r.id,round:0,max:6,mP,eP,mMax:mP*3,eMax:eP*3,mHP:mP*3,eHP:eP*3,stance:'defend',boost:0,allies:false,log:['The armies march out!'],counterUsed:false};showWar()}
+function declineWar(){const c=S.challenge,r=S.rivals[c.rid];S.challenge=null;r.declined++;S.rep=Math.max(0,S.rep-2);ach('bold');S.warCd=S.day+irnd(4,6);
+ if(r.pers==='friendly'&&S.res.gold>=20){S.res.gold-=20;r.rel+=3;msg(r.n+' happily accepted a 20 gold gift instead of war.','good')}
+ else if(S.res.gold>=c.tribute){S.res.gold-=c.tribute;r.rel-=4;msg('You paid '+c.tribute+' gold tribute to '+r.n+'. They are satisfied (for now).')}
+ else{r.rel-=15;S.rep=Math.max(0,S.rep-6);msg('You could not pay! '+r.n+' thinks less of you. Reputation fell.','bad')}
+ if(r.declined>=2)msg(r.n+' is getting bolder...');closeModal();updHUD()}
+function warRound(auto){const w=S.war;if(!w)return;const a=w.stance==='counter'?1.3:.85,d=w.stance==='counter'?1.15:.7;
+ const de=w.mP*(1+w.boost)*a*rnd(.4,.6),dm=w.eP*(1-bon('shield'))*d*rnd(.4,.6);
+ w.eHP=Math.max(0,w.eHP-de);w.mHP=Math.max(0,w.mHP-dm);w.round++;if(w.stance==='counter')w.counterUsed=true;
+ w.log.push('Round '+w.round+': you hit for '+Math.round(de)+', they hit for '+Math.round(dm));WA.fight=1.3;sfx('hit');sfx('boom');
+ let res=null;if(w.eHP<=0)res='win';else if(w.mHP<=0)res='lose';else if(w.round>=w.max)res=(w.eHP/w.eMax<=w.mHP/w.mMax)?'win':'lose';
+ if(res)endWar(res);else if(!auto)showWar()}
+function endWar(res){const w=S.war,r=S.rivals[w.rid];S.war=null;S.warCd=S.day+irnd(6,9);let t='';
+ if(res==='win'){const g=Math.round(40+w.eP*.9);S.res.gold+=g;addRes('iron',15);addRes('food',25);S.rp+=25;S.rep=Math.min(100,S.rep+8);r.partner=true;r.rel=Math.max(-100,r.rel-10);r.m*=.85;r.peace=S.day+14;S.warsWon++;ach('firstwin');if(S.warsWon>=3)ach('iron');if(!w.counterUsed)ach('unbroken');sfx('win');
+  t='<p>The enemy runs away in a cloud of dust!</p><p>Loot: +'+g+' \u{1FA99}, +15 ⛏️, +25 \u{1F35E}, +25 research points. Reputation up, and '+r.n+' is now a trade partner (better prices).</p>'}
+ else if(res==='lose'){const l=Math.round(S.res.gold*.2);S.res.gold-=l;for(const k of['wood','stone','food'])S.res[k]=Math.floor(S.res[k]*.85);S.rep=Math.max(0,S.rep-8);S.warsLost++;r.peace=S.day+8;
+  const outer=B.filter(b=>b.k!=='road').map(b=>[Math.hypot(b.x-28,b.y-28),b]).sort((a,b)=>b[0]-a[0]).slice(0,3);outer.forEach(q=>{q[1].hp=Math.max(5,q[1].hp*.45)});
+  sfx('lose');t='<p>You lost the war this time. You gave up '+l+' gold and some supplies, and '+outer.length+' outer buildings were bruised (they will repair themselves). Nothing was destroyed. Build more defenses and try again!</p>'}
+ else{const c=Math.round(15+w.eP*.35);if(S.res.gold>=c){S.res.gold-=c}else{S.res.food=Math.floor(S.res.food*.8);S.res.wood=Math.floor(S.res.wood*.8)}S.rep=Math.max(0,S.rep-2);r.peace=S.day+10;ach('sue');t='<p>You asked for peace and it was granted (cost '+c+' gold or supplies). The war is over.</p>'}
+ closeModal();updHUD();modal(res==='win'?'\u{1F3C6} Victory!':res==='lose'?'\u{1F6E1} Defeat':'\u{1F54A} Peace',t,[['OK',closeModal,'big']])}
+const WA={fight:0,on:false};
+function warAnim(){const c=document.getElementById('wc');if(!c||!S||!S.war){WA.on=false;return}const g=c.getContext('2d'),w=S.war,r=S.rivals[w.rid],t=performance.now()/1000;WA.fight=Math.max(0,WA.fight-.016);
+ g.fillStyle='#7ac74f';g.fillRect(0,0,320,110);g.fillStyle='#6ab343';for(let i=0;i<8;i++)g.fillRect(i*45,72+(i%2)*14,30,4);
+ const nL=Math.max(1,Math.ceil(7*w.mHP/w.mMax)),nR=Math.max(1,Math.ceil(7*w.eHP/w.eMax)),f=WA.fight>0;
+ const army=(n,side,col)=>{for(let i=0;i<n;i++){const row=i%4,c2=Math.floor(i/4);let x=side<0?24+c2*24+row*4:296-c2*24-row*4;const y=30+row*18;x+=-side*(f?44+Math.sin(t*16+i)*8:Math.sin(t*2+i)*2);const b=Math.abs(Math.sin(t*(f?14:3)+i))*2;
+  g.fillStyle='rgba(0,0,0,.2)';g.beginPath();g.ellipse(x,y+8,6,2,0,0,7);g.fill();g.fillStyle=col;g.beginPath();g.arc(x,y-b,5,0,7);g.fill();g.fillStyle='#ffd9b0';g.beginPath();g.arc(x,y-8-b,4,0,7);g.fill();g.fillStyle='#ddd';g.fillRect(x-side*7,y-10-b,2,12);
+  if(i===0){g.fillStyle=col;g.fillRect(x-3,y-26,2,16);g.fillRect(x-1,y-26,10,6)}}};
+ army(nL,-1,'#4a6fd8');army(nR,1,r.col);
+ if(f){g.font='30px "Segoe UI Emoji",sans-serif';g.textAlign='center';g.fillText('\u{1F4A5}',160,60);g.font='bold 16px sans-serif';g.fillStyle='#fff';g.strokeStyle='#a00';g.lineWidth=3;g.strokeText('POW!',160,30);g.fillText('POW!',160,30)}
+ requestAnimationFrame(warAnim)}
+function showWar(){const w=S.war;if(!w)return;const r=S.rivals[w.rid],pc=(a,b)=>Math.max(0,Math.round(a/b*100));
+ const bar=(p,col)=>'<div style="background:#222;border-radius:6px;height:14px;width:min(80vw,300px);margin:2px auto"><div style="background:'+col+';height:14px;border-radius:6px;width:'+p+'%"></div></div>';
+ const h='<div style="font-size:13px">Round <b>'+w.round+'/'+w.max+'</b> &bull; Stance: <b>'+(w.stance==='counter'?'Counter-attack':'Defend')+'</b>'+(w.allies?' &bull; Allies called':'')+'</div><canvas id="wc" width="320" height="110" style="width:min(90vw,420px);border-radius:8px"></canvas>'+
+ '<div style="font-size:12px">Your force: '+SO.length+' soldiers, '+(cn('tower')+cn('watchtower'))+' towers, '+cn('wall')+' walls, '+cn('gate')+' gates'+(cn('castle')+cn('fortress')?', castle/fortress':'')+(bon('war')?', general':'')+' &bull; power <b>'+Math.round(w.mP*(1+w.boost))+'</b></div>'+bar(pc(w.mHP,w.mMax),'#4a6fd8')+
+ '<div style="font-size:12px;color:'+r.col+'">Army of '+r.n+' &bull; power <b>'+w.eP+'</b></div>'+bar(pc(w.eHP,w.eMax),r.col)+
+ '<div style="margin:6px"><button id="wsd" class="'+(w.stance==='defend'?'on':'')+'">\u{1F6E1} Defend</button> <button id="wsc" class="'+(w.stance==='counter'?'on':'')+'">⚔ Counter-attack</button> <button id="wal">\u{1F91D} Call allies</button><br><button id="wbi">⛏️ Spend 10 iron: +power</button> <button id="wbf">\u{1F35E} Spend 15 food: heal</button></div>'+
+ '<div style="font-size:11px;text-align:left;max-width:320px;margin:auto">'+w.log.slice(-4).join('<br>')+'</div>';
+ modal('⚔ War with '+r.n+'!',h,[['⚔ FIGHT A ROUND',()=>warRound(false),'big red'],['\u{1F54A} Sue for peace',()=>endWar('peace')],['Back to town',closeModal]]);
+ const sup=1+bon('supply');
+ $('wsd').onclick=()=>{w.stance='defend';sfx('click');showWar()};$('wsc').onclick=()=>{w.stance='counter';sfx('click');showWar()};
+ $('wal').onclick=()=>{if(w.allies){msg('Allies already came.');return}const al=S.rivals.filter(q=>q.ally&&q.id!==w.rid);if(!al.length){msg('You have no allies! Make friends in the Rivals panel.','bad');sfx('err');return}const add=al.reduce((a,q)=>a+rstr(q)*.4,0);w.mP+=add;w.allies=true;w.log.push('Allies arrive with +'+Math.round(add)+' power!');sfx('event');showWar()};
+ $('wbi').onclick=()=>{if(S.res.iron<10||w.boost>=.5){msg(w.boost>=.5?'Boost is maxed.':'Not enough iron.','bad');sfx('err');return}S.res.iron-=10;w.boost+=.1*sup;w.log.push('Sharper weapons! +'+Math.round(10*sup)+'% power');sfx('tech');showWar()};
+ $('wbf').onclick=()=>{if(S.res.food<15){msg('Not enough food.','bad');sfx('err');return}S.res.food-=15;w.mHP=Math.min(w.mMax,w.mHP+.08*w.mMax*sup);w.log.push('Hot meals heal your troops.');sfx('coin');showWar()};
+ if(!WA.on){WA.on=true;requestAnimationFrame(warAnim)}}
+function dipAction(a,i){const r=S.rivals[i],e=bon('envoy');
+ if(a==='gift'){if(S.res.gold<25){msg('Not enough gold','bad');sfx('err');return}S.res.gold-=25;r.rel=Math.min(100,r.rel+(r.pers==='greedy'?14:10)+e*3);msg(r.n+' loves the gift!','good');sfx('coin')}
+ else if(a==='peace'){if(S.day<r.peace){msg('You already have a treaty.');return}if(S.res.gold<30){msg('Not enough gold','bad');sfx('err');return}S.res.gold-=30;
+  if(Math.random()<.4+r.rel/150+e*.25+(S.rep-50)/250){r.peace=S.day+15;r.rel+=8;ach('peace');msg('Peace treaty signed with '+r.n+' for 15 days!','good');sfx('win')}else{r.rel-=2;msg(r.n+' laughed and refused. Try gifts first!','bad')}}
+ else if(a==='ally'){if(r.ally){msg('Already allies.');return}if(r.rel<45){msg('They need to like you more (relations 45+).','bad');sfx('err');return}if(S.res.gold<50){msg('Not enough gold','bad');sfx('err');return}S.res.gold-=50;r.ally=true;r.rel+=5;ach('ally');msg(r.n+' is now your ally!','good');sfx('win')}
+ else{if(S.day<r.tcd){msg('The traders are busy. Come back tomorrow.');return}if(r.rel<-10||S.war&&S.war.rid===i){msg(r.n+' will not trade with you.','bad');sfx('err');return}
+  const gm=r.pers==='greedy'?1.2:r.pers==='friendly'?.9:1,pm=r.partner?.85:1;
+  if(a==='buy'){const c=Math.round(30*3.2*gm*pm);if(S.res.gold<c){msg('Need '+c+' gold','bad');sfx('err');return}S.res.gold-=c;addRes('iron',30);msg('Bought 30 iron for '+c+' gold.','good')}
+  else{const g=Math.round(40*1.4*(r.pers==='greedy'?.85:1)*(r.partner?1.15:1));if(S.res.wood<40){msg('Need 40 wood','bad');sfx('err');return}S.res.wood-=40;S.res.gold+=g;msg('Sold 40 wood for '+g+' gold.','good')}
+  r.tcd=S.day+1;r.rel=Math.min(100,r.rel+2);ach('trade');sfx('coin')}
+ updHUD();showRivals()}
+function showRivals(){const rows=S.rivals.map(r=>{const st=r.ally?'\u{1F91D} Ally':S.war&&S.war.rid===r.id?'⚔ AT WAR':S.day<r.peace?'\u{1F54A} Peace until day '+r.peace:'Neutral';
+ return '<div style="border:2px solid '+r.col+';border-radius:10px;padding:6px;margin:5px;text-align:left;font-size:12px"><b style="color:'+r.col+'">⚑ Kingdom of '+r.n+'</b> ('+PERS[r.pers]+') - '+st+(r.partner?' - trade partner':'')+'<br>Relations: <b>'+Math.round(r.rel)+'</b> &bull; Strength: '+estimate(r)+'<br>'+
+  ['gift|Gift 25\u{1FA99}','peace|Peace treaty 30\u{1FA99}','ally|Alliance 50\u{1FA99}','buy|Buy 30 iron','sell|Sell 40 wood'].map(q=>{const p=q.split('|');return '<button data-a="'+p[0]+'" data-i="'+r.id+'" style="font-size:12px;padding:3px 6px;margin:2px">'+p[1]+'</button>'}).join('')+'</div>'}).join('');
+ const ac=ACH.map(a=>'<span style="display:inline-block;margin:2px 4px;font-size:11px;opacity:'+(S.ach[a[0]]?1:.4)+'" title="'+a[2]+'">'+(S.ach[a[0]]?'\u{1F3C5}':'\u{1F512}')+' '+a[1]+'</span>').join('');
+ modal('\u{1F91D} Rival Kingdoms','<p style="font-size:12px;margin:0">Your power: <b>'+power()+'</b> &bull; Reputation: <b>'+S.rep+'</b> &bull; Wars won: '+S.warsWon+'</p>'+rows+'<div>Achievements: '+ac+'</div>',[['Close',closeModal]]);
+ document.querySelectorAll('#modal button[data-a]').forEach(b=>b.onclick=()=>dipAction(b.dataset.a,+b.dataset.i))}
+
 // ================= goals / end =================
 function checkGoals(){const g=goals();if(!g.length||S.over)return;let all=true;for(const q of g){if(q[0]==='Happiness'?!(q[1]()>=q[2]):q[1]()<q[2])all=false}if(all)end(true)}
 function end(win,why){if(S.over)return;S.over=true;sfx(win?'win':'lose');
@@ -406,7 +535,7 @@ function end(win,why){if(S.over)return;S.over=true;sfx(win?'win':'lose');
 // ================= new game / save =================
 let META={wins:{}};
 function newState(i){const sc=SC[i];const res={food:0,wood:0,stone:0,iron:0,gold:0,grain:0,flour:0,arms:0};Object.assign(res,sc.start);
- return{sc:i,res,techs:{},rp:sc.rp,day:1,tod:.3,tax:2,happy:60,target:60,speed:1,paused:false,raids:0,repelled:0,kills:0,raidActive:0,nextRaid:sc.raid,pending:null,weather:'clear',wT:40,evT:55,mood:0,fear:0,growT:0,acc:0,t:0,cnt:{},built:0,lost:0,maxPop:0,everPop:0,hungry:0,over:false,raidsOn:false,trader:null,bon:{},flow:null,prevRes:null,rpRate:.1,hadCastle:0}}
+ return{sc:i,res,techs:{},rp:sc.rp,day:1,tod:.3,tax:2,happy:60,target:60,speed:1,paused:false,raids:0,repelled:0,kills:0,raidActive:0,nextRaid:sc.raid,pending:null,weather:'clear',wT:40,evT:55,mood:0,fear:0,growT:0,acc:0,t:0,cnt:{},built:0,lost:0,maxPop:0,everPop:0,hungry:0,over:false,raidsOn:false,trader:null,bon:{},flow:null,prevRes:null,rpRate:.1,hadCastle:0,rivals:mkRivals(),war:null,challenge:null,rep:50,ach:{},warsWon:0,warsLost:0,warCd:0,warsSeen:0}}
 function startScenario(i){
   inGame=true;SEED=(Math.random()*1e9)|0;UID=1;B=[];C=[];SO=[];RA=[];PR=[];AR=[];CART=null;sel=null;tool=null;
  S=newState(i);SC[i].techs.forEach(t=>S.techs[t]=1);recalcBon();genMap(SEED);
@@ -419,7 +548,7 @@ function startScenario(i){
 function enterGame(){ $('title').classList.add('hidden');for(const id of['top','goals','mini','bar'])$(id).classList.remove('hidden');
  closeModal();buildBar();buildCtl();updHUD();updGoals();updSel();showOffer();recalcHomes()}
 function toTitle(){inGame=false;closeModal();for(const id of['top','goals','mini','bar','sel','offer'])$(id).classList.add('hidden');showTitle()}
-function snapshot(){const st=Object.assign({},S);delete st.bon;return{v:1,seed:SEED,T:Array.from(T).join(''),B:B.map(b=>[b.k,b.x,b.y,Math.round(b.hp),Math.round(b.prog*10)/10]),C:C.map(c=>[B.indexOf(c.home),+c.x.toFixed(2),+c.y.toFixed(2)]),SO:SO.map(s=>[B.indexOf(s.home),+s.x.toFixed(1),+s.y.toFixed(1)]),S:st,view}}
+function snapshot(){const st=Object.assign({},S);delete st.bon;return{v:1,seed:SEED,T:Array.from(T).join(''),B:B.map(b=>[b.k,b.x,b.y,Math.round(b.hp),Math.round(b.prog*10)/10,b.lv]),C:C.map(c=>[B.indexOf(c.home),+c.x.toFixed(2),+c.y.toFixed(2)]),SO:SO.map(s=>[B.indexOf(s.home),+s.x.toFixed(1),+s.y.toFixed(1)]),S:st,view}}
 function saveGame(metaOnly){try{const o={meta:META,game:(inGame&&S&&!S.over&&!metaOnly)?snapshot():null};if(metaOnly){const old=readSave();o.game=old&&old.game&&!S.over?old.game:null}localStorage.setItem(SAVE,JSON.stringify(o))}catch(e){}}
 function readSave(){try{const r=localStorage.getItem(SAVE);return r?JSON.parse(r):null}catch(e){return null}}
 function clearSave(){try{const o=readSave()||{meta:META};o.game=null;o.meta=META;localStorage.setItem(SAVE,JSON.stringify(o))}catch(e){}}
@@ -427,12 +556,12 @@ function loadGame(){const o=readSave();if(!o||!o.game)return false;try{const g=o
  SEED=g.seed;UID=1;B=[];C=[];SO=[];RA=[];PR=[];AR=[];CART=null;sel=null;tool=null;
  T=new Uint8Array(W*H);for(let i=0;i<W*H;i++)T[i]=+g.T[i];OCC=new Array(W*H).fill(null);buildMini();
  S=Object.assign(newState(g.S.sc),g.S);S.cnt={};S.pending=g.S.pending||null;recalcBon();inGame=true;
- for(const q of g.B){const b=addB(q[0],q[1],q[2],1);b.hp=q[3];b.prog=q[4]||0}
+ for(const q of g.B){const b=addB(q[0],q[1],q[2],1);b.hp=q[3];b.prog=q[4]||0;b.lv=q[5]||1}
  for(const q of g.C){const h=B[q[0]]||freeHouse(28,28);if(h)spawnCit(h,q[1],q[2])}
  for(const q of g.SO){const h=B[q[0]];if(h)SO.push({x:q[1],y:q[2],hp:40,home:h,cd:0,off:rnd(-1.5,1.5),off2:rnd(0,1.5)})}
  RA=[];if(S.raidActive){S.raidActive=0}
  Object.assign(view,g.view);S.trader=null;S.over=false;
-  enterGame();msg('Game loaded. Welcome back!','good');return true}catch(e){console.error('load failed',e);return false}}
+  enterGame();msg('Game loaded. Welcome back!','good');if(S.war)showWar();return true}catch(e){console.error('load failed',e);return false}}
 
 // ================= UI =================
 function modal(title,body,btns){const m=$('modal');m.innerHTML='<div class="card"><h2>'+title+'</h2><div class="mb">'+body+'</div><div class="bt"></div></div>';const bt=m.querySelector('.bt');btns.forEach(q=>{const b=document.createElement('button');b.textContent=q[0];b.className=q[2]||'';b.onclick=()=>{sfx('click');q[1]()};bt.appendChild(b)});m.classList.remove('hidden');modalOpen=true}
@@ -451,15 +580,15 @@ function buildBar(){
   el.onclick=()=>{if(!ok){msg('Research '+techFor(k).n+' to unlock '+d.n,'bad');sfx('err');return}setTool(tool===k?null:k)};
   el.onmouseenter=ev=>tip(tipB(k),ev);el.onmouseleave=untip;it.appendChild(el)})}
 function bicon(k){const d=D[k];return d.e||({house:'\u{1F3E0}',road:'\u{1F6E4}️',wall:'\u{1F9F1}',gate:'\u{1F6AA}'}[k])}
-function tipB(k){const d=D[k];let s='<b>'+d.n+'</b><br>'+d.d+'<br>Cost: '+costStr(d.cost);if(d.jobs)s+='<br>Jobs: '+d.jobs;if(d.cap)s+='<br>Houses: '+d.cap;if(d.in)s+='<br>Uses: '+costStr(d.in);if(d.out)s+='<br>Makes: '+costStr(d.out);if(!avail(k))s+='<br><span style="color:#f99">Needs tech: '+(techFor(k)?techFor(k).n:'?')+'</span>';return s}
+function tipB(k){const d=D[k];let s='<b>'+d.n+'</b><br>'+d.d+'<br>Cost: '+costStr(d.cost);if(d.jobs)s+='<br>Jobs: '+d.jobs;if(d.cap)s+='<br>Houses: '+d.cap;if(d.in)s+='<br>Uses: '+costStr(d.in);if(d.out)s+='<br>Makes: '+costStr(d.out);if(k==='warehouse'||(D[k].cyc&&(D[k].out||D[k].outf)))s+='<br>Upgradable to Lv5 (+5 output each level)';if(!avail(k))s+='<br><span style="color:#f99">Needs tech: '+(techFor(k)?techFor(k).n:'?')+'</span>';return s}
 function setTool(t){tool=t;sel=null;updSel();buildBar();sfx('click')}
 function buildCtl(){const c=$('ctl');c.innerHTML='';
  const mk=(t,fn,id,tipt)=>{const b=document.createElement('button');b.innerHTML=t;if(id)b.id=id;b.onclick=()=>{ac();sfx('click');fn()};if(tipt){b.onmouseenter=e=>tip(tipt,e);b.onmouseleave=untip}c.appendChild(b);return b};
  mk('⏸',()=>setSpeed(0),'sp0','Pause (Space)');mk('▶',()=>setSpeed(1),'sp1','Normal speed (1)');mk('⏩',()=>setSpeed(2),'sp2','Fast (2)');mk('⏭',()=>setSpeed(4),'sp4','Super fast (3)');
  mk('\u{1F4B1} '+TAXN[S.tax],()=>{S.tax=(S.tax+1)%4;buildCtl();updHUD()},'taxb','Click to change taxes. Higher tax = more gold but unhappy citizens.');
- mk('\u{1F52C} Techs',showTech,'techb','Research new buildings and bonuses (T)');
+ mk('\u{1F91D} Rivals',showRivals,'rivb','Rival kingdoms: relations, trade, peace');mk('\u2694\uFE0F WAR!',showWar,'warb','A war is going on! Click to fight.');mk('\u{1F52C} Techs',showTech,'techb','Research new buildings and bonuses (T)');
  mk(muted?'\u{1F507}':'\u{1F50A}',()=>{muted=!muted;buildCtl()},'mutb','Sound on/off (M)');
- mk('⚙️',pauseMenu,'menub','Menu (Esc)');setSpeed(S.speed,1)}
+ mk('⚙️',pauseMenu,'menub','Menu (Esc)');$('warb').style.display=S.war?'':'none';setSpeed(S.speed,1)}
 function setSpeed(n,q){if(n===0){S.paused=true}else{S.paused=false;S.speed=n}for(const k of[0,1,2,4]){const b=$('sp'+k);if(b)b.classList.toggle('on',k===0?S.paused:(!S.paused&&S.speed===k))}}
 function pauseMenu(){const free=SC[S.sc].free;const btns=[['Resume',closeModal],['Save now',()=>{saveGame();msg('Game saved.','good');closeModal()}]];
  if(free)btns.push(['Raids: '+(S.raidsOn?'ON':'OFF'),()=>{S.raidsOn=!S.raidsOn;if(S.raidsOn&&S.nextRaid>S.day+30)S.nextRaid=S.day+3;pauseMenu()}]);
@@ -477,8 +606,8 @@ function updHUD(){if(!S)return;const th=$('top').offsetHeight+6;$('goals').style
  h+='<span class="chip" data-tip="Grain (mill) / Flour (bakery) / Arms (soldiers)">'+RES.grain[0]+Math.floor(S.res.grain)+' '+RES.flour[0]+Math.floor(S.res.flour)+' '+RES.arms[0]+Math.floor(S.res.arms)+'</span>';
  $('res').innerHTML=h;
  const hp=S.happy,face=hp>75?'\u{1F604}':hp>55?'\u{1F642}':hp>35?'\u{1F610}':'\u{1F620}';
- $('info').innerHTML='<span class="chip" data-tip="Citizens / housing. Build houses for more!">\u{1F465} <b>'+C.length+'</b>/'+(S.cap||0)+'</span><span class="chip" data-tip="Happiness. Taverns, churches, parks, markets and good food raise it.">'+face+' <b>'+Math.round(hp)+'</b></span><span class="chip" data-tip="Soldiers">\u{1F6E1}️ '+SO.length+'</span><span class="chip" data-tip="Research points">\u{1F52C} <b>'+Math.floor(S.rp)+'</b></span><span class="chip">'+SEI[season()]+' '+SEASONS[season()]+' D'+S.day+' '+(isNight()?'\u{1F319}':'☀️')+' '+({clear:'',rain:'\u{1F327}️',storm:'⛈️',snow:'\u{1F328}️'})[S.weather]+'</span>';
- const t=$('taxb');if(t)t.innerHTML='\u{1F4B1} '+TAXN[S.tax];
+ $('info').innerHTML='<span class="chip" data-tip="Citizens / housing. Build houses for more!">\u{1F465} <b>'+C.length+'</b>/'+(S.cap||0)+'</span><span class="chip" data-tip="Happiness. Taverns, churches, parks, markets and good food raise it.">'+face+' <b>'+Math.round(hp)+'</b></span><span class="chip" data-tip="Soldiers">\u{1F6E1}️ '+SO.length+'</span><span class="chip" data-tip="Research points">\u{1F52C} <b>'+Math.floor(S.rp)+'</b></span><span class="chip" data-tip="Reputation with the rival kingdoms">\u{1F451} '+S.rep+'</span><span class="chip">'+SEI[season()]+' '+SEASONS[season()]+' D'+S.day+' '+(isNight()?'\u{1F319}':'☀️')+' '+({clear:'',rain:'\u{1F327}️',storm:'⛈️',snow:'\u{1F328}️'})[S.weather]+'</span>';
+ const wb=$('warb');if(wb)wb.style.display=S.war?'':'none';const t=$('taxb');if(t)t.innerHTML='\u{1F4B1} '+TAXN[S.tax];
  document.querySelectorAll('.bi').forEach(el=>{const k=el.dataset.k;if(!k)return;const d=D[k];const c=el.querySelector('.c');if(avail(k)&&c)c.innerHTML=Object.keys(d.cost).map(r=>'<span'+(S.res[r]<d.cost[r]?' style="color:#f88"':'')+'>'+RES[r][0]+d.cost[r]+'</span>').join(' ')})}
 function updGoals(){const g=$('goals'),L=goals();let h='<h4 id="gt">'+(SC[S.sc].free?'\u{1F9F1} Free Build':'\u{1F3AF} Goals - '+SC[S.sc].n)+'</h4>';
  if(SC[S.sc].free)h+='<div class="g">No goals. Build anything! Raids: '+(S.raidsOn?'on':'off (see menu)')+'</div>';
@@ -487,10 +616,10 @@ function updGoals(){const g=$('goals'),L=goals();let h='<h4 id="gt">'+(SC[S.sc].
  L.forEach(q=>{const v=q[1](),done=v>=q[2];h+='<div class="g '+(done?'done':'')+'">'+(done?'✔':'◻')+' '+q[0]+': '+Math.floor(v)+'/'+q[2]+'</div>'});
  if(S.keep)h+='<div class="g">You won! Keep building.</div>';g.innerHTML=h;
  $('gt').onclick=()=>{for(const d of g.querySelectorAll('.g'))d.style.display=d.style.display==='none'?'':'none'}}
-function bInfo(b){const d=D[b.k];let s='<b>'+d.n+'</b>';if(d.jobs)s+='<br>Workers: '+b.n+'/'+d.jobs+(b.present?' (on duty '+b.present+')':'');if(d.cap)s+='<br>Residents: '+b.res+'/'+d.cap;if(b.st&&d.cyc)s+='<br>Status: '+b.st;s+='<br>Health: '+Math.round(b.hp)+'/'+maxhp(b.k);return s}
+function bInfo(b){const d=D[b.k];let s='<b>'+d.n+'</b>';if(d.jobs)s+='<br>Workers: '+b.n+'/'+jobsOf(b)+(b.present?' (on duty '+b.present+')':'');if(d.cap)s+='<br>Residents: '+b.res+'/'+d.cap;if(b.st&&d.cyc)s+='<br>Status: '+b.st;if(canUp(b)||b.lv>1)s+='<br>Level <b>'+b.lv+'/'+UPM+'</b> - '+(b.k==='warehouse'?'storage +'+(150+50*(b.lv-1)):'makes '+costStr(io(b).out));s+='<br>Health: '+Math.round(b.hp)+'/'+maxhp(b.k);return s}
 function updSel(){const p=$('sel');if(!sel||sel.dead){sel=null;p.classList.add('hidden');return}p.classList.remove('hidden');
- p.innerHTML=bInfo(sel)+'<br><i style="font-size:11px">'+D[sel.k].d+'</i><br><button id="dem">\u{1F5D1} Demolish (+50% back)</button> <button id="cls">X</button>';
- $('dem').onclick=()=>{removeB(sel,true);sfx('boom')};$('cls').onclick=()=>{sel=null;updSel()}}
+ p.innerHTML=bInfo(sel)+upInfo(sel)+'<br><i style="font-size:11px">'+D[sel.k].d+'</i><br><button id="dem">\u{1F5D1} Demolish (+50% back)</button> <button id="cls">X</button>';
+ if($('upg'))$('upg').onclick=()=>upgrade(sel);$('dem').onclick=()=>{removeB(sel,true);sfx('boom')};$('cls').onclick=()=>{sel=null;updSel()}}
 const tp=$('tip');
 function tip(html,e){tp.innerHTML=html;tp.style.display='block';mvTip(e)}
 function mvTip(e){let x=e.clientX+14,y=e.clientY+14;if(x+250>innerWidth)x=innerWidth-255;if(y+120>innerHeight)y=e.clientY-100;tp.style.left=x+'px';tp.style.top=y+'px'}
@@ -552,7 +681,7 @@ function drawTree(x,y,se,t){const h=hs(x,y),px=x*TS+TS/2+(h-.5)*6,py=y*TS+TS*.8;
  cx.fillStyle='rgba(255,255,255,.18)';cx.beginPath();cx.arc(px+sw-4,py-21,5,0,7);cx.fill()}
 function drawRock(x,y){const px=x*TS+TS/2,py=y*TS+TS*.65,h=hs(x,y);cx.fillStyle='#8f9296';cx.beginPath();cx.ellipse(px,py,13,10+h*3,0,0,7);cx.fill();cx.fillStyle='#b3b6ba';cx.beginPath();cx.ellipse(px-3,py-3,7,5,0,0,7);cx.fill()}
 function drawOre(x,y){drawRock(x,y);const px=x*TS+TS/2,py=y*TS+TS*.65;cx.fillStyle='#454a55';cx.beginPath();cx.ellipse(px,py,12,9,0,0,7);cx.fill();cx.fillStyle='#ffb347';for(let i=0;i<4;i++){cx.fillRect(px-8+i*5,py-4+(i%2)*5,3,3)}cx.fillStyle='#7fe0ff';cx.fillRect(px-2,py-7,3,3)}
-function wallAt(x,y){const o=x>=0&&y>=0&&x<W&&y<H?OCC[y*W+x]:null;return o&&(o.k==='wall'||o.k==='gate'||o.k==='tower'||o.k==='castle')}
+function wallAt(x,y){const o=x>=0&&y>=0&&x<W&&y<H?OCC[y*W+x]:null;return o&&(o.k==='wall'||o.k==='gate'||o.k==='tower'||o.k==='castle'||o.k==='watchtower'||o.k==='fortress')}
 function drawB(b,alpha,now){
  const d=D[b.k],px=b.x*TS,py=b.y*TS,w=b.w*TS,h=b.h*TS;let sc=1;const age=(now-b.born)/350;if(age<1){sc=0.6+0.4*(1-Math.pow(1-age,3));}
  cx.save();if(alpha)cx.globalAlpha=alpha;
@@ -574,12 +703,13 @@ function drawB(b,alpha,now){
   const rh=Math.min(h*.34,20);
   cx.fillStyle=d.col;rr(px+3,py+rh*.5,w-6,h-rh*.5-3,5);cx.fill();cx.strokeStyle='rgba(0,0,0,.35)';cx.lineWidth=1.5;cx.stroke();
   cx.fillStyle=d.roof||'#a55';
-  if(b.k==='tower'||b.k==='castle'){rr(px+3,py+2,w-6,rh,3);cx.fill();for(let i=0;i<(b.k==='castle'?7:3);i++){cx.fillRect(px+4+i*((w-10)/(b.k==='castle'?6.2:2.2)),py-3,5,6)}}
+  if(TW[b.k]){const nc=w>40?7:3;rr(px+3,py+2,w-6,rh,3);cx.fill();for(let i=0;i<nc;i++){cx.fillRect(px+4+i*((w-10)/(nc-.8)),py-3,5,6)}}
   else{cx.beginPath();cx.moveTo(px,py+rh+3);cx.lineTo(px+w/2,py-1);cx.lineTo(px+w,py+rh+3);cx.closePath();cx.fill()}
   cx.font=Math.floor(Math.min(w,h)*.42)+'px "Segoe UI Emoji","Apple Color Emoji",sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillStyle='#000';
   if(d.e)cx.fillText(d.e,px+w/2,py+h*.62);
   if(b.k==='farm'){cx.fillStyle='rgba(120,180,60,.55)';for(let i=0;i<4;i++)cx.fillRect(px+6,py+h-14+i*0,w-12,0)}
  }
+ if(!alpha&&b.lv>1){cx.fillStyle='#f1c40f';cx.beginPath();cx.arc(px+9,py+h-9,8,0,7);cx.fill();cx.strokeStyle='#7a5a00';cx.lineWidth=1.5;cx.stroke();cx.fillStyle='#4a3000';cx.font='bold 10px sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(b.lv,px+9,py+h-8.5)}
  if(!alpha&&b.hp<maxhp(b.k)){cx.fillStyle='#400';cx.fillRect(px+2,py-5,w-4,4);cx.fillStyle='#4f4';cx.fillRect(px+2,py-5,(w-4)*Math.max(0,b.hp/maxhp(b.k)),4)}
  if(!alpha&&view.z>.55&&D[b.k].jobs&&S.tod>.3&&S.tod<.8&&(b.st==='needs workers'||(b.st&&b.st.startsWith('needs '))||b.st==='storage full'||b.st==='nothing nearby to gather')){cx.fillStyle='#e33';cx.beginPath();cx.arc(px+w-6,py+2,7,0,7);cx.fill();cx.fillStyle='#fff';cx.font='bold 11px sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText('!',px+w-6,py+2.5)}
  cx.restore()}
@@ -613,7 +743,7 @@ function draw(now){
  list.sort((a,b)=>a.y-b.y);
  for(const o of list){if(o.b)drawB(o.b,0,now);else if(o.k===2)drawTree(o.x,o.yy,se,t);else if(o.k===3)drawRock(o.x,o.yy);else drawOre(o.x,o.yy)}
  if(sel&&!sel.dead){cx.strokeStyle='#ffe14d';cx.lineWidth=3;cx.setLineDash([6,4]);cx.strokeRect(sel.x*TS-2,sel.y*TS-2,sel.w*TS+4,sel.h*TS+4);cx.setLineDash([]);
-  const rg=sel.k==='tower'?6:sel.k==='castle'?7:D[sel.k].rad;if(rg){cx.strokeStyle='rgba(255,255,255,.7)';cx.lineWidth=2;cx.beginPath();cx.arc((sel.x+sel.w/2)*TS,(sel.y+sel.h/2)*TS,rg*TS,0,7);cx.stroke()}}
+  const rg=TW[sel.k]?TW[sel.k].rg:D[sel.k].rad;if(rg){cx.strokeStyle='rgba(255,255,255,.7)';cx.lineWidth=2;cx.beginPath();cx.arc((sel.x+sel.w/2)*TS,(sel.y+sel.h/2)*TS,rg*TS,0,7);cx.stroke()}}
  // entities
  const ents=[];
  for(const c of C){if(c.mode==='home'&&!c.walk&&isNight())continue;ents.push([c.y,0,c])}
@@ -632,7 +762,7 @@ function draw(now){
  if(tool&&tool!=='bulldoze'&&hover.in&&!modalOpen){const[ax,ay]=anchor(tool,hover.x,hover.y),e=why(tool,ax,ay),d=D[tool];
   cx.fillStyle=e?'rgba(255,60,60,.4)':'rgba(80,255,80,.35)';cx.fillRect(ax*TS,ay*TS,d.s*TS,d.s*TS);
   const g={k:tool,x:ax,y:ay,w:d.s,h:d.s,hp:d.hp,born:-9999,st:'',n:0,res:0};drawB(g,.6,now);
-  const rg=tool==='tower'?6:tool==='castle'?7:d.rad;if(rg){cx.strokeStyle='rgba(255,255,255,.7)';cx.lineWidth=2;cx.beginPath();cx.arc((ax+d.s/2)*TS,(ay+d.s/2)*TS,rg*TS,0,7);cx.stroke()}
+  const rg=TW[tool]?TW[tool].rg:d.rad;if(rg){cx.strokeStyle='rgba(255,255,255,.7)';cx.lineWidth=2;cx.beginPath();cx.arc((ax+d.s/2)*TS,(ay+d.s/2)*TS,rg*TS,0,7);cx.stroke()}
   if(e&&hover.mx){cx.font='bold 13px sans-serif';cx.fillStyle='#fff';cx.strokeStyle='#000';cx.lineWidth=3;const tx=ax*TS+d.s*TS/2,ty=ay*TS-8;cx.strokeText(e,tx,ty);cx.fillText(e,tx,ty)}}
  else if(tool==='bulldoze'&&hover.in){cx.strokeStyle='#f44';cx.lineWidth=3;cx.strokeRect(hover.x*TS,hover.y*TS,TS,TS)}
  // overlays (screen space)
@@ -648,7 +778,7 @@ function draw(now){
 
 // ================= boot =================
 {const o=readSave();if(o&&o.meta)META=Object.assign({wins:{}},o.meta)}
-setInterval(()=>{if(inGame&&S&&!S.over&&!modalOpen)saveGame()},15000);
+setInterval(()=>{if(inGame&&S&&!S.over&&(!modalOpen||S.war||S.challenge))saveGame()},15000);
 addEventListener('beforeunload',()=>{if(inGame&&S&&!S.over)saveGame()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&inGame&&S&&!S.over)saveGame()});
 window.KT={get S(){return S},get B(){return B},get C(){return C},get SO(){return SO},get RA(){return RA},get T(){return T},get view(){return view},D,TECH,SC,place,addB,removeB,sim,sec,startScenario,loadGame,saveGame,startRaid,spawnRaid,doEvent,showTech,end,newDay,why,anchor,setTool,act};
