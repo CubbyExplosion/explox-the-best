@@ -317,5 +317,5 @@ reg('quiz', '🧠 Quiz', (el) => {
 reg('about', 'ℹ️ About', (el) => { el.innerHTML = '<div class="card"><h3 style="margin-top:0">About Print Lab</h3><p>Print Lab is a 3D printing helper that works on your own device with no internet needed. The Ask tab looks through ' + KB.length + ' topics about 3D printing. It does not know every fact on earth, and it will say so when it does not know something.</p><p class="muted">In basic mode nothing you type is sent anywhere. If a parent turns on the smart helper, your questions go to an online AI service so it can answer. It costs real money, so a parent decides.</p></div>'; });
 
 Object.keys(TABS).forEach((id) => { const b = document.createElement('button'); b.textContent = TABS[id].label; b.dataset.id = id; b.onclick = () => show(id); $('#nav').appendChild(b); });
-show('make');
+{ const want = new URLSearchParams(location.search).get('tab'); show(TABS[want] ? want : 'make'); }
 </script></body></html>
