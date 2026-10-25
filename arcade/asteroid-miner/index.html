@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en"><head><link rel="icon" type="image/png" href="data:image/png;base64,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"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Asteroid Miner - S.I.P. Arcade</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#05060f;overflow:hidden;font-family:system-ui,Segoe UI,Arial,sans-serif;color:#fff;touch-action:none;user-select:none;-webkit-user-select:none}
+canvas{display:block;position:fixed;inset:0;width:100%;height:100%}
+#ov{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(3,4,14,.8);z-index:5;padding:10px;overflow:auto}
+.card{background:linear-gradient(#1d2347,#121733);border:3px solid #4fd8ff;border-radius:16px;padding:18px 22px;max-width:660px;width:100%;max-height:96vh;overflow:auto;box-shadow:0 8px 40px #000a}
+h1{margin:0 0 4px;font-size:42px;color:#7fe6ff;text-shadow:3px 3px 0 #1b4a8a;letter-spacing:2px;text-align:center}
+h2{margin:0 0 8px;color:#7fe6ff;text-align:center}
+.sub{text-align:center;color:#9fb4e0;margin-bottom:12px;font-size:14px}
+.btn{display:block;width:100%;margin:8px 0;padding:11px;font-size:18px;font-weight:700;background:#4fd8ff;color:#06203a;border:0;border-radius:10px;cursor:pointer;box-shadow:0 4px 0 #1f86a8}
+.btn:hover{background:#8ae9ff}.btn:active{transform:translateY(3px);box-shadow:0 1px 0 #1f86a8}
+.btn.dim{background:#55608a;color:#e6e9ff;box-shadow:0 4px 0 #333a5c}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.how{font-size:14px;line-height:1.5;color:#d3dcff;background:#00000040;padding:8px 12px;border-radius:8px}
+.row{display:flex;gap:10px;align-items:center;background:#00000040;border-radius:10px;padding:8px 10px;margin:6px 0}
+.row .t{flex:1}.row b{color:#ffe08a}.row small{color:#9fb0d8;display:block}
+.row .btn{width:auto;margin:0;padding:8px 12px;font-size:15px;min-width:92px}
+.pips{letter-spacing:2px;color:#4fd8ff;font-size:12px}
+.ach{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ach div{background:#00000040;border-radius:8px;padding:6px 8px;font-size:13px;opacity:.45}
+.ach div.on{opacity:1;background:#1f5a4a}
+.ach b{display:block;color:#ffe08a}
+.coll{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:5px}
+.coll div{background:#00000040;border-radius:8px;padding:4px;font-size:11px;text-align:center;min-height:50px}
+.coll i{display:block;width:16px;height:16px;border-radius:4px;margin:0 auto 2px}
+.tabs{display:flex;gap:6px;margin-bottom:8px}.tabs .btn{margin:0;padding:6px;font-size:15px}
+#touch{display:none;position:fixed;inset:0;pointer-events:none;z-index:3}
+body.touch #touch{display:block}
+#touch button{position:absolute;pointer-events:auto;width:64px;height:64px;border-radius:50%;border:3px solid #fff8;background:#0006;color:#fff;font-size:20px;font-weight:700;touch-action:none}
+#touch button:active{background:#4fd8ff99}
+@media (max-width:640px){h1{font-size:32px}}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="touch">
+<button data-k="l" style="left:10px;bottom:84px">&lt;</button>
+<button data-k="r" style="left:140px;bottom:84px">&gt;</button>
+<button data-k="d" style="left:75px;bottom:14px">DIG</button>
+<button data-k="u" style="right:84px;bottom:84px">UP</button>
+<button data-k="e" style="right:10px;bottom:14px">E</button>
+<button data-k="n" style="right:10px;top:64px;width:48px;height:48px;font-size:13px">MAP</button>
+<button data-k="p" style="right:10px;top:10px;width:48px;height:48px;font-size:14px">| |</button>
+</div>
+<div id="ov"></div>
+<script>
+'use strict';
+/* ===== constants ===== */
+const W=60,TS=24,SURF=8,AH=58,GAP=8,PER=AH+GAP,H=SURF+5*PER+AH+4,KEY='sip_asteroid-miner_save';
+const AIR=0,GASV=8,BOULDER=9,BEDROCK=10,DECK=11,CORE=12,ORE0=20;
+const HARD=[0,1.0,0.9,1.5,2.2,3.0,4.2,5,1.6,2.5,1e9,1e9,6];
+const RC=['','#7a6a5c','#7fa6bf','#3d3b48','#6a5aa0','#8a8f9c','#8b3a1f'];
+const HOLL=['','#1b1714','#101a24','#0d0c12','#17122a','#16181f','#2a0e08'];
+const AST=['Iron Rock','Ice Giant','Carbon Rock','Crystal Rock','Rare Metal Rock','The Glowing Core'];
+const STARTS=[0,17,34,50,67,84];
+const NAMES=('Iron Dust,Iron,Nickel,Cobalt Flake,Coal Chunk,Silicate Grit,Magnesium,Aluminum,Copper,Zinc,Tin,Manganese,Chromium,Titanium,Sulfur,Lead,Troilite,'+
+'Water Ice,Frost Crystal,Ammonia Ice,Methane Ice,CO2 Frost,Heavy Water,Hydrogen Slush,Cryo Quartz,Helium Pocket,Neon Ice,Argon Ice,Nitrogen Ice,Ice Pearl,Glacial Opal,Snow Jade,Aurora Ice,Frozen Comet Dust,'+
+'Carbon,Graphite,Tar Rock,Soot Stone,Carbonado,Graphene Flake,Amber Resin,Organic Goo,Jet Black Gem,Fullerene,Carbon Nanotube,Black Diamond,Pitch Pearl,Charcoal Star,Diamond Dust,Lonsdaleite,'+
+'Quartz,Amethyst,Citrine,Topaz,Rose Quartz,Garnet,Peridot,Aquamarine,Tourmaline,Zircon,Opal,Sapphire,Ruby,Emerald,Alien Crystal,Prism Shard,Star Quartz,'+
+'Silver,Gold,Platinum,Palladium,Iridium,Osmium,Rhodium,Ruthenium,Rhenium,Tungsten,Tantalum,Neodymium,Yttrium,Lanthanum,Europium,Scandium,Meteorite Glass,'+
+'Pallasite,Moonstone,Stellar Glass,Plasma Stone,Neutron Flake,Quark Gem,Antimatter Dust,Dark Matter Shard,Void Crystal,Solar Gem,Nova Ember,Core Pearl,Singularity Seed,Starheart,Cosmic Opal,Heart of the Core').split(',');
+const NORE=NAMES.length; // 100
+const HUE0=[20,190,270,0,45,300],HUES=[[28,.3,.55],[85,.7,.7],[18,.15,.45],[26,.8,.62],[10,.6,.7],[34,.9,.6]];
+const ORES=NAMES.map((n,i)=>{let a=0;for(let k=0;k<6;k++)if(i>=STARTS[k])a=k;const j=i-STARTS[a],cnt=(STARTS[a+1]||100)-STARTS[a];
+ const hue=(HUE0[a]+(a===3?j*21:j*(a===5?9:a===4?6:5)))%360;const sat=a===0?45:a===2?25:80;const lit=a===2?(38+j*2):a===1?(62+j%4*4):58;
+ return{n,a,v:Math.round(3*Math.pow(1.065,i)),h:.6+i*.04,c:'hsl('+hue+','+sat+'%,'+lit+'%)',r:i<30?'Common':i<55?'Uncommon':i<75?'Rare':i<90?'Epic':'Legendary'}});
+const UPS=[['Drill','Faster mining',80],['Tank','More fuel and oxygen',60],['Cargo','Carry more ore',70],['Hull','More health, less heat damage',90],['Lamp','See further in the dark',50],['Jetpack','Stronger thrust, faster',100],['Scanner','Spot ore through rock',120]];
+const BLD=[{k:'market',n:'Sell Market',x:11,c:'#d9a030'},{k:'dock',n:'Fuel Dock',x:17,c:'#d8503a'},{k:'repair',n:'Repair Bay',x:23,c:'#3ac27a'},{k:'lab',n:'Upgrade Lab',x:29,c:'#6a7bff'},{k:'trophy',n:'Trophy Wall',x:35,c:'#c05cff'}];
+const BW=5,DECK0=9,DECK1=45,MAXLV=8,FUELPRICE=10;
+const ACH=[
+['First Dig','Mine your first block',s=>s.st.blocks>=1],['Digger','Mine 100 blocks',s=>s.st.blocks>=100],['Tunneler','Mine 1000 blocks',s=>s.st.blocks>=1000],['Rock Crusher','Mine 5000 blocks',s=>s.st.blocks>=5000],
+['First Sale','Sell something at the market',s=>s.st.sales>=1],['Pocket Money','Earn $1,000 total',s=>s.st.earned>=1e3],['Rich Miner','Earn $10,000 total',s=>s.st.earned>=1e4],['Space Tycoon','Earn $100,000 total',s=>s.st.earned>=1e5],
+['Collector','Find 10 different materials',s=>cnt()>=10],['Curator','Find 25 different materials',s=>cnt()>=25],['Hoarder','Find 50 different materials',s=>cnt()>=50],['Master Collector','Find all 100 materials',s=>cnt()>=100],
+['Frosty','Reach the Ice Giant',s=>s.st.maxAst>=1],['Black Rock','Reach the Carbon Rock',s=>s.st.maxAst>=2],['Shiny','Reach the Crystal Rock',s=>s.st.maxAst>=3],['Rare Finds','Reach the Rare Metal Rock',s=>s.st.maxAst>=4],['Hot Stuff','Reach the Glowing Core asteroid',s=>s.st.maxAst>=5],
+['Core Hero','Reach the core and finish the game',s=>s.ended],
+['Upgrader','Buy your first upgrade',s=>S.up.reduce((a,b)=>a+b,0)>=1],['Tinkerer','Buy 10 upgrades',s=>S.up.reduce((a,b)=>a+b,0)>=10],['Maxed Out','Fully upgrade one thing',s=>S.up.some(l=>l>=MAXLV)],
+['Oops','Get rescued once',s=>s.st.deaths>=1],['Bug Buddy','Pet 5 crystal bugs',s=>s.st.pets>=5],['Storm Chaser','Survive a debris storm',s=>s.st.storms>=1],
+['Big Haul','Fill your cargo hold',s=>s.st.full>=1],['Treasure','Mine an Epic or Legendary material',s=>s.st.rare>=1],['Fuel Saver','Use 10 fuel in total',s=>s.st.fuelUsed>=10],['Gassed','Run into a gas vent',s=>s.st.gas>=1]];
+
+/* ===== state ===== */
+let S=null,grid=new Uint8Array(W*H),inside=new Uint8Array(W*H),base=new Uint8Array(W*H);
+const cnt=()=>S.coll.reduce((a,b)=>a+(b>0?1:0),0);
+function newState(){return{v:1,seed:(Math.random()*1e9)|0,money:0,fuel:5,hp:100,o2:90,cargo:new Array(NORE).fill(0),coll:new Array(NORE).fill(0),up:[0,0,0,0,0,0,0],ach:{},
+ st:{blocks:0,ores:0,earned:0,sales:0,deaths:0,pets:0,storms:0,maxAst:0,full:0,rare:0,fuelUsed:0,gas:0,time:0},ended:false,mute:false,x:0,y:0}}
+const rng=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+const power=()=>1+.7*S.up[0],fuelCap=()=>5+3*S.up[1],o2Cap=()=>90+30*S.up[1],cargoCap=()=>20+15*S.up[2],hpMax=()=>100+25*S.up[3],lightR=()=>3.5+1.2*S.up[4],
+ thrustA=()=>520+90*S.up[5],spdMax=()=>100+9*S.up[5],scanR=()=>S.up[6]>0?3+2*S.up[6]:0,cargoN=()=>S.cargo.reduce((a,b)=>a+b,0);
+const upCost=i=>Math.round(UPS[i][2]*Math.pow(1.7,S.up[i]));
+const hardOf=t=>t>=ORE0?ORES[t-ORE0].h+(t-ORE0>=84?1.5:0):HARD[t];
+const astOf=y=>Math.max(0,Math.min(5,Math.floor((y-SURF)/PER)));
+const idx=(x,y)=>y*W+x;
+let cavesList=[];
+function gen(seed){
+ const r=rng(seed);grid.fill(0);inside.fill(0);cavesList=[];
+ for(let k=0;k<6;k++){const t0=SURF+k*PER;
+  for(let x=0;x<W;x++){let t=t0+Math.round(Math.sin(x*.5+k*3)*1.2+Math.sin(x*.17+k)*1.6),b=t0+AH+Math.round(Math.sin(x*.4+k*2)*2+Math.sin(x*.13+k*5)*2.5);
+   if(k===0&&x>=DECK0&&x<=DECK1)t=SURF;if(k===5)b=H;
+   for(let y=Math.max(t,0);y<b&&y<H;y++){grid[idx(x,y)]=k+1;inside[idx(x,y)]=1}}}
+ for(let k=0;k<6;k++){const t0=SURF+k*PER;
+  for(let c=0;c<16;c++){const cx=4+r()*(W-8),cy=t0+8+r()*(AH-16),rx=2+r()*3,ry=1.5+r()*2;if(k===5&&cy>H-20)continue;
+   for(let y=Math.floor(cy-ry);y<=cy+ry;y++)for(let x=Math.floor(cx-rx);x<=cx+rx;x++){if(x<1||x>=W-1||y<0||y>=H-4)continue;const d=((x-cx)/rx)**2+((y-cy)/ry)**2;if(d<=1&&grid[idx(x,y)]>=1&&grid[idx(x,y)]<=6)grid[idx(x,y)]=0}
+   cavesList.push({cx:Math.round(cx),cy:Math.round(cy),k})}
+  for(let y=t0+4;y<t0+AH-2;y++)for(let x=1;x<W-1;x++){const g=grid[idx(x,y)];if(g>=1&&g<=6){const q=r();if(q<.02)grid[idx(x,y)]=BOULDER;else if(k>=1&&q<.032)grid[idx(x,y)]=GASV}}}
+ // ore veins
+ const vein=(i,a)=>{const t0=SURF+a*PER;let placed=0;for(let tr=0;tr<300&&placed<3;tr++){let x=2+Math.floor(r()*(W-4)),y=t0+4+Math.floor(r()*(AH-9));const n=3+Math.floor(r()*5);
+   for(let s=0;s<n;s++){if(x>0&&x<W-1&&y>0&&y<H-4){const g=grid[idx(x,y)];if(g>=1&&g<=6){grid[idx(x,y)]=ORE0+i;placed++}}
+    const d=Math.floor(r()*4);x+=d===0?1:d===1?-1:0;y+=d===2?1:d===3?-1:0}}};
+ for(let i=0;i<NORE;i++){const a=ORES[i].a;const nv=Math.max(2,Math.round(8-i*.06));for(let v=0;v<nv;v++)vein(i,a);if(i%3===0&&a<5){vein(i,a+1);vein(i,a+1)}}
+ // core
+ for(let y=H-4;y<H;y++)for(let x=0;x<W;x++){grid[idx(x,y)]=BEDROCK;inside[idx(x,y)]=1}
+ for(let y=0;y<H;y++){if(grid[idx(0,y)])grid[idx(0,y)]=BEDROCK;if(grid[idx(W-1,y)])grid[idx(W-1,y)]=BEDROCK}
+ const cx=W>>1;for(let y=H-9;y<=H-7;y++)for(let x=cx-1;x<=cx+1;x++)grid[idx(x,y)]=CORE;
+ for(let x=DECK0;x<=DECK1;x++)grid[idx(x,SURF)]=DECK;
+ base.set(grid);
+}
+/* ===== game objects ===== */
+const P={x:0,y:0,vx:0,vy:0,w:14,h:20,face:1,ground:false,thrust:false,flame:0,usedThrust:false,lt:null,inv:0};
+let bugs=[],fallers=[],meteors=[],gases=[],parts=[],texts=[],toasts=[];
+let mine={tx:-1,ty:-1,p:0,snd:0};
+let cam={x:0,y:0},storm={next:110,warn:0,act:0},hurtT=0,msg='',saveT=0,chkT=0,time=0;
+const keys={l:0,r:0,u:0,d:0};
+let showMap=true;try{showMap=localStorage.getItem('sip_asteroid-miner_map')!=='0'}catch(e){}
+let ov=null,paused=false,started=false,hudBtns=[],eHit=false;
+const cv=document.getElementById('c'),ctx=cv.getContext('2d'),OV=document.getElementById('ov');
+let VW=800,VH=600,Z=1;
+function resize(){const d=Math.min(window.devicePixelRatio||1,2);VW=innerWidth;VH=innerHeight;cv.width=VW*d;cv.height=VH*d;Z=Math.max(.6,Math.min(1.7,Math.min(VW/(24*TS),VH/(16*TS))));ctx.setTransform(d,0,0,d,0,0)}
+addEventListener('resize',resize);
+const inStation=()=>{const tx=Math.floor((P.x+P.w/2)/TS),ty=Math.floor((P.y+P.h/2)/TS);return tx>=8&&tx<=46&&ty<SURF};
+function solidAt(tx,ty){if(tx<0||tx>=W)return true;if(ty<0)return false;if(ty>=H)return true;return grid[idx(tx,ty)]!==0}
+function boxHit(x,y){const x0=Math.floor(x/TS),x1=Math.floor((x+P.w-.01)/TS),y0=Math.floor(y/TS),y1=Math.floor((y+P.h-.01)/TS);for(let ty=y0;ty<=y1;ty++)for(let tx=x0;tx<=x1;tx++)if(solidAt(tx,ty))return[tx,ty];return null}
+function toast(t,c){toasts.push({t,c:c||'#fff',l:3.2});if(toasts.length>4)toasts.shift()}
+function spawn(x,y,n,c,sp,life){for(let i=0;i<n&&parts.length<500;i++){const a=Math.random()*6.28,s=Math.random()*(sp||60);parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-10,l:(life||.6)*(.5+Math.random()),c,s:2+Math.random()*2})}}
+function ftext(x,y,t,c){texts.push({x,y,t,c,l:1.4})}
+/* ===== audio ===== */
+let AC=null,master=null,nbuf=null;
+function audioInit(){if(AC){if(AC.state==='suspended')AC.resume();return}
+ try{AC=new(window.AudioContext||window.webkitAudioContext)();master=AC.createGain();master.gain.value=S&&S.mute?0:.5;master.connect(AC.destination);
+  const f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=220;const g=AC.createGain();g.gain.value=.045;f.connect(g);g.connect(master);
+  [55,55.8,82.4].forEach(fr=>{const o=AC.createOscillator();o.type='sawtooth';o.frequency.value=fr;o.connect(f);o.start()});
+  const l=AC.createOscillator();l.frequency.value=.12;const lg=AC.createGain();lg.gain.value=70;l.connect(lg);lg.connect(f.frequency);l.start();
+  nbuf=AC.createBuffer(1,AC.sampleRate*.5,AC.sampleRate);const d=nbuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1}catch(e){AC=null}}
+function tone(f,d,type,v,to){if(!AC)return;try{const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;o.type=type||'square';o.frequency.setValueAtTime(f,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+d);g.gain.setValueAtTime(v||.1,t);g.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(g);g.connect(master);o.start(t);o.stop(t+d+.02)}catch(e){}}
+function noise(d,v,fq){if(!AC||!nbuf)return;try{const s=AC.createBufferSource(),g=AC.createGain(),f=AC.createBiquadFilter(),t=AC.currentTime;s.buffer=nbuf;f.type='lowpass';f.frequency.value=fq||900;g.gain.setValueAtTime(v||.15,t);g.gain.exponentialRampToValueAtTime(.001,t+d);s.connect(f);f.connect(g);g.connect(master);s.start(t);s.stop(t+d)}catch(e){}}
+const sfx={tick:()=>tone(160+Math.random()*60,.05,'square',.04),brk:()=>noise(.18,.18,700),pick:()=>{tone(660,.08,'triangle',.1);setTimeout(()=>tone(990,.1,'triangle',.1),60)},
+ sell:()=>{tone(520,.1,'triangle',.12);setTimeout(()=>tone(780,.12,'triangle',.12),90);setTimeout(()=>tone(1040,.18,'triangle',.12),180)},hurt:()=>{tone(150,.2,'sawtooth',.14,60)},
+ ach:()=>{[523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,.15,'triangle',.12),i*90))},jet:()=>noise(.08,.03,1500),warn:()=>{tone(440,.2,'square',.08);setTimeout(()=>tone(330,.25,'square',.08),220)},
+ buy:()=>{tone(400,.08,'square',.08);setTimeout(()=>tone(800,.12,'square',.08),80)},pet:()=>{tone(900,.08,'sine',.1,1300)},boom:()=>noise(.35,.25,300)};
+/* ===== save / load ===== */
+function save(){if(!S)return;try{S.x=P.x;S.y=P.y;const diff=[];for(let i=0;i<W*H;i++)if(grid[i]!==base[i])diff.push(i,grid[i]);
+ localStorage.setItem(KEY,JSON.stringify({...S,diff,t:Date.now()}))}catch(e){}}
+function loadSave(){try{const j=localStorage.getItem(KEY);if(!j)return null;const o=JSON.parse(j);if(!o||o.v!==1||!o.cargo||o.cargo.length!==NORE)return null;return o}catch(e){return null}}
+function hasSave(){return !!loadSave()}
+function startGame(o){const ns=newState();S=Object.assign(ns,o||{});S.st=Object.assign(ns.st,(o&&o.st)||{});S.ach=(o&&o.ach)||{};gen(S.seed);
+ if(o&&o.diff){for(let i=0;i<o.diff.length;i+=2)grid[o.diff[i]]=o.diff[i+1]}
+ delete S.diff;delete S.t;P.vx=P.vy=0;
+ if(o&&typeof o.x==='number'&&o.x>0){P.x=o.x;P.y=o.y}else homePos();
+ if(boxHit(P.x,P.y))homePos();
+ bugs=[];fallers=[];meteors=[];gases=[];parts=[];texts=[];mine={tx:-1,ty:-1,p:0,snd:0};storm={next:100,warn:0,act:0};
+ const r=rng(S.seed^777);cavesList.forEach((c,i)=>{if(i%2)return;let y=c.cy;while(y<H-5&&!solidAt(c.cx,y+1))y++;if(!solidAt(c.cx,y)&&!solidAt(c.cx,y-1)&&y<H-5)bugs.push({x:c.cx*TS+4,y:y*TS+TS-14,vx:(r()<.5?-1:1)*22,ph:r()*6,petted:false,k:c.k})});
+ started=true;ov=null;OV.style.display='none';paused=false;
+ if(S.mute&&master)master.gain.value=0;}
+function homePos(){P.x=28*TS+5;P.y=SURF*TS-P.h-1}
+/* ===== mining ===== */
+function ach(){let any=false;for(let i=0;i<ACH.length;i++){if(!S.ach[i]&&ACH[i][2](S)){S.ach[i]=1;toast('Achievement: '+ACH[i][0],'#ffe08a');sfx.ach();any=true}}if(any)save()}
+function breakTile(tx,ty){const t=grid[idx(tx,ty)];grid[idx(tx,ty)]=AIR;S.fuel=Math.round((S.fuel-.01)*1e4)/1e4;S.st.fuelUsed=Math.round((S.st.fuelUsed+.01)*1e4)/1e4;S.st.blocks++;
+ const px=(tx+.5)*TS,py=(ty+.5)*TS;sfx.brk();
+ if(t>=ORE0){const o=ORES[t-ORE0],i=t-ORE0;S.cargo[i]++;S.coll[i]++;S.st.ores++;if(i>=75)S.st.rare++;if(cargoN()>=cargoCap())S.st.full++;
+  spawn(px,py,12,o.c,90,.7);ftext(px,py-10,'+'+o.n,o.c);sfx.pick();if(S.coll[i]===1)toast('New material: '+o.n+' ('+o.r+')','#9ff')}
+ else{spawn(px,py,6,t<=6?RC[t]:'#999',60,.5)}
+ if(t===GASV){gases.push({x:px,y:py,t:7});S.st.gas++;toast('Gas vent! Move away!','#8f8');sfx.warn()}
+ if(t===CORE&&!S.ended){S.ended=true;endingScreen()}
+ wake(tx,ty);ach()}
+function wake(tx,ty){if(ty>0&&grid[idx(tx,ty-1)]===BOULDER){grid[idx(tx,ty-1)]=AIR;fallers.push({x:tx,y:(ty-1)*TS,vy:0,hit:false});toast('Rocks are falling!','#fc8');sfx.boom();wake(tx,ty-1)}}
+function minerUpdate(dt){
+ let tx=-1,ty=-1;const cx=Math.floor((P.x+P.w/2)/TS),cy=Math.floor((P.y+P.h*.6)/TS),cands=[];
+ if(keys.d)cands.push([cx,Math.floor((P.y+P.h+1)/TS)]);
+ if(keys.l&&boxHit(P.x-1.5,P.y))cands.push([Math.floor((P.x-1.5)/TS),cy]);
+ if(keys.r&&boxHit(P.x+1.5,P.y))cands.push([Math.floor((P.x+P.w+1.5)/TS),cy]);
+ if(keys.u)cands.push([cx,Math.floor((P.y-1.5)/TS)]);
+ for(const c of cands){if(c[0]>=0&&c[0]<W&&c[1]>=0&&c[1]<H&&solidAt(c[0],c[1])&&hardOf(grid[idx(c[0],c[1])])<1e8){tx=c[0];ty=c[1];break}}
+ if(tx<0||tx>=W||ty<0||ty>=H||!solidAt(tx,ty)){mine.tx=-1;mine.p=0;return}
+ const t=grid[idx(tx,ty)];if(hardOf(t)>=1e8){mine.tx=-1;mine.p=0;return}
+ if(S.fuel<.01){if(time-(mine.warn||0)>2){toast('Out of fuel! Visit the Fuel Dock','#f88');mine.warn=time}return}
+ if(t>=ORE0&&cargoN()>=cargoCap()){if(time-(mine.warn||0)>2){toast('Cargo full! Sell at the station','#f88');mine.warn=time}return}
+ if(mine.tx!==tx||mine.ty!==ty){mine.tx=tx;mine.ty=ty;mine.p=0}
+ mine.p+=dt*power();mine.snd-=dt;if(mine.snd<=0){mine.snd=.14;sfx.tick();spawn((tx+.5)*TS,(ty+.5)*TS,2,'#ddd',40,.3)}
+ if(mine.p>=hardOf(t)*.45){mine.p=0;mine.tx=-1;breakTile(tx,ty)}}
+/* ===== hazards ===== */
+function hurt(n,why){if(P.inv>0)return;S.hp-=n;hurtT=.25;sfx.hurt();if(why)msg=why;if(S.hp<=0)die()}
+function die(){S.st.deaths++;S.cargo.fill(0);S.hp=hpMax();S.o2=o2Cap();if(S.fuel<1)S.fuel=1;homePos();P.vx=P.vy=0;gases=[];meteors=[];fallers=[];P.inv=1.5;
+ toast('A rescue drone brought you home. Cargo was lost.','#fc8');save();ach()}
+function hazards(dt){
+ const ins=inStation(),px=P.x+P.w/2,py=P.y+P.h/2;
+ // oxygen
+ if(ins){S.o2=Math.min(o2Cap(),S.o2+o2Cap()/3*dt)}else{S.o2-=dt;if(S.o2<=0){S.o2=0;hurt(0,'');S.hp-=8*dt;hurtT=.1;if(S.hp<=0)die()}}
+ if(S.o2<20&&!ins&&Math.floor(time)%4===0&&Math.floor(time*10)%10===0)sfx.warn();
+ if(P.inv>0)P.inv-=dt;
+ // heat in core asteroid
+ const ty=py/TS,t0=SURF+5*PER;if(ty>t0+10){const d=Math.min(1,(ty-t0)/AH);const dps=(.6+3.6*d*d)/(1+.2*S.up[3]);S.hp-=dps*dt;hurtT=Math.max(hurtT,.03);if(S.hp<=0)die()}
+ // gas
+ for(let i=gases.length-1;i>=0;i--){const g=gases[i];g.t-=dt;if(g.t<=0){gases.splice(i,1);continue}
+  if(Math.random()<dt*14)parts.push({x:g.x+(Math.random()-.5)*TS*3,y:g.y+(Math.random()-.5)*TS*2,vx:0,vy:-14,l:1,c:'#7e8',s:5});
+  if(Math.hypot(px-g.x,py-g.y)<2.2*TS){S.hp-=5*dt;hurtT=Math.max(hurtT,.05);if(S.hp<=0)die()}}
+ // storm
+ if(storm.act>0){storm.act-=dt;if(storm.act<=0){S.st.storms++;toast('The debris storm has passed!','#9ff');storm.next=130+Math.random()*60;ach()}}
+ else if(storm.warn>0){storm.warn-=dt;if(storm.warn<=0){storm.act=24;toast('DEBRIS STORM! Take cover in tunnels!','#f84');sfx.warn()}}
+ else{storm.next-=dt;if(storm.next<=0){storm.warn=5;toast('Warning: debris storm approaching...','#fc8');sfx.warn()}}
+ // meteors
+ spawnM(dt);
+ for(let i=meteors.length-1;i>=0;i--){const m=meteors[i];m.x+=m.vx*dt;m.y+=m.vy*dt;m.l-=dt;
+  const tx=Math.floor(m.x/TS),ty=Math.floor(m.y/TS);let dead=m.l<=0;
+  if(!dead&&m.y>(SURF-5)*TS&&m.y<SURF*TS&&tx>=8&&tx<=46){dead=true;spawn(m.x,m.y,6,'#8ef',50,.4)}
+  else if(!dead&&solidAt(tx,ty)&&ty>=0){dead=true;spawn(m.x,m.y,8,'#fa6',70,.4)}
+  if(!dead&&!ins&&Math.hypot(m.x-px,m.y-py)<14){hurt(m.big?12:8,'A micro-meteor hit you!');dead=true;spawn(m.x,m.y,10,'#fa6',80,.5)}
+  if(dead)meteors.splice(i,1)}
+ // fallers
+ for(let i=fallers.length-1;i>=0;i--){const f=fallers[i];f.vy=Math.min(260,f.vy+300*dt);const ny=f.y+f.vy*dt;const by=Math.floor((ny+TS-.01)/TS);
+  if(!f.hit&&Math.abs((f.x+.5)*TS-px)<TS*.5+P.w/2&&ny+TS>P.y&&ny<P.y+P.h){f.hit=true;hurt(18,'A falling rock hit you!')}
+  if(by>=H||solidAt(f.x,by)){const ly=Math.floor(f.y/TS);if(!solidAt(f.x,ly)){grid[idx(f.x,ly)]=astOf(ly)+1}spawn((f.x+.5)*TS,(ly+.5)*TS,10,'#aaa',80,.5);sfx.boom();fallers.splice(i,1)}else f.y=ny}
+ // bugs
+ for(const b of bugs){b.ph+=dt*4;const tx=Math.floor((b.x+(b.vx>0?14:0))/TS),ty=Math.floor((b.y+6)/TS);
+  if(solidAt(tx,ty)||!solidAt(tx,ty+1))b.vx=-b.vx;b.x+=b.vx*dt}
+ // timers
+ if(hurtT>0)hurtT-=dt;
+}
+function spawnM(dt){const rate=storm.act>0?7:.11;if(Math.random()<rate*dt*(storm.act>0?1:1)){
+  if(storm.act<=0&&Math.random()<.4)return;const big=storm.act>0;const w=VW/Z;
+  meteors.push({x:cam.x+Math.random()*w*1.3-w*.15,y:cam.y-30,vx:big?-60-Math.random()*60:(Math.random()-.5)*60,vy:big?240+Math.random()*100:220,l:6,big})}}
+/* ===== player ===== */
+function playerUpdate(dt){
+ const ins=inStation();
+ // horizontal
+ const dir=(keys.r?1:0)-(keys.l?1:0);if(dir)P.face=dir;
+ const acc=P.ground?900:420,mx=spdMax();
+ if(dir){P.vx+=dir*acc*dt;if(Math.abs(P.vx)>mx)P.vx=Math.sign(P.vx)*mx}else{const f=(P.ground?700:140)*dt;P.vx=Math.abs(P.vx)<=f?0:P.vx-Math.sign(P.vx)*f}
+ // vertical
+ P.vy=Math.min(200,P.vy+300*dt);P.thrust=false;
+ if(keys.u&&(S.fuel>0||ins)){P.vy-=thrustA()*dt;P.thrust=true;P.usedThrust=true;const mu=150+14*S.up[5];if(P.vy<-mu)P.vy=-mu;if(Math.random()<dt*20)spawn(P.x+P.w/2,P.y+P.h,1,'#fb5',30,.3)}
+ P.flame=P.thrust?1:Math.max(0,P.flame-dt*6);
+ // move
+ const mvx=P.vx*dt;P.x+=mvx;let h=boxHit(P.x,P.y);if(h){if(mvx>0)P.x=h[0]*TS-P.w-.001;else P.x=(h[0]+1)*TS+.001;P.vx=0}
+ const mvy=P.vy*dt;P.y+=mvy;h=boxHit(P.x,P.y);P.ground=false;if(h){if(mvy>0){P.y=h[1]*TS-P.h-.001;P.ground=true}else P.y=(h[1]+1)*TS+.001;P.vy=0}
+ if(P.y<-3*TS){P.y=-3*TS;P.vy=0}
+ // fuel for flying: 0.02 per tile crossed while thrusting
+ const ct=Math.floor((P.x+P.w/2)/TS)+','+Math.floor((P.y+P.h/2)/TS);
+ if(P.lt!==null&&ct!==P.lt&&P.usedThrust&&!ins){S.fuel=Math.max(0,Math.round((S.fuel-.02)*1e4)/1e4);S.st.fuelUsed=Math.round((S.st.fuelUsed+.02)*1e4)/1e4;if(S.fuel<=0&&time-(mine.warn||0)>2){toast('Out of fuel!','#f88');mine.warn=time}}
+ if(P.lt!==null&&ct!==P.lt)P.usedThrust=P.thrust;
+ P.lt=ct;
+ if(P.ground&&!P.thrust)P.usedThrust=false;
+ // progress
+ const k=astOf(Math.floor((P.y+P.h/2)/TS));const into=(P.y/TS-(SURF+k*PER));if(P.y/TS>SURF+3&&into>=2&&k>S.st.maxAst){S.st.maxAst=k;toast('Entered: '+AST[k],'#9ff');ach()}
+}
+/* ===== main step ===== */
+function step(dt){
+ if(!started||ov||paused||!S)return;dt=Math.min(dt,.05);time+=dt;S.st.time+=dt;
+ playerUpdate(dt);minerUpdate(dt);hazards(dt);
+ for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=60*dt;p.l-=dt;if(p.l<=0)parts.splice(i,1)}
+ for(let i=texts.length-1;i>=0;i--){const t=texts[i];t.y-=24*dt;t.l-=dt;if(t.l<=0)texts.splice(i,1)}
+ for(let i=toasts.length-1;i>=0;i--){toasts[i].l-=dt;if(toasts[i].l<=0)toasts.splice(i,1)}
+ const tx=P.x+P.w/2-VW/Z/2,ty=P.y+P.h/2-VH/Z/2;cam.x+=(tx-cam.x)*Math.min(1,dt*8);cam.y+=(ty-cam.y)*Math.min(1,dt*8);
+ cam.x=Math.max(-40,Math.min(W*TS-VW/Z+40,cam.x));cam.y=Math.max(-8*TS,Math.min(H*TS-VH/Z+40,cam.y));
+ saveT+=dt;if(saveT>10){saveT=0;save()}chkT+=dt;if(chkT>1){chkT=0;ach()}
+ if(eHit){eHit=false;interact()}
+}
+function nearBuilding(){if(!inStation())return null;const tx=Math.floor((P.x+P.w/2)/TS);for(const b of BLD)if(tx>=b.x&&tx<b.x+BW)return b;return null}
+function interact(){const b=nearBuilding();if(b){openBuilding(b.k);return}
+ const px=P.x+P.w/2,py=P.y+P.h/2;for(const g of bugs)if(!g.petted&&Math.hypot(g.x+7-px,g.y+7-py)<40){g.petted=true;S.st.pets++;const m=5+Math.floor(Math.random()*10);S.money+=m;S.st.earned+=m;spawn(g.x+7,g.y,8,'#f9c',50,.8);ftext(g.x,g.y-8,'+$'+m+' thanks!','#f9c');sfx.pet();ach();return}}
+/* ===== rendering ===== */
+const stars=[];for(let l=0;l<3;l++)for(let i=0;i<70;i++)stars.push({x:Math.random(),y:Math.random(),l,t:Math.random()*6});
+function hsh(x,y){let h=(x*374761393+y*668265263)>>>0;h=((h^(h>>>13))*1274126177)>>>0;return h^(h>>>16)}
+function shade(c,a){return c} // placeholder
+function drawTile(x,y,t,sx,sy){
+ const h=(hsh(x,y)>>>0),k=astOf(y);
+ if(t>=ORE0||t<=6||t===GASV||t===BOULDER){const bt=t>=1&&t<=6?t:k+1;ctx.fillStyle=RC[bt];ctx.fillRect(sx,sy,TS,TS);
+  ctx.fillStyle='rgba(0,0,0,'+((h&7)*.025)+')';ctx.fillRect(sx,sy,TS,TS);
+  ctx.fillStyle='rgba(255,255,255,.05)';ctx.fillRect(sx+(h>>3&15),sy+(h>>7&15),5,4);
+  if(t>=ORE0){const o=ORES[t-ORE0];ctx.fillStyle=o.c;for(let i=0;i<6;i++){const q=hsh(x+i*7,y-i*3);ctx.fillRect(sx+3+(q&15),sy+3+(q>>4&15),4+(q>>8&1)*2,4)}
+   ctx.fillStyle='rgba(255,255,255,.7)';ctx.fillRect(sx+4+(h&7),sy+4+(h>>3&7),2,2)}
+  else if(t===GASV){ctx.fillStyle='#6c8';for(let i=0;i<4;i++){const q=hsh(x+i,y+i*5);ctx.fillRect(sx+4+(q&15),sy+4+(q>>4&15),3,3)}ctx.fillStyle='rgba(120,255,160,.25)';ctx.fillRect(sx,sy,TS,TS)}
+  else if(t===BOULDER){ctx.fillStyle='#9a958c';ctx.beginPath();ctx.arc(sx+TS/2,sy+TS/2,TS/2-2,0,6.3);ctx.fill();ctx.fillStyle='#b9b4aa';ctx.beginPath();ctx.arc(sx+TS/2-3,sy+TS/2-3,TS/5,0,6.3);ctx.fill()}
+  if(y>0&&!grid[idx(x,y-1)]){ctx.fillStyle='rgba(255,255,255,.18)';ctx.fillRect(sx,sy,TS,2)}}
+ else if(t===DECK){ctx.fillStyle='#59627a';ctx.fillRect(sx,sy,TS,TS);ctx.fillStyle='#7d89a8';ctx.fillRect(sx,sy,TS,4);ctx.fillStyle='#3a4258';ctx.fillRect(sx+2,sy+10,TS-4,2);ctx.fillRect(sx+2,sy+18,TS-4,2)}
+ else if(t===BEDROCK){ctx.fillStyle='#14131a';ctx.fillRect(sx,sy,TS,TS);ctx.fillStyle='#1d1c26';ctx.fillRect(sx+(h&15),sy+(h>>4&15),6,5)}
+ else if(t===CORE){const p=.6+.4*Math.sin(time*4+x);ctx.fillStyle='rgb('+(255)+','+(150+p*90|0)+',60)';ctx.fillRect(sx,sy,TS,TS);ctx.fillStyle='rgba(255,255,200,'+p+')';ctx.fillRect(sx+5,sy+5,TS-10,TS-10)}
+}
+function draw(){
+ const w=VW,h=VH;ctx.setTransform(1,0,0,1,0,0);const d=Math.min(window.devicePixelRatio||1,2);ctx.setTransform(d,0,0,d,0,0);
+ const gr=ctx.createLinearGradient(0,0,0,h);const depth=Math.max(0,Math.min(1,cam.y/(H*TS)));gr.addColorStop(0,'rgb('+(8+depth*30|0)+',10,'+(28-depth*8|0)+')');gr.addColorStop(1,'rgb('+(4+depth*50|0)+',4,'+(14)+')');ctx.fillStyle=gr;ctx.fillRect(0,0,w,h);
+ // distant planet
+ if(S){const px=w*.78-cam.x*.03,py=h*.25-cam.y*.03+60;ctx.fillStyle='#3a2f6a';ctx.beginPath();ctx.arc(px,py,70,0,6.3);ctx.fill();ctx.fillStyle='#4f3f8a';ctx.beginPath();ctx.arc(px-14,py-14,48,0,6.3);ctx.fill();ctx.strokeStyle='rgba(180,160,255,.5)';ctx.lineWidth=4;ctx.beginPath();ctx.ellipse(px,py,115,22,-.3,0,6.3);ctx.stroke()}
+ const sp=[.08,.18,.32];for(const s of stars){const f=sp[s.l];let x=((s.x*w*1.4-cam.x*f*Z)%(w*1.4)+w*1.4)%(w*1.4),y=((s.y*h*1.4-cam.y*f*Z)%(h*1.4)+h*1.4)%(h*1.4);
+  ctx.fillStyle='rgba(255,255,255,'+(.4+.4*Math.sin(time*2+s.t))+')';ctx.fillRect(x,y,s.l+1,s.l+1)}
+ if(!S)return;
+ ctx.save();ctx.scale(Z,Z);ctx.translate(-Math.round(cam.x),-Math.round(cam.y));
+ const x0=Math.max(0,Math.floor(cam.x/TS)),x1=Math.min(W-1,Math.floor((cam.x+w/Z)/TS)),y0=Math.max(0,Math.floor(cam.y/TS)),y1=Math.min(H-1,Math.floor((cam.y+h/Z)/TS));
+ for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const t=grid[idx(x,y)];if(t)drawTile(x,y,t,x*TS,y*TS);else if(inside[idx(x,y)]){ctx.fillStyle=HOLL[astOf(y)+1];ctx.fillRect(x*TS,y*TS,TS,TS)}}
+ drawStation();
+ // mining crack
+ if(mine.tx>=0){const t=grid[idx(mine.tx,mine.ty)];const f=Math.min(1,mine.p/(hardOf(t)*.45));ctx.strokeStyle='rgba(255,255,255,.8)';ctx.lineWidth=2;ctx.strokeRect(mine.tx*TS+1,mine.ty*TS+1,TS-2,TS-2);ctx.fillStyle='rgba(255,255,255,'+f*.35+')';ctx.fillRect(mine.tx*TS,mine.ty*TS,TS,TS)}
+ for(const g of gases){const a=Math.min(1,g.t/3);const gg=ctx.createRadialGradient(g.x,g.y,4,g.x,g.y,2.4*TS);gg.addColorStop(0,'rgba(120,255,140,'+.45*a+')');gg.addColorStop(1,'rgba(120,255,140,0)');ctx.fillStyle=gg;ctx.fillRect(g.x-3*TS,g.y-3*TS,6*TS,6*TS)}
+ for(const f of fallers){ctx.fillStyle='#9a958c';ctx.beginPath();ctx.arc((f.x+.5)*TS,f.y+TS/2,TS/2-2,0,6.3);ctx.fill()}
+ for(const b of bugs){if(b.x<cam.x-40||b.x>cam.x+w/Z+40)continue;drawBug(b)}
+ // darkness pass
+ const R=lightR(),px=(P.x+P.w/2)/TS,py=(P.y+P.h/2)/TS;
+ for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){if(!inside[idx(x,y)])continue;let a;if(y<SURF+2){a=0}else{const dd=Math.hypot(x+.5-px,y+.5-py);a=Math.max(0,Math.min(.93,(dd-R*.45)/(R*.9)))}
+  if(a>.01){ctx.fillStyle='rgba(2,3,10,'+a+')';ctx.fillRect(x*TS,y*TS,TS,TS)}}
+ // scanner
+ const sr=scanR();if(sr>0){for(let y=Math.max(y0,Math.floor(py-sr));y<=Math.min(y1,Math.ceil(py+sr));y++)for(let x=Math.max(x0,Math.floor(px-sr));x<=Math.min(x1,Math.ceil(px+sr));x++){const t=grid[idx(x,y)];if(t>=ORE0&&Math.hypot(x+.5-px,y+.5-py)<=sr){const o=ORES[t-ORE0];ctx.strokeStyle=o.c;ctx.globalAlpha=.5+.5*Math.sin(time*5);ctx.lineWidth=2;ctx.strokeRect(x*TS+3,y*TS+3,TS-6,TS-6);ctx.globalAlpha=1;ctx.fillStyle=o.c;ctx.fillRect(x*TS+8,y*TS+8,8,8)}}}
+ for(const m of meteors){ctx.fillStyle=m.big?'#ffb060':'#ffd890';ctx.beginPath();ctx.arc(m.x,m.y,m.big?5:4,0,6.3);ctx.fill();ctx.strokeStyle='rgba(255,160,80,.5)';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(m.x,m.y);ctx.lineTo(m.x-m.vx*.06,m.y-m.vy*.06);ctx.stroke()}
+ drawPlayer();
+ for(const p of parts){ctx.globalAlpha=Math.max(0,Math.min(1,p.l*2));ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,p.s,p.s)}ctx.globalAlpha=1;
+ ctx.font='bold 12px system-ui';ctx.textAlign='center';for(const t of texts){ctx.globalAlpha=Math.min(1,t.l);ctx.fillStyle=t.c;ctx.fillText(t.t,t.x,t.y)}ctx.globalAlpha=1;
+ ctx.restore();
+ // storm tint
+ if(storm.act>0){ctx.fillStyle='rgba(255,120,40,'+(.08+.05*Math.sin(time*6))+')';ctx.fillRect(0,0,w,h)}
+ if(hurtT>0){ctx.fillStyle='rgba(255,0,0,'+Math.min(.4,hurtT*1.6)+')';ctx.fillRect(0,0,w,h)}
+ drawHUD();
+}
+function drawStation(){
+ const fy=SURF*TS;
+ // solar panel & antenna
+ for(const b of BLD){const bx=b.x*TS,by=fy-4*TS;ctx.fillStyle='#2b3350';ctx.fillRect(bx,by,BW*TS,4*TS);ctx.fillStyle=b.c;ctx.fillRect(bx,by,BW*TS,10);
+  ctx.beginPath();ctx.arc(bx+BW*TS/2,by,BW*TS/2-6,Math.PI,0);ctx.fillStyle=b.c;ctx.globalAlpha=.55;ctx.fill();ctx.globalAlpha=1;
+  ctx.fillStyle='#ffe9a0';for(let i=0;i<3;i++)ctx.fillRect(bx+10+i*34,by+24,20,14);ctx.fillStyle='#10152a';ctx.fillRect(bx+BW*TS/2-10,fy-30,20,30);
+  ctx.fillStyle='#fff';ctx.font='bold 12px system-ui';ctx.textAlign='center';ctx.fillText(b.n,bx+BW*TS/2,by-8)}
+ ctx.fillStyle='#8892b0';ctx.fillRect(DECK0*TS-6,fy-3*TS,6,3*TS);ctx.fillRect((DECK1+1)*TS,fy-3*TS,6,3*TS);ctx.fillStyle='#f55';ctx.fillRect(DECK0*TS-8,fy-3*TS-6,10,6);ctx.fillRect((DECK1+1)*TS-2,fy-3*TS-6,10,6);
+ const nb=nearBuilding();if(nb){ctx.fillStyle='#fff';ctx.font='bold 14px system-ui';ctx.textAlign='center';ctx.fillText('Press E: '+nb.n,P.x+P.w/2,P.y-12)}
+ else if(!ov){for(const g of bugs)if(!g.petted&&Math.hypot(g.x+7-P.x-7,g.y+7-P.y-10)<40){ctx.fillStyle='#fff';ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.fillText('E: pet the bug',g.x+7,g.y-10)}}
+}
+function drawBug(b){const x=b.x,y=b.y+Math.sin(b.ph)*1.5;ctx.fillStyle=b.petted?'#ff9ad8':'#7ae8ff';ctx.beginPath();ctx.moveTo(x+7,y-2);ctx.lineTo(x+15,y+7);ctx.lineTo(x+7,y+16);ctx.lineTo(x-1,y+7);ctx.closePath();ctx.fill();
+ ctx.fillStyle='rgba(255,255,255,.6)';ctx.fillRect(x+4,y+2,3,5);ctx.fillStyle='#fff';ctx.fillRect(x+3,y+6,4,4);ctx.fillRect(x+8,y+6,4,4);ctx.fillStyle='#124';ctx.fillRect(x+4+(b.vx>0?1:0),y+8,2,2);ctx.fillRect(x+9+(b.vx>0?1:0),y+8,2,2);
+ ctx.fillStyle='#4ac';const l=Math.sin(b.ph*2)*2;ctx.fillRect(x+1,y+15,3,2+l);ctx.fillRect(x+10,y+15,3,2-l)}
+function drawPlayer(){const x=P.x,y=P.y,f=P.face;if(P.inv>0&&Math.floor(time*12)%2)return;
+ if(P.flame>0){ctx.fillStyle='rgba(255,170,60,.9)';ctx.beginPath();ctx.moveTo(x+P.w/2-f*7-3,y+P.h-4);ctx.lineTo(x+P.w/2-f*7+3,y+P.h-4);ctx.lineTo(x+P.w/2-f*7,y+P.h+6+Math.random()*7);ctx.fill()}
+ ctx.fillStyle='#b9c2d8';ctx.fillRect(x+P.w/2-f*8-3,y+7,6,10);
+ ctx.fillStyle='#f0f3fa';ctx.fillRect(x+2,y+8,P.w-4,P.h-9);ctx.fillStyle='#e8663c';ctx.fillRect(x+2,y+13,P.w-4,3);
+ ctx.fillStyle='#f0f3fa';ctx.beginPath();ctx.arc(x+P.w/2,y+6,7,0,6.3);ctx.fill();ctx.fillStyle='#3a8ad8';ctx.fillRect(x+P.w/2+(f>0?0:-6),y+2,6,7);ctx.fillStyle='#9fe';ctx.fillRect(x+P.w/2+(f>0?1:-5),y+3,2,2);
+ ctx.fillStyle='#5a6075';ctx.fillRect(x+2,y+P.h-3,5,3);ctx.fillRect(x+P.w-7,y+P.h-3,5,3);
+ if(mine.tx>=0){ctx.fillStyle='#ffe066';const ax=(mine.tx+.5)*TS,ay=(mine.ty+.5)*TS;ctx.strokeStyle='#ffe066';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x+P.w/2,y+11);ctx.lineTo(x+P.w/2+(ax-x-P.w/2)*.7,y+11+(ay-y-11)*.7);ctx.stroke()}}
+function bar(x,y,w,h,f,c,label){ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(x,y,w,h);ctx.fillStyle=c;ctx.fillRect(x+2,y+2,Math.max(0,(w-4)*Math.max(0,Math.min(1,f))),h-4);ctx.fillStyle='#fff';ctx.font='bold 11px system-ui';ctx.textAlign='left';ctx.fillText(label,x+6,y+h-5)}
+function hbtn(x,y,w,h,label,fn){ctx.fillStyle='rgba(20,30,70,.8)';ctx.fillRect(x,y,w,h);ctx.strokeStyle='#4fd8ff';ctx.lineWidth=1;ctx.strokeRect(x+.5,y+.5,w-1,h-1);ctx.fillStyle='#fff';ctx.font='bold 12px system-ui';ctx.textAlign='center';ctx.fillText(label,x+w/2,y+h-7);hudBtns.push({x,y,w,h,fn})}
+function drawHUD(){
+ hudBtns=[];const bw=Math.min(170,VW*.4);
+ bar(8,8,bw,17,S.hp/hpMax(),'#e85a5a','Hull '+Math.ceil(S.hp)+'/'+hpMax());
+ bar(8,28,bw,17,S.fuel/fuelCap(),'#f0b030','Fuel '+S.fuel.toFixed(2)+'/'+fuelCap());
+ bar(8,48,bw,17,S.o2/o2Cap(),'#4fc8ff','Oxygen '+Math.ceil(S.o2)+'s');
+ bar(8,68,bw,17,cargoN()/cargoCap(),'#8fd86a','Cargo '+cargoN()+'/'+cargoCap());
+ ctx.fillStyle='#ffe08a';ctx.font='bold 16px system-ui';ctx.textAlign='left';ctx.fillText('$'+S.money.toLocaleString(),10,104);
+ const k=astOf(Math.floor((P.y+P.h/2)/TS)),op=(P.y/TS<SURF+1);ctx.fillStyle='#cfe';ctx.font='12px system-ui';
+ ctx.fillText(op?'Space Station':((P.y/TS-SURF)%PER>AH+3?'Open space':'Asteroid '+(k+1)+': '+AST[k]),10,122);
+ const ty=(P.y+P.h/2)/TS;if(ty>SURF+5*PER+10){const d=Math.min(1,(ty-SURF-5*PER)/AH);ctx.fillStyle='rgb(255,'+(200-d*150|0)+',60)';ctx.fillText('HEAT '+Math.round(d*100)+'%',10,138)}
+ // minimap
+ if(showMap){const mh=Math.min(200,VH*.4),mx=VW-18,my=60;ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(mx,my,10,mh);for(let i=0;i<6;i++){ctx.fillStyle=RC[i+1];ctx.fillRect(mx+1,my+mh*(SURF+i*PER)/H,8,mh*AH/H)}
+ ctx.fillStyle='#ff4';ctx.fillRect(mx-3,my+mh*Math.max(0,Math.min(1,ty/H))-2,16,4);ctx.fillStyle='#f84';ctx.fillRect(mx,my+mh*.98,10,3)}
+ // buttons
+ const bx=VW-280;hbtn(bx,8,64,24,paused?'Resume':'Pause',()=>togglePause());hbtn(bx+68,8,64,24,S.mute?'Unmute':'Mute',()=>toggleMute());hbtn(bx+136,8,64,24,showMap?'Map: on':'Map: off',()=>toggleMap());hbtn(bx+204,8,64,24,'Menu',()=>openPause());
+ if(storm.warn>0||storm.act>0){ctx.fillStyle='#ff8a40';ctx.font='bold 18px system-ui';ctx.textAlign='center';ctx.fillText(storm.act>0?'DEBRIS STORM  '+Math.ceil(storm.act)+'s':'Storm incoming in '+Math.ceil(storm.warn)+'s',VW/2,56)}
+ ctx.font='bold 14px system-ui';ctx.textAlign='center';let ty2=VH-30-toasts.length*0;toasts.forEach((t,i)=>{ctx.globalAlpha=Math.min(1,t.l);ctx.fillStyle='rgba(0,0,0,.55)';const tw=ctx.measureText(t.t).width+16;ctx.fillRect(VW/2-tw/2,VH-34-i*24-(toasts.length-1)*0,tw,20);ctx.fillStyle=t.c;ctx.fillText(t.t,VW/2,VH-19-i*24);ctx.globalAlpha=1});
+ if(S.o2<20&&!inStation()){ctx.fillStyle='#f66';ctx.font='bold 18px system-ui';ctx.textAlign='center';ctx.fillText('LOW OXYGEN - fly home!',VW/2,80)}
+ if(S.fuel<.3){ctx.fillStyle='#fb4';ctx.font='bold 14px system-ui';ctx.textAlign='center';ctx.fillText('Low fuel',VW/2,100)}
+}
+/* ===== overlays ===== */
+const $o=h=>{OV.innerHTML='<div class="card">'+h+'</div>';OV.style.display='flex';ov=1};
+function closeOv(){OV.style.display='none';OV.innerHTML='';ov=null;save()}
+const money=n=>'$'+n.toLocaleString();
+function titleScreen(){const sv=hasSave();$o('<h1>ASTEROID MINER</h1><div class="sub">S.I.P. Arcade</div><div class="how">Dig through 6 giant asteroids, collect 100 space materials, sell them at the station, and upgrade your suit until you reach the glowing core!<br><br><b>Move:</b> Arrows / A D &nbsp; <b>Jetpack:</b> Up / W / Space &nbsp; <b>Dig:</b> push into rock, or hold Down<br><b>E:</b> use building / pet a bug &nbsp; <b>P:</b> pause &nbsp; <b>M:</b> mute &nbsp; <b>N:</b> map on/off<br>Mining costs 0.01 fuel per block and flying costs 0.02 per block. Watch your oxygen, falling rocks, gas vents, meteors and heat!</div>'+
+ (sv?'<button class="btn" onclick="A.cont()">Continue</button><button class="btn dim" onclick="A.newg()">New Game</button>':'<button class="btn" onclick="A.newg()">Play</button>'))}
+const A={cont(){audioInit();startGame(loadSave())},newg(){audioInit();try{localStorage.removeItem(KEY)}catch(e){}startGame(null);toast('Welcome aboard! Press E at buildings.','#9ff')},
+ sell(i){const o=ORES[i],n=S.cargo[i];if(!n)return;const g=n*o.v;S.money+=g;S.st.earned+=g;S.st.sales++;S.cargo[i]=0;sfx.sell();ach();save();openBuilding('market')},
+ sellAll(){let g=0;for(let i=0;i<NORE;i++){g+=S.cargo[i]*ORES[i].v;S.cargo[i]=0}if(g){S.money+=g;S.st.earned+=g;S.st.sales++;sfx.sell();toast('Sold everything for '+money(g),'#ffe08a')}ach();save();openBuilding('market')},
+ fuel(n){const need=Math.min(n,Math.floor((fuelCap()-S.fuel)*100)/100);const cost=Math.ceil(need*FUELPRICE);if(need<=0||S.money<cost)return;S.money-=cost;S.fuel=Math.min(fuelCap(),Math.round((S.fuel+need)*1e4)/1e4);sfx.buy();save();openBuilding('dock')},
+ repair(){const need=Math.ceil(hpMax()-S.hp);if(need<=0||S.money<need)return;S.money-=need;S.hp=hpMax();sfx.buy();save();openBuilding('repair')},
+ up(i){if(S.up[i]>=MAXLV)return;const c=upCost(i);if(S.money<c)return;S.money-=c;S.up[i]++;if(i===3)S.hp+=25;sfx.buy();ach();save();openBuilding('lab')},
+ tab(t){openBuilding('trophy',t)},resume(){closeOv()},
+ beacon(){closeOv();S.cargo.fill(0);S.st.deaths++;S.hp=hpMax();S.o2=o2Cap();if(S.fuel<1)S.fuel=1;homePos();P.vx=P.vy=0;toast('Beacon used. Cargo lost.','#fc8');ach();save()},
+ reset(){if(confirm('Delete your save and start over?')){try{localStorage.removeItem(KEY)}catch(e){}started=false;S=null;titleScreen()}}};
+function openBuilding(k,tab){
+ if(k==='market'){let rows='',tot=0;for(let i=0;i<NORE;i++)if(S.cargo[i]){const o=ORES[i],g=S.cargo[i]*o.v;tot+=g;rows+='<div class="row"><div class="t"><b style="color:'+o.c+'">'+o.n+'</b> x'+S.cargo[i]+'<small>'+o.r+' - '+money(o.v)+' each</small></div><button class="btn" onclick="A.sell('+i+')">Sell '+money(g)+'</button></div>'}
+  $o('<h2>Sell Market</h2><div class="sub">Cargo '+cargoN()+'/'+cargoCap()+' &nbsp; Money '+money(S.money)+'</div>'+(rows||'<div class="how">Your cargo hold is empty. Go mine some ore!</div>')+(tot?'<button class="btn" onclick="A.sellAll()">Sell All ('+money(tot)+')</button>':'')+'<button class="btn dim" onclick="A.resume()">Close</button>')}
+ else if(k==='dock'){const f=S.fuel,fc=fuelCap(),miss=fc-f;$o('<h2>Fuel and Oxygen Dock</h2><div class="sub">Money '+money(S.money)+'</div><div class="row"><div class="t"><b>Fuel</b> '+f.toFixed(2)+' / '+fc+'<small>'+money(FUELPRICE)+' per unit. Mining costs 0.01 per block, flying 0.02 per block.</small></div></div>'+
+  '<button class="btn" '+(miss<=0||S.money<FUELPRICE?'disabled':'')+' onclick="A.fuel(1)">Buy 1 fuel ('+money(FUELPRICE)+')</button><button class="btn" '+(miss<=0||S.money<Math.ceil(miss*FUELPRICE)?'disabled':'')+' onclick="A.fuel(999)">Fill tank ('+money(Math.ceil(miss*FUELPRICE))+')</button>'+
+  '<div class="row"><div class="t"><b>Oxygen</b> '+Math.ceil(S.o2)+' / '+o2Cap()+' s<small>Refills for free while you are docked at the station.</small></div></div><button class="btn dim" onclick="A.resume()">Close</button>')}
+ else if(k==='repair'){const need=Math.ceil(hpMax()-S.hp);$o('<h2>Repair Bay</h2><div class="sub">Money '+money(S.money)+'</div><div class="row"><div class="t"><b>Hull</b> '+Math.ceil(S.hp)+' / '+hpMax()+'<small>$1 per point of damage</small></div></div><button class="btn" '+(need<=0||S.money<need?'disabled':'')+' onclick="A.repair()">Repair all ('+money(need)+')</button><button class="btn dim" onclick="A.resume()">Close</button>')}
+ else if(k==='lab'){let rows='';const eff=['Power x'+power().toFixed(1),'Fuel '+fuelCap()+', O2 '+o2Cap()+'s','Cargo '+cargoCap(),'Hull '+hpMax(),'Light radius '+lightR().toFixed(1),'Thrust '+thrustA()+', speed '+spdMax(),scanR()?'Scan radius '+scanR().toFixed(0)+' blocks':'Not installed'];
+  UPS.forEach((u,i)=>{const lv=S.up[i],mx=lv>=MAXLV;rows+='<div class="row"><div class="t"><b>'+u[0]+'</b> <span class="pips">'+'#'.repeat(lv)+'.'.repeat(MAXLV-lv)+'</span><small>'+u[1]+' - now: '+eff[i]+'</small></div><button class="btn" '+(mx||S.money<upCost(i)?'disabled':'')+' onclick="A.up('+i+')">'+(mx?'MAX':money(upCost(i)))+'</button></div>'});
+  $o('<h2>Upgrade Lab</h2><div class="sub">Money '+money(S.money)+'</div>'+rows+'<button class="btn dim" onclick="A.resume()">Close</button>')}
+ else if(k==='trophy'){tab=tab||'c';let b='<div class="tabs"><button class="btn '+(tab==='c'?'':'dim')+'" onclick="A.tab(\'c\')">Collection '+cnt()+'/100</button><button class="btn '+(tab==='a'?'':'dim')+'" onclick="A.tab(\'a\')">Achievements '+Object.keys(S.ach).length+'/'+ACH.length+'</button></div>';
+  if(tab==='c'){b+='<div class="coll">';for(let i=0;i<NORE;i++){const o=ORES[i],f=S.coll[i]>0;b+='<div style="opacity:'+(f?1:.4)+'"><i style="background:'+(f?o.c:'#333')+'"></i>'+(f?o.n+'<br>x'+S.coll[i]:'???')+'</div>'}b+='</div>'}
+  else{b+='<div class="ach">'+ACH.map((a,i)=>'<div class="'+(S.ach[i]?'on':'')+'"><b>'+a[0]+'</b>'+a[1]+'</div>').join('')+'</div>'}
+  $o('<h2>Trophy Wall</h2>'+b+'<button class="btn dim" onclick="A.resume()">Close</button>')}}
+function openPause(){if(!started)return;paused=true;$o('<h2>Paused</h2><div class="sub">Money '+money(S.money)+' - Materials '+cnt()+'/100</div><button class="btn" onclick="A.unpause()">Resume</button><button class="btn dim" onclick="toggleMute();openPause()">Sound: '+(S.mute?'Off':'On')+'</button><button class="btn dim" onclick="A.beacon2()">Emergency beacon (go home, lose cargo)</button><button class="btn dim" onclick="A.reset()">Delete save</button>')}
+A.unpause=()=>{paused=false;closeOv()};A.beacon2=()=>{paused=false;A.beacon()};
+function togglePause(){if(!started)return;if(ov){if(paused)A.unpause();else closeOv()}else{paused=true;$o('<h2>Paused</h2><button class="btn" onclick="A.unpause()">Resume</button>')}}
+function toggleMap(){showMap=!showMap;try{localStorage.setItem('sip_asteroid-miner_map',showMap?'1':'0')}catch(e){}toast(showMap?'Map on':'Map off','#9ff')}
+function toggleMute(){S.mute=!S.mute;if(master)master.gain.value=S.mute?0:.5;save()}
+function endingScreen(){save();setTimeout(()=>{$o('<h1>YOU DID IT!</h1><div class="sub">You reached the glowing core!</div><div class="how">You tunneled through all six asteroids and found the heart of the belt, a star-bright crystal! The station crew cheers on the radio.<br><br>Blocks mined: '+S.st.blocks+'<br>Materials found: '+cnt()+'/100<br>Money earned: '+money(S.st.earned)+'<br>Play time: '+Math.round(S.st.time/60)+' min</div><button class="btn" onclick="A.resume()">Keep exploring</button>');ach()},300)}
+/* ===== input ===== */
+const KM={ArrowLeft:'l',a:'l',A:'l',ArrowRight:'r',d:'r',D:'r',ArrowUp:'u',w:'u',W:'u',' ':'u',ArrowDown:'d',s:'d',S:'d'};
+addEventListener('keydown',e=>{if(KM[e.key]){e.preventDefault();keys[KM[e.key]]=1;return}
+ if(e.key==='e'||e.key==='E'||e.key==='Enter'){if(!ov)eHit=true;return}
+ if(e.key==='p'||e.key==='P'){togglePause();return}if(e.key==='n'||e.key==='N'){if(S&&started)toggleMap();return}if(e.key==='m'||e.key==='M'){if(S)toggleMute();return}
+ if(e.key==='Escape'&&started){if(ov)(paused?A.unpause():closeOv());else openPause()}});
+addEventListener('keyup',e=>{if(KM[e.key])keys[KM[e.key]]=0});
+addEventListener('blur',()=>{keys.l=keys.r=keys.u=keys.d=0;if(started&&!ov)openPause()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)save()});
+addEventListener('beforeunload',save);
+if('ontouchstart' in window||navigator.maxTouchPoints>0)document.body.classList.add('touch');
+document.querySelectorAll('#touch button').forEach(b=>{const k=b.dataset.k;const on=e=>{e.preventDefault();audioInit();if(k==='e'){if(!ov)eHit=true}else if(k==='p')togglePause();else if(k==='n'){if(S&&started)toggleMap()}else if(k!=='n')keys[k]=1};const off=e=>{e.preventDefault();if(k!=='e'&&k!=='p'&&k!=='n')keys[k]=0};
+ b.addEventListener('touchstart',on,{passive:false});b.addEventListener('touchend',off,{passive:false});b.addEventListener('touchcancel',off,{passive:false});b.addEventListener('mousedown',on);b.addEventListener('mouseup',off);b.addEventListener('mouseleave',off)});
+cv.addEventListener('pointerdown',e=>{audioInit();for(const b of hudBtns)if(e.clientX>=b.x&&e.clientX<=b.x+b.w&&e.clientY>=b.y&&e.clientY<=b.y+b.h){b.fn();return}});
+/* ===== loop ===== */
+let last=0;function loop(t){const dt=Math.min(.05,(t-last)/1000||.016);last=t;step(dt);draw();requestAnimationFrame(loop)}
+resize();titleScreen();requestAnimationFrame(loop);
+window.G={get S(){return S},P,grid,inside,keys,step,draw,gen,startGame,save,loadSave,A,ORES,breakTile,cam,get storm(){return storm},get bugs(){return bugs},get gases(){return gases},get fallers(){return fallers},get meteors(){return meteors},hurt,die,interact,openBuilding,endingScreen,solidAt,homePos,hazards,ach,ACH,cnt,get ov(){return ov},ctx};
+</script></body></html>

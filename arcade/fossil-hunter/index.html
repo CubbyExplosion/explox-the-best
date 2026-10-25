@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en"><head><link rel="icon" type="image/png" href="data:image/png;base64,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"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Fossil Hunter - S.I.P. Arcade</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1a120d;overflow:hidden;font-family:system-ui,Segoe UI,Arial,sans-serif;color:#fff;touch-action:none;user-select:none;-webkit-user-select:none}
+canvas{display:block;position:fixed;inset:0;width:100%;height:100%}
+#ov{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(14,9,5,.8);z-index:5;padding:10px;overflow:auto}
+.card{background:linear-gradient(#4a3524,#33241a);border:3px solid #e8b04a;border-radius:16px;padding:16px 20px;max-width:680px;width:100%;max-height:96vh;overflow:auto;box-shadow:0 8px 40px #000a}
+h1{margin:0 0 4px;font-size:44px;color:#f3c562;text-shadow:3px 3px 0 #6b3a0a;letter-spacing:2px;text-align:center}
+h2{margin:0 0 8px;color:#f3c562;text-align:center}
+.sub{text-align:center;color:#d4bb94;margin-bottom:10px;font-size:14px}
+.btn{display:block;width:100%;margin:8px 0;padding:11px;font-size:18px;font-weight:700;background:#e8a93a;color:#3a1e00;border:0;border-radius:10px;cursor:pointer;box-shadow:0 4px 0 #9a6410}
+.btn:hover{background:#f3c562}.btn:active{transform:translateY(3px);box-shadow:0 1px 0 #9a6410}
+.btn.dim{background:#6f5c48;color:#eee;box-shadow:0 4px 0 #3d3226}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.how{font-size:14px;line-height:1.5;color:#efe0c4;background:#00000033;padding:8px 12px;border-radius:8px}
+.row{display:flex;gap:10px;align-items:center;background:#00000033;border-radius:10px;padding:7px 10px;margin:5px 0}
+.row .t{flex:1}.row b{color:#ffd98a}.row small{color:#c4b294;display:block}
+.row img{width:36px;height:36px;flex:none}
+.row .btn{width:auto;margin:0;padding:8px 12px;font-size:15px;min-width:86px;position:relative;overflow:hidden}
+.brush .fill{position:absolute;left:0;top:0;bottom:0;width:0;background:#6bdc7a88;pointer-events:none}
+.pips{letter-spacing:2px;color:#e8a93a;font-size:12px}
+.ach{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ach div{background:#00000033;border-radius:8px;padding:6px 8px;font-size:13px;opacity:.45}
+.ach div.on{opacity:1;background:#3b5a1f}
+.ach b{display:block;color:#ffd98a}
+.pb{height:12px;background:#0006;border-radius:6px;overflow:hidden;flex:1}.pb i{display:block;height:100%;background:#6bdc7a}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.tabs button{flex:1;min-width:58px;padding:6px 2px;font-size:11px;font-weight:700;border:0;border-radius:6px;background:#6f5c48;color:#fff;cursor:pointer}
+.tabs button.on{background:#e8a93a;color:#3a1e00}
+.lock{opacity:.45}
+#top{position:fixed;left:10px;top:94px;z-index:4;display:flex;gap:4px}
+#top button{width:40px;height:30px;font-size:10px;font-weight:700;border:2px solid #fff6;border-radius:8px;background:#0007;color:#fff;cursor:pointer;padding:0}
+#top button:hover{background:#e8a93a99}
+#touch{display:none;position:fixed;inset:0;pointer-events:none;z-index:3}
+body.touch #touch{display:block}
+#touch button{position:absolute;pointer-events:auto;width:64px;height:64px;border-radius:50%;border:3px solid #fff8;background:#0006;color:#fff;font-size:20px;font-weight:700;touch-action:none}
+#touch button:active{background:#e8a93a99}
+@media (max-width:640px){h1{font-size:34px}}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="top"><button id="bP" title="Pause (P)">PAUSE</button><button id="bN" title="Map (N)">MAP</button><button id="bM" title="Sound (M)">SOUND</button><button id="bB" title="Collection book (B)">BOOK</button><button id="bT" title="Trophies (T)">TROPHY</button></div>
+<div id="touch">
+<button data-k="l" style="left:10px;bottom:84px">&lt;</button>
+<button data-k="r" style="left:140px;bottom:84px">&gt;</button>
+<button data-k="d" style="left:75px;bottom:14px">DIG</button>
+<button data-k="u" style="right:84px;bottom:84px">UP</button>
+<button data-k="e" style="right:10px;bottom:14px">E</button>
+<button data-k="x" style="right:10px;bottom:154px;width:52px;height:52px;font-size:13px">TOW</button>
+</div>
+<div id="ov"></div>
+<script>
+'use strict';
+/* ===== constants ===== */
+const W=72,H=320,TS=32,SURF=6,KEY='sip_fossil-hunter_save',MAPKEY='sip_fossil-hunter_map',CORE_Y=308,ERAL=30,GREATX=36,GREATY=317;
+const GRAV=1100,HW=11,HH=13;
+const A=0,BASE=1,BEDROCK=11,WATER=12,GAS=13,BOULDER=14,F0=20;
+const BASECOL=[null,'#8f8272','#b08a52','#7c9a6e','#a85f46','#b8493a','#a86a7a','#4f6a52','#5a6e9a','#7a5a8a','#4a3f52'];
+const ERAS=[['Ice Age','the last 2.6 million years'],['Tertiary','66 to 2.6 million years ago'],['Cretaceous','145 to 66 million years ago'],['Jurassic','201 to 145 million years ago'],['Triassic','252 to 201 million years ago'],['Permian','299 to 252 million years ago'],['Carboniferous','359 to 299 million years ago'],['Devonian','419 to 359 million years ago'],['Cambrian','539 to 485 million years ago'],['Precambrian','older than 539 million years']];
+/* find rows: name, icon kind, color, fun fact (true!) */
+const FD=[
+[['Mammoth Tusk','tusk','#efe6d2',"Woolly mammoths lived until about 4,000 years ago on Wrangel Island, and their tusks could grow to around 4 metres long."],
+ ['Cave Bear Tooth','tooth','#ece0c4',"Cave bears slept through winter in caves all over Europe and died out roughly 24,000 years ago."],
+ ['Saber-tooth Cat Fang','tooth','#f4ecd6',"The saber-toothed cat Smilodon had huge upper canine teeth, but they were fairly fragile, so it probably ambushed its prey."],
+ ['Mammoth Molar','rock','#cbbfa4',"A mammoth chewed tough grass with big ridged grinding teeth. Elephants and mammoths replace their teeth several times in life."],
+ ['Ground Sloth Claw','claw','#d8c9a8',"Some ground sloths grew as big as elephants. Megatherium weighed about four tonnes."],
+ ['Fossil Pinecone','rock','#8a6a44',"Pollen and cones preserved in ice age mud help scientists work out which plants grew in a place long ago, and how cold it was."],
+ ['Red Ochre Lump','rock','#b3492f',"Ochre is a natural iron-rich clay. People were using it as red paint more than 70,000 years ago."],
+ ['Giant Deer Antler','horn','#d9c7a0',"The giant deer Megaloceros had antlers that could stretch about 3.5 metres across, among the biggest of any deer."],
+ ['Dire Wolf Jaw','jaw','#e4d8bc',"Dire wolves roamed North America in the ice age. They were stocky wolves with strong teeth and jaws."],
+ ['Mammoth Hair','feather','#8a5a34',"Long shaggy hair over a thick woolly undercoat kept mammoths warm in the freezing ice age."]],
+[['Shark Tooth','tooth','#3c3c40',"Sharks grow new teeth all their lives and can lose thousands, which is why fossil shark teeth are so easy to find."],
+ ['Megalodon Tooth','tooth','#5a5a60',"Megalodon was a giant shark that lived about 23 to 3.6 million years ago. Its teeth can be longer than your hand."],
+ ['Fossil Leaf','leaf','#6aa04a',"Fossil leaves show what ancient forests looked like, and their shapes help scientists guess past climates."],
+ ['Early Whale Tooth','tooth','#d9d0b8',"Whales evolved from land-living, hoofed mammals. About 50 million years ago, Pakicetus was an early step on that road."],
+ ['Palm Frond Print','fern','#4f9a3a',"In the warm Eocene, palm trees grew as far north as southern England."],
+ ['Amber with Insect','amber','#f0a020',"Baltic amber is roughly 40 million years old. Tiny insects trapped in sticky tree resin can stay preserved in amazing detail."],
+ ['Opal','gem','#7fd6e8',"Opal is made of tiny silica spheres that bend light into rainbow colors. Most of the world's opal comes from Australia."],
+ ['Dawn Horse Tooth','tooth','#e0d2a8',"Modern horses descend from small, many-toed animals like Hyracotherium that lived about 50 million years ago."],
+ ['Giant Penguin Bone','bone','#e8dcc0',"Some ancient penguins grew as tall as a grown-up person."],
+ ['Giant Rhino Relative Tooth','rock','#d8cba8',"Paraceratherium, a hornless relative of rhinos, was one of the largest land mammals that ever lived."]],
+[['Ammonite','spiral','#d9a45a',"Ammonites were shelled cousins of squid and octopus. They swam the seas for hundreds of millions of years and died out with the dinosaurs."],
+ ['Sea Urchin Fossil','urchin','#b8a88a',"Sea urchins have lived in the oceans for about 450 million years, and their hard shells fossilize very well."],
+ ['Triceratops Horn','horn','#e6d8b0',"Triceratops means three-horned face. Its horns and big neck frill may have been for defence and for showing off."],
+ ['T. rex Tooth','tooth','#f2e8c8',"A T. rex tooth, with its root, could be about 30 centimetres long. T. rex had one of the strongest bites of any land animal."],
+ ['Dinosaur Egg','egg','#d8c8a0',"Fossil nests show some dinosaurs laid eggs in groups, and some parents sat on their eggs like birds do."],
+ ['Duck-bill Tooth','tooth','#b8a070',"Duck-billed dinosaurs, the hadrosaurs, had hundreds of small teeth packed together to grind up tough plants."],
+ ['Pterosaur Bone','bone','#e4d4b8',"Pterosaurs were flying reptiles, not dinosaurs, and their bones were hollow and light."],
+ ['Mosasaur Tooth','tooth','#cfc4a4',"Mosasaurs were huge sea reptiles. They were more closely related to lizards and snakes than to dinosaurs."],
+ ['Dinosaur Footprint','print','#9a8a6a',"Fossil footprints show how dinosaurs walked, how big their feet were, and sometimes how fast they moved."],
+ ['Velociraptor Claw','claw','#e8dcb8',"Velociraptor was about the size of a turkey, and it had feathers."]],
+[['Archaeopteryx Feather','feather','#4a4a52',"Archaeopteryx lived about 150 million years ago. It had feathers like a bird but also teeth and a long bony tail like a small dinosaur."],
+ ['Stegosaurus Plate','crystal','#c8a870',"Stegosaurus had big plates along its back. Scientists think they were for display and maybe for controlling body heat."],
+ ['Diplodocus Tail Bone','bone','#e0d0b0',"Diplodocus was about 25 metres long, with a very long neck and a whip-like tail."],
+ ['Belemnite','horn','#9a7a4a',"Belemnites were squid-like animals. Their hard, bullet-shaped guards are common fossils."],
+ ['Ichthyosaur Vertebra','disc','#c8bca0',"Ichthyosaurs looked like dolphins but were reptiles. They breathed air and gave birth to live young at sea."],
+ ['Crinoid Stem','disc','#d4c4a4',"Crinoids are called sea lilies, but they are animals, not plants. Some still live in the sea today."],
+ ['Plesiosaur Tooth','tooth','#c4b898',"Plesiosaurs were sea reptiles with four big flippers and a long neck. They were not dinosaurs."],
+ ['Petrified Wood','log','#c4743a',"Petrified wood forms when minerals slowly replace wood, cell by cell, until the log turns to stone."],
+ ['Allosaurus Tooth','tooth','#e6dcbc',"Allosaurus was a big meat-eater of the Late Jurassic. Its teeth had tiny serrations like a steak knife."],
+ ['Gastrolith Stone','rock','#7a7a80',"Some dinosaurs swallowed smooth stones called gastroliths, which helped grind up food inside their stomachs."]],
+[['Coprolite','rock','#6a5238',"Coprolites are fossil dung. They are real treasures for scientists because they show what ancient animals ate."],
+ ['Coelophysis Bone','bone','#e4d6b6',"Coelophysis was a slim, early dinosaur about three metres long. Many were found together at Ghost Ranch in New Mexico."],
+ ['Nothosaur Tooth','tooth','#d6caa8',"Nothosaurs were early sea reptiles that hunted fish near the shore."],
+ ['Ginkgo Leaf','leaf','#d8c84a',"Ginkgo trees look much like their ancient relatives, so scientists call them living fossils."],
+ ['Cynodont Jaw','jaw','#d8ccb0',"Cynodonts were furry relatives of the first mammals. Mammals later evolved from this group."],
+ ['Phytosaur Tooth','tooth','#cfc2a0',"Phytosaurs looked a lot like crocodiles, but they were not close relatives."],
+ ['Eoraptor Tooth','tooth','#ece0bc',"Eoraptor means dawn thief. It lived about 231 million years ago and was one of the earliest dinosaurs."],
+ ['Horsetail Fossil','fern','#7aa05a',"Horsetails are plants that have changed very little in hundreds of millions of years. They still grow today."],
+ ['Ceratite Shell','spiral','#b88a50',"Ceratites were ammonoids, shelled relatives of squid, with zigzag lines inside their shells."],
+ ['Quartz Geode','geode','#b48cf0',"A geode is a hollow rock lined with crystals that grew slowly from mineral-rich water."]],
+[['Dimetrodon Sail Spine','bone','#d8c8a8',"Dimetrodon had a sail on its back. It was not a dinosaur: it was more closely related to mammals."],
+ ['Glossopteris Leaf','leaf','#8aa05a',"Glossopteris fossils appear in South America, Africa, India, Antarctica and Australia, showing those lands were once joined."],
+ ['Mesosaurus Bone','bone','#cbbf9e',"Mesosaurus fossils are found in both South America and Africa, which helped scientists show that continents drift."],
+ ['Gorgonopsid Fang','tooth','#e0d4b0',"Gorgonopsians were saber-toothed hunters and distant relatives of mammals."],
+ ['Fusulinid','urchin','#c8b890',"Fusulinids were tiny single-celled sea creatures shaped like grains of wheat. Their shells fill whole layers of rock."],
+ ['Agate','geode','#e07a5a',"Agate is banded quartz that forms layer by layer inside cavities in rock."],
+ ['Brachiopod','shell','#c8b48a',"Brachiopods look like clams but are built differently. The Permian extinction nearly wiped them out."],
+ ['Native Copper','nugget','#d9803a',"Pure copper nuggets can form in volcanic rock. People have used copper for thousands of years."],
+ ['Seed Fern Frond','fern','#5a8a4a',"Seed ferns were plants that made seeds instead of only spores, like their fern cousins."],
+ ['Great Dying Layer Rock','rock','#5a4a4a',"About 252 million years ago, the biggest mass extinction ever wiped out roughly nine in ten sea species."]],
+[['Fossil Fern','fern','#3f7a3a',"Giant swampy forests of this age were buried and later turned into the coal that we burn today."],
+ ['Lepidodendron Bark','stripes','#7a6a4a',"Scale trees, or Lepidodendron, grew over 30 metres tall, with bark patterned like diamond scales."],
+ ['Giant Dragonfly Wing','wing','#9ac8d8',"Meganeura was a giant dragonfly relative with a wingspan of about 70 centimetres."],
+ ['Coal Lump','rock','#2a2a30',"Coal is ancient plants that were squashed and baked underground for millions of years."],
+ ['Arthropleura Plate','stripes','#8a6a4a',"Arthropleura was a millipede-like animal over two metres long, the biggest land invertebrate ever."],
+ ['Hylonomus Bone','bone','#d4c4a0',"Hylonomus, about 312 million years old, is one of the oldest known reptiles. It was lizard-sized."],
+ ['Goniatite','spiral','#a07a4a',"Goniatites were coiled shellfish, ancestors of the ammonites, with zigzag lines inside their shells."],
+ ['Pyrite','crystal','#e0c050',"Pyrite is called fool's gold because it glitters like gold. It is really iron sulfide."],
+ ['Early Amphibian Bone','bone','#cdbd9a',"The Carboniferous is sometimes called the Age of Amphibians, when four-legged animals spread through swamps."],
+ ['Graphite','rock','#4a4a54',"Graphite, the stuff in pencil lead, is pure carbon. So is diamond, just arranged differently."]],
+[['Dunkleosteus Plate','fish','#a8a090',"Dunkleosteus was an armored fish several metres long. It had sharp bony blades instead of teeth."],
+ ['Tiktaalik Fin','fish','#8a9a70',"Tiktaalik lived about 375 million years ago. It was a fish with sturdy fins like early limbs, and it had a neck."],
+ ['Horn Coral','coral','#d8c8a0',"Horn corals grew in rings. Counting the rings in fossils shows days were shorter long ago, so there were more of them in a year."],
+ ['Sea Scorpion Claw','claw','#a8946a',"Sea scorpions, or eurypterids, could be over two metres long. They are among the largest arthropods that ever lived."],
+ ['Armored Fish Fossil','fish','#9aa8b0',"The Devonian is nicknamed the Age of Fishes because fish of so many kinds filled the seas."],
+ ['Cooksonia Plant','fern','#6a9a50',"Cooksonia was one of the first land plants. It stood only a few centimetres tall."],
+ ['Orthocone Nautiloid','horn','#c0a878',"Orthocones were straight-shelled cousins of the nautilus. Some grew several metres long."],
+ ['Fluorite','crystal','#a070e0',"Many fluorite crystals glow under ultraviolet light. The word fluorescence comes from the mineral's name."],
+ ['Phacops Trilobite','trilo','#9a8a74',"Phacops trilobites had eyes made of many calcite lenses, which worked like tiny glass crystals."],
+ ['Archaeopteris Branch','leaf','#4a8a44',"Archaeopteris was one of the first trees, and it formed Earth's first forests about 385 million years ago."]],
+[['Trilobite','trilo','#7a6a58',"Trilobites lived for about 270 million years. They were among the first animals with complex eyes."],
+ ['Anomalocaris Claw','claw','#d08050',"Anomalocaris was a hunter up to about a metre long, and one of the biggest animals of its time."],
+ ['Hallucigenia','worm','#c8c0a0',"Hallucigenia was a tiny spiky worm. Scientists first drew it upside-down because the spines looked like legs."],
+ ['Opabinia','worm','#d89080',"Opabinia had five eyes and a long, flexible nozzle with a claw at the end."],
+ ['Wiwaxia','shell','#b8a860',"Wiwaxia was covered in scales and spines, a bit like a tiny armored slug."],
+ ['Burgess Shale Slab','stripes','#6a6a74',"The Burgess Shale in Canada is about 508 million years old and preserved even the soft bodies of strange sea animals."],
+ ['Archaeocyath Reef','urchin','#c8a8b0',"Archaeocyaths were cone-shaped sponges, and some of the earliest reef builders."],
+ ['Pikaia','fish','#d8c4a0',"Pikaia is one of the earliest known chordates, the group that includes all animals with backbones."],
+ ['Hyolith','horn','#b0a07a',"Hyoliths had a cone-shaped shell with a little lid, and scientists are still working out where they fit on the tree of life."],
+ ['Gold Nugget','nugget','#ffd02a',"Gold never rusts. It is so soft that one gram can be hammered into a sheet about a square metre in size."]],
+[['Stromatolite','layers','#8a8a6a',"Stromatolites are layered rocks built by tiny microbes. Some are about 3.5 billion years old."],
+ ['Dickinsonia','blob','#d8b8a0',"Dickinsonia was a flat, ribbed oval creature that lived around 560 million years ago, unlike any animal alive today."],
+ ['Charnia Frond','fern','#a8b890',"Charnia looked like a leaf or feather, but it was an animal that anchored to the sea floor."],
+ ['Banded Iron Stone','stripes','#9a4a3a',"Banded iron formations began when oxygen made by ancient microbes rusted the iron in the oceans, over 2 billion years ago."],
+ ['Zircon Crystal','gem','#e8a860',"Tiny zircon crystals from Australia are over 4 billion years old, the oldest bits of Earth's crust ever found."],
+ ['Raw Diamond','gem','#d8f4ff',"Most natural diamonds formed deep underground and are between 1 and 3.5 billion years old."],
+ ['Microfossil Chert','rock','#4a4040',"Gunflint chert in Canada holds microscopic fossils of tiny life about 1.9 billion years old."],
+ ['Tribrachidium','blob','#c8a898',"Tribrachidium was a round, soft-bodied creature with three curved arms. It lived about 555 million years ago."],
+ ['Kimberella','shell','#b8c0a0',"Kimberella may have been an early mollusc that scraped food off the microbe mats on the sea floor."],
+ ['THE GREAT FOSSIL','blob','#ffe27a',"The Ediacaran Period, about 635 to 539 million years ago, held the first big, complex living things on Earth."]]];
+const FINDS=[];FD.forEach((rows,e)=>rows.forEach((r,j)=>{const g=(e===9&&j===9);FINDS.push({n:r[0],k:r[1],c:r[2],f:r[3],e,j,
+ v:g?5000:Math.round((8+j*4)*Math.pow(1+e,1.5)),mn:Math.max(0,e*ERAL-4+j*2),mx:Math.min(300,e*ERAL+34),vn:g?0:[14,13,12,10,9,8,6,5,4,3][j],sz:g?0:[6,6,6,5,5,5,4,4,3,3][j],h:g?8:.3+j*.2})}));
+const NF=FINDS.length,GREAT=NF-1;
+const FIDX={};FINDS.forEach((f,i)=>FIDX[f.n]=i);
+const UPS=[
+ {id:'drill',n:'Drill Speed',vals:[1,1.5,2.1,2.9,4,5.5,7.5],costs:[100,300,800,2000,5000,12000],d:v=>'Dig x'+v},
+ {id:'fuel',n:'Fuel Tank',vals:[12,20,32,50,75,110,160],costs:[80,250,700,1800,4500,10000],d:v=>v+' fuel'},
+ {id:'cargo',n:'Cargo Bay',vals:[10,18,30,48,72,105,150],costs:[90,260,700,1800,4500,10000],d:v=>v+' slots'},
+ {id:'hull',n:'Hull + Cooling',vals:[100,150,220,320,450,650,900],costs:[100,300,800,2000,5000,11000],d:v=>v+' hull'},
+ {id:'lamp',n:'Lamp',vals:[200,260,330,410,500,600,720],costs:[70,220,650,1700,4200,9500],d:v=>'Light '+v},
+ {id:'jet',n:'Jetpack',vals:[0,1,2,3,4,5,6],costs:[150,400,1000,2500,6000,12000],d:v=>v?'Power '+v:'Basic thrust'},
+ {id:'brush',n:'Brush',vals:[.6,.8,1,1.3,1.6,2,2.5],costs:[60,200,600,1500,3800,9000],d:v=>'Clean x'+v},
+ {id:'radar',n:'Radar',vals:[2.5,5,7.5,10,13,16,20],costs:[60,200,600,1600,4000,9000],d:v=>'Range '+v}];
+let UPLV={};
+const CRIT=[
+ {n:'Cave Bat',c:'#7a5ab5',sp:55,fly:1,r:7},{n:'Beetle',c:'#3a8a5a',sp:26,fly:0,r:6},
+ {n:'Salamander',c:'#ff9a6a',sp:30,fly:0,r:8},{n:'Mole',c:'#a88a6a',sp:22,fly:0,r:9},{n:'Glow Worm',c:'#d8ff6a',sp:18,fly:0,r:5}];
+const ACH=[
+ ['first_dig','First Dig','Dig your first block'],['first_find','Eureka!','Find your first fossil or mineral'],['first_sale','Open for Business','Sell something at the market'],
+ ['first_clean','Squeaky Clean','Brush a find clean'],['first_don','Museum Donor','Donate a find to the museum'],
+ ['d50','Getting Deep','Reach 50 m'],['d100','Century Digger','Reach 100 m'],['d200','Deep Diver','Reach 200 m'],['d300','Bottom of Time','Reach 300 m'],
+ ['jur','Dino Days','Reach the Jurassic'],['cam','Ancient Seas','Reach the Cambrian'],
+ ['e1k','Pocket Money','Earn 1,000 coins'],['e10k','Big Earner','Earn 10,000 coins'],['e50k','Fossil Tycoon','Earn 50,000 coins'],
+ ['f25','Fossil Fan','Collect 25 finds'],['f200','Bone Collector','Collect 200 finds'],
+ ['k25','Sampler','Find 25 different kinds'],['k50','Half and Half','Find 50 different kinds'],['k100','Complete Collector','Find all 100 kinds'],
+ ['up5','Tinkerer','Buy 5 upgrades'],['maxup','Maxed Out','Fully upgrade something'],
+ ['m10','Little Museum','Display 10 kinds in the museum'],['m50','Grand Gallery','Display 50 kinds'],['m100','Master Curator','Display all 100 kinds'],['era1','Wing Complete','Finish a whole era in the museum'],
+ ['trex','Rex Hunter','Find a T. rex Tooth'],['trilo','Trilobite Trove','Find a Trilobite'],['amber','Insect in Amber','Find Amber with Insect'],['gold','Gold Fever','Find a Gold Nugget'],
+ ['cavein','Rumble Survivor','Survive a cave-in'],['gas','Phew!','Meet a gas pocket'],['oops','Oops!','Wreck your rig (it happens)'],
+ ['crit10','Critter Friend','Poof 10 cave critters with your drill'],['river','Go with the Flow','Ride an underground river'],['heat','Cool Customer','Survive the deep heat for 15 seconds'],
+ ['end','The Great Fossil','Uncover the deepest great fossil']];
+
+/* ===== state ===== */
+let tiles,seen,seed,rng;
+let P,S,ach,crits,rocks,gas,parts,texts,toasts;
+let state='title',modal=null,shake=0,playT=0,saveT=0,mmT=0,lastSeenTx=-1,lastSeenTy=-1,achT=0,hintShown=false,backFn=null,bookEra=0,ovIsOverlay=false;
+let showMap=true;try{showMap=localStorage.getItem(MAPKEY)!=='0'}catch(e){}
+function toggleMap(){showMap=!showMap;try{localStorage.setItem(MAPKEY,showMap?'1':'0')}catch(e){}toast(showMap?'Map on':'Map off')}
+let muted=false,AC=null,sfxT=0,droneG=null,ambT=3,brushI=null,brushP=0;
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const ov=document.getElementById('ov');
+const mmc=document.createElement('canvas');mmc.width=W;mmc.height=100;const mmx=mmc.getContext('2d');let mmImg=mmx.createImageData(W,100);
+let vw=800,vh=600,Z=1,dpr=1,camX=0,camY=0;
+
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const ri=(a,b)=>a+Math.floor(rng()*(b-a+1));
+const idx=(x,y)=>y*W+x;
+function tileAt(x,y){if(x<0||x>=W||y>=H)return BEDROCK;if(y<0)return A;return tiles[y*W+x]}
+function solid(x,y){const t=tileAt(x,y);return t!==A&&t!==WATER}
+function eraOf(y){return Math.max(0,Math.min(9,Math.floor((y-SURF)/ERAL)))}
+function baseTile(y){return BASE+eraOf(y)}
+const isBase=t=>t>=1&&t<=10;
+const curDir=ty=>((ty>>2)&1)?1:-1;
+
+/* ===== generation ===== */
+function gen(sd){
+ seed=sd;rng=mulberry(sd);tiles=new Uint8Array(W*H);seen=new Uint8Array(W*H);
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+  let t;
+  if(y<SURF)t=A;else if(x===0||x===W-1||y>=H-2)t=BEDROCK;else t=baseTile(y+Math.floor((rng()-.5)*5));
+  tiles[idx(x,y)]=t}
+ const carve=(cx,cy,rx,ry)=>{for(let y=Math.floor(cy-ry-1);y<=cy+ry+1;y++)for(let x=Math.floor(cx-rx-1);x<=cx+rx+1;x++){
+  if(x<1||x>=W-1||y<SURF+3||y>=CORE_Y-1)continue;
+  const dx=(x-cx)/rx,dy=(y-cy)/ry;if(dx*dx+dy*dy<1+(rng()-.5)*.5)tiles[idx(x,y)]=A}};
+ for(let i=0;i<70;i++)carve(ri(4,W-5),ri(SURF+8,CORE_Y-6),ri(2,6),ri(1,3));
+ // underground rivers
+ for(let i=0;i<12;i++){const cy=ri(SURF+18,CORE_Y-12),x0=ri(3,34),x1=Math.min(W-3,x0+ri(12,34));
+  for(let x=x0;x<=x1;x++){const y=cy+Math.round(Math.sin(x*.4)*1.2);
+   tiles[idx(x,y-2)]=A;tiles[idx(x,y-1)]=WATER;tiles[idx(x,y)]=WATER;if(tiles[idx(x,y+1)]===A)tiles[idx(x,y+1)]=baseTile(y+1)}}
+ // finds
+ FINDS.forEach((o,oi)=>{for(let v=0;v<o.vn;v++){let x=ri(2,W-3),y=SURF+ri(o.mn,o.mx);const n=ri(2,o.sz);
+  for(let k=0;k<n;k++){if(x>0&&x<W-1&&y>SURF+2&&y<CORE_Y-1){if(isBase(tiles[idx(x,y)]))tiles[idx(x,y)]=F0+oi}x+=ri(-1,1);y+=ri(-1,1)}}});
+ // guarantee every kind exists
+ const cnt=countFinds();
+ FINDS.forEach((o,oi)=>{if(oi===GREAT||cnt[oi])return;for(let tries=0;tries<4000;tries++){const x=ri(2,W-3),y=SURF+ri(o.mn,o.mx);if(y<SURF+3||y>=CORE_Y-1)continue;if(isBase(tiles[idx(x,y)])){tiles[idx(x,y)]=F0+oi;break}}});
+ // boulders & gas
+ for(let y=SURF+8;y<CORE_Y-1;y++)for(let x=1;x<W-1;x++){const t=tiles[idx(x,y)];if(!isBase(t))continue;
+  const r=rng();if(r<.011){const b=tiles[idx(x,y+1)];if(b!==A&&b!==WATER)tiles[idx(x,y)]=BOULDER}
+  else if(r<.0165&&y>SURF+22)tiles[idx(x,y)]=GAS}
+ // great chamber
+ for(let y=CORE_Y;y<H-1;y++)for(let x=1;x<W-1;x++){const inside=y<=GREATY&&x>=6&&x<=W-7;tiles[idx(x,y)]=inside?A:BEDROCK}
+ for(let x=1;x<W-1;x++){const t=tiles[idx(x,CORE_Y-1)];if(t===A||t===WATER)tiles[idx(x,CORE_Y-1)]=BASE+9}
+ tiles[idx(GREATX,GREATY)]=F0+GREAT;
+ // critters
+ crits=[];const floors=[];
+ for(let y=SURF+10;y<CORE_Y-1;y++)for(let x=1;x<W-1;x++)if(tiles[idx(x,y)]===A&&solid(x,y+1)&&tiles[idx(x,y+1)]!==BOULDER&&tileAt(x,y-1)===A)floors.push([x,y]);
+ for(let i=0;i<120&&floors.length;i++){const f=floors[Math.floor(rng()*floors.length)];
+  const t=rng()<.3?0:ri(1,4);crits.push(mkCrit(t,(f[0]+.5)*TS,(f[1]+.5)*TS))}
+}
+function countFinds(){const c=new Array(NF).fill(0);for(let i=0;i<tiles.length;i++){const t=tiles[i];if(t>=F0&&t<F0+NF)c[t-F0]++}return c}
+function mkCrit(t,x,y){return{t,x,y,dir:rng()<.5?-1:1,vy:0,ph:rng()*6,cd:0}}
+
+/* ===== game setup ===== */
+function freshPlayer(){return{x:33*TS,y:SURF*TS-HH-1,vx:0,vy:0,face:1,onGround:false,fuel:12,hull:100,cargo:new Array(NF).fill(0),clean:new Array(NF).fill(0),coins:0,inv:0,dead:false,deadT:0,cave:0,dig:null,digDir:[0,1],thrust:false,flash:0,heat:0}}
+function freshStats(){return{dug:0,sales:0,maxDepth:0,earned:0,finds:0,ups:0,kills:0,bumps:0,deaths:0,cleaned:0,donated:0,got:new Array(NF).fill(0),mus:new Array(NF).fill(0),eraBonus:new Array(10).fill(0),finished:false,caved:0,gasHit:0,waterT:0,heatT:0,maxEra:0}}
+function newGame(){
+ gen((Math.random()*4e9)|0);P=freshPlayer();UPLV={drill:0,fuel:0,cargo:0,hull:0,lamp:0,jet:0,brush:0,radar:0};S=freshStats();ach={};
+ resetFx();P.fuel=cap('fuel');P.hull=cap('hull');lastSeenTx=-1;playT=0;hintShown=false}
+function resetFx(){rocks=[];gas=[];parts=[];texts=[];toasts=[]}
+const lv=id=>UPLV[id]||0;
+const UPD=id=>UPS.find(u=>u.id===id);
+function cap(id){return UPD(id).vals[lv(id)]}
+const cargoN=()=>{let n=0;for(let i=0;i<NF;i++)n+=P.cargo[i]+P.clean[i];return n};
+const depthM=()=>Math.max(0,Math.floor(P.y/TS-SURF));
+const cleanMult=()=>1.4+.1*lv('brush');
+const unitVal=(i,clean)=>Math.round(FINDS[i].v*(clean?cleanMult():1));
+const musCount=()=>S.mus.reduce((a,b)=>a+b,0);
+const eraMus=e=>{let n=0;for(let j=0;j<10;j++)n+=S.mus[e*10+j];return n};
+
+/* ===== save/load ===== */
+function b64(u){let s='';for(let i=0;i<u.length;i+=8192)s+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(s)}
+function unb64(s){const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}
+function save(){
+ if(!P||!tiles)return;
+ try{localStorage.setItem(KEY,JSON.stringify({v:1,seed,P:{x:P.x,y:P.y,fuel:P.fuel,hull:P.hull,cargo:P.cargo,clean:P.clean,coins:P.coins,face:P.face},UPLV,S,ach,
+  crit:crits.map(c=>[c.t,Math.round(c.x),Math.round(c.y),c.dir]),tiles:b64(tiles),seen:b64(seen),muted}))}catch(e){}}
+function hasSave(){try{return !!localStorage.getItem(KEY)}catch(e){return false}}
+function load(){
+ try{const raw=localStorage.getItem(KEY);if(!raw)return false;const d=JSON.parse(raw);
+  const t=unb64(d.tiles),s=unb64(d.seen);if(t.length!==W*H||s.length!==W*H)return false;
+  tiles=t;seen=s;seed=d.seed;P=freshPlayer();Object.assign(P,d.P);UPLV=Object.assign({drill:0,fuel:0,cargo:0,hull:0,lamp:0,jet:0,brush:0,radar:0},d.UPLV);
+  S=Object.assign(freshStats(),d.S);ach=d.ach||{};setMute(!!d.muted);resetFx();
+  crits=(d.crit||[]).map(a=>{const c=mkCrit(a[0],a[1],a[2]);c.dir=a[3];return c});
+  for(const k of['cargo','clean'])while(P[k].length<NF)P[k].push(0);
+  lastSeenTx=-1;return true}catch(e){return false}}
+
+/* ===== audio ===== */
+function ac(){if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)();startDrone()}catch(e){}}if(AC&&AC.state==='suspended')AC.resume().catch(()=>{});return AC}
+function startDrone(){try{const o=AC.createOscillator(),o2=AC.createOscillator();droneG=AC.createGain();droneG.gain.value=muted?0:.018;o.type='sine';o.frequency.value=55;o2.type='sine';o2.frequency.value=82.5;o.connect(droneG);o2.connect(droneG);droneG.connect(AC.destination);o.start();o2.start()}catch(e){}}
+function setMute(m){muted=m;if(droneG)droneG.gain.value=m?0:.018}
+function tone(f,d,type,vol,slide,delay){const a=ac();if(!a||muted)return;try{const t=a.currentTime+(delay||0),o=a.createOscillator(),g=a.createGain();o.type=type||'square';o.frequency.setValueAtTime(f,t);if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(20,f+slide),t+d);g.gain.setValueAtTime(vol||.06,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+d+.02)}catch(e){}}
+function noise(d,vol,fr,delay){const a=ac();if(!a||muted)return;try{const n=Math.floor(a.sampleRate*d),b=a.createBuffer(1,n,a.sampleRate),c=b.getChannelData(0);for(let i=0;i<n;i++)c[i]=(Math.random()*2-1)*(1-i/n);const s=a.createBufferSource();s.buffer=b;const f=a.createBiquadFilter();f.type='lowpass';f.frequency.value=fr||1200;const g=a.createGain();g.gain.value=vol||.1;s.connect(f);f.connect(g);g.connect(a.destination);s.start(a.currentTime+(delay||0))}catch(e){}}
+const sfx={
+ dig(){noise(.05,.05,900)},collect(){tone(660,.08,'triangle',.06);tone(990,.1,'triangle',.06,0,.07)},
+ sell(){[523,659,784,1047].forEach((f,i)=>tone(f,.12,'triangle',.07,0,i*.07))},
+ hurt(){tone(160,.25,'sawtooth',.09,-100);noise(.15,.08,500)},
+ buy(){tone(440,.08,'square',.05);tone(660,.08,'square',.05,0,.08);tone(880,.15,'square',.05,0,.16)},
+ ach(){[784,988,1175,1568].forEach((f,i)=>tone(f,.15,'triangle',.07,0,i*.09))},
+ land(){noise(.08,.07,300)},jet(){noise(.06,.03,700)},rumble(){noise(.9,.12,200);tone(60,.8,'sawtooth',.06,-20)},
+ hit(){tone(220,.1,'square',.05,-80)},boing(){tone(300,.15,'sine',.08,300)},die(){tone(300,.7,'sawtooth',.1,-250);noise(.5,.15,400)},
+ brush(){noise(.06,.04,2500)},donate(){[392,523,659,784,1047].forEach((f,i)=>tone(f,.18,'triangle',.07,0,i*.08))},click(){tone(500,.04,'square',.04)}};
+function ambient(dt){
+ ambT-=dt;if(ambT>0||!AC||muted)return;ambT=3+Math.random()*6;
+ const pent=[262,294,330,392,440],d=depthM();
+ if(Math.random()<.5)tone(pent[Math.floor(Math.random()*5)]*(d>100?.5:1),1.6,'sine',.025);
+ else tone(1300+Math.random()*400,.09,'sine',.03,-700)}
+
+/* ===== input ===== */
+const kb={},tc={};
+const KM={KeyA:'l',ArrowLeft:'l',KeyD:'r',ArrowRight:'r',KeyW:'u',ArrowUp:'u',KeyS:'d',ArrowDown:'d'};
+const inp=k=>kb[k]||tc[k];
+function pressAction(k){
+ if(k==='e'){if(state==='play'&&!modal)interact();else if(modal)closeModal()}
+ else if(k==='x'){if(state==='play'&&!modal)rescue()}}
+addEventListener('keydown',e=>{
+ ac();const k=KM[e.code];
+ if(k){kb[k]=true;e.preventDefault();return}
+ if(e.repeat)return;
+ if(e.code==='KeyE'||e.code==='Enter'){if(state==='play'){e.preventDefault();pressAction('e')}}
+ else if(e.code==='KeyP'||e.code==='Escape'){if(modal)closeModal();else if(state==='play'||state==='pause')togglePause()}
+ else if(e.code==='KeyM'){setMute(!muted);toast(muted?'Sound off':'Sound on')}
+ else if(e.code==='KeyN'){toggleMap()}
+ else if(e.code==='KeyR'){if(state==='play'&&!modal)rescue()}
+ else if(e.code==='KeyT'){if(state==='play'||state==='pause')showAch()}
+ else if(e.code==='KeyB'){if(state==='play'||state==='pause')showBook()}
+});
+addEventListener('keyup',e=>{const k=KM[e.code];if(k)kb[k]=false});
+addEventListener('blur',()=>{for(const k in kb)kb[k]=false;if(state==='play'&&!modal)togglePause()});
+document.querySelectorAll('#touch button').forEach(b=>{const k=b.dataset.k;
+ const dn=e=>{e.preventDefault();ac();document.body.classList.add('touch');if('lrud'.includes(k))tc[k]=true;else pressAction(k)};
+ const up=e=>{e.preventDefault();if('lrud'.includes(k))tc[k]=false};
+ b.addEventListener('pointerdown',dn);b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);b.addEventListener('pointerleave',up)});
+if(matchMedia('(pointer:coarse)').matches||'ontouchstart' in window)document.body.classList.add('touch');
+document.getElementById('bP').onclick=()=>{ac();if(modal)closeModal();else if(state==='play'||state==='pause')togglePause()};
+document.getElementById('bN').onclick=()=>{ac();toggleMap()};
+document.getElementById('bM').onclick=()=>{ac();setMute(!muted);toast(muted?'Sound off':'Sound on')};
+document.getElementById('bB').onclick=()=>{ac();if(state==='play'||state==='pause')showBook()};
+document.getElementById('bT').onclick=()=>{ac();if(state==='play'||state==='pause')showAch()};
+
+/* ===== fx helpers ===== */
+function toast(t){if(!toasts)return;toasts.push({t,life:2.6});if(toasts.length>4)toasts.shift()}
+function ftext(x,y,t,c){texts.push({x,y,t,c:c||'#fff',life:1.2})}
+function burst(x,y,col,n,sp,life,g){for(let i=0;i<n&&parts.length<500;i++){const a=Math.random()*6.283,s=Math.random()*sp;parts.push({x:x,y:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-sp*.3,life:life*(.5+Math.random()*.5),max:life,c:col,s:2+Math.random()*3,g:g===undefined?500:g})}}
+function colorOfTile(t,y){if(t>=F0)return FINDS[t-F0].c;if(t===GAS)return'#8be36a';if(t===BOULDER)return'#8a8a8a';return BASECOL[t]||BASECOL[baseTile(y)]}
+function unlock(id){if(ach[id])return;ach[id]=1;const a=ACH.find(x=>x[0]===id);toast('Trophy: '+a[1]);sfx.ach();save()}
+function checkAch(){
+ const d=S.maxDepth,kinds=S.got.reduce((a,b)=>a+b,0),m=musCount();
+ if(S.dug>=1)unlock('first_dig');if(S.finds>=1)unlock('first_find');if(S.sales>=1)unlock('first_sale');if(S.cleaned>=1)unlock('first_clean');if(S.donated>=1)unlock('first_don');
+ if(d>=50)unlock('d50');if(d>=100)unlock('d100');if(d>=200)unlock('d200');if(d>=300)unlock('d300');
+ if(S.maxEra>=3)unlock('jur');if(S.maxEra>=8)unlock('cam');
+ if(S.earned>=1000)unlock('e1k');if(S.earned>=10000)unlock('e10k');if(S.earned>=50000)unlock('e50k');
+ if(S.finds>=25)unlock('f25');if(S.finds>=200)unlock('f200');
+ if(kinds>=25)unlock('k25');if(kinds>=50)unlock('k50');if(kinds>=NF)unlock('k100');
+ if(S.ups>=5)unlock('up5');if(UPS.some(u=>lv(u.id)>=u.costs.length))unlock('maxup');
+ if(m>=10)unlock('m10');if(m>=50)unlock('m50');if(m>=NF)unlock('m100');
+ if(S.eraBonus.some(x=>x))unlock('era1');
+ if(S.got[FIDX['T. rex Tooth']])unlock('trex');if(S.got[FIDX['Trilobite']])unlock('trilo');if(S.got[FIDX['Amber with Insect']])unlock('amber');if(S.got[FIDX['Gold Nugget']])unlock('gold');
+ if(S.caved&&!P.dead&&P.cave<=0)unlock('cavein');if(S.gasHit)unlock('gas');if(S.deaths>=1)unlock('oops');
+ if(S.kills>=10)unlock('crit10');if(S.waterT>=3)unlock('river');if(S.heatT>=15)unlock('heat');if(S.finished)unlock('end')}
+
+/* ===== player actions ===== */
+function hurt(amt,cont){
+ if(P.dead||state!=='play')return;
+ if(!cont){if(P.inv>0)return;P.inv=.8;P.flash=.3;sfx.hurt();shake=Math.max(shake,5)}
+ P.hull-=amt;
+ if(P.hull<=0)die()}
+function die(){
+ P.hull=0;P.dead=true;P.deadT=2.4;S.deaths++;sfx.die();shake=12;
+ burst(P.x,P.y,'#ffc400',40,260,1.2);burst(P.x,P.y,'#555',30,200,1.2);
+ P.cargo.fill(0);P.clean.fill(0);P.dig=null;toast('Rig wrecked! Cargo lost.')}
+function respawn(){
+ P.coins=Math.floor(P.coins*.9);P.x=33*TS;P.y=SURF*TS-HH-1;P.vx=P.vy=0;P.dead=false;P.hull=cap('hull');P.fuel=Math.max(P.fuel,cap('fuel')*.5);P.inv=2;P.cave=0;
+ toast('Repair crew towed you home (-10% coins).');save()}
+function rescue(){
+ if(depthM()<2){toast('You are already home.');return}
+ P.cargo.fill(0);P.clean.fill(0);P.x=33*TS;P.y=SURF*TS-HH-1;P.vx=P.vy=0;P.fuel=Math.max(P.fuel,cap('fuel')*.25);P.dig=null;
+ toast('Emergency tow! Cargo was lost.');sfx.hit();save()}
+function addFind(i){
+ if(cargoN()>=cap('cargo')){ftext(P.x,P.y-24,'CARGO FULL!','#ff6b6b');return false}
+ P.cargo[i]++;S.finds++;S.got[i]=1;ftext(P.x,P.y-24,'+'+FINDS[i].n,FINDS[i].c);sfx.collect();return true}
+function gasBurst(tx,ty){
+ gas.push({x:(tx+.5)*TS,y:(ty+.5)*TS,life:3.2});S.gasHit=1;
+ for(let i=0;i<24;i++)parts.push({x:(tx+.5)*TS,y:(ty+.5)*TS,vx:(Math.random()-.5)*90,vy:(Math.random()-.5)*90-20,life:2,max:2,c:'#9ae85a',s:6+Math.random()*6,g:-20});
+ const d=Math.hypot(P.x-(tx+.5)*TS,P.y-(ty+.5)*TS);if(d<60){hurt(14);toast('Gas pocket! Back away!')}}
+function startFall(tx,ty){if(tileAt(tx,ty)!==BOULDER)return;tiles[idx(tx,ty)]=A;rocks.push({x:(tx+.5)*TS,y:(ty+.5)*TS,vy:0,tile:true,t:.35})}
+function clearTile(tx,ty){
+ const t=tileAt(tx,ty);if(t===A||t===BEDROCK||t===WATER)return false;
+ tiles[idx(tx,ty)]=A;
+ if(t>=F0){const i=t-F0;if(i===GREAT){S.got[i]=1;S.mus[i]=1;S.finds++;burst((tx+.5)*TS,(ty+.5)*TS,'#ffe27a',60,300,1.4);ending()}else addFind(i)}
+ else if(t===GAS)gasBurst(tx,ty);
+ burst((tx+.5)*TS,(ty+.5)*TS,colorOfTile(t,ty),5,120,.6);
+ S.dug++;if(tileAt(tx,ty-1)===BOULDER)startFall(tx,ty-1);
+ if(ty-SURF>30&&Math.random()<.006&&P.cave<=0){P.cave=1.2;sfx.rumble();toast('Rumble... cave-in!')}
+ return true}
+function dropRocks(){
+ const tx=Math.floor(P.x/TS);let cy=Math.floor(P.y/TS);
+ for(let k=0;k<8&&!solid(tx,cy-1);k++)cy--;
+ for(let dx=-1;dx<=1;dx++){const x=tx+dx;if(!solid(x,cy)&&Math.random()<.85)rocks.push({x:(x+.5)*TS,y:cy*TS+10,vy:0,tile:false,t:0})}
+ S.caved=1}
+function killCrit(c){S.kills++;const v=3+c.t*2;P.coins+=v;S.earned+=v;ftext(c.x,c.y-10,'Poof! +'+v,'#ffe066');burst(c.x,c.y,CRIT[c.t].c,14,140,.7);sfx.hit()}
+
+/* ===== camp buildings ===== */
+const BLD=[
+ {k:'market',n:'MARKET',x0:15,x1:20,c:'#2f7d4f',r:'#1c5434'},
+ {k:'museum',n:'MUSEUM',x0:22,x1:28,c:'#d8c9a8',r:'#8a5a3a'},
+ {k:'fuel',n:'FUEL PUMP',x0:30,x1:33,c:'#c0392b',r:'#7d241b'},
+ {k:'repair',n:'REPAIR TENT',x0:35,x1:38,c:'#2874a6',r:'#1a4a6e'},
+ {k:'shop',n:'UPGRADES',x0:40,x1:45,c:'#8e44ad',r:'#5b2c70'}];
+function nearBld(){if(P.y>(SURF+.6)*TS)return null;const tx=P.x/TS;return BLD.find(b=>tx>=b.x0&&tx<=b.x1+1)||null}
+function interact(){const b=nearBld();if(!b){toast('Go to a building at the camp, then press E.');return}openModal(b.k)}
+
+/* ===== icons ===== */
+function drawFind(c,k,x,y,s,col){
+ c.save();c.translate(x,y);c.scale(s/10,s/10);c.fillStyle=col;c.strokeStyle=col;c.lineWidth=1.8;c.lineCap='round';c.lineJoin='round';
+ const dk='rgba(0,0,0,.4)',lt='rgba(255,255,255,.55)';
+ const ell=(a,b,w,h,f)=>{c.beginPath();c.ellipse(a,b,w,h,0,0,6.3);f?c.fill():c.stroke()};
+ switch(k){
+ case 'spiral':ell(0,0,8,8,1);c.strokeStyle=dk;c.lineWidth=1.6;c.beginPath();for(let a=0;a<12.5;a+=.25){const r=.6*a;c.lineTo(Math.cos(a)*r,Math.sin(a)*r)}c.stroke();break;
+ case 'trilo':ell(0,1,5,8,1);c.strokeStyle=dk;for(let i=-4;i<=6;i+=3){c.beginPath();c.moveTo(-5,i);c.lineTo(5,i);c.stroke()}c.fillStyle=col;ell(0,-6,6,3.5,1);c.fillStyle='#fff';ell(-3,-6,1.2,1.2,1);ell(3,-6,1.2,1.2,1);break;
+ case 'tooth':c.beginPath();c.moveTo(-6,-8);c.quadraticCurveTo(0,-4,6,-8);c.lineTo(1,9);c.lineTo(-1,9);c.closePath();c.fill();c.fillStyle=lt;c.fillRect(-3,-6,1.6,6);break;
+ case 'horn':c.beginPath();c.moveTo(-6,9);c.quadraticCurveTo(-9,-4,6,-10);c.quadraticCurveTo(-2,-3,1,9);c.closePath();c.fill();c.strokeStyle=dk;c.lineWidth=1;c.beginPath();c.moveTo(-5,4);c.lineTo(-1,4);c.moveTo(-5,0);c.lineTo(-2,-1);c.stroke();break;
+ case 'feather':c.lineWidth=2;c.beginPath();c.moveTo(-6,9);c.lineTo(6,-9);c.stroke();c.lineWidth=1.3;for(let i=0;i<6;i++){const px=-4+i*2,py=6-i*3;c.beginPath();c.moveTo(px,py);c.lineTo(px-4,py-2);c.moveTo(px,py);c.lineTo(px+4,py+2);c.stroke()}break;
+ case 'tusk':c.lineWidth=4.5;c.beginPath();c.arc(-4,5,11,-1.5,.1);c.stroke();break;
+ case 'amber':c.globalAlpha=.9;c.beginPath();c.moveTo(-6,-4);c.quadraticCurveTo(-8,8,2,9);c.quadraticCurveTo(9,6,7,-3);c.quadraticCurveTo(0,-9,-6,-4);c.fill();c.globalAlpha=1;c.fillStyle='#3a2208';ell(0,1,1.8,3,1);c.lineWidth=.8;c.strokeStyle='#3a2208';c.beginPath();c.moveTo(-3,0);c.lineTo(3,1);c.moveTo(-3,3);c.lineTo(3,3);c.moveTo(-2,-3);c.lineTo(-4,-5);c.moveTo(2,-3);c.lineTo(4,-5);c.stroke();break;
+ case 'fern':c.lineWidth=1.6;c.beginPath();c.moveTo(0,10);c.lineTo(0,-9);c.stroke();for(let i=0;i<6;i++){const py=8-i*3,w=6-i*.7;c.beginPath();c.moveTo(0,py);c.lineTo(-w,py-3);c.moveTo(0,py);c.lineTo(w,py-3);c.stroke()}break;
+ case 'egg':ell(0,0,6.5,8.5,1);c.fillStyle=dk;ell(-2,-2,1.3,1.3,1);ell(2,2,1.5,1.5,1);ell(-1,4,1,1,1);break;
+ case 'gem':c.beginPath();c.moveTo(0,-9);c.lineTo(8,-2);c.lineTo(0,9);c.lineTo(-8,-2);c.closePath();c.fill();c.strokeStyle=lt;c.lineWidth=1;c.beginPath();c.moveTo(-8,-2);c.lineTo(8,-2);c.moveTo(-3,-2);c.lineTo(0,9);c.moveTo(3,-2);c.lineTo(0,9);c.moveTo(-3,-2);c.lineTo(0,-9);c.moveTo(3,-2);c.lineTo(0,-9);c.stroke();break;
+ case 'geode':ell(0,0,9,9,1);c.fillStyle='#4a4048';ell(0,0,6,6,1);c.fillStyle=col;ell(0,0,4.2,4.2,1);c.fillStyle='#fff';ell(-1,-1,1.4,1.4,1);break;
+ case 'nugget':c.beginPath();c.moveTo(-7,0);c.lineTo(-4,-6);c.lineTo(2,-7);c.lineTo(7,-1);c.lineTo(5,6);c.lineTo(-2,7);c.closePath();c.fill();c.fillStyle=lt;c.fillRect(-2,-4,3,2);break;
+ case 'bone':c.lineWidth=3.6;c.beginPath();c.moveTo(-6,5);c.lineTo(6,-5);c.stroke();ell(-7,6,2.6,2.6,1);ell(-5,8,2.2,2.2,1);ell(7,-6,2.6,2.6,1);ell(5,-8,2.2,2.2,1);break;
+ case 'shell':c.beginPath();c.moveTo(0,8);c.lineTo(-9,-3);c.quadraticCurveTo(0,-11,9,-3);c.closePath();c.fill();c.strokeStyle=dk;c.lineWidth=1;for(let i=-6;i<=6;i+=3){c.beginPath();c.moveTo(0,8);c.lineTo(i*1.3,-6);c.stroke()}break;
+ case 'fish':ell(-1,0,8,4.5,1);c.beginPath();c.moveTo(6,0);c.lineTo(10,-5);c.lineTo(10,5);c.fill();c.fillStyle='#fff';ell(-5,-1,1.3,1.3,1);c.strokeStyle=dk;c.lineWidth=1;c.beginPath();c.moveTo(-1,-4);c.lineTo(-1,4);c.moveTo(2,-4);c.lineTo(2,4);c.stroke();break;
+ case 'claw':c.beginPath();c.moveTo(-6,-8);c.quadraticCurveTo(8,-6,5,9);c.quadraticCurveTo(2,0,-6,-3);c.closePath();c.fill();break;
+ case 'print':ell(0,4,4.5,4,1);ell(-6,-3,2.2,3.2,1);ell(0,-6,2.2,3.4,1);ell(6,-3,2.2,3.2,1);break;
+ case 'crystal':c.beginPath();c.moveTo(-8,9);c.lineTo(-5,-4);c.lineTo(-2,9);c.fill();c.beginPath();c.moveTo(-3,9);c.lineTo(1,-9);c.lineTo(5,9);c.fill();c.beginPath();c.moveTo(3,9);c.lineTo(7,-1);c.lineTo(10,9);c.fill();c.fillStyle=lt;c.fillRect(0,-4,1.5,8);break;
+ case 'leaf':c.save();c.rotate(-.6);ell(0,0,5,9,1);c.strokeStyle=dk;c.lineWidth=1;c.beginPath();c.moveTo(0,-8);c.lineTo(0,9);for(let i=-5;i<=5;i+=3.3){c.moveTo(0,i);c.lineTo(-3,i-2);c.moveTo(0,i);c.lineTo(3,i-2)}c.stroke();c.restore();break;
+ case 'blob':ell(0,0,9,6,1);c.strokeStyle=dk;c.lineWidth=1;for(let i=-6;i<=6;i+=2.4){c.beginPath();c.moveTo(i,-5);c.lineTo(i,5);c.stroke()}break;
+ case 'log':ell(0,0,9,8,1);c.strokeStyle=dk;c.lineWidth=1;ell(0,0,6,5.4,0);ell(0,0,3,2.6,0);break;
+ case 'wing':ell(0,0,9,4,1);c.strokeStyle=dk;c.lineWidth=.8;c.beginPath();c.moveTo(-9,0);c.lineTo(9,0);for(let i=-6;i<=6;i+=3){c.moveTo(i,-3.5);c.lineTo(i,3.5)}c.stroke();break;
+ case 'stripes':c.fillRect(-8,-7,16,14);c.fillStyle=dk;for(let i=-5;i<=5;i+=4)c.fillRect(-8,i,16,1.8);break;
+ case 'worm':c.lineWidth=3.5;c.beginPath();c.moveTo(-8,3);c.quadraticCurveTo(-4,-8,0,2);c.quadraticCurveTo(4,9,8,-3);c.stroke();c.lineWidth=1;c.beginPath();for(let i=0;i<4;i++){c.moveTo(-6+i*4,0);c.lineTo(-6+i*4,-6)}c.stroke();break;
+ case 'layers':for(let i=0;i<4;i++){c.globalAlpha=1-i*.18;c.beginPath();c.arc(0,9,10-i*2.4,Math.PI,0);c.fill()}c.globalAlpha=1;break;
+ case 'urchin':ell(0,0,7,7,1);c.strokeStyle=dk;c.lineWidth=1;for(let a=0;a<6.3;a+=.78){c.beginPath();c.moveTo(0,0);c.lineTo(Math.cos(a)*7,Math.sin(a)*7);c.stroke()}break;
+ case 'disc':for(let i=0;i<4;i++){ell(0,-7+i*4.6,6,2.6,1);c.strokeStyle=dk;c.lineWidth=.8;ell(0,-7+i*4.6,6,2.6,0)}break;
+ case 'coral':c.beginPath();c.moveTo(-5,9);c.quadraticCurveTo(-9,-3,5,-9);c.lineTo(7,-6);c.quadraticCurveTo(0,-1,3,9);c.closePath();c.fill();c.strokeStyle=dk;c.lineWidth=1;for(let i=0;i<4;i++){c.beginPath();c.moveTo(-5+i*.6,6-i*3.4);c.lineTo(1+i*.9,6-i*3.6);c.stroke()}break;
+ case 'jaw':c.lineWidth=3;c.beginPath();c.arc(0,-2,8,.3,Math.PI-.3);c.stroke();for(let i=0;i<5;i++){c.beginPath();const a=.6+i*.5;c.moveTo(Math.cos(a)*8,-2+Math.sin(a)*8);c.lineTo(Math.cos(a)*6,-2+Math.sin(a)*6-3);c.lineTo(Math.cos(a)*8+1.5,-2+Math.sin(a)*8-.5);c.fill()}break;
+ default:c.beginPath();c.moveTo(-8,2);c.lineTo(-5,-6);c.lineTo(3,-8);c.lineTo(8,-1);c.lineTo(5,7);c.lineTo(-4,8);c.closePath();c.fill();c.fillStyle=dk;ell(-1,0,1.3,1.3,1);ell(3,3,1,1,1);ell(-4,-3,1,1,1)}
+ c.restore()}
+const iconCache={};
+function iconURL(i){if(iconCache[i])return iconCache[i];const cc=document.createElement('canvas');cc.width=cc.height=40;const x=cc.getContext('2d');x.fillStyle='#5a4432';x.beginPath();x.arc(20,20,19,0,6.3);x.fill();drawFind(x,FINDS[i].k,20,20,15,FINDS[i].c);return iconCache[i]=cc.toDataURL()}
+
+/* ===== overlay UI ===== */
+function showOv(html){ov.innerHTML='<div class="card">'+html+'</div>';ov.style.display='flex'}
+function hideOv(){ov.style.display='none';ov.innerHTML=''}
+const price=n=>Math.round(n).toLocaleString();
+function openModal(k){modal=k;ovIsOverlay=false;sfx.click();renderModal()}
+function closeModal(){modal=null;brushI=null;hideOv()}
+function marketTotal(){let t=0;for(let i=0;i<NF;i++)t+=P.cargo[i]*unitVal(i,false)+P.clean[i]*unitVal(i,true);return t}
+function renderModal(){
+ if(!modal)return;let h='';
+ if(modal==='market'){
+  let rows='';for(let i=0;i<NF;i++){const d=P.cargo[i],c=P.clean[i];if(!d&&!c)continue;
+   rows+=`<div class="row"><img src="${iconURL(i)}"><div class="t"><b style="color:${FINDS[i].c}">${FINDS[i].n}</b><small>dirty x${d} (${unitVal(i,false)} each) | clean x${c} (${unitVal(i,true)} each)</small></div>${d?`<button class="btn brush" data-i="${i}" id="br${i}"><span class="fill" id="bf${i}"></span>HOLD TO BRUSH</button>`:''}</div>`}
+  const tot=marketTotal();
+  h=`<h2>Market and Brush Lab</h2><div class="sub">Coins: ${price(P.coins)}</div><div class="how">Hold the Brush button to clean a find and sell it for ${Math.round((cleanMult()-1)*100)}% more. Or donate it to the museum for even more.</div>${rows||'<div class="how">Your cargo bay is empty. Dig down and find some fossils!</div>'}<button class="btn" data-a="sell" ${tot?'':'disabled'}>Sell all for ${price(tot)}</button>`}
+ else if(modal==='museum'){
+  const m=musCount();
+  h=`<h2>Museum</h2><div class="sub">Coins: ${price(P.coins)} | On display: ${m} / ${NF}</div>`;
+  for(let e=0;e<10;e++)h+=`<div class="row" style="padding:3px 10px"><div style="width:110px;font-size:12px"><b>${ERAS[e][0]}</b></div><div class="pb"><i style="width:${eraMus(e)*10}%"></i></div><div style="width:40px;text-align:right;font-size:12px">${eraMus(e)}/10</div></div>`;
+  let rows='';for(let i=0;i<NF;i++){const d=P.cargo[i],c=P.clean[i];if(!d&&!c)continue;const on=S.mus[i],pay=Math.round(FINDS[i].v*(c?3:2));
+   rows+=`<div class="row"><img src="${iconURL(i)}"><div class="t"><b style="color:${FINDS[i].c}">${FINDS[i].n}</b> x${d+c}<small>${on?'Already on display (sell extras at the market)':(c?'Cleaned: ':'Dusty: ')+'donate for '+price(pay)+' coins'}</small></div><button class="btn" data-a="don" data-v="${i}" ${on?'disabled':''}>Donate</button></div>`}
+  h+=(rows||'<div class="how">Bring finds here to put them on display. Your first donation of each kind pays coins, and finishing an era pays a bonus!</div>')+`<button class="btn dim" data-a="book">Open Collection Book</button>`}
+ else if(modal==='fuel'){
+  const need=Math.ceil(cap('fuel')-P.fuel),cost=need*2;
+  h=`<h2>Fuel Pump</h2><div class="sub">Fuel ${P.fuel.toFixed(2)} / ${cap('fuel')} &nbsp;|&nbsp; Coins: ${price(P.coins)}</div><div class="how">Fuel costs 2 coins per unit. Breaking a block uses 0.01 fuel and flying one block uses 0.02.</div><button class="btn" data-a="fuel" ${need>0&&P.coins>0?'':'disabled'}>Fill up (${price(Math.min(cost,P.coins))} coins)</button>`}
+ else if(modal==='repair'){
+  const need=Math.ceil(cap('hull')-P.hull),cost=Math.ceil(need*.5);
+  h=`<h2>Repair Tent</h2><div class="sub">Hull ${Math.ceil(P.hull)} / ${cap('hull')} &nbsp;|&nbsp; Coins: ${price(P.coins)}</div><div class="how">Repairs cost 1 coin per 2 hull points.</div><button class="btn" data-a="repair" ${need>0&&P.coins>0?'':'disabled'}>Repair (${price(Math.min(cost,P.coins))} coins)</button>`}
+ else if(modal==='shop'){
+  h=`<h2>Upgrade Shop</h2><div class="sub">Coins: ${price(P.coins)}</div>`;
+  UPS.forEach(u=>{const l=lv(u.id),mx=u.costs.length,c=u.costs[l];
+   h+=`<div class="row"><div class="t"><b>${u.n}</b> <span class="pips">${'#'.repeat(l)}${'-'.repeat(mx-l)}</span><small>${u.d(u.vals[l])}${l<mx?'  ->  '+u.d(u.vals[l+1]):'  (MAX)'}</small></div>${l<mx?`<button class="btn" data-a="buy" data-v="${u.id}" ${P.coins>=c?'':'disabled'}>${price(c)}</button>`:'<b>MAX</b>'}</div>`})}
+ h+=`<button class="btn dim" data-a="close">Close (E)</button>`;showOv(h)}
+function brushHold(i){brushI=i;brushP=0}
+function brushTick(dt){
+ if(brushI===null||modal!=='market')return;
+ if(P.cargo[brushI]<=0){brushI=null;return}
+ brushP+=dt*cap('brush');
+ const f=document.getElementById('bf'+brushI);if(f)f.style.width=Math.min(100,brushP*100)+'%';
+ if(Math.random()<dt*10)sfx.brush();
+ if(brushP>=1){const i=brushI;P.cargo[i]--;P.clean[i]++;S.cleaned++;brushP=0;sfx.collect();ftext(P.x,P.y-30,'Clean!','#9fe');checkAch();if(P.cargo[i]<=0)brushI=null;renderModal()}}
+ov.addEventListener('pointerdown',e=>{const b=e.target.closest('.brush');if(b&&!b.disabled){ac();brushHold(+b.dataset.i)}});
+addEventListener('pointerup',()=>{if(brushI!==null){brushI=null;brushP=0;document.querySelectorAll('.brush .fill').forEach(f=>f.style.width='0')}});
+ov.addEventListener('click',e=>{
+ const b=e.target.closest('[data-a]');if(!b||b.disabled)return;ac();const a=b.dataset.a,v=b.dataset.v;
+ if(a==='close'){closeModal();return}
+ if(a==='sell'){const tot=marketTotal();if(tot){P.coins+=tot;S.earned+=tot;S.sales++;P.cargo.fill(0);P.clean.fill(0);sfx.sell();ftext(P.x,P.y-30,'+'+tot,'#ffe066');checkAch();save()}renderModal();return}
+ if(a==='don'){const i=+v;if(S.mus[i]||(P.cargo[i]+P.clean[i])<=0){renderModal();return}
+   const c=P.clean[i]>0;if(c)P.clean[i]--;else P.cargo[i]--;const pay=Math.round(FINDS[i].v*(c?3:2));P.coins+=pay;S.earned+=pay;S.mus[i]=1;S.donated++;sfx.donate();toast('On display: '+FINDS[i].n+'! +'+pay);
+   const e=FINDS[i].e;if(eraMus(e)===10&&!S.eraBonus[e]){S.eraBonus[e]=1;const bn=300*(e+1);P.coins+=bn;S.earned+=bn;toast(ERAS[e][0]+' wing complete! Bonus +'+bn)}
+   checkAch();save();renderModal();return}
+ if(a==='book'){showBook();return}
+ if(a==='fuel'){const need=Math.ceil(cap('fuel')-P.fuel),pay=Math.min(need*2,P.coins),add=pay/2;P.coins-=pay;P.fuel=Math.min(cap('fuel'),P.fuel+add);sfx.buy();save();renderModal();return}
+ if(a==='repair'){const need=Math.ceil(cap('hull')-P.hull),pay=Math.min(Math.ceil(need*.5),P.coins);P.coins-=pay;P.hull=Math.min(cap('hull'),P.hull+pay*2);sfx.buy();save();renderModal();return}
+ if(a==='buy'){const u=UPD(v),l=lv(v);if(l<u.costs.length&&P.coins>=u.costs[l]){P.coins-=u.costs[l];UPLV[v]=l+1;S.ups++;sfx.buy();
+   if(v==='hull')P.hull+=u.vals[l+1]-u.vals[l];if(v==='fuel')P.fuel+=u.vals[l+1]-u.vals[l];
+   lastSeenTx=-1;checkAch();save()}renderModal();return}
+ if(a==='new'){newGame();startPlay();return}
+ if(a==='cont'){if(load()){startPlay()}else{newGame();startPlay()}return}
+ if(a==='resume'){togglePause();return}
+ if(a==='title'){save();showTitle();return}
+ if(a==='mute'){setMute(!muted);showPause();return}
+ if(a==='ach'){showAch();return}
+ if(a==='back'){ovIsOverlay=false;if(backFn)backFn();else hideOv();return}
+ if(a==='era'){bookEra=+v;showBook();return}
+ if(a==='keep'){state='play';hideOv();save();return}
+});
+function setBack(){
+ if(state==='title'){backFn=showTitle}
+ else if(modal){const m=modal;modal=null;brushI=null;state='pause';backFn=()=>{state='play';openModal(m)}}
+ else if(state==='pause'){backFn=showPause}
+ else if(state==='play'){state='pause';backFn=()=>{state='play';hideOv()}}}
+function showAch(){
+ if(!ovIsOverlay)setBack();
+ const n=Object.keys(ach||{}).length;ovIsOverlay=true;
+ showOv(`<h2>Trophies ${n} / ${ACH.length}</h2><div class="ach">${ACH.map(a=>`<div class="${ach&&ach[a[0]]?'on':''}"><b>${a[1]}</b>${a[2]}</div>`).join('')}</div><button class="btn" data-a="back">Back</button>`)}
+function showBook(){
+ if(!ovIsOverlay)setBack();
+ ovIsOverlay=true;const e=bookEra;
+ let h=`<h2>Collection Book</h2><div class="sub">Found ${S.got.reduce((a,b)=>a+b,0)} / ${NF} | On display ${musCount()} / ${NF}</div><div class="tabs">`;
+ for(let i=0;i<10;i++)h+=`<button class="${i===e?'on':''}" data-a="era" data-v="${i}">${ERAS[i][0]}</button>`;
+ h+=`</div><div class="sub">${ERAS[e][0]}: ${ERAS[e][1]}</div>`;
+ for(let j=0;j<10;j++){const i=e*10+j,f=FINDS[i],got=S.got[i];
+  h+=`<div class="row ${got?'':'lock'}">${got?`<img src="${iconURL(i)}">`:'<img alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">'}<div class="t"><b>${got?f.n:'???'}</b> ${S.mus[i]?'(on display)':''}<small>${got?f.f:'Not found yet. Keep digging in the '+ERAS[e][0]+' layers.'}</small></div></div>`}
+ h+=`<button class="btn" data-a="back">Back</button>`;showOv(h)}
+function showTitle(){
+ state='title';modal=null;ovIsOverlay=false;backFn=null;
+ showOv(`<h1>FOSSIL HUNTER</h1><div class="sub">S.I.P. Arcade</div>
+ <div class="how"><b>Goal:</b> dig down through 10 ages of Earth, find 100 fossils and minerals, brush them clean, sell them or put them in the museum, and uncover the Great Fossil at the very bottom.<br>
+ <b>Move:</b> A / D or arrows &nbsp; <b>Dig:</b> hold S (down) or push into a wall &nbsp; <b>Fly:</b> W / Up<br>
+ <b>E</b> use camp buildings &nbsp; <b>B</b> collection book &nbsp; <b>N</b> map on/off &nbsp; <b>R</b> emergency tow &nbsp; <b>T</b> trophies &nbsp; <b>P</b> pause &nbsp; <b>M</b> mute<br>
+ Breaking a block costs 0.01 fuel and flying a block costs 0.02. Watch for cave-ins, gas pockets, underground rivers, and the heat deep down. The cave bats and critters are friendly!</div>
+ ${hasSave()?'<button class="btn" data-a="cont">Continue</button><button class="btn dim" data-a="new">New Game</button>':'<button class="btn" data-a="new">Start Digging!</button>'}
+ <button class="btn dim" data-a="book">Collection Book</button><button class="btn dim" data-a="ach">Trophies</button>`)}
+function showPause(){ovIsOverlay=false;backFn=null;showOv(`<h2>Paused</h2><button class="btn" data-a="resume">Resume</button><button class="btn dim" data-a="book">Collection Book</button><button class="btn dim" data-a="ach">Trophies</button><button class="btn dim" data-a="mute">Sound: ${muted?'OFF':'ON'}</button><button class="btn dim" data-a="title">Save and Title Screen</button>`)}
+function togglePause(){
+ if(state==='play'){state='pause';showPause();save()}
+ else if(state==='pause'){state='play';ovIsOverlay=false;backFn=null;hideOv()}}
+function startPlay(){state='play';modal=null;ovIsOverlay=false;backFn=null;hideOv();ac();if(!hintShown){hintShown=true;toast('Hold S to dig down. Press E at the camp buildings!')}}
+function ending(){
+ if(S.finished)return;S.finished=true;P.coins+=8000;S.earned+=8000;state='end';sfx.ach();checkAch();save();ovIsOverlay=false;
+ showOv(`<h1 style="font-size:32px">THE GREAT FOSSIL!</h1><div class="sub">You did it, paleontologist!</div>
+ <div class="how">At the very bottom of time, you brush away the last of the dust and uncover an enormous Ediacaran fossil bed: the first big, complex life on Earth, over half a billion years old. The whole camp cheers, and the museum builds a brand new wing just for it.<br><br>
+ You earned an <b>8,000 coin</b> Discovery Bonus!<br>Time played: ${Math.floor(playT/60)} min &nbsp; Finds: ${S.finds} &nbsp; Kinds found: ${S.got.reduce((a,b)=>a+b,0)} / ${NF} &nbsp; Rig wrecks: ${S.deaths}<br>Keep digging to fill your collection book and win every trophy!</div>
+ <button class="btn" data-a="keep">Keep Digging</button><button class="btn dim" data-a="title">Title Screen</button>`)}
+
+/* ===== update ===== */
+function boxHit(x,y){
+ const x0=Math.floor((x-HW)/TS),x1=Math.floor((x+HW-.01)/TS),y0=Math.floor((y-HH)/TS),y1=Math.floor((y+HH-.01)/TS);
+ for(let ty=y0;ty<=y1;ty++)for(let tx=x0;tx<=x1;tx++)if(solid(tx,ty))return true;return false}
+function moveP(dx,dy){
+ let hx=0,hy=0;const n=Math.ceil(Math.max(Math.abs(dx),Math.abs(dy))/1.5)||1,sx=dx/n,sy=dy/n;
+ for(let i=0;i<n;i++){
+  if(sx){P.x+=sx;if(boxHit(P.x,P.y)){P.x-=sx;hx=sx>0?1:-1;P.vx=0}}
+  if(sy){P.y+=sy;if(boxHit(P.x,P.y)){P.y-=sy;hy=sy>0?1:-1}}}
+ return[hx,hy]}
+function heatDps(){const d=depthM();return Math.max(0,(d-190)*.02-lv('hull')*.3)}
+function updatePlayer(dt){
+ const L=inp('l'),R=inp('r'),U=inp('u'),D=inp('d'),fuelOk=P.fuel>0,jl=lv('jet');
+ const inWater=tileAt(Math.floor(P.x/TS),Math.floor(P.y/TS))===WATER;
+ let ax=0;if(fuelOk){if(L)ax--;if(R)ax++}
+ if(ax)P.face=ax;
+ P.vx+=(ax*150-P.vx)*Math.min(1,dt*(P.onGround?14:6));
+ if(inWater){P.vx+=curDir(Math.floor(P.y/TS))*500*dt;S.waterT+=dt;P.vy*=.96;if(Math.random()<dt*8)parts.push({x:P.x,y:P.y-8,vx:0,vy:-30,life:.8,max:.8,c:'#bfe8ff',s:3,g:-20})}
+ P.thrust=false;
+ if(U&&fuelOk){P.vy-=(1500+jl*200)*dt;P.thrust=true;
+  if(Math.random()<dt*14){parts.push({x:P.x+(Math.random()-.5)*8,y:P.y+HH,vx:(Math.random()-.5)*30,vy:120+Math.random()*60,life:.35,max:.35,c:Math.random()<.5?'#ffb300':'#ff5a1c',s:3,g:0})}
+  sfxT-=dt;if(sfxT<=0){sfx.jet();sfxT=.12}}
+ P.vy+=GRAV*dt*(inWater?.5:1);
+ const maxUp=130+jl*35;if(P.vy<-maxUp)P.vy=-maxUp;if(P.vy>560)P.vy=560;
+ const pre=P.vy,px0=P.x,py0=P.y,r=moveP(P.vx*dt,P.vy*dt);
+ if(P.thrust)P.fuel-=.02*Math.hypot(P.x-px0,P.y-py0)/TS;   // 0.02 fuel for every block you fly
+ if(r[1]){if(r[1]===1&&pre>430){hurt((pre-430)*.09);sfx.land();burst(P.x,P.y+HH,'#aa8866',8,100,.4)}else if(r[1]===1&&pre>200)sfx.land();P.vy=0}
+ P.onGround=boxHit(P.x,P.y+1.5);
+ let tg=null;
+ if(fuelOk){
+  if(D&&!L&&!R){const ty=Math.floor((P.y+HH+2)/TS);let tx=Math.floor(P.x/TS);if(!solid(tx,ty)){const a1=Math.floor((P.x-HW+1)/TS),a2=Math.floor((P.x+HW-1)/TS);tx=solid(a1,ty)?a1:(solid(a2,ty)?a2:tx)}if(P.onGround&&solid(tx,ty)){tg=[tx,ty];P.digDir=[0,1];P.x+=(((tx+.5)*TS)-P.x)*Math.min(1,dt*10)}}
+  else if(ax){const tx=Math.floor((P.x+ax*(HW+2))/TS),ty=Math.floor((P.y+HH-6)/TS);if(solid(tx,ty)){tg=[tx,ty];P.digDir=[ax,0]}}
+  else if(U&&!D){const ty=Math.floor((P.y-HH-2)/TS),tx=Math.floor(P.x/TS);if(solid(tx,ty)&&P.vy>-30){tg=[tx,ty];P.digDir=[0,-1];P.x+=(((tx+.5)*TS)-P.x)*Math.min(1,dt*10)}}}
+ if(tg){
+  const t=tileAt(tg[0],tg[1]);
+  if(t===BEDROCK){P.dig=null;if(Math.random()<dt*3){burst(P.x+P.digDir[0]*16,P.y+P.digDir[1]*16,'#999',1,60,.3)}}
+  else if(t>=F0&&t!==F0+GREAT&&cargoN()>=cap('cargo')){P.dig=null;if(!(P.fullMsg>0)){P.fullMsg=1.5;ftext(P.x,P.y-24,'CARGO FULL - go sell!','#ff6b6b')}}
+  else{
+   const hd=t>=F0?FINDS[t-F0].h+.6+FINDS[t-F0].e*.6:(t>=1&&t<=10?.6+(t-1)*.6:1);
+   const need=(hd+.4)*.33/UPD('drill').vals[lv('drill')];
+   if(!P.dig||P.dig.x!==tg[0]||P.dig.y!==tg[1])P.dig={x:tg[0],y:tg[1],t:0,need,s:0};
+   P.dig.t+=dt;P.dig.s-=dt;
+   if(P.dig.s<=0){sfx.dig();P.dig.s=.14;burst((tg[0]+.5)*TS,(tg[1]+.5)*TS,colorOfTile(t,tg[1]),2,90,.4);shake=Math.max(shake,1.2)}
+   if(P.dig.t>=P.dig.need){clearTile(tg[0],tg[1]);P.dig=null;P.fuel=Math.max(0,P.fuel-.01)}}}   // 0.01 fuel for every block you break
+ else P.dig=null;
+ if(P.fullMsg>0)P.fullMsg-=dt;
+ if(P.fuel<0)P.fuel=0;
+ if(P.fuel===0&&!P.warnedFuel){P.warnedFuel=true;toast('OUT OF FUEL! Press R for an emergency tow.')}
+ if(P.fuel>0.5)P.warnedFuel=false;
+ const hd=heatDps();P.heat=hd;
+ if(hd>0){hurt(hd*dt,true);S.heatT+=dt;if(!P.heatMsg){P.heatMsg=1;toast('It is getting hot down here! Upgrade your hull cooling.')}}
+ if(P.inv>0)P.inv-=dt;if(P.flash>0)P.flash-=dt;
+ if(P.cave>0){P.cave-=dt;shake=Math.max(shake,3);if(Math.random()<dt*20)burst(P.x+(Math.random()-.5)*60,P.y-30,'#a08060',1,40,.8,200);if(P.cave<=0)dropRocks()}
+ const dm=depthM();if(dm>S.maxDepth)S.maxDepth=dm;
+ const er=eraOf(Math.floor(P.y/TS));if(er>S.maxEra&&P.y/TS>SURF){S.maxEra=er;toast('Entering the '+ERAS[er][0]+' layers!')}
+ const tx=Math.floor(P.x/TS),ty=Math.floor(P.y/TS);
+ if(tx!==lastSeenTx||ty!==lastSeenTy){lastSeenTx=tx;lastSeenTy=ty;markSeen(tx,ty)}
+}
+function markSeen(tx,ty){
+ const R=Math.max(2.5,cap('radar')),Ri=Math.ceil(R);
+ for(let y=Math.max(0,ty-Ri);y<=Math.min(H-1,ty+Ri);y++)for(let x=Math.max(0,tx-Ri);x<=Math.min(W-1,tx+Ri);x++)if(Math.hypot(x-tx,y-ty)<=R)seen[idx(x,y)]=1}
+function updateWorld(dt){
+ for(let i=rocks.length-1;i>=0;i--){const r=rocks[i];
+  if(r.t>0){r.t-=dt;r.x+=(Math.random()-.5)*1.5;continue}
+  r.vy=Math.min(500,r.vy+GRAV*dt);r.y+=r.vy*dt;
+  if(!P.dead&&Math.abs(r.x-P.x)<HW+10&&Math.abs(r.y-P.y)<HH+12){hurt(r.tile?24:16);burst(r.x,r.y,'#888',10,120,.5);rocks.splice(i,1);continue}
+  if(solid(Math.floor(r.x/TS),Math.floor((r.y+15)/TS))){
+   const row=Math.floor((r.y+15)/TS)-1;
+   if(r.tile&&row>=SURF&&tileAt(Math.floor(r.x/TS),row)===A)tiles[idx(Math.floor(r.x/TS),row)]=BOULDER;
+   burst(r.x,r.y+10,'#9a8a7a',8,100,.5);sfx.land();rocks.splice(i,1)}
+  else if(r.y>H*TS)rocks.splice(i,1)}
+ for(let i=gas.length-1;i>=0;i--){const g=gas[i];g.life-=dt;
+  if(Math.random()<dt*10)parts.push({x:g.x+(Math.random()-.5)*50,y:g.y+(Math.random()-.5)*40,vx:0,vy:-15,life:1.2,max:1.2,c:'#9ae85a',s:7,g:0});
+  if(!P.dead&&Math.hypot(P.x-g.x,P.y-g.y)<50)hurt(9*dt,true);
+  if(g.life<=0)gas.splice(i,1)}
+ const dx0=P.digDir[0],dy0=P.digDir[1],tipx=P.x+dx0*20,tipy=P.y+dy0*20,drilling=!!P.dig;
+ for(let i=crits.length-1;i>=0;i--){const c=crits[i],cd=CRIT[c.t];
+  if(Math.abs(c.x-P.x)>TS*22||Math.abs(c.y-P.y)>TS*16)continue;
+  c.ph+=dt*4;if(c.cd>0)c.cd-=dt;
+  if(cd.fly){
+   const nx=c.x+c.dir*cd.sp*dt;if(solid(Math.floor((nx+c.dir*8)/TS),Math.floor(c.y/TS)))c.dir*=-1;else c.x=nx;
+   const ny=c.y+Math.sin(c.ph)*30*dt;if(!solid(Math.floor(c.x/TS),Math.floor((ny+(Math.sin(c.ph)>0?8:-8))/TS)))c.y=ny}
+  else{
+   c.vy=Math.min(400,c.vy+GRAV*dt);
+   const ahead=Math.floor((c.x+c.dir*(cd.r+4))/TS),row=Math.floor(c.y/TS),below=Math.floor((c.y+cd.r+3)/TS);
+   if(solid(ahead,row)||(!solid(ahead,Math.floor((c.y+cd.r+6)/TS))&&solid(Math.floor(c.x/TS),below)))c.dir*=-1;else c.x+=c.dir*cd.sp*dt;
+   const ny=c.y+c.vy*dt;if(solid(Math.floor(c.x/TS),Math.floor((ny+cd.r)/TS))){c.vy=0;c.y=Math.floor((ny+cd.r)/TS)*TS-cd.r}else c.y=ny;
+   if(c.y>H*TS){crits.splice(i,1);continue}}
+  if(!P.dead){
+   if(drilling&&Math.hypot(c.x-tipx,c.y-tipy)<cd.r+14){killCrit(c);crits.splice(i,1);continue}
+   else if(Math.abs(c.x-P.x)<HW+cd.r&&Math.abs(c.y-P.y)<HH+cd.r&&c.cd<=0){c.cd=1.5;c.dir*=-1;S.bumps++;P.vx+=(P.x<c.x?-1:1)*90;ftext(c.x,c.y-14,'boing!','#fff');sfx.boing()}}}
+}
+function updateFx(dt){
+ for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.life-=dt;if(p.life<=0){parts.splice(i,1);continue}p.vy+=p.g*dt;p.x+=p.vx*dt;p.y+=p.vy*dt}
+ for(let i=texts.length-1;i>=0;i--){const t=texts[i];t.life-=dt;t.y-=30*dt;if(t.life<=0)texts.splice(i,1)}
+ for(let i=toasts.length-1;i>=0;i--){toasts[i].life-=dt;if(toasts[i].life<=0)toasts.splice(i,1)}
+ shake=Math.max(0,shake-dt*20)}
+function update(dt){
+ if(state!=='play'||modal)return;
+ playT+=dt;updateFx(dt);ambient(dt);
+ if(P.dead){P.deadT-=dt;updateWorld(dt);if(P.deadT<=0)respawn();return}
+ updatePlayer(dt);updateWorld(dt);
+ achT-=dt;if(achT<=0){achT=1;checkAch()}
+ saveT+=dt;if(saveT>10){saveT=0;save()}
+}
+function tick(dt){update(dt);brushTick(dt)}
+
+/* ===== render ===== */
+const shadeCache={};
+function shade(hex,k){const key=hex+k;if(shadeCache[key])return shadeCache[key];const n=parseInt(hex.slice(1),16);let r=n>>16,g=n>>8&255,b=n&255;const f=(k-1.5)*.09;
+ r=Math.max(0,Math.min(255,r*(1+f)));g=Math.max(0,Math.min(255,g*(1+f)));b=Math.max(0,Math.min(255,b*(1+f)));return shadeCache[key]='rgb('+(r|0)+','+(g|0)+','+(b|0)+')'}
+const hsh=(x,y)=>(Math.imul(x,73856093)^Math.imul(y,19349663))>>>0;
+function resize(){dpr=Math.min(2,window.devicePixelRatio||1);cv.width=innerWidth*dpr;cv.height=innerHeight*dpr;Z=Math.max(.7,Math.min(1.5,innerHeight/540));vw=innerWidth/Z;vh=innerHeight/Z;document.getElementById('top').style.top=Math.round(92*Z)+'px'}
+addEventListener('resize',resize);
+function drawTile(x,y,t,px,py,tm){
+ if(t===WATER){const w=Math.sin(tm*3+x*1.3)*.5+.5;ctx.fillStyle=w>.5?'#2f7fd0':'#3a8fe0';ctx.fillRect(px,py,TS,TS);ctx.fillStyle='#bfe8ff';ctx.fillRect(px+(((x*7+Math.floor(tm*4*curDir(y)))%5)+5)%5*6,py+8+w*8,8,2);return}
+ const h=hsh(x,y),k=h%4;let base=isBase(t)?BASECOL[t]:BASECOL[baseTile(y)];
+ if(t===BEDROCK){ctx.fillStyle='#181820';ctx.fillRect(px,py,TS,TS);ctx.fillStyle='#24242e';ctx.fillRect(px+(h%20),py+(h>>4)%20,10,6);return}
+ ctx.fillStyle=shade(base,k);ctx.fillRect(px,py,TS,TS);
+ ctx.fillStyle=shade(base,0);ctx.fillRect(px+(h>>3)%24,py+(h>>7)%24,4,3);ctx.fillRect(px+(h>>11)%24,py+(h>>5)%26,3,3);
+ if(!solid(x,y-1)&&y>0){ctx.fillStyle=y===SURF?'#5aa84a':shade(base,3.5);ctx.fillRect(px,py,TS,y===SURF?6:3)}
+ if(t>=F0){const i=t-F0,f=FINDS[i];if(!seen[idx(x,y)]&&i!==GREAT)return;
+  if(i===GREAT){const p=Math.sin(tm*3)*.5+.5;ctx.fillStyle='rgba(255,226,122,'+(.25+p*.3)+')';ctx.beginPath();ctx.arc(px+16,py+16,22,0,6.3);ctx.fill();drawFind(ctx,f.k,px+16,py+16,16,f.c);return}
+  ctx.fillStyle='rgba(0,0,0,.28)';ctx.beginPath();ctx.arc(px+16,py+16,12,0,6.3);ctx.fill();
+  drawFind(ctx,f.k,px+16,py+16,11,f.c);
+  if(f.j>=6){ctx.globalAlpha=.4+.4*Math.sin(tm*4+x);ctx.fillStyle='#fff';ctx.fillRect(px+22,py+6,3,3);ctx.globalAlpha=1}}
+ else if(t===GAS&&seen[idx(x,y)]){ctx.fillStyle='#9ae85acc';for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(px+8+i*8,py+10+(i%2)*10,6,0,6.3);ctx.fill()}}
+ else if(t===BOULDER){ctx.fillStyle='#8c8c92';ctx.beginPath();ctx.arc(px+16,py+17,14,0,6.3);ctx.fill();ctx.fillStyle='#b0b0b8';ctx.beginPath();ctx.arc(px+12,py+12,5,0,6.3);ctx.fill()}}
+function drawBuildings(tm){
+ const gy=SURF*TS;
+ BLD.forEach(b=>{const x=b.x0*TS,w=(b.x1-b.x0+1)*TS,h=b.k==='repair'?70:78;
+  if(b.k==='museum'){ctx.fillStyle=b.c;ctx.fillRect(x,gy-h,w,h);ctx.fillStyle=b.r;ctx.beginPath();ctx.moveTo(x-8,gy-h);ctx.lineTo(x+w/2,gy-h-34);ctx.lineTo(x+w+8,gy-h);ctx.fill();
+   ctx.fillStyle='#fff';for(let i=0;i<5;i++)ctx.fillRect(x+10+i*(w-30)/4,gy-h+22,10,h-22);
+   ctx.fillStyle='#3a2a1a';ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.fillText(b.n,x+w/2,gy-h+16);
+   ctx.fillStyle='#efe6d2';ctx.beginPath();ctx.arc(x+w/2,gy-h-12,6,0,6.3);ctx.fill()}
+  else if(b.k==='repair'){ctx.fillStyle=b.c;ctx.beginPath();ctx.moveTo(x-8,gy);ctx.lineTo(x+w/2,gy-h-14);ctx.lineTo(x+w+8,gy);ctx.fill();ctx.fillStyle='#fff';ctx.fillRect(x+w/2-4,gy-h+8,8,22);ctx.fillRect(x+w/2-11,gy-h+15,22,8);
+   ctx.fillStyle='#1b1b1b';ctx.beginPath();ctx.moveTo(x+w/2-14,gy);ctx.lineTo(x+w/2,gy-34);ctx.lineTo(x+w/2+14,gy);ctx.fill();
+   ctx.fillStyle='#fff';ctx.font='bold 12px system-ui';ctx.textAlign='center';ctx.fillText(b.n,x+w/2,gy-h-18)}
+  else{ctx.fillStyle=b.c;ctx.fillRect(x,gy-h,w,h);ctx.fillStyle=b.r;ctx.beginPath();ctx.moveTo(x-8,gy-h);ctx.lineTo(x+w/2,gy-h-28);ctx.lineTo(x+w+8,gy-h);ctx.fill();
+   ctx.fillStyle='#fff';ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.fillText(b.n,x+w/2,gy-h+18);
+   ctx.fillStyle='#ffe9a8';ctx.fillRect(x+w/2-12,gy-34,24,34);ctx.fillStyle='#fff8';ctx.fillRect(x+10,gy-60,14,14);ctx.fillRect(x+w-24,gy-60,14,14);
+   if(b.k==='fuel'){ctx.fillStyle='#333';ctx.fillRect(x+w+2,gy-30,8,30)}
+   if(b.k==='market'){drawFind(ctx,'gem',x+w/2,gy-h+40,9,'#7fd6e8')}}});
+ const sx=7*TS;ctx.strokeStyle='#e8dcc0';ctx.lineWidth=4;ctx.beginPath();ctx.arc(sx,gy-30,16,0,Math.PI,true);ctx.moveTo(sx-16,gy-30);ctx.lineTo(sx-16,gy);ctx.moveTo(sx+16,gy-30);ctx.lineTo(sx+16,gy);ctx.stroke();
+ ctx.fillStyle='#fff';ctx.font='bold 11px system-ui';ctx.textAlign='center';ctx.fillText('DIG SITE',sx,gy-52);
+ const nb=!P.dead&&state==='play'?nearBld():null;
+ if(nb){ctx.fillStyle='#000a';ctx.fillRect(P.x-80,P.y-56,160,22);ctx.fillStyle='#ffd966';ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.fillText('Press E: '+nb.n,P.x,P.y-40)}}
+function drawPlayer(tm){
+ if(P.dead)return;
+ if(P.inv>0&&Math.floor(tm*20)%2)return;
+ const x=P.x,y=P.y,f=P.face,dg=P.dig;
+ ctx.fillStyle='#2a2a30';ctx.fillRect(x-12,y+4,24,9);ctx.fillStyle='#555';for(let i=0;i<4;i++){ctx.beginPath();ctx.arc(x-8+i*5.3,y+9,3,0,6.3);ctx.fill()}
+ ctx.fillStyle=P.flash>0?'#ff6b6b':'#4aa86a';ctx.fillRect(x-11,y-9,22,15);ctx.fillStyle='#2c7a48';ctx.fillRect(x-11,y+3,22,3);
+ ctx.fillStyle='#9fe4ff';ctx.fillRect(x+(f>0?0:-9),y-7,9,7);ctx.fillStyle='#fff9';ctx.fillRect(x+(f>0?1:-8),y-6,3,2);
+ ctx.fillStyle='#c8a050';ctx.beginPath();ctx.ellipse(x+(f>0?4:-4),y-11,10,3,0,0,6.3);ctx.fill();ctx.fillRect(x+(f>0?-1:-9),y-17,10,7);
+ const dd=dg?P.digDir:(inp('d')?[0,1]:[f,0]),spin=dg?Math.floor(tm*30)%2:0;
+ ctx.save();ctx.translate(x,y+2);ctx.rotate(Math.atan2(dd[1],dd[0]));
+ ctx.fillStyle='#c8ccd2';ctx.beginPath();ctx.moveTo(11,-6);ctx.lineTo(22,0);ctx.lineTo(11,6);ctx.fill();
+ ctx.fillStyle='#7d838c';ctx.fillRect(14+(spin?2:0),-3,3,6);ctx.restore();
+ if(P.thrust){ctx.fillStyle='#ffb300';ctx.beginPath();ctx.moveTo(x-5,y+13);ctx.lineTo(x,y+24+Math.random()*6);ctx.lineTo(x+5,y+13);ctx.fill()}}
+function drawCrit(c,tm){
+ const cd=CRIT[c.t],x=c.x,y=c.y;ctx.fillStyle=cd.c;
+ if(cd.fly){const fl=Math.sin(tm*18+c.ph)*6;ctx.beginPath();ctx.ellipse(x,y,7,6,0,0,6.3);ctx.fill();ctx.beginPath();ctx.moveTo(x-5,y);ctx.lineTo(x-16,y-6+fl);ctx.lineTo(x-6,y+4);ctx.fill();ctx.beginPath();ctx.moveTo(x+5,y);ctx.lineTo(x+16,y-6+fl);ctx.lineTo(x+6,y+4);ctx.fill()}
+ else{ctx.beginPath();ctx.ellipse(x,y,cd.r+2,cd.r,0,0,6.3);ctx.fill();
+  if(c.t===1){ctx.fillStyle='#1f5a38';ctx.fillRect(x-1,y-cd.r,2,cd.r*2)}
+  if(c.t===3){ctx.fillStyle='#f0b0b0';ctx.beginPath();ctx.arc(x+c.dir*(cd.r+2),y+2,3,0,6.3);ctx.fill()}
+  if(c.t===4){ctx.globalAlpha=.4+.3*Math.sin(tm*5+c.ph);ctx.fillStyle='#e8ff8a';ctx.beginPath();ctx.arc(x,y,cd.r+6,0,6.3);ctx.fill();ctx.globalAlpha=1}}
+ ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x-3+c.dir,y-2,2.6,0,6.3);ctx.arc(x+3+c.dir,y-2,2.6,0,6.3);ctx.fill();
+ ctx.fillStyle='#111';ctx.beginPath();ctx.arc(x-2.5+c.dir*2,y-2,1.2,0,6.3);ctx.arc(x+3.5+c.dir*2,y-2,1.2,0,6.3);ctx.fill()}
+function drawSky(tm){
+ const hz=SURF*TS-camY;if(hz<=0)return;
+ const g=ctx.createLinearGradient(0,0,0,Math.max(1,hz));g.addColorStop(0,'#58b0ec');g.addColorStop(1,'#e2f4ff');ctx.fillStyle=g;ctx.fillRect(0,0,vw,Math.min(vh,hz));
+ ctx.fillStyle='#fff6c8';ctx.beginPath();ctx.arc(vw-110-camX*.03,hz-250+camY*.05,30,0,6.3);ctx.fill();
+ const ridge=(sp,hgt,col,ph,fr)=>{ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(0,hz);for(let x=0;x<=vw+20;x+=20){ctx.lineTo(x,hz-hgt*(.55+.45*Math.sin((x+camX*sp)*fr+ph)*Math.sin((x+camX*sp)*fr*.37+ph*2)))}ctx.lineTo(vw+20,hz);ctx.fill()};
+ ridge(.1,170,'#9fbfd6',1,.004);ridge(.25,100,'#6fa56f',3,.006);
+ ctx.fillStyle='#ffffffd0';for(let i=0;i<5;i++){const cx=(((i*330+tm*10-camX*.15)%(vw+200))+vw+200)%(vw+200)-100,cy=hz-230+i*24;ctx.beginPath();ctx.ellipse(cx,cy,46,14,0,0,6.3);ctx.ellipse(cx+26,cy-8,28,12,0,0,6.3);ctx.fill()}
+ ctx.strokeStyle='#3a3a50';ctx.lineWidth=2;for(let i=0;i<3;i++){const bx=(((tm*40+i*260-camX*.2)%(vw+100))+vw+100)%(vw+100)-50,by=hz-210+i*30+Math.sin(tm*2+i)*8,fl=Math.sin(tm*6+i)*4;ctx.beginPath();ctx.moveTo(bx-9,by-fl);ctx.lineTo(bx,by+2);ctx.lineTo(bx+9,by-fl);ctx.stroke()}
+ for(let x=0;x<W;x++){if(x>=14&&x<=46)continue;if(hsh(x,3)%4)continue;const px=x*TS+10-camX,py=SURF*TS-camY;if(py<-40||py>vh+40)continue;
+  ctx.strokeStyle='#3f8a3a';ctx.lineWidth=2;for(let k=-2;k<=2;k++){ctx.beginPath();ctx.moveTo(px,py);ctx.quadraticCurveTo(px+k*6,py-18,px+k*10,py-10+Math.abs(k)*3);ctx.stroke()}}}
+function drawWorld(tm){
+ ctx.fillStyle='#1d1611';ctx.fillRect(0,0,vw,vh);
+ drawSky(tm);
+ ctx.save();ctx.translate(-camX,-camY);
+ const tx0=Math.max(0,Math.floor(camX/TS)),tx1=Math.min(W-1,Math.floor((camX+vw)/TS)),ty0=Math.max(0,Math.floor(camY/TS)),ty1=Math.min(H-1,Math.floor((camY+vh)/TS));
+ for(let y=ty0;y<=ty1;y++)for(let x=tx0;x<=tx1;x++){const t=tiles[idx(x,y)];if(t!==A)drawTile(x,y,t,x*TS,y*TS,tm);else if(y>=SURF){ctx.fillStyle=(hsh(x,y)&7)===0?'#2a1f18':'#211812';ctx.fillRect(x*TS,y*TS,TS,TS)}}
+ drawBuildings(tm);
+ crits.forEach(c=>{if(c.x>camX-40&&c.x<camX+vw+40&&c.y>camY-40&&c.y<camY+vh+40)drawCrit(c,tm)});
+ rocks.forEach(r=>{ctx.fillStyle='#8c8c92';ctx.beginPath();ctx.arc(r.x,r.y,r.tile?14:9,0,6.3);ctx.fill();ctx.fillStyle='#b0b0b8';ctx.beginPath();ctx.arc(r.x-3,r.y-3,3,0,6.3);ctx.fill()});
+ drawPlayer(tm);
+ parts.forEach(p=>{ctx.globalAlpha=Math.max(0,p.life/p.max);ctx.fillStyle=p.c;ctx.fillRect(p.x-p.s/2,p.y-p.s/2,p.s,p.s)});ctx.globalAlpha=1;
+ ctx.fillStyle='#ffffff30';for(let i=0;i<24;i++){const dx=(hsh(i,1)%Math.floor(vw)+tm*(6+i%5)*(i%2?1:-1)+vw*4)%vw,dy=(hsh(i,2)%Math.floor(vh)+tm*(3+i%4))%vh;ctx.fillRect(camX+dx,camY+dy,2,2)}
+ ctx.font='bold 13px system-ui';ctx.textAlign='center';texts.forEach(t=>{ctx.globalAlpha=Math.min(1,t.life*2);ctx.fillStyle='#000';ctx.fillText(t.t,t.x+1,t.y+1);ctx.fillStyle=t.c;ctx.fillText(t.t,t.x,t.y)});ctx.globalAlpha=1;
+ if(P.dig){const px=P.dig.x*TS,py=P.dig.y*TS;ctx.strokeStyle='#fff9';ctx.lineWidth=2;ctx.strokeRect(px+1,py+1,TS-2,TS-2);ctx.fillStyle='#fff6';ctx.fillRect(px,py+TS-4,TS*Math.min(1,P.dig.t/P.dig.need),4)}
+ ctx.restore();
+ const d=Math.max(0,(P.y/TS-SURF)/300),a=Math.min(.9,d*1.0);
+ if(a>.02){const sx=(P.x-camX),sy=(P.y-camY),rad=cap('lamp')*(1-d*.25);const gr=ctx.createRadialGradient(sx,sy,rad*.25,sx,sy,rad*1.4);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(4,2,8,'+a+')');ctx.fillStyle=gr;ctx.fillRect(0,0,vw,vh)}
+ if(P.heat>0){ctx.fillStyle='rgba(255,60,0,'+Math.min(.28,P.heat*.06)+')';ctx.fillRect(0,0,vw,vh)}
+}
+function bar(x,y,w,v,m,col,label){
+ ctx.fillStyle='#000a';ctx.fillRect(x,y,w,16);ctx.fillStyle=col;ctx.fillRect(x+2,y+2,(w-4)*Math.max(0,Math.min(1,v/m)),12);
+ ctx.fillStyle='#fff';ctx.font='bold 11px system-ui';ctx.textAlign='left';ctx.fillText(label,x+5,y+12)}
+function drawHud(tm){
+ const lowF=P.fuel<cap('fuel')*.2,lowH=P.hull<cap('hull')*.25;
+ bar(10,10,150,P.fuel,cap('fuel'),lowF&&Math.floor(tm*4)%2?'#ff5a3a':'#ffb300','FUEL '+P.fuel.toFixed(2));
+ bar(10,30,150,P.hull,cap('hull'),lowH&&Math.floor(tm*4)%2?'#ff3030':'#5fd35f','HULL '+Math.ceil(P.hull));
+ bar(10,50,150,cargoN(),cap('cargo'),cargoN()>=cap('cargo')?'#ff7a7a':'#b98a5a','CARGO '+cargoN()+'/'+cap('cargo'));
+ bar(10,70,150,musCount(),NF,'#6bb8e8','MUSEUM '+musCount()+'/'+NF);
+ const er=eraOf(Math.floor(P.y/TS)),dm=depthM();
+ ctx.textAlign='right';ctx.fillStyle='#000a';ctx.fillRect(vw-190,8,182,44);
+ ctx.fillStyle='#ffd23a';ctx.font='bold 20px system-ui';ctx.fillText(price(P.coins)+' coins',vw-14,30);
+ ctx.fillStyle='#fff';ctx.font='bold 12px system-ui';ctx.fillText(dm+' m  |  '+(dm<1?'Camp':ERAS[er][0]),vw-14,46);
+ if(P.heat>0){ctx.fillStyle='#ff8a5a';ctx.font='bold 12px system-ui';ctx.fillText('HOT! '+P.heat.toFixed(1)+'/s',vw-14,66)}
+ if(showMap&&vh>380){const top=Math.max(0,Math.min(H-100,Math.floor(P.y/TS)-50)),mx=vw-170,my=74;
+  mmT--;if(mmT<=0){mmT=8;const d=mmImg.data;for(let y=0;y<100;y++)for(let x=0;x<W;x++){const ty=top+y,t=tiles[idx(x,ty)],o=(y*W+x)*4;let r=0,g=0,b=0;
+   if(ty<SURF){r=90;g=170;b=230}else if(!seen[idx(x,ty)]&&t!==F0+GREAT){r=22;g=16;b=14}else if(t===A){r=48;g=36;b=30}else if(t===WATER){r=50;g=130;b=220}else if(t>=F0){const c=parseInt(FINDS[t-F0].c.slice(1),16);r=c>>16;g=c>>8&255;b=c&255}else if(t===GAS){r=140;g=230;b=100}else{const c=parseInt((BASECOL[baseTile(ty)]||'#555555').slice(1),16);r=(c>>16)*.7;g=(c>>8&255)*.7;b=(c&255)*.7}
+   d[o]=r;d[o+1]=g;d[o+2]=b;d[o+3]=255}mmx.putImageData(mmImg,0,0)}
+  ctx.imageSmoothingEnabled=false;ctx.drawImage(mmc,mx,my,W*2.2,200);ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.strokeRect(mx,my,W*2.2,200);
+  ctx.fillStyle='#ff3030';ctx.fillRect(mx+P.x/TS*2.2-2,my+(P.y/TS-top)*2-2,5,5)}
+ ctx.textAlign='center';toasts.forEach((t,i)=>{ctx.globalAlpha=Math.min(1,t.life);ctx.font='bold 15px system-ui';const w=ctx.measureText(t.t).width+24;ctx.fillStyle='#000c';ctx.fillRect(vw/2-w/2,vh-70-i*28,w,24);ctx.fillStyle='#ffe9a8';ctx.fillText(t.t,vw/2,vh-53-i*28)});ctx.globalAlpha=1;
+ if(P.dead){ctx.fillStyle='#000a';ctx.fillRect(0,vh/2-40,vw,80);ctx.fillStyle='#ffd23a';ctx.font='bold 28px system-ui';ctx.fillText('RIG WRECKED!',vw/2,vh/2+10)}
+ else if(P.fuel<=0){ctx.fillStyle='#000a';ctx.fillRect(vw/2-170,90,340,30);ctx.fillStyle='#ff9a8a';ctx.font='bold 15px system-ui';ctx.fillText('OUT OF FUEL - press R for an emergency tow',vw/2,110)}}
+function render(tm){
+ if(!P||!tiles)return;
+ const tx=P.x-vw/2,ty=P.y-vh/2+30;
+ camX+=(Math.max(0,Math.min(W*TS-vw,tx))-camX)*.15;camY+=(Math.max(-60,Math.min(H*TS-vh,ty))-camY)*.15;
+ ctx.setTransform(dpr*Z,0,0,dpr*Z,0,0);
+ if(shake>0)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
+ drawWorld(tm);drawHud(tm)}
+let lastT=0;
+function frame(ts){
+ requestAnimationFrame(frame);
+ const dt=Math.min(.05,(ts-lastT)/1000||0);lastT=ts;
+ if(state==='play'||brushI!==null)tick(dt);
+ render(ts/1000)}
+
+/* ===== boot ===== */
+resize();newGame();showTitle();requestAnimationFrame(frame);
+window.__g={step:tick,render,toggleMap,get showMap(){return showMap},get P(){return P},get S(){return S},get tiles(){return tiles},get state(){return state},set state(v){state=v},get modal(){return modal},get ach(){return ach},get UPLV(){return UPLV},get crits(){return crits},get seen(){return seen},
+ kb,newGame,load,save,openModal,closeModal,countFinds,FINDS,GREAT,W,H,TS,SURF,CORE_Y,GREATX,GREATY,brushHold,cap,startPlay,showBook,showAch,showTitle,heatDps,eraOf,unlock,ACH,KEY,dropRocks,gen,toasts:()=>toasts};
+</script></body></html>
