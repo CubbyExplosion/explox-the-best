@@ -74,7 +74,7 @@ const $=id=>document.getElementById(id);
 const TAU=Math.PI*2;
 /* ================= WEAPONS ================= */
 const WEAPONS={},WIDS=[];
-const UPTXT={d:'+30% damage',D:'+50% damage',n:'+1 amount',a:'+22% size',c:'-15% cooldown',p:'+1 pierce',s:'+15% speed',l:'+20% duration',b:'+2 bounces',j:'+1 jump'};
+const UPTXT={N:'+3 amount',d:'+30% damage',D:'+50% damage',n:'+1 amount',a:'+22% size',c:'-15% cooldown',p:'+1 pierce',s:'+15% speed',l:'+20% duration',b:'+2 bounces',j:'+1 jump'};
 function W(id,n,ic,kind,col,d,base,up,lock){WEAPONS[id]={id,n,ic,kind,col,d,base,up,lock:!!lock};WIDS.push(id);}
 // shot
 W('wand','Magic Wand','\u{1FA84}','shot','#c9a0ff','Zaps the nearest monster with a magic bolt.',{dmg:12,cd:.85,n:1,spd:380,life:1.4,r:6,spread:.2,pierce:0,vis:'bolt'},'dncnpdD');
@@ -128,11 +128,45 @@ W('chain','Zap Chain','\u{1F329}️','chain','#9ad8ff','Lightning jumps from mon
 W('kitty','Kitty Buddy','\u{1F431}','pet','#ffb0c8','A friendly kitty dashes at monsters for you.',{dmg:18,cd:1.1,n:1,area:300,spd:480,sz:12},'dnccndD',true);
 W('bees','Bee Swarm','\u{1F41D}','pet','#ffd23f','A buzzing swarm of helpful bees.',{dmg:7,cd:.7,n:3,area:260,spd:420,sz:8},'dnnncdD',true);
 
+W('legion','Halo Legion','\u{1F607}','orbit','#fff3b0','A huge ring of glowing halos. It grows all the way up to 30 halos around you!',{dmg:6,n:9,area:58,rot:1.9,sz:11},'NNNNNNN');
+// ---- 1000 variant weapons: every base weapon comes in 25 flavours (fiery, frosty, giant, golden...)
+const CORE_N=WIDS.length;
+const VARS=[
+ ['fiery','Fiery','\u{1F525}','#ff7a3a',{burn:6},'Sets monsters on fire.'],['frosty','Frosty','\u{1F9CA}','#9fe4ff',{slow:1.8,dm:.95},'Chills monsters.'],
+ ['sparky','Sparky','⚡','#fff07a',{dm:1.15,cm:.9},'Fast and zappy.'],['giant','Giant','\u{1F9A3}','#c9a070',{am:1.4,dm:1.25,cm:1.2},'Big and slow.'],
+ ['tiny','Tiny','\u{1F41C}','#b0e0a8',{dn:1,am:.8,dm:.8,cm:.8},'Small, quick and more of them.'],['swift','Swift','\u{1F4A8}','#cfe8ff',{cm:.7,dm:.9},'Attacks very fast.'],
+ ['heavy','Heavy','\u{1FAA8}','#9a8f80',{dm:1.6,cm:1.3,knock:300},'Hits hard and shoves.'],['golden','Golden','\u{1F947}','#ffd23f',{dm:1.3},'Shiny and strong.'],
+ ['shadow','Shadow','\u{1F311}','#8a7aa8',{dm:1.25,pierce:1},'Passes through monsters.'],['sticky','Sticky','\u{1F36F}','#ffc83a',{slow:2.2,dm:.9},'Slows them down a lot.'],
+ ['lucky','Lucky','\u{1F340}','#7fe07a',{dn:1,dm:.85},'One extra!'],['mega','Mega','\u{1F4AA}','#ff6b6b',{dm:1.5,cm:1.35,am:1.2},'Slower but huge.'],
+ ['dizzy','Dizzy','\u{1F300}','#c58bff',{stun:.5,dm:.9},'Makes monsters dizzy.'],['sunny','Sunny','☀️','#ffe08a',{dm:1.1,burn:4,am:1.1},'Warm and bright.'],
+ ['minty','Minty','\u{1F33F}','#9fe8c0',{slow:1.2,cm:.85},'Cool and quick.'],['sweet','Sweet','\u{1F36C}','#ff9ec7',{dn:1,cm:.9,dm:.9},'More, faster, a little weaker.'],
+ ['royal','Royal','\u{1F451}','#b79cff',{dm:1.35,dn:1,cm:1.25},'Fit for a king.'],['spooky','Spooky','\u{1F47B}','#b8c0ff',{pierce:2,dm:.9},'Goes right through them.'],
+ ['stormy','Stormy','⛈️','#7fa8ff',{dm:1.2,knock:200,am:1.1},'Blows monsters back.'],['rocky','Rocky','\u{1F30B}','#ff8a5a',{burn:5,dm:1.15,knock:150},'Hot and heavy.'],
+ ['magic','Magic','✨','#ffb0f0',{dn:1,am:1.1,dm:.95},'Sparkly extras.'],['tough','Tough','\u{1F6E1}️','#b0b8c8',{dm:1.2,am:1.15,cm:1.1},'Solid and reliable.'],
+ ['wild','Wild','\u{1F43A}','#d0a070',{dn:1,cm:.85,dm:.95},'Fast and many.'],['laser','Sharp','\u{1F506}','#ff6bd0',{dm:1.4,pierce:1,cm:1.15},'Precise and piercing.'],
+ ['cosmic','Cosmic','\u{1F30C}','#8fa8ff',{dm:1.3,dn:1,am:1.2,cm:1.3,slow:1},'Out of this world.'],
+ ['ancient','Ancient','\u{1F3FA}','#d9b878',{dm:1.35,cm:1.2,knock:120},'Old and mighty.'],['neon','Neon','\u{1F4A1}','#6bffd8',{cm:.8,dm:1.1,dn:1},'Bright and buzzy.']];
+function mkVariant(b,v){const s=Object.assign({},b);s.dmg*=v.dm||1;
+ if(s.cd!=null)s.cd*=v.cm||1;else if(s.tick!=null)s.tick*=v.cm||1;else if(s.rot!=null)s.rot/=(v.cm||1);
+ if(v.dn)s.n=Math.max(1,(s.n||1)+v.dn);
+ if(v.am){if(s.area!=null)s.area*=v.am;if(s.sz!=null)s.sz*=Math.sqrt(v.am);if(s.r!=null&&s.area==null)s.r*=Math.sqrt(v.am);}
+ for(const k of['burn','slow','stun','knock'])if(v[k])s[k]=Math.max(s[k]||0,v[k]);
+ if(v.pierce&&s.pierce!=null)s.pierce+=v.pierce;
+ return s;}
+// exactly 1000 variants: 50 of them circle around you (13 Halo Legion, 13 Spin Blades, 12 Sun Orbs, 12 Leaf Ring), the other 950 are the other 36 weapons
+const ORB_N={legion:13,blades:13,orbs:12,leaves:12};let othersSeen=0;
+for(const bid of WIDS.slice(0,WIDS.length)){const b=WEAPONS[bid];let cnt;if(b.kind==='orbit')cnt=ORB_N[bid]||0;else{cnt=26+(othersSeen<14?1:0);othersSeen++;}
+ for(const v of VARS.slice(0,cnt)){
+ W(bid+'_'+v[0],v[1]+' '+b.n,v[2]+b.ic,b.kind,v[3],b.d+' '+v[5],mkVariant(b.base,v[4]),b.up,false);
+ WEAPONS[bid+'_'+v[0]].bid=bid;}}
+
+function orbitPos(w,s,i){const CAP=12,r=Math.floor(i/CAP),cnt=Math.min(CAP,s.n-r*CAP),j=i-r*CAP,a=w.ang*(r%2?-1:1)+r*.4+j/cnt*TAU,rad=s.area+r*24;return [P.x+Math.cos(a)*rad,P.y+Math.sin(a)*rad,a];}
 function baseLv(d,l){
  const s=Object.assign({},d.base);let nd=0,nD=0;
  for(let i=0;i<l-1;i++){const c=d.up[i];
   if(c==='d')nd++;else if(c==='D')nD++;
   else if(c==='n')s.n=(s.n||1)+1;
+  else if(c==='N')s.n=(s.n||1)+3;
   else if(c==='a'){if(s.area!=null)s.area*=1.22;else if(s.r!=null)s.r*=1.2;}
   else if(c==='c'){if(s.cd!=null)s.cd*=.85;else if(s.tick!=null)s.tick*=.85;}
   else if(c==='p')s.pierce=(s.pierce||0)+1;
@@ -419,7 +453,7 @@ A('h6','\u{1F3AD}','Many Faces','Win with 6 different heroes.',s=>s.hw>=6,{g:600
 A('h12','\u{1F451}','Hero Collector','Win with all 12 heroes.',s=>s.hw>=12,{g:3000});
 A('cw10','\u{1F4D5}','Weapon Fan','Discover 10 weapons.',s=>s.dw>=10,{g:50});
 A('cw25','\u{1F4DA}','Weapon Nerd','Discover 25 weapons.',s=>s.dw>=25,{w:'kitty'});
-A('cw39','\u{1F4D6}','Weapon Master','Discover every weapon.',s=>s.dw>=WIDS.length,{g:1500});
+A('cw39','\u{1F4D6}','Weapon Master','Discover 100 weapons.',s=>s.dw>=100,{g:1500});
 A('cp12','\u{1F9E9}','Item Fan','Discover 12 items.',s=>s.dp>=12,{g:100});
 A('cp24','\u{1F381}','Item Master','Discover every item.',s=>s.dp>=PIDS.length,{g:800});
 A('ce20','\u{1F47E}','Monster Fan','Discover 20 monsters.',s=>s.de>=20,{g:100});
@@ -643,6 +677,7 @@ function wstat(w){
  for(const k of['life','l','dur','pool'])if(s[k]!=null)s[k]*=T.dur;
  if(s.burn!=null)s.burn*=T.dmg;
  if(AMTK[d.kind]&&!(d.kind==='beam'&&s.mode==='cone'))s.n=(s.n||1)+T.amt;
+ if(d.kind==='orbit'&&s.n>30)s.n=30;
  return s;
 }
 function refreshWeapons(){for(const w of weapons)w.s=wstat(w);}
@@ -962,7 +997,7 @@ function updWeapons(dt){
     fireProj(P.x,P.y,a,s.spd*(s.aim==='up'?rn(.8,1.05):1),s,w.id);}
    snd('shoot');break;}
   case'orbit':{w.ang+=s.rot*dt;
-   for(let i=0;i<s.n;i++){const a=w.ang+i/s.n*TAU,bx=P.x+Math.cos(a)*s.area,by=P.y+Math.sin(a)*s.area;
+   for(let i=0;i<s.n;i++){const op=orbitPos(w,s,i),a=op[2],bx=op[0],by=op[1];
     const n=query(bx,by,s.sz+40);for(let k=0;k<n;k++){const e=enemies[qb[k]];if(e.dead)continue;const dx=e.x-bx,dy=e.y-by;
      if(dx*dx+dy*dy<(e.r+s.sz)*(e.r+s.sz)&&G.time-e.oh>.35){e.oh=G.time;const dd=Math.hypot(dx,dy)||1;hurt(e,s.dmg,dx/dd*160,dy/dd*160,w.id);if(s.burn&&!e.dead){e.burn=Math.max(e.burn,s.burn);e.burnT=2.5;}}}
     if(s.block){for(let j=ebul.length-1;j>=0;j--){const b=ebul[j];if((b.x-bx)*(b.x-bx)+(b.y-by)*(b.y-by)<(s.sz+8)*(s.sz+8)){ebul.splice(j,1);burst(b.x,b.y,'#9aff9a',3,80,false);}}}}
@@ -1361,13 +1396,15 @@ function render(){
  for(const e of enemies){if(e.dead||e.x<vx0||e.x>vx1||e.y<vy0||e.y>vy1)continue;drawEnemy(ctx,e,false,cb,lod);}
  drawPlayer();
  // pets
- for(const w of weapons){if(WEAPONS[w.id].kind==='pet'){const d=WEAPONS[w.id];for(const p of w.pets){ctx.font=(w.id==='bees'?14:22)+'px sans-serif';ctx.textAlign='center';ctx.fillStyle='#fff';ctx.fillText(w.evo!=null?EVOS[w.evo].ic:d.ic,p.x,p.y+6+Math.sin(tnow*10+p.a)*2);}}}
+ for(const w of weapons){if(WEAPONS[w.id].kind==='pet'){const d=WEAPONS[w.id];for(const p of w.pets){ctx.font=((WEAPONS[w.id].bid||w.id)==='bees'?14:22)+'px sans-serif';ctx.textAlign='center';ctx.fillStyle='#fff';ctx.fillText(w.evo!=null?EVOS[w.evo].ic:d.ic,p.x,p.y+6+Math.sin(tnow*10+p.a)*2);}}}
  // orbit weapons
- for(const w of weapons){if(WEAPONS[w.id].kind==='orbit'){const s=w.s;for(let i=0;i<s.n;i++){const a=w.ang+i/s.n*TAU,bx=P.x+Math.cos(a)*s.area,by=P.y+Math.sin(a)*s.area;
+ for(const w of weapons){if(WEAPONS[w.id].kind==='orbit'){const s=w.s;for(let i=0;i<s.n;i++){const op=orbitPos(w,s,i),a=op[2],bx=op[0],by=op[1];
    ctx.save();ctx.translate(bx,by);
-   if(w.id==='blades'){ctx.rotate(a+Math.PI/2+tnow*8);ctx.fillStyle='#e6f2ff';ctx.beginPath();ctx.moveTo(0,-14);ctx.lineTo(6,0);ctx.lineTo(0,10);ctx.lineTo(-6,0);ctx.fill();ctx.fillStyle='#ff7b3a';ctx.fillRect(-2,8,4,6);}
-   else if(w.id==='orbs'){ctx.fillStyle='#ff9a2a';ctx.beginPath();ctx.arc(0,0,s.sz,0,TAU);ctx.fill();ctx.fillStyle='#ffe45e';ctx.beginPath();ctx.arc(0,0,s.sz*.6,0,TAU);ctx.fill();}
-   else{ctx.rotate(a+tnow*5);ctx.fillStyle='#7fe07a';ctx.beginPath();ctx.ellipse(0,0,s.sz,s.sz*.55,0,0,TAU);ctx.fill();ctx.strokeStyle='#2f7a39';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(-s.sz,0);ctx.lineTo(s.sz,0);ctx.stroke();}
+   const WD=WEAPONS[w.id],bid=WD.bid||w.id;
+   if(bid==='legion'){ctx.rotate(a);ctx.strokeStyle=WD.col;ctx.lineWidth=3;ctx.shadowColor=WD.col;ctx.shadowBlur=8;ctx.beginPath();ctx.ellipse(0,0,s.sz,s.sz*.45,0,0,TAU);ctx.stroke();ctx.shadowBlur=0;}
+   else if(bid==='blades'){ctx.rotate(a+Math.PI/2+tnow*8);ctx.fillStyle=WD.bid?WD.col:'#e6f2ff';ctx.beginPath();ctx.moveTo(0,-14);ctx.lineTo(6,0);ctx.lineTo(0,10);ctx.lineTo(-6,0);ctx.fill();ctx.fillStyle='#ff7b3a';ctx.fillRect(-2,8,4,6);}
+   else if(bid==='orbs'){ctx.fillStyle=WD.bid?WD.col:'#ff9a2a';ctx.beginPath();ctx.arc(0,0,s.sz,0,TAU);ctx.fill();ctx.fillStyle='#ffe45e';ctx.beginPath();ctx.arc(0,0,s.sz*.6,0,TAU);ctx.fill();}
+   else{ctx.rotate(a+tnow*5);ctx.fillStyle=WD.bid?WD.col:'#7fe07a';ctx.beginPath();ctx.ellipse(0,0,s.sz,s.sz*.55,0,0,TAU);ctx.fill();ctx.strokeStyle='#2f7a39';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(-s.sz,0);ctx.lineTo(s.sz,0);ctx.stroke();}
    if(w.evo!=null){ctx.strokeStyle='rgba(255,230,120,.7)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,s.sz+3,0,TAU);ctx.stroke();}
    ctx.restore();}}}
  for(const p of projs)drawProj(p);
@@ -1506,7 +1543,7 @@ function makeChoices(){
  for(const w of weapons){const ei=evoReady(w);if(ei>=0)out.push({k:'e',id:w.id,ei});}
  const owned=[],fresh=[];
  for(const w of weapons)if(w.evo==null&&w.lv<8)owned.push({k:'w',id:w.id,lv:w.lv+1,wt:3});
- if(weapons.length<wmax)for(const id of WIDS)if(weaponUnlocked(id)&&!weapons.some(w=>w.id===id))fresh.push({k:'w',id,lv:1,wt:weapons.length>=4?1:1.6});
+ if(weapons.length<wmax)for(const id of WIDS)if(weaponUnlocked(id)&&!weapons.some(w=>w.id===id))fresh.push({k:'w',id,lv:1,wt:WEAPONS[id].bid?.012:(weapons.length>=4?1:1.6)});
  const np=Object.keys(pass).length;
  for(const id of PIDS){if(!passiveUnlocked(id))continue;const o=pass[id]||0;
   if(o>0){if(o<PASSIVES[id].max)owned.push({k:'p',id,lv:o+1,wt:2.5});}
@@ -1638,7 +1675,7 @@ function collectionScreen(keep){
  for(const t of tabs)h+='<div class="tab'+(collTab===t[0]?' on':'')+'" data-a="ctab" data-v="'+t[0]+'">'+t[1]+'</div>';
  h+='</div><div class="cells">';
  let found=0,total=0;
- if(collTab==='w')for(const id of WIDS){const w=WEAPONS[id],d=!!save.disc.w[id];total++;if(d)found++;
+ if(collTab==='w')for(const id of WIDS){const w=WEAPONS[id],d=!!save.disc.w[id];total++;if(d)found++;if(w.bid&&!d)continue;
   let hint='';if(!d){if(w.lock&&!weaponUnlocked(id)){const a=achFor('w',id);hint=a?'\u{1F512} '+esc(a.n):'';}else hint='Not found yet';}
   h+='<div class="cell'+(d?'':' un')+'"><div class="ic">'+w.ic+'</div><b>'+(d?w.n:'???')+'</b><div class="tiny">'+(d?w.kind:hint)+'</div></div>';}
  else if(collTab==='p')for(const id of PIDS){const p=PASSIVES[id],d=!!save.disc.p[id];total++;if(d)found++;
