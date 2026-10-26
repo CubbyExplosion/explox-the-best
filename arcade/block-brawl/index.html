@@ -13,7 +13,7 @@ const rnd=(a,b)=>a+R()*(b-a),ri=(a,b)=>floor(a+R()*(b-a+1)),pick=a=>a[floor(R()*
 const lerp=(a,b,t)=>a+(b-a)*t;
 /* ---------- save ---------- */
 const SK='sip_block-brawl_save';
-const DEF_SET={stocks:3,dmg:1,time:0,items:2,diff:0,music:1,mute:0,shake:1,mut:{},unlockAll:0,ff:0,sharedStocks:0};
+const DEF_SET={stocks:3,dmg:1,time:0,items:2,diff:0,music:1,mute:0,shake:1,camZoom:0,mut:{},unlockAll:0,ff:0,sharedStocks:0};
 let SV={ach:{},st:{chars:{},won:{},stages:{},bosses:{},mm:{}},set:Object.assign({},DEF_SET),story:{best:0},best:{},coins:0,cos:{hats:{none:1},tints:{none:1},titles:{rookie:1}},eq:{hat:'none',tint:'none',title:'rookie'},eggs:{},seen:{},tut:0,trophies:{},chal:{},fav:{},ver:2,seenW:{}};
 function loadSave(){try{const j=JSON.parse(localStorage.getItem(SK)||'null');if(j&&typeof j==='object'){for(const k in j){if(j[k]&&typeof j[k]==='object'&&!Array.isArray(j[k])&&SV[k])Object.assign(SV[k],j[k]);else SV[k]=j[k];}}}catch(e){}
  SV.set.mut=SV.set.mut||{};}
@@ -1859,10 +1859,10 @@ function drawWorld(c,m,view,rep){
  const t=view.t;
  c.save();
  let sx=0,sy=0;if(m.shake>0&&!rep){sx=rnd(-m.shake,m.shake);sy=rnd(-m.shake,m.shake);}
- let z=1;if(m.slow>0&&m.phase==='end'||m.slow>40)z=1+min(.08,m.slow*.001+.03);
+ let z=1;if(SV.set.camZoom&&(m.slow>0&&m.phase==='end'||m.slow>40))z=1+min(.08,m.slow*.001+.03);
  if(GFX.on&&!rep){GFX.zs+=(z-GFX.zs)*.16;z=abs(GFX.zs-1)<.0005?1:GFX.zs;}else GFX.zs=1;
  let ox=(60*K-(z-1)*480*K)+sx,oy=(40*K-(z-1)*270*K)+sy,zz=z;
- if(m.cine&&!rep){const C=m.cine,pp=1-C.t/C.max,aa=Math.min(1,pp*6,(1-pp)*6+.15),cf=C.f;const zc=1+.55*aa;const tx=480-(cf.x+60)*K*zc,ty=270-(cf.y-cf.h/2+40)*K*zc;ox=lerp(ox,tx,aa)+sx;oy=lerp(oy,ty,aa)+sy;zz=lerp(z,zc,aa);}
+ if(SV.set.camZoom&&m.cine&&!rep){const C=m.cine,pp=1-C.t/C.max,aa=Math.min(1,pp*6,(1-pp)*6+.15),cf=C.f;const zc=1+.55*aa;const tx=480-(cf.x+60)*K*zc,ty=270-(cf.y-cf.h/2+40)*K*zc;ox=lerp(ox,tx,aa)+sx;oy=lerp(oy,ty,aa)+sy;zz=lerp(z,zc,aa);}
  c.setTransform(K*zz,0,0,K*zz,ox,oy);
  GFX.cam={ox,oy,zz,bx:60*K,by:40*K};
  if(m.st.th==='gen')drawBGgen(c,m,t);else drawBG(c,m,t);
@@ -2252,7 +2252,7 @@ SCN.menu={upd(){demoStep();},draw(){
   btn(mo[0],mo[1],x,y,420,60,mo[4],{col:mo[3],sz:25,lx:26,sub:mo[2],dx,pulse:mo[0]===hint,draw:(c,w,h)=>{c.fillStyle='rgba(255,255,255,.15)';rr(-w/2+8,-h/2+8,44,h-16,8);c.fill();drawPortrait(c,['blade','biff','zap','chef','dusty','sir','robin','rex','shade'][i],-w/2+30,0,40);}});
  });
  const bx=[['coll','Closet',()=>go('cust'),'#7a3aa0'],['ach','Trophies',()=>go('ach'),'#3b8a4f'],['mut','Mutators',()=>go('mut'),'#c0602e'],['set','Settings',()=>go('settings'),'#3b4fd6'],['how','How to Play',()=>go('howto'),'#3b4fd6'],['snd',SV.set.mute?'Sound: OFF':'Sound: ON',()=>{setMute(!SV.set.mute);G.muteN++;if(G.muteN>=6)egg('mute','Shhh!');},'#555']];
- bx.forEach((b,i)=>btn(b[0],b[1],40+i*150,484,140,40,b[2],{col:b[3],sz:16}));
+ bx.push(['exo','Explox',()=>{G.exBack='menu';G.exAuto=false;go('explox');},'#2e8a4f']);bx.forEach((b,i)=>btn(b[0],b[1],24+i*130,484,124,40,b[2],{col:b[3],sz:b[1].length>9?13:15}));
  btn('title','',14,12,0,0,()=>{},{en:false});
  backBtn('title');
  if(!SV.tut)txt('Tip: Boot Camp is quick and gives you a free hat!',480,468,15,'#ffe14a');
@@ -2473,6 +2473,7 @@ function startMatch(cfg){
 function evalChal(m,res){const id=m.cfg.chal;if(!id||!res.win)return false;const h=m.fighters[0];
  if(id==='flaw')return h.stocksLost===0;if(id==='speedy')return m.t<=30*60+140;return true;}
 function onMatchDone(m){
+ G.exOffer=false;
  const res=m.result||{win:false};const cfg=m.cfg;G.res={m,res,mode:G.mode,msgs:[]};
  if(cfg.mut&&Object.keys(cfg.mut).some(k=>cfg.mut[k])&&cfg.mut.tiny)egg('tiny','Itty bitty');
  if(res.win&&m.winner&&m.winner.id==='boo')egg('ghosty','Boo-tiful win');
@@ -2482,7 +2483,10 @@ function onMatchDone(m){
  if(G.mode==='target'&&res.win){const tm=m.playT/60;res.time=tm;bump('targetClears');if(!SV.best.tgt||tm<SV.best.tgt){SV.best.tgt=Math.round(tm*10)/10;res.msgs=['NEW BEST TIME!'];}}
  if(G.mode==='survival'){res.waves=m.wave-1;}
  if(G.mode==='story'){if(res.win){const s=G.story;SV.story.best=max(SV.story.best||0,s.idx+1);if(s.idx>=9){bump('storyClears');if(SV.set.diff===2)bump('storyHard');SV.coins+=100;res.msgs=['STORY COMPLETE!  +100 coins'];if(!SV.cos.hats.crown){SV.cos.hats.crown=1;}}}}
- if(G.mode==='tourney')tourResult(res.win);
+ if(G.mode==='tourney'){tourResult(res.win);if(G.tour&&G.tour.done&&G.tour.won)G.exOffer=true;}
+ if(G.mode==='story'&&res.win)G.exOffer=true;
+ if(G.mode==='survival'&&(res.waves||0)>=5)G.exOffer=true;
+ if(G.mode==='chal'&&res.cleared)G.exOffer=true;
  checkAch();save();
  go('results');}
 /* ---------- match scene ---------- */
@@ -2554,6 +2558,7 @@ SCN.results={enter(){G.cf=[];const r=G.res;if(r&&r.res.win){for(let i=0;i<70;i++
   if(r.mode==='story'&&m.lastKO)B('rep2','KO Replay',()=>{G.rep={m,i:0,fr:m.lastKO};bump('replays');checkAch();go('replay');},'#7a3aa0',150);
   cx.restore();
   cx.fillStyle='rgba(0,0,0,0)';
+  if(G.exOffer&&SV.exDay!==exToday())drawExCard();
   for(const c of G.cf||[]){cx.fillStyle=c.c;cx.save();cx.translate(c.x,c.y);cx.rotate(c.r);cx.fillRect(-c.s/2,-c.s/4,c.s,c.s/2);cx.restore();}
  }};
 SCN.replay={upd(){const R_=G.rep;if(!R_)return;R_.i+=.6;if(R_.i>=R_.fr.length+30)R_.i=0;},
@@ -2573,6 +2578,7 @@ SCN.settings={upd(){},draw(){
   ['Items',['Off','Few','Normal','Lots'][S.items],()=>{S.items=(S.items+1)%4;},()=>{S.items=(S.items+3)%4;}],
   ['Music',S.music?'On':'Off',()=>{S.music=S.music?0:1;},()=>{S.music=S.music?0:1;}],
   ['Screen shake',S.shake?'On':'Off',()=>{S.shake=S.shake?0:1;},()=>{S.shake=S.shake?0:1;}],
+  ['Camera zoom on big moves',S.camZoom?'On':'Off',()=>{S.camZoom=S.camZoom?0:1;},()=>{S.camZoom=S.camZoom?0:1;}],
   ['Sound',S.mute?'Muted':'On',()=>setMute(!S.mute),()=>setMute(!S.mute)]];
  rows.forEach((r,i)=>{const y=76+i*50;panel(200,y,560,42,'rgba(0,0,0,.45)');txt(r[0],220,y+21,20,'#fff','left');btn('rl'+i,'<',560,y+5,32,32,()=>{r[3]();save();},{sz:20,col:'#555'});txt(String(r[1]),660,y+21,20,'#ffe14a');btn('rr'+i,'>',714,y+5,32,32,()=>{r[2]();save();},{sz:20,col:'#555'});});
  txt('Easy: foes hit softer and you are tougher. Perfect for learning!',480,490,15,'#cde');
@@ -2670,7 +2676,7 @@ const ROST=FIDS.concat(NEWF,['kingcube','mecha','prince']);
 const TEAMN=['RED','BLUE','GREEN','YELLOW'];
 /* text search input */
 G.srch={on:false,buf:'',kind:''};
-addEventListener('keydown',e=>{const S=G.srch;if(!S.on)return;if(e.key==='Backspace'){S.buf=S.buf.slice(0,-1);e.preventDefault();}else if(e.key.length===1&&/[a-zA-Z0-9 \-']/.test(e.key)&&S.buf.length<18){S.buf+=e.key.toLowerCase();e.preventDefault();}if(e.key==='Enter'||e.key==='Escape'){S.on=false;}},true);
+addEventListener('keydown',e=>{const S=G.srch;if(!S.on||S.kind==='exname')return;if(e.key==='Backspace'){S.buf=S.buf.slice(0,-1);e.preventDefault();}else if(e.key.length===1&&/[a-zA-Z0-9 \-']/.test(e.key)&&S.buf.length<18){S.buf+=e.key.toLowerCase();e.preventDefault();}if(e.key==='Enter'||e.key==='Escape'){S.on=false;}},true);
 function searchBtn(id,x,y,w,h,onchg){const S=G.srch;const mine=S.on&&S.kind===id;btn(id,mine?('Search: '+S.buf+(floor(G.sceneT/20)%2?'|':'')):(S.buf&&S.kind===id?'Search: '+S.buf:'Search...'),x,y,w,h,()=>{if(G.srch.on&&G.srch.kind===id){G.srch.on=false;}else{G.srch.on=true;G.srch.kind=id;G.srch.buf=G.srch.kind===id&&G.lastSrch===id?G.srch.buf:'';G.lastSrch=id;if(onchg)onchg();}},{sz:13,col:mine?'#d6a02e':'#34407a'});}
 function roster(){let L=ROST.slice();const q=(G.sel.q||'').trim();if(G.sel.filter&&G.sel.filter!=='All')L=L.filter(i=>(FD[i].arch||'Rushdown')===G.sel.filter);if(q)L=L.filter(i=>FD[i].name.toLowerCase().includes(q)||(FD[i].arch||'').toLowerCase().includes(q));L.sort((a,b)=>(fOK(b)?1:0)-(fOK(a)?1:0));return L;}
 function fLockHint(id){const d=FD[id];if(d.bossUnlock)return'Beat '+d.name+' in Story or Co-op';const a=unlockHint('f',id);if(a)return'Earn "'+a[1]+'": '+a[2];if(d.pts!==undefined)return'Play more! Need '+d.pts+' points (you have '+ptsNow()+')';return'Keep playing!';}
@@ -2835,7 +2841,7 @@ SCN.menu={upd(){demoStep();},draw(){
  MODES2.forEach((mo,i)=>{const col=i%2,row=floor(i/2);const x=40+col*450,y=110+row*60;const dx=-(1-ease((t-i*2)/14))*500;
   btn(mo[0],mo[1],x,y,420,52,mo[4],{col:mo[3],sz:23,lx:26,sub:mo[2],dx,pulse:mo[0]===hint,draw:(c,w,h)=>{c.fillStyle='rgba(255,255,255,.15)';rr(-w/2+8,-h/2+6,40,h-12,8);c.fill();drawPortrait(c,['blade','biff','pete','dot','zap','chef','dusty','sir','robin','rex','shade'][i%11],-w/2+28,0,36);}});});
  const bx=[['coll','Closet',()=>go('cust'),'#7a3aa0'],['ach','Trophies',()=>go('ach'),'#3b8a4f'],['mut','Mutators',()=>go('mut'),'#c0602e'],['set','Options',()=>go('settings'),'#3b4fd6'],['how','How to Play',()=>go('howto'),'#3b4fd6'],['snd',SV.set.mute?'Sound: OFF':'Sound: ON',()=>{setMute(!SV.set.mute);G.muteN++;if(G.muteN>=6)egg('mute','Shhh!');},'#555']];
- bx.forEach((b,i)=>btn(b[0],b[1],40+i*150,484,140,40,b[2],{col:b[3],sz:16}));
+ bx.push(['exo','Explox',()=>{G.exBack='menu';G.exAuto=false;go('explox');},'#2e8a4f']);bx.forEach((b,i)=>btn(b[0],b[1],24+i*130,484,124,40,b[2],{col:b[3],sz:b[1].length>9?13:15}));
  backBtn('title');
  if(!SV.tut)txt('Tip: Boot Camp is quick and gives you a free hat!',480,470,15,'#ffe14a');
 }};
@@ -2851,10 +2857,12 @@ SCN.settings={upd(){},draw(){
   ['Unlock everything',S.unlockAll?'ON (cheat)':'Off',()=>{S.unlockAll=S.unlockAll?0:1;},()=>{S.unlockAll=S.unlockAll?0:1;}],
   ['Music',S.music?'On':'Off',()=>{S.music=S.music?0:1;},()=>{S.music=S.music?0:1;}],
   ['Screen shake',S.shake?'On':'Off',()=>{S.shake=S.shake?0:1;},()=>{S.shake=S.shake?0:1;}],
+  ['Camera zoom on big moves',S.camZoom?'On':'Off',()=>{S.camZoom=S.camZoom?0:1;},()=>{S.camZoom=S.camZoom?0:1;}],
   ['Sound',S.mute?'Muted':'On',()=>setMute(!S.mute),()=>setMute(!S.mute)]];
- rows.forEach((r,i)=>{const y=58+i*41;panel(180,y,600,35,'rgba(0,0,0,.45)');txt(r[0],200,y+18,18,'#fff','left');btn('rl'+i,'<',540,y+3,32,29,()=>{r[3]();save();},{sz:18,col:'#555'});txt(String(r[1]),650,y+18,18,'#ffe14a');btn('rr'+i,'>',728,y+3,32,29,()=>{r[2]();save();},{sz:18,col:'#555'});});
+rows.forEach((r,i)=>{const y=52+i*37;panel(180,y,600,32,'rgba(0,0,0,.45)');txt(r[0],200,y+16,17,'#fff','left');btn('rl'+i,'<',540,y+2,32,28,()=>{r[3]();save();},{sz:18,col:'#555'});txt(String(r[1]),650,y+16,17,'#ffe14a');btn('rr'+i,'>',728,y+2,32,28,()=>{r[2]();save();},{sz:18,col:'#555'});});
  txt('Easy: foes hit softer and you are tougher. Unlock everything opens every stage and fighter.',480,478,13,'#cde');
- btn('reset',G.confirmReset?'Really erase everything? Click again':'Erase save data',300,496,360,28,()=>{if(G.confirmReset){try{localStorage.removeItem(SK);}catch(e){}location.reload();}else{G.confirmReset=true;}},{sz:12,col:'#7a2a2a'});
+ btn('exo','Explox S.I.P. rewards',640,496,296,28,()=>{G.exBack='settings';G.exAuto=false;go('explox');},{sz:13,col:'#2e8a4f'});
+ btn('reset',G.confirmReset?'Really erase everything? Click again':'Erase save data',24,496,360,28,()=>{if(G.confirmReset){try{localStorage.removeItem(SK);}catch(e){}location.reload();}else{G.confirmReset=true;}},{sz:12,col:'#7a2a2a'});
 }};
 /* ======= CHALLENGES (12) ======= */
 CHAL.push(['tagteam','Tag Team Trouble','2v2 with an AI partner - win!',''],['guardian','Guardian Angel','Revive a teammate and win a 2v2',''],['duoc','Double Trouble','Perform a Duo Technique within 2 minutes',''],['coopboss','Boss Buddies','Beat King Cube with a partner','']);
@@ -2938,6 +2946,64 @@ function announceUnlocks(){
  if(nf)toast('New fighter unlocked!',nf>1?nf+' new fighters! Check the roster':fn,'#7dff7a');
  if(ns)toast('New stage unlocked!',ns>1?ns+' new stages!':sn,'#7df');
 }
+
+
+/* ================= EXPLOX S.I.P. REWARDS ================= */
+const EXPLOX='https://explox-server.onrender.com';
+function exToday(){const d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();}
+function exDevice(){if(!SV.dev||SV.dev.length<8){const A='abcdefghijklmnopqrstuvwxyz0123456789';let id='';for(let i=0;i<14;i++)id+=A[floor(R()*A.length)];SV.dev=id;save();}return SV.dev;}
+function exFetch(path,body,cb){
+ let done=false,ctl=null;try{ctl=typeof AbortController!=='undefined'?new AbortController():null;}catch(e){}
+ const fin=o=>{if(done)return;done=true;clearTimeout(to);try{cb(o);}catch(e){}};
+ const to=setTimeout(()=>{try{if(ctl)ctl.abort();}catch(e){}fin({ok:false,net:true,error:'timeout'});},8000);
+ try{const opt={method:body?'POST':'GET'};if(body){opt.headers={'Content-Type':'text/plain'};opt.body=JSON.stringify(body);}if(ctl)opt.signal=ctl.signal;
+  fetch(EXPLOX+path,opt).then(r=>r.json().then(j=>{j=j&&typeof j==='object'?j:{ok:false};j._st=r.status;fin(j);},()=>fin({ok:false,error:'Strange reply from the server.',_st:r.status}))).catch(()=>fin({ok:false,net:true,error:'net'}));
+ }catch(e){fin({ok:false,net:true,error:'net'});}}
+G.ex={health:'idle',claim:'idle',msg:'',redeem:'idle',rmsg:'',name:''};
+function exHealth(){G.ex.health='wait';exFetch('/api/health',null,j=>{G.ex.health=(j&&!j.net&&(j.ok!==false)&&j._st<500)?'ok':'bad';});}
+function exClaim(){const E=G.ex;if(E.claim==='wait')return;E.claim='wait';E.msg='';
+ exFetch('/api/exworld/sip/code',{device:exDevice()},j=>{
+  if(j.net){E.claim='net';E.msg='Could not reach the Explox server.';return;}
+  if(j.ok&&j.code){E.claim='ok';SV.exCode=String(j.code);SV.exDay=exToday();E.msg='Your code is ready! It is worth '+(j.sip||100)+' S.I.P.';save();bump('exClaims');return;}
+  if(j.code){E.claim='already';SV.exCode=String(j.code);SV.exDay=exToday();E.msg='You already claimed today, come back tomorrow! (Your unused code is below.)';save();return;}
+  if(/already|tomorrow|too many/i.test(j.error||'')){E.claim='already';SV.exDay=exToday();E.msg='You already claimed today, come back tomorrow!';save();return;}
+  E.claim='err';E.msg=(j.error&&String(j.error).slice(0,90))||'The server said no. Try again later.';});}
+function exRedeem(){const E=G.ex;if(E.redeem==='wait')return;const name=(E.name||SV.exName||'').trim();if(!SV.exCode){E.redeem='err';E.rmsg='Get a code first.';return;}if(!name){E.redeem='err';E.rmsg='Type your Explox account name first.';return;}
+ E.redeem='wait';E.rmsg='';SV.exName=name;save();
+ exFetch('/api/exworld/sip/redeem',{code:SV.exCode,name:name},j=>{
+  if(j.net){E.redeem='net';E.rmsg='Could not reach the Explox server.';return;}
+  if(j.ok){E.redeem='ok';E.rmsg='Sent '+(j.sip||100)+' S.I.P. to '+String(j.name||name).slice(0,30)+'!';SV.exCode=null;save();sfx('tada');bump('exSent');return;}
+  E.redeem='err';E.rmsg=(j.error&&String(j.error).slice(0,110))||'That did not work. Check the name and try again.';});}
+function exNameInput(){
+ if(typeof TOUCH!=='undefined'&&TOUCH){let v=null;try{v=prompt('Explox account name (capital letters count):',G.ex.name||SV.exName||'');}catch(e){}if(v!==null)G.ex.name=String(v).replace(/[^\w \-.]/g,'').slice(0,24);return;}
+ G.srch.on=true;G.srch.kind='exname';if(!G.ex.name)G.ex.name=SV.exName||'';}
+addEventListener('keydown',e=>{const S=G.srch;if(!S.on||S.kind!=='exname')return;const E=G.ex;
+ if(e.key==='Backspace'){E.name=E.name.slice(0,-1);e.preventDefault();}
+ else if(e.key==='Enter'||e.key==='Escape'){S.on=false;e.preventDefault();}
+ else if(e.key.length===1&&/[\w \-.]/.test(e.key)&&E.name.length<24){E.name+=e.key;e.preventDefault();}},true);
+function wrapTxt(s,x,y,w,sz,col,lh){const words=String(s).split(' ');let line='',yy=y;cx.font='bold '+sz+'px Trebuchet MS, Verdana, sans-serif';for(const wd of words){const t=line?line+' '+wd:wd;if(cx.measureText(t).width>w&&line){txt(line,x,yy,sz,col);line=wd;yy+=lh;}else line=t;}if(line)txt(line,x,yy,sz,col);return yy;}
+function drawExCard(){
+ const x=640,y=228,w=300,h=96;panel(x,y,w,h,'rgba(10,40,20,.9)');cx.strokeStyle='#7dff9a';cx.lineWidth=3;rr(x,y,w,h,14);cx.stroke();
+ txtO('Claim 100 S.I.P. for Explox!',x+w/2,y+18,16,'#ffe14a');txt('A free daily gift. No passwords.',x+w/2,y+38,12,'#cde');
+ btn('exc','Claim now',x+20,y+52,w-40,34,()=>{G.exBack='results';G.exAuto=true;go('explox');},{col:'#2e8a4f',sz:17,pulse:1});}
+SCN.explox={enter(){const E=G.ex;E.claim=SV.exDay===exToday()&&SV.exCode?'ok':'idle';E.msg=E.claim==='ok'?'Your code for today is below.':'';E.redeem='idle';E.rmsg='';E.name=E.name||SV.exName||'';exHealth();G.srch.on=false;if(G.exAuto){G.exAuto=false;if(SV.exDay!==exToday())exClaim();}},upd(){demoStep();},
+ draw(){drawPlain();const E=G.ex;title3d('EXPLOX S.I.P.',480,30,34,'#fff','#2e8a4f');backBtn(G.exBack||'menu');
+  const dc=E.health==='ok'?'#4cff7a':E.health==='bad'?'#ff5a5a':'#bbb';cx.fillStyle=dc;cx.beginPath();cx.arc(780,30,8,0,7);cx.fill();cx.strokeStyle='#fff';cx.lineWidth=2;cx.stroke();txt(E.health==='ok'?'Explox server: online':E.health==='bad'?'Explox server: not reachable':'Explox server: checking...',796,30,13,'#fff','left');
+  panel(40,62,880,70);wrapTxt('Earn 100 S.I.P. a day for Explox. No passwords. Ask a parent if you are not sure. Press "Get today\'s code", then type the name of your Explox account and press Send.',480,84,830,15,'#fff',22);
+  panel(40,142,880,104);txt('1. Get today\'s code',60,160,17,'#ffd23f','left');
+  const can=E.claim!=='wait';
+  btn('exget',E.claim==='wait'?'Asking the server...':(E.claim==='net'?'Retry':'Get today\'s code'),60,176,260,44,()=>{exClaim();},{col:'#2e8a4f',sz:19,en:can&&SV.exDay!==exToday()||E.claim==='net'||E.claim==='err'});
+  if(SV.exCode)txtO(SV.exCode,620,194,30,'#7dff9a');else txt('(no code yet)',620,194,18,'#789');
+  if(E.msg)wrapTxt(E.msg,620,226,560,13,E.claim==='ok'?'#7dff9a':E.claim==='already'?'#ffe14a':'#ff9a9a',17);
+  panel(40,256,880,150);txt('2. Send it to your Explox account',60,274,17,'#ffd23f','left');
+  txt('Account name:',60,306,15,'#fff','left');const on=G.srch.on&&G.srch.kind==='exname';
+  btn('exname',(E.name||'')+(on&&floor(G.sceneT/20)%2?'|':'')||'(click and type)',200,288,330,36,()=>{exNameInput();},{col:on?'#d6a02e':'#34407a',sz:16});
+  btn('exsend',E.redeem==='wait'?'Sending...':'Send',550,288,150,36,()=>{G.srch.on=false;exRedeem();},{col:'#2e8a4f',sz:19,en:E.redeem!=='wait'});
+  if(E.redeem==='net')btn('exretry','Retry',712,288,100,36,()=>{exRedeem();},{col:'#a07a2a',sz:16});
+  if(E.rmsg)wrapTxt(E.rmsg,60,350,800,15,E.redeem==='ok'?'#7dff9a':'#ff9a9a',20);
+  txt('Only a random device id, the code and the name you type are sent. Nothing else.',480,424,13,'#9bf');
+  txt('Capital letters count in the account name.',480,444,12,'#cde');
+ }};
 
 addEventListener('beforeunload',save);document.addEventListener('visibilitychange',()=>{if(document.hidden)save();});
 BB.tick=tick;BB.render=render;BB.G=G;BB.SV=SV;BB.gfx=GFX;BB.gfxSet=gfxSet;
