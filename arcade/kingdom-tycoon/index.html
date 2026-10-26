@@ -95,6 +95,7 @@ blacksmith:{n:'Blacksmith',e:'\u{1F528}',cat:2,s:2,cost:{wood:30,stone:30},hp:10
 mint:{n:'Mint',e:'\u{1F4B0}',cat:2,s:2,cost:{stone:40,iron:20,gold:50},hp:110,jobs:2,cyc:8,in:{iron:1},out:{gold:8},col:'#e8d28a',roof:'#b8860b',d:'Turns iron into gold coins.'},
 market:{n:'Market',e:'\u{1F6D2}',cat:3,s:2,cost:{wood:40,stone:20},hp:80,jobs:2,cyc:8,outf:1,col:'#f1a85a',roof:'#e74c3c',d:'Merchants earn gold, more as your town grows. +3 happiness.'},
 tavern:{n:'Tavern',e:'\u{1F37A}',cat:3,s:2,cost:{wood:40,stone:10},hp:80,jobs:1,cyc:10,in:{food:1},out:{gold:3},col:'#c58b58',roof:'#8e44ad',d:'Folks eat, laugh and pay. +4 happiness.'},
+store:{n:'Store',e:'\u{1F3EA}',cat:3,s:2,cost:{wood:20,stone:6},hp:80,jobs:1,max:8,col:'#f6c177',roof:'#e67e22',d:'Your shop! Click it to buy anything and to sell your goods at your OWN price (1-100 gold per 10). More stores = more customers. Shortcut: Q.'},
 wall:{n:'Wall',e:'',cat:4,s:1,cost:{stone:3},hp:100,col:'#9aa0a8',d:'Bandits must smash through walls. Drag to paint.'},
 gate:{n:'Gate',e:'',cat:4,s:1,cost:{stone:10,wood:10},hp:100,col:'#9aa0a8',d:'Sturdy wooden gate in a wall.'},
 tower:{n:'Tower',e:'\u{1F3F9}',cat:4,s:1,cost:{stone:30,wood:15},hp:150,col:'#b0b4ba',roof:'#c0392b',d:'Archers plus a soldier garrison (1 soldier, +1 per upgrade level). Upgrade for stronger arrows.'},
@@ -135,7 +136,7 @@ for(const k in D)D[k].c0=Object.assign({},D[k].cost);
 function applyDif(){const m=DIF[S.dif].cost*COSTM;for(const k in D){const c={};for(const r in D[k].c0)c[r]=Math.max(1,Math.round(D[k].c0[r]*m));D[k].cost=c}}
 function setDl(m){curDl=m;META.dl=m;try{const o=readSave()||{meta:META,game:null};o.meta=META;localStorage.setItem(SAVE,JSON.stringify(o))}catch(e){}showTitle()}
 function setDif(d){curDif=d;META.dif=d;try{const o=readSave()||{meta:META,game:null};o.meta=META;localStorage.setItem(SAVE,JSON.stringify(o))}catch(e){}showTitle()}
-const START=['house','farm','lumber','quarry','well','road','wall','gate'];
+const START=['house','farm','lumber','quarry','well','road','wall','gate','store'];
 const TECH=[
 {id:'carp',n:'Carpentry',c:15,r:[],u:['warehouse'],b:{lumber:.2},d:'Lumber +20%. Warehouse.'},
 {id:'mason',n:'Masonry',c:15,r:[],u:['wall'],b:{quarry:.2},d:'Quarry +20%. Walls.'},
@@ -215,7 +216,7 @@ function tone(f,d,type,v,sl,delay){if(muted||!AUD[curCat]||ACTIVE>44)return;try{
 function noise(d,fq,v,delay){if(muted||!AUD[curCat]||ACTIVE>44)return;try{const a=AC;if(!a||!MG||a.state!=='running')return;if(!NOISE){NOISE=a.createBuffer(1,a.sampleRate,a.sampleRate);const c=NOISE.getChannelData(0);for(let i=0;i<c.length;i++)c[i]=Math.random()*2-1}
  const t=a.currentTime+(delay||0),s=a.createBufferSource(),fl=a.createBiquadFilter(),g=a.createGain();s.buffer=NOISE;s.loop=true;fl.type='lowpass';fl.frequency.value=fq;g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(v,t+d*.3);g.gain.exponentialRampToValueAtTime(.0001,t+d);s.connect(fl);fl.connect(g);g.connect(MG);ACTIVE++;s.onended=()=>{ACTIVE--;try{s.disconnect();fl.disconnect();g.disconnect()}catch(e){}};s.start(t);s.stop(t+d+.03)}catch(e){}}
 const MUSN=new Set(['drum','festival','dawn','night','bird','wind','cricket']);
-const LIM={arrow:160,hit:220,coin:350,coin2:2500,full:6000,pop:600,shimmer:110,upgrade:60,drum:700,bird:2500,wind:4000,cricket:1800,dawn:3000,night:3000,crunch:90,ting:120};
+const LIM={arrow:160,hit:220,coin:350,coin2:2500,full:6000,pop:600,shimmer:110,upgrade:60,drum:700,bird:2500,wind:4000,cricket:1800,dawn:3000,night:3000,crunch:90,ting:120,chaching:300};
 function sfx(n,a){SFXCALLS[n]=(SFXCALLS[n]||0)+1;const now=performance.now(),lim=LIM[n]!==undefined?LIM[n]:40;if(lastSfx[n]&&now-lastSfx[n]<lim)return;lastSfx[n]=now;curCat=MUSN.has(n)?'mus':'fx';
  const j=1+(Math.random()-.5)*.06,T=(f,d,ty,v,sl,dl)=>tone(f*j,d,ty,v,sl?sl*j:0,dl);
  switch(n){
@@ -224,6 +225,7 @@ function sfx(n,a){SFXCALLS[n]=(SFXCALLS[n]||0)+1;const now=performance.now(),lim
  case'crunch':for(let i=0;i<4;i++)T(240-i*30,.06,'sawtooth',.05,-60,i*.035+Math.random()*.02);noise(.18,1100,.06);break;
  case'err':T(150,.2,'sawtooth',.05,-40);T(120,.18,'square',.03,-30,.05);break;
  case'coin':case'coin2':T(1568,.08,'square',.022);T(2093,.15,'square',.018,0,.07);break;
+ case'chaching':T(1760,.1,'square',.03);T(2349,.12,'square',.03,0,.06);T(3136,.32,'triangle',.03,0,.12);break;
  case'ting':T(1760,.2,'triangle',.05);T(2637,.28,'sine',.025,0,.05);break;
  case'boom':T(120,.25,'sawtooth',.06,-70);noise(.2,600,.04);break;
  case'horn':T(180,.7,'sawtooth',.08,30);T(240,.7,'sawtooth',.05,30,.05);break;
@@ -344,7 +346,7 @@ function newDay(){
  const s=season();if((S.day-1)%DPS===0){msg(SEI[s]+' '+SEASONS[s]+' has arrived!');if(s===3)msg('Winter: farms slow down. Eat from your stores!');if(s===2)msg('Autumn: harvest time! Store food for winter.')}
  if(S.day%(DPS*4)===1&&S.day>1)msg('Happy new year! Year '+(Math.floor((S.day-1)/(DPS*4))+1),'good');
 
- dayDiplo();updHUD()}
+ storeDay();dayDiplo();updHUD()}
 function pickWeather(){const se=season(),r=Math.random();let w='clear';
  if(se===3)w=r<.55?'snow':'clear';else if(se===0)w=r<.3?'rain':'clear';else if(se===1)w=r<.12?'rain':r<.17?'storm':'clear';else w=r<.3?'rain':r<.37?'storm':'clear';
  if(w==='storm'&&S.weather!=='storm'){msg('A thunderstorm rolls in! Work slows down.','bad');sfx('thunder')}
@@ -372,7 +374,7 @@ function sec(){
  if(S.trader){S.trader.t--;if(S.trader.t<=0){S.trader=null;$('offer').classList.add('hidden');msg('The trader packed up and left.')}}
  {const rg=S.war?5:1.5;if(!RA.length||S.war)for(const b of B)if(b.hp<maxhp(b.k))b.hp=Math.min(maxhp(b.k),b.hp+rg)}
  if(cn('tower')>=3&&cn('wall')>=10)ach('fort');if(SO.length>=8)ach('army');
- maybeChallenge();raidCheck();{const hd=Math.floor(OD());if(S.dif===0&&HINTS[hd]&&S.lastHint!==hd){S.lastHint=hd;msg(HINTS[hd])}}
+ storeTick();maybeChallenge();raidCheck();{const hd=Math.floor(OD());if(S.dif===0&&HINTS[hd]&&S.lastHint!==hd){S.lastHint=hd;msg(HINTS[hd])}}
  
  if(S.challenge&&!modalOpen&&!S.over)showChallenge();
  checkGoals();updHUD();updGoals();updSel();
@@ -498,7 +500,7 @@ function upgrade(b){if(!canUp(b))return;const c=ucost(b);if(!canAfford(c)){msg('
 // ================= rivals, diplomacy & war =================
 const RN=[{n:'Brightmoor',pers:'proud',col:'#d33c3c',m:1.2},{n:'Goldmarsh',pers:'greedy',col:'#e0b020',m:.95},{n:'Shadowfen',pers:'sneaky',col:'#8a52d0',m:1.0},{n:'Greenhollow',pers:'friendly',col:'#3aa860',m:.8}];
 const PERS={proud:'Proud',greedy:'Greedy',sneaky:'Sneaky',friendly:'Friendly'};
-const ACH=[['firstwin','First Victory','Win a war'],['iron','Iron Fist','Win 3 wars'],['peace','Peacemaker','Sign a peace treaty'],['ally','Best Friends','Ally with a rival'],['trade','Merchant','Trade with a rival'],['bold','Brave Peacekeeper','Decline a war challenge'],['sue','Wise Retreat','Sue for peace'],['fort','Fortified','3 towers and 10 walls'],['army','Big Army','Have 8 soldiers'],['winE','Easy Champion','Win a scenario on Easy'],['winM','Medium Champion','Win a scenario on Medium'],['winH','Hard Champion','Win a scenario on Hard'],['unbroken','Flawless','Win a war with no building battered']];
+const ACH=[['firstwin','First Victory','Win a war'],['iron','Iron Fist','Win 3 wars'],['peace','Peacemaker','Sign a peace treaty'],['ally','Best Friends','Ally with a rival'],['trade','Merchant','Trade with a rival'],['bold','Brave Peacekeeper','Decline a war challenge'],['sue','Wise Retreat','Sue for peace'],['fort','Fortified','3 towers and 10 walls'],['army','Big Army','Have 8 soldiers'],['firstsale','First Sale','Sell something in your Store'],['sell1000','Shopkeeper','Sell 1000 gold worth of goods'],['fairtrader','Fair Trader','Sell 10 batches at a fair price'],['winE','Easy Champion','Win a scenario on Easy'],['winM','Medium Champion','Win a scenario on Medium'],['winH','Hard Champion','Win a scenario on Hard'],['unbroken','Flawless','Win a war with no building battered']];
 function mkRivals(){return RN.map((r,i)=>({id:i,n:r.n,pers:r.pers,col:r.col,m:r.m*(.92+Math.random()*.2),rel:r.pers==='friendly'?35:r.pers==='greedy'?0:-5,ally:false,peace:0,cd:0,declined:0,tcd:0,partner:false}))}
 function achOn(id){return S.ach[id]||(id.startsWith('win')&&META.dw&&META.dw[id[3]])}
 function ach(id){if(!S.ach)S.ach={};if(S.ach[id])return;S.ach[id]=1;const a=ACH.find(q=>q[0]===id);msg('\u{1F3C5} Achievement: '+a[1]+'!','good');sfx('tech')}
@@ -627,6 +629,53 @@ function showRivals(){const rows=S.rivals.map(r=>{const st=r.ally?'\u{1F91D} All
  modal('\u{1F91D} Rival Kingdoms','<p style="font-size:12px;margin:0">Your power: <b>'+power()+'</b> &bull; Reputation: <b>'+S.rep+'</b> &bull; Wars won: '+S.warsWon+'</p><p style="font-size:12px;color:#ffe08a;margin:2px">'+DT[S.dif]+'</p>'+rows+'<div>Achievements: '+ac+'</div>',[['Close',closeModal]]);
  document.querySelectorAll('#modal button[data-a]').forEach(b=>b.onclick=()=>dipAction(b.dataset.a,+b.dataset.i))}
 
+// ================= STORE (buy anything, sell at your own price) =================
+const ITEMS=[['food',12,1.2],['wood',15,1],['stone',20,.9],['iron',35,.7],['grain',10,1],['flour',14,.8],['arms',60,.4]];
+const SEAS_P={food:[1,.95,.85,1.2],wood:[1,1,1,1.1]};
+let stTab='buy';
+function stState(){if(!S.store)S.store={shelf:{},sold:{gold:0,pieces:0},tot:0,totP:0,drift:{},fair:0};return S.store}
+function fairOf(r){const it=ITEMS.find(q=>q[0]===r),st=stState(),sf=(SEAS_P[r]||[1,1,1,1])[season()];return Math.max(1,Math.round(it[1]*sf*(st.drift[r]||1)))}
+function buyPrice(r){const f=fairOf(r);let disc=1;if(S.rivals){if(S.rivals.some(q=>q.ally))disc-=.04;if(S.rivals.some(q=>q.partner))disc-=.04}const dm=S.dif===0?.95:S.dif===2?1.05:1;return Math.max(Math.ceil(f*1.3)+1,Math.round(f*1.45*disc*dm))}
+function maxSell(r){return Math.min(100,Math.floor(fairOf(r)*1.25))}
+function demandF(ratio){return ratio<=.5?3:ratio<=1?3-(ratio-.5)*3:ratio<=1.1?1.5-(ratio-1)*9:ratio<=1.25?.6-(ratio-1.1)*3:0}
+function demandText(ratio){return ratio>1.25?'nobody buys':ratio>1.1?'very slow':ratio>1?'slow':ratio>.7?'steady':'quick!'}
+function storeDemand(){const ns=cn('store');if(!ns)return 0;const pop=C.length,relm=1+Math.max(-.1,Math.min(.2,S.rivals.reduce((a,q)=>a+q.rel,0)/800+S.rivals.filter(q=>q.ally).length*.05));
+ return .006*Math.sqrt(Math.max(4,pop))*(1+.5*(Math.min(ns,6)-1))*(.5+S.happy/100)*relm*(S.war?.4:1)*[1.2,1,.85][S.dif]}
+function storeTick(){const st=stState(),base=storeDemand();if(!base)return;
+ for(const q of ITEMS){const r=q[0],sh=st.shelf[r];if(!sh||sh.qty<10)continue;const ratio=sh.price/fairOf(r);sh.acc=(sh.acc||0)+base*demandF(ratio)*q[2];
+  while(sh.acc>=1&&sh.qty>=10){sh.acc-=1;sh.qty-=10;S.res.gold+=sh.price;st.sold.gold+=sh.price;st.sold.pieces+=10;st.tot+=sh.price;st.totP+=10;if(ratio>=.9&&ratio<=1.1)st.fair=(st.fair||0)+1;
+   const sb=B.find(b=>b.k==='store');if(sb)ft(sb.x+1,sb.y,'+'+sh.price+'\u{1FA99}','#ffe066',13);sfx('chaching');ach('firstsale');if(st.tot>=1000)ach('sell1000');if(st.fair>=10)ach('fairtrader')}
+  if(sh.acc>5)sh.acc=5}}
+function storeDay(){const st=stState();st.sold={gold:0,pieces:0};for(const q of ITEMS){const d=(st.drift[q[0]]||1)+rnd(-.03,.03);st.drift[q[0]]=Math.max(.9,Math.min(1.1,d))}}
+function setShelf(r,qty,price){const st=stState(),sh=st.shelf[r]||(st.shelf[r]={qty:0,price:Math.min(100,fairOf(r)),acc:0});
+ if(price!==undefined)sh.price=Math.max(1,Math.min(100,Math.round(+price)||1));
+ if(qty!==undefined){qty=Math.max(0,Math.floor(qty/10)*10);const avail=sh.qty+Math.floor(S.res[r]/10)*10;qty=Math.min(qty,avail);const diff=qty-sh.qty;S.res[r]-=diff;sh.qty=qty}return sh}
+function buyItem(r,qty){const p=buyPrice(r);let room=Math.floor((storCap()-S.res[r])/10)*10;if(room<10){msg('Your storage is full of '+RES[r][1]+'.','bad');sfx('err');return false}
+ let n=Math.min(qty,room)/10;const afford=Math.floor(S.res.gold/p);if(afford<1){msg('Not enough gold ('+p+' per 10).','bad');sfx('err');return false}n=Math.min(n,afford);
+ S.res.gold-=p*n;S.res[r]+=n*10;sfx('coin');msg('Bought '+n*10+' '+RES[r][1]+' for '+p*n+' gold.','good');return true}
+function showStore(){if(!S)return;const st=stState(),ns=cn('store');
+ let h='<div style="font-size:13px">\u{1FA99} Gold <b>'+Math.floor(S.res.gold)+'</b> &bull; Stores <b>'+ns+'</b> &bull; Sold today <b>'+st.sold.gold+'</b> gold ('+st.sold.pieces+' pieces) &bull; All time <b>'+st.tot+'</b></div>'+
+ '<div style="margin:6px"><button id="stb" class="'+(stTab==='buy'?'on':'')+'">Buy</button> <button id="sts" class="'+(stTab==='sell'?'on':'')+'">Sell</button></div>';
+ if(stTab==='buy'){h+='<div style="font-size:11px;color:#ffe08a">Prices are per 10 pieces. Rival friends and allies give small discounts. The Grand Citadel is not for sale!</div>';
+  for(const q of ITEMS){const r=q[0],p=buyPrice(r);h+='<div style="border:1px solid #8a6a3a;border-radius:8px;margin:3px;padding:4px;text-align:left;font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b style="min-width:92px">'+RES[r][0]+' '+RES[r][1]+'</b><span style="min-width:110px">Stock '+Math.floor(S.res[r])+'/'+storCap()+'</span><span style="min-width:90px">Price <b>'+p+'</b>\u{1FA99}/10</span><button data-a="b10" data-r="'+r+'">Buy 10 ('+p+')</button><button data-a="b100" data-r="'+r+'">Buy 100 ('+p*10+')</button></div>'}}
+ else{if(!ns)h+='<p style="color:#f99">Build a Store (Trade tab) first: customers only shop in your stores!</p>';
+  h+='<div style="font-size:11px;color:#ffe08a">Choose how many pieces go on the shelf (batches of 10) and YOUR price per 10 pieces (1 to 100 gold). Fair value is shown. Too expensive and nobody buys!</div>';
+  for(const q of ITEMS){const r=q[0],sh=st.shelf[r]||{qty:0,price:fairOf(r)},fair=fairOf(r);
+   h+='<div style="border:1px solid #8a6a3a;border-radius:8px;margin:3px;padding:4px;text-align:left;font-size:12px"><b>'+RES[r][0]+' '+RES[r][1]+'</b> &nbsp; Stock <b id="sk_'+r+'">'+Math.floor(S.res[r])+'</b> &bull; On shelf <b id="sh_'+r+'">'+sh.qty+'</b> &bull; Fair value <b>'+fair+'</b>\u{1FA99}/10<br>'+
+   'Your price <input type="range" id="pr_'+r+'" min="1" max="100" value="'+sh.price+'" style="width:34%"> <input type="number" id="pn_'+r+'" min="1" max="100" value="'+sh.price+'" style="width:54px"> /10 <span id="dm_'+r+'" style="color:#ffe08a"></span><br>'+
+   '<button data-a="cheap" data-r="'+r+'">Cheap</button><button data-a="fair" data-r="'+r+'">Fair</button><button data-a="exp" data-r="'+r+'">Expensive</button> &nbsp; <button data-a="m10" data-r="'+r+'">- 10</button><button data-a="p10" data-r="'+r+'">+ 10</button><button data-a="all" data-r="'+r+'">All</button><button data-a="back" data-r="'+r+'">Take back</button></div>'}
+  h+='<div style="margin:6px"><button id="sall">Sell all at fair price</button> <button id="sback">Take everything back</button></div>'}
+ modal('\u{1F3EA} Store',h,[['Close',closeModal]]);
+ $('stb').onclick=()=>{stTab='buy';sfx('click');showStore()};$('sts').onclick=()=>{stTab='sell';sfx('click');showStore()};
+ document.querySelectorAll('#modal button[data-a]').forEach(b=>b.onclick=()=>{const r=b.dataset.r,a=b.dataset.a,fair=fairOf(r);sfx('click');
+  if(a==='b10')buyItem(r,10);else if(a==='b100')buyItem(r,100);
+  else if(a==='cheap')setShelf(r,undefined,Math.max(1,Math.round(fair*.7)));else if(a==='fair')setShelf(r,undefined,fair);else if(a==='exp')setShelf(r,undefined,Math.min(100,Math.round(fair*1.2)));
+  else{const sh=setShelf(r);if(a==='p10')setShelf(r,sh.qty+10);else if(a==='m10')setShelf(r,sh.qty-10);else if(a==='all')setShelf(r,1e9);else if(a==='back')setShelf(r,0)}
+  updHUD();showStore()});
+ if(stTab==='sell'){for(const q of ITEMS){const r=q[0],sl=$('pr_'+r),nb=$('pn_'+r),dm=$('dm_'+r);const upd=v=>{v=Math.max(1,Math.min(100,Math.round(+v)||1));setShelf(r,undefined,v);sl.value=v;nb.value=v;dm.textContent='demand: '+demandText(v/fairOf(r))};
+   sl.oninput=()=>upd(sl.value);nb.onchange=()=>upd(nb.value);dm.textContent='demand: '+demandText((+sl.value)/fairOf(r))}
+  $('sall').onclick=()=>{for(const q of ITEMS){const r=q[0];setShelf(r,1e9,fairOf(r))}sfx('coin');updHUD();showStore()};$('sback').onclick=()=>{for(const q of ITEMS)setShelf(q[0],0);sfx('click');updHUD();showStore()}}}
+
 // ================= goals / end =================
 function checkGoals(){const g=goals();if(!g.length||S.over)return;let all=true;for(const q of g){if(q[0]==='Happiness'?!(q[1]()>=q[2]):q[1]()<q[2])all=false}if(all)end(true)}
 function end(win,why){if(S.over)return;S.over=true;sfx(win?'win':'lose');
@@ -637,7 +686,7 @@ function end(win,why){if(S.over)return;S.over=true;sfx(win?'win':'lose');
 // ================= new game / save =================
 let META={wins:{}};
 function newState(i,dif,dl){dl=dl||1;dif=dif===undefined?1:dif;const sc=SC[i];const res={food:0,wood:0,stone:0,iron:0,gold:0,grain:0,flour:0,arms:0};Object.assign(res,sc.start);for(const r in sc.start)res[r]=Math.round(res[r]*DIF[dif].res);
- return{sc:i,res,techs:{},rp:sc.rp,day:1,tod:.3,tax:2,happy:60,target:60,speed:1,paused:false,raids:0,repelled:0,kills:0,raidActive:0,nextRaid:Math.round(sc.raid*DIF[dif].gap),dif,dl,pending:null,weather:'clear',wT:40,evT:55,mood:0,fear:0,growT:0,acc:0,t:0,cnt:{},built:0,lost:0,maxPop:0,everPop:0,hungry:0,over:false,raidsOn:false,trader:null,bon:{},flow:null,prevRes:null,rpRate:.1,hadCastle:0,hallLv:1,rivals:mkRivals(),war:null,challenge:null,rep:50,ach:{},warsWon:0,warsLost:0,warCd:0,warsSeen:0}}
+ return{sc:i,res,techs:{},rp:sc.rp,day:1,tod:.3,tax:2,happy:60,target:60,speed:1,paused:false,raids:0,repelled:0,kills:0,raidActive:0,nextRaid:Math.round(sc.raid*DIF[dif].gap),dif,dl,pending:null,weather:'clear',wT:40,evT:55,mood:0,fear:0,growT:0,acc:0,t:0,cnt:{},built:0,lost:0,maxPop:0,everPop:0,hungry:0,over:false,raidsOn:false,trader:null,bon:{},flow:null,prevRes:null,rpRate:.1,hadCastle:0,hallLv:1,store:{shelf:{},sold:{gold:0,pieces:0},tot:0,totP:0,drift:{},fair:0},rivals:mkRivals(),war:null,challenge:null,rep:50,ach:{},warsWon:0,warsLost:0,warCd:0,warsSeen:0}}
 function startScenario(i){
   inGame=true;SEED=(Math.random()*1e9)|0;UID=1;HALL=null;B=[];C=[];SO=[];RA=[];PR=[];AR=[];CART=null;sel=null;tool=null;
  S=newState(i,curDif,curDl);applyDif();SC[i].techs.forEach(t=>S.techs[t]=1);recalcBon();genMap(SEED);
@@ -698,7 +747,7 @@ function buildCtl(){const c=$('ctl');c.innerHTML='';
  const mk=(t,fn,id,tipt)=>{const b=document.createElement('button');b.innerHTML=t;if(id)b.id=id;b.onclick=()=>{ac();sfx('click');fn()};if(tipt){b.onmouseenter=e=>tip(tipt,e);b.onmouseleave=untip}c.appendChild(b);return b};
  mk('⏸',()=>setSpeed(0),'sp0','Pause (Space)');mk('▶',()=>setSpeed(1),'sp1','Normal speed (1)');mk('⏩',()=>setSpeed(2),'sp2','Fast (2)');mk('⏭',()=>setSpeed(3),'sp3','Super fast (3)');
  mk('\u{1F4B1} '+TAXN[S.tax],()=>{S.tax=(S.tax+1)%4;buildCtl();updHUD()},'taxb','Click to change taxes. Higher tax = more gold but unhappy citizens.');
- mk('\u{1F91D} Rivals',showRivals,'rivb','Rival kingdoms: relations, trade, peace');mk('\u{1F9F1} Walls (B)',()=>setTool(tool==='wall'?null:'wall'),'qwall','Build walls - press B. Drag to paint a whole line!');mk('\u{1F6AA} Gate (G)',()=>setTool(tool==='gate'?null:'gate'),'qgate','Build a gate - press G');mk('\u2694\uFE0F WAR!',showWar,'warb','A war is going on! Click to fight.');mk('\u{1F52C} Techs',showTech,'techb','Research new buildings and bonuses (T)');
+ mk('\u{1F91D} Rivals',showRivals,'rivb','Rival kingdoms: relations, trade, peace');mk('\u{1F9F1} Walls (B)',()=>setTool(tool==='wall'?null:'wall'),'qwall','Build walls - press B. Drag to paint a whole line!');mk('\u{1F6AA} Gate (G)',()=>setTool(tool==='gate'?null:'gate'),'qgate','Build a gate - press G');mk('\u{1F3EA} Store (Q)',showStore,'qstore','Buy anything, or sell at your own price (Q)');mk('\u2694\uFE0F WAR!',showWar,'warb','A war is going on! Click to fight.');mk('\u{1F52C} Techs',showTech,'techb','Research new buildings and bonuses (T)');
  mk(muted?'\u{1F507}':'\u{1F50A}',()=>{muted=!muted;buildCtl()},'mutb','Sound on/off (M)');
  mk('⚙️',pauseMenu,'menub','Menu (Esc)');$('warb').style.display=S.war?'':'none';setSpeed(S.speed,1);qsync()}
 function qsync(){const a=$('qwall'),b=$('qgate');if(a)a.classList.toggle('on',tool==='wall');if(b)b.classList.toggle('on',tool==='gate')}
@@ -751,7 +800,7 @@ function act(sx,sy){if(!inGame||modalOpen||S.over)return;const w=s2w(sx,sy),tx=M
  if(tool==='bulldoze'){const b=tx>=0&&ty>=0&&tx<W&&ty<H&&OCC[ty*W+tx];if(b&&b.k==='hall'){msg('The Grand Citadel cannot be demolished!','bad');sfx('err')}else if(b){removeB(b,true);sfx('crunch')}else sfx('err');return}
  if(tool){const[ax,ay]=anchor(tool,tx,ty);place(tool,ax,ay);updHUD();return}
  if(S.war&&S.war.stance==='rally'){S.war.rally={x:w.x/TS,y:w.y/TS};sfx('click');return}
- const b=tx>=0&&ty>=0&&tx<W&&ty<H?OCC[ty*W+tx]:null;sel=b;updSel()}
+ const b=tx>=0&&ty>=0&&tx<W&&ty<H?OCC[ty*W+tx]:null;sel=b;updSel();if(b&&b.k==='store')showStore()}
 cv.addEventListener('pointerdown',e=>{try{cv.setPointerCapture(e.pointerId)}catch(_){}ac();if(modalOpen)return;
  if(e.button===2){if(tool)setTool(null);return}
  ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,moved:false,type:e.pointerType,multi:false});
@@ -778,7 +827,7 @@ addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;ke
  if(modalOpen)return;
  if(e.key===' '){e.preventDefault();setSpeed(S.paused?(S.speed||1):0)}
  else if(e.key==='1')setSpeed(1);else if(e.key==='2')setSpeed(2);else if(e.key==='3')setSpeed(3);
- else if(e.key==='b'||e.key==='B')setTool(tool==='wall'?null:'wall');else if(e.key==='g'||e.key==='G')setTool(tool==='gate'?null:'gate');else if(e.key==='t'||e.key==='T')showTech();else if(e.key==='x'||e.key==='X')setTool(tool==='bulldoze'?null:'bulldoze');
+ else if(e.key==='b'||e.key==='B')setTool(tool==='wall'?null:'wall');else if(e.key==='g'||e.key==='G')setTool(tool==='gate'?null:'gate');else if(e.key==='q'||e.key==='Q')showStore();else if(e.key==='t'||e.key==='T')showTech();else if(e.key==='x'||e.key==='X')setTool(tool==='bulldoze'?null:'bulldoze');
  else if(e.key==='m'||e.key==='M'){muted=!muted;buildCtl()}
  else if(e.key==='+'||e.key==='='){view.z*=1.15;clampView()}else if(e.key==='-'){view.z/=1.15;clampView()}});
 addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=0});
