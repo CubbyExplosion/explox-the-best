@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Pet Park Zoo - S.I.P. Arcade</title>
+<link rel="icon" type="image/png" href="data:image/png;base64,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">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#27402c;font-family:"Trebuchet MS","Segoe UI",sans-serif;color:#2a2a3a;user-select:none;touch-action:none}
+canvas#c{position:absolute;inset:0;width:100%;height:100%;display:block}
+button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:6px 10px;background:#fff;color:#2a2a3a;box-shadow:0 2px 0 #0003;transition:transform .08s,filter .1s}
+button:hover{filter:brightness(1.07)}button:active{transform:scale(.93)}
+button.on{background:#ffd54a}button.big{padding:12px 22px;font-size:20px;font-weight:700}
+button[disabled]{opacity:.45;cursor:default}
+#top{position:absolute;left:0;right:0;top:0;display:flex;gap:6px;align-items:center;padding:5px 8px;background:linear-gradient(#2f6b45,#2a5a3c);color:#fff;flex-wrap:wrap;font-weight:700;z-index:5}
+#top .st{background:#0003;border-radius:10px;padding:4px 9px;white-space:nowrap}
+#top .sp{flex:1}
+#alerts{position:absolute;left:8px;top:44px;display:flex;flex-direction:column;gap:3px;z-index:4;max-width:60%}
+.chip{background:#fff;border-left:5px solid #f90;border-radius:8px;padding:3px 8px;font-size:13px;cursor:pointer;box-shadow:0 2px 0 #0003}
+#goal{position:absolute;right:8px;top:44px;font-size:13px;background:#fffbe6;border:3px solid #ffb300;border-radius:12px;padding:5px 9px;max-width:min(250px,48vw);z-index:4;box-shadow:0 3px 0 #0003}
+#goal b{color:#c25a00}#goal .bar{height:6px;background:#0002;border-radius:3px;margin-top:4px;overflow:hidden}#goal .bar i{display:block;height:100%;background:#4caf50;transition:width .3s}
+#bar{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(#2a5a3c,#244c34);padding:5px;display:flex;gap:5px;overflow-x:auto;z-index:5;align-items:center}
+#bar button{white-space:nowrap;flex:0 0 auto}
+#menu{position:absolute;left:0;right:0;bottom:52px;background:#fffdf2ee;padding:6px;display:none;gap:6px;overflow-x:auto;z-index:5;border-top:3px solid #2f6b45}
+.card{flex:0 0 112px;background:#fff;border-radius:12px;padding:5px;text-align:center;box-shadow:0 2px 0 #0003;cursor:pointer;font-size:12px;border:3px solid transparent}
+.card.sel{border-color:#ff9800}.card.lock{opacity:.45}.card .e{font-size:28px}
+#win{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.9);width:min(760px,96vw);max-height:84vh;background:#fffdf5;border-radius:16px;border:4px solid #2f6b45;box-shadow:0 8px 0 #0004;display:none;flex-direction:column;z-index:20;opacity:0;transition:transform .18s,opacity .18s}
+#win.show{transform:translate(-50%,-50%) scale(1);opacity:1}
+#win h2{margin:0;padding:8px 12px;background:#2f6b45;color:#fff;display:flex;justify-content:space-between;align-items:center;font-size:19px}
+#wb{padding:10px;overflow:auto;font-size:14px;touch-action:pan-y}
+#wb table{width:100%;border-collapse:collapse}#wb td,#wb th{padding:3px 5px;border-bottom:1px solid #0001;text-align:left}
+.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:4px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px}
+.tile{background:#fff;border-radius:10px;padding:5px;text-align:center;box-shadow:0 2px 0 #0002;font-size:12px}
+.tile .e{font-size:26px}.tile.no{opacity:.5;filter:grayscale(1)}.tile.gold{background:#fff4b8}
+.meter{height:8px;background:#0002;border-radius:4px;overflow:hidden;min-width:60px;flex:1}.meter i{display:block;height:100%}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px}
+#toast{position:absolute;left:50%;bottom:110px;transform:translateX(-50%);display:flex;flex-direction:column;gap:4px;align-items:center;z-index:30;pointer-events:none}
+.t{background:#222d;color:#fff;border-radius:20px;padding:6px 14px;font-size:14px;animation:tin .25s,tout .4s 3.2s forwards}
+.t.good{background:#2e7d32ee}.t.warn{background:#e65100ee}
+@keyframes tin{from{transform:translateY(20px) scale(.7);opacity:0}}@keyframes tout{to{opacity:0;transform:translateY(-10px)}}
+#mini{position:absolute;right:8px;bottom:112px;width:140px;height:140px;border:3px solid #fff;border-radius:8px;z-index:6;background:#000;display:none}
+#title,#modal{position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;text-align:center;background:radial-gradient(circle at 50% 30%,#8fe0a0,#2f8f5a 60%,#1c5a3c);color:#fff}
+#modal{background:#0007;z-index:50;display:none}#modal .box{background:#fffdf5;color:#2a2a3a;border-radius:16px;padding:18px;max-width:420px;border:4px solid #ff9800;animation:pop .25s}
+@keyframes pop{from{transform:scale(.6);opacity:0}}
+#title h1{font-size:clamp(34px,8vw,68px);margin:0;text-shadow:0 5px 0 #0004;animation:bob 2s infinite ease-in-out}
+@keyframes bob{50%{transform:translateY(-8px) rotate(-1.5deg)}}
+#title .pets span{font-size:clamp(28px,6vw,48px);display:inline-block;animation:bob 1.6s infinite}
+#cele{position:absolute;inset:0;z-index:35;display:none;align-items:center;justify-content:center;flex-direction:column;pointer-events:none;color:#fff;text-shadow:0 4px 0 #0006;font-size:clamp(30px,7vw,60px);font-weight:900;text-align:center}
+#cele.show{display:flex;animation:pop .4s}
+#flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:34;transition:opacity .4s}
+#hint{position:absolute;left:50%;transform:translateX(-50%);bottom:58px;background:#fffbe6;border:2px solid #ffb300;border-radius:12px;padding:3px 10px;font-size:13px;z-index:4;display:none}
+.rain{animation:rb 3s infinite linear}@keyframes rb{to{filter:hue-rotate(360deg)}}
+body.rainbow canvas#c{animation:rb 4s infinite linear}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="top"></div><div id="alerts"></div><div id="goal"></div>
+<div id="menu"></div><div id="bar"></div><div id="hint"></div>
+<canvas id="mini" width="140" height="140"></canvas>
+<div id="win"><h2><span id="wt"></span><button id="wx">X</button></h2><div id="wb"></div></div>
+<div id="toast"></div><div id="flash"></div><div id="cele"></div><div id="modal"><div class="box" id="mb"></div></div>
+<div id="title"></div>
+<script>
+'use strict';
+const W=48,H=48,TS=32,KEY='sip_pet-park-zoo_save',DAYH=10,GX=24,GY=35;
+const REG=[24,30,36,42,48];
+const HAB=[
+{id:'savanna',n:'Savanna',e:'🦁',col:'#d8c070',col2:'#cfb55f',cost:12,star:1},
+{id:'jungle',n:'Jungle',e:'🌴',col:'#4fa85a',col2:'#459a50',cost:14,star:2},
+{id:'arctic',n:'Arctic',e:'🐧',col:'#e6f3fb',col2:'#d5e8f5',cost:16,star:3},
+{id:'farm',n:'Farm',e:'🐄',col:'#b7d56a',col2:'#a9c85e',cost:10,star:1},
+{id:'ocean',n:'Aquarium',e:'🐬',col:'#4aa8e0',col2:'#3f9ad2',cost:22,star:3},
+{id:'desert',n:'Desert',e:'🐪',col:'#eac98a',col2:'#e0bd78',cost:12,star:2},
+{id:'forest',n:'Forest',e:'🐼',col:'#6fae5b',col2:'#63a050',cost:12,star:1},
+{id:'fantasy',n:'Fantasy',e:'🦄',col:'#d9b3f0',col2:'#caa0e8',cost:30,star:4}];
+const RAW=[
+'🦁 Lion,900,4,1;🐘 Elephant,1500,7,1;🦒 Giraffe,1200,6,1;🦓 Zebra,450,4,1;🦏 Rhino,1300,6,0;🦛 Hippo,1100,6,1;🐆 Cheetah,800,4,0;🦘 Kangaroo,400,3,1;🦬 Bison,350,4,1;🐂 Wildebeest,200,3,1;🐈 Serval,250,2,0',
+'🐒 Monkey,150,2,1;🦍 Gorilla,1000,5,1;🐅 Tiger,1100,5,0;🦜 Parrot,120,1,1;🐍 Snake,160,1,0;🦥 Sloth,300,2,0;🦎 Gecko,90,1,0;🐸 Tree Frog,100,1,1;🦚 Peacock,280,2,0;🐊 Crocodile,800,4,0;🦧 Orangutan,700,4,1',
+'🐧 Penguin,300,2,1;🐻‍❄️ Polar Bear,1400,6,0;🦭 Seal,450,3,1;🦊 Arctic Fox,350,2,0;🐺 Wolf,700,4,1;🦌 Reindeer,400,4,1;🦉 Snowy Owl,300,1,0;🐰 Snow Hare,130,1,1;🐃 Musk Ox,450,4,1;🦣 Mammoth,1900,7,1;🦢 Swan,200,2,1',
+'🐄 Cow,180,4,1;🐖 Pig,120,2,1;🐑 Sheep,100,2,1;🐐 Goat,110,2,1;🐔 Chicken,60,1,1;🦆 Duck,70,1,1;🐎 Horse,250,4,1;🐇 Rabbit,60,1,1;🦃 Turkey,90,1,1;🐓 Rooster,80,1,0;🦙 Llama,220,3,1',
+'🐬 Dolphin,1200,5,1;🐳 Whale,2200,8,1;🦈 Shark,1000,5,0;🐙 Octopus,500,2,0;🐠 Tropical Fish,90,1,1;🐢 Turtle,300,2,0;🦀 Crab,100,1,0;🦞 Lobster,140,1,0;🐡 Pufferfish,150,1,0;🦑 Squid,400,3,0;🦦 Otter,420,2,1',
+'🐪 Camel,500,4,1;🐫 Bactrian Camel,600,4,1;🦂 Scorpion,120,1,0;🦔 Hedgehog,130,1,0;🦝 Ringtail,250,2,0;🦅 Eagle,450,2,0;🐏 Bighorn,380,3,1;🦡 Badger,260,2,0;🦇 Bat,140,1,1;🦨 Skunk,200,1,0;🦗 Cricket,50,1,1',
+'🐼 Panda,1600,5,0;🐨 Koala,700,3,0;🐻 Bear,900,5,0;🐿️ Squirrel,90,1,0;🦫 Beaver,260,2,1;🐗 Boar,230,3,1;🐦 Songbird,70,1,1;🦋 Butterfly,60,1,1;🐌 Snail,50,1,0;🐝 Bee,60,1,1;🐞 Ladybug,50,1,1',
+'🦄 Unicorn,2800,5,0;🐉 Dragon,5200,8,0;🐲 Baby Drake,1800,4,1;🧚 Fairy,1700,2,1;👻 Ghostie,1500,2,1;🦕 Cloud Dino,2300,7,1;🦖 Mini Rex,1900,4,0;☁️ Cloud Puff,1400,2,1;⭐ Star Sprite,1600,2,1;🧜 Merpal,2100,4,1;🐴 Pegasus,3500,6,0'];
+const ANI=[];RAW.forEach((s,hi)=>s.split(';').forEach(t=>{const p=t.split(','),sp=p[0].indexOf(' ');const cost=+p[1];ANI.push({id:ANI.length,h:hi,e:p[0].slice(0,sp),n:p[0].slice(sp+1),cost,sp:+p[2],soc:+p[3],f:Math.max(1,Math.round(+p[2]*.8)),ap:Math.round(3+Math.sqrt(cost)/2.5),star:cost<=250?1:cost<=600?2:cost<=1100?3:cost<=2000?4:5,kind:ANI.length%5})}));
+const HATS=[['','None'],['🎩','Top Hat'],['👑','Crown'],['🎀','Bow'],['🧢','Cap'],['🪖','Helmet'],['🎓','Grad Cap'],['🤠','Cowboy'],['🍕','Pizza Hat'],['🌸','Flower'],['🎃','Pumpkin'],['🥳','Party Hat']];
+const HATREQ=[null,'first','lvl3','babies1','visit100','research3','book20','gold1','secrets5','stars4','secret_konami','events4'];
+const THEMES=[['Meadow','#8fcf76','#84c46c',null],['Candy','#f6b7d8','#f0a8cf','book30'],['Autumn','#d8a860','#cc9c54','days40'],['Moonlit','#7fa5d8','#7399cc','secrets8'],['Mint','#9fe8c8','#90dcb9','stars3']];
+const TITLES=['Zoo Rookie','Animal Buddy','Park Pal','Keeper Captain','Zoo Boss','Legendary Zookeeper'];
+const BT={
+burger:{n:'Burger Bar',e:'🍔',cost:250,cat:'food',star:1,cap:2,price:7,kind:'food',d:'Hungry guests eat here'},
+pizza:{n:'Pizza Stand',e:'🍕',cost:300,cat:'food',star:1,cap:2,price:9,kind:'food',d:'Big tasty slices'},
+icecream:{n:'Ice Cream',e:'🍦',cost:200,cat:'food',star:1,cap:2,price:5,kind:'drink',d:'Cool treats'},
+juice:{n:'Juice Bar',e:'🧃',cost:150,cat:'food',star:1,cap:2,price:4,kind:'drink',d:'Thirsty guests drink'},
+toilet:{n:'Toilets',e:'🚻',cost:150,cat:'fac',star:1,cap:2,kind:'toilet',d:'Everybody needs these'},
+gift:{n:'Gift Shop',e:'🎁',cost:400,cat:'fac',star:1,cap:3,price:14,kind:'gift',d:'Plush toys & souvenirs'},
+staffroom:{n:'Staff Room',e:'🏠',cost:500,cat:'fac',star:1,cap:0,kind:'staff',d:'+4 staff places per level'},
+vet:{n:'Vet Clinic',e:'🏥',cost:800,cat:'fac',star:2,cap:0,kind:'vet',d:'Lets vets heal sick animals'},
+lab:{n:'Research Lab',e:'🔬',cost:1200,cat:'fac',star:2,cap:0,kind:'lab',d:'Makes research points'},
+billboard:{n:'Billboard',e:'📣',cost:300,cat:'fac',star:1,cap:0,kind:'ads',d:'More visitors arrive'},
+playground:{n:'Playground',e:'🛝',cost:300,cat:'fun',star:1,cap:4,price:2,kind:'play',d:'Kids love it'},
+picnic:{n:'Picnic Spot',e:'🧺',cost:120,cat:'fun',star:1,cap:3,kind:'rest',d:'A cosy rest'},
+bench:{n:'Bench',e:'🪑',cost:40,cat:'fun',star:1,cap:1,kind:'rest',d:'Sit and watch'},
+carousel:{n:'Carousel',e:'🎠',cost:700,cat:'fun',star:2,cap:5,price:3,kind:'play',d:'Round and round'},
+tree:{n:'Tree',e:'🌳',cost:30,cat:'deco',star:1,deco:1,kind:'deco',d:'Shade & beauty'},
+flowers:{n:'Flowers',e:'🌷',cost:20,cat:'deco',star:1,deco:1,kind:'deco',d:'Pretty!'},
+fountain:{n:'Fountain',e:'⛲',cost:100,cat:'deco',star:1,deco:2,kind:'deco',d:'Sparkly water'},
+statue:{n:'Star Statue',e:'🗿',cost:180,cat:'deco',star:2,deco:3,kind:'deco',d:'Very fancy'},
+pond:{n:'Duck Pond',e:'🪷',cost:80,cat:'deco',star:1,deco:2,kind:'deco',d:'Quack'},
+lamp:{n:'Lamp',e:'💡',cost:25,cat:'deco',star:1,deco:1,kind:'deco',d:'Glows at night'},
+balloons:{n:'Balloons',e:'🎈',cost:50,cat:'deco',star:1,deco:2,kind:'deco',d:'Party!'}};
+const CATS=[['path','🛤️','Paths'],['hab','🏞️','Habitats'],['food','🍔','Food'],['fac','🏗️','Facilities'],['fun','🎠','Fun'],['deco','🌷','Decor']];
+const STAFF={keeper:{n:'Keeper',e:'🧑‍🌾',wage:30,d:'Feeds animals & plays'},cleaner:{n:'Cleaner',e:'🧹',wage:20,d:'Cleans litter & pens'},vet:{n:'Vet',e:'🧑‍⚕️',wage:45,d:'Heals animals (needs Vet Clinic + medicine)'},guide:{n:'Guide',e:'🧑‍🏫',wage:25,d:'Cheers up guests'}};
+const SUP={feed:{n:'Animal Feed',e:'🥕',p:3},snacks:{n:'Snacks',e:'🥨',p:2},goods:{n:'Souvenirs',e:'🧸',p:5},meds:{n:'Medicine',e:'💊',p:8}};
+const RES=[
+['autofeed','Auto Feeders','Pens refill from stock, no keeper needed',120,[]],['fences','Roomy Fences','+15% pen space',60,[]],
+['keeper','Keeper Training','Staff work 30% faster',60,[]],['market','Marketing','+15% visitors',80,[]],
+['clean','Eco Cleaning','Cleaning 50% better',70,[]],['breed','Family Planning','Animals can have babies',90,[]],
+['med','Better Medicine','Vets heal 50% more',100,['clean']],['tasty','Tasty Recipes','+20% food sales',80,[]],
+['plush','Cute Plushies','+25% gift sales',90,['tasty']],['shelter','Weather Shelters','Weather hurts half as much',120,[]],
+['lights','Night Lights','Guests stay until 21:00',110,['shelter']],['solar','Solar Power','Upkeep -25%',150,['lights']],
+['vip','VIP Passes','+15% ticket money',200,['market']],['magic','Fantasy Magic','Unlocks Fantasy pens',260,['breed']],
+['guides','Guide Training','Guides cheer twice as much',100,['keeper']],['friends','Friends of the Zoo','Daily donations',140,['market']],
+['bulk','Bulk Buying','Store prices -15%',90,[]],['genes','Rare Genes','Babies come 50% more often',200,['breed','med']]];
+const DIFF={easy:{n:'Easy',money:15000,drain:.75,spend:1.25,cost:.9,rescue:3,wage:.8,vis:1.2,gold:1.5},medium:{n:'Medium',money:10000,drain:1,spend:1,cost:1,rescue:2,wage:1,vis:1,gold:1},hard:{n:'Hard',money:6000,drain:1.25,spend:.9,cost:1.1,rescue:1,wage:1.1,vis:.95,gold:1.5},sandbox:{n:'Sandbox',money:999999,drain:.8,spend:1.1,cost:.5,rescue:9,wage:0,vis:1.1,gold:1}};
+const MUT=[['none','Normal','No twist'],['baby','Baby Boom','Babies come twice as often'],['rich','Rich Guests','Guests spend +40% but come -20%'],['rainy','Rainy Season','More rain, but umbrellas pay!'],['tiny','Tiny Zoo','Rewards x1.5, smaller map'],['gold','Golden Week','Golden things appear 3x more'],['fast','Speedy Guests','Guests walk fast and tip']];
+const NAMES=['Fluffy','Bubbles','Mochi','Pickles','Waffles','Biscuit','Noodle','Sprout','Peanut','Pudding','Cocoa','Sunny','Maple','Pip','Toffee','Ziggy','Daisy','Bean','Cupcake','Muffin','Jelly','Pebble','Honey','Sparkle','Ollie','Gizmo','Nugget','Clover','Cookie','Twinkle'];
+const FUNNY=['A visitor wore a banana costume. Nobody asked why.','An animal sneezed and everyone cheered!','A pigeon is selling tickets. Unofficially.','Someone found a sock in the fountain.','The ice cream stand ran a joke contest!','A tiny hat blew off and landed on a duck.','A visitor taught a parrot to say "Wow!".','Zoo rumour: the sloth is secretly fast.','A goose honked the national anthem.','The penguins held a very serious meeting.'];
+
+// ---------- core state ----------
+let S=null,D=DIFF.medium,navVer=1;
+const DX=[1,-1,0,0],DY=[0,0,1,-1];
+const $=id=>document.getElementById(id);
+const pick=a=>a[(Math.random()*a.length)|0];
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const idx=(x,y)=>y*W+x;
+const fx={fl:[],pa:[],shake:0,hit:0,slow:1,pop:{}};
+const SECRETS=[['konami','Retro Rainbow','Typed a famous code'],['tickle','Tickle Time','Tapped one animal 10 times'],['clock5','Time Wizard','Tapped the clock 5 times'],['bob','Just Bob','Named an animal Bob'],['coin5','Coin Hunter','Caught 5 lucky coins'],['gold','Shiny Find','Adopted a golden animal'],['goldvis','VIP Guest','A golden guest visited'],['quack','Quack Attack','Pressed Q three times'],['dance','Dance Party','Pressed D for a dance party'],['pause10','Pause Pro','Paused 10 times'],['mute7','Sound Wizard','Toggled sound 7 times'],['sloth','Slow Friend','Adopted a sloth'],['rainbowfr','Rainbow Friends','Unicorn and dragon together'],['freeday','Free Day','Set tickets to 0'],['greedy','Big Spender','Set tickets to the max'],['benches','Bench Lord','Built 15 benches'],['macdonald','Old MacDonald','Cow, pig and chicken in one pen'],['zoo','Magic Word','Typed ZOO'],['nightowl','Night Owl','Stayed up past midnight'],['gate3','Friendly Gate','Tapped the gate 3 times'],['balloon','Pop!','Popped 5 balloons'],['combo20','Combo King','A 20 sale combo'],['zoomz','Zoom Zoom','Zoomed all the way in and out'],['hatdragon','Dapper Dragon','Dressed up a dragon'],['bigbaby','Baby Boom!','5 babies at once'],['sirname','Sir Fluffy','Named an animal Sir Something']];
+function secret(id){if(!S||S.sec[id])return;S.sec[id]=1;const s=SECRETS.find(x=>x[0]===id);if(!s)return;toast('🤫 Secret found: '+s[1]+'!','good');confetti(14);sfx.secret();S.st.secrets=Object.keys(S.sec).length;checkAch()}
+function toast(t,c){const d=document.createElement('div');d.className='t '+(c||'');d.textContent=t;const w=$('toast');w.appendChild(d);while(w.children.length>4)w.removeChild(w.firstChild);setTimeout(()=>d.remove(),3700)}
+function floatT(x,y,txt,col,sz){fx.fl.push({x:x*TS,y:y*TS,t:0,txt,col:col||'#fff',sz:sz||16});if(fx.fl.length>60)fx.fl.shift()}
+function burst(x,y,em,n,pw){for(let i=0;i<n;i++){const a=Math.random()*6.28,s=(pw||60)*(.4+Math.random());fx.pa.push({x:x*TS,y:y*TS,vx:Math.cos(a)*s,vy:Math.sin(a)*s-40,t:0,life:.8+Math.random()*.6,e:Array.isArray(em)?pick(em):em,sz:12+Math.random()*10})}if(fx.pa.length>300)fx.pa.splice(0,fx.pa.length-300)}
+function confetti(n){const c=cam;for(let i=0;i<n*3;i++)burst(c.x/TS+(Math.random()-.5)*14,c.y/TS-3+Math.random()*3,['🎉','✨','⭐','🎊','💖'],1,120)}
+function shake(a){fx.shake=Math.max(fx.shake,a)}
+function has(r){return !!S.res.done[r]}
+function gate(){return S.diff==='sandbox'?5:S.level}
+function regLevel(){return Math.min(gate(),S.mut==='tiny'?3:5)}
+function inReg(x,y){const r=REG[regLevel()-1],o=(W-r)/2;return x>=o&&x<o+r&&y>=o&&y<o+r}
+function income(a,fromTile){a=Math.round(a);S.money+=a;S.dIn+=a;S.st.earn+=a}
+function spend(a){S.money-=a;S.dOut+=a}
+function canPay(a){return S.diff==='sandbox'||S.money>=a}
+function cm(){return D.cost}
+function rng(seed){let s=seed>>>0;return()=>((s=(s*1664525+1013904223)>>>0)/4294967296)}
+function blank(diff,mut){
+ D=DIFF[diff];
+ S={v:1,diff,mut:mut||'none',money:D.money,loan:0,day:1,hour:6,speed:1,paused:false,
+ g:new Array(W*H).fill(0),ref:new Array(W*H).fill(0),lit:new Array(W*H).fill(0),
+ encs:[],blds:[],animals:[],staff:[],nid:1,sup:{feed:0,snacks:0,goods:0,meds:0},auto:{feed:[1,40],snacks:[1,30],goods:[1,20],meds:[0,5]},
+ res:{done:{},cur:null,prog:0},book:{},gold:{},ach:{},sec:{},
+ st:{vis:0,earn:0,adopt:0,babies:0,events:0,built:0,sales:0,combo:0,lucky:0,pauses:0,mutes:0,tickles:0,golds:0,secrets:0,balloons:0,benches:0,gate:0,hats:0,quacks:0},
+ ema:2,level:1,ticket:8,weather:'sun',season:0,ev:null,rescues:0,dIn:0,dOut:0,hist:[],goal:0,theme:0,hatU:{},combo:0,comboT:0,warnD:0,seed:(Math.random()*1e9)|0,lastLvDrop:0,brokeD:0,mgDay:0,tut:{},fresh:0,spawnAcc:0,lucky:null,luckyT:30,att:0,evFx:1};
+ S.vis=[];genTerrain();
+ for(let y=GY;y>=31;y--){S.g[idx(GX,y)]=1}
+ S.g[idx(GX,GY)]=7;
+ for(let x=20;x<=28;x++)S.g[idx(x,31)]=1;
+ navVer++;
+}
+function genTerrain(){const r=rng(S.seed);
+ for(let i=0;i<W*H;i++){const x=i%W,y=(i/W)|0;if(Math.abs(x-GX)<=5&&y>=26)continue;if(Math.abs(x-GX)<=3&&y>=20)continue;const q=r();if(q<.07)S.g[i]=4;else if(q<.095)S.g[i]=5}
+ for(let k=0;k<7;k++){const cx=(r()*40+4)|0,cy=(r()*30+4)|0;if(Math.abs(cx-GX)<7&&cy>22)continue;for(let y=-2;y<=2;y++)for(let x=-2;x<=2;x++){if(x*x+y*y<=4+r()*2){const i=idx(cx+x,cy+y);if(i>=0&&i<W*H)S.g[i]=6}}}}
+// ---------- navigation ----------
+const PREV=new Int32Array(W*H),QU=new Int32Array(W*H),SEEN=new Int32Array(W*H),MASK=new Uint8Array(W*H);let seenTok=0;
+function bfs(s,mask){
+ if(mask[s])return[];
+ seenTok++;let qh=0,qt=0;QU[qt++]=s;SEEN[s]=seenTok;
+ while(qh<qt){const c=QU[qh++],cx=c%W,cy=(c/W)|0;
+  for(let k=0;k<4;k++){const nx=cx+DX[k],ny=cy+DY[k];if(nx<0||ny<0||nx>=W||ny>=H)continue;const n=ny*W+nx;if(SEEN[n]===seenTok||(S.g[n]!==1&&S.g[n]!==7))continue;SEEN[n]=seenTok;PREV[n]=c;
+   if(mask[n]){const p=[n];let t=c;while(t!==s){p.push(t);t=PREV[t]}p.reverse();return p}
+   QU[qt++]=n}}
+ return null}
+function mk(tiles){MASK.fill(0);for(const t of tiles)MASK[t]=1;return MASK}
+function walk(t){return S.g[t]===1||S.g[t]===7}
+function accE(e){if(e._v!==navVer){const a=[];for(let x=e.x0;x<=e.x1;x++){for(const y of[e.y0-1,e.y1+1])if(y>=0&&y<H&&walk(idx(x,y)))a.push(idx(x,y))}for(let y=e.y0;y<=e.y1;y++){for(const x of[e.x0-1,e.x1+1])if(x>=0&&x<W&&walk(idx(x,y)))a.push(idx(x,y))}e.acc=a;e._v=navVer}return e.acc}
+function accB(b){if(b._v!==navVer){const a=[];for(let k=0;k<4;k++){const x=b.x+DX[k],y=b.y+DY[k];if(x>=0&&y>=0&&x<W&&y<H&&walk(idx(x,y)))a.push(idx(x,y))}b.acc=a;b._v=navVer}return b.acc}
+function encById(id){return S.encs.find(e=>e.id===id)}
+function bldAt(x,y){return S.g[idx(x,y)]===3?S.blds.find(b=>b.x===x&&b.y===y):null}
+function encAt(x,y){return S.g[idx(x,y)]===2?encById(S.ref[idx(x,y)]):null}
+function follow(o,dt,spd){
+ if(!o.path)return true;if(!o.path.length)return true;
+ const t=o.path[0];if(!walk(t)){o.path=null;return true}
+ const tx=t%W+.5,ty=((t/W)|0)+.5,dx=tx-o.x,dy=ty-o.y,d=Math.hypot(dx,dy),m=spd*dt;
+ if(d<=m){o.x=tx;o.y=ty;o.path.shift()}else{o.x+=dx/d*m;o.y+=dy/d*m}
+ if(dx)o.fx=dx>0?1:-1;
+ return !o.path.length}
+let decoMap=new Float32Array(W*H),decoV=0;
+function calcDeco(){decoMap.fill(0);for(const b of S.blds){const d=BT[b.t].deco;if(!d)continue;for(let y=-3;y<=3;y++)for(let x=-3;x<=3;x++){const X=b.x+x,Y=b.y+y;if(X>=0&&Y>=0&&X<W&&Y<H)decoMap[idx(X,Y)]+=d*b.lv/(1+Math.abs(x)+Math.abs(y))}}decoV=navVer}
+// ---------- building ----------
+function bump(){navVer++}
+function costB(t){return Math.round(BT[t].cost*cm())}
+function placePath(x,y){const i=idx(x,y);if(S.g[i]!==0||!inReg(x,y))return false;const c=Math.max(1,Math.round(5*cm()));if(!canPay(c)){noMoney();return false}spend(c);S.g[i]=1;bump();S.st.built++;fx.pop[i]=.25;return true}
+function placeBld(t,x,y){const i=idx(x,y);const T=BT[t];if(S.g[i]!==0||!inReg(x,y))return false;if(T.star>gate()){toast('Needs a higher star rating','warn');return false}
+ const c=costB(t);if(!canPay(c)){noMoney();return false}spend(c);
+ const b={id:S.nid++,t,x,y,lv:1,users:0,earn:0,clicks:0};S.blds.push(b);S.g[i]=3;S.ref[i]=b.id;bump();S.st.built++;fx.pop[i]=.4;
+ if(t==='bench'){S.st.benches++;if(S.st.benches>=15)secret('benches')}
+ sfx.build();burst(x+.5,y+.5,['✨','🔨'],6,50);floatT(x+.5,y,'-'+c,'#ffd');shake(2);return true}
+function encOK(hab,x0,y0,x1,y1){if(x1-x0<2||y1-y0<2)return 'Too small (min 3x3)';if(x1-x0>11||y1-y0>11)return 'Too big (max 12x12)';
+ for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){if(!inReg(x,y)||S.g[idx(x,y)]!==0)return 'Blocked tiles';}
+ const H0=HAB[hab];if(H0.star>gate())return 'Needs '+H0.star+' stars';if(hab===7&&!has('magic')&&S.diff!=='sandbox')return 'Research Fantasy Magic first';return ''}
+function encCost(hab,x0,y0,x1,y1){return Math.round(((x1-x0+1)*(y1-y0+1)*HAB[hab].cost+150)*cm())}
+function placeEnc(hab,x0,y0,x1,y1){const er=encOK(hab,x0,y0,x1,y1);if(er){toast(er,'warn');sfx.err();return null}
+ const c=encCost(hab,x0,y0,x1,y1);if(!canPay(c)){noMoney();return null}spend(c);
+ const e={id:S.nid++,hab,x0,y0,x1,y1,an:[],feed:0,dirt:0,water:1,toy:0,decor:0,fence:1,name:HAB[hab].n+' Pen',playT:0,fcap:10};
+ for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){S.g[idx(x,y)]=2;S.ref[idx(x,y)]=e.id;fx.pop[idx(x,y)]=.2+Math.random()*.2}
+ S.encs.push(e);bump();S.st.built++;sfx.build();sfx.build();shake(3);burst((x0+x1)/2+.5,(y0+y1)/2+.5,['✨','🌿','🎉'],10,80);floatT((x0+x1)/2+.5,y0,'New home!','#ffe36b',20);return e}
+function noMoney(){toast('Not enough coins!','warn');sfx.err()}
+function sellValue(b){const c=BT[b.t].cost*cm();return Math.round(c*.6*(1+(b.lv-1)*.8))}
+function removeBld(b){S.blds=S.blds.filter(x=>x!==b);const i=idx(b.x,b.y);S.g[i]=0;S.ref[i]=0;bump()}
+function sellBld(b){income(0);const v=sellValue(b);S.money+=v;removeBld(b);sfx.coin(0);floatT(b.x+.5,b.y,'+'+v,'#9f9')}
+function sellEnc(e){let v=Math.round(encCost(e.hab,e.x0,e.y0,e.x1,e.y1)*.5);for(const a of e.an)v+=Math.round(ANI[a.s].cost*.5);
+ S.animals=S.animals.filter(a=>a.e!==e.id);S.encs=S.encs.filter(x=>x!==e);
+ for(let y=e.y0;y<=e.y1;y++)for(let x=e.x0;x<=e.x1;x++){S.g[idx(x,y)]=0;S.ref[idx(x,y)]=0}S.money+=v;bump();sfx.coin(0);toast('Pen sold for '+v+' coins')}
+function bulldoze(x,y){const i=idx(x,y),g=S.g[i];if(!inReg(x,y))return;
+ if(g===1){S.g[i]=0;S.lit[i]=0;S.money+=2;bump();sfx.click();burst(x+.5,y+.5,'💨',3,30)}
+ else if(g===3){const b=bldAt(x,y);if(b)ask('Sell '+BT[b.t].n+' for '+sellValue(b)+' coins?',()=>sellBld(b))}
+ else if(g===2){const e=encAt(x,y);if(e)ask('Sell '+e.name+(e.an.length?' and send its '+e.an.length+' animals to a happy farm':'')+'?',()=>sellEnc(e))}
+ else if(g===4||g===5){const c=Math.round((g===4?25:40)*cm());if(!canPay(c))return noMoney();spend(c);S.g[i]=0;sfx.click();burst(x+.5,y+.5,g===4?'🍃':'💨',5,40)}}
+function upgCost(b){return Math.round(BT[b.t].cost*cm()*.8*b.lv)}
+function upgradeBld(b,n){let done=0;while(done<n&&b.lv<3){const c=upgCost(b);if(!canPay(c)){if(!done)noMoney();break}spend(c);b.lv++;done++}if(done){fx.pop[idx(b.x,b.y)]=.5;sfx.up(b.lv);burst(b.x+.5,b.y+.5,['⬆️','✨'],8,60);floatT(b.x+.5,b.y,'Level '+b.lv+'!','#ffe36b',18);shake(2)}}
+// ---------- animals ----------
+function newAnimal(s,e,baby){const sp=ANI[s];const a={id:S.nid++,s,name:pick(NAMES),sex:Math.random()<.5?0:1,age:baby?0:4,baby:!!baby,food:80,water:90,enr:50,mood:70,health:100,hat:0,gold:Math.random()<.03*D.gold*(S.mut==='gold'?3:1)*(baby?1.5:1),e:e.id,x:e.x0+1.5+Math.random()*(e.x1-e.x0-1),y:e.y0+1.5+Math.random()*(e.y1-e.y0-1),tx:0,ty:0,tm:0,pop:.6};a.tx=a.x;a.ty=a.y;return a}
+function adoptCost(s){return Math.round(ANI[s].cost*cm())}
+function adopt(e,s){const sp=ANI[s];if(sp.star>gate()){toast('Needs '+sp.star+' stars','warn');return null}if(HAB[sp.h].star>gate()&&S.diff!=='sandbox')return null;
+ const c=adoptCost(s);if(!canPay(c)){noMoney();return null}spend(c);
+ const a=newAnimal(s,e,false);S.animals.push(a);e.an.push(a);S.st.adopt++;S.book[s]=(S.book[s]||0)+1;
+ if(a.gold){S.gold[s]=1;S.st.golds++;secret('gold');toast('✨ WOW! A GOLDEN '+sp.n+'! ✨','good');confetti(20);shake(6);fx.slow=.35;sfx.level()}
+ else{sfx.animal(sp.kind,sp.h);toast(sp.e+' '+a.name+' the '+sp.n+' joined the zoo!','good')}
+ if(s===5-0&&false){}
+ if(sp.n==='Sloth')secret('sloth');
+ if(e.an.some(x=>ANI[x.s].n==='Unicorn')&&e.an.some(x=>ANI[x.s].n==='Dragon'))secret('rainbowfr');
+ const ns=n=>e.an.some(x=>ANI[x.s].n===n);if(ns('Cow')&&ns('Pig')&&ns('Chicken'))secret('macdonald');
+ burst(a.x,a.y,['💖','✨','⭐'],12,80);floatT(a.x,a.y,'Hello!','#ffd6f0',18);shake(3);
+ if(S.st.adopt===1)S.hatU.first=1;checkAch();return a}
+function sellAnimal(a){const e=encById(a.e);e.an=e.an.filter(x=>x!==a);S.animals=S.animals.filter(x=>x!==a);const v=Math.round(adoptCost(a.s)*.5);S.money+=v;sfx.coin(0);toast('Waved goodbye. +'+v+' coins')}
+function encCalc(e){const area=(e.x1-e.x0+1)*(e.y1-e.y0+1);e.area=area;e.use=area*(1+.15*(e.fence-1))*(has('fences')?1.15:1)*.8;let need=0;for(const a of e.an)need+=ANI[a.s].sp*(a.baby?.5:1);e.need=need;e.spaceScore=Math.min(100,100*e.use/Math.max(.01,need));e.fcap=6+e.an.length*3;e.free=e.use-need}
+function wxPen(a,e){const w=S.weather,h=ANI[a.s].h;let p=0;if(w==='heat'){if(h===2)p=22;else if(h===5)p=-6}else if(w==='snow'){if(h===5)p=22;else if(h===2)p=-6}else if(w==='rain'&&h===5)p=10;if(p>0){if(has('shelter'))p*=.5;if(e.decor>=2)p*=.6}return p}
+function updEnc(e,dt){
+ e._t=(e._t||0)-dt;if(e._t<=0){e._t=1;encCalc(e)}
+ const n=e.an.length;if(!n){e.dirt=Math.max(0,e.dirt-dt*.05);return}
+ e.dirt=Math.min(100,e.dirt+n*.2*dt/DAYH*D.drain*DAYH*.1);if(e.playT>0)e.playT-=dt;
+ const auto=has('autofeed');
+ for(const a of e.an){const sp=ANI[a.s];
+  a.food-=.28*dt*D.drain*(a.baby?.8:1);a.water-=.34*dt*D.drain;
+  if(a.food<55){const need=sp.f/3;if(e.feed>=need){e.feed-=need;a.food=Math.min(100,a.food+36)}else if(auto&&S.sup.feed>=need){S.sup.feed-=need;a.food=Math.min(100,a.food+36)}}
+  if(a.water<60&&e.water>0&&e.dirt<85)a.water=Math.min(100,a.water+36+8*e.water);
+  a.food=Math.max(0,a.food);a.water=Math.max(0,a.water);
+  let friends=100;if(sp.soc){let c=0;for(const o of e.an)if(o.s===a.s)c++;friends=c>=2?100:35}
+  const tgt=Math.min(100,22+e.toy*13+e.decor*9+(e.playT>0?22:0));a.enr+=(tgt-a.enr)*Math.min(1,dt*.1);
+  const hab=sp.h===e.hab?100:35;
+  let mood=.25*a.food+.15*a.water+.15*e.spaceScore+.1*friends+.1*a.enr+.15*hab+.1*(100-e.dirt)+(e.water-1)*3-wxPen(a,e);
+  if(a.dance>0)a.dance-=dt;
+  mood=clamp(mood,0,100);a.mood+=(mood-a.mood)*Math.min(1,dt*.15);
+  if(a.mood<35)a.health-=.03*dt;else if(a.mood>55)a.health+=.05*dt;a.health=clamp(a.health,15,100);
+  if(a.pop>0)a.pop-=dt;
+  a.tm-=dt;if(a.tm<=0){a.tm=2+Math.random()*4;a.tx=e.x0+.7+Math.random()*(e.x1-e.x0+.6);a.ty=e.y0+.7+Math.random()*(e.y1-e.y0+.6)}
+  const dx=a.tx-a.x,dy=a.ty-a.y,d=Math.hypot(dx,dy);if(d>.05){const m=Math.min(d,(a.dance>0?1.2:.45)*dt);a.x+=dx/d*m;a.y+=dy/d*m;a.fx=dx>0?1:-1}}
+}
+function aApp(a){const sp=ANI[a.s];return sp.ap*(a.mood/100)*(a.health<55?.5:1)*(a.baby?1.5:1)*(a.gold?2:1)}
+// ---------- visitors ----------
+const openH=()=>S.hour>=8&&S.hour<19;
+function wishPool(){const w=[];const owned={};for(const a of S.animals)owned[a.s]=1;const ks=Object.keys(owned);
+ if(ks.length){w.push({t:'sp',id:+pick(ks)});w.push({t:'sp',id:+pick(ks)})}
+ const hs={};for(const e of S.encs)if(e.an.length)hs[e.hab]=1;const hk=Object.keys(hs);if(hk.length)w.push({t:'hab',h:+pick(hk)});
+ w.push({t:'food'},{t:'gift'});return w}
+function mkVis(o){o=o||{};const kid=o.kid!==undefined?o.kid:Math.random()<.35;
+ const gold=o.gold!==undefined?o.gold:Math.random()<.02*D.gold*(S.mut==='gold'?3:1);
+ const v={id:S.nid++,x:GX+.5,y:GY+.5,fx:1,kid,gold,grp:o.grp||0,e:gold?'🤑':(kid?pick(['🧒','👧','👦']):pick(['🧑','👩','👨','👴','👵','🧓'])),hap:55+Math.random()*25,money:(kid?45:90)+Math.random()*70+(gold?400:0),bl:Math.random()*25,hu:Math.random()*35,th:Math.random()*35,fun:Math.random()*40,wish:[],seen:{},tIn:0,maxT:70+Math.random()*40,st:'idle',path:null,goal:null,timer:0,bub:null,bt:0,spd:(1.7+Math.random()*.5)*(S.mut==='fast'?1.3:1),thk:Math.random()*.5,use:null,ub:null,hapS:0};
+ const pool=wishPool();for(let i=0;i<(Math.random()<.6?2:1)&&pool.length;i++)v.wish.push(pool.splice((Math.random()*pool.length)|0,1)[0]);
+ if(kid&&Math.random()<.5)v.wish.push({t:'play'});
+ const tk=Math.round(S.ticket*(has('vip')?1.15:1));income(tk);S.st.vis++;
+ if(gold){secret('goldvis');toast('🤑 A golden VIP guest arrived!','good');burst(v.x,v.y,['✨','💰'],10,70);sfx.level();floatT(v.x,v.y-1,'VIP!','#ffd54a',22)}
+ S.vis.push(v);return v}
+function say(v,e,t){v.bub=e;v.bt=t||2}
+function wishDone(v,f){for(let i=v.wish.length-1;i>=0;i--)if(f(v.wish[i])){v.wish.splice(i,1);v.hap=Math.min(100,v.hap+9);say(v,'💖',2);floatT(v.x,v.y-.5,'Wish!','#ff9ad5',14);S.wishes=(S.wishes||0)+1}}
+function bOf(kind){return S.blds.filter(b=>BT[b.t].kind===kind)}
+function goKind(v,kind){const bs=bOf(kind).filter(b=>{if(kind==='food'||kind==='drink'){}return true});if(!bs.length)return false;
+ const tiles=[];for(const b of bs)for(const t of accB(b))tiles.push(t);if(!tiles.length)return false;
+ const p=bfs(idx(v.x|0,v.y|0),mk(tiles));if(!p)return false;v.path=p;v.goal={kind};v.st='walk';return true}
+function goEnc(v,encs){const tiles=[];for(const e of encs)for(const t of accE(e))tiles.push(t);if(!tiles.length)return false;
+ const p=bfs(idx(v.x|0,v.y|0),mk(tiles));if(!p)return false;v.path=p;v.goal={kind:'enc'};v.st='walk';return true}
+function goLeave(v){v.goal={kind:'leave'};const p=bfs(idx(v.x|0,v.y|0),mk([idx(GX,GY)]));if(p){v.path=p;v.st='walk'}else{exitVis(v)}}
+function decide(v){
+ const endH=has('lights')?21:19.5;
+ if(S.hour>=endH-.5||S.hour<6||v.tIn>v.maxT||v.hap<8)return goLeave(v);
+ const here=S.vis.length;
+ if(v.bl>70&&goKind(v,'toilet'))return;
+ if(v.hu>65&&goKind(v,'food'))return;
+ if(v.th>65&&goKind(v,'drink'))return;
+ if(v.fun>75&&goKind(v,'play'))return;
+ const W0=v.wish[0];
+ if(W0){if(W0.t==='sp'){const es=S.encs.filter(e=>e.an.some(a=>a.s===W0.id));if(es.length&&goEnc(v,es))return}
+  else if(W0.t==='hab'){const es=S.encs.filter(e=>e.hab===W0.h&&e.an.length);if(es.length&&goEnc(v,es))return}
+  else if(goKind(v,W0.t))return;
+  v.wish.shift()}
+ const unseen=S.encs.filter(e=>e.an.length&&!v.seen[e.id]);
+ if(unseen.length&&goEnc(v,unseen))return;
+ const r=Math.random();
+ if(r<.25&&v.money>20&&goKind(v,'gift'))return;
+ if(r<.4&&goKind(v,'rest'))return;
+ if(r<.55&&v.kid&&goKind(v,'play'))return;
+ const any=S.encs.filter(e=>e.an.length);if(any.length&&Math.random()<.6&&goEnc(v,any))return;
+ if(v.hap<45||v.tIn>v.maxT*.7)return goLeave(v);
+ // wander
+ const a=S.blds.concat(S.encs);if(a.length){const o=pick(a);const t=o.acc?o.acc:(o.x!==undefined&&o.t?accB(o):accE(o));if(t&&t.length){const p=bfs(idx(v.x|0,v.y|0),mk([pick(t)]));if(p){v.path=p;v.goal={kind:'wander'};v.st='walk';return}}}
+ v.thk=1.5}
+function adjB(tile,kind){const x=tile%W,y=(tile/W)|0;for(let k=0;k<4;k++){const X=x+DX[k],Y=y+DY[k];if(X<0||Y<0||X>=W||Y>=H)continue;const b=bldAt(X,Y);if(b&&BT[b.t].kind===kind)return b}return null}
+function adjE(tile,id){const x=tile%W,y=(tile/W)|0;for(let k=0;k<4;k++){const X=x+DX[k],Y=y+DY[k];if(X<0||Y<0||X>=W||Y>=H)continue;const e=encAt(X,Y);if(e&&(!id||e.id===id))return e}return null}
+function capB(b){return BT[b.t].cap+(b.lv-1)}
+function arrive(v){const g=v.goal;v.path=null;if(!g){v.st='idle';return}
+ if(g.kind==='leave'){exitVis(v);return}
+ const tile=idx(v.x|0,v.y|0);
+ if(g.kind==='wander'){v.st='idle';v.thk=1+Math.random();return}
+ if(g.kind==='enc'){const es=[];const x=tile%W,y=(tile/W)|0;let e=null;for(let k=0;k<4&&!e;k++){const X=x+DX[k],Y=y+DY[k];if(X>=0&&Y>=0&&X<W&&Y<H){const c=encAt(X,Y);if(c&&c.an.length&&(!v.seen[c.id]||k>=0))e=c}}
+  if(!e){v.st='idle';return}v.st='use';v.timer=3+Math.random()*3;v.use={k:'e',e};return}
+ const b=adjB(tile,g.kind);if(!b){v.st='idle';return}
+ if(b.users<capB(b)){b.users++;v.ub=b;v.st='use';v.timer=2+Math.random()*2;v.use={k:'b',b}}else{v.st='wait';v.timer=6;v.ub=b}}
+function sale(v,b,p){income(p);b.earn+=p;S.st.sales++;S.comboT=3;S.combo++;if(S.combo>S.st.combo)S.st.combo=S.combo;
+ sfx.coin(Math.min(S.combo,14));floatT(b.x+.5,b.y,'+'+Math.round(p)+(S.combo>2?' x'+S.combo:''),S.combo>=5?'#ffd54a':'#b6f5b6',S.combo>=5?20:15);
+ b.pop=.3;fx.pop[idx(b.x,b.y)]=.3;
+ if(S.combo%10===0){const bo=Math.min(40,S.combo*2);income(bo);toast('🔥 '+S.combo+' sale combo! +'+bo+' bonus','good');burst(b.x+.5,b.y+.5,['🪙','✨','🔥'],14,90);sfx.combo();if(S.combo>=10)fx.hit=.08}
+ if(S.combo>=20)secret('combo20')}
+function useB(v,b){const T=BT[b.t],k=T.kind;const lv=1+.35*(b.lv-1),mm=(S.mut==='rich'?1.4:1)*(S.mut==='tiny'?1.5:1);
+ const buy=(sup,mul)=>{const p=T.price*lv*mul*D.spend*mm*(v.gold?3:1);if(sup&&S.sup[sup]<1){say(v,'😕',2);v.hap-=4;if(!b.warnT||b.warnT<S.day){b.warnT=S.day;toast('📦 '+T.n+' is out of stock!','warn')}return false}
+  if(v.money<p){say(v,'💸',2);return false}v.money-=p;if(sup)S.sup[sup]--;sale(v,b,p);return true};
+ if(k==='food'){if(buy('snacks',has('tasty')?1.2:1)){v.hu=0;v.hap=Math.min(100,v.hap+7);say(v,'😋',2);if(Math.random()<.4)litter(v)}wishDone(v,w=>w.t==='food')}
+ else if(k==='drink'){if(buy('snacks',has('tasty')?1.2:1)){v.th=0;v.hap=Math.min(100,v.hap+6);say(v,'😋',2);if(Math.random()<.35)litter(v)}}
+ else if(k==='gift'){if(buy('goods',has('plush')?1.25:1)){v.hap=Math.min(100,v.hap+9);say(v,'🧸',2)}wishDone(v,w=>w.t==='gift')}
+ else if(k==='play'){if(buy(null,1)){v.fun=0;v.hap=Math.min(100,v.hap+10);say(v,'🥳',2)}else{v.fun=30;v.hap=Math.min(100,v.hap+4)}wishDone(v,w=>w.t==='play')}
+ else if(k==='toilet'){v.bl=0;v.hap=Math.min(100,v.hap+3);say(v,'😌',2)}
+ else if(k==='rest'){v.hap=Math.min(100,v.hap+6);v.fun=Math.max(0,v.fun-10);say(v,'😊',2)}
+ b.users=Math.max(0,b.users-1)}
+function litter(v){const i=idx(v.x|0,v.y|0);if(S.g[i]===1&&S.lit[i]<3)S.lit[i]++}
+function viewEnc(v,e){let tot=0,sad=0;for(const a of e.an){tot+=aApp(a);if(a.mood<35||a.health<55)sad++}
+ const nw=!v.seen[e.id];let gain=Math.min(24,tot*(nw?.55:.15))-Math.min(8,sad*2);v.hap=clamp(v.hap+gain,0,100);v.seen[e.id]=1;
+ v.fun=Math.max(0,v.fun-6);
+ wishDone(v,w=>(w.t==='sp'&&e.an.some(a=>a.s===w.id))||(w.t==='hab'&&e.hab===w.h));
+ if(gain>10){say(v,pick(['😍','🤩','💖']),2);const a=pick(e.an);a.pop=.5;if(Math.random()<.5)burst(a.x,a.y,'💖',2,40)}else if(gain<1)say(v,'🥱',2);
+ if(Math.random()<.3&&e.an.length){const a=pick(e.an);sfx.animal(ANI[a.s].kind,ANI[a.s].h,.5);a.pop=.5}}
+function exitVis(v){
+ const ratingRaw=1+Math.floor((v.hap+(v.wish.length?0:4))/20);const r=clamp(ratingRaw,1,5);
+ S.ema=S.ema*.93+r*.07;S.ratings=(S.ratings||0)+1;
+ if(v.gold){const tip=Math.round((150+Math.random()*200)*(r>=4?1.5:1));income(tip);floatT(v.x,v.y-1,'Tip +'+tip,'#ffd54a',20);burst(v.x,v.y,['💰','✨'],12,80);sfx.combo()}
+ if(v.grp&&r>=3){const d=15+r*5;income(d);floatT(v.x,v.y-1,'+'+d,'#9f9',14)}
+ if(S.mut==='fast'&&r>=4)income(5);
+ if(r>=4)floatT(v.x,v.y-.5,'😍','#fff',20);else if(r<=2)floatT(v.x,v.y-.5,'😕','#fff',18);
+ S.vis=S.vis.filter(x=>x!==v);evalLevel();}
+function updVis(v,dt){
+ if(v.bt>0){v.bt-=dt;if(v.bt<=0)v.bub=null}
+ v.tIn+=dt;v.bl+=.5*dt;v.hu+=.55*dt;v.th+=(S.weather==='heat'?1:.65)*dt;v.fun+=.35*dt;
+ const ti=idx(v.x|0,v.y|0);
+ if(v.bl>85)v.hap-=.12*dt;if(v.hu>85)v.hap-=.1*dt;if(v.th>85)v.hap-=.1*dt;if(S.lit[ti]>0)v.hap-=.05*dt*S.lit[ti];
+ v.hap+=decoMap[ti]*.012*dt;v.hap-=.015*dt;if(S.weather==='rain'&&!S.encs.length)v.hap-=.01;
+ if(v.hap>100)v.hap=100;
+ if(v.st!=='use'&&v.st!=='wait'&&!walk(ti)&&!v.path){exitVis(v);return}
+ switch(v.st){
+  case'walk':if(follow(v,dt,v.spd)){if(v.path===null&&v.goal&&v.goal.kind!=='leave'){v.st='idle'}else arrive(v)}break;
+  case'use':v.timer-=dt;if(v.timer<=0){const u=v.use;v.use=null;v.st='idle';v.thk=.3;if(u){if(u.k==='e')viewEnc(v,u.e);else useB(v,u.b)}}break;
+  case'wait':{v.timer-=dt;const b=v.ub;if(b&&b.users<capB(b)){b.users++;v.use={k:'b',b};v.st='use';v.timer=2}else if(v.timer<=0){v.hap-=3;say(v,'😤',2);v.st='idle';v.ub=null}break}
+  case'idle':v.thk-=dt;if(v.thk<=0){v.thk=.4;decide(v)}break}
+}
+// ---------- rating level ----------
+const LTH=[0,2.2,3.0,3.7,4.2],LSP=[0,3,7,12,18],LVIS=[0,15,70,200,450];
+function species(){const o={};for(const a of S.animals)o[a.s]=1;return Object.keys(o).length}
+function evalLevel(){let t=1;const sp=species();for(let n=2;n<=5;n++)if(S.ema>=LTH[n-1]&&sp>=LSP[n-1]&&S.st.vis>=LVIS[n-1])t=n;
+ if(t>S.level)levelUp(t);else if(t<S.level&&S.diff!=='sandbox'&&S.ema<LTH[S.level-1]-.35){S.level--;toast('The rating dipped to '+S.level+' stars. Cheer guests up!','warn')}}
+function starVal(){const sp=species();let v=S.level;if(S.level<5){const a=(S.ema-LTH[S.level-1])/(LTH[S.level]-LTH[S.level-1]);v+=clamp(a,0,.99)}return Math.max(1,v)}
+function levelUp(t){S.level=t;sfx.level();shake(8);fx.slow=.3;confetti(30);flash();celebrate('⭐ '+t+' STARS! ⭐','New animals, buildings and land unlocked!');
+ const bonus=t*400;income(bonus);navVer++;checkAch()}
+function celebrate(a,b){const c=$('cele');c.innerHTML=a+'<div style="font-size:.4em;margin-top:8px">'+b+'</div>';c.classList.remove('show');void c.offsetWidth;c.classList.add('show');setTimeout(()=>c.classList.remove('show'),2800)}
+function flash(){const f=$('flash');f.style.transition='none';f.style.opacity=.7;void f.offsetWidth;f.style.transition='opacity .5s';f.style.opacity=0}
+
+// ---------- staff ----------
+function staffCap(){let c=4;for(const b of S.blds)if(b.t==='staffroom')c+=4*b.lv;return c}
+function hireStaff(type){if(S.staff.length>=staffCap()){toast('Build a Staff Room for more places','warn');sfx.err();return}
+ const c=Math.round(100*cm());if(!canPay(c))return noMoney();spend(c);
+ const s={id:S.nid++,type,name:pick(NAMES),x:GX+.5,y:GY+.5,fx:1,st:'idle',path:null,thk:0,as:0,spd:2.2,timer:0};S.staff.push(s);sfx.hire();burst(GX+.5,GY+.5,['👋','✨'],8,60);floatT(GX+.5,GY,s.name+' hired!','#fff',15);checkAch()}
+function adjEncs(ti){const x=ti%W,y=(ti/W)|0,o=[];for(let k=0;k<4;k++){const X=x+DX[k],Y=y+DY[k];if(X<0||Y<0||X>=W||Y>=H)continue;const e=encAt(X,Y);if(e&&!o.includes(e))o.push(e)}return o}
+function staffTiles(s){const t=[];const ok=e=>e.an.length&&(!s.as||e.id===s.as);
+ if(s.type==='keeper'){const au=has('autofeed');for(const e of S.encs){if(!ok(e))continue;if((!au&&e.feed<e.fcap*.6&&S.sup.feed>=1)||e.playT<=0)for(const a of accE(e))t.push(a)}}
+ else if(s.type==='cleaner'){for(let i=0;i<W*H;i++)if(S.lit[i]>0&&S.g[i]===1)t.push(i);for(const e of S.encs)if(e.dirt>30&&(!s.as||e.id===s.as))for(const a of accE(e))t.push(a)}
+ else if(s.type==='vet'){if(S.sup.meds>=1&&bOf('vet').length)for(const e of S.encs){if((!s.as||e.id===s.as)&&e.an.some(a=>a.health<70))for(const a of accE(e))t.push(a)}}
+ else{const w=[];for(let i=0;i<W*H;i++)if(S.g[i]===1)w.push(i);if(w.length)t.push(pick(w))}
+ return t}
+function doWork(s){const ti=idx(s.x|0,s.y|0);
+ if(s.type==='keeper'){for(const e of adjEncs(ti)){if(s.as&&e.id!==s.as)continue;const take=Math.min(S.sup.feed,Math.max(0,e.fcap-e.feed));e.feed+=take;S.sup.feed-=take;e.playT=60;const a=e.an.length?pick(e.an):null;if(a){a.pop=.6;burst(a.x,a.y,['💖','🥕'],4,40)}floatT(s.x,s.y-.5,'Yum!','#ffd',13)}}
+ else if(s.type==='cleaner'){S.lit[ti]=0;for(let k=0;k<4;k++){const X=(ti%W)+DX[k],Y=((ti/W)|0)+DY[k];if(X>=0&&Y>=0&&X<W&&Y<H)S.lit[idx(X,Y)]=0}
+  for(const e of adjEncs(ti))e.dirt=Math.max(0,e.dirt-60*(has('clean')?1.5:1));burst(s.x,s.y,['✨','🫧'],5,40);S.st.cleans=(S.st.cleans||0)+1}
+ else if(s.type==='vet'){for(const e of adjEncs(ti)){let w=null;for(const a of e.an)if(!w||a.health<w.health)w=a;if(w&&w.health<70&&S.sup.meds>=1){S.sup.meds--;w.health=Math.min(100,w.health+45*(has('med')?1.5:1));burst(w.x,w.y,['💊','💖'],5,40);floatT(w.x,w.y,'Better!','#9f9',14);S.st.heals=(S.st.heals||0)+1}}}}
+function updStaff(s,dt){
+ if(s.st==='walk'){if(follow(s,dt,s.spd)){if(s.path===null)s.st='idle';else{s.st='work';s.timer=2.5/(has('keeper')?1.3:1)}}return}
+ if(s.st==='work'){s.timer-=dt;if(s.timer<=0){if(s.type!=='guide')doWork(s);s.st='idle';s.thk=.2}return}
+ s.thk-=dt;if(s.thk>0)return;s.thk=1;
+ let ti=idx(s.x|0,s.y|0);if(!walk(ti)){s.x=GX+.5;s.y=GY+.5;ti=idx(GX,GY)}
+ const tiles=staffTiles(s);s.noTask=!tiles.length;if(!tiles.length)return;
+ const p=bfs(ti,mk(tiles));s.noPath=!p;if(!p)return;
+ if(!p.length){s.st='work';s.timer=2.5;return}s.path=p;s.st='walk'}
+// ---------- weather, events ----------
+const SEASONS=['Spring','Summer','Autumn','Winter'],SEI=['🌸','☀️','🍂','❄️'];
+function rollWeather(){const s=S.season;let o;
+ if(s===0)o=[['sun',.45],['cloud',.25],['rain',.3]];else if(s===1)o=[['sun',.55],['heat',.25],['rain',.15],['cloud',.05]];else if(s===2)o=[['cloud',.3],['rain',.35],['sun',.2],['wind',.15]];else o=[['snow',.45],['cloud',.3],['sun',.25]];
+ if(S.mut==='rainy')o=o.map(x=>x[0]==='rain'?['rain',x[1]+.35]:x);
+ let t=o.reduce((a,x)=>a+x[1],0),r=Math.random()*t;for(const x of o){r-=x[1];if(r<=0)return x[0]}return'sun'}
+const WXN={sun:'☀️ Sunny',cloud:'☁️ Cloudy',rain:'🌧️ Rainy',heat:'🔥 Heatwave',snow:'❄️ Snowy',wind:'🍃 Windy'};
+const WXV={sun:1.1,cloud:1,rain:.65,heat:.85,snow:.75,wind:.95};
+const EVN={school:['🚌','School Trip'],festival:['🎪','Zoo Festival'],bday:['🎂','Birthday Party'],photo:['📸','Photo Contest']};
+function fireEvent(){const ev=S.ev;ev.done=true;const n=EVN[ev.id];S.st.events++;toast(n[0]+' '+n[1]+' today!','good');celebrate(n[0]+' '+n[1],'Make it a great day!');sfx.fanfare();confetti(12);
+ if(ev.id==='school'){for(let i=0;i<10;i++)mkVis({kid:true,grp:1})}
+ else if(ev.id==='bday'){for(let i=0;i<6;i++){const v=mkVis({kid:i<4,grp:1});v.wish=[{t:'gift'},{t:'food'}];v.hap=80}}
+ else if(ev.id==='festival'){S.evFx=1.6;for(let i=0;i<8;i++)burst(GX+Math.random()*6-3,GY-Math.random()*5,['🎈','🎊'],2,50)}
+ else if(ev.id==='photo'){}
+ checkAch()}
+function perDay(){const att=S.att;const pf=clamp(1.35-S.ticket/((8+Math.pow(att,.7)*1.2)*1.6),.08,1.3);
+ let ads=1;for(const b of S.blds)if(b.t==='billboard')ads+=.12*b.lv;
+ const m=(has('market')?1.15:1)*(S.mut==='rich'?.8:1)*(S.evFx||1)*D.vis*(WXV[S.weather]||1)*ads;
+ return(4+2.4*Math.pow(att,.7))*(.6+.15*S.level)*pf*m}
+function calcAtt(){let a=0;for(const e of S.encs){if(!accE(e).length)continue;for(const an of e.an)a+=aApp(an)}S.att=a}
+function newDay(){
+ S.day++;S.skipped=false;
+ let w=0;for(const s of S.staff)w+=STAFF[s.type].wage;w=Math.round(w*D.wage);
+ let up=0;for(const b of S.blds){if(!BT[b.t].deco)up+=BT[b.t].cost*.012*b.lv}up+=S.encs.length*4;up=Math.round(up*cm()*(has('solar')?.75:1));
+ const interest=Math.round(S.loan*.012);
+ if(S.diff!=='sandbox'){spend(w+up+interest)}
+ S.hist.push({i:S.dIn,o:S.dOut});if(S.hist.length>14)S.hist.shift();S.dIn=0;S.dOut=0;S.lastW=w;S.lastU=up;
+ S.season=Math.floor((S.day-1)/7)%4;S.weather=rollWeather();S.evFx=1;S.ev=null;
+ if(S.day>=3&&Math.random()<.24){S.ev={id:pick(['school','festival','bday','photo']),done:false}}
+ toast(SEI[S.season]+' Day '+S.day+' - '+WXN[S.weather]);
+ if(Math.random()<.35)toast('📰 '+pick(FUNNY));
+ let babies=0;
+ for(const e of S.encs){
+  for(const a of e.an){a.age++;if(a.baby&&a.age>=3){a.baby=false;toast('🎈 '+a.name+' grew up!','good');burst(a.x,a.y,['🎉','✨'],8,60)}
+   if(e.dirt>60&&Math.random()<.3){a.health=Math.max(15,a.health-30);}}
+  if(has('breed')){const by={};for(const a of e.an){if(!a.baby&&a.mood>60&&a.health>70)(by[a.s]=by[a.s]||[[],[]])[a.sex].push(a)}
+   for(const s in by){const p=by[s];if(p[0].length&&p[1].length){encCalc(e);if(e.free>=ANI[s].sp*.5&&Math.random()<.22*(has('genes')?1.5:1)*(S.mut==='baby'?2:1)){const b=newAnimal(+s,e,true);e.an.push(b);S.animals.push(b);S.st.babies++;babies++;S.book[s]=(S.book[s]||0)+1;toast('👶 A baby '+ANI[s].n+' was born!','good');burst(b.x,b.y,['👶','💖','🍼'],14,80);sfx.baby();confetti(6);if(b.gold){S.gold[s]=1;S.st.golds++;secret('gold')}}}}}}
+ if(S.animals.filter(a=>a.baby).length>=5)secret('bigbaby');
+ if(has('friends'))income(40*S.level);
+ evalLevel();checkBroke();checkAch();save();
+}
+function checkBroke(){if(S.diff==='sandbox')return;
+ if(S.money>=0){if(S.money<500&&S.warnD!==S.day){S.warnD=S.day;toast('⚠️ Coins are getting low. Sell snacks or slow down spending!','warn')}return}
+ if(S.rescues<D.rescue){S.rescues++;S.money+=1500;modal('<h3>🎁 Friendly sponsors!</h3><p>A kind company noticed your zoo and donated 1500 coins. Spend them wisely!</p><button class="big" onclick="closeModal()">Thank you!</button>');confetti(10);sfx.fanfare();return}
+ if(S.loan<=0){modal('<h3>🏦 The Friendly Bank</h3><p>Coins ran out. Want a loan of 4000 coins? You pay a little back every day. Nothing is lost either way, your animals are safe.</p><button class="big" onclick="takeLoan(4000);closeModal()">Take the loan</button> <button onclick="closeModal()">Not now</button>');return}
+ if(S.money<-2500){S.money=1500;S.loan=Math.max(0,S.loan-2000);modal('<h3>🌈 Fresh start!</h3><p>The bank forgave some debt and gave you a little to start over. Your animals and buildings are all still here.</p><button class="big" onclick="closeModal()">Onward!</button>');return}
+ toast('⚠️ Coins are below zero. Earn some or sell things to recover.','warn')}
+function takeLoan(n){S.loan+=n;S.money+=n;S.dIn+=0;sfx.coin(5);toast('Loan taken: +'+n)}
+function repay(n){n=Math.min(n,S.loan,Math.max(0,S.money));if(n<=0)return;S.loan-=n;S.money-=n;sfx.coin(2)}
+// ---------- main step ----------
+function step(dt){
+ S.hour+=dt/DAYH;if(S.hour>=24){S.hour-=24;newDay()}
+ if(S.hour>=0&&S.hour<.4&&!S.skipped&&S.vis.length>=0&&S.day>1)secret('nightowl');
+ if(S.comboT>0){S.comboT-=dt;if(S.comboT<=0)S.combo=0}
+ if(decoV!==navVer)calcDeco();
+ S._at=(S._at||0)-dt;if(S._at<=0){S._at=2;calcAtt()}
+ if(openH()){S.spawnAcc+=perDay()/(11*DAYH)*dt;while(S.spawnAcc>=1){S.spawnAcc-=1;if(S.vis.length<25+20*S.level)mkVis()}}
+ if(S.ev&&!S.ev.done&&S.hour>=9)fireEvent();
+ if(S.ev&&S.ev.id==='photo'&&S.ev.done&&!S.ev.paid&&S.hour>=15){S.ev.paid=true;let n=0;for(const a of S.animals)n+=(a.baby?2:1)*(a.gold?3:1)+(a.hat?1:0);const r=Math.round(80+n*25);income(r);toast('📸 Photo contest prize: +'+r,'good');burst(GX,GY-6,['📸','🏆'],12,90);sfx.fanfare()}
+ for(const e of S.encs)updEnc(e,dt);
+ for(let i=S.vis.length-1;i>=0;i--)updVis(S.vis[i],dt);
+ for(const s of S.staff){updStaff(s,dt);if(s.type==='guide'){const gm=has('guides')?2:1;for(const v of S.vis)if(Math.abs(v.x-s.x)<3&&Math.abs(v.y-s.y)<3)v.hap=Math.min(100,v.hap+.35*gm*dt)}}
+ for(const b of S.blds)if(b.pop>0)b.pop-=dt;
+ let labs=0;for(const b of S.blds)if(b.t==='lab')labs+=b.lv;
+ if(S.res.cur&&labs){S.res.prog+=labs*.25*dt;const r=RES.find(x=>x[0]===S.res.cur);if(S.res.prog>=r[3]){S.res.done[r[0]]=1;S.res.cur=null;S.res.prog=0;toast('🔬 Research complete: '+r[1],'good');confetti(8);sfx.fanfare();shake(3);checkAch()}}
+ // lucky coin
+ if(S.lucky){S.lucky.t-=dt;if(S.lucky.t<=0)S.lucky=null}
+ else if(openH()){S.luckyT-=dt;if(S.luckyT<=0){S.luckyT=40+Math.random()*50;const w=[];for(let i=0;i<W*H;i++)if(S.g[i]===1&&i!==idx(GX,GY))w.push(i);if(w.length){const t=pick(w);S.lucky={x:t%W,y:(t/W)|0,t:14};sfx.sparkle()}}}
+ // auto restock
+ S._ar=(S._ar||0)-dt;if(S._ar<=0){S._ar=3;for(const k in SUP){const a=S.auto[k];if(a&&a[0]&&S.sup[k]<a[1]*.5&&(k==='feed'?S.animals.length:k==='snacks'?S.blds.some(b=>BT[b.t].kind==='food'||BT[b.t].kind==='drink'):k==='goods'?S.blds.some(b=>b.t==='gift'):S.blds.some(b=>b.t==='vet'))){const n=Math.ceil(a[1]-S.sup[k]),c=storePrice(k)*n;if(canPay(c)){buySup(k,n,true)}}}}
+ // litter spawn by wandering is done in use; random tiny
+}
+function skipNight(){if(!(S.hour>=20||S.hour<6))return;S.skipped=true;let n=0;while(!(S.hour>=6&&S.hour<7)&&n++<800)step(.5);fx.pop={};sfx.rooster();toast('🌅 Good morning! Day '+S.day,'good');floatT(GX,GY-3,'Good morning!','#ffe36b',20)}
+// ---------- store ----------
+function storePrice(k){return Math.max(1,Math.round(SUP[k].p*(has('bulk')?.85:1)*(S.diff==='sandbox'?.5:1)))}
+function buySup(k,n,quiet){const c=storePrice(k)*n;if(!canPay(c)){if(!quiet)noMoney();return false}spend(c);S.sup[k]+=n;if(k==='feed')S.st.fedOnce=1;if(!quiet){sfx.coin(3);toast('Bought '+n+' '+SUP[k].n)}return true}
+function sellSup(k,n){n=Math.min(n,S.sup[k]);if(n<=0)return;S.sup[k]-=n;S.money+=Math.floor(SUP[k].p*.5*n);sfx.coin(1)}
+// ---------- achievements ----------
+const AC=[];function A(id,i,n,d,f,r){AC.push({id,i,n,d,f,r:r||100})}
+[[10,'🚶'],[50,'👨‍👩‍👧'],[100,'🎟️'],[500,'🏟️'],[1000,'🌆'],[5000,'🌍']].forEach(([n,i],k)=>A('visit'+n,i,'Visitors '+n,'Welcome '+n+' visitors',()=>S.st.vis>=n,100*(k+1)));
+[[1,'first'],[5],[10],[25],[50]].forEach(([n,id],k)=>A(id||'adopt'+n,'🐾','Animal Friends '+n,'Adopt '+n+' animals',()=>S.st.adopt>=n,100*(k+1)));
+[10,20,30,50,88].forEach((n,k)=>A('book'+n,'📖','Collector '+n,'Discover '+n+' kinds of animals',()=>Object.keys(S.book).length>=n,150*(k+1)));
+[2,3,4,5].forEach(n=>A(n===3?'lvl3':'stars'+n,'⭐','Star '+n,'Reach '+n+' stars',()=>S.level>=n,300*n));
+A('stars3','🌟','Three Stars','Reach 3 stars',()=>S.level>=3,100);
+[1000,10000,50000,200000].forEach((n,k)=>A('earn'+n,'💰','Earned '+n,'Earn '+n+' coins total',()=>S.st.earn>=n,100*(k+1)));
+[7,20,40,100].forEach((n,k)=>A('days'+n,'📅','Day '+n,'Run the zoo for '+n+' days',()=>S.day>=n,100*(k+1)));
+[1,5,15].forEach((n,k)=>A('babies'+n,'👶','Babies '+n,'Welcome '+n+' baby animals',()=>S.st.babies>=n,150*(k+1)));
+[3,9,18].forEach((n,k)=>A('research'+n,'🔬','Scientist '+n,'Finish '+n+' research items',()=>Object.keys(S.res.done).length>=n,150*(k+1)));
+[10,50,150].forEach((n,k)=>A('build'+n,'🔨','Builder '+n,'Build '+n+' things',()=>S.st.built>=n,100*(k+1)));
+[5,10,20].forEach((n,k)=>A('combo'+n,'🔥','Combo '+n,'Get a '+n+' sale combo',()=>S.st.combo>=n,100*(k+1)));
+[1,5,8,15,SECRETS.length].forEach((n,k)=>A('secrets'+n,'🤫','Secrets '+n,'Find '+n+' secrets',()=>Object.keys(S.sec).length>=n,100*(k+1)));
+A('gold1','✨','Golden Touch','Find a golden animal',()=>S.st.golds>=1,500);
+[1,4,10].forEach(n=>A('events'+n,'🎪','Party Planner '+n,'Host '+n+' events',()=>S.st.events>=n,150*n));
+A('habAll','🌍','All Habitats','Own a pen of every habitat',()=>{const h={};S.encs.forEach(e=>h[e.hab]=1);return Object.keys(h).length>=8},800);
+A('hats1','🎩','Fashion Show','Put a hat on an animal',()=>S.st.hats>=1,100);
+A('lucky5','🪙','Lucky Streak','Catch 5 lucky coins',()=>S.st.lucky>=5,200);
+A('staff5','👷','Team Zoo','Employ 5 staff',()=>S.staff.length>=5,200);
+A('wish10','💖','Wish Granter','Grant 10 guest wishes',()=>(S.wishes||0)>=10,150);
+A('clean20','🧹','Squeaky Clean','Clean 20 times',()=>(S.st.cleans||0)>=20,150);
+A('heal10','💊','Good Doctor','Heal animals 10 times',()=>(S.st.heals||0)>=10,150);
+A('fullpen','🏡','Full House','Have 5 animals in one pen',()=>S.encs.some(e=>e.an.length>=5),200);
+A('rich','🏦','Rich Zoo','Have 50000 coins',()=>S.money>=50000&&S.diff!=='sandbox',500);
+A('happy','😍','Super Happy','5 happy animals at once',()=>S.animals.filter(a=>a.mood>85).length>=5,200);
+function checkAch(){if(!S)return;for(const a of AC)if(!S.ach[a.id]&&a.f()){S.ach[a.id]=1;income(a.r);toast('🏆 '+a.n+'! +'+a.r,'good');sfx.ach();burst(cam.x/TS,cam.y/TS-4,['🏆','✨'],8,90)}
+ for(let i=0;i<HATREQ.length;i++)if(HATREQ[i]&&!S.hatU[HATREQ[i]]&&hatOK(i)){S.hatU[HATREQ[i]]=1;if(i>1)toast('🎩 New hat unlocked: '+HATS[i][1],'good')}
+ const n=Object.keys(S.ach).length;S.title=Math.min(TITLES.length-1,Math.floor(n/8))}
+function reqOK(r){if(!r)return true;if(r.startsWith('secret_'))return !!S.sec[r.slice(7)];return !!S.ach[r]}
+function hatOK(i){return reqOK(HATREQ[i])}
+function themeOK(i){return reqOK(THEMES[i][3])}
+// ---------- goals ----------
+const GOALS=[
+['Pet an animal: tap the chicken!',()=>S.st.tickles>=1,100,()=>S.st.tickles,1],
+['Build a second pen next to a path (Habitats menu, drag a box)',()=>S.encs.length>=2,250,()=>Math.max(0,S.encs.length-1),1],
+['Adopt a new animal (tap a pen, pick a friend)',()=>S.st.adopt>=3,300,()=>Math.max(0,S.st.adopt-2),1],
+['Hire a keeper (Staff button)',()=>S.staff.some(s=>s.type==='keeper'),200,()=>1,1],
+['Buy animal feed in the Store',()=>S.sup.feed>0||S.st.fedOnce,100,()=>1,1],
+['Build a food stall (Food menu)',()=>S.blds.some(b=>BT[b.t].kind==='food'||BT[b.t].kind==='drink'),250,()=>1,1],
+['Buy snacks in the Store so stalls can sell',()=>S.sup.snacks>0||S.st.sales>0,100,()=>1,1],
+['Build toilets for happy guests',()=>S.blds.some(b=>b.t==='toilet'),150,()=>1,1],
+['Welcome 15 visitors',()=>S.st.vis>=15,300,()=>S.st.vis,15],
+['Adopt 3 different animals',()=>species()>=3,300,()=>species(),3],
+['Reach a 2 star rating',()=>S.level>=2,600,()=>starVal(),2],
+['Build a gift shop',()=>S.blds.some(b=>b.t==='gift'),200,()=>1,1],
+['Try the Treat Rush minigame (bar button)',()=>S.st.mg>0,200,()=>1,1],
+['Build a Research Lab',()=>S.blds.some(b=>b.t==='lab'),300,()=>1,1],
+['Welcome 100 visitors',()=>S.st.vis>=100,500,()=>S.st.vis,100],
+['Reach 6 different animals',()=>species()>=6,400,()=>species(),6],
+['Reach a 3 star rating',()=>S.level>=3,900,()=>starVal(),3],
+['Welcome a baby animal',()=>S.st.babies>=1,500,()=>S.st.babies,1],
+['Reach 10 different animals',()=>species()>=10,800,()=>species(),10],
+['Reach a 4 star rating',()=>S.level>=4,1500,()=>starVal(),4],
+['Open a Fantasy pen',()=>S.encs.some(e=>e.hab===7),1500,()=>1,1],
+['Reach a 5 star rating',()=>S.level>=5,3000,()=>starVal(),5],
+['Discover 40 animals for the book',()=>Object.keys(S.book).length>=40,3000,()=>Object.keys(S.book).length,40],
+['Discover all 88 animals!',()=>Object.keys(S.book).length>=88,10000,()=>Object.keys(S.book).length,88]];
+function curGoal(){if(S.goal>=GOALS.length)return null;return GOALS[S.goal]}
+function checkGoal(){const g=curGoal();if(!g)return;if(g.length&&g[1]()){const r=Math.round(g[2]*(S.mut==='tiny'?1.5:1));income(r);S.goal++;toast('🎯 Goal done! +'+r+' coins','good');sfx.fanfare();confetti(10);burst(cam.x/TS,cam.y/TS,['🎯','⭐'],10,100);shake(4);
+ if(S.goal===6){S.sup.snacks+=30;toast('🥨 Free snacks delivered!')}}}
+// ---------- alerts ----------
+function computeAlerts(){const o=[];for(const e of S.encs){if(!e.an.length)continue;let hungry=0,sad=0,sick=0;for(const a of e.an){if(a.food<25)hungry++;if(a.mood<35)sad++;if(a.health<55)sick++}
+ if(hungry)o.push({t:'🍽️ '+hungry+' hungry in '+e.name,e:e.id});else if(sad)o.push({t:'😢 '+sad+' unhappy in '+e.name,e:e.id});if(sick)o.push({t:'🤒 '+sick+' poorly in '+e.name,e:e.id});if(e.dirt>75)o.push({t:'💩 '+e.name+' is very dirty',e:e.id})}
+ if(S.sup.feed<5&&S.animals.length)o.push({t:'🥕 Animal feed is low (Store)',p:'store'});
+ if(S.sup.snacks<3&&S.blds.some(b=>BT[b.t].kind==='food'||BT[b.t].kind==='drink'))o.push({t:'🥨 Snacks are low (Store)',p:'store'});
+ for(const e of S.encs)if(!accE(e).length)o.push({t:'🛤️ '+e.name+' needs a path next to it',e:e.id});
+ const nb=S.staff.filter(s=>s.noPath).length;if(nb)o.push({t:'👷 '+nb+' staff cannot reach their job. Check paths!'});
+ return o.slice(0,5)}
+// ---------- save / load ----------
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S,(k,v)=>(k==='vis'||k==='acc'||k==='_v'||k==='lucky'||k==='_t'||k==='_at'||k==='_ar')?undefined:v));return true}catch(e){return false}}
+function loadSave(){try{const t=localStorage.getItem(KEY);if(!t)return false;const o=JSON.parse(t);if(!o||o.v!==1||!o.g||o.g.length!==W*H)return false;S=o;D=DIFF[S.diff]||DIFF.medium;S.vis=[];S.lucky=null;S.hatU=S.hatU||{};S.sec=S.sec||{};S.st=Object.assign({vis:0,earn:0,adopt:0,babies:0,events:0,built:0,sales:0,combo:0,lucky:0,pauses:0,mutes:0,tickles:0,golds:0,secrets:0,balloons:0,benches:0,gate:0,hats:0,quacks:0},S.st);S.combo=0;S.comboT=0;S.paused=false;S.luckyT=30;S.spawnAcc=0;navVer++;return true}catch(e){return false}}
+function hasSave(){try{return !!localStorage.getItem(KEY)}catch(e){return false}}
+
+// ---------- render & input ----------
+const cv=$('c'),ctx=cv.getContext('2d'),mini=$('mini'),mx=mini.getContext('2d');
+let cw=800,ch=600,dpr=1;const cam={x:GX*TS,y:(GY-5)*TS,z:1};
+let tool={k:'sel'},hover=null,drag=null,showMini=false,zoomMin=0,zoomMax=0,T=0;
+const FONT='"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+function resize(){dpr=Math.min(2,window.devicePixelRatio||1);cw=innerWidth;ch=innerHeight;cv.width=cw*dpr;cv.height=ch*dpr}
+addEventListener('resize',resize);resize();
+function w2t(px,py){return[((px-cw/2)/cam.z+cam.x)/TS,((py-ch/2)/cam.z+cam.y)/TS]}
+function clampCam(){cam.x=clamp(cam.x,0,W*TS);cam.y=clamp(cam.y,0,H*TS)}
+function setZoom(z,px,py){const o=cam.z;z=clamp(z,.35,2.6);if(px===undefined){px=cw/2;py=ch/2}const[bx,by]=w2t(px,py);cam.z=z;cam.x=bx*TS-(px-cw/2)/z;cam.y=by*TS-(py-ch/2)/z;clampCam();if(z>=2.5)zoomMax=1;if(z<=.4)zoomMin=1;if(zoomMax&&zoomMin&&S&&S.sec)secret('zoomz')}
+function em(t,x,y,s,al){ctx.font=s+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';if(al!==undefined)ctx.globalAlpha=al;ctx.fillText(t,x,y);if(al!==undefined)ctx.globalAlpha=1}
+function nightA(){const h=S.hour;if(h>=22||h<4)return .55;if(h>=20)return(h-20)/2*.55;if(h<6.5&&h>=4)return(1-(h-4)/2.5)*.55;return 0}
+function draw(dt){
+ ctx.setTransform(dpr,0,0,dpr,0,0);
+ if(!S){ctx.fillStyle='#2a5a3c';ctx.fillRect(0,0,cw,ch);return}
+ const th=THEMES[S.theme]||THEMES[0];
+ ctx.fillStyle='#223';ctx.fillRect(0,0,cw,ch);
+ let sx=0,sy=0;if(fx.shake>0){sx=(Math.random()-.5)*fx.shake*2;sy=(Math.random()-.5)*fx.shake*2}
+ ctx.save();ctx.translate(cw/2+sx,ch/2+sy);ctx.scale(cam.z,cam.z);ctx.translate(-cam.x,-cam.y);
+ const x0=Math.max(0,Math.floor((cam.x-cw/2/cam.z)/TS)),x1=Math.min(W-1,Math.ceil((cam.x+cw/2/cam.z)/TS)),y0=Math.max(0,Math.floor((cam.y-ch/2/cam.z)/TS)),y1=Math.min(H-1,Math.ceil((cam.y+ch/2/cam.z)/TS));
+ for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const i=idx(x,y),g=S.g[i];
+  ctx.fillStyle=((x+y)&1)?th[1]:th[2];ctx.fillRect(x*TS,y*TS,TS,TS);
+  if(g===1||g===7){ctx.fillStyle='#e6d3a3';ctx.fillRect(x*TS+1,y*TS+1,TS-2,TS-2);ctx.fillStyle='#d4bf8a';ctx.fillRect(x*TS+4,y*TS+4,4,4);ctx.fillRect(x*TS+20,y*TS+18,5,5);
+   const p=fx.pop[i];if(p>0){ctx.fillStyle='rgba(255,255,255,'+p*2+')';ctx.fillRect(x*TS,y*TS,TS,TS)}
+   if(S.lit[i]>0)em('🗑️',x*TS+TS/2,y*TS+TS/2,14)}
+  else if(g===4)em('🌲',x*TS+TS/2,y*TS+TS/2,28);else if(g===5)em('🪨',x*TS+TS/2,y*TS+TS/2,24);
+  else if(g===6){ctx.fillStyle='#5db4e8';ctx.fillRect(x*TS,y*TS,TS,TS);if(((x*7+y*3+((T*2)|0))%5)===0){ctx.fillStyle='#bfe6fb';ctx.fillRect(x*TS+8,y*TS+12,12,3)}}
+  if(!inReg(x,y)){ctx.fillStyle='rgba(20,30,50,.55)';ctx.fillRect(x*TS,y*TS,TS,TS)}}
+ // enclosures
+ for(const e of S.encs){const H0=HAB[e.hab];const px=e.x0*TS,py=e.y0*TS,pw=(e.x1-e.x0+1)*TS,ph=(e.y1-e.y0+1)*TS;
+  if(px>cam.x+cw/cam.z||py>cam.y+ch/cam.z||px+pw<cam.x-cw/cam.z||py+ph<cam.y-ch/cam.z)continue;
+  for(let y=e.y0;y<=e.y1;y++)for(let x=e.x0;x<=e.x1;x++){ctx.fillStyle=((x+y)&1)?H0.col:H0.col2;ctx.fillRect(x*TS,y*TS,TS,TS);const p=fx.pop[idx(x,y)];if(p>0){ctx.fillStyle='rgba(255,255,255,'+p*2+')';ctx.fillRect(x*TS,y*TS,TS,TS)}}
+  if(e.hab===4){ctx.fillStyle='rgba(255,255,255,.18)';for(let k=0;k<6;k++){const bx=px+((k*53+T*10)%pw),by=py+((k*37+T*14)%ph);ctx.fillRect(bx,by,4,4)}}
+  ctx.globalAlpha=.5;for(let k=0;k<(e.decor+e.toy);k++){em(e.hab===4?'🪸':['🌿','🪵','⛲','🧸','⚽'][k%5],px+((k*37+13)%(pw-20))+10,py+((k*29+21)%(ph-20))+10,18)}ctx.globalAlpha=1;
+  ctx.strokeStyle='#8a5a2b';ctx.lineWidth=5;ctx.strokeRect(px+2,py+2,pw-4,ph-4);ctx.strokeStyle='#c98f4f';ctx.lineWidth=2;ctx.strokeRect(px+2,py+2,pw-4,ph-4);
+  ctx.fillStyle='#6d431d';for(let x=0;x<=e.x1-e.x0+1;x++){ctx.fillRect(px+x*TS-2,py-1,4,5);ctx.fillRect(px+x*TS-2,py+ph-4,4,5)}
+  for(let y=0;y<=e.y1-e.y0+1;y++){ctx.fillRect(px-1,py+y*TS-2,5,4);ctx.fillRect(px+pw-4,py+y*TS-2,5,4)}
+  if(e.feed>0){em('🥣',px+pw-10,py+10,14)}
+  if(e.dirt>60)em('💩',px+12,py+ph-12,14)
+  if(S.hour>=0&&false){}
+  }
+ // buildings
+ for(const b of S.blds){if(b.x<x0-1||b.x>x1+1||b.y<y0-1||b.y>y1+1)continue;const T0=BT[b.t];const cx=b.x*TS+TS/2,cy=b.y*TS+TS/2;
+  const pp=Math.max(b.pop||0,fx.pop[idx(b.x,b.y)]||0);const sc=1+Math.sin(pp*Math.PI/.5)*.35*(pp>0?1:0);
+  ctx.save();ctx.translate(cx,cy);ctx.scale(sc,2-sc);
+  if(!T0.deco){ctx.fillStyle='rgba(255,255,255,.75)';ctx.beginPath();ctx.roundRect(-14,-14,28,28,6);ctx.fill();ctx.strokeStyle=['#f4a','#4af','#fa4'][b.lv-1];ctx.lineWidth=2;ctx.stroke()}
+  ctx.fillStyle='#000';em(T0.e,0,1,T0.deco?26:22);ctx.restore();
+  if(b.lv>1&&!T0.deco){ctx.fillStyle='#ffd54a';ctx.font='bold 10px sans-serif';ctx.textAlign='center';ctx.fillText('★'.repeat(b.lv-1),cx,b.y*TS+4)}
+  if((T0.kind==='food'||T0.kind==='drink')&&S.sup.snacks<1)em('❌',cx+10,cy-12,12);if(T0.kind==='gift'&&S.sup.goods<1)em('❌',cx+10,cy-12,12);
+  if(accB(b).length===0&&!T0.deco&&T0.cap)em('🛤️?',cx,cy-18,11)}
+ // gate
+ {const gx=GX*TS,gy=GY*TS;ctx.fillStyle='#c0392b';ctx.fillRect(gx-20,gy-8,16,28);ctx.fillRect(gx+TS+4,gy-8,16,28);ctx.fillStyle='#ffd54a';ctx.fillRect(gx-22,gy-14,TS+44,10);ctx.fillStyle='#000';ctx.font='bold 9px sans-serif';ctx.textAlign='center';ctx.fillText('ZOO',gx+TS/2,gy-6)}
+ // animals
+ for(const e of S.encs)for(const a of e.an){const sp=ANI[a.s];const bob=Math.sin(T*4+a.id)*1.5-(a.dance>0?Math.abs(Math.sin(T*10))*8:0);const pp=a.pop>0?Math.sin(a.pop*Math.PI/.6):0;const sz=(a.baby?20:28)*(1+pp*.35);
+  const ax=a.x*TS,ay=a.y*TS;ctx.fillStyle='rgba(0,0,0,.18)';ctx.beginPath();ctx.ellipse(ax,ay+10,10,4,0,0,6.28);ctx.fill();
+  ctx.save();ctx.translate(ax,ay+bob);ctx.scale((a.fx<0?1:-1)*0+1,1-pp*.15);
+  if(a.gold){ctx.shadowColor='#ffd54a';ctx.shadowBlur=14}
+  em(sp.e,0,0,sz);ctx.shadowBlur=0;
+  if(a.hat){em(HATS[a.hat][0],0,-sz*.5,sz*.55)}
+  ctx.restore();
+  if(a.mood<35)em('😢',ax+10,ay-14,12);else if(a.food<25)em('🍽️',ax+10,ay-14,12);else if(a.health<55)em('🤒',ax+10,ay-14,12);else if(a.mood>85&&((T+a.id)%6)<1.5)em('💖',ax+10,ay-14,12);
+  if(a.gold)em('✨',ax-10,ay-12+Math.sin(T*5)*2,11)}
+ // staff
+ for(const s of S.staff){const sx2=s.x*TS,sy2=s.y*TS;ctx.fillStyle='rgba(0,0,0,.2)';ctx.beginPath();ctx.ellipse(sx2,sy2+10,8,3,0,0,6.28);ctx.fill();em(STAFF[s.type].e,sx2,sy2+Math.sin(T*8+s.id)*(s.st==='walk'?2:0),24);if(s.st==='work')em('✨',sx2+9,sy2-12,11);if(s.noPath)em('❓',sx2,sy2-18,12)}
+ // visitors
+ for(const v of S.vis){const vx=v.x*TS,vy=v.y*TS;const wob=v.st==='walk'?Math.sin(T*10+v.id)*2:0;ctx.fillStyle='rgba(0,0,0,.18)';ctx.beginPath();ctx.ellipse(vx,vy+9,6,3,0,0,6.28);ctx.fill();
+  if(v.gold){ctx.shadowColor='#ffd54a';ctx.shadowBlur=12}em(v.e,vx,vy+wob*.5,v.kid?17:20);ctx.shadowBlur=0;
+  if(v.bub){const k=Math.min(1,v.bt*3);em(v.bub,vx,vy-16-(2-Math.min(2,v.bt))*3,14*k)}}
+ if(S.lucky){const l=S.lucky,lx=l.x*TS+TS/2,ly=l.y*TS+TS/2+Math.sin(T*5)*4;ctx.shadowColor='#ffd54a';ctx.shadowBlur=16;em('🪙',lx,ly,26+Math.sin(T*8)*3);ctx.shadowBlur=0}
+ // preview
+ if(hover&&S.encs){const[hx,hy]=hover;
+  if(tool.k==='bld'){const ok=S.g[idx(hx,hy)]===0&&inReg(hx,hy);ctx.fillStyle=ok?'rgba(80,255,80,.4)':'rgba(255,60,60,.4)';ctx.fillRect(hx*TS,hy*TS,TS,TS);em(BT[tool.t].e,hx*TS+TS/2,hy*TS+TS/2,22,.7)}
+  else if(tool.k==='path'||tool.k==='doze'){ctx.fillStyle=tool.k==='doze'?'rgba(255,60,60,.4)':'rgba(255,255,255,.4)';ctx.fillRect(hx*TS,hy*TS,TS,TS)}
+  else if(tool.k==='enc'){let a=hx,b=hy,c=hx,d=hy;if(drag&&drag.enc){a=Math.min(drag.sx,hx);c=Math.max(drag.sx,hx);b=Math.min(drag.sy,hy);d=Math.max(drag.sy,hy)}
+   const er=encOK(tool.h,a,b,c,d);ctx.fillStyle=er?'rgba(255,60,60,.35)':'rgba(80,255,80,.35)';ctx.fillRect(a*TS,b*TS,(c-a+1)*TS,(d-b+1)*TS);
+   if(drag&&drag.enc){ctx.fillStyle='#000';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.fillText((c-a+1)+'x'+(d-b+1)+' = '+encCost(tool.h,a,b,c,d)+' coins'+(er?' ('+er+')':''),(a+c+1)*TS/2,b*TS-6)}}}
+ // particles & floaters
+ for(const p of fx.pa){const k=1-p.t/p.life;ctx.globalAlpha=Math.max(0,k);em(p.e,p.x,p.y,p.sz*(.6+k*.6));}ctx.globalAlpha=1;
+ for(const f of fx.fl){const k=1-f.t/1.4;ctx.globalAlpha=Math.max(0,Math.min(1,k*1.6));ctx.font='bold '+f.sz+'px sans-serif';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.6)';const yy=f.y-f.t*28-8;ctx.strokeText(f.txt,f.x,yy);ctx.fillStyle=f.col;ctx.fillText(f.txt,f.x,yy)}ctx.globalAlpha=1;
+ ctx.restore();
+ // night
+ const na=nightA();if(na>0){ctx.fillStyle='rgba(10,20,70,'+na+')';ctx.fillRect(0,0,cw,ch);
+  ctx.save();ctx.translate(cw/2,ch/2);ctx.scale(cam.z,cam.z);ctx.translate(-cam.x,-cam.y);ctx.globalCompositeOperation='lighter';
+  for(const b of S.blds){if(b.t!=='lamp'&&b.t!=='fountain'&&BT[b.t].deco!==3&&!BT[b.t].price)continue;const gx=b.x*TS+TS/2,gy=b.y*TS+TS/2,r=b.t==='lamp'?90:50;const gr=ctx.createRadialGradient(gx,gy,4,gx,gy,r);gr.addColorStop(0,'rgba(255,220,120,'+na*.7+')');gr.addColorStop(1,'rgba(255,220,120,0)');ctx.fillStyle=gr;ctx.fillRect(gx-r,gy-r,r*2,r*2)}
+  ctx.restore()}
+ // weather
+ const w=S.weather;if(w==='rain'){ctx.strokeStyle='rgba(170,200,255,.6)';ctx.lineWidth=1;ctx.beginPath();for(let i=0;i<70;i++){const x=((i*97+T*260)%(cw+80))-40,y=((i*53+T*520)%(ch+40))-20;ctx.moveTo(x,y);ctx.lineTo(x-4,y+12)}ctx.stroke();ctx.fillStyle='rgba(60,80,120,.12)';ctx.fillRect(0,0,cw,ch)}
+ else if(w==='snow'){ctx.fillStyle='#fff';for(let i=0;i<60;i++){const x=((i*89+Math.sin(T+i)*30+T*20)%(cw+20)),y=((i*61+T*60)%(ch+20));ctx.fillRect(x,y,3,3)}ctx.fillStyle='rgba(220,235,255,.1)';ctx.fillRect(0,0,cw,ch)}
+ else if(w==='heat'){ctx.fillStyle='rgba(255,150,0,.1)';ctx.fillRect(0,0,cw,ch)}
+ else if(w==='wind'){ctx.globalAlpha=.7;for(let i=0;i<12;i++)em('🍂',((i*131+T*140)%(cw+60))-30,((i*71+T*40+Math.sin(T+i)*30)%ch),16);ctx.globalAlpha=1}
+ else if(w==='cloud'){ctx.fillStyle='rgba(90,100,120,.08)';ctx.fillRect(0,0,cw,ch)}
+}
+function drawMini(){if(!showMini||!S)return;mx.fillStyle='#223';mx.fillRect(0,0,140,140);const k=140/W;
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++){const g=S.g[idx(x,y)];let c=inReg(x,y)?'#6fb86a':'#355';if(g===1||g===7)c='#e6d3a3';else if(g===2)c=HAB[encById(S.ref[idx(x,y)])?.hab||0].col;else if(g===3)c='#e57';else if(g===4)c='#2d7a3a';else if(g===6)c='#4ab';else if(g===5)c='#889';mx.fillStyle=c;mx.fillRect(x*k,y*k,k+.5,k+.5)}
+ mx.fillStyle='#fff';for(const v of S.vis)mx.fillRect(v.x*k,v.y*k,2,2);
+ mx.strokeStyle='#ff0';mx.lineWidth=1.5;mx.strokeRect((cam.x-cw/2/cam.z)/TS*k,(cam.y-ch/2/cam.z)/TS*k,cw/cam.z/TS*k,ch/cam.z/TS*k)}
+function updFx(dt){for(let i=fx.pa.length-1;i>=0;i--){const p=fx.pa[i];p.t+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=120*dt;if(p.t>p.life)fx.pa.splice(i,1)}
+ for(let i=fx.fl.length-1;i>=0;i--){fx.fl[i].t+=dt;if(fx.fl[i].t>1.4)fx.fl.splice(i,1)}
+ if(fx.shake>0)fx.shake=Math.max(0,fx.shake-dt*14);
+ for(const k in fx.pop){fx.pop[k]-=dt;if(fx.pop[k]<=0)delete fx.pop[k]}
+ if(fx.slow<1)fx.slow=Math.min(1,fx.slow+dt*.5)}
+// ---------- pointer ----------
+const ptr=new Map();let pinch=null,moved=0;
+function tileAt(px,py){const[tx,ty]=w2t(px,py);return[Math.floor(tx),Math.floor(ty)]}
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+cv.addEventListener('pointerdown',e=>{if(!S)return;audioInit();cv.setPointerCapture(e.pointerId);ptr.set(e.pointerId,{x:e.clientX,y:e.clientY});moved=0;
+ if(ptr.size===2){const[a,b]=[...ptr.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y),z:cam.z,cx:(a.x+b.x)/2,cy:(a.y+b.y)/2};drag=null;return}
+ const[tx,ty]=tileAt(e.clientX,e.clientY);hover=[tx,ty];
+ const panBtn=e.button===1||e.button===2||tool.k==='sel'||tool.k==='pan';
+ drag={px:e.clientX,py:e.clientY,cx:cam.x,cy:cam.y,pan:panBtn,sx:tx,sy:ty,enc:!panBtn&&tool.k==='enc',path:!panBtn&&tool.k==='path',touch:e.pointerType==='touch'};
+ if(drag.path&&inReg(tx,ty))placePath(tx,ty)});
+cv.addEventListener('pointermove',e=>{if(!S)return;const p=ptr.get(e.pointerId);if(p){p.x=e.clientX;p.y=e.clientY}
+ const[tx,ty]=tileAt(e.clientX,e.clientY);hover=[tx,ty];
+ if(pinch&&ptr.size===2){const[a,b]=[...ptr.values()];const d=Math.hypot(a.x-b.x,a.y-b.y);setZoom(pinch.z*d/pinch.d,(a.x+b.x)/2,(a.y+b.y)/2);moved=99;return}
+ if(!drag)return;const dx=e.clientX-drag.px,dy=e.clientY-drag.py;moved=Math.max(moved,Math.hypot(dx,dy));
+ if(drag.pan&&(moved>5||drag.touch)){cam.x=drag.cx-dx/cam.z;cam.y=drag.cy-dy/cam.z;clampCam()}
+ else if(drag.path&&inReg(tx,ty)&&S.g[idx(tx,ty)]===0)placePath(tx,ty)});
+function endPtr(e){if(!S)return;ptr.delete(e.pointerId);if(pinch){if(ptr.size<2)pinch=null;if(!ptr.size)drag=null;return}
+ if(!drag)return;const d=drag;drag=null;const[tx,ty]=tileAt(e.clientX,e.clientY);
+ if(e.type==='pointercancel')return;
+ if(d.enc){const a=Math.min(d.sx,tx),c=Math.max(d.sx,tx),b=Math.min(d.sy,ty),dd=Math.max(d.sy,ty);if(a===c&&b===dd&&moved<6){toast('Drag across empty ground to draw a pen (min 3x3)')}else placeEnc(tool.h,a,b,c,dd);return}
+ if(moved>6)return;
+ mapClick(tx,ty,e)}
+cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endPtr);
+cv.addEventListener('wheel',e=>{e.preventDefault();setZoom(cam.z*(e.deltaY<0?1.12:.89),e.clientX,e.clientY)},{passive:false});
+function mapClick(tx,ty,e){if(tx<0||ty<0||tx>=W||ty>=H)return;const[wx,wy]=w2t(e.clientX,e.clientY);
+ if(S.lucky&&Math.abs(S.lucky.x-tx)<=0&&Math.abs(S.lucky.y-ty)<=0){const r=Math.round((30+Math.random()*100)*S.level*(S.mut==='tiny'?1.5:1));income(r);S.st.lucky++;S.lucky=null;floatT(tx+.5,ty,'+'+r,'#ffd54a',24);burst(tx+.5,ty+.5,['🪙','✨','⭐'],14,100);sfx.lucky();shake(3);if(S.st.lucky>=5)secret('coin5');checkAch();return}
+ if(tool.k==='bld'){placeBld(tool.t,tx,ty);return}
+ if(tool.k==='doze'){bulldoze(tx,ty);return}
+ if(tool.k==='path'&&S.g[idx(tx,ty)]!==0){}
+ if(tool.k!=='sel'&&tool.k!=='pan')return;
+ // animals tickle
+ for(const a of S.animals){if(Math.hypot(a.x-wx,a.y-wy)<.7){a.pop=.6;a.tk=(a.tk||0)+1;S.st.tickles++;sfx.animal(ANI[a.s].kind,ANI[a.s].h,.8);burst(a.x,a.y,['💖','😄','✨'],4,50);floatT(a.x,a.y-.4,pick(['Hehe!','Boop!','Yay!','Hi!','*wiggle*']),'#ffd6f0',14);a.mood=Math.min(100,a.mood+1);if(a.tk>=10){secret('tickle');a.tk=0}return}}
+ if(tx===GX&&ty===GY){S.st.gate++;floatT(GX+.5,GY-1,'Welcome!','#fff',16);sfx.click();if(S.st.gate>=3)secret('gate3');return}
+ const b=bldAt(tx,ty);if(b){if(b.t==='balloons'){S.st.balloons++;burst(tx+.5,ty+.5,['🎈','🎉'],8,70);sfx.pop();b.pop=.3;if(S.st.balloons>=5)secret('balloon')}openBld(b);return}
+ const en=encAt(tx,ty);if(en){openEnc(en);return}}
+
+// ---------- audio ----------
+let AU=null,mG,sG,musG,ambG,noiseBuf,muted=false,musicOn=true,sfxOn=true,beat=0,nextT=0,mood={i:0,night:false,wx:'sun'};
+try{muted=localStorage.getItem('sip_pet-park-zoo_mute')==='1';musicOn=localStorage.getItem('sip_pet-park-zoo_music')!=='0'}catch(e){}
+function audioInit(){if(AU){if(AU.state==='suspended')AU.resume();return}
+ try{AU=new(window.AudioContext||window.webkitAudioContext)();mG=AU.createGain();mG.gain.value=muted?0:.8;mG.connect(AU.destination);
+  sG=AU.createGain();sG.gain.value=.7;sG.connect(mG);musG=AU.createGain();musG.gain.value=musicOn?.2:0;musG.connect(mG);ambG=AU.createGain();ambG.gain.value=.05;ambG.connect(mG);
+  const n=AU.sampleRate*2;noiseBuf=AU.createBuffer(1,n,AU.sampleRate);const d=noiseBuf.getChannelData(0);let l=0;for(let i=0;i<n;i++){l=(l+.02*(Math.random()*2-1))/1.02;d[i]=l*3.5}
+  const src=AU.createBufferSource();src.buffer=noiseBuf;src.loop=true;const f=AU.createBiquadFilter();f.type='lowpass';f.frequency.value=700;src.connect(f);f.connect(ambG);src.start();
+  nextT=AU.currentTime+.2;setInterval(sched,100)}catch(e){AU=null}}
+function setMute(m){muted=m;try{localStorage.setItem('sip_pet-park-zoo_mute',m?'1':'0')}catch(e){}if(mG)mG.gain.value=m?0:.8}
+function setMusic(m){musicOn=m;try{localStorage.setItem('sip_pet-park-zoo_music',m?'1':'0')}catch(e){}if(musG)musG.gain.value=m?.2:0}
+function tone(f,d,type,v,t0,f2,dest){if(!AU||muted)return;const t=AU.currentTime+(t0||0);const o=AU.createOscillator(),g=AU.createGain();o.type=type||'sine';o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(Math.max(20,f2),t+d);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v||.15,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(dest||sG);o.start(t);o.stop(t+d+.05)}
+function noise(d,v,fq,t0,hp){if(!AU||muted||!noiseBuf)return;const t=AU.currentTime+(t0||0);const s=AU.createBufferSource();s.buffer=noiseBuf;const f=AU.createBiquadFilter();f.type=hp?'highpass':'bandpass';f.frequency.value=fq||2000;const g=AU.createGain();g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);s.connect(f);f.connect(g);g.connect(sG);s.start(t);s.stop(t+d+.05)}
+const NOTE=n=>440*Math.pow(2,(n-69)/12);
+const sfx={
+ click(){tone(700,.05,'square',.06)},err(){tone(200,.15,'sawtooth',.1,0,120)},
+ build(){noise(.12,.25,500);tone(160,.12,'square',.12,0,80);tone(520,.1,'triangle',.1,.08)},
+ coin(n){const f=NOTE(76+Math.min(14,n||0));tone(f,.08,'square',.07);tone(f*1.5,.2,'triangle',.09,.06)},
+ combo(){[0,4,7,12,16].forEach((s,i)=>tone(NOTE(72+s),.15,'triangle',.12,i*.05))},
+ up(l){[0,4,7].forEach((s,i)=>tone(NOTE(67+s+l*2),.14,'square',.08,i*.07))},
+ hire(){tone(500,.1,'triangle',.12);tone(750,.15,'triangle',.12,.1)},
+ ach(){[0,7,12].forEach((s,i)=>tone(NOTE(72+s),.2,'triangle',.12,i*.09))},
+ level(){[0,4,7,12,16,19,24].forEach((s,i)=>tone(NOTE(60+s),.3,'triangle',.14,i*.09));noise(.6,.1,3000,0,true)},
+ fanfare(){[0,0,7,4,7,12].forEach((s,i)=>tone(NOTE(64+s),.22,'square',.07,i*.11))},
+ secret(){[12,16,19,24,28].forEach((s,i)=>tone(NOTE(70+s),.16,'sine',.12,i*.06))},
+ sparkle(){for(let i=0;i<4;i++)tone(1500+i*400,.1,'sine',.06,i*.05)},
+ lucky(){for(let i=0;i<6;i++)tone(NOTE(76+i*2),.12,'triangle',.1,i*.05)},
+ baby(){tone(900,.1,'sine',.12,0,1400);tone(1200,.12,'sine',.12,.12,1700)},
+ pop(){noise(.08,.3,1200);tone(900,.06,'square',.1,0,300)},
+ rooster(){tone(500,.2,'sawtooth',.06,0,800);tone(700,.3,'sawtooth',.06,.25,500)},
+ quack(){tone(420,.12,'sawtooth',.1,0,300);tone(400,.1,'sawtooth',.1,.15,280)},
+ animal(k,h,vol){vol=vol||1;const v=.1*vol;if(h===7){for(let i=0;i<3;i++)tone(NOTE(84+i*4),.15,'sine',v*.8,i*.07);return}
+  if(h===4){tone(900,.1,'sine',v,0,1500);tone(1300,.12,'sine',v,.12,800);return}
+  switch(k){case 0:tone(130,.45,'sawtooth',v,0,70);break;case 1:for(let i=0;i<3;i++)tone(1800+i*200,.07,'sine',v,i*.1,2400);break;case 2:tone(210,.5,'triangle',v*1.4,0,150);break;case 3:tone(900,.08,'square',v*.6,0,1200);tone(950,.08,'square',v*.6,.12,1300);break;default:tone(400,.2,'sine',v,0,700)}}};
+const CH=[[48,52,55],[45,48,52],[41,45,48],[43,47,50]];
+function sched(){if(!AU||AU.state!=='running'||muted||!musicOn)return;const bl=(mood.night?.62:.5-mood.i*.1);
+ while(nextT<AU.currentTime+.4){const b=beat++,ch=CH[((b/8)|0)%4];const t=nextT-AU.currentTime;
+  if(b%4===0){tone(NOTE(ch[0]-12),bl*3.5,'triangle',.5,t,undefined,musG)}
+  if(b%2===0&&!mood.night){tone(NOTE(ch[(b/2|0)%3]+12),bl*.8,'sine',.35,t,undefined,musG)}
+  const pm=mood.night?.25:.5+mood.i*.3;if(Math.random()<pm){const sc=[0,2,4,7,9];const n=ch[0]+24+sc[(Math.random()*5)|0];tone(NOTE(n),bl*1.2,mood.night?'sine':'triangle',.28,t+bl*.5*(Math.random()<.4?1:0),undefined,musG)}
+  if(mood.i>.5&&b%2===1){noise(.04,.12,7000,t,true)}
+  if(mood.i>.8&&b%4===2)tone(NOTE(ch[2]+19),bl*.5,'square',.1,t,undefined,musG);
+  if(!mood.night&&Math.random()<.05)tone(2200+Math.random()*800,.1,'sine',.04,t,3000,ambG);
+  nextT+=bl}
+ if(ambG)ambG.gain.value=mood.wx==='rain'?.12:mood.wx==='wind'?.09:.04}
+function musicMood(){if(!S)return;mood.i=clamp(S.vis.length/45+(S.combo>2?.3:0)+(S.ev&&S.ev.done?.3:0),0,1);mood.night=nightA()>.3;mood.wx=S.weather}
+
+// ---------- UI ----------
+let win=null,mb=1,menuCat=null,adoptHab=-1,started=false;
+function modal(h){$('mb').innerHTML=h;$('modal').style.display='flex'}
+function closeModal(){$('modal').style.display='none';if(mgTimer){clearInterval(mgTimer);mgTimer=null}}
+function ask(msg,yes){modal('<p style="font-size:17px">'+msg+'</p><button class="big" id="ay">Yes</button> <button class="big" onclick="closeModal()">No</button>');$('ay').onclick=()=>{closeModal();yes()}}
+const fmt=n=>n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e4?(n/1e3).toFixed(1)+'k':Math.round(n)+'';
+const face=m=>m>80?'😍':m>60?'😊':m>40?'😐':m>25?'😟':'😢';
+const bar=(v,c)=>'<div class="meter"><i style="width:'+clamp(v,0,100)+'%;background:'+(c||(v>60?'#4caf50':v>30?'#ffb300':'#e53935'))+'"></i></div>';
+function buildTop(){$('top').innerHTML='<span class="st" id="sCoin"></span><span class="st" id="sStar"></span><span class="st" id="sVis"></span><span class="st" id="sTime" style="cursor:pointer"></span><span class="sp"></span><button id="bPause">⏸</button><button data-s="1" class="on">1x</button><button data-s="2">2x</button><button data-s="3">3x</button><button id="bSkip" style="display:none">⏭ Skip night</button><button id="bMute">🔊</button><button id="bMap">🗺️ MAP</button>';
+ $('top').onclick=e=>{const b=e.target.closest('button');if(e.target.id==='sTime'){S.st.clock=(S.st.clock||0)+1;sfx.click();if(S.st.clock>=5)secret('clock5');return}if(!b)return;audioInit();
+  if(b.dataset.s){S.speed=+b.dataset.s;sfx.click()}else if(b.id==='bPause')togglePause();else if(b.id==='bSkip')skipNight();else if(b.id==='bMute')toggleMute();else if(b.id==='bMap')toggleMini();updTop()}}
+function togglePause(){S.paused=!S.paused;if(S.paused){S.st.pauses++;if(S.st.pauses>=10)secret('pause10')}sfx.click()}
+function toggleMute(){setMute(!muted);S.st.mutes++;if(S.st.mutes>=7)secret('mute7');updTop()}
+function toggleMini(){showMini=!showMini;mini.style.display=showMini?'block':'none'}
+mini.addEventListener('pointerdown',e=>{const r=mini.getBoundingClientRect();cam.x=(e.clientX-r.left)/140*W*TS;cam.y=(e.clientY-r.top)/140*H*TS;clampCam();e.stopPropagation()});
+function updTop(){if(!S)return;const lv=starVal();
+ $('sCoin').textContent='🪙 '+(S.diff==='sandbox'?'∞ ('+fmt(S.money)+')':fmt(S.money))+(S.money<0?' ⚠️':'');
+ $('sStar').textContent='⭐'.repeat(S.level)+'☆'.repeat(5-S.level)+' '+(lv%1?'+'+Math.round(lv%1*100)+'%':'');
+ $('sVis').textContent='🙂 '+S.vis.length+' guests';
+ const h=Math.floor(S.hour),m=Math.floor((S.hour-h)*60);$('sTime').textContent=SEI[S.season]+' Day '+S.day+' '+String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+' '+(WXN[S.weather]||'')+(S.paused?' ⏸ PAUSED':'')+(S.ev?' '+EVN[S.ev.id][0]:'');
+ for(const b of $('top').querySelectorAll('button[data-s]'))b.classList.toggle('on',+b.dataset.s===S.speed);
+ $('bPause').textContent=S.paused?'▶':'⏸';$('bMute').textContent=muted?'🔇':'🔊';$('bMap').classList.toggle('on',showMini);
+ $('bSkip').style.display=(S.hour>=20||S.hour<6)?'':'none';
+ const tb=$('top').offsetHeight+4;$('goal').style.top=tb+'px';$('alerts').style.top=tb+'px';const g=curGoal();$('goal').innerHTML=g?'🎯 <b>Next goal:</b> '+g[0]+'<div class="bar"><i style="width:'+Math.min(100,(g[3]()/g[4])*100)+'%"></i></div><small>Reward: '+g[2]+' coins</small>':'🎯 All goals done! You are a Zoo Legend. Keep collecting!';
+ const al=computeAlerts();$('alerts').innerHTML=al.map((a,i)=>'<div class="chip" data-i="'+i+'">'+a.t+'</div>').join('');S._al=al}
+$('alerts').onclick=e=>{const c=e.target.closest('.chip');if(!c||!S._al)return;const a=S._al[+c.dataset.i];if(a.p)openWin(a.p);else if(a.e){const en=encById(a.e);if(en){cam.x=(en.x0+en.x1+1)/2*TS;cam.y=(en.y0+en.y1+1)/2*TS;openEnc(en)}}};
+function buildBar(){let h='<button data-t="sel" class="on">✋ Look</button>';for(const c of CATS)h+='<button data-c="'+c[0]+'">'+c[1]+' '+c[2]+'</button>';
+ h+='<button data-t="doze">🚜 Bulldoze</button><span style="color:#fff">|</span>';
+ [['animals','🐾 Animals'],['staff','👷 Staff'],['research','🔬 Research'],['store','📦 Store'],['finance','💰 Money'],['book','📖 Book'],['awards','🏆 Awards'],['wardrobe','🎩 Wardrobe'],['mg','🎯 Treat Rush'],['settings','⚙️']].forEach(x=>h+='<button data-w="'+x[0]+'">'+x[1]+'</button>');
+ $('bar').innerHTML=h;
+ $('bar').onclick=e=>{const b=e.target.closest('button');if(!b)return;audioInit();sfx.click();
+  if(b.dataset.t){setTool({k:b.dataset.t});closeMenu()}else if(b.dataset.c){menuCat===b.dataset.c?closeMenu():openMenu(b.dataset.c)}else if(b.dataset.w){b.dataset.w==='mg'?treatRush():openWin(b.dataset.w)}}}
+function setTool(t){tool=t;for(const b of $('bar').querySelectorAll('button[data-t]'))b.classList.toggle('on',b.dataset.t===t.k||(t.k==='pan'&&false));if(t.k==='sel')for(const b of $('bar').querySelectorAll('[data-c]'))b.classList.remove('on')}
+function closeMenu(){menuCat=null;$('menu').style.display='none';for(const b of $('bar').querySelectorAll('[data-c]'))b.classList.remove('on')}
+function openMenu(c){menuCat=c;closeWin();for(const b of $('bar').querySelectorAll('button'))b.classList.toggle('on',b.dataset.c===c);let h='';
+ if(c==='path')h='<div class="card sel" data-k="path"><div class="e">🛤️</div><b>Path</b><br>'+Math.max(1,Math.round(5*cm()))+' coins<br>Drag to draw</div>';
+ else if(c==='hab')HAB.forEach((x,i)=>{const lk=x.star>gate()||(i===7&&!has('magic')&&S.diff!=='sandbox');h+='<div class="card'+(lk?' lock':'')+'" data-k="enc" data-h="'+i+'"><div class="e">'+x.e+'</div><b>'+x.n+'</b><br>'+Math.round(x.cost*cm())+'/tile<br>'+(lk?(x.star>gate()?'🔒 '+x.star+'★':'🔒 Research'):'Drag a box')+'</div>'});
+ else for(const k in BT){const t=BT[k];if(t.cat!==c)continue;const lk=t.star>gate();h+='<div class="card'+(lk?' lock':'')+'" data-k="bld" data-t="'+k+'"><div class="e">'+t.e+'</div><b>'+t.n+'</b><br>'+costB(k)+' coins<br><small>'+(lk?'🔒 '+t.star+'★':t.d)+'</small></div>'}
+ $('menu').innerHTML=h;$('menu').style.display='flex';
+ $('menu').onclick=e=>{const d=e.target.closest('.card');if(!d)return;sfx.click();const k=d.dataset.k;if(d.classList.contains('lock')){toast('Not unlocked yet','warn');return}
+  for(const x of $('menu').children)x.classList.remove('sel');d.classList.add('sel');
+  if(k==='path')tool={k:'path'};else if(k==='enc')tool={k:'enc',h:+d.dataset.h};else tool={k:'bld',t:d.dataset.t};
+  toast(k==='enc'?'Drag a box on empty grass next to a path':k==='path'?'Drag to draw paths':'Tap the map to place')}}
+function closeWin(){win=null;$('win').classList.remove('show');setTimeout(()=>{if(!win)$('win').style.display='none'},180)}
+$('wx').onclick=closeWin;
+function openWin(n,arg){closeMenu();setTool({k:'sel'});win={n,arg};$('win').style.display='flex';requestAnimationFrame(()=>$('win').classList.add('show'));renderWin()}
+function openEnc(e){openWin('enc',e.id)}function openBld(b){openWin('bld',b.id)}
+const TTL={enc:'🏞️ Pen',bld:'🏗️ Building',animals:'🐾 All Animals',staff:'👷 Staff',research:'🔬 Research',store:'📦 Supply Store',finance:'💰 Money',book:'📖 Animal Book',awards:'🏆 Awards & Secrets',wardrobe:'🎩 Wardrobe',settings:'⚙️ Settings'};
+function renderWin(){if(!win||!S)return;$('wt').textContent=TTL[win.n]||'';const h=WIN[win.n]?WIN[win.n](win.arg):'';$('wb').innerHTML=h}
+const mbBtn=()=>'<span>Buy: </span>'+[[1,'x1'],[3,'x3'],[99,'Max']].map(x=>'<button data-a="mb" data-v="'+x[0]+'"'+(mb===x[0]?' class="on"':'')+'>'+x[1]+'</button>').join('');
+const upRow=(label,lv,max,cost,key,id)=>'<div class="row"><b style="width:110px">'+label+' '+lv+'/'+max+'</b>'+bar(lv/max*100,'#42a5f5')+(lv<max?'<button data-a="encup" data-k="'+key+'" data-id="'+id+'">Upgrade '+cost+' 🪙</button>':'<b>MAX</b>')+'</div>';
+function encUpCost(e,k){const lv=e[k];return Math.round((k==='water'?60:k==='toy'?80:k==='decor'?70:100)*(k==='fence'?lv:lv+1)*cm())}
+const encMax={water:3,toy:5,decor:5,fence:5};
+const WIN={
+enc(id){const e=encById(id);if(!e)return'<p>Pen gone.</p>';encCalc(e);const H0=HAB[e.hab];
+ let h='<div class="row"><span style="font-size:30px">'+H0.e+'</span><input id="rn" value="'+e.name.replace(/"/g,'')+'" maxlength="20" style="font-size:16px;padding:4px"><button data-a="renenc" data-id="'+e.id+'">Rename</button></div>';
+ h+='<div class="row">Space '+bar(e.spaceScore)+' <small>'+e.use.toFixed(1)+' for '+e.need.toFixed(1)+' needed</small></div><div class="row">Feed '+bar(e.feed/e.fcap*100,'#8bc34a')+'<small>'+Math.floor(e.feed)+'/'+e.fcap+'</small> Clean '+bar(100-e.dirt)+'</div>';
+ if(!accE(e).length)h+='<div class="chip">Needs a path touching its fence so guests and staff can reach it!</div>';
+ h+='<div class="row">'+mbBtn()+'</div>';
+ for(const k of['water','toy','decor','fence'])h+=upRow({water:'💧 Water',toy:'🧸 Toys',decor:'🌿 Decor',fence:'🧱 Fence'}[k],e[k],encMax[k],encUpCost(e,k),k,e.id);
+ h+='<h3>Animals ('+e.an.length+')</h3>';
+ for(const a of e.an){const sp=ANI[a.s];h+='<div class="row">'+(a.gold?'✨':'')+'<span style="font-size:24px">'+sp.e+'</span><b>'+a.name+'</b><small>'+sp.n+(a.baby?' (baby)':'')+(sp.h!==e.hab?' ⚠ wrong habitat':'')+'</small> '+face(a.mood)+bar(a.mood)+'<small>🍽'+Math.round(a.food)+' ❤'+Math.round(a.health)+'</small><button data-a="hat" data-id="'+a.id+'">'+(HATS[a.hat][0]||'🎩')+'</button><button data-a="nm" data-id="'+a.id+'">✏️</button><button data-a="sella" data-id="'+a.id+'">Sell</button></div>'}
+ h+='<h3>Adopt a friend</h3><div class="tabs">'+HAB.map((x,i)=>'<button data-a="ah" data-v="'+i+'"'+((adoptHab<0?e.hab:adoptHab)===i?' class="on"':'')+'>'+x.e+'</button>').join('')+'</div><div class="grid">';
+ const ah=adoptHab<0?e.hab:adoptHab;
+ for(const sp of ANI){if(sp.h!==ah)continue;const lk=sp.star>gate();h+='<div class="tile'+(lk?' no':'')+'"><div class="e">'+sp.e+'</div><b>'+sp.n+'</b><br>'+adoptCost(sp.id)+' 🪙 · '+sp.star+'★<br><small>space '+sp.sp+(sp.soc?' · likes friends':'')+'</small><br>'+(lk?'🔒':'<button data-a="adopt" data-id="'+e.id+'" data-s="'+sp.id+'">Adopt</button>')+'</div>'}
+ return h+'</div>'},
+bld(id){const b=S.blds.find(x=>x.id===id);if(!b)return'<p>Gone.</p>';const T0=BT[b.t];
+ let h='<div class="row"><span style="font-size:36px">'+T0.e+'</span><div><b>'+T0.n+'</b> level '+b.lv+'<br><small>'+T0.d+'</small></div></div>';
+ if(T0.price)h+='<p>Earned so far: '+Math.round(b.earn)+' 🪙 · serves '+capB(b)+' at once</p>';
+ if(T0.kind==='staff')h+='<p>Staff places in total: '+staffCap()+'</p>';if(T0.kind==='lab')h+='<p>Research speed grows with level.</p>';
+ if(!T0.deco&&!accB(b).length&&T0.cap)h+='<div class="chip">Needs a path right next to it.</div>';
+ if(!T0.deco){h+='<div class="row">'+mbBtn()+'</div>';h+=b.lv<3?'<button data-a="bup" data-id="'+b.id+'">Upgrade to level '+(b.lv+1)+' - '+upgCost(b)+' 🪙</button> ':'<b>MAX LEVEL</b> '}
+ return h+'<button data-a="bsell" data-id="'+b.id+'">Sell for '+sellValue(b)+' 🪙</button>'},
+animals(){if(!S.animals.length)return'<p>No animals yet. Tap a pen and adopt one!</p>';let h='<table><tr><th></th><th>Name</th><th>Pen</th><th>Mood</th><th></th></tr>';
+ for(const a of S.animals){const sp=ANI[a.s],e=encById(a.e);h+='<tr><td style="font-size:22px">'+sp.e+'</td><td>'+(a.gold?'✨':'')+a.name+'<br><small>'+sp.n+'</small></td><td><small>'+(e?e.name:'')+'</small></td><td>'+face(a.mood)+Math.round(a.mood)+'%</td><td><button data-a="goenc" data-id="'+a.e+'">Go</button></td></tr>'}
+ return h+'</table>'},
+staff(){let h='<p>Staff places: '+S.staff.length+'/'+staffCap()+' · Wages are paid each morning.</p><div class="grid">';
+ for(const k in STAFF){const t=STAFF[k];h+='<div class="tile"><div class="e">'+t.e+'</div><b>'+t.n+'</b><br><small>'+t.d+'</small><br>Wage '+t.wage+'/day<br><button data-a="hire" data-k="'+k+'">Hire '+Math.round(100*cm())+' 🪙</button></div>'}
+ h+='</div><h3>Your team</h3>';if(!S.staff.length)h+='<p>Nobody yet. Hire a keeper to feed the animals!</p>';
+ for(const s of S.staff){const opts='<option value="0">Anywhere</option>'+S.encs.map(e=>'<option value="'+e.id+'"'+(s.as===e.id?' selected':'')+'>'+e.name+'</option>').join('');
+  h+='<div class="row"><span style="font-size:24px">'+STAFF[s.type].e+'</span><b>'+s.name+'</b> '+STAFF[s.type].n+' '+(s.noPath?'❓ cannot reach':s.noTask?'💤 nothing to do':s.st==='work'?'🔧 working':s.st==='walk'?'🚶 walking':'')+(s.type!=='guide'?' <select data-a="assign" data-id="'+s.id+'">'+opts+'</select>':'')+'<button data-a="fire" data-id="'+s.id+'">Say goodbye</button></div>'}
+ return h},
+research(){let labs=0;for(const b of S.blds)if(b.t==='lab')labs+=b.lv;let h='<p>'+(labs?'Lab power: '+labs+' (build or upgrade labs to go faster)':'Build a Research Lab (Facilities, needs 2 stars) to start!')+'</p><div class="grid">';
+ for(const r of RES){const done=S.res.done[r[0]],cur=S.res.cur===r[0],ok=r[4].every(q=>S.res.done[q]);h+='<div class="tile'+(done?' gold':ok?'':' no')+'"><b>'+r[1]+'</b><br><small>'+r[2]+'</small><br>'+(done?'✅ Done':cur?'⏳ '+Math.floor(S.res.prog)+'/'+r[3]:ok?'<button data-a="res" data-id="'+r[0]+'">Research '+r[3]+' pts</button>':'<small>Needs '+r[4].map(q=>RES.find(z=>z[0]===q)[1]).join(', ')+'</small>')+'</div>'}
+ return h+'</div>'},
+store(){let h='<p>Stock supplies so keepers and stalls keep working. Selling back gives half.</p><div class="row">Auto-restock keeps things topped up for you.</div><table>';
+ for(const k in SUP){const t=SUP[k],a=S.auto[k];h+='<tr><td style="font-size:24px">'+t.e+'</td><td><b>'+t.n+'</b><br><small>'+storePrice(k)+' 🪙 each</small></td><td><b>'+Math.floor(S.sup[k])+'</b> in stock</td><td><button data-a="buy" data-k="'+k+'" data-n="1">+1</button><button data-a="buy" data-k="'+k+'" data-n="10">+10</button><button data-a="buy" data-k="'+k+'" data-n="50">+50</button><button data-a="sell" data-k="'+k+'" data-n="10">sell 10</button></td><td><label><input type="checkbox" data-a="auto" data-k="'+k+'"'+(a[0]?' checked':'')+'> auto to '+a[1]+'</label></td></tr>'}
+ return h+'</table>'},
+finance(){let h='<div class="row"><b>🎟️ Ticket price: <span id="tp">'+S.ticket+'</span></b><input type="range" min="0" max="50" value="'+S.ticket+'" data-a="ticket" style="flex:1"></div><p><small>Cheap tickets bring more guests, pricey tickets earn more per guest.</small></p>';
+ h+='<p>Today: in <b>'+S.dIn+'</b> · out <b>'+S.dOut+'</b><br>Yesterday wages '+(S.lastW||0)+' · upkeep '+(S.lastU||0)+'</p><div style="display:flex;gap:3px;align-items:flex-end;height:70px">';
+ const mx2=Math.max(100,...S.hist.map(x=>Math.max(x.i,x.o)));for(const d of S.hist)h+='<div style="flex:1;display:flex;gap:1px;align-items:flex-end;height:70px"><i style="flex:1;background:#4caf50;height:'+d.i/mx2*100+'%"></i><i style="flex:1;background:#e57373;height:'+d.o/mx2*100+'%"></i></div>';
+ h+='</div><small>green = income, red = costs (last days)</small><h3>🏦 Friendly Bank</h3><p>Loan: <b>'+S.loan+'</b> (tiny daily interest)</p><button data-a="loan" data-n="2000">Borrow 2000</button> <button data-a="loan" data-n="5000">Borrow 5000</button> <button data-a="repay" data-n="1000">Repay 1000</button> <button data-a="repay" data-n="99999">Repay all</button>';
+ return h},
+book(){const n=Object.keys(S.book).length;let h='<p><b>'+n+' / '+ANI.length+'</b> animals discovered · '+Object.keys(S.gold).length+' golden ✨</p>';
+ HAB.forEach((x,hi)=>{const l=ANI.filter(a=>a.h===hi),c=l.filter(a=>S.book[a.id]).length;h+='<h3>'+x.e+' '+x.n+' '+c+'/'+l.length+(c===l.length?' ✅':'')+'</h3><div class="grid">'+l.map(a=>'<div class="tile'+(S.book[a.id]?(S.gold[a.id]?' gold':''):' no')+'"><div class="e">'+(S.book[a.id]?a.e:'❓')+'</div><b>'+(S.book[a.id]?a.n:'???')+'</b><br><small>'+(S.book[a.id]?'x'+S.book[a.id]+(S.gold[a.id]?' ✨':'')+' · '+a.star+'★':'Unlock at '+a.star+'★')+'</small></div>').join('')+'</div>'});return h},
+awards(){const n=Object.keys(S.ach).length;let h='<p>Title: <b>'+TITLES[S.title||0]+'</b> · '+n+' / '+AC.length+' trophies</p><div class="grid">'+AC.map(a=>'<div class="tile'+(S.ach[a.id]?' gold':' no')+'"><div class="e">'+a.i+'</div><b>'+a.n+'</b><br><small>'+a.d+'</small></div>').join('')+'</div>';
+ h+='<h3>🤫 Secrets ('+Object.keys(S.sec).length+'/'+SECRETS.length+')</h3><div class="grid">'+SECRETS.map(s=>'<div class="tile'+(S.sec[s[0]]?' gold':' no')+'"><div class="e">'+(S.sec[s[0]]?'🤫':'❓')+'</div><b>'+(S.sec[s[0]]?s[1]:'???')+'</b><br><small>'+(S.sec[s[0]]?s[2]:'Keep exploring!')+'</small></div>').join('')+'</div>';return h},
+wardrobe(){let h='<p>Hats appear on animals (open a pen, tap the hat button). Unlock more by playing!</p><div class="grid">'+HATS.map((x,i)=>'<div class="tile'+(hatOK(i)?'':' no')+'"><div class="e">'+(x[0]||'—')+'</div><b>'+x[1]+'</b><br><small>'+(hatOK(i)?'Unlocked':'Locked: '+reqName(HATREQ[i]))+'</small></div>').join('')+'</div><h3>🎨 Zoo themes</h3><div class="grid">'+THEMES.map((x,i)=>'<div class="tile'+(themeOK(i)?'':' no')+'" style="background:'+x[1]+'"><b>'+x[0]+'</b><br>'+(themeOK(i)?'<button data-a="theme" data-v="'+i+'"'+(S.theme===i?' class="on"':'')+'>'+(S.theme===i?'Using':'Use')+'</button>':'<small>Locked: '+reqName(x[3])+'</small>')+'</div>').join('')+'</div>';return h},
+settings(){return'<div class="row"><button data-a="snd">'+(muted?'🔇 Sound off':'🔊 Sound on')+'</button><button data-a="mus">'+(musicOn?'🎵 Music on':'🎵 Music off')+'</button></div><div class="row"><button data-a="save">💾 Save now</button><button data-a="title">🏠 Title screen</button></div><p><small>Difficulty: '+D.n+' · Twist: '+(MUT.find(m=>m[0]===S.mut)||MUT[0])[1]+'. Zoo saves itself every few seconds.</small></p><p><b>Keys:</b> WASD/arrows move · +/- zoom · P pause · 1 2 3 speed · M mute · N minimap · B build menu · Esc close. Drag with mouse or finger to look around; pinch to zoom.</p><p>Hint: there might be secrets hidden everywhere... 🤫</p>'}};
+function reqName(r){if(!r)return'';if(r.startsWith('secret_'))return'a secret';const a=AC.find(x=>x.id===r);return a?a.n:r}
+$('wb').addEventListener('input',e=>{const t=e.target;if(t.dataset.a==='ticket'){S.ticket=+t.value;$('tp').textContent=S.ticket;if(S.ticket===0)secret('freeday');if(S.ticket>=50)secret('greedy')}});
+$('wb').addEventListener('change',e=>{const t=e.target;if(t.dataset.a==='assign'){const s=S.staff.find(x=>x.id==+t.dataset.id);if(s)s.as=+t.value;sfx.click()}else if(t.dataset.a==='auto'){S.auto[t.dataset.k][0]=t.checked?1:0}});
+$('wb').addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.tagName==='INPUT'||t.tagName==='SELECT')return;audioInit();const a=t.dataset.a,d=t.dataset;
+ if(a==='mb')mb=+d.v;
+ else if(a==='encup'){const en=encById(+d.id);let n=0;while(n<mb&&en[d.k]<encMax[d.k]){const c=encUpCost(en,d.k);if(!canPay(c)){if(!n)noMoney();break}spend(c);en[d.k]++;n++}if(n){sfx.up(en[d.k]);shake(2);burst((en.x0+en.x1)/2+.5,(en.y0+en.y1)/2+.5,['⬆️','✨'],10,70);floatT((en.x0+en.x1)/2+.5,en.y0,{water:'💧',toy:'🧸',decor:'🌿',fence:'🧱'}[d.k]+' +'+n,'#ffe36b',18);S.hatU.first=S.hatU.first}}
+ else if(a==='renenc'){const en=encById(+d.id);const v=$('rn').value.trim();if(v){en.name=v;sfx.click()}}
+ else if(a==='hat'){const an=S.animals.find(x=>x.id==+d.id);let i=an.hat;for(let k=0;k<HATS.length;k++){i=(i+1)%HATS.length;if(hatOK(i))break}an.hat=i;an.pop=.5;if(i){S.st.hats++;sfx.pop();burst(an.x,an.y,['🎩','✨'],5,50);if(ANI[an.s].n==='Dragon')secret('hatdragon')}checkAch()}
+ else if(a==='nm'){const an=S.animals.find(x=>x.id==+d.id);modal('<h3>Rename '+an.name+'</h3><input id="nmi" value="'+an.name+'" maxlength="14" style="font-size:18px;padding:6px"> <button class="big" id="nmo">OK</button>');$('nmo').onclick=()=>{const v=$('nmi').value.trim().slice(0,14);if(v){an.name=v;if(/^bob$/i.test(v))secret('bob');if(/^sir /i.test(v))secret('sirname')}closeModal();renderWin()}}
+ else if(a==='sella'){const an=S.animals.find(x=>x.id==+d.id);ask('Say goodbye to '+an.name+' for '+Math.round(adoptCost(an.s)*.5)+' coins? They go to a lovely farm.',()=>{sellAnimal(an);renderWin()})}
+ else if(a==='ah')adoptHab=+d.v;
+ else if(a==='adopt'){const en=encById(+d.id);adopt(en,+d.s)}
+ else if(a==='bup'){upgradeBld(S.blds.find(x=>x.id==+d.id),mb)}
+ else if(a==='bsell'){const b=S.blds.find(x=>x.id==+d.id);ask('Sell '+BT[b.t].n+'?',()=>{sellBld(b);closeWin()});return}
+ else if(a==='goenc'){const en=encById(+d.id);cam.x=(en.x0+en.x1+1)/2*TS;cam.y=(en.y0+en.y1+1)/2*TS;openEnc(en);return}
+ else if(a==='hire'){hireStaff(d.k)}
+ else if(a==='fire'){const s=S.staff.find(x=>x.id==+d.id);S.staff=S.staff.filter(x=>x!==s);sfx.click()}
+ else if(a==='res'){S.res.cur=d.id;S.res.prog=0;sfx.click()}
+ else if(a==='buy'){if(buySup(d.k,+d.n)&&d.k==='feed')S.st.fedOnce=1}
+ else if(a==='sell')sellSup(d.k,+d.n);
+ else if(a==='loan')takeLoan(+d.n);else if(a==='repay')repay(+d.n);
+ else if(a==='theme'){S.theme=+d.v;sfx.click()}
+ else if(a==='snd')toggleMute();else if(a==='mus'){setMusic(!musicOn)}
+ else if(a==='save'){save();toast('Saved!','good')}
+ else if(a==='title'){save();showTitle()}
+ renderWin();updTop()});
+setInterval(()=>{if(win&&S&&!['INPUT','SELECT'].includes((document.activeElement||{}).tagName)&&['enc','bld','animals','research','store','staff'].includes(win.n))renderWin()},2000);
+// ---------- minigame ----------
+let mgTimer=null;
+function treatRush(){closeWin();closeMenu();setTool({k:'sel'});let score=0,combo=0,t=12,miss=0;modal('<h3>🎯 Treat Rush!</h3><p>Tap the treats before they pop! Golden ones are worth more. Chain taps for a combo!</p><div id="mga" style="position:relative;width:min(320px,80vw);height:220px;background:#cdeccd;border-radius:12px;overflow:hidden;margin:auto"></div><p id="mgs"><b>Score 0</b> · Time 12</p><button onclick="closeModal()">Close</button>');
+ const arena=$('mga');S.st.mg=(S.st.mg||0)+1;sfx.fanfare();
+ const spawn=()=>{const d=document.createElement('div');const gold=Math.random()<.15;d.textContent=gold?'🍩':pick(['🥕','🍎','🍌','🍓','🥜','🐟']);d.style.cssText='position:absolute;font-size:34px;cursor:pointer;transition:transform .15s;left:'+Math.random()*80+'%;top:'+Math.random()*75+'%;'+(gold?'filter:drop-shadow(0 0 8px gold)':'');
+  d.onpointerdown=ev=>{ev.stopPropagation();combo++;const p=(gold?5:1)*Math.min(5,1+(combo>>2));score+=p;d.textContent='+'+p;d.style.transform='scale(1.6)';d.onpointerdown=null;sfx.coin(Math.min(combo,14));setTimeout(()=>d.remove(),200);missed=0;};
+  arena.appendChild(d);setTimeout(()=>{if(d.parentNode&&d.onpointerdown){combo=0;d.remove()}},1500)};
+ let missed=0;
+ mgTimer=setInterval(()=>{t-=.4;if(Math.random()<.9)spawn();const s=$('mgs');if(!s){clearInterval(mgTimer);return}s.innerHTML='<b>Score '+score+'</b> · Combo '+combo+' · Time '+Math.max(0,Math.ceil(t));
+  if(t<=0){clearInterval(mgTimer);mgTimer=null;const r=Math.round(score*4*S.level*(S.mut==='tiny'?1.5:1));income(r);sfx.level();confetti(10);arena.innerHTML='<div style="padding-top:70px;font-size:26px">🎉 Great job!<br>+'+r+' coins</div>';s.innerHTML='Final score <b>'+score+'</b>';checkAch()}},400)}
+// ---------- title ----------
+let selDiff='medium',selMut='none';
+function showTitle(){started=false;S&&(S.paused=true);const t=$('title');t.style.display='flex';closeWin();closeMenu();
+ const pets=['🦁','🐘','🐧','🐼','🦄','🐬','🐪','🐄'].map((e,i)=>'<span style="animation-delay:'+i*.15+'s">'+e+'</span>').join('');
+ t.innerHTML='<div class="pets">'+pets+'</div><h1>Pet Park Zoo</h1><div style="font-size:20px;font-weight:700;opacity:.9">S.I.P. Arcade</div>'+
+ (hasSave()?'<button class="big" id="tCont">▶ Continue</button>':'')+'<button class="big" id="tNew">✨ New Zoo</button><button id="tHow">❓ How to play</button><div style="opacity:.8;font-size:13px">Build pens, adopt cute animals, make guests smile!</div>';
+ $('tCont')&&($('tCont').onclick=()=>{audioInit();if(loadSave()){startPlay()}else toast('No save found')});
+ $('tNew').onclick=()=>{audioInit();newMenu()};
+ $('tHow').onclick=()=>modal('<h3>How to play</h3><p>1. Pet a chicken to begin!<br>2. Draw pens (Habitats) next to paths.<br>3. Adopt animals, hire keepers, buy feed.<br>4. Build food, toilets and gift shops.<br>5. Happy guests raise your stars and unlock new animals!<br><br>Follow the yellow Next Goal box. Tap the glowing coins. Look for secrets 🤫</p><button class="big" onclick="closeModal()">Got it</button>')}
+function newMenu(){const t=$('title');
+ const dBtns=['easy','medium','hard','sandbox'].map(k=>'<button class="big'+(selDiff===k?' on':'')+'" data-d="'+k+'">'+DIFF[k].n+'</button>').join(' ');
+ const mBtns=MUT.map(m=>'<button class="'+(selMut===m[0]?'on':'')+'" data-m="'+m[0]+'" title="'+m[2]+'">'+m[1]+'</button>').join(' ');
+ t.innerHTML='<h1 style="font-size:40px">New Zoo</h1><div>Difficulty<br>'+dBtns+'</div><div style="max-width:560px">Twist (optional)<br>'+mBtns+'<br><small id="mtx">'+MUT.find(m=>m[0]===selMut)[2]+'</small></div><small>Easy: lots of coins and calm animals. Hard: tighter coins, more golden surprises. Sandbox: free play.</small><button class="big on" id="tGo">🐾 Start!</button><button id="tBack">Back</button>';
+ t.onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.d){selDiff=b.dataset.d;newMenu()}else if(b.dataset.m){selMut=b.dataset.m;newMenu()}else if(b.id==='tGo')startNew();else if(b.id==='tBack')showTitle()}}
+function starterPen(){const e=placeEnc.call(null,3,21,27,24,30);if(!e)return;const a=newAnimal(ANI.find(x=>x.n==='Chicken').id,e,false),b=newAnimal(ANI.find(x=>x.n==='Duck').id,e,false);a.sex=0;b.sex=1;for(const q of[a,b]){S.animals.push(q);e.an.push(q);S.book[q.s]=1;S.st.adopt++}S.sup.feed=40;S.money=D.money;S.dIn=0;S.dOut=0;S.st.built=0;e.name='Starter Farm';e.feed=10}
+function startNew(){blank(selDiff,selMut);cam.x=GX*TS+TS/2;cam.y=(GY-5)*TS;cam.z=1.2;starterPen();S.st.adopt=2;startPlay(true)}
+function startPlay(isNew){started=true;$('title').style.display='none';$('title').onclick=null;S.paused=false;buildTop();buildBar();setTool({k:'sel'});showMini=false;mini.style.display='none';musicMood();updTop();
+ if(isNew)modal('<h3>🐾 Welcome to Pet Park Zoo!</h3><p>Your starter farm has a chicken and a duck. <b>Tap a chicken to pet it</b> and earn your first reward!<br><br>Follow the yellow <b>Next Goal</b> box. You can do this!</p><button class="big" onclick="closeModal()">Let\'s go!</button>')}
+// ---------- keys ----------
+const keys={};let kseq=[],typed='';const KON=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+addEventListener('keydown',e=>{if(!S||!started)return;if(['INPUT','SELECT'].includes(e.target.tagName))return;const k=e.key;keys[k.toLowerCase()]=1;
+ kseq.push(k);if(kseq.length>10)kseq.shift();if(kseq.join()===KON.join()){secret('konami');document.body.classList.toggle('rainbow');confetti(20)}
+ typed=(typed+k.toLowerCase()).slice(-3);if(typed==='zoo'){secret('zoo');confetti(30);sfx.level()}
+ if(k==='p'||k===' '){togglePause();e.preventDefault()}else if(k==='1'||k==='2'||k==='3')S.speed=+k;else if(k==='m')toggleMute();else if(k==='n')toggleMini();
+ else if(k==='b')menuCat?closeMenu():openMenu('hab');else if(k==='Escape'){closeWin();closeMenu();closeModal();setTool({k:'sel'})}
+ else if(k==='+'||k==='=')setZoom(cam.z*1.15);else if(k==='-')setZoom(cam.z/1.15);
+ else if(k==='q'){S.st.quacks++;sfx.quack();if(S.st.quacks>=3){secret('quack')}}
+ else if(k==='f'){for(const a of S.animals)a.dance=5;sfx.fanfare();secret('dance')}
+ updTop()});
+addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=0});
+// ---------- loop ----------
+let last=performance.now(),acc=0,uiT=0,saveT=0,goalT=0,bookT=0;
+function frame(now){const rd=Math.min(.1,(now-last)/1000);last=now;T+=rd;
+ if(S&&started){
+  if(fx.hit>0)fx.hit-=rd;
+  else if(!S.paused){acc+=rd*S.speed*fx.slow;let n=0;while(acc>=.1&&n++<30){step(.1);acc-=.1}if(n>=30)acc=0}
+  updFx(rd);
+  const sp=420*rd/cam.z;if(keys.a||keys.arrowleft)cam.x-=sp;if(keys.d||keys.arrowright)cam.x+=sp;if(keys.arrowup||keys.w)cam.y-=sp;if(keys.arrowdown||keys.s)cam.y+=sp;clampCam();
+  uiT+=rd;if(uiT>.3){uiT=0;updTop();musicMood()}
+  goalT+=rd;if(goalT>1){goalT=0;checkGoal();bookCheck()}
+  saveT+=rd;if(saveT>20){saveT=0;save()}
+  draw(rd);bookT+=rd;if(bookT>.6){bookT=0;drawMini()}}
+ else draw(rd);
+ requestAnimationFrame(frame)}
+function bookCheck(){S.hr=S.hr||{};HAB.forEach((x,hi)=>{const l=ANI.filter(a=>a.h===hi);if(!S.hr[hi]&&l.every(a=>S.book[a.id])){S.hr[hi]=1;income(1500);celebrate(x.e+' '+x.n+' complete!','+1500 coins for the whole set');confetti(20);sfx.level()}});checkAch()}
+addEventListener('beforeunload',()=>{if(S&&started)save()});
+addEventListener('blur',()=>{if(S&&started&&!S.paused){S.paused=true;S._autoP=1}});
+addEventListener('focus',()=>{if(S&&S._autoP){S._autoP=0;S.paused=false}});
+requestAnimationFrame(frame);showTitle();
+
+</script></body></html>
