@@ -65,6 +65,8 @@ input[type=text]{background:#142219;color:#fff;border:3px solid #4c7a56;border-r
 #brk{position:fixed;left:50%;bottom:62px;transform:translateX(-50%);z-index:25;display:none;background:#27402e;border:3px solid #7fd0ff;border-radius:16px;padding:8px 14px;max-width:92vw;text-align:center;font-size:15px;box-shadow:0 4px 14px rgba(0,0,0,.5)}
 #brk button{font-size:14px;padding:5px 12px;margin:4px}
 #pbtn{position:fixed;right:8px;top:70px;z-index:15;display:none;width:44px;height:44px;padding:0;margin:0;font-size:18px;border-radius:12px;opacity:.75;background:#4a8fe0;box-shadow:0 3px 0 #25508f}
+.acard{width:190px}.acard button{display:block;margin:3px auto;width:92%}select{background:#142219;color:#fff;border:3px solid #4c7a56;border-radius:10px;font:bold 14px inherit;padding:5px;margin:2px}
+.card.swap{border-color:#ffb347;background:#4a3a22}
 </style></head><body>
 <canvas id="c"></canvas><div id="ui"></div><button id="pbtn" aria-label="Pause">II</button><div id="toasts"></div><div id="brk"></div>
 <script>
@@ -390,6 +392,8 @@ M('w','startlv','Head Start','\u{1F680}','Start 1 level higher',3,300,[['xp',3]]
 M('w','slot','Big Backpack','\u{1F392}','+1 weapon slot and +1 item slot',2,800,[['startlv',1]]);
 M('w','pick4','Fourth Choice','4️⃣','See 4 cards when you level up',1,1500,[['reroll',2]]);
 M('w','twin','Buddy System','\u{1F46F}','Start with an extra random weapon',1,2500,[['slot',1]]);
+M('w','lslot1','More Slots I','\u{1F5E1}\uFE0F','Armory loadout: 3 starting weapons',1,600,[['startlv',1]]);
+M('w','lslot2','More Slots II','\u{1F5E1}\uFE0F','Armory loadout: 5 starting weapons',1,2000,[['lslot1',1],['slot',1]]);
 M('w','hint','Field Notes','\u{1F4D3}','Cards show evolution recipes',1,120,[['xp',1]]);
 M('w','late','Late Bloomer','\u{1F33B}','+5% damage after minute 5',3,400,[['startlv',2]]);
 const MBR={b:'Body',p:'Power',f:'Fortune',w:'Wisdom'};
@@ -469,6 +473,11 @@ A('flaw','\u{1F6E1}️','Flawless Boss','Beat a stage boss without getting hit d
 A('chal1','\u{1F3B2}','Challenger','Finish a challenge run.',s=>s.chal>=1,{g:100});
 A('chal5','\u{1F3AE}','Challenge Fan','Finish 5 different challenge seeds.',s=>s.chalSeeds>=5,{g:500});
 A('rev','\u{1F31F}','Second Chance','Use a revive.',s=>s.r.revived,{g:50});
+A('arm1','\u{1F5E1}\uFE0F','Weapon Shopper','Buy your first weapon in the Armory.',s=>s.own>=1,{g:50});
+A('arm25','\u{1F9F0}','Weapon Collector','Own 25 weapons from the Armory.',s=>s.own>=25,{g:300});
+A('arm100','\u{1F3F9}','Weapon Hoarder','Own 100 weapons from the Armory.',s=>s.own>=100,{g:1500});
+A('swap10','\u{1F501}','Weapon Juggler','Swap 10 weapons in one run.',s=>s.r.swaps>=10,{g:300});
+A('oc10','\u2B50','Overcharged','Reach Overcharge rank 10 on a weapon.',s=>s.r.oc>=10,{g:300});
 A('endl','♾️','Never Ending','Keep playing after beating a stage (Endless).',s=>s.endless>=1,{g:100});
 
 /* ================= CORE ================= */
@@ -490,7 +499,7 @@ const KEY='sip_arena-slayer_save2',OLDKEY='sip_arena-slayer_save';
 function defSave(){return{v:2,gold:0,earned:0,spent:0,meta:{},runs:0,wins:0,best:{time:0,kills:0,lv:0},
  stageBest:{},stageWon:{},curseMax:0,unl:{c:{},w:{},p:{}},ach:{},disc:{w:{},p:{},e:{},b:{},v:{}},
  st:{kills:0,time:0,bosses:0,evos:0,chests:0,levels:0,deaths:0,flawless:0,endless:0,chal:0},
- hist:[],chal:{},winHeroes:{},curseWon:0,
+ hist:[],chal:{},winHeroes:{},curseWon:0,own:{},load:{ids:[],instead:false},wlv:{},
  opt:{vol:.8,music:.55,sfx:.8,shake:true,nums:true,cb:false,fps:false},
  sel:{stage:0,ch:0,curse:0,endless:false}};}
 function cleanMap(m,f){const o={};if(m&&typeof m==='object')for(const k of Object.keys(m).slice(0,400)){const v=f(m[k],k);if(v)o[k]=v;}return o;}
@@ -522,6 +531,9 @@ function loadSave(o){
  if(o.opt&&typeof o.opt==='object'){const p=s.opt;p.vol=clamp(num(o.opt.vol,.8),0,1);p.music=clamp(num(o.opt.music,.55),0,1);p.sfx=clamp(num(o.opt.sfx,.8),0,1);
   p.shake=o.opt.shake!==false;p.nums=o.opt.nums!==false;p.cb=!!o.opt.cb;p.fps=!!o.opt.fps;}
  if(o.sel&&typeof o.sel==='object'){s.sel.stage=clamp(num(o.sel.stage,0)|0,0,STAGES.length-1);s.sel.ch=clamp(num(o.sel.ch,0)|0,0,CHARS.length-1);s.sel.curse=clamp(num(o.sel.curse,0)|0,0,CURSES.length-1);s.sel.endless=!!o.sel.endless;}
+ s.own=cleanMap(o.own,(v,k)=>(WEAPONS[k]&&v)?1:0);
+ s.wlv=cleanMap(o.wlv,(v,k)=>WEAPONS[k]?clamp(num(v,1)|0,1,4):0);
+ if(o.load&&typeof o.load==='object'){s.load.instead=!!o.load.instead;s.load.ids=(Array.isArray(o.load.ids)?o.load.ids:[]).filter((id,i,a)=>WEAPONS[id]&&s.own[id]&&a.indexOf(id)===i).slice(0,5);}
  return s;
 }
 let save=defSave();
@@ -583,6 +595,7 @@ case'evo':[392,494,587,784,988,1175].forEach((f,i)=>tone(f,.22,'triangle',.07,0,
 case'ach':[659,784,988,1319].forEach((f,i)=>tone(f,.18,'square',.04,0,i*.07));break;
 case'win':[523,659,784,1047,1319].forEach((f,i)=>tone(f,.25,'triangle',.07,0,i*.12));break;
 case'lose':[392,330,262,196].forEach((f,i)=>tone(f,.28,'triangle',.07,0,i*.15));break;
+case'buzz':tone(130,.28,'sawtooth',.08,-50);tone(110,.28,'square',.04,-40,.05);break;
 case'warn':tone(300,.15,'square',.03,200);break;}}catch(e){}}
 
 /* ---------- chiptune music (generated, no files) ---------- */
@@ -667,7 +680,7 @@ function wstat(w){
    else s[k]=v;}}
  else s=baseLv(d,w.lv);
  const T=P.st;
- s.dmg*=T.dmg;
+ s.dmg*=T.dmg*(1+.1*(w.oc||0));
  if(s.cd!=null)s.cd*=T.cd;
  if(s.tick!=null)s.tick*=T.cd;
  if(s.area!=null&&d.kind!=='beam')s.area*=T.area;
@@ -734,7 +747,10 @@ function newRun(cfg){
  P={x:0,y:0,vx:0,vy:0,r:mods.tiny?8:11,hp:0,mhp:0,inv:0,fx:0,fy:1,walk:0,face:1,st:null};
  enemies=[];projs=[];ebul=[];gems=[];parts=[];nums=[];fxs=[];pz=[];haz=[];patches=[];weapons=[];pass={};
  recalc();P.hp=P.mhp;
- addWeapon(c.w);
+ const ld=cfg.chal?[]:armLoad();
+ if(!(ld.length&&save.load.instead))addWeapon(c.w);
+ for(const id of ld){let w=weapons.find(x=>x.id===id);if(!w)w=addWeapon(id);const L=save.wlv[id]||1;if(L>w.lv){w.lv=L;w.s=wstat(w);}}
+ if(ld.length){G.armory=true;G.solo=false;}
  if(ML('twin')){const pool=WIDS.filter(id=>id!==c.w&&weaponUnlocked(id)&&!(WEAPONS[id].lock&&false));const id=pool[ri(pool.length)];if(id)addWeapon(id);G.solo=false;}
  G.gold=ML('pocket')*15;
  const sl=ML('startlv');if(sl){G.lv+=sl;G.pending+=sl;G.need=xpNeed(G.lv);}
@@ -1192,7 +1208,7 @@ function update(dt){
  for(let i=fxs.length-1;i>=0;i--){const f=fxs[i];f.t-=dt;if(f.follow){f.x=P.x;f.y=P.y;}if(f.t<=0)fxs.splice(i,1);}
  for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.l-=dt;if(p.l<=0){parts.splice(i,1);continue;}p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.96;p.vy*=.96;}
  for(let i=nums.length-1;i>=0;i--){const n=nums[i];n.t-=dt;n.y-=40*dt;if(n.t<=0)nums.splice(i,1);}
- shake*=Math.max(0,1-8*dt);if(G.bannerT>0)G.bannerT-=dt;
+ shake*=Math.max(0,1-8*dt);if(G.bannerT>0)G.bannerT-=dt;if(G.swapT>0)G.swapT-=dt;
  // death / revive (before compaction so the grid is still valid)
  if(P.hp<=0){
   if(G.revives>0){G.revives--;G.revived=true;P.hp=P.mhp/2;P.inv=2.5;aoe(P.x,P.y,300,80,'revive',{stun:1.2,knock:300});ebul.length=0;fxs.push({k:'ring',x:P.x,y:P.y,r:300,t:.6,m:.6,c:'#fff4a0'});banner('Second Wind!',2);snd('level');}
@@ -1452,6 +1468,7 @@ function drawHUD(){
  const b=G.bossE;if(b&&!b.dead){const w=Math.min(440,VW-40),bx=(VW-w)/2;ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(bx,70,w,16);ctx.fillStyle=b.stageBoss?'#a455ff':'#ff8a3c';ctx.fillRect(bx+2,72,(w-4)*Math.max(0,b.hp/b.mhp),12);
   ctx.fillStyle='rgba(255,255,255,.7)';for(const p of b.bd.ph){if(p.at<1)ctx.fillRect(bx+2+(w-4)*p.at-1,70,2,16);}
   ctx.fillStyle='#fff';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.fillText(b.bd.n,VW/2,100);}
+ if(G.swapT>0){ctx.globalAlpha=Math.min(1,G.swapT/2);ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='#000';ctx.strokeText('\u{1F501} '+G.swapMsg,VW/2,VH*.3+30);ctx.fillStyle='#ffb347';ctx.fillText('\u{1F501} '+G.swapMsg,VW/2,VH*.3+30);ctx.globalAlpha=1;}
  if(G.bannerT>0){ctx.globalAlpha=Math.min(1,G.bannerT);ctx.font='bold '+Math.floor(clamp((VW-30)/(G.banner.length*.58),13,30))+'px sans-serif';ctx.textAlign='center';ctx.lineWidth=5;ctx.strokeStyle='#000';ctx.strokeText(G.banner,VW/2,VH*.3);ctx.fillStyle='#ffe45e';ctx.fillText(G.banner,VW/2,VH*.3);ctx.globalAlpha=1;}
  if(G.mods&&Object.keys(G.mods).length){ctx.textAlign='left';ctx.font='14px sans-serif';let mx=12;for(const k in G.mods){const m=MODS.find(q=>q.id===k);if(m){ctx.fillText(m.ic,mx,114);mx+=22;}}}
  if(joy.a){ctx.strokeStyle='rgba(255,255,255,.5)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(joy.bx/Z,joy.by/Z,55,0,TAU);ctx.stroke();ctx.fillStyle='rgba(255,255,255,.4)';ctx.beginPath();ctx.arc((joy.bx+joy.x*55)/Z,(joy.by+joy.y*55)/Z,24,0,TAU);ctx.fill();}
@@ -1475,11 +1492,11 @@ function snap(){
  s.won=STAGES.map((_,i)=>!!save.stageWon[i]);s.curseWon=save.curseWon;
  s.hw=Object.keys(save.winHeroes).length;
  s.dw=Object.keys(save.disc.w).length;s.dp=Object.keys(save.disc.p).length;s.de=Object.keys(save.disc.e).length;s.db=Object.keys(save.disc.b).length;s.devo=Object.keys(save.disc.v).length;
- s.spent=save.spent;s.metaCount=Object.values(save.meta).reduce((a,b)=>a+b,0);
+ s.own=Object.keys(save.own).length;s.spent=save.spent;s.metaCount=Object.values(save.meta).reduce((a,b)=>a+b,0);
  s.flawless=save.st.flawless;s.chal=save.st.chal;s.chalSeeds=Object.keys(save.chal).filter(k=>save.chal[k].win).length;s.endless=save.st.endless;
  s.r=r?{lv:r.maxLv,kills:r.kills,time:r.time,wc:weapons.length,pc:Object.keys(pass).length,
-  maxw:weapons.some(w=>w.lv>=8||w.evo!=null),maxp:PIDS.some(id=>(pass[id]||0)>=PASSIVES[id].max),gold:r.gold,solo:!!r.soloWin,revived:r.revived}
-  :{lv:0,kills:0,time:0,wc:0,pc:0,maxw:false,maxp:false,gold:0,solo:false,revived:false};
+  maxw:weapons.some(w=>w.lv>=8||w.evo!=null),maxp:PIDS.some(id=>(pass[id]||0)>=PASSIVES[id].max),gold:r.gold,solo:!!r.soloWin,revived:r.revived,swaps:r.swaps||0,oc:weapons.reduce((a,w)=>Math.max(a,w.oc||0),0)}
+  :{lv:0,kills:0,time:0,wc:0,pc:0,maxw:false,maxp:false,gold:0,solo:false,revived:false,swaps:0,oc:0};
  return s;
 }
 function rewardText(rw){
@@ -1538,23 +1555,52 @@ function endRun(kind){
 /* ---------- level-up choices ---------- */
 let choices=[];
 function evoReady(w){if(w.evo!=null||w.lv<8)return -1;const ei=EVO_BY_W[w.id];if(ei==null)return -1;return (pass[EVOS[ei].p]||0)>0?ei:-1;}
+function drawNewWeapon(used){
+ const have=new Set(weapons.map(w=>w.id)),likeB=new Set(weapons.map(w=>WEAPONS[w.id].bid||w.id));
+ let tot=0;const arr=[];
+ for(const id of WIDS){if(have.has(id)||(used&&used.has(id))||G.banned['s'+id]||G.banned['r'+id]||G.banned['w'+id])continue;
+  const b=WEAPONS[id].bid;const wt=b?(likeB.has(b)?1.2:.05):1;arr.push(id,wt);tot+=wt;}
+ if(!arr.length)return null;
+ let r=RN()*tot;for(let k=0;k<arr.length;k+=2){r-=arr[k+1];if(r<=0)return arr[k];}
+ return arr[arr.length-2];
+}
+function pickSwapOut(used){
+ const c=weapons.filter(w=>!used.has(w.id));if(!c.length)return null;
+ let tot=0;for(const w of c)tot+=w.evo!=null?.15:1;let r=RN()*tot;
+ for(const w of c){r-=w.evo!=null?.15:1;if(r<=0)return w;}return c[c.length-1];
+}
+function applySwap(outId,newId){
+ const i=weapons.findIndex(w=>w.id===outId);if(i<0)return;
+ const nm=wname(weapons[i]);weapons.splice(i,1);addWeapon(newId);
+ G.swaps=(G.swaps||0)+1;G.swapMsg='Swapped '+nm+' for '+WEAPONS[newId].n;G.swapT=14;banner('Swapped!',2.2);snd('level');checkAch();
+}
+function overcharge(w){w.oc=Math.min(20,(w.oc||0)+1);w.s=wstat(w);G.overs=(G.overs||0)+1;checkAch();}
 function makeChoices(){
  const wmax=6+ML('slot'),pmax=6+ML('slot');const out=[];
+ const want=3+ML('pick4');
  for(const w of weapons){const ei=evoReady(w);if(ei>=0)out.push({k:'e',id:w.id,ei});}
+ const slotsFull=weapons.length>=wmax;
+ const allMaxed=weapons.length>0&&weapons.every(w=>w.evo!=null||w.lv>=8);
  const owned=[],fresh=[];
  for(const w of weapons)if(w.evo==null&&w.lv<8)owned.push({k:'w',id:w.id,lv:w.lv+1,wt:3});
- if(weapons.length<wmax)for(const id of WIDS)if(weaponUnlocked(id)&&!weapons.some(w=>w.id===id))fresh.push({k:'w',id,lv:1,wt:WEAPONS[id].bid?.012:(weapons.length>=4?1:1.6)});
+ if(!slotsFull){for(const id of WIDS)if(weaponUnlocked(id)&&!weapons.some(w=>w.id===id))fresh.push({k:'w',id,lv:1,wt:WEAPONS[id].bid?.012:(weapons.length>=4?1:1.6)});}
+ else if(!allMaxed){const used=new Set();for(let q=0;q<4;q++){const id=drawNewWeapon(used);if(!id)break;used.add(id);fresh.push({k:'r',id,wt:.8});}}
  const np=Object.keys(pass).length;
  for(const id of PIDS){if(!passiveUnlocked(id))continue;const o=pass[id]||0;
   if(o>0){if(o<PASSIVES[id].max)owned.push({k:'p',id,lv:o+1,wt:2.5});}
   else if(np<pmax)fresh.push({k:'p',id,lv:1,wt:np>=4?1:1.6});}
  const ok=c=>!G.banned[c.k+c.id];
+ // swap cards: slots full and every weapon maxed
+ if(slotsFull&&allMaxed){const usedN=new Set(),usedO=new Set();
+  for(let q=0;q<2&&out.length<want;q++){const o=pickSwapOut(usedO),id=drawNewWeapon(usedN);if(!o||!id)break;usedO.add(o.id);usedN.add(id);out.push({k:'s',out:o.id,id});}}
+ if(slotsFull&&!allMaxed&&out.length<want&&RN()<.5){const rc=fresh.filter(c=>c.k==='r'&&ok(c));if(rc.length){const c=rc[ri(rc.length)];out.push(c);fresh.splice(fresh.indexOf(c),1);}}
  const own=owned.filter(ok),fr=fresh.filter(ok);
- const want=3+ML('pick4');
  const draw=(arr)=>{let tot=0;for(const c of arr)tot+=c.wt;let r=RN()*tot,idx=0;for(;idx<arr.length-1;idx++){r-=arr[idx].wt;if(r<=0)break;}return arr.splice(idx,1)[0];};
  if(own.length&&out.length<want)out.push(draw(own));
  const rest=own.concat(fr);
  while(out.length<want&&rest.length)out.push(draw(rest));
+ // overcharge: always something meaningful
+ while(out.length<want){const cand=weapons.filter(w=>(w.oc||0)<20&&!G.banned['o'+w.id]&&!out.some(c=>c.k==='o'&&c.id===w.id));if(!cand.length)break;const w=cand[ri(cand.length)];out.push({k:'o',id:w.id,lv:(w.oc||0)+1});}
  const fb=G.mods.nosnack?['gold','gold','gold','gold']:['heal','gold','heal','gold'];
  let q=0;while(out.length<want)out.push({k:'f',id:fb[q++%4]});
  return out.slice(0,want);
@@ -1568,6 +1614,9 @@ function applyChoice(c){
  if(c.k==='w'){const w=weapons.find(x=>x.id===c.id);if(w){w.lv=c.lv;w.s=wstat(w);}else{addWeapon(c.id);G.solo=false;}}
  else if(c.k==='p'){pass[c.id]=c.lv;discover('p',c.id,'New item discovered: '+PASSIVES[c.id].n);if(c.id==='compass')G.rerolls++;recalc();}
  else if(c.k==='e'){const w=weapons.find(x=>x.id===c.id);if(w)evolveWeapon(w,c.ei);}
+ else if(c.k==='s')applySwap(c.out,c.id);
+ else if(c.k==='o'){const w=weapons.find(x=>x.id===c.id);if(w)overcharge(w);}
+ else if(c.k==='r'){}
  else if(c.id==='heal')P.hp=Math.min(P.mhp,P.hp+P.mhp*.4);
  else G.gold+=25;
  G.dirty=true;
@@ -1579,6 +1628,9 @@ function cardInfo(c){
  else if(c.k==='p'){const p=PASSIVES[c.id];ic=p.ic;nm=p.n;ds=p.d;lv=c.lv===1?'NEW!':'Lv '+(c.lv-1)+' → '+c.lv;
   const owned=weapons.find(w=>w.evo==null&&EVO_BY_W[w.id]!=null&&EVOS[EVO_BY_W[w.id]].p===c.id);if(owned)tag='★ Evolves your '+WEAPONS[owned.id].n+' (Lv '+owned.lv+'/8)';}
  else if(c.k==='e'){const e=EVOS[c.ei];ic=e.ic;nm='EVOLVE: '+e.n;ds=e.d;lv='★ Super powerful! ★';cls=' evo';}
+ else if(c.k==='s'){const w=WEAPONS[c.id],o=weapons.find(x=>x.id===c.out);ic=w.ic;nm='Swap: '+w.n;ds='Replace '+(o?wicon(o)+' '+wname(o)+(o.evo!=null?' (evolved!)':' (Lv '+o.lv+')'):'a weapon')+' with this one at Lv 1.';lv='\u{1F501} SWAP';cls=' swap';tag=w.d;}
+ else if(c.k==='r'){const w=WEAPONS[c.id];ic=w.ic;nm='New: '+w.n;ds=w.d;lv='NEW! Replace a weapon';cls=' swap';tag='You choose which weapon to replace.';}
+ else if(c.k==='o'){const w=weapons.find(x=>x.id===c.id);ic=w?wicon(w):'★';nm='Overcharge: '+(w?wname(w):'');ds='+10% damage for this weapon per rank.';lv='★ Rank '+(c.lv-1)+' \u2192 '+c.lv+' / 20';tag=(c.lv*10)+'% bonus damage in total';cls=' evo';}
  else if(c.id==='heal'){ic='\u{1F34E}';nm='Snack Time';ds='Heal 40% health.';lv='';}
  else{ic='\u{1FA99}';nm='Coin Pouch';ds='+25 gold for this run.';lv='';}
  return{ic,nm,ds,lv,tag,cls};
@@ -1587,7 +1639,12 @@ function chestOpen(){
  G.chests++;save.st.chests++;const res=[];let evolved=false;
  for(const w of weapons){const ei=evoReady(w);if(ei>=0){const nm=EVOS[ei].n;evolveWeapon(w,ei);res.push('EVOLVED into '+EVOS[ei].ic+' '+nm+'!');evolved=true;break;}}
  if(!evolved){const cnt=1+P.st.chest;
-  for(let i=0;i<cnt;i++){const cs=makeChoices().filter(c=>c.k!=='f');if(!cs.length)break;const c=cs[ri(cs.length)];const ci=cardInfo(c);applyChoice(c);res.push(ci.ic+' '+ci.nm+(ci.lv?' ('+ci.lv+')':''));}}
+  for(let i=0;i<cnt;i++){const cs=makeChoices().filter(c=>c.k==='w'||c.k==='p'||c.k==='o');
+   if(cs.length){const c=cs[ri(cs.length)];const ci=cardInfo(c);applyChoice(c);res.push(ci.ic+' '+ci.nm+(ci.lv?' ('+ci.lv+')':''));continue;}
+   if(weapons.length<6+ML('slot')){const id=drawNewWeapon();if(id){const w=addWeapon(id);w.lv=3;w.s=wstat(w);res.push(WEAPONS[id].ic+' New weapon: '+WEAPONS[id].n+' (Lv 3)');continue;}}
+   const cand=weapons.filter(w=>(w.oc||0)<20);
+   if(cand.length){const w=cand[ri(cand.length)];overcharge(w);res.push('★ Overcharge: '+wname(w)+' (rank '+w.oc+')');}
+  }}
  const gp=20+ri(30);G.gold+=gp;res.push('\u{1FA99} +'+gp+' gold');
  if(!G.mods.nosnack){P.hp=Math.min(P.mhp,P.hp+P.mhp*.2);}
  checkAch();return res;
@@ -1616,6 +1673,96 @@ function nextGoals(){
  if(STAGES.every((_,i)=>save.stageWon[i])&&save.curseMax<4)g.push('Try a harder curse for bigger rewards!');
  return g.slice(0,3);
 }
+/* ================= ARMORY (buy weapons with gold, pick a loadout) ================= */
+const KINDS=['shot','orbit','aura','nova','strike','boom','lob','beam','melee','trail','chain','pet'];
+const RARS=[['Common',150,'#cfd8cf'],['Uncommon',400,'#7fe07a'],['Rare',900,'#6bb0ff'],['Epic',2000,'#c58bff'],['Legendary',1e9,'#ffd23f']];
+const armCache={};let armPow=null;
+function wpower(id){const d=WEAPONS[id],s=baseLv(d,1);let dps;
+ if(d.kind==='orbit')dps=s.dmg*(s.n||1)*2.2;else dps=s.dmg*(s.n||1)/(s.cd||s.tick||.8);
+ const ar=s.area!=null?s.area:(s.r||8)*8;
+ return dps*(1+ar/500)*(1+.1*(s.pierce||0)+(s.burn?.1:0)+(s.slow?.08:0)+(s.stun?.1:0)+(s.knock?.05:0));}
+function wprice(id){
+ if(armCache[id]!=null)return armCache[id];
+ if(!armPow){let lo=1e9,hi=0;for(let i=0;i<CORE_N;i++){const p=wpower(WIDS[i]);if(p<lo)lo=p;if(p>hi)hi=p;}armPow={lo,hi};}
+ const w=WEAPONS[id],bid=w.bid||id,B=WEAPONS[bid];
+ const bp=wpower(bid);const base=80+1420*Math.pow(clamp((bp-armPow.lo)/(armPow.hi-armPow.lo),0,1),.7);
+ let pr=base;
+ if(w.bid){pr=Math.max(60,base*clamp(wpower(id)/bp,.6,2.2));}
+ if(B.lock&&!weaponUnlocked(bid))pr*=2;
+ pr=Math.min(20000,Math.max(40,Math.round(pr/5)*5));
+ return armCache[id]=pr;}
+const wrar=id=>{const p=wprice(id);for(const r of RARS)if(p<r[1])return r;return RARS[4];};
+const armSlots=()=>1+2*ML('lslot1')+2*ML('lslot2');
+const lvCost=(id,L)=>Math.min(20000,Math.round(wprice(id)*.35*(L-1)/5)*5);
+function armLoad(){return save.load.ids.filter(id=>save.own[id]&&WEAPONS[id]).slice(0,armSlots());}
+function armBuy(id){
+ if(!WEAPONS[id]||save.own[id])return false;const p=wprice(id);
+ if(save.gold<p){snd('buzz');toast('Not enough gold! You need '+(p-save.gold)+' more.');return false;}
+ save.gold-=p;save.spent+=p;save.own[id]=1;
+ if(!WEAPONS[id].bid&&WEAPONS[id].lock)save.unl.w[id]=1;
+ persist();snd('coin');checkAch();return true;}
+function armEquip(id){
+ if(!save.own[id])return false;const a=save.load.ids,i=a.indexOf(id);
+ if(i>=0){a.splice(i,1);snd('ui');persist();return true;}
+ if(a.length>=armSlots()){snd('buzz');toast('Loadout full ('+armSlots()+' slot'+(armSlots()>1?'s':'')+'). Unequip one, or buy More Slots in Upgrades.');return false;}
+ a.push(id);snd('ui');persist();return true;}
+function armLvUp(id){
+ if(!save.own[id])return false;const L=(save.wlv[id]||1)+1;if(L>4)return false;const c=lvCost(id,L);
+ if(save.gold<c){snd('buzz');toast('Not enough gold! You need '+(c-save.gold)+' more.');return false;}
+ save.gold-=c;save.spent+=c;save.wlv[id]=L;persist();snd('coin');return true;}
+const AR={q:'',kind:'',flav:'',rar:'',own:'',sort:'price',page:0,from:'title'};
+const PER=12;
+function armList(){
+ const q=AR.q.trim().toLowerCase();const out=[];
+ for(const id of WIDS){const w=WEAPONS[id];
+  if(AR.kind&&w.kind!==AR.kind)continue;
+  if(AR.flav){if(AR.flav==='core'){if(w.bid)continue;}else if(!id.endsWith('_'+AR.flav))continue;}
+  if(AR.rar&&wrar(id)[0]!==AR.rar)continue;
+  if(AR.own==='own'&&!save.own[id])continue;if(AR.own==='not'&&save.own[id])continue;
+  if(q&&w.n.toLowerCase().indexOf(q)<0&&w.kind.indexOf(q)<0)continue;
+  out.push(id);}
+ const dm=id=>baseLv(WEAPONS[id],1).dmg;
+ if(AR.sort==='price')out.sort((a,b)=>wprice(a)-wprice(b)||a.localeCompare(b));
+ else if(AR.sort==='priceD')out.sort((a,b)=>wprice(b)-wprice(a)||a.localeCompare(b));
+ else if(AR.sort==='dmg')out.sort((a,b)=>dm(b)-dm(a));
+ else out.sort((a,b)=>WEAPONS[a].n.localeCompare(WEAPONS[b].n));
+ return out;}
+function armCard(id){
+ const w=WEAPONS[id],s=baseLv(w,1),own=!!save.own[id],eq=save.load.ids.indexOf(id)>=0,r=wrar(id),p=wprice(id),L=save.wlv[id]||1;
+ const locked=(WEAPONS[w.bid||id].lock&&!weaponUnlocked(w.bid||id));
+ let h='<div class="card acard" style="border-color:'+r[2]+'"><div class="ic">'+w.ic+'</div><div class="nm">'+esc(w.n)+'</div><div class="tiny" style="color:'+r[2]+'">'+r[0]+' • '+w.kind+(locked?' • \u{1F512} x2 price':'')+'</div>'+
+  '<div class="ds" style="min-height:30px">'+esc(w.d.length>70?w.d.slice(0,68)+'...':w.d)+'</div>'+
+  '<div class="tiny">Dmg '+Math.round(s.dmg*10)/10+' • '+(s.cd!=null?'CD '+(Math.round(s.cd*100)/100)+'s':s.tick!=null?'Tick '+s.tick+'s':'Spin '+s.rot)+' • Amt '+(s.n||1)+(s.area!=null?' • Area '+Math.round(s.area):'')+'</div>';
+ if(!own)h+='<button class="sm '+(save.gold>=p?'g':'')+'" data-a="armbuy" data-v="'+id+'">'+(save.gold>=p?'Buy '+p+' \u{1FA99}':'Need '+(p-save.gold)+' more ('+p+'\u{1FA99})')+'</button>';
+ else{h+='<div class="good tiny">'+(eq?'✅ Equipped':'Owned')+(L>1?' • starts Lv '+L:'')+'</div><button class="sm '+(eq?'':'b')+'" data-a="armeq" data-v="'+id+'">'+(eq?'Unequip':'Equip')+'</button>';
+  if(L<4){const c=lvCost(id,L+1);h+='<button class="sm" data-a="armlv" data-v="'+id+'">Start Lv '+(L+1)+' • '+c+'\u{1FA99}</button>';}}
+ return h+'</div>';}
+function armGrid(){
+ const g=$('armgrid');if(!g)return;
+ const list=armList();const pages=Math.max(1,Math.ceil(list.length/PER));AR.page=clamp(AR.page,0,pages-1);
+ const part=list.slice(AR.page*PER,AR.page*PER+PER);
+ g.innerHTML=part.length?part.map(armCard).join(''):'<div class="small">No weapons match.</div>';
+ $('armpg').innerHTML='<button class="sm b" data-a="armpg" data-v="-1" '+(AR.page?'':'disabled')+'>◀</button> Page '+(AR.page+1)+' / '+pages+' ('+list.length+' weapons) <button class="sm b" data-a="armpg" data-v="1" '+(AR.page<pages-1?'':'disabled')+'>▶</button>';
+ const hd=$('armhead');if(hd)hd.innerHTML=armHead();}
+function armHead(){
+ const ids=armLoad();const ow=Object.keys(save.own).length;
+ return '\u{1FA99} Gold: <span class="gold">'+save.gold+'</span> &nbsp; Owned: <b>'+ow+'</b> / '+WIDS.length+'<br>Loadout ('+ids.length+'/'+armSlots()+'): '+(ids.length?ids.map(id=>WEAPONS[id].ic+' '+esc(WEAPONS[id].n)+(save.wlv[id]>1?' Lv'+save.wlv[id]:'')).join(', '):'<span class="tiny">nothing equipped</span>')+
+  '<br><span class="tg" data-a="armins">'+(save.load.instead?'✅':'⬜')+' Use these instead of the hero weapon</span>';}
+function armSel(k,opts,cur){return '<select data-f="'+k+'">'+opts.map(o=>'<option value="'+o[0]+'"'+(o[0]===cur?' selected':'')+'>'+o[1]+'</option>').join('')+'</select> ';}
+function armoryScreen(keep){
+ state='menu';
+ const flav=[['','All flavours'],['core','Core weapons']].concat(VARS.map(v=>[v[0],v[1]]));
+ let h='<div class="panel wide"><h2>\u{1F5E1}️ Armory</h2><div class="small" id="armhead">'+armHead()+'</div>'+
+  '<div style="margin:6px 0"><input type="text" id="armq" data-f="q" placeholder="Search by name" value="'+esc(AR.q)+'" style="width:180px"> '+
+  armSel('kind',[['','All kinds']].concat(KINDS.map(k=>[k,k])),AR.kind)+armSel('flav',flav,AR.flav)+armSel('rar',[['','Any rarity']].concat(RARS.map(r=>[r[0],r[0]])),AR.rar)+
+  armSel('own',[['','All'],['own','Owned'],['not','Not owned']],AR.own)+armSel('sort',[['price','Price: low'],['priceD','Price: high'],['dmg','Damage'],['name','Name']],AR.sort)+'</div>'+
+  '<div class="cards" id="armgrid"></div><div id="armpg" style="margin:6px"></div>'+
+  '<div class="tiny">Equipped weapons start every run (not Challenge runs). Evolutions still need the matching item!</div>'+
+  '<div><button class="b" data-a="armback" data-back="1">Back</button></div></div>';
+ showUI(h,keep);armGrid();
+}
+function armSummary(){const ids=armLoad();return ids.length?ids.map(id=>WEAPONS[id].ic).join(' ')+(save.load.instead?' (instead of hero weapon)':' + hero weapon'):'none yet';}
+
 /* ---------- title ---------- */
 function titleScreen(){
  state='title';G=null;setPbtn(false);mus.quiet=false;if(AC)musicStart(6);
@@ -1623,7 +1770,7 @@ function titleScreen(){
  const goals=nextGoals();
  showUI('<div class="panel"><div class="sip">S.I.P. ARCADE</div><h1>ARENA SLAYER</h1><div class="small" style="margin:8px 0 10px">Survive, collect, evolve your weapons and beat six big bosses!</div>'+
  '<div><button class="g" data-a="play">▶ Play</button></div>'+
- '<div><button class="b" data-a="shop">\u{1F6D2} Upgrades</button><button class="b" data-a="coll">\u{1F4D6} Collection</button><button class="b" data-a="ach">\u{1F3C6} Goals '+done+'/'+ACH.length+'</button></div>'+
+ '<div><button class="b" data-a="shop">\u{1F6D2} Upgrades</button><button class="b" data-a="arm">\u{1F5E1}\uFE0F Armory</button><button class="b" data-a="coll">\u{1F4D6} Collection</button><button class="b" data-a="ach">\u{1F3C6} Goals '+done+'/'+ACH.length+'</button></div>'+
  '<div><button data-a="chal">\u{1F3B2} Challenge</button><button data-a="stats">\u{1F4CA} Stats</button><button data-a="opts">⚙ Options</button><button data-a="save">\u{1F4BE} Save code</button><button data-a="help">? Help</button></div>'+
  '<div class="small">Gold: <span class="gold">'+save.gold+'</span> &nbsp; Best: '+fmt(save.best.time)+' &nbsp; Poofed: '+(save.st.kills)+'</div>'+
  (goals.length?'<div class="tiny" style="margin-top:6px">Next goals:<br>'+goals.map(esc).join('<br>')+'</div>':'')+'</div>');
@@ -1645,6 +1792,7 @@ function setupScreen(keep){
  CURSES.forEach((c,i)=>{h+='<button class="'+(sel.curse===i?'g':'b')+' sm" '+(i>save.curseMax?'disabled':'')+' data-a="curse" data-v="'+i+'">'+c.ic+' '+c.n+'</button>';});
  h+='<div class="small">'+esc(CURSES[sel.curse].d)+(save.curseMax<4?' (Beat a stage on your top curse to unlock the next.)':'')+'</div></div>';
  h+='<h3>4. Mode</h3><div><button class="'+(!sel.endless?'g':'b')+' sm" data-a="mode" data-v="0">Normal: beat the boss</button><button class="'+(sel.endless?'g':'b')+' sm" '+(save.stageWon[sel.stage]?'':'disabled')+' data-a="mode" data-v="1">♾ Endless'+(save.stageWon[sel.stage]?'':' (beat this stage first)')+'</button></div>';
+ h+='<h3>5. Loadout</h3><div class="small">Starting weapons: <b>'+armSummary()+'</b> <button class="sm b" data-a="armsetup">\u{1F5E1}\uFE0F Armory</button></div>';
  h+='<div class="small" style="margin-top:6px">Reward multiplier: <b class="gold">x'+(STAGES[sel.stage].rew*CURSES[sel.curse].rew).toFixed(1)+'</b></div>';
  h+='<div><button class="g" data-a="start">▶ Start!</button><button class="b" data-a="title" data-back="1">Back</button></div></div>';
  showUI(h,keep);
@@ -1775,9 +1923,10 @@ function pauseScreen(){
 }
 function renderPause(){
  const T=P.st;let h='<div class="panel wide"><h2>Paused</h2><div class="small">'+STAGES[G.stage].ic+' '+G.S.n+(G.curse?' - '+CURSES[G.curse].n:'')+' &nbsp; ⏱ '+fmt(G.time)+' &nbsp; \u{1F480} '+G.kills+' &nbsp; Lv '+G.lv+' &nbsp; \u{1FA99} '+G.gold+'</div>';
+ if(G.armory)h+='<div class="tiny">\u{1F5E1}\uFE0F Armory used: '+armSummary()+'</div>';
  h+='<div style="display:flex;gap:16px;flex-wrap:wrap;text-align:left;justify-content:center"><div style="flex:1;min-width:260px"><h3>Weapons ('+weapons.length+'/'+(6+ML('slot'))+')</h3>';
  for(const w of weapons){const d=WEAPONS[w.id];const ei=EVO_BY_W[w.id];const evoTxt=w.evo!=null?'<span class="good">★ Evolved!</span>':(ei!=null?'Evolves: '+PASSIVES[EVOS[ei].p].ic+' '+PASSIVES[EVOS[ei].p].n+((pass[EVOS[ei].p]||0)>0?' ✔':' (need it)'):'');
-  h+='<div class="row"><div><b>'+wicon(w)+' '+wname(w)+'</b> <span class="pill">'+(w.evo!=null?'EVO':'Lv '+w.lv)+'</span><div class="tiny">'+evoTxt+'</div></div><div class="small">'+Math.round(G.dmgBy[w.id]||0)+' dmg</div></div>';}
+  h+='<div class="row"><div><b>'+wicon(w)+' '+wname(w)+'</b> <span class="pill">'+(w.evo!=null?'EVO':'Lv '+w.lv)+'</span>'+(w.oc?' <span class="pill" style="color:#ffd23f">\u2605 Overcharge '+w.oc+'/20 (+'+w.oc*10+'%)</span>':'')+'<div class="tiny">'+evoTxt+'</div></div><div class="small">'+Math.round(G.dmgBy[w.id]||0)+' dmg</div></div>';}
  h+='<h3>Items ('+Object.keys(pass).length+'/'+(6+ML('slot'))+')</h3>';
  if(!Object.keys(pass).length)h+='<div class="small">No items yet.</div>';
  for(const id of PIDS)if(pass[id])h+='<div class="row"><div><b>'+PASSIVES[id].ic+' '+PASSIVES[id].n+'</b> <span class="pill">Lv '+pass[id]+'/'+PASSIVES[id].max+'</span><div class="tiny">'+esc(PASSIVES[id].d)+'</div></div></div>';
@@ -1796,6 +1945,7 @@ function renderLevelUp(){
  choices.forEach((c,i)=>{const f=cardInfo(c);
   h+='<div class="card'+f.cls+'" data-a="pick" data-v="'+i+'"><div class="ic">'+f.ic+'</div><div class="nm">'+(i+1)+'. '+esc(f.nm)+'</div><div class="lv">'+f.lv+'</div><div class="ds">'+esc(f.ds)+'</div>'+(f.tag?'<div class="tiny good">'+esc(f.tag)+'</div>':'')+'</div>';});
  h+='</div><div>';
+ if(choices.some(c=>c.k==='s'||c.k==='r'))h+='<button class="sm g" data-a="keep">Keep my weapons</button>';
  h+='<button class="sm b" '+(G.rerolls>0?'':'disabled')+' data-a="reroll">\u{1F3B2} Reroll ('+G.rerolls+')</button>';
  h+='<button class="sm '+(banMode?'g':'b')+'" '+(G.banish>0?'':'disabled')+' data-a="banmode">\u{1F9FD} Banish ('+G.banish+')</button></div></div>';
  showUI(h);
@@ -1803,9 +1953,21 @@ function renderLevelUp(){
 function pickCard(i){
  const c=choices[i];if(!c)return;
  if(banMode){if(c.k==='f'||c.k==='e'){return;}G.banned[c.k+c.id]=1;G.banish--;banMode=false;choices=makeChoices();snd('ui');renderLevelUp();return;}
- snd('ui');applyChoice(c);
+ snd('ui');
+ if(c.k==='r'){showReplacePicker(c);return;}
+ if(c.k==='s'){const o=weapons.find(x=>x.id===c.out);if(o&&o.evo!=null){showSwapConfirm(c);return;}}
+ applyChoice(c);
  hideUI();state='play';mus.quiet=false;setPbtn(true);
 }
+function showReplaceConfirm(oid,c){const o=weapons.find(x=>x.id===oid);
+ showUI('<div class="panel"><h2>This is evolved. Swap anyway?</h2><div class="stat">'+wicon(o)+' '+esc(wname(o))+' \u2192 '+WEAPONS[c.id].ic+' '+esc(WEAPONS[c.id].n)+'</div><div><button class="g" data-a="repyes" data-v="'+oid+'|'+choices.indexOf(c)+'">Swap anyway</button><button class="b" data-a="repcancel">Keep it</button></div></div>');}
+function closeLevelUp(){hideUI();state='play';mus.quiet=false;setPbtn(true);}
+function showSwapConfirm(c){const o=weapons.find(x=>x.id===c.out);
+ showUI('<div class="panel"><h2>This is evolved. Swap anyway?</h2><div class="stat">'+wicon(o)+' '+esc(wname(o))+' \u2192 '+WEAPONS[c.id].ic+' '+esc(WEAPONS[c.id].n)+'</div><div class="small">You will lose the evolution.</div><div><button class="g" data-a="swapyes" data-v="'+choices.indexOf(c)+'">Swap anyway</button><button class="b" data-a="swapno">Keep it</button></div></div>');}
+function showReplacePicker(c){const W2=WEAPONS[c.id];
+ let h='<div class="panel"><h2>Replace which weapon?</h2><div class="stat">New: '+W2.ic+' '+esc(W2.n)+' (Lv 1)</div><div style="text-align:left">';
+ for(const w of weapons)h+='<div class="row"><div><b>'+wicon(w)+' '+esc(wname(w))+'</b> <span class="pill">'+(w.evo!=null?'EVO':'Lv '+w.lv)+'</span></div><button class="sm" data-a="repsel" data-v="'+w.id+'|'+choices.indexOf(c)+'">Replace</button></div>';
+ showUI(h+'</div><button class="b" data-a="repcancel">Cancel</button></div>');}
 uiHooks.chest=function(){
  const res=chestOpen();state='chest';mus.quiet=true;setPbtn(false);snd('chest');
  showUI('<div class="panel"><h1 style="font-size:clamp(26px,5vw,44px)">\u{1F381} Treasure!</h1><div style="margin:10px 0">'+res.map(r=>'<div class="stat">'+esc(r)+'</div>').join('')+'</div><button class="g" data-a="chestok">Awesome!</button></div>');
@@ -1835,6 +1997,14 @@ function uiAct(a,v){
  initAudio();if(AC&&!mus.on)musicStart(G&&state!=='title'?G.stage:6);
  switch(a){
  case'play':snd('ui');setupScreen();break;
+ case'arm':snd('ui');AR.from='title';armoryScreen();break;
+ case'armsetup':snd('ui');AR.from='setup';armoryScreen();break;
+ case'armback':snd('ui');if(AR.from==='setup')setupScreen();else titleScreen();break;
+ case'armbuy':if(armBuy(v))toast('Bought '+WEAPONS[v].n+'!');armGrid();break;
+ case'armeq':armEquip(v);armGrid();break;
+ case'armlv':if(armLvUp(v))toast(WEAPONS[v].n+' now starts at Lv '+save.wlv[v]);armGrid();break;
+ case'armpg':AR.page+=+v;armGrid();break;
+ case'armins':save.load.instead=!save.load.instead;snd('ui');persist();armGrid();break;
  case'stage':snd('ui');save.sel.stage=+v;setupScreen(true);break;
  case'hero':snd('ui');save.sel.ch=+v;setupScreen(true);break;
  case'curse':snd('ui');save.sel.curse=+v;setupScreen(true);break;
@@ -1866,6 +2036,11 @@ function uiAct(a,v){
  case'help':snd('ui');helpScreen();break;
  case'pick':pickCard(+v);break;
  case'reroll':if(G.rerolls>0){G.rerolls--;choices=makeChoices();banMode=false;snd('ui');renderLevelUp();}break;
+ case'keep':snd('ui');applyChoice({k:'f',id:'gold'});closeLevelUp();break;
+ case'swapyes':{const c=choices[+v];if(c){snd('ui');applyChoice(c);}closeLevelUp();break;}
+ case'swapno':case'repcancel':snd('ui');renderLevelUp();break;
+ case'repsel':{const [oid,ci]=v.split('|');const c=choices[+ci];if(c&&c.k==='r'){const o=weapons.find(x=>x.id===oid);if(o&&o.evo!=null&&!window.__swapOk){window.__swapOk=0;showReplaceConfirm(oid,c);break;}snd('ui');applySwap(oid,c.id);}closeLevelUp();break;}
+ case'repyes':{const [oid,ci]=v.split('|');const c=choices[+ci];if(c){applySwap(oid,c.id);}closeLevelUp();break;}
  case'banmode':if(G.banish>0){banMode=!banMode;renderLevelUp();}break;
  case'chestok':snd('ui');hideUI();state='play';mus.quiet=false;setPbtn(true);break;
  case'resume':snd('ui');resumeRun();break;
@@ -1874,7 +2049,8 @@ function uiAct(a,v){
  case'endless':G.contEndless=true;G.endStart=G.time;G.nextBoss=G.time+360;G.nextEli=G.time+60;save.st.endless++;snd('ui');hideUI();state='play';mus.quiet=false;setPbtn(true);break;
  }
 }
-ui.addEventListener('input',e=>{const r=e.target.dataset&&e.target.dataset.r;if(r){save.opt[r]=clamp(+e.target.value/100,0,1);applyVol();persist();}});
+ui.addEventListener('change',e=>{const f=e.target.dataset&&e.target.dataset.f;if(f&&f!=='q'){AR[f]=e.target.value;AR.page=0;armGrid();}});
+ui.addEventListener('input',e=>{const f0=e.target.dataset&&e.target.dataset.f;if(f0==='q'){AR.q=e.target.value;AR.page=0;armGrid();return;}const r=e.target.dataset&&e.target.dataset.r;if(r){save.opt[r]=clamp(+e.target.value/100,0,1);applyVol();persist();}});
 $('pbtn').addEventListener('click',()=>{initAudio();pauseScreen();});
 
 /* ---------- input ---------- */
@@ -1959,7 +2135,7 @@ function loop(now){
 P={x:0,y:0,r:11,hp:1,mhp:1,inv:0,fx:0,fy:1,walk:0,face:1,vx:0,vy:0,st:null};
 titleScreen();
 requestAnimationFrame(loop);
-window.__dbg={get G(){return G},get P(){return P},get enemies(){return enemies},get weapons(){return weapons},get state(){return state},get save(){return save},
+window.__dbg={applySwap,overcharge,drawNewWeapon,closeLevelUp,chestOpen,wprice,armBuy,armEquip,armLvUp,armList,armLoad,armSlots,lvCost,wpower,AR,armoryScreen,armGrid,get G(){return G},get P(){return P},get enemies(){return enemies},get weapons(){return weapons},get state(){return state},get save(){return save},
  get pass(){return pass},get projs(){return projs},get gems(){return gems},get haz(){return haz},get ebul(){return ebul},get patches(){return patches},get pz(){return pz},get choices(){return choices},get sit(){return sit},setBot:v=>{botv=v;},pollPad,pad,joy,keys,setFreeze:f=>{FREEZE=f;},
  update,render,spawnEnemy,spawnBoss,startRun,newRun,addWeapon,applyChoice,makeChoices,evolveWeapon,evoReady,recalc,endRun,checkAch,snap,uiAct,setState:s=>{state=s;},
  exportCode,importCode,chalCfg,loadSave,defSave,setSave:s=>{save=s;},persist,showBreak,hideUI,nextGoals,titleScreen,pauseScreen,resumeRun,wstat,refreshWeapons,
