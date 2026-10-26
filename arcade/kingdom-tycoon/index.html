@@ -58,7 +58,7 @@ button.big{font-size:18px;padding:10px 18px;background:#2f8f4a;border-color:#a6e
 <div id="sel" class="hidden"></div>
 <div id="warhud" class="hidden"></div>
 <div id="offer" class="hidden"></div>
-<div id="bar" class="hidden"><div id="tabs"></div><div id="items"></div></div>
+<div id="bar" class="hidden"><div style="display:flex;gap:4px;align-items:flex-start"><div id="tabs" style="flex:1"></div><input id="bsearch" placeholder="Search..." style="width:92px;font-size:13px;padding:3px 5px;border-radius:6px;border:2px solid #8a6a3a;background:#2a1d10;color:#fff"></div><div id="items"></div></div>
 <div id="tip"></div>
 <div id="modal" class="hidden"></div>
 <div id="title"><h1>&#9876; KINGDOM TYCOON</h1><div class="sub">S.I.P. ARCADE</div>
@@ -66,7 +66,7 @@ button.big{font-size:18px;padding:10px 18px;background:#2f8f4a;border-color:#a6e
  <div id="dif" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:6px;max-width:900px"></div>
  <div id="dlp" style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin:4px"></div>
  <div id="scs"></div>
- <p style="max-width:700px;font-size:13px;text-align:center">Drag to move the map, wheel or pinch to zoom. Pick a building, click the map to place it. Keep your citizens fed and happy, research new tech, and defend your kingdom from silly bandits!</p>
+ <p style="max-width:700px;font-size:13px;text-align:center">Drag to move the map, wheel or pinch to zoom. Pick a building, click the map to place it (B = walls, G = gates, drag to paint). Keep your citizens fed and happy, research new tech, and defend your kingdom from silly bandits!</p>
 </div>
 <script>
 'use strict';
@@ -104,6 +104,7 @@ church:{n:'Church',e:'⛪',cat:5,s:2,cost:{stone:40,wood:20},hp:100,jobs:1,rp:.0
 school:{n:'School',e:'\u{1F4DA}',cat:5,s:2,cost:{wood:40,stone:20},hp:90,jobs:2,rp:.25,col:'#f0c27a',roof:'#2980b9',d:'Makes research points. +2 happiness.'},
 library:{n:'Library',e:'\u{1F4D6}',cat:5,s:2,cost:{wood:60,stone:40,gold:40},hp:100,jobs:2,rp:.5,col:'#d7b98e',roof:'#6c3483',d:'Lots of research points.'},
 healer:{n:'Healer',e:'⚕️',cat:5,s:2,cost:{wood:30,stone:15,gold:20},hp:80,jobs:1,col:'#f7e4e4',roof:'#27ae60',d:'Herbs and tea. +4 happiness.'},
+hall:{n:'Grand Citadel',e:'\u{1F3F0}',cat:-1,s:12,cost:{},hp:3000,cap:8,jobs:3,cyc:12,out:{gold:4},max:1,col:'#b0b6c0',roof:'#b03a2e',d:'The great citadel in the heart of your kingdom. It cannot be demolished. Upgrade it and EVERY building is raised to at least its level - new buildings start at its level for free! Gives housing, jobs, gold and storage.'},
 watchtower:{n:'Watchtower',e:'\u{1F5FC}',cat:4,s:1,cost:{wood:25,stone:10},hp:80,col:'#c9b48a',roof:'#8e5a2b',d:'Cheap lookout: weak arrows reach 8 tiles. Garrison: 1 soldier, +1 per 2 upgrade levels.'},
 fortress:{n:'Fortress',e:'\u{1F3EF}',cat:4,s:2,cost:{stone:120,wood:60,iron:20,gold:60},hp:400,train:3,max:2,col:'#aeb4bd',roof:'#7b241c',d:'Strong stone fort: great arrows, trains 3 soldiers (+1 per upgrade level), big war power.'},
 armory:{n:'Armory',e:'\u{1F6E1}\uFE0F',cat:4,s:2,cost:{wood:40,stone:40,iron:10},hp:110,max:1,col:'#9a8f88',roof:'#34495e',d:'Better gear: +15% war power. Only one.'},
@@ -114,6 +115,8 @@ monument:{n:'Grand Statue',e:'\u{1F5FF}',cat:5,s:3,cost:{stone:200,gold:200,iron
 const KEYS=Object.keys(D);
 const TW={tower:{rg:6,dm:7},watchtower:{rg:8,dm:4},castle:{rg:7,dm:7},fortress:{rg:7,dm:10}};
 const UPM=5;
+let HALL=null,celeb=0,celebTxt='';
+const levelable=k=>k!=='hall'&&!!((D[k].cyc&&(D[k].out||D[k].outf))||k==='warehouse'||TW[k]);
 const SG=[3,5,8];
 const sg=()=>SG[S.dif===undefined?1:S.dif];
 const DIF=[{n:'Easy',res:1.5,cost:.75,war:.45,rstr:.75,raid:-1,gap:1.4,rhp:.8,hap:.6,edm:.85,dmg:0,win:.65,ev:.7},
@@ -131,7 +134,7 @@ for(const k in D)D[k].c0=Object.assign({},D[k].cost);
 function applyDif(){const m=DIF[S.dif].cost;for(const k in D){const c={};for(const r in D[k].c0)c[r]=Math.max(1,Math.round(D[k].c0[r]*m));D[k].cost=c}}
 function setDl(m){curDl=m;META.dl=m;try{const o=readSave()||{meta:META,game:null};o.meta=META;localStorage.setItem(SAVE,JSON.stringify(o))}catch(e){}showTitle()}
 function setDif(d){curDif=d;META.dif=d;try{const o=readSave()||{meta:META,game:null};o.meta=META;localStorage.setItem(SAVE,JSON.stringify(o))}catch(e){}showTitle()}
-const START=['house','farm','lumber','quarry','well','road'];
+const START=['house','farm','lumber','quarry','well','road','wall','gate'];
 const TECH=[
 {id:'carp',n:'Carpentry',c:15,r:[],u:['warehouse'],b:{lumber:.2},d:'Lumber +20%. Warehouse.'},
 {id:'mason',n:'Masonry',c:15,r:[],u:['wall'],b:{quarry:.2},d:'Quarry +20%. Walls.'},
@@ -239,12 +242,12 @@ function genMap(seed){
  for(let y=0;y<H;y++){const rx=45+Math.sin(y*.13+ph)*4+Math.sin(y*.31+ph2)*1.2,wd=1.6+Math.sin(y*.2+ph2)*.6;for(let x=0;x<W;x++)if(Math.abs(x-rx)<wd)T[y*W+x]=1}
  blob(1,6+irnd(0,6),46+irnd(0,4),5);
  const far=(min,max)=>{for(let k=0;k<60;k++){const x=irnd(3,W-4),y=irnd(3,H-4);const d=Math.hypot(x-28,y-28);if(d>=min&&d<=max&&T[y*W+x]===0)return[x,y]}return[irnd(8,14),irnd(8,14)]};
- for(let i=0;i<9;i++){const[x,y]=far(i<3?7:10,26);blob(2,x,y,irnd(3,5),1)}
- for(let i=0;i<4;i++){const[x,y]=far(8,24);blob(3,x,y,irnd(2,3),1)}
- for(let i=0;i<3;i++){const[x,y]=far(11,24);blob(3,x,y,3,1);blob(4,x,y,1.6,0)}
+ for(let i=0;i<9;i++){let x,y;if(i<2){const an=r()*6.283+i*3.1,dd=13+r()*2;x=Math.max(5,Math.min(W-6,28+Math.round(Math.cos(an)*dd)));y=Math.max(5,Math.min(H-6,28+Math.round(Math.sin(an)*dd)))}else{[x,y]=far(i<3?12:14,26)}blob(2,x,y,i<2?4:irnd(3,5),1)}
+ for(let i=0;i<4;i++){const[x,y]=far(13,24);blob(3,x,y,irnd(2,3),1)}
+ for(let i=0;i<3;i++){const[x,y]=far(15,24);blob(3,x,y,3,1);blob(4,x,y,1.6,0)}
  for(let i=0;i<70;i++){const x=irnd(0,W-1),y=irnd(0,H-1);if(T[y*W+x]===0&&r()<.8)T[y*W+x]=2}
  // clear start area
- for(let j=-5;j<=5;j++)for(let i=-6;i<=6;i++){const k=(28+j)*W+28+i;if(T[k]!==1)T[k]=0}
+ for(let j=18;j<=37;j++)for(let i=18;i<=37;i++){const k=j*W+i;if(T[k]!==1)T[k]=0}
  // beaches
  for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(T[y*W+x]===0){let w=0;for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const X=x+i,Y=y+j;if(X>=0&&Y>=0&&X<W&&Y<H&&T[Y*W+X]===1)w=1}if(w)T[y*W+x]=5}
  buildMini();
@@ -259,7 +262,7 @@ function avail(k){if(START.includes(k))return true;for(const id in S.techs)if(TI
 function techFor(k){for(const t of TECH)if(t.u.includes(k))return t;return null}
 function bon(k){return(S.bon&&S.bon[k])||0}
 function recalcBon(){const b={};for(const t of TECH)if(S.techs[t.id])for(const k in t.b)b[k]=(b[k]||0)+t.b[k];S.bon=b}
-function storCap(){let c=250+(cn('castle')?100:0);for(const b of B)if(b.k==='warehouse')c+=150+50*((b.lv||1)-1);return c}
+function storCap(){let c=250+(cn('castle')?100:0);for(const b of B){if(b.k==='warehouse')c+=150+50*((b.lv||1)-1);else if(b.k==='hall')c+=200+50*((b.lv||1)-1)}return c}
 function addRes(r,n){if(r==='gold')S.res.gold+=n;else S.res[r]=Math.min(storCap(),S.res[r]+n)}
 function maxhp(k){return D[k].hp*((k==='wall'||k==='gate')?1+bon('wall'):1)}
 function msg(t,cls){const l=$('log'),d=document.createElement('div');d.textContent=t;if(cls)d.className=cls;l.appendChild(d);while(l.children.length>5)l.removeChild(l.firstChild);setTimeout(()=>d.remove(),8000)}
@@ -269,14 +272,14 @@ function costStr(c){return Object.keys(c).map(r=>RES[r][0]+c[r]).join(' ')}
 function canAfford(c){for(const r in c)if(S.res[r]<c[r])return false;return true}
 
 // ================= buildings =================
-function addB(k,x,y,quiet){const d=D[k],b={id:UID++,k,x,y,w:d.s,h:d.s,hp:maxhp(k),prog:0,n:0,present:0,res:0,st:'',born:quiet?-9999:performance.now(),cd:0,tt:0,lv:1};B.push(b);for(let j=0;j<d.s;j++)for(let i=0;i<d.s;i++)OCC[(y+j)*W+x+i]=b;S.cnt[k]=(S.cnt[k]||0)+1;return b}
+function addB(k,x,y,quiet){const d=D[k],b={id:UID++,k,x,y,w:d.s,h:d.s,hp:maxhp(k),prog:0,n:0,present:0,res:0,st:'',born:quiet?-9999:performance.now(),cd:0,tt:0,lv:(S.hallLv>1&&levelable(k))?S.hallLv:1};B.push(b);for(let j=0;j<d.s;j++)for(let i=0;i<d.s;i++)OCC[(y+j)*W+x+i]=b;S.cnt[k]=(S.cnt[k]||0)+1;if(k==='hall')HALL=b;return b}
 function why(k,ax,ay){const d=D[k];if(!avail(k))return'Research '+(techFor(k)?techFor(k).n:'it')+' first';if(d.max&&cn(k)>=d.max)return'Only one allowed';
  for(const r in d.cost)if(S.res[r]<d.cost[r])return'Not enough '+RES[r][1];
  for(let j=0;j<d.s;j++)for(let i=0;i<d.s;i++){const X=ax+i,Y=ay+j;if(X<0||Y<0||X>=W||Y>=H)return'Outside the map';const t=T[Y*W+X];if(!buildable(t))return t===1?'Water in the way':'Clear it first (trees/rocks)';if(OCC[Y*W+X])return'Something is already there'}
  if(d.water){let w=0;for(let j=-1;j<=d.s;j++)for(let i=-1;i<=d.s;i++){const X=ax+i,Y=ay+j;if(X>=0&&Y>=0&&X<W&&Y<H&&T[Y*W+X]===1)w=1}if(!w)return'Must be next to water'}
  return''}
 function place(k,ax,ay){const e=why(k,ax,ay);if(e){msg(e,'bad');sfx('err');return false}const d=D[k];for(const r in d.cost)S.res[r]-=d.cost[r];const b=addB(k,ax,ay);sfx('place');burst(ax+d.s/2,ay+d.s/2,'✨',3);S.built++;return b}
-function removeB(b,refund){b.dead=true;B.splice(B.indexOf(b),1);const d=D[b.k];for(let j=0;j<b.h;j++)for(let i=0;i<b.w;i++)OCC[(b.y+j)*W+b.x+i]=null;S.cnt[b.k]--;
+function removeB(b,refund){if(b.k==='hall')return;b.dead=true;B.splice(B.indexOf(b),1);const d=D[b.k];for(let j=0;j<b.h;j++)for(let i=0;i<b.w;i++)OCC[(b.y+j)*W+b.x+i]=null;S.cnt[b.k]--;
  if(refund)for(const r in d.cost)addRes(r,Math.floor(d.cost[r]*.5));
  if(sel===b){sel=null;updSel()}
  for(const c of C)if(c.job===b)c.job=null;
@@ -293,13 +296,16 @@ function nearTile(b,type,rad){let best=null,bd=1e9;const cxm=b.x+b.w/2,cym=b.y+b
 function spawnCit(h,x,y){const c={x:x===undefined?h.x+h.w/2:x,y:y===undefined?h.y+h.h:y,home:h,job:null,wx:0,wy:0,wt:0,col:'hsl('+irnd(0,360)+',60%,75%)',work:false,mode:'',ph:Math.random()*6,walk:false};h.res++;C.push(c);return c}
 function isNight(){return S.tod<.2||S.tod>.85}
 function nearRaider(x,y){let m=99;for(const r of RA){const d=Math.hypot(r.x-x,r.y-y);if(d<m)m=d}return m}
+function segHit(x0,y0,x1,y1,rx0,ry0,rx1,ry1){let t0=0,t1=1;const dx=x1-x0,dy=y1-y0,p=[-dx,dx,-dy,dy],q=[x0-rx0,rx1-x0,y0-ry0,ry1-y0];for(let i=0;i<4;i++){if(p[i]===0){if(q[i]<0)return false}else{const r=q[i]/p[i];if(p[i]<0){if(r>t1)return false;if(r>t0)t0=r}else{if(r<t0)return false;if(r<t1)t1=r}}}return t1>t0+1e-6}
+function detour(x,y,tx,ty){const h=HALL;if(!h)return[tx,ty];const a=h.x+.1,b=h.y+.1,c=h.x+h.w-.1,d=h.y+h.h-.1;if(!segHit(x,y,tx,ty,a,b,c,d))return[tx,ty];const m=.7;let best=null,bd=1e9;
+ for(const q of[[a-m,b-m],[c+m,b-m],[a-m,d+m],[c+m,d+m]]){const d1=Math.hypot(q[0]-x,q[1]-y);if(d1<.4)continue;const dd=d1+Math.hypot(tx-q[0],ty-q[1]);if(dd<bd){bd=dd;best=q}}return best||[tx,ty]}
 function moveCit(c,dt){
  const danger=RA.length&&nearRaider(c.x,c.y)<7;let tx,ty;c.work=false;
  if(danger||isNight()){tx=c.home.x+c.home.w/2;ty=c.home.y+c.home.h+.2;c.mode='home'}
  else if(c.job){tx=c.job.x+c.job.w/2;ty=c.job.y+c.job.h+.2;c.mode='job'}
  else{c.mode='idle';c.wt-=dt;if(c.wt<=0){c.wx=c.home.x+rnd(-4,5);c.wy=c.home.y+rnd(-3,5);c.wt=rnd(3,9)}tx=c.wx;ty=c.wy}
- const dx=tx-c.x,dy=ty-c.y,d=Math.hypot(dx,dy);
- if(d>.12){let sp=1.7*dt;const o=OCC[Math.max(0,Math.min(H-1,Math.floor(c.y)))*W+Math.max(0,Math.min(W-1,Math.floor(c.x)))];if(o&&o.k==='road')sp*=1.6;if(S.weather==='storm')sp*=.7;if(danger)sp*=1.4;const st=Math.min(d,sp);c.x+=dx/d*st;c.y+=dy/d*st;c.walk=true}
+ const rd=Math.hypot(tx-c.x,ty-c.y),wp=detour(c.x,c.y,tx,ty),dx=wp[0]-c.x,dy=wp[1]-c.y,d=Math.hypot(dx,dy)||1;
+ if(rd>.12){let sp=1.7*dt;const o=OCC[Math.max(0,Math.min(H-1,Math.floor(c.y)))*W+Math.max(0,Math.min(W-1,Math.floor(c.x)))];if(o&&o.k==='road')sp*=1.6;if(S.weather==='storm')sp*=.7;if(danger)sp*=1.4;const st=Math.min(d,sp);c.x+=dx/d*st;c.y+=dy/d*st;c.walk=true}
  else{c.walk=false;if(c.mode==='job')c.work=true}}
 function assignJobs(){
  const vac=B.filter(b=>D[b.k].jobs&&b.n<jobsOf(b));
@@ -320,7 +326,7 @@ function pickWeather(){const se=season(),r=Math.random();let w='clear';
  S.weather=w;S.wT=rnd(25,55)}
 function sec(){
  {const pop=C.length,eat=pop*.75/DAY;if(S.res.food>=eat){S.res.food-=eat;S.starveT=0;S.hungry=0}else{S.res.food=0;S.hungry++;S.starveT=(S.starveT||0)+1;if(S.starveT>=DAY&&pop>2){S.starveT=0;const i=irnd(0,pop-1),c=C[i];ft(c.x,c.y,'left hungry','#f99');C.splice(i,1);msg('A hungry citizen left town. Build more farms!','bad')}}
-  let up=0;for(const b of B)if(b.lv>1)up+=2*(b.lv-1);S.res.gold=Math.max(0,S.res.gold+(pop*TAX[S.tax]*(1+bon('tax'))-up)/DAY)}
+  let up=0;for(const b of B)if(b.k!=='hall')up+=2*Math.max(0,b.lv-(S.hallLv||1));S.res.gold=Math.max(0,S.res.gold+(pop*TAX[S.tax]*(1+bon('tax'))-up)/DAY)}
  recalcHomes();assignJobs();
  const pop=C.length,cap=B.reduce((a,b)=>a+(D[b.k].cap||0),0);S.cap=cap;
  // happiness
@@ -362,7 +368,7 @@ function sim(dt){
  if(CART){CART.t+=dt;const tx=CART.arrived?CART.ex:CART.tx,ty=CART.arrived?CART.ey:CART.ty,dx=tx-CART.x,dy=ty-CART.y,d=Math.hypot(dx,dy);if(d>.3){CART.x+=dx/d*2.2*dt;CART.y+=dy/d*2.2*dt}else if(CART.arrived)CART=null;else CART.arrived=1;if(CART&&CART.arrived&&!S.trader)CART.leave=1}
  for(let i=PR.length-1;i>=0;i--){const p=PR[i];p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.g)p.vy+=90*dt;if(p.life<=0)PR.splice(i,1)}
  for(let i=AR.length-1;i>=0;i--){AR[i].t+=dt;if(AR[i].t>.25)AR.splice(i,1)}
- flash=Math.max(0,flash-dt*2);if(S.weather==='storm'&&Math.random()<dt*.15){flash=1;sfx('thunder')}}
+ flash=Math.max(0,flash-dt*2);celeb=Math.max(0,celeb-dt);if(S.weather==='storm'&&Math.random()<dt*.15){flash=1;sfx('thunder')}}
 function mult(b){const k=b.k,se=season();let m=1+bon(k);
  if(k==='farm'){m*=sd([1,1.2,1.3,DIF[S.dif].win+bon('winter')][se]);if(S.weather==='rain')m*=1.15}
  else if(k==='orchard')m*=sd([.6,1.2,2,0][se]);else if(k==='harbor'&&se===3)m*=sd(.6);
@@ -408,7 +414,7 @@ function mil(dt){
   if(!r.tg)continue;
   const tx=r.tg.x+r.tg.w/2,ty=r.tg.y+r.tg.h/2,dx=tx-r.x,dy=ty-r.y,d=Math.hypot(dx,dy)||1,sp=r.spd*dt;
   const nx=r.x+dx/d*sp,ny=r.y+dy/d*sp,o=OCC[Math.max(0,Math.min(H-1,Math.floor(ny)))*W+Math.max(0,Math.min(W-1,Math.floor(nx)))];
-  if(o&&o.k!=='road'){o.hp-=4.5*dt;r.hit=.2;r.tt=(r.tt||0)+dt;sfx('hit');if(r.tt>4){r.tt=0;const st=Math.min(S.res.gold,6);S.res.gold-=st;r.loot+=st||6;ft(r.x,r.y,'-'+st+'\u{1FA99}','#fa6')}
+  if(o&&o.k!=='road'){o.hp-=4.5*dt;if(o.k==='hall')o.hp=Math.max(o.hp,300);r.hit=.2;r.tt=(r.tt||0)+dt;sfx('hit');if(r.tt>4){r.tt=0;const st=Math.min(S.res.gold,6);S.res.gold-=st;r.loot+=st||6;ft(r.x,r.y,'-'+st+'\u{1FA99}','#fa6')}
    if(o.hp<=0){msg(D[o.k].n+' was destroyed!','bad');removeB(o,false);S.lost++;r.loot+=8}}
   else{r.x=nx;r.y=ny}}
  if(S.raidActive&&!RA.length&&!S.pending)raidOver();
@@ -416,8 +422,8 @@ function mil(dt){
   if(s.hp<=0){burst(s.x,s.y,'\u{1F4A2}',3);SO.splice(i,1);continue}
   let nr=null;const W_=S.war&&S.war.state==='fight'?S.war:null;let nd=W_&&W_.stance==='counter'?60:24;const hq=W_&&W_.stance==='rally'?(W_.rally||heart()):null;const ref=W_?(W_.stance==='hold'?{x:s.home.x+s.home.w/2,y:s.home.y+s.home.h/2,R:9}:hq?{x:hq.x,y:hq.y,R:8}:null):null;
   for(const r of RA){if(ref&&r.war&&Math.hypot(r.x-ref.x,r.y-ref.y)>ref.R)continue;const d=Math.hypot(r.x-s.x,r.y-s.y);if(d<nd){nd=d;nr=r}}
-  if(nr){const dx=nr.x-s.x,dy=nr.y-s.y,d=Math.hypot(dx,dy);if(d>.8){s.x+=dx/d*2.3*dt;s.y+=dy/d*2.3*dt}else{nr.hp-=(9+9*bon('sold'))*(1+(W_?W_.boost:0))*dt;nr.hit=.2;sfx('hit')}}
-  else{const tx=hq?hq.x+s.off:s.home.x+s.home.w/2+s.off,ty=hq?hq.y+s.off2:s.home.y+s.home.h+.6+s.off2,dx=tx-s.x,dy=ty-s.y,d=Math.hypot(dx,dy);if(d>.3){s.x+=dx/d*1.8*dt;s.y+=dy/d*1.8*dt}if(s.hp<40)s.hp=Math.min(40,s.hp+3*dt)}}
+  if(nr){const dx=nr.x-s.x,dy=nr.y-s.y,d=Math.hypot(dx,dy),wp=detour(s.x,s.y,nr.x,nr.y),ex=wp[0]-s.x,ey=wp[1]-s.y,ed=Math.hypot(ex,ey)||1;if(d>.8){s.x+=ex/ed*2.3*dt;s.y+=ey/ed*2.3*dt}else{nr.hp-=(9+9*bon('sold'))*(1+(W_?W_.boost:0))*dt;nr.hit=.2;sfx('hit')}}
+  else{const tx=hq?hq.x+s.off:s.home.x+s.home.w/2+s.off,ty=hq?hq.y+s.off2:s.home.y+s.home.h+.6+s.off2,dx=tx-s.x,dy=ty-s.y,d=Math.hypot(dx,dy);if(d>.3){const wp=detour(s.x,s.y,tx,ty),ex=wp[0]-s.x,ey=wp[1]-s.y,ed=Math.hypot(ex,ey)||1;s.x+=ex/ed*1.8*dt;s.y+=ey/ed*1.8*dt}if(s.hp<40)s.hp=Math.min(40,s.hp+3*dt)}}
  for(const b of B){const tw=TW[b.k];if(!tw)continue;b.cd-=dt;if(b.cd>0)continue;let nr=null,nd=tw.rg+.4*(b.lv-1);
   for(const r of RA){const d=Math.hypot(r.x-(b.x+b.w/2),r.y-(b.y+b.h/2));if(d<nd){nd=d;nr=r}}
   if(nr){b.cd=1.1;nr.hp-=tw.dm*(1+bon('tower'))*(1+.15*(b.lv-1));nr.hit=.2;AR.push({x0:b.x+b.w/2,y0:b.y+b.h/2,x1:nr.x,y1:nr.y,t:0});sfx('arrow')}}}
@@ -454,12 +460,15 @@ function recruit(b,auto){if(garrison(b)>=trainCap(b)){if(!auto){msg('Garrison is
 const jobsOf=b=>{const j=D[b.k].jobs||0;return j?j+(b.lv>=3?1:0)+(b.lv>=5?1:0):0};
 function io(b){const d=D[b.k],lv=b.lv||1;let out=d.outf?{gold:3+Math.min(C.length,80)*.06}:Object.assign({},d.out||{}),inn=Object.assign({},d.in||{});const up=5*(lv-1);
  if(up&&Object.keys(out).length){const mk=Object.keys(out)[0];out[mk]+=up;for(const r in inn)inn[r]+=Math.round(up/2)}return{out,inn}}
-const canUp=b=>{const d=D[b.k];return !!((d.cyc&&(d.out||d.outf))||b.k==='warehouse'||TW[b.k])&&b.lv<UPM};
-function ucost(b){const L=b.lv+1,m=[0,0,1,2,4,7][L];if(TW[b.k]&&!D[b.k].out){const f=DIF[S.dif].cost;const o={stone:Math.round(30*m*f),wood:Math.round(20*m*f),gold:Math.round(20*m*f)};if(L>=3)o.iron=Math.round(5*(L-2)*f);return o}const dm=DIF[S.dif].cost;return{gold:Math.round(30*m*dm),wood:Math.round(25*m*dm),stone:Math.round(20*m*dm)}}
+const canUp=b=>{const d=D[b.k];return !!((d.cyc&&(d.out||d.outf))||b.k==='warehouse'||TW[b.k]||b.k==='hall')&&b.lv<UPM};
+function ucost(b){const L=b.lv+1,m=[0,0,1,2,4,7][L];if(b.k==='hall'){const f=DIF[S.dif].cost;return{stone:Math.round(150*m*f),wood:Math.round(120*m*f),iron:Math.round(25*m*f),gold:Math.round(120*m*f)}}if(TW[b.k]&&!D[b.k].out){const f=DIF[S.dif].cost;const o={stone:Math.round(30*m*f),wood:Math.round(20*m*f),gold:Math.round(20*m*f)};if(L>=3)o.iron=Math.round(5*(L-2)*f);return o}const dm=DIF[S.dif].cost;return{gold:Math.round(30*m*dm),wood:Math.round(25*m*dm),stone:Math.round(20*m*dm)}}
 function upInfo(b){if(!canUp(b))return b.lv>=UPM&&D[b.k].cyc?'<br><b style="color:#ffe08a">MAX LEVEL</b>':'';
  const nb=Object.assign({},b,{lv:b.lv+1}),c=ucost(b),ok=canAfford(c);
- return (b.k==='warehouse'?'<br>Next level: storage +'+(150+50*b.lv)+' (now +'+(150+50*(b.lv-1))+')':TW[b.k]&&!D[b.k].out?'<br>Next level: garrison '+trainCapAt(b,b.lv+1)+' soldiers (now '+trainCap(b)+'), arrows +15% damage and a bit more range':'<br>Next level: makes '+costStr(io(nb).out)+(Object.keys(io(nb).inn).length?', uses '+costStr(io(nb).inn):''))+'<br>Upgrade cost: '+costStr(c)+' (upkeep +2\u{1FA99}/day per level; needs more workers at Lv3, Lv5)<br><button id="upg" '+(ok?'':'disabled')+'>⬆ Upgrade to Lv'+(b.lv+1)+'</button>'}
-function upgrade(b){if(!canUp(b))return;const c=ucost(b);if(!canAfford(c)){msg('Not enough resources to upgrade','bad');sfx('err');return}for(const r in c)S.res[r]-=c[r];b.lv++;b.born=performance.now();sfx('tech');burst(b.x+b.w/2,b.y+b.h/2,'⬆️',5);msg(D[b.k].n+' upgraded to level '+b.lv+'!','good');updHUD();updSel()}
+ return (b.k==='hall'?'<br>Raises EVERY upgradable building to at least level '+(b.lv+1)+' for free ('+B.filter(q=>levelable(q.k)&&q.lv<b.lv+1).length+' buildings now)':b.k==='warehouse'?'<br>Next level: storage +'+(150+50*b.lv)+' (now +'+(150+50*(b.lv-1))+')':TW[b.k]&&!D[b.k].out?'<br>Next level: garrison '+trainCapAt(b,b.lv+1)+' soldiers (now '+trainCap(b)+'), arrows +15% damage and a bit more range':'<br>Next level: makes '+costStr(io(nb).out)+(Object.keys(io(nb).inn).length?', uses '+costStr(io(nb).inn):''))+'<br>Upgrade cost: '+costStr(c)+' (upkeep +2\u{1FA99}/day per level; needs more workers at Lv3, Lv5)<br><button id="upg" '+(ok?'':'disabled')+'>⬆ Upgrade to Lv'+(b.lv+1)+'</button>'}
+function hallUp(b){S.hallLv=b.lv;let n=0;for(const q of B)if(levelable(q.k)&&q.lv<b.lv){q.lv=b.lv;q.born=performance.now();n++}
+ celeb=3.5;celebTxt='\u{1F3F0} CITADEL LEVEL '+b.lv+'!  '+n+' buildings upgraded!';msg('\u{1F3F0} Grand Citadel level '+b.lv+'! '+n+' buildings upgraded!','good');sfx('win');for(let i=0;i<14;i++)burst(b.x+rnd(0,b.w),b.y+rnd(0,b.h),['\u{1F386}','\u2728','\u2B50'][i%3],2)}
+function selHall(){if(HALL){sel=HALL;view.x=(HALL.x+6)*TS;view.y=(HALL.y+6)*TS;updSel()}}
+function upgrade(b){if(!canUp(b))return;const c=ucost(b);if(!canAfford(c)){msg('Not enough resources to upgrade','bad');sfx('err');return}for(const r in c)S.res[r]-=c[r];b.lv++;if(b.k==='hall')hallUp(b);b.born=performance.now();sfx('tech');burst(b.x+b.w/2,b.y+b.h/2,'⬆️',5);msg(D[b.k].n+' upgraded to level '+b.lv+'!','good');updHUD();updSel()}
 
 // ================= rivals, diplomacy & war =================
 const RN=[{n:'Brightmoor',pers:'proud',col:'#d33c3c',m:1.2},{n:'Goldmarsh',pers:'greedy',col:'#e0b020',m:.95},{n:'Shadowfen',pers:'sneaky',col:'#8a52d0',m:1.0},{n:'Greenhollow',pers:'friendly',col:'#3aa860',m:.8}];
@@ -469,7 +478,7 @@ function mkRivals(){return RN.map((r,i)=>({id:i,n:r.n,pers:r.pers,col:r.col,m:r.
 function achOn(id){return S.ach[id]||(id.startsWith('win')&&META.dw&&META.dw[id[3]])}
 function ach(id){if(!S.ach)S.ach={};if(S.ach[id])return;S.ach[id]=1;const a=ACH.find(q=>q[0]===id);msg('\u{1F3C5} Achievement: '+a[1]+'!','good');sfx('tech')}
 function rstr(r){return Math.round((28+(OD()-1)*2.4)*r.m*DIF[S.dif].rstr)}
-function power(){let p=SO.length*10+B.reduce((a,b)=>a+(b.k==='tower'?8+2*(b.lv-1):0),0)+cn('watchtower')*4+cn('wall')*.6+cn('gate')*3+cn('castle')*30+cn('fortress')*40+Math.min(10,cn('banner'))*2;
+function power(){let p=SO.length*10+B.reduce((a,b)=>a+(b.k==='tower'?8+2*(b.lv-1):0),0)+cn('watchtower')*4+cn('wall')*.6+cn('gate')*3+cn('castle')*30+cn('hall')*25+cn('fortress')*40+Math.min(10,cn('banner'))*2;
  return Math.round(p*(1+bon('sold')+bon('war')+Math.min(1,cn('armory'))*.15+Math.min(2,cn('training'))*.1))}
 function estimate(r){const e=rstr(r),m=Math.max(1,power()),q=e/m;const t=q<.5?'Much weaker than you':q<.85?'Weaker than you':q<1.2?'About equal':q<1.8?'Stronger than you':'Much stronger!';
  return t+(bon('spy')?' (exactly '+e+' vs your '+power()+')':' (about '+Math.round(e*(1+((r.id*37+S.day)%5-2)*.08))+')')}
@@ -488,17 +497,15 @@ function makeChallenge(r){const t=Math.round((25+S.day*2)*(1+.15*r.declined));
  const why={proud:'Your kingdom has grown too proud! '+r.n+' wants to test your strength on the field.',greedy:'Your stores are full! '+r.n+' wants your riches and declares war unless you pay.',sneaky:'Your guards look sleepy, says '+r.n+'. A "surprise" war is declared!',friendly:'Border quarrels got out of hand. '+r.n+' sadly challenges you to settle it in battle.'}[r.pers];
  S.challenge={rid:r.id,tribute:t,why};r.cd=OD()+irnd(8,12)*1.5/DIF[S.dif].war}
 function showChallenge(){const c=S.challenge,r=S.rivals[c.rid];if(!c)return;sfx('horn');
- modal('<span style="color:'+r.col+'">⚑</span> War Challenge from '+r.n+'!','<p><b style="color:'+r.col+'">Kingdom of '+r.n+'</b> ('+PERS[r.pers]+')</p><p>'+c.why+'</p><p>Their army: <b>'+estimate(r)+'</b><br>Your army power: <b>'+power()+'</b></p><p style="font-size:11px;color:#ffe08a">'+DT[S.dif]+'</p><p>Demand: <b>fight</b>, or pay <b>'+c.tribute+' \u{1FA99}</b> tribute to decline'+(r.pers==='friendly'?' (a friendly gift will do)':'')+'.<br><small>Declining never ends your game, but may make rivals bolder.</small></p>',
-  [['⚔ ACCEPT WAR',acceptWar,'big red'],['\u{1F54A} DECLINE',declineWar,'big']])}
-function declineWar(){const c=S.challenge,r=S.rivals[c.rid];S.challenge=null;r.declined++;S.rep=Math.max(0,S.rep-2);ach('bold');S.warCd=OD()+irnd(4,6)*1.5/DIF[S.dif].war;
- if(r.pers==='friendly'&&S.res.gold>=20){S.res.gold-=20;r.rel+=3;msg(r.n+' happily accepted a 20 gold gift instead of war.','good')}
- else if(S.res.gold>=c.tribute){S.res.gold-=c.tribute;r.rel-=4;msg('You paid '+c.tribute+' gold tribute to '+r.n+'. They are satisfied (for now).')}
- else{r.rel-=15;S.rep=Math.max(0,S.rep-6);msg('You could not pay! '+r.n+' thinks less of you. Reputation fell.','bad')}
- if(r.declined>=2)msg(r.n+' is getting bolder...');closeModal();updHUD()}
+ modal('<span style="color:'+r.col+'">⚑</span> War Challenge from '+r.n+'!','<p><b style="color:'+r.col+'">Kingdom of '+r.n+'</b> ('+PERS[r.pers]+')</p><p>'+c.why+'</p><p>Their army: <b>'+estimate(r)+'</b><br>Your army power: <b>'+power()+'</b></p><p style="font-size:11px;color:#ffe08a">'+DT[S.dif]+'</p><p>Demand: <b>fight</b>, or <b>decline for only 5 coins</b> (free if you have less).<br><small>Declining never ends your game, but rivals may get bolder.</small></p>',
+  [['⚔ ACCEPT WAR',acceptWar,'big red'],['\u{1F54A} DECLINE (5 coins)',declineWar,'big']])}
+function declineWar(){const c=S.challenge,r=S.rivals[c.rid];S.challenge=null;r.declined++;ach('bold');S.warCd=OD()+irnd(4,6)*1.5/DIF[S.dif].war;
+ const pay=S.res.gold>=5?5:0;S.res.gold-=pay;
+ msg(r.n+' shrugs: "Maybe next time." '+(pay?'You paid just 5 coins.':'No coins needed.'),'good');closeModal();updHUD()}
 // ---- REAL WAR ON THE MAP ----
 const WSIDE=[2,1,3,0];
 const WU={inf:{hp:30,spd:1.15,dm:4.5},arch:{hp:20,spd:1.05,dm:2.5},ram:{hp:90,spd:.8,dm:14},cap:{hp:130,spd:1.0,dm:6}};
-function heart(){const c=B.find(b=>b.k==='castle')||B.find(b=>b.k==='fortress');if(c)return{x:c.x+c.w/2,y:c.y+c.h/2,b:c};let sx=0,sy=0,n=0;for(const b of B)if(b.k!=='road'){sx+=b.x;sy+=b.y;n++}return n?{x:sx/n+.5,y:sy/n+.5}:{x:28,y:28}}
+function heart(){const c=HALL||B.find(b=>b.k==='castle')||B.find(b=>b.k==='fortress');if(c)return{x:c.x+c.w/2,y:c.y+c.h/2,b:c,r:Math.max(c.w,c.h)/2};let sx=0,sy=0,n=0;for(const b of B)if(b.k!=='road'){sx+=b.x;sy+=b.y;n++}return n?{x:sx/n+.5,y:sy/n+.5}:{x:28,y:28}}
 function edgePoint(side){let x,y,t=0;do{x=side===0?1.5:side===1?W-2:irnd(4,W-5);y=side===2?1.5:side===3?H-2:irnd(4,H-5);t++}while(t<30&&T[Math.floor(y)*W+Math.floor(x)]===1);return{x,y}}
 function mkUnit(kind,r,x,y,hp,mhp){const st=WU[kind];return{war:1,kind,rid:r.id,col:r.col,x,y,hp:hp||st.hp,mhp:mhp||st.hp,spd:st.spd*(.95+Math.random()*.1),tg:null,hit:0,cd:0,life:0,side:Math.random()<.5?1:-1,tx:x,ty:y}}
 function acceptWar(){const c=S.challenge,r=S.rivals[c.rid],eP=rstr(r);S.challenge=null;
@@ -516,7 +523,7 @@ function callAllies(quiet){const w=S.war,al=S.rivals.filter(q=>q.ally&&q.id!==w.
 function dmgB(b,dm){if(b.k==='gate'&&S.war&&S.war.gates)dm*=.5;b.hp=Math.max(maxhp(b.k)*.1,b.hp-dm)}
 const occAt=(x,y)=>OCC[Math.max(0,Math.min(H-1,Math.floor(y)))*W+Math.max(0,Math.min(W-1,Math.floor(x)))];
 const bat=b=>b.hp<=maxhp(b.k)*.13;
-function pickTarget(r){let best=null,bd=1e9;const ramw=r.kind==='ram';for(const b of B){if(b.k==='road'||bat(b))continue;let d=Math.hypot(b.x+b.w/2-r.x,b.y+b.h/2-r.y);if(ramw&&(b.k==='wall'||b.k==='gate'||b.k==='tower'))d-=8;if(d<bd){bd=d;best=b}}return best}
+function pickTarget(r){let best=null,bd=1e9;const ramw=r.kind==='ram';for(const b of B){if(b.k==='road'||bat(b))continue;let d=Math.hypot(b.x+b.w/2-r.x,b.y+b.h/2-r.y)-Math.max(b.w,b.h)/2-(b.k==='hall'?4:0);if(ramw&&(b.k==='wall'||b.k==='gate'||b.k==='tower'))d-=8;if(d<bd){bd=d;best=b}}return best}
 function warUnit(r,dt){const w=S.war;r.cd-=dt;r.hit=Math.max(0,r.hit-dt);
  if(r.hp<=0){if(w)w.kills++;burst(r.x,r.y,'⭐',5);ft(r.x,r.y,r.kind==='cap'?'Captain POOF!':'POOF!','#ff0',13);sfx('boom');return false}
  if(!w)return false;
@@ -538,7 +545,7 @@ function warSim(dt){const w=S.war;if(!w)return;w.t+=dt;
  if(w.state==='prep'){w.prep-=dt;if(w.prep<=0){w.state='fight';w.waveT=0;spawnWave();sfx('horn')}}
  else{w.waveT+=dt;let alive=0,cap=null;for(const r of RA)if(r.war){alive++;if(r.kind==='cap')cap=r}
   if(w.wave<w.waves&&((alive===0&&w.waveT>6)||w.waveT>45)){w.waveT=0;spawnWave();sfx('horn')}
-  const h=heart();if(cap&&Math.hypot(cap.x-h.x,cap.y-h.y)<3.5)w.holdT+=dt;else w.holdT=Math.max(0,w.holdT-dt);
+  const h=heart();if(cap&&Math.hypot(cap.x-h.x,cap.y-h.y)<3.5+(h.r||0))w.holdT+=dt;else w.holdT=Math.max(0,w.holdT-dt);
   w.hudT=(w.hudT||0)-dt;if(w.hudT<=0){w.bat=B.reduce((a,b)=>a+(b.k!=='road'&&bat(b)?1:0),0);{const nb=B.reduce((a,b)=>a+(b.k!=='road'?1:0),0);w.limit=Math.max([4,6,8][S.dif],Math.ceil(nb*[.35,.3,.25][S.dif]))}if(w.bat>w.maxBat)w.maxBat=w.bat;w.alive=alive;updWarHud();w.hudT=.3}
   if(w.holdT>=14||w.bat>=w.limit){endWar('lose');return}
   if(w.wave>=w.waves&&alive===0){endWar('win');return}
@@ -549,7 +556,7 @@ function endWar(res){const w=S.war,r=S.rivals[w.rid];S.war=null;S.warCd=OD()+irn
  if(res==='win'){const g=Math.round(40+w.eP*.9);S.res.gold+=g;addRes('iron',15);addRes('food',25);S.rp+=25;S.rep=Math.min(100,S.rep+8);r.partner=true;r.rel=Math.max(-100,r.rel-10);r.m*=.85;r.peace=OD()+14;S.warsWon++;ach('firstwin');if(S.warsWon>=3)ach('iron');if(w.maxBat===0)ach('unbroken');sfx('win');
   t='<p>The enemy army is beaten and runs away in a cloud of dust!</p><p>Loot: +'+g+' \u{1FA99}, +15 ⛏️, +25 \u{1F35E}, +25 research points. Reputation up, and '+r.n+' is now a trade partner (better prices).</p>'}
  else if(res==='lose'){const l=Math.round(S.res.gold*.2);S.res.gold-=l;for(const k of['wood','stone','food'])S.res[k]=Math.floor(S.res[k]*.85);S.rep=Math.max(0,S.rep-8);S.warsLost++;r.peace=OD()+8;
-  const outer=B.filter(b=>b.k!=='road').map(b=>[Math.hypot(b.x-28,b.y-28),b]).sort((a,b)=>b[0]-a[0]).slice(0,DIF[S.dif].dmg);outer.forEach(q=>{q[1].hp=Math.max(5,q[1].hp*.45)});
+  const outer=B.filter(b=>b.k!=='road'&&b.k!=='hall').map(b=>[Math.hypot(b.x-28,b.y-28),b]).sort((a,b)=>b[0]-a[0]).slice(0,DIF[S.dif].dmg);outer.forEach(q=>{q[1].hp=Math.max(5,q[1].hp*.45)});
   sfx('lose');t='<p>Your defenses were overrun this time. You gave up '+l+' gold and some supplies, and '+(outer.length?outer.length+' outer buildings were bruised (they will repair themselves). Nothing was destroyed.':'no extra buildings were harmed.')+' Build more towers, walls and soldiers, then try again!</p>'}
  else{const c=Math.round(15+w.eP*.35);if(S.res.gold>=c){S.res.gold-=c}else{S.res.food=Math.floor(S.res.food*.8);S.res.wood=Math.floor(S.res.wood*.8)}S.rep=Math.max(0,S.rep-2);r.peace=OD()+10;ach('sue');t='<p>You asked for peace and the army went home (cost '+c+' gold or supplies). The war is over.</p>'}
  showWar();closeModal();updHUD();modal(res==='win'?'\u{1F3C6} Victory!':res==='lose'?'\u{1F6E1} Defeat':'\u{1F54A} Peace',t,[['OK',closeModal,'big']])}
@@ -604,12 +611,12 @@ function end(win,why){if(S.over)return;S.over=true;sfx(win?'win':'lose');
 // ================= new game / save =================
 let META={wins:{}};
 function newState(i,dif,dl){dl=dl||1;dif=dif===undefined?1:dif;const sc=SC[i];const res={food:0,wood:0,stone:0,iron:0,gold:0,grain:0,flour:0,arms:0};Object.assign(res,sc.start);for(const r in sc.start)res[r]=Math.round(res[r]*DIF[dif].res);
- return{sc:i,res,techs:{},rp:sc.rp,day:1,tod:.3,tax:2,happy:60,target:60,speed:1,paused:false,raids:0,repelled:0,kills:0,raidActive:0,nextRaid:Math.round(sc.raid*DIF[dif].gap),dif,dl,pending:null,weather:'clear',wT:40,evT:55,mood:0,fear:0,growT:0,acc:0,t:0,cnt:{},built:0,lost:0,maxPop:0,everPop:0,hungry:0,over:false,raidsOn:false,trader:null,bon:{},flow:null,prevRes:null,rpRate:.1,hadCastle:0,rivals:mkRivals(),war:null,challenge:null,rep:50,ach:{},warsWon:0,warsLost:0,warCd:0,warsSeen:0}}
+ return{sc:i,res,techs:{},rp:sc.rp,day:1,tod:.3,tax:2,happy:60,target:60,speed:1,paused:false,raids:0,repelled:0,kills:0,raidActive:0,nextRaid:Math.round(sc.raid*DIF[dif].gap),dif,dl,pending:null,weather:'clear',wT:40,evT:55,mood:0,fear:0,growT:0,acc:0,t:0,cnt:{},built:0,lost:0,maxPop:0,everPop:0,hungry:0,over:false,raidsOn:false,trader:null,bon:{},flow:null,prevRes:null,rpRate:.1,hadCastle:0,hallLv:1,rivals:mkRivals(),war:null,challenge:null,rep:50,ach:{},warsWon:0,warsLost:0,warCd:0,warsSeen:0}}
 function startScenario(i){
-  inGame=true;SEED=(Math.random()*1e9)|0;UID=1;B=[];C=[];SO=[];RA=[];PR=[];AR=[];CART=null;sel=null;tool=null;
+  inGame=true;SEED=(Math.random()*1e9)|0;UID=1;HALL=null;B=[];C=[];SO=[];RA=[];PR=[];AR=[];CART=null;sel=null;tool=null;
  S=newState(i,curDif,curDl);applyDif();SC[i].techs.forEach(t=>S.techs[t]=1);recalcBon();genMap(SEED);
- const h1=addB('house',25,27,1),h2=addB('house',25,29,1);addB('farm',28,27,1);addB('well',27,30,1);
- for(let k=0;k<SC[i].pop;k++)spawnCit(k%2?h2:h1,25+rnd(0,2),28+rnd(0,2));
+ addB('hall',22,22,1);const h1=addB('house',19,26,1),h2=addB('house',19,29,1);addB('farm',34,26,1);addB('well',35,30,1);
+ for(let k=0;k<SC[i].pop;k++)spawnCit(k%2?h2:h1,(k%2?h2:h1).x+rnd(0,1),(k%2?h2:h1).y+rnd(1,2));
  view.x=28*TS;view.y=28*TS;view.z=1;
  enterGame();msg('Welcome! Build a Lumber Camp near trees, and more Houses.','good');
  msg('Tip: click a building button below, then click the map.');
@@ -621,11 +628,17 @@ function snapshot(){const st=Object.assign({},S);delete st.bon;return{v:1,seed:S
 function saveGame(metaOnly){try{const o={meta:META,game:(inGame&&S&&!S.over&&!metaOnly)?snapshot():null};if(metaOnly){const old=readSave();o.game=old&&old.game&&!S.over?old.game:null}localStorage.setItem(SAVE,JSON.stringify(o))}catch(e){}}
 function readSave(){try{const r=localStorage.getItem(SAVE);return r?JSON.parse(r):null}catch(e){return null}}
 function clearSave(){try{const o=readSave()||{meta:META};o.game=null;o.meta=META;localStorage.setItem(SAVE,JSON.stringify(o))}catch(e){}}
+function ensureHall(){if(HALL)return;const fits=(ax,ay)=>{for(let j=0;j<12;j++)for(let i=0;i<12;i++){const X=ax+i,Y=ay+j;if(X<0||Y<0||X>=W||Y>=H||OCC[Y*W+X]||T[Y*W+X]===1)return false}return true};
+ let pos=null,txt='The Grand Citadel now stands in your kingdom!';
+ for(let r=0;r<=34&&!pos;r++)for(let dy=-r;dy<=r&&!pos;dy++)for(let dx=-r;dx<=r&&!pos;dx++){if(Math.max(Math.abs(dx),Math.abs(dy))!==r)continue;if(fits(22+dx,22+dy))pos=[22+dx,22+dy]}
+ if(!pos){pos=[22,22];for(const b of B.slice())if(b.x<34&&b.x+b.w>22&&b.y<34&&b.y+b.h>22){for(const r in D[b.k].cost)addRes(r,D[b.k].cost[r]);removeB(b,false)}txt='The Grand Citadel was built in the centre! Buildings in the way were removed and refunded.'}
+ for(let j=0;j<12;j++)for(let i=0;i<12;i++)T[(pos[1]+j)*W+pos[0]+i]=0;buildMini();addB('hall',pos[0],pos[1],1);S.hallLv=Math.max(1,S.hallLv||1);msg(txt,'good')}
 function loadGame(){const o=readSave();if(!o||!o.game)return false;try{const g=o.game;
- SEED=g.seed;UID=1;B=[];C=[];SO=[];RA=[];PR=[];AR=[];CART=null;sel=null;tool=null;
+ SEED=g.seed;UID=1;HALL=null;B=[];C=[];SO=[];RA=[];PR=[];AR=[];CART=null;sel=null;tool=null;
  T=new Uint8Array(W*H);for(let i=0;i<W*H;i++)T[i]=+g.T[i];OCC=new Array(W*H).fill(null);buildMini();
  S=Object.assign(newState(g.S.sc,1,1),g.S);if(!g.S.dl)S.dl=1;if(S.dif===undefined)S.dif=1;applyDif();S.cnt={};S.pending=g.S.pending||null;recalcBon();inGame=true;
  for(const q of g.B){const b=addB(q[0],q[1],q[2],1);b.hp=q[3];b.prog=q[4]||0;b.lv=q[5]||1}
+ ensureHall();
  for(const q of g.C){const h=B[q[0]]||freeHouse(28,28);if(h)spawnCit(h,q[1],q[2])}
  for(const q of g.SO){const h=B[q[0]];if(h)SO.push({x:q[1],y:q[2],hp:40,home:h,cd:0,off:rnd(-1.5,1.5),off2:rnd(0,1.5)})}
  RA=[];if(S.raidActive){S.raidActive=0}
@@ -647,21 +660,22 @@ function showTitle(){
 function buildBar(){
  const t=$('tabs');t.innerHTML='';CATS.forEach((c,i)=>{const b=document.createElement('button');b.textContent=c;if(i===tab)b.className='on';b.onclick=()=>{tab=i;sfx('click');buildBar()};t.appendChild(b)});
  const bd=document.createElement('button');bd.textContent='\u{1F5D1} Bulldoze';if(tool==='bulldoze')bd.className='on';bd.onclick=()=>{setTool(tool==='bulldoze'?null:'bulldoze')};t.appendChild(bd);
- const it=$('items');it.innerHTML='';
- KEYS.filter(k=>D[k].cat===tab).forEach(k=>{const d=D[k],ok=avail(k),el=document.createElement('div');el.className='bi'+(tool===k?' sel':'')+(ok?'':' lock');el.dataset.k=k;
+ qsync();const it=$('items');it.innerHTML='';const qs=($('bsearch').value||'').trim().toLowerCase();
+ KEYS.filter(k=>qs?(D[k].cat>=0&&D[k].n.toLowerCase().includes(qs)):D[k].cat===tab).forEach(k=>{const d=D[k],ok=avail(k),el=document.createElement('div');el.className='bi'+(tool===k?' sel':'')+(ok?'':' lock');el.dataset.k=k;
   el.innerHTML='<div class="e">'+bicon(k)+'</div><div>'+d.n+'</div><div class="c">'+(ok?Object.keys(d.cost).map(r=>'<span'+(S.res[r]<d.cost[r]?' style="color:#f88"':'')+'>'+RES[r][0]+d.cost[r]+'</span>').join(' '):'\u{1F512} '+(techFor(k)?techFor(k).n:''))+'</div>';
   el.onclick=()=>{if(!ok){msg('Research '+techFor(k).n+' to unlock '+d.n,'bad');sfx('err');return}setTool(tool===k?null:k)};
   el.onmouseenter=ev=>tip(tipB(k),ev);el.onmouseleave=untip;it.appendChild(el)})}
 function bicon(k){const d=D[k];return d.e||({house:'\u{1F3E0}',road:'\u{1F6E4}️',wall:'\u{1F9F1}',gate:'\u{1F6AA}'}[k])}
-function tipB(k){const d=D[k];let s='<b>'+d.n+'</b><br>'+d.d+'<br>Cost: '+costStr(d.cost);if(TW[k]||d.train)s+='<br>Soldier price: 1 arms + '+sg()+' gold';if(d.jobs)s+='<br>Jobs: '+d.jobs+(S.dif===0?' <i>(Tip: build Houses nearby for workers)</i>':'');if(d.cap)s+='<br>Houses: '+d.cap;if(d.in)s+='<br>Uses: '+costStr(d.in);if(d.out)s+='<br>Makes: '+costStr(d.out);if(k==='warehouse'||TW[k]||(D[k].cyc&&(D[k].out||D[k].outf)))s+='<br>Upgradable to Lv5 (+5 output each level)';if(!avail(k))s+='<br><span style="color:#f99">Needs tech: '+(techFor(k)?techFor(k).n:'?')+'</span>';return s}
+function tipB(k){const d=D[k];let s='<b>'+d.n+'</b><br>'+d.d+'<br>Cost: '+costStr(d.cost);if(TW[k]||d.train)s+='<br>Soldier price: 1 arms + '+sg()+' gold';if(d.jobs)s+='<br>Jobs: '+d.jobs+(S.dif===0?' <i>(Tip: build Houses nearby for workers)</i>':'');if(d.cap)s+='<br>Houses: '+d.cap;if(d.in)s+='<br>Uses: '+costStr(d.in);if(d.out)s+='<br>Makes: '+costStr(d.out);if(k==='warehouse'||TW[k]||(D[k].cyc&&(D[k].out||D[k].outf)))s+='<br>Upgradable to Lv5 (+5 output each level). Starts at the Grand Citadel level for free.';if(!avail(k))s+='<br><span style="color:#f99">Needs tech: '+(techFor(k)?techFor(k).n:'?')+'</span>';return s}
 function setTool(t){tool=t;sel=null;updSel();buildBar();sfx('click')}
 function buildCtl(){const c=$('ctl');c.innerHTML='';
  const mk=(t,fn,id,tipt)=>{const b=document.createElement('button');b.innerHTML=t;if(id)b.id=id;b.onclick=()=>{ac();sfx('click');fn()};if(tipt){b.onmouseenter=e=>tip(tipt,e);b.onmouseleave=untip}c.appendChild(b);return b};
  mk('⏸',()=>setSpeed(0),'sp0','Pause (Space)');mk('▶',()=>setSpeed(1),'sp1','Normal speed (1)');mk('⏩',()=>setSpeed(2),'sp2','Fast (2)');mk('⏭',()=>setSpeed(3),'sp3','Super fast (3)');
  mk('\u{1F4B1} '+TAXN[S.tax],()=>{S.tax=(S.tax+1)%4;buildCtl();updHUD()},'taxb','Click to change taxes. Higher tax = more gold but unhappy citizens.');
- mk('\u{1F91D} Rivals',showRivals,'rivb','Rival kingdoms: relations, trade, peace');mk('\u2694\uFE0F WAR!',showWar,'warb','A war is going on! Click to fight.');mk('\u{1F52C} Techs',showTech,'techb','Research new buildings and bonuses (T)');
+ mk('\u{1F91D} Rivals',showRivals,'rivb','Rival kingdoms: relations, trade, peace');mk('\u{1F9F1} Walls (B)',()=>setTool(tool==='wall'?null:'wall'),'qwall','Build walls - press B. Drag to paint a whole line!');mk('\u{1F6AA} Gate (G)',()=>setTool(tool==='gate'?null:'gate'),'qgate','Build a gate - press G');mk('\u2694\uFE0F WAR!',showWar,'warb','A war is going on! Click to fight.');mk('\u{1F52C} Techs',showTech,'techb','Research new buildings and bonuses (T)');
  mk(muted?'\u{1F507}':'\u{1F50A}',()=>{muted=!muted;buildCtl()},'mutb','Sound on/off (M)');
- mk('⚙️',pauseMenu,'menub','Menu (Esc)');$('warb').style.display=S.war?'':'none';setSpeed(S.speed,1)}
+ mk('⚙️',pauseMenu,'menub','Menu (Esc)');$('warb').style.display=S.war?'':'none';setSpeed(S.speed,1);qsync()}
+function qsync(){const a=$('qwall'),b=$('qgate');if(a)a.classList.toggle('on',tool==='wall');if(b)b.classList.toggle('on',tool==='gate')}
 function setSpeed(n,q){if(n===0){S.paused=true}else{S.paused=false;S.speed=n}for(const k of[0,1,2,3]){const b=$('sp'+k);if(b)b.classList.toggle('on',k===0?S.paused:(!S.paused&&S.speed===k))}}
 function pauseMenu(){const free=SC[S.sc].free;const btns=[['Resume',closeModal],['Save now',()=>{saveGame();msg('Game saved.','good');closeModal()}]];
  if(free)btns.push(['Raids: '+(S.raidsOn?'ON':'OFF'),()=>{S.raidsOn=!S.raidsOn;if(S.raidsOn&&S.nextRaid>S.day+30)S.nextRaid=S.day+3;pauseMenu()}]);
@@ -679,7 +693,7 @@ function updHUD(){if(!S)return;const th=$('top').offsetHeight+6;$('goals').style
  h+='<span class="chip" data-tip="Grain (mill) / Flour (bakery) / Arms (soldiers)">'+RES.grain[0]+Math.floor(S.res.grain)+' '+RES.flour[0]+Math.floor(S.res.flour)+' '+RES.arms[0]+Math.floor(S.res.arms)+'</span>';
  $('res').innerHTML=h;
  const hp=S.happy,face=hp>75?'\u{1F604}':hp>55?'\u{1F642}':hp>35?'\u{1F610}':'\u{1F620}';
- $('info').innerHTML='<span class="chip" data-tip="Citizens / housing. Build houses for more!">\u{1F465} <b>'+C.length+'</b>/'+(S.cap||0)+'</span><span class="chip" data-tip="Happiness. Taverns, churches, parks, markets and good food raise it.">'+face+' <b>'+Math.round(hp)+'</b></span><span class="chip" data-tip="Soldiers">\u{1F6E1}️ '+SO.length+'</span><span class="chip" data-tip="Research points">\u{1F52C} <b>'+Math.floor(S.rp)+'</b></span><span class="chip" data-tip="Reputation with the rival kingdoms">\u{1F451} '+S.rep+'</span><span class="chip" data-tip="Difficulty">'+DIF[S.dif].n+'</span><span class="chip">'+SEI[season()]+' '+SEASONS[season()]+' D'+S.day+' '+clk()+' '+(isNight()?'\u{1F319}':'☀️')+' '+({clear:'',rain:'\u{1F327}️',storm:'⛈️',snow:'\u{1F328}️'})[S.weather]+'</span>';
+ $('info').innerHTML='<span class="chip" style="font-size:16px;font-weight:bold;cursor:pointer;background:#5a3b10" onclick="selHall()" data-tip="Grand Citadel level: every building is at least this level. Click to select it.">\u{1F3F0} Lv '+(S.hallLv||1)+'</span><span class="chip" data-tip="Citizens / housing. Build houses for more!">\u{1F465} <b>'+C.length+'</b>/'+(S.cap||0)+'</span><span class="chip" data-tip="Happiness. Taverns, churches, parks, markets and good food raise it.">'+face+' <b>'+Math.round(hp)+'</b></span><span class="chip" data-tip="Soldiers">\u{1F6E1}️ '+SO.length+'</span><span class="chip" data-tip="Research points">\u{1F52C} <b>'+Math.floor(S.rp)+'</b></span><span class="chip" data-tip="Reputation with the rival kingdoms">\u{1F451} '+S.rep+'</span><span class="chip" data-tip="Difficulty">'+DIF[S.dif].n+'</span><span class="chip">'+SEI[season()]+' '+SEASONS[season()]+' D'+S.day+' '+clk()+' '+(isNight()?'\u{1F319}':'☀️')+' '+({clear:'',rain:'\u{1F327}️',storm:'⛈️',snow:'\u{1F328}️'})[S.weather]+'</span>';
  const wb=$('warb');if(wb)wb.style.display=S.war?'':'none';const t=$('taxb');if(t)t.innerHTML='\u{1F4B1} '+TAXN[S.tax];
  document.querySelectorAll('.bi').forEach(el=>{const k=el.dataset.k;if(!k)return;const d=D[k];const c=el.querySelector('.c');if(avail(k)&&c)c.innerHTML=Object.keys(d.cost).map(r=>'<span'+(S.res[r]<d.cost[r]?' style="color:#f88"':'')+'>'+RES[r][0]+d.cost[r]+'</span>').join(' ')})}
 function updGoals(){const g=$('goals'),L=goals();let h='<h4 id="gt">'+(SC[S.sc].free?'\u{1F9F1} Free Build':'\u{1F3AF} Goals - '+SC[S.sc].n)+'</h4>';
@@ -689,10 +703,10 @@ function updGoals(){const g=$('goals'),L=goals();let h='<h4 id="gt">'+(SC[S.sc].
  L.forEach(q=>{const v=q[1](),done=v>=q[2];h+='<div class="g '+(done?'done':'')+'">'+(done?'✔':'◻')+' '+q[0]+': '+Math.floor(v)+'/'+q[2]+'</div>'});
  if(S.keep)h+='<div class="g">You won! Keep building.</div>';g.innerHTML=h;
  $('gt').onclick=()=>{for(const d of g.querySelectorAll('.g'))d.style.display=d.style.display==='none'?'':'none'}}
-function bInfo(b){const d=D[b.k];let s='<b>'+d.n+'</b>';if(d.jobs)s+='<br>Workers: '+b.n+'/'+jobsOf(b)+(b.present?' (on duty '+b.present+')':'');if(d.cap)s+='<br>Residents: '+b.res+'/'+d.cap;if(b.st&&d.cyc)s+='<br>Status: '+b.st;if(TW[b.k]&&!D[b.k].out&&b.lv===1)s+='<br>Garrison '+garrison(b)+'/'+trainCap(b);if(canUp(b)||b.lv>1)s+='<br>Level <b>'+b.lv+'/'+UPM+'</b> - '+(b.k==='warehouse'?'storage +'+(150+50*(b.lv-1)):TW[b.k]&&!D[b.k].out?'garrison '+garrison(b)+'/'+trainCap(b)+', arrow damage '+(TW[b.k].dm*(1+bon('tower'))*(1+.15*(b.lv-1))).toFixed(1):'makes '+costStr(io(b).out));s+='<br>Health: '+Math.round(b.hp)+'/'+maxhp(b.k);return s}
+function bInfo(b){const d=D[b.k];let s='<b>'+d.n+'</b>';if(d.jobs)s+='<br>Workers: '+b.n+'/'+jobsOf(b)+(b.present?' (on duty '+b.present+')':'');if(d.cap)s+='<br>Residents: '+b.res+'/'+d.cap;if(b.st&&d.cyc)s+='<br>Status: '+b.st;if(TW[b.k]&&!D[b.k].out&&b.lv===1)s+='<br>Garrison '+garrison(b)+'/'+trainCap(b);if(canUp(b)||b.lv>1)s+='<br>Level <b>'+b.lv+'/'+UPM+'</b>'+(b.k!=='hall'&&levelable(b.k)?' (min = Hall Lv '+(S.hallLv||1)+')':'')+' - '+(b.k==='warehouse'?'storage +'+(150+50*(b.lv-1)):TW[b.k]&&!D[b.k].out?'garrison '+garrison(b)+'/'+trainCap(b)+', arrow damage '+(TW[b.k].dm*(1+bon('tower'))*(1+.15*(b.lv-1))).toFixed(1):'makes '+costStr(io(b).out));s+='<br>Health: '+Math.round(b.hp)+'/'+maxhp(b.k);return s}
 function updSel(){const p=$('sel');if(!sel||sel.dead){sel=null;p.classList.add('hidden');return}p.classList.remove('hidden');
  p.innerHTML=bInfo(sel)+(trainCap(sel)?'<br>Garrison: <b>'+garrison(sel)+'/'+trainCap(sel)+'</b> <button id="rec" '+(garrison(sel)>=trainCap(sel)||S.res.arms<1||S.res.gold<sg()?'disabled':'')+'>Recruit (1 arms + '+sg()+' gold)</button>':'')+upInfo(sel)+'<br><i style="font-size:11px">'+D[sel.k].d+'</i><br><button id="dem">\u{1F5D1} Demolish (+50% back)</button> <button id="cls">X</button>';
- if($('upg'))$('upg').onclick=()=>upgrade(sel);if($('rec'))$('rec').onclick=()=>recruit(sel,false);$('dem').onclick=()=>{removeB(sel,true);sfx('boom')};$('cls').onclick=()=>{sel=null;updSel()}}
+ if(sel.k==='hall'&&$('dem'))$('dem').style.display='none';if($('upg'))$('upg').onclick=()=>upgrade(sel);if($('rec'))$('rec').onclick=()=>recruit(sel,false);$('dem').onclick=()=>{removeB(sel,true);sfx('boom')};$('cls').onclick=()=>{sel=null;updSel()}}
 const tp=$('tip');
 function tip(html,e){tp.innerHTML=html;tp.style.display='block';mvTip(e)}
 function mvTip(e){let x=e.clientX+14,y=e.clientY+14;if(x+250>innerWidth)x=innerWidth-255;if(y+120>innerHeight)y=e.clientY-100;tp.style.left=x+'px';tp.style.top=y+'px'}
@@ -707,7 +721,7 @@ function clampView(){view.x=Math.max(0,Math.min(W*TS,view.x));view.y=Math.max(0,
 const ptrs=new Map();let pinch=null,lastPaint=-1;
 function anchor(k,tx,ty){const s=D[k].s;return[tx-((s-1)>>1),ty-((s-1)>>1)]}
 function act(sx,sy){if(!inGame||modalOpen||S.over)return;const w=s2w(sx,sy),tx=Math.floor(w.x/TS),ty=Math.floor(w.y/TS);
- if(tool==='bulldoze'){const b=tx>=0&&ty>=0&&tx<W&&ty<H&&OCC[ty*W+tx];if(b){removeB(b,true);sfx('boom')}else sfx('err');return}
+ if(tool==='bulldoze'){const b=tx>=0&&ty>=0&&tx<W&&ty<H&&OCC[ty*W+tx];if(b&&b.k==='hall'){msg('The Grand Citadel cannot be demolished!','bad');sfx('err')}else if(b){removeB(b,true);sfx('boom')}else sfx('err');return}
  if(tool){const[ax,ay]=anchor(tool,tx,ty);place(tool,ax,ay);updHUD();return}
  if(S.war&&S.war.stance==='rally'){S.war.rally={x:w.x/TS,y:w.y/TS};sfx('click');return}
  const b=tx>=0&&ty>=0&&tx<W&&ty<H?OCC[ty*W+tx]:null;sel=b;updSel()}
@@ -715,7 +729,7 @@ cv.addEventListener('pointerdown',e=>{try{cv.setPointerCapture(e.pointerId)}catc
  if(e.button===2){if(tool)setTool(null);return}
  ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,moved:false,type:e.pointerType,multi:false});
  if(ptrs.size===2){const a=[...ptrs.values()];a.forEach(p=>p.multi=true);pinch={d:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),cx:(a[0].x+a[1].x)/2,cy:(a[0].y+a[1].y)/2}}
- if(e.pointerType==='mouse'&&(tool==='road'||tool==='wall'||tool==='bulldoze'||tool==='gate')&&e.button===0){const w=s2w(e.clientX,e.clientY);lastPaint=Math.floor(w.y/TS)*W+Math.floor(w.x/TS);act(e.clientX,e.clientY);ptrs.get(e.pointerId).paint=true}});
+ if((tool==='road'||tool==='wall'||tool==='bulldoze'||tool==='gate')&&e.button===0){const w=s2w(e.clientX,e.clientY);lastPaint=Math.floor(w.y/TS)*W+Math.floor(w.x/TS);act(e.clientX,e.clientY);ptrs.get(e.pointerId).paint=true}});
 cv.addEventListener('pointermove',e=>{hover.mx=e.clientX;hover.my=e.clientY;hover.in=true;const w=s2w(e.clientX,e.clientY);hover.x=Math.floor(w.x/TS);hover.y=Math.floor(w.y/TS);
  const p=ptrs.get(e.pointerId);
  if(inGame&&!p&&!tool&&e.pointerType==='mouse'){const b=hover.x>=0&&hover.y>=0&&hover.x<W&&hover.y<H&&OCC[hover.y*W+hover.x];if(b)tip(bInfo(b),e);else if(tp.style.display==='block'&&!tp.dataset.keep)untip()}
@@ -723,7 +737,7 @@ cv.addEventListener('pointermove',e=>{hover.mx=e.clientX;hover.my=e.clientY;hove
  if(ptrs.size>=2&&pinch){const a=[...ptrs.values()],d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),c2x=(a[0].x+a[1].x)/2,c2y=(a[0].y+a[1].y)/2;
   const before=s2w(c2x,c2y);view.z*=d/pinch.d;clampView();const after=s2w(c2x,c2y);view.x+=before.x-after.x;view.y+=before.y-after.y;view.x-=(c2x-pinch.cx)/view.z;view.y-=(c2y-pinch.cy)/view.z;clampView();pinch.d=d;pinch.cx=c2x;pinch.cy=c2y;return}
  if(!p.moved&&Math.hypot(e.clientX-p.sx,e.clientY-p.sy)>6)p.moved=true;
- if(p.paint){const k=hover.y*W+hover.x;if(k!==lastPaint){lastPaint=k;act(e.clientX,e.clientY)}return}
+ if(p.paint){const k=hover.y*W+hover.x;if(k!==lastPaint){const lx=lastPaint%W,ly=Math.floor(lastPaint/W),n=Math.max(1,Math.abs(hover.x-lx),Math.abs(hover.y-ly));for(let i=1;i<=n;i++){const tx=Math.round(lx+(hover.x-lx)*i/n),ty=Math.round(ly+(hover.y-ly)*i/n);act(((tx+.5)*TS-view.x)*view.z+CW/2,((ty+.5)*TS-view.y)*view.z+CH/2)}lastPaint=k}return}
  if(p.moved){view.x-=dx/view.z;view.y-=dy/view.z;clampView()}});
 function pend(e){const p=ptrs.get(e.pointerId);ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=null;if(!p||e.type==='pointercancel')return;if(!p.moved&&!p.multi&&!p.paint&&e.button!==2)act(e.clientX,e.clientY)}
 cv.addEventListener('pointerup',pend);cv.addEventListener('pointercancel',pend);
@@ -732,12 +746,12 @@ cv.addEventListener('contextmenu',e=>e.preventDefault());
 cv.addEventListener('wheel',e=>{e.preventDefault();const b=s2w(e.clientX,e.clientY);view.z*=e.deltaY<0?1.12:1/1.12;clampView();const a=s2w(e.clientX,e.clientY);view.x+=b.x-a.x;view.y+=b.y-a.y;clampView()},{passive:false});
 mini.addEventListener('pointerdown',e=>{const r=mini.getBoundingClientRect();view.x=(e.clientX-r.left)/r.width*W*TS;view.y=(e.clientY-r.top)/r.height*H*TS;clampView()});
 const keys={};
-addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=1;if(!inGame)return;
+addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;keys[e.key.toLowerCase()]=1;if(!inGame)return;
  if(e.key==='Escape'){if(modalOpen)closeModal();else if(tool)setTool(null);else if(sel){sel=null;updSel()}else pauseMenu();return}
  if(modalOpen)return;
  if(e.key===' '){e.preventDefault();setSpeed(S.paused?(S.speed||1):0)}
  else if(e.key==='1')setSpeed(1);else if(e.key==='2')setSpeed(2);else if(e.key==='3')setSpeed(3);
- else if(e.key==='t'||e.key==='T')showTech();else if(e.key==='x'||e.key==='X')setTool(tool==='bulldoze'?null:'bulldoze');
+ else if(e.key==='b'||e.key==='B')setTool(tool==='wall'?null:'wall');else if(e.key==='g'||e.key==='G')setTool(tool==='gate'?null:'gate');else if(e.key==='t'||e.key==='T')showTech();else if(e.key==='x'||e.key==='X')setTool(tool==='bulldoze'?null:'bulldoze');
  else if(e.key==='m'||e.key==='M'){muted=!muted;buildCtl()}
  else if(e.key==='+'||e.key==='='){view.z*=1.15;clampView()}else if(e.key==='-'){view.z/=1.15;clampView()}});
 addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=0});
@@ -756,7 +770,25 @@ function drawTree(x,y,se,t){const h=hs(x,y),px=x*TS+TS/2+(h-.5)*6,py=y*TS+TS*.8;
 function drawRock(x,y){const px=x*TS+TS/2,py=y*TS+TS*.65,h=hs(x,y);cx.fillStyle='#8f9296';cx.beginPath();cx.ellipse(px,py,13,10+h*3,0,0,7);cx.fill();cx.fillStyle='#b3b6ba';cx.beginPath();cx.ellipse(px-3,py-3,7,5,0,0,7);cx.fill()}
 function drawOre(x,y){drawRock(x,y);const px=x*TS+TS/2,py=y*TS+TS*.65;cx.fillStyle='#454a55';cx.beginPath();cx.ellipse(px,py,12,9,0,0,7);cx.fill();cx.fillStyle='#ffb347';for(let i=0;i<4;i++){cx.fillRect(px-8+i*5,py-4+(i%2)*5,3,3)}cx.fillStyle='#7fe0ff';cx.fillRect(px-2,py-7,3,3)}
 function wallAt(x,y){const o=x>=0&&y>=0&&x<W&&y<H?OCC[y*W+x]:null;return o&&(o.k==='wall'||o.k==='gate'||o.k==='tower'||o.k==='castle'||o.k==='watchtower'||o.k==='fortress')}
-function drawB(b,alpha,now){
+function drawHall(b,now){const px=b.x*TS,py=b.y*TS,w=b.w*TS,t=now/1000,night=isNight(),mid=px+w/2;
+ cx.fillStyle='rgba(0,0,0,.28)';cx.beginPath();cx.ellipse(mid,py+w-4,w*.52,24,0,0,7);cx.fill();
+ cx.fillStyle='#aab0bb';rr(px+30,py+110,w-60,w-125,10);cx.fill();cx.strokeStyle='#5d6470';cx.lineWidth=3;cx.stroke();
+ cx.strokeStyle='rgba(0,0,0,.12)';cx.lineWidth=1;for(let y=py+130;y<py+w-20;y+=18){cx.beginPath();cx.moveTo(px+34,y);cx.lineTo(px+w-34,y);cx.stroke()}
+ cx.fillStyle='#98a0ac';for(let x=px+40;x<px+w-50;x+=26)cx.fillRect(x,py+98,16,16);
+ for(const q of[[px+6,py+66],[px+w-78,py+66],[px+6,py+w-120],[px+w-78,py+w-120]]){const tx=q[0],ty=q[1];cx.fillStyle='#c4c9d2';rr(tx,ty,72,104,8);cx.fill();cx.strokeStyle='#5d6470';cx.lineWidth=2.5;cx.stroke();
+  cx.fillStyle='#b73a30';cx.beginPath();cx.moveTo(tx-6,ty+6);cx.lineTo(tx+36,ty-52);cx.lineTo(tx+78,ty+6);cx.closePath();cx.fill();
+  cx.fillStyle=night?'#ffe58a':'#3d5a80';cx.fillRect(tx+28,ty+30,16,26);cx.fillRect(tx+28,ty+68,16,22);
+  cx.fillStyle='#6b4a22';cx.fillRect(tx+35,ty-82,3,32);const wv=Math.sin(t*3+tx)*5;cx.fillStyle='#e74c3c';cx.beginPath();cx.moveTo(tx+38,ty-82);cx.lineTo(tx+66,ty-74+wv);cx.lineTo(tx+38,ty-62);cx.closePath();cx.fill()}
+ cx.fillStyle='#d9dde4';rr(mid-72,py+16,144,200,8);cx.fill();cx.strokeStyle='#5d6470';cx.lineWidth=3;cx.stroke();
+ cx.fillStyle='#d4a017';cx.beginPath();cx.moveTo(mid-88,py+30);cx.lineTo(mid,py-46);cx.lineTo(mid+88,py+30);cx.closePath();cx.fill();cx.strokeStyle='#8a6a10';cx.stroke();
+ cx.fillStyle='#b73a30';cx.beginPath();cx.moveTo(mid-30,py+4);cx.lineTo(mid,py-46);cx.lineTo(mid+30,py+4);cx.closePath();cx.fill();
+ cx.fillStyle='#6b4a22';cx.fillRect(mid-2,py-96,4,52);const w2=Math.sin(t*3)*7;cx.fillStyle='#f1c40f';cx.beginPath();cx.moveTo(mid+2,py-96);cx.lineTo(mid+50,py-84+w2);cx.lineTo(mid+2,py-66);cx.closePath();cx.fill();
+ for(let i=0;i<3;i++)for(let j=0;j<2;j++){cx.fillStyle=night?'#ffe58a':'#3d5a80';cx.fillRect(mid-46+i*34,py+46+j*54,18,30)}
+ for(let i=0;i<7;i++)for(let j=0;j<2;j++){cx.fillStyle=night?'#ffe58a':'#4a6a95';cx.fillRect(px+60+i*44+(i>3?30:0),py+140+j*50,16,24)}
+ cx.fillStyle='#4a2f12';cx.beginPath();cx.moveTo(mid-36,py+w-2);cx.lineTo(mid-36,py+w-72);cx.arc(mid,py+w-72,36,Math.PI,0);cx.lineTo(mid+36,py+w-2);cx.closePath();cx.fill();cx.strokeStyle='#222';cx.lineWidth=2;for(let i=-24;i<=24;i+=12){cx.beginPath();cx.moveTo(mid+i,py+w-2);cx.lineTo(mid+i,py+w-78);cx.stroke()}
+ cx.fillStyle='#f1c40f';cx.beginPath();cx.arc(mid,py+230,26,0,7);cx.fill();cx.strokeStyle='#7a5a00';cx.lineWidth=3;cx.stroke();cx.fillStyle='#4a3000';cx.font='bold 20px sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText('Lv'+b.lv,mid,py+231);
+ if(b.hp<maxhp('hall')){cx.fillStyle='#400';cx.fillRect(px+20,py-10,w-40,8);cx.fillStyle='#4f4';cx.fillRect(px+20,py-10,(w-40)*Math.max(0,b.hp/maxhp('hall')),8)}}
+function drawB(b,alpha,now){if(b.k==='hall'){drawHall(b,now);return}
  const d=D[b.k],px=b.x*TS,py=b.y*TS,w=b.w*TS,h=b.h*TS;let sc=1;const age=(now-b.born)/350;if(age<1){sc=0.6+0.4*(1-Math.pow(1-age,3));}
  cx.save();if(alpha)cx.globalAlpha=alpha;
  if(sc<1){cx.translate(px+w/2,py+h);cx.scale(sc,sc);cx.translate(-(px+w/2),-(py+h))}
@@ -849,6 +881,8 @@ function draw(now){
  else if(S.weather==='snow'){cx.fillStyle='rgba(255,255,255,.9)';for(let i=0;i<110;i++){const x=((i*89.1+Math.sin(t+i)*20+t*20)%(CW+20)),y=((i*61.3+t*60)%(CH+10));cx.beginPath();cx.arc(x,y,2.2,0,7);cx.fill()}}
  if(flash>0){cx.fillStyle='rgba(255,255,255,'+flash*.7+')';cx.fillRect(0,0,CW,CH)}
  if(S.pending){cx.fillStyle='rgba(255,0,0,'+(.12+.08*Math.sin(t*8))+')';cx.fillRect(0,0,CW,CH);cx.font='bold 22px sans-serif';cx.textAlign='center';cx.fillStyle='#fff';cx.strokeStyle='#900';cx.lineWidth=4;const tt='BANDITS INCOMING! '+Math.ceil(S.pending.t);cx.strokeText(tt,CW/2,110);cx.fillText(tt,CW/2,110)}
+
+ if(celeb>0){cx.globalAlpha=Math.min(1,celeb);cx.font='bold 28px sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillStyle='#ffe08a';cx.strokeStyle='#5a2a00';cx.lineWidth=6;cx.strokeText(celebTxt,CW/2,CH*.3);cx.fillText(celebTxt,CW/2,CH*.3);cx.globalAlpha=1}
  // minimap
  if((frame.m=(frame.m||0)+1)%6===0&&minibase){mx.drawImage(minibase,0,0,110,110);const sc=110/W;for(const b of B){mx.fillStyle=b.k==='road'?'#a95':'#f5e';mx.fillRect(b.x*sc,b.y*sc,Math.max(2,b.w*sc),Math.max(2,b.h*sc))}mx.fillStyle='#f33';for(const r of RA)mx.fillRect(r.x*sc-1,r.y*sc-1,3,3);mx.strokeStyle='#fff';mx.lineWidth=1;mx.strokeRect((view.x-CW/2/view.z)/TS*sc,(view.y-CH/2/view.z)/TS*sc,CW/view.z/TS*sc,CH/view.z/TS*sc)}}
 
@@ -858,5 +892,6 @@ setInterval(()=>{if(inGame&&S&&!S.over&&(!modalOpen||S.war||S.challenge))saveGam
 addEventListener('beforeunload',()=>{if(inGame&&S&&!S.over)saveGame()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&inGame&&S&&!S.over)saveGame()});
 window.KT={get S(){return S},get B(){return B},get C(){return C},get SO(){return SO},get RA(){return RA},get T(){return T},get view(){return view},D,TECH,SC,place,addB,removeB,sim,sec,startScenario,loadGame,saveGame,startRaid,spawnRaid,doEvent,showTech,end,newDay,why,anchor,setTool,act};
+$('bsearch').addEventListener('input',()=>{if(S)buildBar()});
 showTitle();requestAnimationFrame(frame);
 </script></body></html>
