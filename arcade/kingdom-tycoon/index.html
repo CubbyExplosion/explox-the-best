@@ -77,6 +77,7 @@ const W=56,H=56,TS=32,DAY=40,DPS=5,SAVE='sip_kingdom-tycoon_save';
 const SEASONS=['Spring','Summer','Autumn','Winter'],SEI=['\u{1F331}','☀️','\u{1F342}','❄️'];
 const TAX=[0,.5,1,1.8],TAXH=[12,5,0,-12],TAXN=['No tax','Low tax','Normal tax','High tax'];
 const RES={food:['\u{1F35E}','Food'],wood:['\u{1FAB5}','Wood'],stone:['\u{1FAA8}','Stone'],iron:['⛏️','Iron'],gold:['\u{1FA99}','Gold'],grain:['\u{1F33E}','Grain'],flour:['\u{1F963}','Flour'],arms:['\u{1F5E1}️','Arms']};
+RES.guns=['\u{1F52B}','Guns'];RES.bombs=['\u{1F4A3}','Bombs'];
 const CATS=['Town','Food','Industry','Trade','Defense','Culture'];
 const D={
 house:{n:'House',e:'',cat:0,s:1,cost:{wood:10},hp:60,cap:4,col:'#f4cf94',roof:'#d2574f',d:'A home for 4 citizens. New citizens only arrive if there is a free bed.'},
@@ -108,6 +109,9 @@ school:{n:'School',e:'\u{1F4DA}',cat:5,s:2,cost:{wood:40,stone:20},hp:90,jobs:2,
 library:{n:'Library',e:'\u{1F4D6}',cat:5,s:2,cost:{wood:60,stone:40,gold:40},hp:100,jobs:2,rp:.5,col:'#d7b98e',roof:'#6c3483',d:'Lots of research points.'},
 healer:{n:'Healer',e:'⚕️',cat:5,s:2,cost:{wood:30,stone:15,gold:20},hp:80,jobs:1,col:'#f7e4e4',roof:'#27ae60',d:'Herbs and tea. +4 happiness.'},
 hall:{n:'Grand Citadel',e:'\u{1F3F0}',cat:-1,s:12,cost:{},hp:3000,cap:8,jobs:3,cyc:12,out:{gold:4},max:1,col:'#b0b6c0',roof:'#b03a2e',d:'The great citadel in the heart of your kingdom. It cannot be demolished. Upgrade it and EVERY building is raised to at least its level - new buildings start at its level for free! Gives housing, jobs, gold and storage.'},
+tankfactory:{n:'Tank Factory',e:'\u{1F6E0}\uFE0F',cat:4,s:3,cost:{wood:80,stone:60,iron:40,gold:80},hp:220,max:3,col:'#8e9a7a',roof:'#4b5d3a',d:'Builds cartoon TANKS (1 arms + iron, gold and wood each, ~10 s). Tanks roll to the fight, fire area-damage shells and crush weak infantry. Upgrade for tougher tanks and faster training.'},
+gunshop:{n:'Gun Workshop',e:'\u{1F52B}',cat:4,s:2,cost:{wood:50,stone:40,iron:30,gold:40},hp:110,jobs:2,cyc:10,in:{iron:2,wood:1,gold:1},out:{guns:1},col:'#9a8f88',roof:'#5d4037',d:'Crafts guns from iron, wood and a little gold. Barracks and towers turn guns into Gunners (long range, slow reload).'},
+bombshop:{n:'Bomb Workshop',e:'\u{1F4A3}',cat:4,s:2,cost:{wood:50,stone:60,iron:30,gold:50},hp:100,jobs:2,cyc:12,in:{iron:2,stone:2,gold:2},out:{bombs:1},col:'#7f8c8d',roof:'#c0392b',d:'Crafts cartoon bombs (iron, stone, gold). Drop them on enemy armies from the war HUD: big BOOM, never hurts your own side.'},
 watchtower:{n:'Watchtower',e:'\u{1F5FC}',cat:4,s:1,cost:{wood:25,stone:10},hp:80,col:'#c9b48a',roof:'#8e5a2b',d:'Cheap lookout: weak arrows reach 8 tiles. Garrison: 1 soldier, +1 per 20 levels (max 12).'},
 fortress:{n:'Fortress',e:'\u{1F3EF}',cat:4,s:2,cost:{stone:120,wood:60,iron:20,gold:60},hp:400,train:3,max:2,col:'#aeb4bd',roof:'#7b241c',d:'Strong stone fort: great arrows, trains 3 soldiers (+1 per 10 levels), big war power.'},
 armory:{n:'Armory',e:'\u{1F6E1}\uFE0F',cat:4,s:2,cost:{wood:40,stone:40,iron:10},hp:110,max:1,col:'#9a8f88',roof:'#34495e',d:'Better gear: +15% war power. Only one.'},
@@ -120,7 +124,7 @@ const TW={tower:{rg:6,dm:7},watchtower:{rg:8,dm:4},castle:{rg:7,dm:7},fortress:{
 const UPM=10000;
 const COSTM=.6,PROD=1.6,SHP=50;
 let HALL=null,celeb=0,celebTxt='';
-const levelable=k=>k!=='hall'&&!!((D[k].cyc&&(D[k].out||D[k].outf))||k==='warehouse'||TW[k]||k==='store');
+const levelable=k=>k!=='hall'&&!!((D[k].cyc&&(D[k].out||D[k].outf))||k==='warehouse'||TW[k]||k==='store'||k==='tankfactory');
 const SG=[2,3,5];
 const sg=()=>SG[S.dif===undefined?1:S.dif];
 const DIF=[{n:'Easy',prod:1.1,res:1.5,cost:.75,war:.45,rstr:.75,raid:-1,gap:1.4,rhp:.8,hap:.6,edm:.85,dmg:0,win:.65,ev:.7},
@@ -180,6 +184,12 @@ const TECH=[
 {id:'supply',n:'Supply Wagons',c:80,r:['tactics'],u:[],b:{supply:.5},d:'War boosts work 50% better.'},
 {id:'spies',n:'Spies',c:60,r:['trade','archery'],u:[],b:{spy:1},d:'See exact rival strength.'},
 {id:'envoys',n:'Envoys',c:70,r:['diplo'],u:[],b:{envoy:1},d:'Peace treaties and gifts work better.'},
+{id:'engineer',n:'Engineering',c:90,r:['smith','drill'],u:['tankfactory'],b:{},d:'Tank Factory.'},
+{id:'armorplate',n:'Armor Plating',c:70,r:['engineer'],u:[],b:{tankhp:.3},d:'Tanks +30% health.'},
+{id:'cannon',n:'Heavy Cannon',c:70,r:['engineer'],u:[],b:{tankdm:.3},d:'Tanks +30% damage.'},
+{id:'gunpowder',n:'Gunpowder',c:70,r:['smith'],u:['gunshop'],b:{},d:'Gun Workshop and Gunners.'},
+{id:'rifles',n:'Rifles',c:80,r:['gunpowder'],u:[],b:{gundm:.3,gunrg:.3},d:'Gunners +30% damage and range.'},
+{id:'explosives',n:'Explosives',c:90,r:['gunpowder'],u:['bombshop'],b:{},d:'Bomb Workshop and the war Bomb button.'},
 {id:'wonder',n:'Wonders',c:120,r:['arch','writing'],u:['monument'],b:{},d:'Grand Statue.'}
 ];
 TECH.forEach(t=>t.c=Math.max(5,Math.round(t.c*.6)));
@@ -189,13 +199,13 @@ const SC=[
  g:[['Citizens',()=>C.length,25],['Happiness',()=>S.happy,55],['Food stored',()=>S.res.food,80]]},
 {n:'Bread & Barley',e:'\u{1F956}',d:'Build a full bread chain: farm, mill, bakery.',start:{wood:100,stone:40,food:60,gold:80},pop:8,techs:['irrig'],rp:45,raid:14,gap:[7,9],rb:-1,
  g:[['Mills built',()=>cn('mill'),1],['Bakeries built',()=>cn('bakery'),1],['Citizens',()=>C.length,40],['Food stored',()=>S.res.food,150]]},
-{n:'Hold the Line',e:'\u{1F6E1}️',d:'Bandits are coming! Build towers, walls and soldiers.',start:{wood:150,stone:120,food:80,gold:140,iron:40,arms:3},pop:10,techs:['carp','mason','archery','mining','smith','drill','gates'],rp:5,raid:4,gap:[4,6],rb:1,
+{n:'Hold the Line',e:'\u{1F6E1}️',d:'Bandits are coming! Build towers, walls and soldiers.',start:{wood:150,stone:120,food:80,gold:140,iron:40,arms:3},pop:10,techs:['carp','mason','archery','mining','smith','drill','gates','engineer','gunpowder','explosives'],rp:5,raid:4,gap:[4,6],rb:1,
  g:[['Barracks',()=>cn('barracks'),1],['Towers',()=>cn('tower'),2],['Wall pieces',()=>cn('wall')+cn('gate'),8],['Raids repelled',()=>S.repelled,3],['Citizens',()=>C.length,30]]},
 {n:'Merchant Prince',e:'\u{1F4B0}',d:'Get rich through trade and technology.',start:{wood:120,stone:60,food:70,gold:100},pop:10,techs:['trade','carp','mason'],rp:20,raid:12,gap:[6,8],rb:0,
  g:[['Techs researched',()=>nt(),12],['Markets',()=>cn('market'),2],['Gold stored',()=>S.res.gold,1200]]},
-{n:'Grand Kingdom',e:'\u{1F451}',d:'The big one: castle, statue, and a huge happy city.',start:{wood:200,stone:120,food:100,gold:150,iron:20},pop:14,techs:['carp','mason','irrig','trade'],rp:60,raid:8,gap:[5,7],rb:1,
+{n:'Grand Kingdom',e:'\u{1F451}',d:'The big one: castle, statue, and a huge happy city.',start:{wood:200,stone:120,food:100,gold:150,iron:20},pop:14,techs:['carp','mason','irrig','trade','mining','smith','archery','drill','engineer','gunpowder','explosives'],rp:60,raid:8,gap:[5,7],rb:1,
  g:[['Citizens',()=>C.length,90],['Castle',()=>cn('castle'),1],['Grand Statue',()=>cn('monument'),1],['Happiness',()=>S.happy,60],['Raids repelled',()=>S.repelled,2]]},
-{n:'Rival Crowns',e:'\u{1F451}',d:'Rival kingdoms send real armies to your base. Build walls, towers and soldiers, trade, or make peace!',start:{wood:200,stone:140,food:120,gold:160,iron:40,arms:4},pop:12,techs:['carp','mason','archery','mining','smith','drill','gates','trade'],rp:30,raid:99999,gap:[6,8],rb:0,war:4,
+{n:'Rival Crowns',e:'\u{1F451}',d:'Rival kingdoms send real armies to your base. Build walls, towers and soldiers, trade, or make peace!',start:{wood:200,stone:140,food:120,gold:160,iron:40,arms:4},pop:12,techs:['carp','mason','archery','mining','smith','drill','gates','trade','engineer','gunpowder','explosives'],rp:30,raid:99999,gap:[6,8],rb:0,war:4,
  g:[['Wars won',()=>S.warsWon,2],['Citizens',()=>C.length,35],['Soldiers',()=>SO.length,6],['Treaties or allies',()=>S.rivals.filter(r=>r.ally||OD()<r.peace).length,1]]},
 {n:'Free Build',e:'\u{1F9F1}',d:'Sandbox! Lots of resources, no goals, raids optional.',start:{wood:600,stone:400,food:300,gold:500,iron:100,arms:5},pop:12,techs:[],rp:400,raid:99999,gap:[6,8],rb:0,free:1,g:[]}
 ];
@@ -218,7 +228,7 @@ function tone(f,d,type,v,sl,delay){if(muted||!AUD[curCat]||ACTIVE>44)return;try{
 function noise(d,fq,v,delay){if(muted||!AUD[curCat]||ACTIVE>44)return;try{const a=AC;if(!a||!MG||a.state!=='running')return;if(!NOISE){NOISE=a.createBuffer(1,a.sampleRate,a.sampleRate);const c=NOISE.getChannelData(0);for(let i=0;i<c.length;i++)c[i]=Math.random()*2-1}
  const t=a.currentTime+(delay||0),s=a.createBufferSource(),fl=a.createBiquadFilter(),g=a.createGain();s.buffer=NOISE;s.loop=true;fl.type='lowpass';fl.frequency.value=fq;g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(v,t+d*.3);g.gain.exponentialRampToValueAtTime(.0001,t+d);s.connect(fl);fl.connect(g);g.connect(MG);ACTIVE++;s.onended=()=>{ACTIVE--;try{s.disconnect();fl.disconnect();g.disconnect()}catch(e){}};s.start(t);s.stop(t+d+.03)}catch(e){}}
 const MUSN=new Set(['drum','festival','dawn','night','bird','wind','cricket']);
-const LIM={arrow:160,hit:220,coin:350,coin2:2500,full:6000,pop:600,shimmer:110,upgrade:60,drum:700,bird:2500,wind:4000,cricket:1800,dawn:3000,night:3000,crunch:90,ting:120,chaching:300};
+const LIM={arrow:160,hit:220,coin:350,coin2:2500,full:6000,pop:600,shimmer:110,upgrade:60,drum:700,bird:2500,wind:4000,cricket:1800,dawn:3000,night:3000,crunch:90,ting:120,cannon:120,impact:100,engine:900,clank:150,pew:90,fuse:500,craft:700,bomb:200,chaching:300};
 function sfx(n,a){SFXCALLS[n]=(SFXCALLS[n]||0)+1;const now=performance.now(),lim=LIM[n]!==undefined?LIM[n]:40;if(lastSfx[n]&&now-lastSfx[n]<lim)return;lastSfx[n]=now;curCat=MUSN.has(n)?'mus':'fx';
  const j=1+(Math.random()-.5)*.06,T=(f,d,ty,v,sl,dl)=>tone(f*j,d,ty,v,sl?sl*j:0,dl);
  switch(n){
@@ -230,6 +240,14 @@ function sfx(n,a){SFXCALLS[n]=(SFXCALLS[n]||0)+1;const now=performance.now(),lim
  case'chaching':T(1760,.1,'square',.03);T(2349,.12,'square',.03,0,.06);T(3136,.32,'triangle',.03,0,.12);break;
  case'rescue':[523,659,784,1046].forEach((f,i)=>T(f,.25,'sine',.05,0,i*.14));break;
  case'cozy':T(392,.5,'sine',.03);T(330,.5,'sine',.025,0,.3);T(262,.8,'sine',.025,0,.6);break;
+ case'cannon':T(90,.25,'sawtooth',.08,-50);noise(.25,700,.06);break;
+ case'impact':T(60,.2,'sine',.07,-30);noise(.15,400,.04);break;
+ case'clank':T(900,.05,'square',.04);T(1400,.07,'square',.03,0,.06);T(600,.1,'sawtooth',.03,0,.12);break;
+ case'engine':T(55,.5,'sawtooth',.014);break;
+ case'pew':T(1300,.05,'square',.025,-800);noise(.07,3500,.02);break;
+ case'fuse':noise(.7,4500,.02);break;
+ case'craft':T(2000,.05,'square',.02);T(1500,.07,'square',.02,0,.08);break;
+ case'bomb':T(70,.45,'sawtooth',.1,-40);noise(.45,500,.07);break;
  case'ting':T(1760,.2,'triangle',.05);T(2637,.28,'sine',.025,0,.05);break;
  case'boom':T(120,.25,'sawtooth',.06,-70);noise(.2,600,.04);break;
  case'horn':T(180,.7,'sawtooth',.08,30);T(240,.7,'sawtooth',.05,30,.05);break;
@@ -317,6 +335,7 @@ function removeB(b,refund){if(b.k==='hall')return;b.dead=true;B.splice(B.indexOf
  recalcHomes();
  if(d.cap){for(let i=C.length-1;i>=0;i--){const c=C[i];if(c.home===b){const h=freeHouse(c.x,c.y);if(h){c.home=h;h.res++}else{C.splice(i,1);ft(c.x,c.y,'moves away','#ccc')}}}}
  for(let i=SO.length-1;i>=0;i--)if(SO[i].home===b){const h=B.find(q=>q!==b&&trainCap(q)>0);if(h)SO[i].home=h;else SO.splice(i,1)}
+ for(let i=TK.length-1;i>=0;i--)if(TK[i].home===b){const h=B.find(q=>q.k==='tankfactory'&&q!==b);if(h)TK[i].home=h;else TK.splice(i,1)}
  for(const r of RA)if(r.tg===b)r.tg=null;
  burst(b.x+b.w/2,b.y+b.h/2,'\u{1F4A8}',6)}
 function recalcHomes(){for(const b of B)b.res=0;for(const c of C)if(c.home&&!c.home.dead)c.home.res++}
@@ -392,7 +411,7 @@ function sim(dt){
  if(S.pending){S.pending.t-=dt;if(S.pending.t<=0)spawnRaid()}
  for(const b of B)b.present=0;
  for(const c of C){moveCit(c,dt);if(c.work)c.job.present++}
- prod(dt);mil(dt);warSim(dt);
+ prod(dt);mil(dt);tanksSim(dt);bombSim(dt);warSim(dt);
  let rp=.1+bon('rp');for(const b of B){const d=D[b.k];if(d.rp)rp+=d.rp*(d.jobs?b.present/jobsOf(b):1)}S.rp+=rp*dt;S.rpRate=rp;
  if(CART){CART.t+=dt;const tx=CART.arrived?CART.ex:CART.tx,ty=CART.arrived?CART.ey:CART.ty,dx=tx-CART.x,dy=ty-CART.y,d=Math.hypot(dx,dy);if(d>.3){CART.x+=dx/d*2.2*dt;CART.y+=dy/d*2.2*dt}else if(CART.arrived)CART=null;else CART.arrived=1;if(CART&&CART.arrived&&!S.trader)CART.leave=1}
  for(let i=PR.length-1;i>=0;i--){const p=PR[i];p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.g)p.vy+=90*dt;if(p.life<=0)PR.splice(i,1)}
@@ -417,7 +436,7 @@ function prod(dt){
   for(const r in out)if(r!=='gold'&&S.res[r]>=storCap()){if(b.st!=='storage full')sfx('full');b.st='storage full';ok=false;break}
   if(!ok)continue;
   for(const r in inn)S.res[r]-=inn[r];
-  for(const r in out){let n=out[r];if(r==='gold'&&d.outf){const u5=5*(b.lv-1);n=(n-u5)*(1+bon('trade')*.5)+u5}addRes(r,n);if(r==='gold')sfx('coin2');if(view.z>.5)ft(b.x+b.w/2,b.y,'+'+fmt(Math.round(n*10)/10)+RES[r][0],'#fff',11)}
+  for(const r in out){let n=out[r];if(r==='gold'&&d.outf){const u5=5*(b.lv-1);n=(n-u5)*(1+bon('trade')*.5)+u5}addRes(r,n);if(r==='gold')sfx('coin2');if(r==='guns'){ach('firstgun');sfx('craft')}if(r==='bombs'){ach('firstbomb');sfx('craft')}if(view.z>.5)ft(b.x+b.w/2,b.y,'+'+fmt(Math.round(n*10)/10)+RES[r][0],'#fff',11)}
   if(d.need===2&&Math.random()<.075){T[b.tile]=0;buildMiniPx(b.tile)}
   if(d.need===3&&Math.random()<.05){T[b.tile]=0;buildMiniPx(b.tile)}
   b.prog-=d.cyc;b.st='working'}}
@@ -451,7 +470,7 @@ function mil(dt){
   if(s.hp<=0){burst(s.x,s.y,'\u{1F4A2}',3);SO.splice(i,1);continue}
   let nr=null;const W_=S.war&&S.war.state==='fight'?S.war:null;let nd=W_&&W_.stance==='counter'?60:24;const hq=W_&&W_.stance==='rally'?(W_.rally||heart()):null;const ref=W_?(W_.stance==='hold'?{x:s.home.x+s.home.w/2,y:s.home.y+s.home.h/2,R:9}:hq?{x:hq.x,y:hq.y,R:8}:null):null;
   for(const r of RA){if(ref&&r.war&&Math.hypot(r.x-ref.x,r.y-ref.y)>ref.R)continue;const d=Math.hypot(r.x-s.x,r.y-s.y);if(d<nd){nd=d;nr=r}}
-  if(nr){const dx=nr.x-s.x,dy=nr.y-s.y,d=Math.hypot(dx,dy),wp=detour(s.x,s.y,nr.x,nr.y),ex=wp[0]-s.x,ey=wp[1]-s.y,ed=Math.hypot(ex,ey)||1;if(d>.8){s.x+=ex/ed*2.3*dt;s.y+=ey/ed*2.3*dt}else{nr.hp-=(9+9*bon('sold'))*1.25*lvmOf(s)*(1+(W_?W_.boost:0))*dt;nr.hit=.2;sfx('hit')}}
+  if(nr&&s.gun)gunnerAct(s,nr,dt);else if(nr){const dx=nr.x-s.x,dy=nr.y-s.y,d=Math.hypot(dx,dy),wp=detour(s.x,s.y,nr.x,nr.y),ex=wp[0]-s.x,ey=wp[1]-s.y,ed=Math.hypot(ex,ey)||1;if(d>.8){s.x+=ex/ed*2.3*dt;s.y+=ey/ed*2.3*dt}else{nr.hp-=(9+9*bon('sold'))*1.25*lvmOf(s)*(1+(W_?W_.boost:0))*dt;nr.hit=.2;sfx('hit')}}
   else{const tx=hq?hq.x+s.off:s.home.x+s.home.w/2+s.off,ty=hq?hq.y+s.off2:s.home.y+s.home.h+.6+s.off2,dx=tx-s.x,dy=ty-s.y,d=Math.hypot(dx,dy);if(d>.3){const wp=detour(s.x,s.y,tx,ty),ex=wp[0]-s.x,ey=wp[1]-s.y,ed=Math.hypot(ex,ey)||1;s.x+=ex/ed*1.8*dt;s.y+=ey/ed*1.8*dt}if(s.hp<SHP*lvmOf(s))s.hp=Math.min(SHP*lvmOf(s),s.hp+6*dt*lvmOf(s))}}
  for(const b of B){const tw=TW[b.k];if(!tw)continue;b.cd-=dt;if(b.cd>0)continue;let nr=null,nd=tw.rg+Math.min(10,.4*(b.lv-1));
   for(const r of RA){const d=Math.hypot(r.x-(b.x+b.w/2),r.y-(b.y+b.h/2));if(d<nd){nd=d;nr=r}}
@@ -492,7 +511,7 @@ function trainCap(b){const d=D[b.k],lv=b.lv||1;if(b.k==='tower')return Math.min(
 function trainCapAt(b,lv){const o=b.lv;b.lv=lv;const c=trainCap(b);b.lv=o;return c}
 function garrison(b){let n=0;for(const q of SO)if(q.home===b)n++;return n}
 function recruit(b,auto){if(garrison(b)>=trainCap(b)){if(!auto){msg('Garrison is full.');sfx('err')}return false}if(S.res.arms<1||S.res.gold<sg()){if(!auto){msg('Need 1 arms and '+sg()+' gold to recruit.','bad');sfx('err')}return false}
- S.res.arms--;S.res.gold-=sg();SO.push({x:b.x+b.w/2,y:b.y+b.h,hp:SHP*(1+.02*Math.min((b.lv||1)-1,20000)),home:b,cd:0,off:rnd(-1.5,1.5),off2:rnd(0,1.5)});ft(b.x+1,b.y,'+Soldier','#8cf');sfx('ting');if(!auto){sfx('place');updSel();updHUD()}return true}
+ const gun=S.res.guns>=1;if(gun)S.res.guns--;S.res.arms--;S.res.gold-=sg();SO.push({gun:gun?1:0,x:b.x+b.w/2,y:b.y+b.h,hp:SHP*(1+.02*Math.min((b.lv||1)-1,20000)),home:b,cd:0,off:rnd(-1.5,1.5),off2:rnd(0,1.5)});ft(b.x+1,b.y,'+Soldier','#8cf');sfx('ting');if(!auto){sfx('place');updSel();updHUD()}return true}
 const jobsOf=b=>{const j=D[b.k].jobs||0;return j?j+(b.lv>=3?1:0)+(b.lv>=5?1:0):0};
 function io(b){const d=D[b.k],lv=b.lv||1;let out=d.outf?{gold:3+Math.min(C.length,80)*.06}:Object.assign({},d.out||{}),inn=Object.assign({},d.in||{});const up=5*(lv-1);
  if(up&&Object.keys(out).length){const mk=Object.keys(out)[0];out[mk]+=up;for(const r in inn)inn[r]+=Math.round(up/2)}return{out,inn}}
@@ -503,7 +522,7 @@ const UPF=(cur,n)=>n+.35*n*(2*cur+n-1)/2;
 function batchCost(b,n){const f=UPF(b.lv,n),sc=DIF[S.dif].cost*COSTM,base=upBase(b),o={};for(const r in base)o[r]=Math.ceil(base[r]*sc*f);return o}
 function ucost(b){return batchCost(b,1)}
 function maxAfford(b){const sc=DIF[S.dif].cost*COSTM,base=upBase(b),cur=b.lv,a=.175,bb=1+.175*(2*cur-1);let best=UPM-cur;for(const r in base){const R=Math.max(0,S.res[r])/(base[r]*sc),n=Math.floor((-bb+Math.sqrt(bb*bb+4*a*R))/(2*a));best=Math.min(best,n)}best=Math.max(0,best);while(best>0&&!canAfford(batchCost(b,best)))best--;return best}
-function lvResult(b,T){const k=b.k;if(k==='hall')return'all upgradable buildings raised to Lv '+fmt(T)+' ('+B.filter(q=>levelable(q.k)&&q.lv<T).length+' now)';if(k==='warehouse')return'storage +'+fmt(150+50*(T-1));
+function lvResult(b,T){const k=b.k;if(k==='tankfactory'){const m=1+.02*Math.min(T-1,1000);return'tank health/damage x'+fmt(m)+', train '+Math.max(1.5,10/m).toFixed(1)+'s, cap '+Math.min(12+Math.floor((T-1)/10),40)}if(k==='hall')return'all upgradable buildings raised to Lv '+fmt(T)+' ('+B.filter(q=>levelable(q.k)&&q.lv<T).length+' now)';if(k==='warehouse')return'storage +'+fmt(150+50*(T-1));
  const nb=Object.assign({},b,{lv:T});if(TW[k]&&!D[k].out)return'garrison '+trainCap(nb)+', arrows x'+fmt(1+.15*(T-1))+', soldiers x'+fmt(1+.02*(T-1))+', range '+(TW[k].rg+Math.min(10,.4*(T-1))).toFixed(1);
  if(k==='store')return'customers +'+fmt(10*(T-1))+'%';const x=io(nb);return'makes '+costStr(x.out)+(Object.keys(x.inn).length?', uses '+costStr(x.inn):'')}
 function upInfo(b){if(!canUp(b))return(levelable(b.k)||b.k==='hall')&&b.lv>=UPM?'<br><b style="color:#ffe08a">MAX LEVEL (10,000)</b>':'';
@@ -520,19 +539,19 @@ function hallUp(b){S.hallLv=b.lv;let n=0;for(const q of B)if(levelable(q.k)&&q.l
 function selHall(){if(HALL){sel=HALL;view.x=(HALL.x+6)*TS;view.y=(HALL.y+6)*TS;updSel()}}
 function milestones(b,old){for(const t of[10,100,1000,10000])if(old<t&&b.lv>=t){ach('lv'+t);if(b.k!=='hall'){celeb=3.5;celebTxt='⭐ '+D[b.k].n+' reached level '+fmt(t)+'!';sfx(t>=100?'fanfare':'win')}for(let i=0;i<10;i++)burst(b.x+rnd(0,b.w),b.y+rnd(0,b.h),'⭐',1)}}
 function upgradeBy(b,n){if(!canUp(b))return;n=Math.max(1,Math.min(Math.floor(n),UPM-b.lv));const c=batchCost(b,n);if(!canAfford(c)){msg('Not enough resources for that upgrade.','bad');sfx('err');return}
- for(const r in c)S.res[r]-=c[r];const old=b.lv;b.lv+=n;b.born=performance.now();if(b.k==='hall')hallUp(b);else{sfx('upgrade',b.lv<10?2:b.lv<100?3:b.lv<1000?4:5);burst(b.x+b.w/2,b.y+b.h/2,'⬆️',5)}
+ for(const r in c)S.res[r]-=c[r];const old=b.lv;b.lv+=n;b.born=performance.now();if(b.k==='hall')hallUp(b);else{sfx('upgrade',b.lv<10?2:b.lv<100?3:b.lv<1000?4:5);if(b.k==='tankfactory'||b.k==='gunshop'||b.k==='bombshop')sfx('clank');burst(b.x+b.w/2,b.y+b.h/2,'⬆️',5)}
  milestones(b,old);msg(D[b.k].n+' upgraded to level '+fmt(b.lv)+(n>1?' (+'+fmt(n)+')':'')+'!','good');updHUD();updSel()}
 function upgrade(b){upgradeBy(b,1)}
 
 // ================= rivals, diplomacy & war =================
 const RN=[{n:'Brightmoor',pers:'proud',col:'#d33c3c',m:1.2},{n:'Goldmarsh',pers:'greedy',col:'#e0b020',m:.95},{n:'Shadowfen',pers:'sneaky',col:'#8a52d0',m:1.0},{n:'Greenhollow',pers:'friendly',col:'#3aa860',m:.8}];
 const PERS={proud:'Proud',greedy:'Greedy',sneaky:'Sneaky',friendly:'Friendly'};
-const ACH=[['firstwin','First Victory','Win a war'],['iron','Iron Fist','Win 3 wars'],['peace','Peacemaker','Sign a peace treaty'],['ally','Best Friends','Ally with a rival'],['trade','Merchant','Trade with a rival'],['bold','Brave Peacekeeper','Decline a war challenge'],['sue','Wise Retreat','Sue for peace'],['fort','Fortified','3 towers and 10 walls'],['army','Big Army','Have 8 soldiers'],['lv10','Level 10','Upgrade any building to level 10'],['lv100','Level 100','Upgrade any building to level 100'],['lv1000','Level 1,000','Upgrade any building to level 1,000'],['lv10000','MAX LEVEL!','Upgrade any building to level 10,000'],['firstsale','First Sale','Sell something in your Store'],['sell1000','Shopkeeper','Sell 1000 gold worth of goods'],['fairtrader','Fair Trader','Sell 10 batches at a fair price'],['winE','Easy Champion','Win a scenario on Easy'],['winM','Medium Champion','Win a scenario on Medium'],['winH','Hard Champion','Win a scenario on Hard'],['unbroken','Flawless','Win a war with no building battered']];
+const ACH=[['firstwin','First Victory','Win a war'],['iron','Iron Fist','Win 3 wars'],['peace','Peacemaker','Sign a peace treaty'],['ally','Best Friends','Ally with a rival'],['trade','Merchant','Trade with a rival'],['bold','Brave Peacekeeper','Decline a war challenge'],['sue','Wise Retreat','Sue for peace'],['fort','Fortified','3 towers and 10 walls'],['army','Big Army','Have 8 soldiers'],['lv10','Level 10','Upgrade any building to level 10'],['lv100','Level 100','Upgrade any building to level 100'],['lv1000','Level 1,000','Upgrade any building to level 1,000'],['lv10000','MAX LEVEL!','Upgrade any building to level 10,000'],['firsttank','Tank Commander','Train your first tank'],['tanks10','Armored Division','Have 10 tanks'],['tankwin','Tanks Win!','Win a war with tanks'],['firstgun','Gunsmith','Craft your first gun'],['firstbomb','Bomb Maker','Craft your first bomb'],['bombs100','Demolition Expert','Drop 100 bombs'],['bombwin','Boom Victory','Win a war using bombs'],['firstsale','First Sale','Sell something in your Store'],['sell1000','Shopkeeper','Sell 1000 gold worth of goods'],['fairtrader','Fair Trader','Sell 10 batches at a fair price'],['winE','Easy Champion','Win a scenario on Easy'],['winM','Medium Champion','Win a scenario on Medium'],['winH','Hard Champion','Win a scenario on Hard'],['unbroken','Flawless','Win a war with no building battered']];
 function mkRivals(){return RN.map((r,i)=>({id:i,n:r.n,pers:r.pers,col:r.col,m:r.m*(.92+Math.random()*.2),rel:r.pers==='friendly'?35:r.pers==='greedy'?0:-5,ally:false,peace:0,cd:0,declined:0,tcd:0,partner:false}))}
 function achOn(id){return S.ach[id]||(id.startsWith('win')&&META.dw&&META.dw[id[3]])}
 function ach(id){if(!S.ach)S.ach={};if(S.ach[id])return;S.ach[id]=1;const a=ACH.find(q=>q[0]===id);msg('\u{1F3C5} Achievement: '+a[1]+'!','good');sfx('tech')}
 function rstr(r){return Math.round((28+(OD()-1)*2.4)*r.m*DIF[S.dif].rstr*.7*(1+.12*Math.log2(avgLv())))}
-function power(){let p=SO.length*10+B.reduce((a,b)=>a+(b.k==='tower'?8+2*(b.lv-1):0),0)+cn('watchtower')*4+cn('wall')*.6+cn('gate')*3+cn('castle')*30+cn('hall')*25+cn('fortress')*40+Math.min(10,cn('banner'))*2;
+function power(){let p=SO.length*10+TK.length*16+B.reduce((a,b)=>a+(b.k==='tower'?8+2*(b.lv-1):0),0)+cn('watchtower')*4+cn('wall')*.6+cn('gate')*3+cn('castle')*30+cn('hall')*25+cn('fortress')*40+Math.min(10,cn('banner'))*2;
  return Math.round(p*(1+bon('sold')+bon('war')+Math.min(1,cn('armory'))*.15+Math.min(2,cn('training'))*.1))}
 function estimate(r){const e=rstr(r),m=Math.max(1,power()),q=e/m;const t=q<.5?'Much weaker than you':q<.85?'Weaker than you':q<1.2?'About equal':q<1.8?'Stronger than you':'Much stronger!';
  return t+(bon('spy')?' (exactly '+e+' vs your '+power()+')':' (about '+Math.round(e*(1+((r.id*37+S.day)%5-2)*.08))+')')}
@@ -558,7 +577,7 @@ function declineWar(){const c=S.challenge,r=S.rivals[c.rid];S.challenge=null;r.d
  msg(r.n+' shrugs: "Maybe next time." '+(pay?'You paid just 5 coins.':'No coins needed.'),'good');closeModal();updHUD()}
 // ---- REAL WAR ON THE MAP ----
 const WSIDE=[2,1,3,0];
-const WU={inf:{hp:30,spd:1.15,dm:3.6},arch:{hp:20,spd:1.05,dm:2},ram:{hp:90,spd:.8,dm:11},cap:{hp:80,spd:1.0,dm:4.5}};
+const WU={inf:{hp:30,spd:1.15,dm:3.6},arch:{hp:20,spd:1.05,dm:2},ram:{hp:90,spd:.8,dm:11},cap:{hp:80,spd:1.0,dm:4.5},etank:{hp:110,spd:.9,dm:8},bomber:{hp:25,spd:1.0,dm:2}};
 function heart(){const c=HALL||B.find(b=>b.k==='castle')||B.find(b=>b.k==='fortress');if(c)return{x:c.x+c.w/2,y:c.y+c.h/2,b:c,r:Math.max(c.w,c.h)/2};let sx=0,sy=0,n=0;for(const b of B)if(b.k!=='road'){sx+=b.x;sy+=b.y;n++}return n?{x:sx/n+.5,y:sy/n+.5}:{x:28,y:28}}
 function edgePoint(side){let x,y,t=0;do{x=side===0?1.5:side===1?W-2:irnd(4,W-5);y=side===2?1.5:side===3?H-2:irnd(4,H-5);t++}while(t<30&&T[Math.floor(y)*W+Math.floor(x)]===1);return{x,y}}
 function mkUnit(kind,r,x,y,hp,mhp){const st=WU[kind];return{war:1,kind,rid:r.id,col:r.col,x,y,hp:hp||st.hp,mhp:mhp||st.hp,spd:st.spd*(.95+Math.random()*.1),tg:null,hit:0,cd:0,life:0,side:Math.random()<.5?1:-1,tx:x,ty:y}}
@@ -568,9 +587,9 @@ function acceptWar(){const c=S.challenge,r=S.rivals[c.rid],eP=rstr(r);S.challeng
  closeModal();showWar();sfx('horn');msg('WAR! The army of '+r.n+' marches in '+S.war.prep+' seconds. Prepare your defenses!','bad')}
 function spawnWave(){const w=S.war,r=S.rivals[w.rid],k=++w.wave,e=w.eP,side=WSIDE[r.id%4],hm=(1+k*.08)*(S.dif===0?.8:S.dif===2?1.2:1);
  const list=[],ninf=Math.max(2,Math.round(e/16)+k-1),narc=Math.floor(e/32)+(k>=2?1:0),nram=k>=2?(k>=w.waves?2:1):0;
- for(let i=0;i<ninf;i++)list.push('inf');for(let i=0;i<narc;i++)list.push('arch');for(let i=0;i<nram;i++)list.push('ram');if(k===w.waves){list.push('cap');w.captain=true}
+ for(let i=0;i<ninf;i++)list.push('inf');for(let i=0;i<narc;i++)list.push('arch');for(let i=0;i<nram;i++)list.push('ram');if(S.dif===2&&k>=3)for(let i=0;i<Math.min(3,k-2);i++)list.push('etank');if(S.dif===2&&k>=4)for(let i=0;i<Math.min(3,k-3);i++)list.push('bomber');if(k===w.waves){list.push('cap');w.captain=true}
  const ep=edgePoint(side);for(const kind of list){const hp=WU[kind].hp*hm;RA.push(mkUnit(kind,r,ep.x+rnd(-2.5,2.5),ep.y+rnd(-2.5,2.5),hp,hp))}
- msg('Wave '+k+' of '+w.waves+': '+list.length+' enemies!'+(k===w.waves?' Their captain leads this one!':''),'bad')}
+ msg('Wave '+k+' of '+w.waves+': '+list.length+' enemies!'+(k===w.waves?' Their captain leads this one!':'')+(list.includes('etank')?' Rival TANKS roll in!':'')+(list.includes('bomber')?' Rival BOMBERS!':''),'bad')}
 function callAllies(quiet){const w=S.war,al=S.rivals.filter(q=>q.ally&&q.id!==w.rid);if(!al.length){if(!quiet){msg('You have no allies! Make friends in the Rivals panel.','bad');sfx('err')}return false}
  const home=B.find(b=>trainCap(b)>0)||B[0];if(!home)return false;for(const a of al){const ep=edgePoint((WSIDE[w.rid%4]+2)%4),n=Math.min(8,Math.ceil(rstr(a)/12)+1);for(let i=0;i<n;i++)SO.push({x:ep.x+rnd(-2,2),y:ep.y+rnd(-2,2),hp:75,home,cd:0,off:rnd(-1.5,1.5),off2:rnd(0,1.5),ally:1,col:a.col})}
  w.allies=true;if(!quiet){msg('Your allies arrive to help!','good');sfx('event')}return true}
@@ -581,9 +600,10 @@ function pickTarget(r){let best=null,bd=1e9;const ramw=r.kind==='ram';for(const 
 function warUnit(r,dt){const w=S.war;r.cd-=dt;r.hit=Math.max(0,r.hit-dt);
  if(r.hp<=0){if(w)w.kills++;burst(r.x,r.y,'⭐',5);ft(r.x,r.y,r.kind==='cap'?'Captain POOF!':'POOF!','#ff0',13);sfx('boom');return false}
  if(!w)return false;
- if(r.kind!=='ram'){let ns=null,nd=r.kind==='arch'?4.5:1.1;for(const s of SO){const d=Math.hypot(s.x-r.x,s.y-r.y);if(d<nd){nd=d;ns=s}}
-  if(ns){ns.hp-=(r.kind==='cap'?5.5:r.kind==='arch'?2.4:3.2)*dt*(w.stance==='counter'?1.2:1);r.hit=.15;if(r.kind==='arch'&&r.cd<=0){r.cd=.9;AR.push({x0:r.x,y0:r.y,x1:ns.x,y1:ns.y,t:0});sfx('arrow')}return true}}
+ if(r.kind!=='ram'){let ns=null,nd=r.kind==='arch'?4.5:1.1;for(const s of SO){const d=Math.hypot(s.x-r.x,s.y-r.y);if(d<nd){nd=d;ns=s}}for(const s of TK){const d=Math.hypot(s.x-r.x,s.y-r.y);if(d<nd){nd=d;ns=s}}
+  if(ns){ns.hp-=(r.kind==='cap'?5.5:r.kind==='etank'?5:r.kind==='arch'?2.4:3.2)*dt*(ns.tank?.5:(w.stance==='counter'?1.2:1));r.hit=.15;if(r.kind==='arch'&&r.cd<=0){r.cd=.9;AR.push({x0:r.x,y0:r.y,x1:ns.x,y1:ns.y,t:0});sfx('arrow')}return true}}
  const hh=heart();
+ if(r.kind==='bomber'&&r.cd<=0){let tx=null;for(const q of SO)if(Math.hypot(q.x-r.x,q.y-r.y)<7){tx=q;break}if(!tx)for(const q of TK)if(Math.hypot(q.x-r.x,q.y-r.y)<7){tx=q;break}if(tx){r.cd=5;BM.push({x:tx.x,y:tx.y,t:0,fuse:1,r:1.8,enemy:true,dmg:0});sfx('fuse')}}
  if(r.kind==='cap'){r.tg=hh.b||null;r.tx=hh.x;r.ty=hh.y}
  else{if(!r.tg||r.tg.dead||bat(r.tg))r.tg=pickTarget(r);if(r.tg){r.tx=r.tg.x+r.tg.w/2;r.ty=r.tg.y+r.tg.h/2}else{r.tx=hh.x;r.ty=hh.y}}
  const dx=r.tx-r.x,dy=r.ty-r.y,d=Math.hypot(dx,dy)||1;
@@ -606,9 +626,9 @@ function warSim(dt){const w=S.war;if(!w)return;w.t+=dt;
   if(w.wave>=w.waves&&alive===0){endWar('win');return}
   if(w.t>480){endWar('win');return}}
  if(w.state==='prep'){w.hudT=(w.hudT||0)-dt;if(w.hudT<=0){updWarHud();w.hudT=.3}}}
-function endWar(res){const w=S.war,r=S.rivals[w.rid];S.war=null;S.warCd=OD()+irnd(6,9)*1.5/DIF[S.dif].war;let t='';
+function endWar(res){const w=S.war,r=S.rivals[w.rid];S.war=null;bombAim=false;S.warCd=OD()+irnd(6,9)*1.5/DIF[S.dif].war;let t='';
  for(const u of RA)if(u.war)burst(u.x,u.y,'\u{1F4A8}',2);RA=RA.filter(u=>!u.war);SO=SO.filter(q=>!q.ally);
- if(res==='win'){const g=Math.round(40+w.eP*.9);S.res.gold+=g;addRes('iron',15);addRes('food',25);S.rp+=25;S.rep=Math.min(100,S.rep+8);r.partner=true;r.rel=Math.max(-100,r.rel-10);r.m*=.85;r.peace=OD()+14;S.warsWon++;ach('firstwin');if(S.warsWon>=3)ach('iron');if(w.maxBat===0)ach('unbroken');sfx('win');
+ if(res==='win'){const g=Math.round(40+w.eP*.9);S.res.gold+=g;addRes('iron',15);addRes('food',25);S.rp+=25;S.rep=Math.min(100,S.rep+8);r.partner=true;r.rel=Math.max(-100,r.rel-10);r.m*=.85;r.peace=OD()+14;S.warsWon++;ach('firstwin');if(S.warsWon>=3)ach('iron');if(w.maxBat===0)ach('unbroken');if(w.usedTank||TK.length)ach('tankwin');if(w.usedBomb)ach('bombwin');sfx('win');
   t='<p>The enemy army is beaten and runs away in a cloud of dust!</p><p>Loot: +'+g+' \u{1FA99}, +15 ⛏️, +25 \u{1F35E}, +25 research points. Reputation up, and '+r.n+' is now a trade partner (better prices).</p>'}
  else if(res==='lose'){const l=Math.round(S.res.gold*.2);S.res.gold-=l;for(const k of['wood','stone','food'])S.res[k]=Math.floor(S.res[k]*.85);S.rep=Math.max(0,S.rep-8);S.warsLost++;r.peace=OD()+8;
   const outer=B.filter(b=>b.k!=='road'&&b.k!=='hall').map(b=>[Math.hypot(b.x-28,b.y-28),b]).sort((a,b)=>b[0]-a[0]).slice(0,DIF[S.dif].dmg);outer.forEach(q=>{q[1].hp=Math.max(5,q[1].hp*.45)});
@@ -619,24 +639,28 @@ function warBtn(id,txt,fn,tipt){return '<button id="'+id+'" style="font-size:12p
 function showWar(){const w=S.war,h=$('warhud');if(!w){h.classList.add('hidden');return}const r=S.rivals[w.rid];h.classList.remove('hidden');
  h.innerHTML='<div id="whx" style="font-weight:bold"></div><div style="font-size:11px;color:#ffe08a">'+DT[S.dif]+'</div><div>'+
   warBtn('wh1','\u{1F6E1} Hold the walls','','Soldiers defend near their homes')+warBtn('wh2','\u{1F4CD} Rally (click map)','','Soldiers gather where you click')+warBtn('wh3','⚔ Counter-attack','','Soldiers hunt enemies anywhere (+20% damage taken)')+'<br>'+
-  warBtn('wh4','\u{1F527} Repair (6 stone, 3 wood)','','Heals walls, gates and towers')+warBtn('wh5','\u{1F6AA} Gates','','Closed gates take half damage')+warBtn('wh6','⛏️ Weapons (6 iron)','','+10% soldier damage')+warBtn('wh7','\u{1F35E} Heal (9 food)','','Heal all soldiers')+warBtn('wh8','\u{1F91D} Allies','','Call your allies')+warBtn('wh9','\u{1F54A} Sue for peace','','End the war for a price')+'</div>';
+  warBtn('wh4','\u{1F527} Repair (6 stone, 3 wood)','','Heals walls, gates and towers')+warBtn('wh5','\u{1F6AA} Gates','','Closed gates take half damage')+warBtn('wh6','⛏️ Weapons (6 iron)','','+10% soldier damage')+warBtn('wh7','\u{1F35E} Heal (9 food)','','Heal all soldiers')+warBtn('wh8','\u{1F91D} Allies','','Call your allies')+warBtn('wh10','\u{1F69C} Tank charge','','All tanks rush the enemy captain')+warBtn('wh11','\u{1F4A3} Bomb','','Click the map to drop a bomb')+warBtn('wh12','\u{1F916} Auto-bomb','','Towers throw bombs at clusters')+warBtn('wh9','\u{1F54A} Sue for peace','','End the war for a price')+'</div>';
  $('wh1').onclick=()=>{w.stance='hold';sfx('click');updWarHud()};$('wh2').onclick=()=>{w.stance='rally';sfx('click');msg('Rally: click the map where your soldiers should gather.');updWarHud()};$('wh3').onclick=()=>{w.stance='counter';sfx('click');updWarHud()};
  $('wh4').onclick=()=>{if(S.res.stone<6||S.res.wood<3){msg('Need 6 stone and 3 wood.','bad');sfx('err');return}S.res.stone-=6;S.res.wood-=3;for(const b of B){if(b.k==='wall'||b.k==='gate'||b.k==='tower')b.hp=maxhp(b.k);else b.hp=Math.min(maxhp(b.k),b.hp+25)}sfx('place');msg('Repairs done!','good');updHUD()};
  $('wh5').onclick=()=>{w.gates=!w.gates;sfx('click');updWarHud()};
  $('wh6').onclick=()=>{if(S.res.iron<6||w.boost>=.5){msg(w.boost>=.5?'Weapons are maxed.':'Not enough iron.','bad');sfx('err');return}S.res.iron-=6;w.boost+=.1*(1+bon('supply'));sfx('tech');msg('Sharper weapons!','good');updWarHud()};
  $('wh7').onclick=()=>{if(S.res.food<9){msg('Not enough food.','bad');sfx('err');return}S.res.food-=9;for(const s of SO)s.hp=SHP*lvmOf(s);sfx('coin');msg('Hot meals! Soldiers healed.','good')};
  $('wh8').onclick=()=>{if(w.allies){msg('Allies already came.');return}callAllies(false)};
+ $('wh10').onclick=()=>{if(!TK.length){msg('You have no tanks! Build a Tank Factory.','bad');sfx('err');return}if((w.chargeCd||0)>0){msg('Tanks are catching their breath...');sfx('err');return}w.charge=9;w.chargeCd=28;sfx('horn');msg('TANK CHARGE!','good');updWarHud()};
+ $('wh11').onclick=()=>{if(S.res.bombs<1){msg('No bombs! Build a Bomb Workshop (Explosives tech).','bad');sfx('err');return}bombAim=!bombAim;if(bombAim)msg('Click the map where the bomb should drop.');updWarHud()};
+ $('wh12').onclick=()=>{w.auto=!w.auto;sfx('click');updWarHud()};
  $('wh9').onclick=()=>{sfx('click');endWar('peace')};updWarHud()}
 function updWarHud(){const w=S.war;if(!w)return;const r=S.rivals[w.rid],x=$('whx');if(!x)return;
  let alive=0;for(const u of RA)if(u.war)alive++;
- x.style.color=r.col;x.innerHTML='⚑ War vs '+r.n+' - '+(w.state==='prep'?'<span style="color:#fff">Enemy arrives in '+Math.max(0,Math.ceil(w.prep))+'s! Build defenses!</span>':'Wave '+w.wave+'/'+w.waves)+' &bull; Enemies '+alive+' &bull; Army '+SO.length+' &bull; Battered '+(w.bat||0)+'/'+w.limit+(w.holdT>0?' <span style="color:#f66">CAPTAIN AT YOUR HEART '+Math.ceil((w.holdMax||20)-w.holdT)+'s!</span>':'');
+ x.style.color=r.col;x.innerHTML='⚑ War vs '+r.n+' - '+(w.state==='prep'?'<span style="color:#fff">Enemy arrives in '+Math.max(0,Math.ceil(w.prep))+'s! Build defenses!</span>':'Wave '+w.wave+'/'+w.waves)+' &bull; Enemies '+alive+' &bull; Army '+SO.length+' soldiers ('+SO.filter(q=>q.gun).length+' gunners), '+TK.length+' tanks &bull; Battered '+(w.bat||0)+'/'+w.limit+(w.holdT>0?' <span style="color:#f66">CAPTAIN AT YOUR HEART '+Math.ceil((w.holdMax||20)-w.holdT)+'s!</span>':'');
  const on=(id,c)=>{const e=$(id);if(e)e.className=c?'on':''};on('wh1',w.stance==='hold');on('wh2',w.stance==='rally');on('wh3',w.stance==='counter');on('wh5',w.gates);
+ const tc=$('wh10');if(tc)tc.textContent='\u{1F69C} Tank charge'+(w.chargeCd>0?' ('+Math.ceil(w.chargeCd)+'s)':'');const bb=$('wh11');if(bb){bb.textContent='\u{1F4A3} Bomb ('+fmt(S.res.bombs)+')'+(S.bombCd>0?' '+Math.ceil(S.bombCd)+'s':'');bb.className=bombAim?'on':''}const ab=$('wh12');if(ab){ab.textContent='\u{1F916} Auto-bomb: '+(w.auto?'ON':'off');ab.className=w.auto?'on':''}
  const g=$('wh5');if(g)g.textContent='\u{1F6AA} Gates: '+(w.gates?'CLOSED':'open')}
-function wunit(o,t){const px=o.x*TS,py=o.y*TS,col=o.hit>0?'#fff':o.col;
+function wunit(o,t){const px=o.x*TS,py=o.y*TS,col=o.hit>0?'#fff':o.col;if(o.kind==='etank'){const a=Math.atan2(o.ty-o.y,o.tx-o.x);drawTankShape(px,py,a,a,'#5a4040',o.col,0,0,1);cx.fillStyle='#ffe14d';cx.font='bold 9px sans-serif';cx.textAlign='center';cx.fillText('ENEMY TANK',px,py-27);cx.fillStyle='#400';cx.fillRect(px-10,py-23,20,3);cx.fillStyle='#f55';cx.fillRect(px-10,py-23,20*Math.max(0,o.hp/o.mhp),3);return}
  if(o.kind==='ram'){cx.fillStyle='rgba(0,0,0,.25)';cx.beginPath();cx.ellipse(px,py+2,14,4,0,0,7);cx.fill();cx.fillStyle='#8a5a2b';rr(px-13,py-12,26,10,3);cx.fill();cx.fillStyle='#555';cx.beginPath();cx.arc(px+(o.tx>o.x?15:-15),py-7,6,0,7);cx.fill();cx.fillStyle=col;cx.fillRect(px-4,py-18,8,6);cx.fillStyle='#222';cx.beginPath();cx.arc(px-8,py,3,0,7);cx.arc(px+8,py,3,0,7);cx.fill()}
  else{person(o.x,o.y,col,t+o.x,true,o.kind==='cap'?'#ffd700':'#222');
   if(o.kind==='inf'){cx.fillStyle='#ddd';cx.fillRect(px+5,py-13,2,10)}else if(o.kind==='arch'){cx.strokeStyle='#8a5a2b';cx.lineWidth=1.5;cx.beginPath();cx.arc(px+5,py-7,5,-1.2,1.2);cx.stroke()}
-  else{cx.fillStyle='#6b4a22';cx.fillRect(px-1,py-32,2,24);cx.fillStyle=o.col;cx.fillRect(px+1,py-32,12,8);cx.font='12px "Segoe UI Emoji",sans-serif';cx.textAlign='center';cx.fillText('\u{1F451}',px,py-17)}}
+  else if(o.kind==='bomber'){cx.font='15px \"Segoe UI Emoji\",sans-serif';cx.textAlign='center';cx.fillText('\u{1F4A3}',px,py-22)}else{cx.fillStyle='#6b4a22';cx.fillRect(px-1,py-32,2,24);cx.fillStyle=o.col;cx.fillRect(px+1,py-32,12,8);cx.font='12px "Segoe UI Emoji",sans-serif';cx.textAlign='center';cx.fillText('\u{1F451}',px,py-17)}}
  const by=py-(o.kind==='ram'?24:o.kind==='cap'?34:21);cx.fillStyle='#400';cx.fillRect(px-8,by,16,3);cx.fillStyle='#f55';cx.fillRect(px-8,by,16*Math.max(0,o.hp/o.mhp),3)}
 function dipAction(a,i){const r=S.rivals[i],e=bon('envoy');
  if(a==='gift'){if(S.res.gold<15){msg('Not enough gold','bad');sfx('err');return}S.res.gold-=15;r.rel=Math.min(100,r.rel+(r.pers==='greedy'?14:10)+e*3);msg(r.n+' loves the gift!','good');sfx('coin')}
@@ -657,7 +681,7 @@ function showRivals(){const rows=S.rivals.map(r=>{const st=r.ally?'\u{1F91D} All
  document.querySelectorAll('#modal button[data-a]').forEach(b=>b.onclick=()=>dipAction(b.dataset.a,+b.dataset.i))}
 
 // ================= STORE (buy anything, sell at your own price) =================
-const ITEMS=[['food',12,1.2],['wood',15,1],['stone',20,.9],['iron',35,.7],['grain',10,1],['flour',14,.8],['arms',60,.4]];
+const ITEMS=[['food',12,1.2],['wood',15,1],['stone',20,.9],['iron',35,.7],['grain',10,1],['flour',14,.8],['arms',60,.4],['guns',40,.5],['bombs',50,.4]];
 const SEAS_P={food:[1,.95,.85,1.2],wood:[1,1,1,1.1]};
 let stTab='buy';
 function stState(){if(!S.store)S.store={shelf:{},sold:{gold:0,pieces:0},tot:0,totP:0,drift:{},fair:0};return S.store}
@@ -737,6 +761,81 @@ function skipStep(now){const k=SKIP,frac=Math.min(1,(now-k.start)/k.dur),target=
 function updSkip(){const b=$('skipb');if(!b)return;const why=skipReason();b.disabled=!!why;b.title=why?('Skip night unavailable: '+why):'Skip the night (K): fast-forwards to dawn - everything still happens.';b.innerHTML=(why?'\u{1F319} Skip night (K)':'\u{1F319} Night - skip? (K)');b.classList.toggle('on',!why)}
 
 
+// ================= TANKS =================
+let TK=[],SH=[];
+const tkLv=b=>Math.min(((b&&b.lv)||1)-1,1000);
+const tkM=t=>1+.02*tkLv(t.home);
+const tkMH=t=>140*tkM(t)*(1+bon('tankhp'));
+const tankCap=b=>Math.min(12+Math.floor(((b.lv||1)-1)/10),40);
+const tankTime=b=>Math.max(1.5,10/(1+.02*tkLv(b)));
+function tankCost(){const sc=DIF[S.dif].cost*COSTM;return{arms:1,iron:Math.max(1,Math.round(5*sc)),wood:Math.max(1,Math.round(6*sc)),gold:Math.max(1,Math.round(10*sc))}}
+function mkTank(h,x,y,hp){const t={tank:1,home:h,x,y,hp:0,ang:Math.PI/2,tur:Math.PI/2,cd:0,recoil:0,flash:0,off:rnd(-2.2,2.2),off2:rnd(0,2),mv:false,puff:0};t.hp=hp||tkMH(t);return t}
+function spawnTank(b){TK.push(mkTank(b,b.x+b.w/2,b.y+b.h+.6));ft(b.x+1,b.y,'+Tank','#9fd','13');sfx('ting');ach('firsttank')}
+function queueTank(b,auto){const have=TK.filter(t=>t.home===b).length+(b.tq||[]).length;if(have>=tankCap(b)||(b.tq||[]).length>=3){if(!auto){msg('The factory is full or busy.');sfx('err')}return false}
+ const c=tankCost();if(!canAfford(c)){if(!auto){msg('A tank needs '+costStr(c)+'.','bad');sfx('err')}return false}for(const r in c)S.res[r]-=c[r];(b.tq=b.tq||[]).push(0);if(!auto){sfx('place');updSel();updHUD()}return true}
+function tankPanel(b){const n=TK.filter(t=>t.home===b).length,q=(b.tq||[]).length,c=tankCost();
+ return'<br>Tanks: <b>'+n+'/'+tankCap(b)+'</b> &bull; in production '+q+'/3 &bull; train time '+tankTime(b).toFixed(1)+'s<br>Tank health x'+fmt(tkM({home:b})*(1+bon('tankhp')))+', cannon x'+fmt(tkM({home:b})*(1+bon('tankdm')))+'<br><button id="tkb" '+((n+q>=tankCap(b)||q>=3||!canAfford(c))?'disabled':'')+'>Build tank ('+costStr(c)+')</button>'}
+function fireShell(t,tg){t.cd=1.8;t.recoil=1;t.flash=1;SH.push({x0:t.x+Math.cos(t.tur)*.9,y0:t.y+Math.sin(t.tur)*.9,x1:tg.x,y1:tg.y,t:0,dur:.35,dmg:22*tkM(t)*(1+bon('tankdm'))});sfx('cannon')}
+function explode(s){for(const r of RA){const d=Math.hypot(r.x-s.x1,r.y-s.y1);if(d<=1.7){r.hp-=s.dmg*(1-d/2.6);r.hit=.2}}PR.push({x:s.x1*TS,y:s.y1*TS,vx:0,vy:-10,life:.5,txt:'\u{1F4A5}',col:'#fff',sz:22});sfx('impact')}
+function tankStep(t,tx,ty,dt,mul){const dx=tx-t.x,dy=ty-t.y,d=Math.hypot(dx,dy);if(d<.05)return false;let sp=1.7*(mul||1)*dt;const o=occAt(t.x,t.y);if(o&&o.k==='road')sp*=1.5;
+ const a0=Math.atan2(dy,dx);for(const da of[0,.6,-.6,1.2,-1.2,1.9,-1.9]){const a=a0+da,nx=t.x+Math.cos(a)*sp*1.6,ny=t.y+Math.sin(a)*sp*1.6;if(nx<1||ny<1||nx>W-1||ny>H-1)continue;const ob=occAt(nx,ny);if(ob&&ob.k!=='road')continue;if(T[Math.floor(ny)*W+Math.floor(nx)]===1)continue;
+  let df=a-t.ang;while(df>Math.PI)df-=2*Math.PI;while(df<-Math.PI)df+=2*Math.PI;t.ang+=Math.max(-5*dt,Math.min(5*dt,df));t.x+=Math.cos(a)*sp;t.y+=Math.sin(a)*sp;t.mv=true;return true}return false}
+function tanksSim(dt){
+ for(const b of B){if(b.k!=='tankfactory')continue;if(b.tq&&b.tq.length){const tt=tankTime(b);for(let i=b.tq.length-1;i>=0;i--){b.tq[i]+=dt;if(b.tq[i]>=tt){b.tq.splice(i,1);spawnTank(b)}}}b.tqT=(b.tqT||0)+dt;if(b.tqT>=2){b.tqT=0;queueTank(b,true)}}
+ const W_=S.war&&S.war.state==='fight'?S.war:null;if(S.war){if(S.war.chargeCd>0)S.war.chargeCd-=dt;if(S.war.charge>0)S.war.charge-=dt}
+ for(let i=TK.length-1;i>=0;i--){const t=TK[i];t.cd-=dt;t.recoil=Math.max(0,t.recoil-dt*4);t.flash=Math.max(0,t.flash-dt*6);t.mv=false;
+  if(t.hp<=0){burst(t.x,t.y,'⭐',6);ft(t.x,t.y,'Tank down!','#ff0',13);sfx('boom');TK.splice(i,1);continue}
+  const mh=tkMH(t);if(t.hp<mh)t.hp=Math.min(mh,t.hp+4*dt);
+  const home=t.home,stance=W_?W_.stance:'counter',charge=W_&&W_.charge>0;let ref=null;
+  if(W_&&!charge){if(stance==='hold')ref={x:home.x+home.w/2,y:home.y+home.h/2,R:12};else if(stance==='rally'){const q=W_.rally||heart();ref={x:q.x,y:q.y,R:10}}}
+  const maxD=(W_&&stance==='counter')||charge?60:26;let tg=null,best=1e9;
+  for(const r of RA){if(ref&&r.war&&Math.hypot(r.x-ref.x,r.y-ref.y)>ref.R)continue;let d=Math.hypot(r.x-t.x,r.y-t.y);if(d>maxD)continue;if(r.kind==='ram'||r.kind==='etank')d-=4;if(r.kind==='cap')d-=charge?100:4;if(d<best){best=d;tg=r}}
+  if(tg){const dx=tg.x-t.x,dy=tg.y-t.y,d=Math.hypot(dx,dy);let df=Math.atan2(dy,dx)-t.tur;while(df>Math.PI)df-=2*Math.PI;while(df<-Math.PI)df+=2*Math.PI;t.tur+=Math.max(-6*dt,Math.min(6*dt,df));
+   if(d>5.5)tankStep(t,tg.x,tg.y,dt,charge?1.5:1);else if(d<1.2&&tg.kind==='inf'){tg.hp-=14*tkM(t)*dt;tg.hit=.15}
+   if(d<=6.8&&t.cd<=0&&Math.abs(df)<.35)fireShell(t,tg)}
+  else{const rp=W_&&stance==='rally'?(W_.rally||heart()):null,tx=rp?rp.x+t.off:home.x+home.w/2+t.off,ty=rp?rp.y+t.off2:home.y+home.h+1.8+t.off2;if(Math.hypot(tx-t.x,ty-t.y)>.5)tankStep(t,tx,ty,dt);t.tur+=(t.ang-t.tur)*Math.min(1,3*dt)}
+  if(t.mv){t.puff-=dt;if(t.puff<=0){t.puff=.35;PR.push({x:(t.x-Math.cos(t.ang)*.6)*TS,y:(t.y-Math.sin(t.ang)*.6)*TS,vx:rnd(-8,8),vy:-14,life:.7,txt:'●',col:'#ccc',sz:10});sfx('engine')}}}
+ for(let i=SH.length-1;i>=0;i--){const s=SH[i];s.t+=dt;if(s.t>=s.dur){SH.splice(i,1);explode(s)}}
+ if(TK.length>=10)ach('tanks10');if(TK.length&&S.war)S.war.usedTank=1}
+function drawTankShape(px,py,ang,tur,hull,flag,flash,recoil,sc){cx.save();cx.translate(px,py);cx.scale(sc,sc);
+ cx.fillStyle='rgba(0,0,0,.25)';cx.beginPath();cx.ellipse(0,5,15,6,0,0,7);cx.fill();
+ cx.save();cx.rotate(ang);cx.fillStyle='#2b2b2b';rr(-13,-10,26,6,3);cx.fill();rr(-13,4,26,6,3);cx.fill();cx.fillStyle='#666';for(let i=-10;i<=10;i+=5){cx.fillRect(i,-9,2,4);cx.fillRect(i,5,2,4)}
+ cx.fillStyle=hull;rr(-11,-6,22,12,4);cx.fill();cx.strokeStyle='rgba(0,0,0,.4)';cx.lineWidth=1;cx.stroke();cx.fillStyle=flag;cx.fillRect(-10,-2,4,4);cx.restore();
+ cx.save();cx.rotate(tur);const rc=recoil*3;cx.fillStyle='#444';cx.fillRect(2-rc,-1.8,15,3.6);cx.fillStyle=hull;cx.beginPath();cx.arc(0,0,6.5,0,7);cx.fill();cx.strokeStyle='rgba(0,0,0,.45)';cx.stroke();cx.fillStyle='rgba(255,255,255,.7)';cx.beginPath();cx.arc(-1.5,-1.5,1.6,0,7);cx.fill();
+ if(flash>0){cx.fillStyle='rgba(255,220,80,'+flash+')';cx.beginPath();cx.moveTo(17-rc,0);cx.lineTo(25,-5);cx.lineTo(22,0);cx.lineTo(25,5);cx.closePath();cx.fill()}cx.restore();
+ cx.fillStyle='#6b4a22';cx.fillRect(-1,-17,1.5,11);cx.fillStyle=flag;cx.fillRect(.5,-17,9,5);cx.restore()}
+function drawTankU(t){const px=t.x*TS,py=t.y*TS;drawTankShape(px,py,t.ang,t.tur,'#6f8f4e','#4a6fd8',t.flash,t.recoil,1);const mh=tkMH(t);cx.fillStyle='#400';cx.fillRect(px-10,py-22,20,3);cx.fillStyle='#4f4';cx.fillRect(px-10,py-22,20*Math.max(0,Math.min(1,t.hp/mh)),3)}
+function drawFactory(px,py,w,h,now){const t=now/1000;cx.fillStyle='rgba(0,0,0,.22)';cx.beginPath();cx.ellipse(px+w/2,py+h-2,w*.5,7,0,0,7);cx.fill();
+ cx.fillStyle='#8e9a7a';rr(px+4,py+26,w-8,h-30,6);cx.fill();cx.strokeStyle='#4b5d3a';cx.lineWidth=2;cx.stroke();
+ cx.fillStyle='#4b5d3a';for(let i=0;i<3;i++){cx.beginPath();cx.moveTo(px+4+i*(w-8)/3,py+28);cx.lineTo(px+4+(i+.5)*(w-8)/3,py+8);cx.lineTo(px+4+(i+1)*(w-8)/3,py+28);cx.closePath();cx.fill()}
+ cx.fillStyle='#7a3b2e';cx.fillRect(px+w-30,py-8,14,44);cx.fillStyle='#5a2a20';cx.fillRect(px+w-32,py-10,18,6);
+ for(let i=0;i<3;i++){const k=((t*.8+i*.33)%1);cx.fillStyle='rgba(220,220,220,'+(.7*(1-k))+')';cx.beginPath();cx.arc(px+w-23+Math.sin(t+i)*4,py-14-k*28,5+k*7,0,7);cx.fill()}
+ cx.fillStyle='#2f3a28';rr(px+w/2-22,py+h-46,44,44,4);cx.fill();cx.strokeStyle='#8a9a78';cx.lineWidth=1.5;for(let y=py+h-42;y<py+h-4;y+=7){cx.beginPath();cx.moveTo(px+w/2-20,y);cx.lineTo(px+w/2+20,y);cx.stroke()}
+ cx.fillStyle='#e8ddb0';rr(px+10,py+32,34,16,3);cx.fill();drawTankShape(px+27,py+43,0,0,'#6f8f4e','#4a6fd8',0,0,.45);
+ cx.fillStyle='#ffd24a';cx.fillRect(px+w/2-24,py+h-50,48,4)}
+
+// ================= GUNNERS & BOMBS =================
+let BM=[],bombAim=false,shakeT=0;
+function gunnerAct(s,nr,dt){const dx=nr.x-s.x,dy=nr.y-s.y,d=Math.hypot(dx,dy),rg=7*(1+bon('gunrg'));
+ if(d>rg*.85){const wp=detour(s.x,s.y,nr.x,nr.y),ex=wp[0]-s.x,ey=wp[1]-s.y,ed=Math.hypot(ex,ey)||1;s.x+=ex/ed*2*dt;s.y+=ey/ed*2*dt}
+ if(d<=rg&&s.cd<=0){s.cd=2.4;nr.hp-=16*1.25*(1+bon('gundm'))*lvmOf(s)*(s.home&&TW[s.home.k]?1.5:1);nr.hit=.2;AR.push({x0:s.x,y0:s.y,x1:nr.x,y1:nr.y,t:0});PR.push({x:(s.x+.4)*TS,y:(s.y-.3)*TS,vx:3,vy:-10,life:.5,txt:'●',col:'#eee',sz:9});sfx('pew')}}
+const bombLv=()=>{let m=1;for(const b of B)if(b.k==='bombshop'&&b.lv>m)m=b.lv;return m};
+const bombDmg=()=>70*(1+.02*Math.min(bombLv()-1,1000))*(1+bon('bombdm'));
+function dropBomb(x,y,auto){const w=S.war;if(!w&&!RA.length){if(!auto){msg('No enemies to bomb right now.');sfx('err')}return false}
+ if(S.res.bombs<1){if(!auto){msg('No bombs! Build a Bomb Workshop.','bad');sfx('err')}return false}
+ if((S.bombCd||0)>0&&!auto){msg('The bomb is reloading...');sfx('err');return false}
+ S.res.bombs--;S.bombsUsed=(S.bombsUsed||0)+1;if(S.bombsUsed>=100)ach('bombs100');if(!auto)S.bombCd=[4,6,8][S.dif];if(w)w.usedBomb=1;
+ const combo=w&&w.charge>0;BM.push({x,y,t:0,fuse:.9,r:2.6+(combo?.6:0),dmg:bombDmg()*(combo?1.5:1)});sfx('fuse');return true}
+function bombSim(dt){if(S.bombCd>0)S.bombCd-=dt;shakeT=Math.max(0,shakeT-dt*2);
+ for(let i=BM.length-1;i>=0;i--){const b=BM[i];b.t+=dt;if(b.t>=b.fuse){BM.splice(i,1);
+  if(b.enemy){for(const q of SO){const d=Math.hypot(q.x-b.x,q.y-b.y);if(d<=b.r)q.hp-=30*(1-d/(b.r*1.4))}for(const q of TK)if(Math.hypot(q.x-b.x,q.y-b.y)<=b.r)q.hp-=25;for(const bb of B)if(bb.k!=='road'&&Math.hypot(bb.x+bb.w/2-b.x,bb.y+bb.h/2-b.y)<=b.r+bb.w/2)dmgB(bb,40)}
+  else{for(const r of RA){const d=Math.hypot(r.x-b.x,r.y-b.y);if(d<=b.r){r.hp-=b.dmg*(1-d/(b.r*1.4));r.hit=.25}}}
+  PR.push({x:b.x*TS,y:b.y*TS,vx:0,vy:-12,life:.8,txt:'\u{1F4A5}',col:'#fff',sz:46});PR.push({x:b.x*TS,y:b.y*TS-30,vx:0,vy:-20,life:.9,txt:'BOOM!',col:'#ffe14d',sz:22});
+  for(let k=0;k<4;k++)PR.push({x:b.x*TS,y:b.y*TS,vx:rnd(-60,60),vy:rnd(-70,-20),life:.8,txt:'☁️',col:'#ddd',sz:16,g:1});shakeT=1;sfx('bomb')}}
+ const W_=S.war&&S.war.state==='fight'?S.war:null;
+ if(W_&&W_.auto&&S.res.bombs>=1){W_.abT=(W_.abT||0)-dt;if(W_.abT<=0){W_.abT=5;let best=null,bc=0;for(const r of RA){if(!r.war)continue;let c=0;for(const q of RA)if(q.war&&Math.hypot(q.x-r.x,q.y-r.y)<2)c++;if(c>bc){bc=c;best=r}}
+  if(best&&bc>=3){let near=false;for(const b of B)if((b.k==='tower'||b.k==='castle'||b.k==='fortress'||b.k==='watchtower')&&Math.hypot(b.x+b.w/2-best.x,b.y+b.h/2-best.y)<11){near=true;break}if(near)dropBomb(best.x,best.y,true)}}}}
+
 // ================= goals / end =================
 function checkGoals(){const g=goals();if(!g.length||S.over)return;let all=true;for(const q of g){if(q[0]==='Happiness'?!(q[1]()>=q[2]):q[1]()<q[2])all=false}if(all)end(true)}
 function end(win,why){if(S.over)return;S.over=true;sfx(win?'win':'lose');
@@ -746,10 +845,10 @@ function end(win,why){if(S.over)return;S.over=true;sfx(win?'win':'lose');
 
 // ================= new game / save =================
 let META={wins:{}};
-function newState(i,dif,dl){dl=dl||1;dif=dif===undefined?1:dif;const sc=SC[i];const res={food:0,wood:0,stone:0,iron:0,gold:0,grain:0,flour:0,arms:0};Object.assign(res,sc.start);for(const r in sc.start)res[r]=Math.round(res[r]*DIF[dif].res);
+function newState(i,dif,dl){dl=dl||1;dif=dif===undefined?1:dif;const sc=SC[i];const res={food:0,wood:0,stone:0,iron:0,gold:0,grain:0,flour:0,arms:0,guns:0,bombs:0};Object.assign(res,sc.start);for(const r in sc.start)res[r]=Math.round(res[r]*DIF[dif].res);
  return{sc:i,res,techs:{},rp:sc.rp,day:1,tod:.3,tax:2,happy:60,target:60,speed:1,paused:false,raids:0,repelled:0,kills:0,raidActive:0,nextRaid:Math.round(sc.raid*DIF[dif].gap),dif,dl,pending:null,weather:'clear',wT:40,evT:55,mood:0,fear:0,growT:0,acc:0,t:0,cnt:{},built:0,lost:0,maxPop:0,everPop:0,hungry:0,over:false,raidsOn:false,trader:null,bon:{},flow:null,prevRes:null,rpRate:.1,hadCastle:0,hallLv:1,rc:{},store:{shelf:{},sold:{gold:0,pieces:0},tot:0,totP:0,drift:{},fair:0},rivals:mkRivals(),war:null,challenge:null,rep:50,ach:{},warsWon:0,warsLost:0,warCd:0,warsSeen:0}}
 function startScenario(i){
-  inGame=true;SEED=(Math.random()*1e9)|0;UID=1;HALL=null;SKIP=null;B=[];C=[];SO=[];RA=[];PR=[];AR=[];CART=null;sel=null;tool=null;
+  inGame=true;SEED=(Math.random()*1e9)|0;UID=1;HALL=null;SKIP=null;TK=[];SH=[];BM=[];bombAim=false;B=[];C=[];SO=[];RA=[];PR=[];AR=[];CART=null;sel=null;tool=null;
  S=newState(i,curDif,curDl);applyDif();SC[i].techs.forEach(t=>S.techs[t]=1);recalcBon();genMap(SEED);
  addB('hall',22,22,1);const h1=addB('house',19,26,1),h2=addB('house',19,29,1);addB('farm',34,26,1);addB('well',35,30,1);
  for(let k=0;k<SC[i].pop;k++)spawnCit(k%2?h2:h1,(k%2?h2:h1).x+rnd(0,1),(k%2?h2:h1).y+rnd(1,2));
@@ -760,7 +859,7 @@ function startScenario(i){
 function enterGame(){ $('title').classList.add('hidden');for(const id of['top','goals','mini','bar'])$(id).classList.remove('hidden');
  closeModal();buildBar();buildCtl();updHUD();updGoals();updSel();showOffer();recalcHomes()}
 function toTitle(){inGame=false;closeModal();for(const id of['top','goals','mini','bar','sel','offer'])$(id).classList.add('hidden');showTitle()}
-function snapshot(){const st=Object.assign({},S);delete st.bon;return{v:1,seed:SEED,T:Array.from(T).join(''),B:B.map(b=>[b.k,b.x,b.y,Math.round(b.hp),Math.round(b.prog*10)/10,b.lv]),C:C.map(c=>[B.indexOf(c.home),+c.x.toFixed(2),+c.y.toFixed(2)]),SO:SO.filter(q=>!q.ally).map(s=>[B.indexOf(s.home),+s.x.toFixed(1),+s.y.toFixed(1)]),RA:RA.filter(r=>r.war).map(r=>[r.kind,+r.x.toFixed(1),+r.y.toFixed(1),Math.round(r.hp),Math.round(r.mhp)]),S:st,view}}
+function snapshot(){const st=Object.assign({},S);delete st.bon;return{v:1,seed:SEED,T:Array.from(T).join(''),B:B.map(b=>[b.k,b.x,b.y,Math.round(b.hp),Math.round(b.prog*10)/10,b.lv,b.tq?b.tq.map(v=>+v.toFixed(2)):0]),C:C.map(c=>[B.indexOf(c.home),+c.x.toFixed(2),+c.y.toFixed(2)]),SO:SO.filter(q=>!q.ally).map(s=>[B.indexOf(s.home),+s.x.toFixed(1),+s.y.toFixed(1),s.gun?1:0]),TK:TK.map(t=>[B.indexOf(t.home),+t.x.toFixed(1),+t.y.toFixed(1),Math.round(t.hp)]),RA:RA.filter(r=>r.war).map(r=>[r.kind,+r.x.toFixed(1),+r.y.toFixed(1),Math.round(r.hp),Math.round(r.mhp)]),S:st,view}}
 function saveGame(metaOnly){try{const o={meta:META,game:(inGame&&S&&!S.over&&!metaOnly)?snapshot():null};if(metaOnly){const old=readSave();o.game=old&&old.game&&!S.over?old.game:null}localStorage.setItem(SAVE,JSON.stringify(o))}catch(e){}}
 function readSave(){try{const r=localStorage.getItem(SAVE);return r?JSON.parse(r):null}catch(e){return null}}
 function clearSave(){try{const o=readSave()||{meta:META};o.game=null;o.meta=META;localStorage.setItem(SAVE,JSON.stringify(o))}catch(e){}}
@@ -770,14 +869,14 @@ function ensureHall(){if(HALL)return;const fits=(ax,ay)=>{for(let j=0;j<12;j++)f
  if(!pos){pos=[22,22];for(const b of B.slice())if(b.x<34&&b.x+b.w>22&&b.y<34&&b.y+b.h>22){for(const r in D[b.k].cost)addRes(r,D[b.k].cost[r]);removeB(b,false)}txt='The Grand Citadel was built in the centre! Buildings in the way were removed and refunded.'}
  for(let j=0;j<12;j++)for(let i=0;i<12;i++)T[(pos[1]+j)*W+pos[0]+i]=0;buildMini();addB('hall',pos[0],pos[1],1);S.hallLv=Math.max(1,S.hallLv||1);msg(txt,'good')}
 function loadGame(){const o=readSave();if(!o||!o.game)return false;try{const g=o.game;
- SEED=g.seed;UID=1;HALL=null;SKIP=null;B=[];C=[];SO=[];RA=[];PR=[];AR=[];CART=null;sel=null;tool=null;
+ SEED=g.seed;UID=1;HALL=null;SKIP=null;TK=[];SH=[];BM=[];bombAim=false;B=[];C=[];SO=[];RA=[];PR=[];AR=[];CART=null;sel=null;tool=null;
  T=new Uint8Array(W*H);for(let i=0;i<W*H;i++)T[i]=+g.T[i];OCC=new Array(W*H).fill(null);buildMini();
- S=Object.assign(newState(g.S.sc,1,1),g.S);if(!g.S.dl)S.dl=1;if(S.dif===undefined)S.dif=1;applyDif();S.cnt={};S.pending=g.S.pending||null;recalcBon();inGame=true;
- for(const q of g.B){const b=addB(q[0],q[1],q[2],1);b.hp=q[3];b.prog=q[4]||0;b.lv=Math.max(1,Math.min(UPM,Math.floor(+q[5])||1))}
+ S=Object.assign(newState(g.S.sc,1,1),g.S);if(!g.S.dl)S.dl=1;if(S.dif===undefined)S.dif=1;applyDif();S.res.guns=S.res.guns||0;S.res.bombs=S.res.bombs||0;S.cnt={};S.pending=g.S.pending||null;recalcBon();inGame=true;
+ for(const q of g.B){const b=addB(q[0],q[1],q[2],1);b.hp=q[3];b.prog=q[4]||0;b.lv=Math.max(1,Math.min(UPM,Math.floor(+q[5])||1));if(Array.isArray(q[6]))b.tq=q[6].filter(v=>typeof v==='number')}
  ensureHall();S.hallLv=Math.max(1,Math.min(UPM,Math.floor(+S.hallLv)||1));
  for(const q of g.C){const h=B[q[0]]||freeHouse(28,28);if(h)spawnCit(h,q[1],q[2])}
- for(const q of g.SO){const h=B[q[0]];if(h)SO.push({x:q[1],y:q[2],hp:SHP*(1+.02*Math.min((h.lv||1)-1,20000)),home:h,cd:0,off:rnd(-1.5,1.5),off2:rnd(0,1.5)})}
- RA=[];if(S.raidActive){S.raidActive=0}
+ for(const q of g.SO){const h=B[q[0]];if(h)SO.push({x:q[1],y:q[2],hp:SHP*(1+.02*Math.min((h.lv||1)-1,20000)),home:h,gun:q[3]?1:0,cd:0,off:rnd(-1.5,1.5),off2:rnd(0,1.5)})}
+ RA=[];if(S.raidActive){S.raidActive=0}TK=[];SH=[];BM=[];if(g.TK)for(const q of g.TK){const h=B[q[0]];if(h&&h.k==='tankfactory')TK.push(mkTank(h,q[1],q[2],q[3]))}
  if(g.RA&&S.war)for(const q of g.RA)RA.push(mkUnit(q[0],S.rivals[S.war.rid],q[1],q[2],q[3],q[4]));
  Object.assign(view,g.view);S.trader=null;S.over=false;
   enterGame();msg('Game loaded. Welcome back!','good');if(S.war){showWar();if(S.war.allies)callAllies(true)}return true}catch(e){console.error('load failed',e);return false}}
@@ -802,7 +901,7 @@ function buildBar(){
   el.onclick=()=>{if(!ok){msg('Research '+techFor(k).n+' to unlock '+d.n,'bad');sfx('err');return}setTool(tool===k?null:k)};
   el.onmouseenter=ev=>tip(tipB(k),ev);el.onmouseleave=untip;it.appendChild(el)})}
 function bicon(k){const d=D[k];return d.e||({house:'\u{1F3E0}',road:'\u{1F6E4}️',wall:'\u{1F9F1}',gate:'\u{1F6AA}'}[k])}
-function tipB(k){const d=D[k];let s='<b>'+d.n+'</b><br>'+d.d+'<br>Cost: '+costStr(d.cost);if(TW[k]||d.train)s+='<br>Soldier price: 1 arms + '+sg()+' gold';if(d.jobs)s+='<br>Jobs: '+d.jobs+(S.dif===0?' <i>(Tip: build Houses nearby for workers)</i>':'');if(d.cap)s+='<br>Houses: '+d.cap;if(d.in)s+='<br>Uses: '+costStr(d.in);if(d.out)s+='<br>Makes: '+costStr(d.out);if(k==='warehouse'||TW[k]||(D[k].cyc&&(D[k].out||D[k].outf)))s+='<br>Upgradable to Lv5 (+5 output each level). Starts at the Grand Citadel level for free.';if(!avail(k))s+='<br><span style="color:#f99">Needs tech: '+(techFor(k)?techFor(k).n:'?')+'</span>';return s}
+function tipB(k){const d=D[k];let s='<b>'+d.n+'</b><br>'+d.d+'<br>Cost: '+costStr(d.cost);if(k==='tankfactory'){const c=tankCost();s+='<br>Tank: '+costStr(c)+', about 10 s each'}if(k==='gunshop')s+='<br>Gunners need 1 gun + 1 arms + gold at a barracks or tower';if(TW[k]||d.train)s+='<br>Soldier price: 1 arms + '+sg()+' gold';if(d.jobs)s+='<br>Jobs: '+d.jobs+(S.dif===0?' <i>(Tip: build Houses nearby for workers)</i>':'');if(d.cap)s+='<br>Houses: '+d.cap;if(d.in)s+='<br>Uses: '+costStr(d.in);if(d.out)s+='<br>Makes: '+costStr(d.out);if(k==='warehouse'||TW[k]||(D[k].cyc&&(D[k].out||D[k].outf)))s+='<br>Upgradable to Lv5 (+5 output each level). Starts at the Grand Citadel level for free.';if(!avail(k))s+='<br><span style="color:#f99">Needs tech: '+(techFor(k)?techFor(k).n:'?')+'</span>';return s}
 function setTool(t){tool=t;sel=null;updSel();buildBar();sfx('click')}
 function buildCtl(){const c=$('ctl');c.innerHTML='';
  const mk=(t,fn,id,tipt)=>{const b=document.createElement('button');b.innerHTML=t;if(id)b.id=id;b.onclick=()=>{ac();sfx('click');fn()};if(tipt){b.onmouseenter=e=>tip(tipt,e);b.onmouseleave=untip}c.appendChild(b);return b};
@@ -827,7 +926,7 @@ function showTech(){
  document.querySelectorAll('.tech.av').forEach(el=>el.onclick=()=>{const t=TI[el.dataset.t];if(S.rp<t.c){msg('Not enough research points','bad');sfx('err');return}S.rp-=t.c;S.techs[t.id]=1;recalcBon();sfx('tech');msg('Researched '+t.n+'!'+(t.u.length?' Unlocked: '+t.u.map(u=>D[u].n).join(', '):''),'good');buildBar();showTech()})}
 function updHUD(){if(!S)return;const th=$('top').offsetHeight+6;$('goals').style.top=th+'px';$('log').style.top=th+'px';$('offer').style.top=th+'px';$('warhud').style.top=(th+(S.trader?70:0))+'px';
  let h='';for(const r of['food','wood','stone','iron','gold']){const f=S.flow?S.flow[r]:0;h+='<span class="chip" data-tip="'+RES[r][1]+(r==='gold'?'':' (storage '+fmt(storCap())+')')+'<br>Last day: '+(f>=0?'+':'')+fmt(Math.round(f||0))+'">'+RES[r][0]+' <b>'+fmt(Math.floor(S.res[r]))+'</b></span>'}
- h+='<span class="chip" data-tip="Grain (mill) / Flour (bakery) / Arms (soldiers)">'+RES.grain[0]+fmt(Math.floor(S.res.grain))+' '+RES.flour[0]+fmt(Math.floor(S.res.flour))+' '+RES.arms[0]+fmt(Math.floor(S.res.arms))+'</span>';
+ h+='<span class="chip" data-tip="Grain (mill) / Flour (bakery) / Arms (soldiers)">'+RES.grain[0]+fmt(Math.floor(S.res.grain))+' '+RES.flour[0]+fmt(Math.floor(S.res.flour))+' '+RES.arms[0]+fmt(Math.floor(S.res.arms))+' '+RES.guns[0]+fmt(Math.floor(S.res.guns))+' '+RES.bombs[0]+fmt(Math.floor(S.res.bombs))+'</span>';
  $('res').innerHTML=h;
  const hp=S.happy,face=hp>75?'\u{1F604}':hp>55?'\u{1F642}':hp>35?'\u{1F610}':'\u{1F620}';
  $('info').innerHTML='<span class="chip" style="font-size:16px;font-weight:bold;cursor:pointer;background:#5a3b10" onclick="selHall()" data-tip="Grand Citadel level: every building is at least this level. Click to select it.">\u{1F3F0} Lv '+fmt(S.hallLv||1)+'</span><span class="chip" data-tip="Citizens / housing. Build houses for more!">\u{1F465} <b>'+C.length+'</b>/'+(S.cap||0)+'</span><span class="chip" data-tip="Happiness. Taverns, churches, parks, markets and good food raise it.">'+face+' <b>'+Math.round(hp)+'</b></span><span class="chip" data-tip="Soldiers">\u{1F6E1}️ '+SO.length+'</span><span class="chip" data-tip="Research points">\u{1F52C} <b>'+Math.floor(S.rp)+'</b></span><span class="chip" data-tip="Reputation with the rival kingdoms">\u{1F451} '+S.rep+'</span><span class="chip" data-tip="Difficulty">'+DIF[S.dif].n+'</span><span class="chip">'+SEI[season()]+' '+SEASONS[season()]+' D'+S.day+' '+clk()+' '+(isNight()?'\u{1F319}':'☀️')+' '+({clear:'',rain:'\u{1F327}️',storm:'⛈️',snow:'\u{1F328}️'})[S.weather]+'</span>';
@@ -842,8 +941,8 @@ function updGoals(){const g=$('goals'),L=goals();let h='<h4 id="gt">'+(SC[S.sc].
  $('gt').onclick=()=>{for(const d of g.querySelectorAll('.g'))d.style.display=d.style.display==='none'?'':'none'}}
 function bInfo(b){const d=D[b.k];let s='<b>'+d.n+'</b>';if(d.jobs)s+='<br>Workers: '+b.n+'/'+jobsOf(b)+(b.present?' (on duty '+b.present+')':'');if(d.cap)s+='<br>Residents: '+b.res+'/'+d.cap;if(b.st&&d.cyc)s+='<br>Status: '+b.st;if(TW[b.k]&&!D[b.k].out&&b.lv===1)s+='<br>Garrison '+garrison(b)+'/'+trainCap(b);if(canUp(b)||b.lv>1)s+='<br>Level <b>'+fmt(b.lv)+'/10K</b>'+(b.k!=='hall'&&levelable(b.k)?' (min = Hall Lv '+(S.hallLv||1)+')':'')+' - '+(b.k==='warehouse'?'storage +'+fmt(150+50*(b.lv-1)):TW[b.k]&&!D[b.k].out?'garrison '+garrison(b)+'/'+trainCap(b)+', arrow damage '+fmt(TW[b.k].dm*1.25*(1+bon('tower'))*(1+.15*(b.lv-1))):'makes '+costStr(io(b).out));s+='<br>Health: '+Math.round(b.hp)+'/'+maxhp(b.k);return s}
 function updSel(){if(document.activeElement&&document.activeElement.id==='uptg')return;const p=$('sel');if(!sel||sel.dead){sel=null;p.classList.add('hidden');return}p.classList.remove('hidden');
- p.innerHTML=bInfo(sel)+(trainCap(sel)?'<br>Garrison: <b>'+garrison(sel)+'/'+trainCap(sel)+'</b> <button id="rec" '+(garrison(sel)>=trainCap(sel)||S.res.arms<1||S.res.gold<sg()?'disabled':'')+'>Recruit (1 arms + '+sg()+' gold)</button>':'')+upInfo(sel)+'<br><i style="font-size:11px">'+D[sel.k].d+'</i><br><button id="dem">\u{1F5D1} Demolish (+50% back)</button> <button id="cls">X</button>';
- if(sel.k==='hall'&&$('dem'))$('dem').style.display='none';bindUp(sel);if($('rec'))$('rec').onclick=()=>recruit(sel,false);$('dem').onclick=()=>{removeB(sel,true);sfx('crunch')};$('cls').onclick=()=>{sel=null;updSel()}}
+ p.innerHTML=bInfo(sel)+(trainCap(sel)?'<br>Garrison: <b>'+garrison(sel)+'/'+trainCap(sel)+'</b> <button id="rec" '+(garrison(sel)>=trainCap(sel)||S.res.arms<1||S.res.gold<sg()?'disabled':'')+'>Recruit (1 arms + '+sg()+' gold)</button>':'')+(sel.k==='tankfactory'?tankPanel(sel):'')+upInfo(sel)+'<br><i style="font-size:11px">'+D[sel.k].d+'</i><br><button id="dem">\u{1F5D1} Demolish (+50% back)</button> <button id="cls">X</button>';
+ if(sel.k==='hall'&&$('dem'))$('dem').style.display='none';bindUp(sel);if($('tkb'))$('tkb').onclick=()=>queueTank(sel,false);if($('rec'))$('rec').onclick=()=>recruit(sel,false);$('dem').onclick=()=>{removeB(sel,true);sfx('crunch')};$('cls').onclick=()=>{sel=null;updSel()}}
 const tp=$('tip');
 function tip(html,e){tp.innerHTML=html;tp.style.display='block';mvTip(e)}
 function mvTip(e){let x=e.clientX+14,y=e.clientY+14;if(x+250>innerWidth)x=innerWidth-255;if(y+120>innerHeight)y=e.clientY-100;tp.style.left=x+'px';tp.style.top=y+'px'}
@@ -858,6 +957,7 @@ function clampView(){view.x=Math.max(0,Math.min(W*TS,view.x));view.y=Math.max(0,
 const ptrs=new Map();let pinch=null,lastPaint=-1;
 function anchor(k,tx,ty){const s=D[k].s;return[tx-((s-1)>>1),ty-((s-1)>>1)]}
 function act(sx,sy){if(!inGame||modalOpen||S.over)return;const w=s2w(sx,sy),tx=Math.floor(w.x/TS),ty=Math.floor(w.y/TS);
+ if(bombAim){bombAim=false;dropBomb(w.x/TS,w.y/TS,false);updWarHud();return}
  if(tool==='bulldoze'){const b=tx>=0&&ty>=0&&tx<W&&ty<H&&OCC[ty*W+tx];if(b&&b.k==='hall'){msg('The Grand Citadel cannot be demolished!','bad');sfx('err')}else if(b){removeB(b,true);sfx('crunch')}else sfx('err');return}
  if(tool){const[ax,ay]=anchor(tool,tx,ty);place(tool,ax,ay);updHUD();return}
  if(S.war&&S.war.stance==='rally'){S.war.rally={x:w.x/TS,y:w.y/TS};sfx('click');return}
@@ -936,7 +1036,7 @@ function drawB(b,alpha,now){if(b.k==='hall'){drawHall(b,now);return}
   if(wallAt(b.x+1,b.y))cx.fillRect(cxx,cyy-7,TS/2,14);if(wallAt(b.x-1,b.y))cx.fillRect(px,cyy-7,TS/2,14);if(wallAt(b.x,b.y+1))cx.fillRect(cxx-7,cyy,14,TS/2);if(wallAt(b.x,b.y-1))cx.fillRect(cxx-7,py,14,TS/2);
   rr(cxx-9,cyy-9,18,18,4);cx.fill();cx.fillStyle='#b5bbc4';cx.fillRect(cxx-9,cyy-9,18,6);
   if(b.k==='gate'){cx.fillStyle='#7a4f27';rr(cxx-6,cyy-5,12,13,5);cx.fill();cx.fillStyle='#caa';cx.fillRect(cxx-1,cyy-5,2,12)}
- }else if(b.k==='house'){
+ }else if(b.k==='tankfactory'){drawFactory(px,py,w,h,now)}else if(b.k==='house'){
   cx.fillStyle='rgba(0,0,0,.2)';cx.beginPath();cx.ellipse(px+16,py+29,15,5,0,0,7);cx.fill();
   cx.fillStyle=d.col;rr(px+4,py+11,24,17,3);cx.fill();cx.fillStyle='#d2574f';cx.beginPath();cx.moveTo(px+1,py+14);cx.lineTo(px+16,py+1);cx.lineTo(px+31,py+14);cx.closePath();cx.fill();
   cx.fillStyle='#7a4f27';cx.fillRect(px+13,py+18,6,10);cx.fillStyle='#9fd6f5';cx.fillRect(px+6,py+16,5,5);cx.fillRect(px+21,py+16,5,5);
@@ -971,7 +1071,7 @@ function frame(ts){
 function draw(now){
  const t=now/1000,se=season();
  cx.setTransform(1,0,0,1,0,0);cx.fillStyle='#2d5a8a';cx.fillRect(0,0,cv.width,cv.height);
- const z=view.z*DPR;cx.setTransform(z,0,0,z,(CW/2-view.x*view.z)*DPR,(CH/2-view.y*view.z)*DPR);
+ const z=view.z*DPR;cx.setTransform(z,0,0,z,(CW/2-view.x*view.z)*DPR,(CH/2-view.y*view.z)*DPR);if(shakeT>0)cx.translate((Math.random()-.5)*10*shakeT,(Math.random()-.5)*10*shakeT);
  const x0=Math.max(0,Math.floor((view.x-CW/2/view.z)/TS)-1),x1=Math.min(W-1,Math.ceil((view.x+CW/2/view.z)/TS)),y0=Math.max(0,Math.floor((view.y-CH/2/view.z)/TS)-1),y1=Math.min(H-1,Math.ceil((view.y+CH/2/view.z)/TS)+1);
  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const k=T[y*W+x];
   cx.fillStyle=k===1?((x+y)&1?'#4aa3df':'#459dd8'):k===5?'#e9d9a0':((x+y)&1?GA[se]:GB[se]);cx.fillRect(x*TS,y*TS,TS+.6,TS+.6);
@@ -990,17 +1090,19 @@ function draw(now){
  // entities
  const ents=[];
  for(const c of C){if(c.mode==='home'&&!c.walk&&isNight())continue;ents.push([c.y,0,c])}
- for(const s of SO)ents.push([s.y,1,s]);for(const r of RA)ents.push([r.y,2,r]);
+ for(const s of SO)ents.push([s.y,1,s]);for(const t of TK)ents.push([t.y,3,t]);for(const r of RA)ents.push([r.y,2,r]);
  ents.sort((a,b)=>a[0]-b[0]);
  for(const e of ents){const o=e[2];
   if(e[1]===0)person(o.x,o.y,o.job?(JC[o.job.k]||'#7986cb'):o.col,t+o.ph,o.walk,o.work?'#eee':null);
-  else if(e[1]===1){person(o.x,o.y,o.col||'#4a6fd8',t+o.x,true,'#9aa7ff');const px=o.x*TS,py=o.y*TS;cx.fillStyle='#ddd';cx.fillRect(px+4,py-12,2,10);cx.fillStyle='#4f4';cx.fillRect(px-6,py-20,12*Math.min(1,o.hp/(SHP*lvmOf(o))),2)}
+  else if(e[1]===3)drawTankU(o);else if(e[1]===1){person(o.x,o.y,o.col||'#4a6fd8',t+o.x,true,'#9aa7ff');const px=o.x*TS,py=o.y*TS;if(o.gun){cx.fillStyle='#5a3a1a';cx.fillRect(px-2,py-9,14,2.5);cx.fillStyle='#333';cx.fillRect(px+8,py-9.5,6,2)}else{cx.fillStyle='#ddd';cx.fillRect(px+4,py-12,2,10)}cx.fillStyle='#4f4';cx.fillRect(px-6,py-20,12*Math.min(1,o.hp/(SHP*lvmOf(o))),2)}
   else if(o.war)wunit(o,t);else{person(o.x,o.y,o.hit>0?'#fff':'#a8442e',t+o.x,true,'#222');const px=o.x*TS,py=o.y*TS;cx.fillStyle='#4c9a3a';cx.beginPath();cx.arc(px,py-11,3.6,0,7);cx.fill();cx.fillStyle='#222';cx.fillRect(px-3,py-12,2,2);cx.fillRect(px+1,py-12,2,2);cx.fillStyle='#d33';cx.fillRect(px-4,py-15,8,3);cx.fillStyle='#4f4';cx.fillRect(px-6,py-20,12*Math.max(0,o.hp/o.mhp),2)}}
  if(CART){const px=CART.x*TS,py=CART.y*TS;cx.font='28px "Segoe UI Emoji",sans-serif';cx.textAlign='center';cx.fillText('\u{1F6D2}',px,py)}
  // arrows
  cx.strokeStyle='#fff';cx.lineWidth=2;for(const a of AR){const q=a.t/.25;cx.beginPath();cx.moveTo((a.x0+(a.x1-a.x0)*Math.max(0,q-.25))*TS,(a.y0+(a.y1-a.y0)*Math.max(0,q-.25))*TS);cx.lineTo((a.x0+(a.x1-a.x0)*q)*TS,(a.y0+(a.y1-a.y0)*q)*TS);cx.stroke()}
- // particles
- cx.textAlign='center';cx.textBaseline='middle';for(const p of PR){cx.globalAlpha=Math.min(1,p.life*2);cx.font='bold '+p.sz+'px "Segoe UI Emoji",sans-serif';cx.lineWidth=3;cx.strokeStyle='rgba(0,0,0,.6)';cx.strokeText(p.txt,p.x,p.y);cx.fillStyle=p.col;cx.fillText(p.txt,p.x,p.y)}cx.globalAlpha=1;
+ for(const s of SH){const p=s.t/s.dur,x=(s.x0+(s.x1-s.x0)*p)*TS,y=(s.y0+(s.y1-s.y0)*p-Math.sin(p*Math.PI)*.9)*TS;cx.fillStyle='#222';cx.beginPath();cx.arc(x,y,3.2,0,7);cx.fill();cx.fillStyle='rgba(255,200,80,.8)';cx.beginPath();cx.arc(x,y,1.6,0,7);cx.fill()}
+ for(const b of BM){const p=b.t/b.fuse,x=b.x*TS,y=b.y*TS;cx.fillStyle='rgba(0,0,0,.25)';cx.beginPath();cx.ellipse(x,y,6+p*10,3+p*5,0,0,7);cx.fill();cx.strokeStyle='rgba(255,60,40,.55)';cx.lineWidth=2;cx.beginPath();cx.arc(x,y,b.r*TS*p,0,7);cx.stroke();cx.font='20px "Segoe UI Emoji",sans-serif';cx.textAlign='center';cx.fillText('\u{1F4A3}',x,y-(1-p)*140)}
+ if(bombAim&&hover.in){cx.strokeStyle='rgba(255,70,40,.85)';cx.lineWidth=3;cx.beginPath();cx.arc((hover.x+.5)*TS,(hover.y+.5)*TS,2.6*TS,0,7);cx.stroke()}
+ // particles\n cx.textAlign='center';cx.textBaseline='middle';for(const p of PR){cx.globalAlpha=Math.min(1,p.life*2);cx.font='bold '+p.sz+'px "Segoe UI Emoji",sans-serif';cx.lineWidth=3;cx.strokeStyle='rgba(0,0,0,.6)';cx.strokeText(p.txt,p.x,p.y);cx.fillStyle=p.col;cx.fillText(p.txt,p.x,p.y)}cx.globalAlpha=1;
 
  if(S.war&&S.war.stance==='rally'){const rp=S.war.rally||heart();cx.fillStyle='#6b4a22';cx.fillRect(rp.x*TS-1,rp.y*TS-26,2,26);cx.fillStyle='#4a6fd8';cx.fillRect(rp.x*TS+1,rp.y*TS-26,14,9)}
  // ghost
