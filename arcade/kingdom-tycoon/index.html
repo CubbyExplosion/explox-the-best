@@ -29,7 +29,8 @@ button.big{font-size:18px;padding:10px 18px;background:#2f8f4a;border-color:#a6e
 #items{display:flex;gap:5px;overflow-x:auto;padding-bottom:2px}
 .bi{min-width:70px;background:#2a1d10;border:2px solid #8a6a3a;border-radius:8px;text-align:center;padding:3px 4px;cursor:pointer;font-size:11px;flex:0 0 auto}
 .bi .e{font-size:24px;line-height:28px}.bi.sel{border-color:#7be07b;background:#26441f}.bi.lock{opacity:.45}.bi .c{font-size:10px;color:#ffe08a}.bi .c i{color:#ff8b7b;font-style:normal}
-#sel{position:fixed;left:6px;bottom:118px;width:min(260px,70vw);background:rgba(30,20,10,.9);border:2px solid #8a6a3a;border-radius:10px;padding:8px;font-size:13px;z-index:4}
+#sel{max-height:46vh;overflow:auto;position:fixed;left:6px;bottom:118px;width:min(260px,70vw);background:rgba(30,20,10,.9);border:2px solid #8a6a3a;border-radius:10px;padding:8px;font-size:13px;z-index:4}
+#warnb{position:fixed;left:50%;transform:translateX(-50%);bottom:130px;background:rgba(150,40,20,.93);border:3px solid #ffd27a;border-radius:10px;padding:5px 10px;font-size:13px;font-weight:bold;text-align:center;max-width:90vw;z-index:6;pointer-events:none}
 #warhud{position:fixed;left:50%;transform:translateX(-50%);top:70px;background:rgba(70,18,18,.93);border:3px solid #ffb;border-radius:10px;padding:5px 8px;font-size:12px;text-align:center;max-width:96vw;z-index:6}
 #offer{position:fixed;left:50%;transform:translateX(-50%);top:70px;background:#3b2a1a;border:3px solid #ffe08a;border-radius:12px;padding:10px 14px;z-index:6;text-align:center;font-size:14px}
 #tip{position:fixed;z-index:20;pointer-events:none;background:#1b120a;border:2px solid #ffe08a;border-radius:8px;padding:5px 8px;font-size:12px;max-width:240px;display:none}
@@ -56,6 +57,7 @@ button.big{font-size:18px;padding:10px 18px;background:#2f8f4a;border-color:#a6e
 <canvas id="mini" width="110" height="110" class="hidden"></canvas>
 <div id="log"></div>
 <div id="sel" class="hidden"></div>
+<div id="warnb" class="hidden"></div>
 <div id="warhud" class="hidden"></div>
 <div id="offer" class="hidden"></div>
 <div id="bar" class="hidden"><div style="display:flex;gap:4px;align-items:flex-start"><div id="tabs" style="flex:1"></div><input id="bsearch" placeholder="Search..." style="width:92px;font-size:13px;padding:3px 5px;border-radius:6px;border:2px solid #8a6a3a;background:#2a1d10;color:#fff"></div><div id="items"></div></div>
@@ -98,7 +100,7 @@ tavern:{n:'Tavern',e:'\u{1F37A}',cat:3,s:2,cost:{wood:40,stone:10},hp:80,jobs:1,
 store:{n:'Store',e:'\u{1F3EA}',cat:3,s:2,cost:{wood:20,stone:6},hp:80,jobs:1,max:8,col:'#f6c177',roof:'#e67e22',d:'Your shop! Click it to buy anything and to sell your goods at your OWN price (1-100 gold per 10). More stores = more customers. Shortcut: Q.'},
 wall:{n:'Wall',e:'',cat:4,s:1,cost:{stone:3},hp:100,col:'#9aa0a8',d:'Bandits must smash through walls. Drag to paint.'},
 gate:{n:'Gate',e:'',cat:4,s:1,cost:{stone:10,wood:10},hp:100,col:'#9aa0a8',d:'Sturdy wooden gate in a wall.'},
-tower:{n:'Tower',e:'\u{1F3F9}',cat:4,s:1,cost:{stone:30,wood:15},hp:150,col:'#b0b4ba',roof:'#c0392b',d:'Archers plus a soldier garrison (1 soldier, +1 per upgrade level). Upgrade for stronger arrows.'},
+tower:{n:'Tower',e:'\u{1F3F9}',cat:4,s:1,cost:{stone:30,wood:15},hp:150,col:'#b0b4ba',roof:'#c0392b',d:'Archers plus a soldier garrison (1 soldier, +1 per 10 levels, max 25). Upgrade up to level 10,000 for much stronger arrows and soldiers.'},
 barracks:{n:'Barracks',e:'⚔️',cat:4,s:2,cost:{wood:50,stone:40,gold:30},hp:140,train:3,col:'#8e7a6a',roof:'#2c3e8a',d:'Trains up to 3 soldiers fast (1 arms + a few gold each; price depends on difficulty).'},
 castle:{n:'Castle',e:'\u{1F3F0}',cat:4,s:3,cost:{stone:150,wood:80,iron:40,gold:100},hp:600,jobs:2,cyc:10,out:{gold:6},max:1,train:4,rp:.1,col:'#c8ccd2',roof:'#b03a2e',d:'Mighty keep: shoots arrows, trains 4 soldiers (1 arms + a few gold each), earns tax gold. Only one.'},
 church:{n:'Church',e:'⛪',cat:5,s:2,cost:{stone:40,wood:20},hp:100,jobs:1,rp:.05,col:'#f4f1e8',roof:'#8e9aaf',d:'Peace of mind. +4 happiness.'},
@@ -106,8 +108,8 @@ school:{n:'School',e:'\u{1F4DA}',cat:5,s:2,cost:{wood:40,stone:20},hp:90,jobs:2,
 library:{n:'Library',e:'\u{1F4D6}',cat:5,s:2,cost:{wood:60,stone:40,gold:40},hp:100,jobs:2,rp:.5,col:'#d7b98e',roof:'#6c3483',d:'Lots of research points.'},
 healer:{n:'Healer',e:'⚕️',cat:5,s:2,cost:{wood:30,stone:15,gold:20},hp:80,jobs:1,col:'#f7e4e4',roof:'#27ae60',d:'Herbs and tea. +4 happiness.'},
 hall:{n:'Grand Citadel',e:'\u{1F3F0}',cat:-1,s:12,cost:{},hp:3000,cap:8,jobs:3,cyc:12,out:{gold:4},max:1,col:'#b0b6c0',roof:'#b03a2e',d:'The great citadel in the heart of your kingdom. It cannot be demolished. Upgrade it and EVERY building is raised to at least its level - new buildings start at its level for free! Gives housing, jobs, gold and storage.'},
-watchtower:{n:'Watchtower',e:'\u{1F5FC}',cat:4,s:1,cost:{wood:25,stone:10},hp:80,col:'#c9b48a',roof:'#8e5a2b',d:'Cheap lookout: weak arrows reach 8 tiles. Garrison: 1 soldier, +1 per 2 upgrade levels.'},
-fortress:{n:'Fortress',e:'\u{1F3EF}',cat:4,s:2,cost:{stone:120,wood:60,iron:20,gold:60},hp:400,train:3,max:2,col:'#aeb4bd',roof:'#7b241c',d:'Strong stone fort: great arrows, trains 3 soldiers (+1 per upgrade level), big war power.'},
+watchtower:{n:'Watchtower',e:'\u{1F5FC}',cat:4,s:1,cost:{wood:25,stone:10},hp:80,col:'#c9b48a',roof:'#8e5a2b',d:'Cheap lookout: weak arrows reach 8 tiles. Garrison: 1 soldier, +1 per 20 levels (max 12).'},
+fortress:{n:'Fortress',e:'\u{1F3EF}',cat:4,s:2,cost:{stone:120,wood:60,iron:20,gold:60},hp:400,train:3,max:2,col:'#aeb4bd',roof:'#7b241c',d:'Strong stone fort: great arrows, trains 3 soldiers (+1 per 10 levels), big war power.'},
 armory:{n:'Armory',e:'\u{1F6E1}\uFE0F',cat:4,s:2,cost:{wood:40,stone:40,iron:10},hp:110,max:1,col:'#9a8f88',roof:'#34495e',d:'Better gear: +15% war power. Only one.'},
 training:{n:'Training Grounds',e:'\u{1F3AF}',cat:4,s:2,cost:{wood:50,stone:30,gold:30},hp:100,max:2,col:'#c8b27a',roof:'#27ae60',d:'Barracks and castle train 2 extra soldiers; +10% war power each (max 2).'},
 banner:{n:'Banner Pole',e:'\u{1F6A9}',cat:4,s:1,cost:{wood:5,gold:5},hp:30,col:'#e8d8a8',roof:'#e74c3c',d:'Proud banners: +2 war power each (max 10) and a little happiness.'},
@@ -115,10 +117,10 @@ monument:{n:'Grand Statue',e:'\u{1F5FF}',cat:5,s:3,cost:{stone:200,gold:200,iron
 };
 const KEYS=Object.keys(D);
 const TW={tower:{rg:6,dm:7},watchtower:{rg:8,dm:4},castle:{rg:7,dm:7},fortress:{rg:7,dm:10}};
-const UPM=5;
+const UPM=10000;
 const COSTM=.6,PROD=1.6,SHP=50;
 let HALL=null,celeb=0,celebTxt='';
-const levelable=k=>k!=='hall'&&!!((D[k].cyc&&(D[k].out||D[k].outf))||k==='warehouse'||TW[k]);
+const levelable=k=>k!=='hall'&&!!((D[k].cyc&&(D[k].out||D[k].outf))||k==='warehouse'||TW[k]||k==='store');
 const SG=[2,3,5];
 const sg=()=>SG[S.dif===undefined?1:S.dif];
 const DIF=[{n:'Easy',prod:1.1,res:1.5,cost:.75,war:.45,rstr:.75,raid:-1,gap:1.4,rhp:.8,hap:.6,edm:.85,dmg:0,win:.65,ev:.7},
@@ -226,6 +228,8 @@ function sfx(n,a){SFXCALLS[n]=(SFXCALLS[n]||0)+1;const now=performance.now(),lim
  case'err':T(150,.2,'sawtooth',.05,-40);T(120,.18,'square',.03,-30,.05);break;
  case'coin':case'coin2':T(1568,.08,'square',.022);T(2093,.15,'square',.018,0,.07);break;
  case'chaching':T(1760,.1,'square',.03);T(2349,.12,'square',.03,0,.06);T(3136,.32,'triangle',.03,0,.12);break;
+ case'rescue':[523,659,784,1046].forEach((f,i)=>T(f,.25,'sine',.05,0,i*.14));break;
+ case'cozy':T(392,.5,'sine',.03);T(330,.5,'sine',.025,0,.3);T(262,.8,'sine',.025,0,.6);break;
  case'ting':T(1760,.2,'triangle',.05);T(2637,.28,'sine',.025,0,.05);break;
  case'boom':T(120,.25,'sawtooth',.06,-70);noise(.2,600,.04);break;
  case'horn':T(180,.7,'sawtooth',.08,30);T(240,.7,'sawtooth',.05,30,.05);break;
@@ -295,7 +299,7 @@ function maxhp(k){return D[k].hp*((k==='wall'||k==='gate')?1+bon('wall'):1)*((TW
 function msg(t,cls){const l=$('log'),d=document.createElement('div');d.textContent=t;if(cls)d.className=cls;l.appendChild(d);while(l.children.length>5)l.removeChild(l.firstChild);setTimeout(()=>d.remove(),8000)}
 function ft(x,y,txt,col,sz){PR.push({x:x*TS,y:y*TS,vx:0,vy:-22,life:1.4,txt,col:col||'#fff',sz:sz||12})}
 function burst(x,y,ch,n){for(let i=0;i<n;i++)PR.push({x:x*TS,y:y*TS,vx:rnd(-40,40),vy:rnd(-60,-10),life:rnd(.5,1),txt:ch,col:'#ffe066',sz:12,g:1})}
-function costStr(c){return Object.keys(c).map(r=>RES[r][0]+c[r]).join(' ')}
+function costStr(c){return Object.keys(c).map(r=>RES[r][0]+fmt(c[r])).join(' ')}
 function canAfford(c){for(const r in c)if(S.res[r]<c[r])return false;return true}
 
 // ================= buildings =================
@@ -352,8 +356,8 @@ function pickWeather(){const se=season(),r=Math.random();let w='clear';
  if(w==='storm'&&S.weather!=='storm'){msg('A thunderstorm rolls in! Work slows down.','bad');sfx('thunder')}
  S.weather=w;S.wT=rnd(25,55)}
 function sec(){
- {const pop=C.length,eat=pop*.9/DAY;if(S.res.food>=eat){S.res.food-=eat;S.starveT=0;S.hungry=0}else{S.res.food=0;S.hungry++;S.starveT=(S.starveT||0)+1;if(S.starveT>=DAY&&pop>2){S.starveT=0;const i=irnd(0,pop-1),c=C[i];ft(c.x,c.y,'left hungry','#f99');C.splice(i,1);msg('A hungry citizen left town. Build more farms!','bad')}}
-  let up=0;for(const b of B)if(b.k!=='hall')up+=2*Math.max(0,b.lv-(S.hallLv||1));S.res.gold=Math.max(0,S.res.gold+(pop*TAX[S.tax]*(1+bon('tax'))-up)/DAY)}
+ {const pop=C.length,eat=pop*.9/DAY;if(S.res.food>=eat){S.res.food-=eat;S.starveT=0;S.hungry=0}else{S.res.food=0;S.hungry++;S.starveT=(S.starveT||0)+1;if(S.starveT>=DAY*2.5&&pop>2&&(S.rc.food||0)>=2){S.starveT=0;const i=irnd(0,pop-1),c=C[i];ft(c.x,c.y,'left hungry','#f99');C.splice(i,1);msg('A hungry citizen left town. Build more farms!','bad')}}
+  let up=0;for(const b of B)if(b.k!=='hall')up+=.5*Math.max(0,b.lv-(S.hallLv||1));S.res.gold=Math.max(0,S.res.gold+(pop*TAX[S.tax]*(1+bon('tax'))-up)/DAY)}
  recalcHomes();assignJobs();
  const pop=C.length,cap=B.reduce((a,b)=>a+(D[b.k].cap||0),0);S.cap=cap;
  // happiness
@@ -368,7 +372,7 @@ function sec(){
  // growth
  S.growT++;const iv=6+(1-S.happy/100)*14;
  if(pop<cap&&S.res.food>0&&S.happy>=30&&S.growT>=iv){S.growT=0;const hs=freeHouse(28,28);if(hs){const side=irnd(0,3);const ex=side===0?0:side===1?W-1:irnd(2,W-3),ey=side===2?0:side===3?H-1:irnd(2,H-3);spawnCit(hs,Math.max(1,ex),ey);sfx('pop')}}
- if(S.happy<18&&pop>4&&Math.random()<.15){const i=irnd(0,pop-1);ft(C[i].x,C[i].y,'moved away','#f99');C.splice(i,1);msg('Unhappy citizens are leaving!','bad')}
+ 
  // training
  for(const b of B){const cap=trainCap(b);if(cap){const mine=SO.filter(s=>s.home===b).length;b.tt++;if(mine<cap&&b.tt>=3&&S.res.arms>=1&&S.res.gold>=sg()){b.tt=0;recruit(b,true)}}}
  if(S.trader){S.trader.t--;if(S.trader.t<=0){S.trader=null;$('offer').classList.add('hidden');msg('The trader packed up and left.')}}
@@ -378,12 +382,10 @@ function sec(){
  
  if(S.challenge&&!modalOpen&&!S.over)showChallenge();
  checkGoals();updHUD();updGoals();updSel();
- if(!S.over){if(OD()>4&&C.length===0&&S.everPop>2&&!SC[S.sc].free)end(false,'Everyone has moved away. The kingdom is empty.');
-  else if(S.hadCastle&&!cn('castle')&&S.sc===4)end(false,'The castle fell to the bandits!');
-  else if(!B.length&&OD()>3)end(false,'Every building was lost.')}
+ lossGuard();
  if(pop>S.everPop)S.everPop=pop;if(pop>S.maxPop)S.maxPop=pop;if(cn('castle'))S.hadCastle=1}
 function sim(dt){
- S.t+=dt;const ptod=S.tod;S.tod+=dt/(DAY*M());if(ptod<.2&&S.tod>=.2)sfx('dawn');if(ptod<.85&&S.tod>=.85)sfx('night');ambient(dt);if(S.tod>=1){S.tod-=1;S.day++;newDay()}
+ S.t+=dt;const ptod=S.tod;S.tod+=dt/(DAY*M());if(ptod<.2&&S.tod>=.2)sfx('dawn');if(ptod<.85&&S.tod>=.85)sfx('night');if(ptod<.78&&S.tod>=.78)msg('\u{1F319} Night is falling - press K (Skip night) to sleep until dawn.');ambient(dt);if(S.tod>=1){S.tod-=1;S.day++;newDay()}
  S.acc+=dt;if(S.acc>=1){S.acc-=1;sec()}
  S.wT-=dt;if(S.wT<=0)pickWeather();
  S.evT-=dt;if(S.evT<=0){doEvent();S.evT=rnd(40,75)}
@@ -396,7 +398,7 @@ function sim(dt){
  for(let i=PR.length-1;i>=0;i--){const p=PR[i];p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.g)p.vy+=90*dt;if(p.life<=0)PR.splice(i,1)}
  for(let i=AR.length-1;i>=0;i--){AR[i].t+=dt;if(AR[i].t>.25)AR.splice(i,1)}
  flash=Math.max(0,flash-dt*2);celeb=Math.max(0,celeb-dt);if(S.weather==='storm'&&Math.random()<dt*.15){flash=1;sfx('thunder')}}
-function mult(b){const k=b.k,se=season();let m=1+bon(k);
+function mult(b){const k=b.k,se=season();let m=(1+bon(k))*(S.happy<35?.55+.45*S.happy/35:1);
  if(k==='farm'){m*=sd([1,1.2,1.3,DIF[S.dif].win+bon('winter')][se]);if(S.weather==='rain')m*=1.15}
  else if(k==='orchard')m*=sd([.6,1.2,2,0][se]);else if(k==='harbor'&&se===3)m*=sd(.6);
  else if(k==='lumber'&&se===3)m*=sd(.8);
@@ -415,7 +417,7 @@ function prod(dt){
   for(const r in out)if(r!=='gold'&&S.res[r]>=storCap()){if(b.st!=='storage full')sfx('full');b.st='storage full';ok=false;break}
   if(!ok)continue;
   for(const r in inn)S.res[r]-=inn[r];
-  for(const r in out){let n=out[r];if(r==='gold'&&d.outf){const u5=5*(b.lv-1);n=(n-u5)*(1+bon('trade')*.5)+u5}addRes(r,n);if(r==='gold')sfx('coin2');if(view.z>.5)ft(b.x+b.w/2,b.y,'+'+(Math.round(n*10)/10)+RES[r][0],'#fff',11)}
+  for(const r in out){let n=out[r];if(r==='gold'&&d.outf){const u5=5*(b.lv-1);n=(n-u5)*(1+bon('trade')*.5)+u5}addRes(r,n);if(r==='gold')sfx('coin2');if(view.z>.5)ft(b.x+b.w/2,b.y,'+'+fmt(Math.round(n*10)/10)+RES[r][0],'#fff',11)}
   if(d.need===2&&Math.random()<.075){T[b.tile]=0;buildMiniPx(b.tile)}
   if(d.need===3&&Math.random()<.05){T[b.tile]=0;buildMiniPx(b.tile)}
   b.prog-=d.cyc;b.st='working'}}
@@ -449,9 +451,9 @@ function mil(dt){
   if(s.hp<=0){burst(s.x,s.y,'\u{1F4A2}',3);SO.splice(i,1);continue}
   let nr=null;const W_=S.war&&S.war.state==='fight'?S.war:null;let nd=W_&&W_.stance==='counter'?60:24;const hq=W_&&W_.stance==='rally'?(W_.rally||heart()):null;const ref=W_?(W_.stance==='hold'?{x:s.home.x+s.home.w/2,y:s.home.y+s.home.h/2,R:9}:hq?{x:hq.x,y:hq.y,R:8}:null):null;
   for(const r of RA){if(ref&&r.war&&Math.hypot(r.x-ref.x,r.y-ref.y)>ref.R)continue;const d=Math.hypot(r.x-s.x,r.y-s.y);if(d<nd){nd=d;nr=r}}
-  if(nr){const dx=nr.x-s.x,dy=nr.y-s.y,d=Math.hypot(dx,dy),wp=detour(s.x,s.y,nr.x,nr.y),ex=wp[0]-s.x,ey=wp[1]-s.y,ed=Math.hypot(ex,ey)||1;if(d>.8){s.x+=ex/ed*2.3*dt;s.y+=ey/ed*2.3*dt}else{nr.hp-=(9+9*bon('sold'))*1.25*(1+(W_?W_.boost:0))*dt;nr.hit=.2;sfx('hit')}}
-  else{const tx=hq?hq.x+s.off:s.home.x+s.home.w/2+s.off,ty=hq?hq.y+s.off2:s.home.y+s.home.h+.6+s.off2,dx=tx-s.x,dy=ty-s.y,d=Math.hypot(dx,dy);if(d>.3){const wp=detour(s.x,s.y,tx,ty),ex=wp[0]-s.x,ey=wp[1]-s.y,ed=Math.hypot(ex,ey)||1;s.x+=ex/ed*1.8*dt;s.y+=ey/ed*1.8*dt}if(s.hp<SHP)s.hp=Math.min(SHP,s.hp+6*dt)}}
- for(const b of B){const tw=TW[b.k];if(!tw)continue;b.cd-=dt;if(b.cd>0)continue;let nr=null,nd=tw.rg+.4*(b.lv-1);
+  if(nr){const dx=nr.x-s.x,dy=nr.y-s.y,d=Math.hypot(dx,dy),wp=detour(s.x,s.y,nr.x,nr.y),ex=wp[0]-s.x,ey=wp[1]-s.y,ed=Math.hypot(ex,ey)||1;if(d>.8){s.x+=ex/ed*2.3*dt;s.y+=ey/ed*2.3*dt}else{nr.hp-=(9+9*bon('sold'))*1.25*lvmOf(s)*(1+(W_?W_.boost:0))*dt;nr.hit=.2;sfx('hit')}}
+  else{const tx=hq?hq.x+s.off:s.home.x+s.home.w/2+s.off,ty=hq?hq.y+s.off2:s.home.y+s.home.h+.6+s.off2,dx=tx-s.x,dy=ty-s.y,d=Math.hypot(dx,dy);if(d>.3){const wp=detour(s.x,s.y,tx,ty),ex=wp[0]-s.x,ey=wp[1]-s.y,ed=Math.hypot(ex,ey)||1;s.x+=ex/ed*1.8*dt;s.y+=ey/ed*1.8*dt}if(s.hp<SHP*lvmOf(s))s.hp=Math.min(SHP*lvmOf(s),s.hp+6*dt*lvmOf(s))}}
+ for(const b of B){const tw=TW[b.k];if(!tw)continue;b.cd-=dt;if(b.cd>0)continue;let nr=null,nd=tw.rg+Math.min(10,.4*(b.lv-1));
   for(const r of RA){const d=Math.hypot(r.x-(b.x+b.w/2),r.y-(b.y+b.h/2));if(d<nd){nd=d;nr=r}}
   if(nr){b.cd=1.1;nr.hp-=tw.dm*1.25*(1+bon('tower'))*(1+.15*(b.lv-1));nr.hit=.2;AR.push({x0:b.x+b.w/2,y0:b.y+b.h/2,x1:nr.x,y1:nr.y,t:0});sfx('arrow')}}}
 
@@ -479,32 +481,57 @@ function showOffer(){const o=$('offer'),t=S.trader;if(!t){o.classList.add('hidde
  $('on').onclick=()=>{S.trader=null;sfx('click');showOffer()}}
 
 // ================= upgrades =================
-function trainCap(b){const d=D[b.k];if(b.k==='tower')return b.lv;if(b.k==='watchtower')return 1+Math.floor((b.lv-1)/2);if(!d.train)return 0;return d.train+(b.k==='fortress'?b.lv-1:0)+(cn('training')&&(b.k==='barracks'||b.k==='castle')?2:0)}
+function fmt(n){n=+n||0;const a=Math.abs(n);if(a<1000)return a<10&&n!==Math.floor(n)?String(Math.round(n*10)/10):String(Math.round(n));
+ const U=[['K',1e3],['M',1e6],['B',1e9],['T',1e12],['Qa',1e15]];let k=0;while(k<U.length-1&&a>=U[k+1][1])k++;let v=n/U[k][1];if(Math.abs(v)>=999.5&&k<U.length-1){k++;v=n/U[k][1]}
+ const s=Math.abs(v)<10?v.toFixed(2):Math.abs(v)<100?v.toFixed(1):v.toFixed(0);return(s.indexOf('.')>=0?s.replace(/\.?0+$/,''):s)+U[k][0]}
+const lvCol=lv=>lv>=10000?['#ff4fa3','#fff','#fff']:lv>=1000?['#9b59b6','#e8d4ff','#fff']:lv>=100?['#f1c40f','#7a5a00','#4a3000']:lv>=10?['#bdc3c7','#555','#222']:['#8d6e63','#4e342e','#fff'];
+const lvmOf=s=>s.ally?1:1+.02*Math.min(((s.home&&s.home.lv)||1)-1,20000);
+function avgLv(){let t=0,n=0;for(const b of B)if(levelable(b.k)){t+=b.lv;n++}return n?Math.max(1,t/n):1}
+function storeLv(){let s=0,n=0;for(const b of B)if(b.k==='store'){s+=1+.1*(b.lv-1);n++}return n?s/n:1}
+function trainCap(b){const d=D[b.k],lv=b.lv||1;if(b.k==='tower')return Math.min(1+Math.floor(lv/10),25);if(b.k==='watchtower')return Math.min(1+Math.floor(lv/20),12);if(!d.train)return 0;return d.train+(b.k==='fortress'?Math.min(Math.floor(lv/10),27):0)+(cn('training')&&(b.k==='barracks'||b.k==='castle')?2:0)}
 function trainCapAt(b,lv){const o=b.lv;b.lv=lv;const c=trainCap(b);b.lv=o;return c}
 function garrison(b){let n=0;for(const q of SO)if(q.home===b)n++;return n}
 function recruit(b,auto){if(garrison(b)>=trainCap(b)){if(!auto){msg('Garrison is full.');sfx('err')}return false}if(S.res.arms<1||S.res.gold<sg()){if(!auto){msg('Need 1 arms and '+sg()+' gold to recruit.','bad');sfx('err')}return false}
- S.res.arms--;S.res.gold-=sg();SO.push({x:b.x+b.w/2,y:b.y+b.h,hp:SHP,home:b,cd:0,off:rnd(-1.5,1.5),off2:rnd(0,1.5)});ft(b.x+1,b.y,'+Soldier','#8cf');sfx('ting');if(!auto){sfx('place');updSel();updHUD()}return true}
+ S.res.arms--;S.res.gold-=sg();SO.push({x:b.x+b.w/2,y:b.y+b.h,hp:SHP*(1+.02*Math.min((b.lv||1)-1,20000)),home:b,cd:0,off:rnd(-1.5,1.5),off2:rnd(0,1.5)});ft(b.x+1,b.y,'+Soldier','#8cf');sfx('ting');if(!auto){sfx('place');updSel();updHUD()}return true}
 const jobsOf=b=>{const j=D[b.k].jobs||0;return j?j+(b.lv>=3?1:0)+(b.lv>=5?1:0):0};
 function io(b){const d=D[b.k],lv=b.lv||1;let out=d.outf?{gold:3+Math.min(C.length,80)*.06}:Object.assign({},d.out||{}),inn=Object.assign({},d.in||{});const up=5*(lv-1);
  if(up&&Object.keys(out).length){const mk=Object.keys(out)[0];out[mk]+=up;for(const r in inn)inn[r]+=Math.round(up/2)}return{out,inn}}
-const canUp=b=>{const d=D[b.k];return !!((d.cyc&&(d.out||d.outf))||b.k==='warehouse'||TW[b.k]||b.k==='hall')&&b.lv<UPM};
-function ucost(b){const L=b.lv+1,m=[0,0,1,2,4,7][L];if(b.k==='hall'){const f=DIF[S.dif].cost*COSTM;return{stone:Math.round(150*m*f),wood:Math.round(120*m*f),iron:Math.round(25*m*f),gold:Math.round(120*m*f)}}if(TW[b.k]&&!D[b.k].out){const f=DIF[S.dif].cost*COSTM;const o={stone:Math.round(30*m*f),wood:Math.round(20*m*f),gold:Math.round(20*m*f)};if(L>=3)o.iron=Math.round(5*(L-2)*f);return o}const dm=DIF[S.dif].cost*COSTM;return{gold:Math.round(30*m*dm),wood:Math.round(25*m*dm),stone:Math.round(20*m*dm)}}
-function upInfo(b){if(!canUp(b))return b.lv>=UPM&&D[b.k].cyc?'<br><b style="color:#ffe08a">MAX LEVEL</b>':'';
- const nb=Object.assign({},b,{lv:b.lv+1}),c=ucost(b),ok=canAfford(c);
- return (b.k==='hall'?'<br>Raises EVERY upgradable building to at least level '+(b.lv+1)+' for free ('+B.filter(q=>levelable(q.k)&&q.lv<b.lv+1).length+' buildings now)':b.k==='warehouse'?'<br>Next level: storage +'+(150+50*b.lv)+' (now +'+(150+50*(b.lv-1))+')':TW[b.k]&&!D[b.k].out?'<br>Next level: garrison '+trainCapAt(b,b.lv+1)+' soldiers (now '+trainCap(b)+'), arrows +15% damage and a bit more range':'<br>Next level: makes '+costStr(io(nb).out)+(Object.keys(io(nb).inn).length?', uses '+costStr(io(nb).inn):''))+'<br>Upgrade cost: '+costStr(c)+' (upkeep +2\u{1FA99}/day per level; needs more workers at Lv3, Lv5)<br><button id="upg" '+(ok?'':'disabled')+'>⬆ Upgrade to Lv'+(b.lv+1)+'</button>'}
+const canUp=b=>(levelable(b.k)||b.k==='hall')&&b.lv<UPM;
+let upTarget='';
+function upBase(b){if(b.k==='hall')return{stone:150,wood:120,iron:25,gold:120};if(TW[b.k]&&!D[b.k].out)return{stone:30,wood:20,gold:20,iron:8};return{gold:30,wood:25,stone:20}}
+const UPF=(cur,n)=>n+.35*n*(2*cur+n-1)/2;
+function batchCost(b,n){const f=UPF(b.lv,n),sc=DIF[S.dif].cost*COSTM,base=upBase(b),o={};for(const r in base)o[r]=Math.ceil(base[r]*sc*f);return o}
+function ucost(b){return batchCost(b,1)}
+function maxAfford(b){const sc=DIF[S.dif].cost*COSTM,base=upBase(b),cur=b.lv,a=.175,bb=1+.175*(2*cur-1);let best=UPM-cur;for(const r in base){const R=Math.max(0,S.res[r])/(base[r]*sc),n=Math.floor((-bb+Math.sqrt(bb*bb+4*a*R))/(2*a));best=Math.min(best,n)}best=Math.max(0,best);while(best>0&&!canAfford(batchCost(b,best)))best--;return best}
+function lvResult(b,T){const k=b.k;if(k==='hall')return'all upgradable buildings raised to Lv '+fmt(T)+' ('+B.filter(q=>levelable(q.k)&&q.lv<T).length+' now)';if(k==='warehouse')return'storage +'+fmt(150+50*(T-1));
+ const nb=Object.assign({},b,{lv:T});if(TW[k]&&!D[k].out)return'garrison '+trainCap(nb)+', arrows x'+fmt(1+.15*(T-1))+', soldiers x'+fmt(1+.02*(T-1))+', range '+(TW[k].rg+Math.min(10,.4*(T-1))).toFixed(1);
+ if(k==='store')return'customers +'+fmt(10*(T-1))+'%';const x=io(nb);return'makes '+costStr(x.out)+(Object.keys(x.inn).length?', uses '+costStr(x.inn):'')}
+function upInfo(b){if(!canUp(b))return(levelable(b.k)||b.k==='hall')&&b.lv>=UPM?'<br><b style="color:#ffe08a">MAX LEVEL (10,000)</b>':'';
+ const room=UPM-b.lv,mx=maxAfford(b);
+ const bt=(id,n,lab)=>{const nn=Math.min(n,room),c=batchCost(b,nn),ok=canAfford(c);return'<button id="'+id+'" '+(ok?'':'disabled')+' title="Cost: '+costStr(c)+'" style="font-size:11px;padding:2px 5px;margin:1px">'+lab+'<br><small>'+fmt(c.gold)+'\u{1FA99}</small></button>'};
+ return'<div style="margin-top:4px;border-top:1px solid #8a6a3a;padding-top:3px;font-size:12px"><b>Level '+fmt(b.lv)+' / 10K</b><br>Next: '+lvResult(b,b.lv+1)+'<br>x1 cost: '+costStr(batchCost(b,1))+'<br>'+bt('upx1',1,'x1')+bt('upx10',10,'x10')+bt('upx100',100,'x100')+bt('upx1k',1000,'x1,000')+
+ '<button id="upmax" '+(mx>0?'':'disabled')+' title="Cost: '+costStr(mx>0?batchCost(b,mx):{})+'" style="font-size:11px;padding:2px 5px;margin:1px">Max<br><small>+'+fmt(mx)+'</small></button><br>Target level <input id="uptg" type="number" min="'+(b.lv+1)+'" max="'+UPM+'" style="width:72px" value="'+upTarget+'"> <button id="upgo" style="font-size:11px">Go</button><div id="uptinfo" style="font-size:11px;color:#ffe08a"></div></div>'}
+function updTargetInfo(b){const e=$('uptinfo');if(!e)return;const T=Math.min(UPM,Math.floor(+upTarget)||0);if(T<=b.lv){e.textContent='';return}e.textContent='Lv '+fmt(T)+': '+lvResult(b,T)+' | total '+costStr(batchCost(b,T-b.lv))}
+function bindUp(b){if(!canUp(b))return;const bt=(id,n)=>{const e=$(id);if(e)e.onclick=()=>upgradeBy(b,n===-1?maxAfford(b):n)};bt('upx1',1);bt('upx10',10);bt('upx100',100);bt('upx1k',1000);bt('upmax',-1);
+ const tg=$('uptg'),go=$('upgo');if(tg){tg.oninput=()=>{upTarget=tg.value;updTargetInfo(b)};updTargetInfo(b)}
+ if(go)go.onclick=()=>{const T=Math.floor(+$('uptg').value);if(!(T>b.lv)){msg('Type a level higher than '+fmt(b.lv)+'.','bad');sfx('err');return}upgradeBy(b,Math.min(UPM,T)-b.lv)}}
 function hallUp(b){S.hallLv=b.lv;let n=0;for(const q of B)if(levelable(q.k)&&q.lv<b.lv){q.lv=b.lv;q.born=performance.now();n++}
- celeb=3.5;celebTxt='\u{1F3F0} CITADEL LEVEL '+b.lv+'!  '+n+' buildings upgraded!';msg('\u{1F3F0} Grand Citadel level '+b.lv+'! '+n+' buildings upgraded!','good');sfx('fanfare');for(let i=0;i<Math.min(n,8);i++)setTimeout(()=>sfx('shimmer'),350+i*140);for(let i=0;i<14;i++)burst(b.x+rnd(0,b.w),b.y+rnd(0,b.h),['\u{1F386}','\u2728','\u2B50'][i%3],2)}
+ celeb=3.5;celebTxt='\u{1F3F0} CITADEL LEVEL '+fmt(b.lv)+'!  '+n+' buildings upgraded!';msg('\u{1F3F0} Grand Citadel level '+fmt(b.lv)+'! '+n+' buildings upgraded!','good');sfx('fanfare');for(let i=0;i<Math.min(n,8);i++)setTimeout(()=>sfx('shimmer'),350+i*140);for(let i=0;i<14;i++)burst(b.x+rnd(0,b.w),b.y+rnd(0,b.h),['\u{1F386}','✨','⭐'][i%3],2)}
 function selHall(){if(HALL){sel=HALL;view.x=(HALL.x+6)*TS;view.y=(HALL.y+6)*TS;updSel()}}
-function upgrade(b){if(!canUp(b))return;const c=ucost(b);if(!canAfford(c)){msg('Not enough resources to upgrade','bad');sfx('err');return}for(const r in c)S.res[r]-=c[r];b.lv++;if(b.k==='hall')hallUp(b);b.born=performance.now();if(b.k!=='hall')sfx('upgrade',b.lv);burst(b.x+b.w/2,b.y+b.h/2,'⬆️',5);msg(D[b.k].n+' upgraded to level '+b.lv+'!','good');updHUD();updSel()}
+function milestones(b,old){for(const t of[10,100,1000,10000])if(old<t&&b.lv>=t){ach('lv'+t);if(b.k!=='hall'){celeb=3.5;celebTxt='⭐ '+D[b.k].n+' reached level '+fmt(t)+'!';sfx(t>=100?'fanfare':'win')}for(let i=0;i<10;i++)burst(b.x+rnd(0,b.w),b.y+rnd(0,b.h),'⭐',1)}}
+function upgradeBy(b,n){if(!canUp(b))return;n=Math.max(1,Math.min(Math.floor(n),UPM-b.lv));const c=batchCost(b,n);if(!canAfford(c)){msg('Not enough resources for that upgrade.','bad');sfx('err');return}
+ for(const r in c)S.res[r]-=c[r];const old=b.lv;b.lv+=n;b.born=performance.now();if(b.k==='hall')hallUp(b);else{sfx('upgrade',b.lv<10?2:b.lv<100?3:b.lv<1000?4:5);burst(b.x+b.w/2,b.y+b.h/2,'⬆️',5)}
+ milestones(b,old);msg(D[b.k].n+' upgraded to level '+fmt(b.lv)+(n>1?' (+'+fmt(n)+')':'')+'!','good');updHUD();updSel()}
+function upgrade(b){upgradeBy(b,1)}
 
 // ================= rivals, diplomacy & war =================
 const RN=[{n:'Brightmoor',pers:'proud',col:'#d33c3c',m:1.2},{n:'Goldmarsh',pers:'greedy',col:'#e0b020',m:.95},{n:'Shadowfen',pers:'sneaky',col:'#8a52d0',m:1.0},{n:'Greenhollow',pers:'friendly',col:'#3aa860',m:.8}];
 const PERS={proud:'Proud',greedy:'Greedy',sneaky:'Sneaky',friendly:'Friendly'};
-const ACH=[['firstwin','First Victory','Win a war'],['iron','Iron Fist','Win 3 wars'],['peace','Peacemaker','Sign a peace treaty'],['ally','Best Friends','Ally with a rival'],['trade','Merchant','Trade with a rival'],['bold','Brave Peacekeeper','Decline a war challenge'],['sue','Wise Retreat','Sue for peace'],['fort','Fortified','3 towers and 10 walls'],['army','Big Army','Have 8 soldiers'],['firstsale','First Sale','Sell something in your Store'],['sell1000','Shopkeeper','Sell 1000 gold worth of goods'],['fairtrader','Fair Trader','Sell 10 batches at a fair price'],['winE','Easy Champion','Win a scenario on Easy'],['winM','Medium Champion','Win a scenario on Medium'],['winH','Hard Champion','Win a scenario on Hard'],['unbroken','Flawless','Win a war with no building battered']];
+const ACH=[['firstwin','First Victory','Win a war'],['iron','Iron Fist','Win 3 wars'],['peace','Peacemaker','Sign a peace treaty'],['ally','Best Friends','Ally with a rival'],['trade','Merchant','Trade with a rival'],['bold','Brave Peacekeeper','Decline a war challenge'],['sue','Wise Retreat','Sue for peace'],['fort','Fortified','3 towers and 10 walls'],['army','Big Army','Have 8 soldiers'],['lv10','Level 10','Upgrade any building to level 10'],['lv100','Level 100','Upgrade any building to level 100'],['lv1000','Level 1,000','Upgrade any building to level 1,000'],['lv10000','MAX LEVEL!','Upgrade any building to level 10,000'],['firstsale','First Sale','Sell something in your Store'],['sell1000','Shopkeeper','Sell 1000 gold worth of goods'],['fairtrader','Fair Trader','Sell 10 batches at a fair price'],['winE','Easy Champion','Win a scenario on Easy'],['winM','Medium Champion','Win a scenario on Medium'],['winH','Hard Champion','Win a scenario on Hard'],['unbroken','Flawless','Win a war with no building battered']];
 function mkRivals(){return RN.map((r,i)=>({id:i,n:r.n,pers:r.pers,col:r.col,m:r.m*(.92+Math.random()*.2),rel:r.pers==='friendly'?35:r.pers==='greedy'?0:-5,ally:false,peace:0,cd:0,declined:0,tcd:0,partner:false}))}
 function achOn(id){return S.ach[id]||(id.startsWith('win')&&META.dw&&META.dw[id[3]])}
 function ach(id){if(!S.ach)S.ach={};if(S.ach[id])return;S.ach[id]=1;const a=ACH.find(q=>q[0]===id);msg('\u{1F3C5} Achievement: '+a[1]+'!','good');sfx('tech')}
-function rstr(r){return Math.round((28+(OD()-1)*2.4)*r.m*DIF[S.dif].rstr*.7)}
+function rstr(r){return Math.round((28+(OD()-1)*2.4)*r.m*DIF[S.dif].rstr*.7*(1+.12*Math.log2(avgLv())))}
 function power(){let p=SO.length*10+B.reduce((a,b)=>a+(b.k==='tower'?8+2*(b.lv-1):0),0)+cn('watchtower')*4+cn('wall')*.6+cn('gate')*3+cn('castle')*30+cn('hall')*25+cn('fortress')*40+Math.min(10,cn('banner'))*2;
  return Math.round(p*(1+bon('sold')+bon('war')+Math.min(1,cn('armory'))*.15+Math.min(2,cn('training'))*.1))}
 function estimate(r){const e=rstr(r),m=Math.max(1,power()),q=e/m;const t=q<.5?'Much weaker than you':q<.85?'Weaker than you':q<1.2?'About equal':q<1.8?'Stronger than you':'Much stronger!';
@@ -537,7 +564,7 @@ function edgePoint(side){let x,y,t=0;do{x=side===0?1.5:side===1?W-2:irnd(4,W-5);
 function mkUnit(kind,r,x,y,hp,mhp){const st=WU[kind];return{war:1,kind,rid:r.id,col:r.col,x,y,hp:hp||st.hp,mhp:mhp||st.hp,spd:st.spd*(.95+Math.random()*.1),tg:null,hit:0,cd:0,life:0,side:Math.random()<.5?1:-1,tx:x,ty:y}}
 function acceptWar(){const c=S.challenge,r=S.rivals[c.rid],eP=rstr(r);S.challenge=null;
  const Wv=[2,3,4][S.dif];
- S.war={rid:r.id,eP,state:'prep',prep:S.dif===0?22:S.dif===2?12:16,wave:0,waves:Wv,waveT:0,stance:'hold',rally:null,boost:0,allies:false,gates:false,holdT:0,t:0,captain:false,kills:0,limit:[5,7,10][S.dif],bat:0,maxBat:0};
+ S.war={rid:r.id,eP,state:'prep',prep:S.dif===0?22:S.dif===2?12:16,wave:0,waves:Wv,waveT:0,stance:'hold',rally:null,boost:0,allies:false,gates:false,holdT:0,t:0,captain:false,kills:0,limit:[5,7,10][S.dif],holdMax:[24,20,16][S.dif],bat:0,maxBat:0};
  closeModal();showWar();sfx('horn');msg('WAR! The army of '+r.n+' marches in '+S.war.prep+' seconds. Prepare your defenses!','bad')}
 function spawnWave(){const w=S.war,r=S.rivals[w.rid],k=++w.wave,e=w.eP,side=WSIDE[r.id%4],hm=(1+k*.08)*(S.dif===0?.8:S.dif===2?1.2:1);
  const list=[],ninf=Math.max(2,Math.round(e/16)+k-1),narc=Math.floor(e/32)+(k>=2?1:0),nram=k>=2?(k>=w.waves?2:1):0;
@@ -574,8 +601,8 @@ function warSim(dt){const w=S.war;if(!w)return;w.t+=dt;
   w.drumT=(w.drumT||0)-dt;if(w.drumT<=0&&alive>0){sfx('drum');w.drumT=1.1}
   if(w.wave<w.waves&&((alive===0&&w.waveT>6)||w.waveT>45)){w.waveT=0;spawnWave();sfx('horn')}
   const h=heart();if(cap&&Math.hypot(cap.x-h.x,cap.y-h.y)<3.5+(h.r||0))w.holdT+=dt;else w.holdT=Math.max(0,w.holdT-dt);
-  w.hudT=(w.hudT||0)-dt;if(w.hudT<=0){w.bat=B.reduce((a,b)=>a+(b.k!=='road'&&bat(b)?1:0),0);{const nb=B.reduce((a,b)=>a+(b.k!=='road'?1:0),0);w.limit=Math.max([4,6,8][S.dif],Math.ceil(nb*[.45,.4,.35][S.dif]))}if(w.bat>w.maxBat)w.maxBat=w.bat;w.alive=alive;updWarHud();w.hudT=.3}
-  if(w.holdT>=14||w.bat>=w.limit){endWar('lose');return}
+  w.hudT=(w.hudT||0)-dt;if(w.hudT<=0){w.bat=B.reduce((a,b)=>a+(b.k!=='road'&&bat(b)?1:0),0);{const nb=B.reduce((a,b)=>a+(b.k!=='road'?1:0),0);w.limit=Math.max([4,6,8][S.dif],Math.ceil(nb*[.45,.4,.35][S.dif]))+(w.limitBonus||0)}if(w.bat>w.maxBat)w.maxBat=w.bat;w.alive=alive;updWarHud();w.hudT=.3}
+  if(w.holdT>=(w.holdMax||20)||w.bat>=w.limit){if(!w.rescued&&!S.rc.war){warRescue(w)}else{endWar('lose');return}}
   if(w.wave>=w.waves&&alive===0){endWar('win');return}
   if(w.t>480){endWar('win');return}}
  if(w.state==='prep'){w.hudT=(w.hudT||0)-dt;if(w.hudT<=0){updWarHud();w.hudT=.3}}}
@@ -597,12 +624,12 @@ function showWar(){const w=S.war,h=$('warhud');if(!w){h.classList.add('hidden');
  $('wh4').onclick=()=>{if(S.res.stone<6||S.res.wood<3){msg('Need 6 stone and 3 wood.','bad');sfx('err');return}S.res.stone-=6;S.res.wood-=3;for(const b of B){if(b.k==='wall'||b.k==='gate'||b.k==='tower')b.hp=maxhp(b.k);else b.hp=Math.min(maxhp(b.k),b.hp+25)}sfx('place');msg('Repairs done!','good');updHUD()};
  $('wh5').onclick=()=>{w.gates=!w.gates;sfx('click');updWarHud()};
  $('wh6').onclick=()=>{if(S.res.iron<6||w.boost>=.5){msg(w.boost>=.5?'Weapons are maxed.':'Not enough iron.','bad');sfx('err');return}S.res.iron-=6;w.boost+=.1*(1+bon('supply'));sfx('tech');msg('Sharper weapons!','good');updWarHud()};
- $('wh7').onclick=()=>{if(S.res.food<9){msg('Not enough food.','bad');sfx('err');return}S.res.food-=9;for(const s of SO)s.hp=SHP;sfx('coin');msg('Hot meals! Soldiers healed.','good')};
+ $('wh7').onclick=()=>{if(S.res.food<9){msg('Not enough food.','bad');sfx('err');return}S.res.food-=9;for(const s of SO)s.hp=SHP*lvmOf(s);sfx('coin');msg('Hot meals! Soldiers healed.','good')};
  $('wh8').onclick=()=>{if(w.allies){msg('Allies already came.');return}callAllies(false)};
  $('wh9').onclick=()=>{sfx('click');endWar('peace')};updWarHud()}
 function updWarHud(){const w=S.war;if(!w)return;const r=S.rivals[w.rid],x=$('whx');if(!x)return;
  let alive=0;for(const u of RA)if(u.war)alive++;
- x.style.color=r.col;x.innerHTML='⚑ War vs '+r.n+' - '+(w.state==='prep'?'<span style="color:#fff">Enemy arrives in '+Math.max(0,Math.ceil(w.prep))+'s! Build defenses!</span>':'Wave '+w.wave+'/'+w.waves)+' &bull; Enemies '+alive+' &bull; Army '+SO.length+' &bull; Battered '+(w.bat||0)+'/'+w.limit+(w.holdT>0?' <span style="color:#f66">CAPTAIN AT YOUR HEART '+Math.ceil(14-w.holdT)+'s!</span>':'');
+ x.style.color=r.col;x.innerHTML='⚑ War vs '+r.n+' - '+(w.state==='prep'?'<span style="color:#fff">Enemy arrives in '+Math.max(0,Math.ceil(w.prep))+'s! Build defenses!</span>':'Wave '+w.wave+'/'+w.waves)+' &bull; Enemies '+alive+' &bull; Army '+SO.length+' &bull; Battered '+(w.bat||0)+'/'+w.limit+(w.holdT>0?' <span style="color:#f66">CAPTAIN AT YOUR HEART '+Math.ceil((w.holdMax||20)-w.holdT)+'s!</span>':'');
  const on=(id,c)=>{const e=$(id);if(e)e.className=c?'on':''};on('wh1',w.stance==='hold');on('wh2',w.stance==='rally');on('wh3',w.stance==='counter');on('wh5',w.gates);
  const g=$('wh5');if(g)g.textContent='\u{1F6AA} Gates: '+(w.gates?'CLOSED':'open')}
 function wunit(o,t){const px=o.x*TS,py=o.y*TS,col=o.hit>0?'#fff':o.col;
@@ -640,7 +667,7 @@ function maxSell(r){return Math.min(100,Math.floor(fairOf(r)*1.25))}
 function demandF(ratio){return ratio<=.5?3:ratio<=1?3-(ratio-.5)*3:ratio<=1.1?1.5-(ratio-1)*9:ratio<=1.25?.6-(ratio-1.1)*3:0}
 function demandText(ratio){return ratio>1.25?'nobody buys':ratio>1.1?'very slow':ratio>1?'slow':ratio>.7?'steady':'quick!'}
 function storeDemand(){const ns=cn('store');if(!ns)return 0;const pop=C.length,relm=1+Math.max(-.1,Math.min(.2,S.rivals.reduce((a,q)=>a+q.rel,0)/800+S.rivals.filter(q=>q.ally).length*.05));
- return .006*Math.sqrt(Math.max(4,pop))*(1+.5*(Math.min(ns,6)-1))*(.5+S.happy/100)*relm*(S.war?.4:1)*[1.2,1,.85][S.dif]}
+ return .006*Math.sqrt(Math.max(4,pop))*(1+.5*(Math.min(ns,6)-1))*storeLv()*(.5+S.happy/100)*relm*(S.war?.4:1)*[1.2,1,.85][S.dif]}
 function storeTick(){const st=stState(),base=storeDemand();if(!base)return;
  for(const q of ITEMS){const r=q[0],sh=st.shelf[r];if(!sh||sh.qty<10)continue;const ratio=sh.price/fairOf(r);sh.acc=(sh.acc||0)+base*demandF(ratio)*q[2];
   while(sh.acc>=1&&sh.qty>=10){sh.acc-=1;sh.qty-=10;S.res.gold+=sh.price;st.sold.gold+=sh.price;st.sold.pieces+=10;st.tot+=sh.price;st.totP+=10;if(ratio>=.9&&ratio<=1.1)st.fair=(st.fair||0)+1;
@@ -657,11 +684,11 @@ function showStore(){if(!S)return;const st=stState(),ns=cn('store');
  let h='<div style="font-size:13px">\u{1FA99} Gold <b>'+Math.floor(S.res.gold)+'</b> &bull; Stores <b>'+ns+'</b> &bull; Sold today <b>'+st.sold.gold+'</b> gold ('+st.sold.pieces+' pieces) &bull; All time <b>'+st.tot+'</b></div>'+
  '<div style="margin:6px"><button id="stb" class="'+(stTab==='buy'?'on':'')+'">Buy</button> <button id="sts" class="'+(stTab==='sell'?'on':'')+'">Sell</button></div>';
  if(stTab==='buy'){h+='<div style="font-size:11px;color:#ffe08a">Prices are per 10 pieces. Rival friends and allies give small discounts. The Grand Citadel is not for sale!</div>';
-  for(const q of ITEMS){const r=q[0],p=buyPrice(r);h+='<div style="border:1px solid #8a6a3a;border-radius:8px;margin:3px;padding:4px;text-align:left;font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b style="min-width:92px">'+RES[r][0]+' '+RES[r][1]+'</b><span style="min-width:110px">Stock '+Math.floor(S.res[r])+'/'+storCap()+'</span><span style="min-width:90px">Price <b>'+p+'</b>\u{1FA99}/10</span><button data-a="b10" data-r="'+r+'">Buy 10 ('+p+')</button><button data-a="b100" data-r="'+r+'">Buy 100 ('+p*10+')</button></div>'}}
+  for(const q of ITEMS){const r=q[0],p=buyPrice(r);h+='<div style="border:1px solid #8a6a3a;border-radius:8px;margin:3px;padding:4px;text-align:left;font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b style="min-width:92px">'+RES[r][0]+' '+RES[r][1]+'</b><span style="min-width:110px">Stock '+fmt(Math.floor(S.res[r]))+'/'+fmt(storCap())+'</span><span style="min-width:90px">Price <b>'+p+'</b>\u{1FA99}/10</span><button data-a="b10" data-r="'+r+'">Buy 10 ('+p+')</button><button data-a="b100" data-r="'+r+'">Buy 100 ('+p*10+')</button></div>'}}
  else{if(!ns)h+='<p style="color:#f99">Build a Store (Trade tab) first: customers only shop in your stores!</p>';
   h+='<div style="font-size:11px;color:#ffe08a">Choose how many pieces go on the shelf (batches of 10) and YOUR price per 10 pieces (1 to 100 gold). Fair value is shown. Too expensive and nobody buys!</div>';
   for(const q of ITEMS){const r=q[0],sh=st.shelf[r]||{qty:0,price:fairOf(r)},fair=fairOf(r);
-   h+='<div style="border:1px solid #8a6a3a;border-radius:8px;margin:3px;padding:4px;text-align:left;font-size:12px"><b>'+RES[r][0]+' '+RES[r][1]+'</b> &nbsp; Stock <b id="sk_'+r+'">'+Math.floor(S.res[r])+'</b> &bull; On shelf <b id="sh_'+r+'">'+sh.qty+'</b> &bull; Fair value <b>'+fair+'</b>\u{1FA99}/10<br>'+
+   h+='<div style="border:1px solid #8a6a3a;border-radius:8px;margin:3px;padding:4px;text-align:left;font-size:12px"><b>'+RES[r][0]+' '+RES[r][1]+'</b> &nbsp; Stock <b id="sk_'+r+'">'+fmt(Math.floor(S.res[r]))+'</b> &bull; On shelf <b id="sh_'+r+'">'+sh.qty+'</b> &bull; Fair value <b>'+fair+'</b>\u{1FA99}/10<br>'+
    'Your price <input type="range" id="pr_'+r+'" min="1" max="100" value="'+sh.price+'" style="width:34%"> <input type="number" id="pn_'+r+'" min="1" max="100" value="'+sh.price+'" style="width:54px"> /10 <span id="dm_'+r+'" style="color:#ffe08a"></span><br>'+
    '<button data-a="cheap" data-r="'+r+'">Cheap</button><button data-a="fair" data-r="'+r+'">Fair</button><button data-a="exp" data-r="'+r+'">Expensive</button> &nbsp; <button data-a="m10" data-r="'+r+'">- 10</button><button data-a="p10" data-r="'+r+'">+ 10</button><button data-a="all" data-r="'+r+'">All</button><button data-a="back" data-r="'+r+'">Take back</button></div>'}
   h+='<div style="margin:6px"><button id="sall">Sell all at fair price</button> <button id="sback">Take everything back</button></div>'}
@@ -676,6 +703,40 @@ function showStore(){if(!S)return;const st=stState(),ns=cn('store');
    sl.oninput=()=>upd(sl.value);nb.onchange=()=>upd(nb.value);dm.textContent='demand: '+demandText((+sl.value)/fairOf(r))}
   $('sall').onclick=()=>{for(const q of ITEMS){const r=q[0];setShelf(r,1e9,fairOf(r))}sfx('coin');updHUD();showStore()};$('sback').onclick=()=>{for(const q of ITEMS)setShelf(q[0],0);sfx('click');updHUD();showStore()}}}
 
+// ================= safety net: hard to lose + skip night =================
+const RC_MAX={food:2,mat:2,war:1};
+function rescuePopup(title,text){sfx('rescue');modal('\u{1F49B} '+title,'<p>'+text+'</p><p style="font-size:12px">Friendly neighbours are looking out for you.</p>',[['Thank you!',closeModal,'big']])}
+function rescue(kind){const f=[1.3,1,.8][S.dif];S.rc[kind]=(S.rc[kind]||0)+1;
+ if(kind==='food'){const n=Math.round((40+C.length*4)*f);addRes('food',n);rescuePopup('Rescue!','A friendly trader heard your people were hungry and delivered <b>'+n+' food</b>!')}
+ else{const w=Math.round(60*f),st=Math.round(30*f),g=Math.round(40*f);addRes('wood',w);addRes('stone',st);S.res.gold+=g;rescuePopup('Rescue!','Kind neighbours donated <b>'+w+' wood, '+st+' stone and '+g+' gold</b> so you can keep building!')}}
+function warRescue(w){S.rc.war=1;w.rescued=1;w.holdT=0;w.limitBonus=(w.limitBonus||0)+3;for(const s of SO)s.hp=SHP*lvmOf(s);for(const b of B)b.hp=Math.min(maxhp(b.k),b.hp+maxhp(b.k)*.4);
+ const home=B.find(b=>trainCap(b)>0)||B[0],ep=edgePoint((WSIDE[w.rid%4]+2)%4);for(let i=0;i<6;i++)SO.push({x:ep.x+rnd(-2,2),y:ep.y+rnd(-2,2),hp:75,home,cd:0,off:rnd(-1.5,1.5),off2:rnd(0,1.5),ally:1,col:'#7be07b'});
+ rescuePopup('Allies arrive!','Your friends send <b>6 soldiers</b>, heal your troops and help repair your walls. Hold on!')}
+function lossGuard(){const pop=C.length,msgs=[],dif=S.dif;if(!S.rc)S.rc={};
+ if(S.res.food<=.5&&pop>=3&&B.length){S.sv=(S.sv||0)+1;const lim=[70,50,40][dif];
+  if((S.rc.food||0)<RC_MAX.food){msgs.push('\u{1F35E} Your people are starving! Help arrives in '+Math.max(0,lim-S.sv)+' s - or build farms!');if(S.sv>=lim){S.sv=0;rescue('food')}}
+  else msgs.push('\u{1F35E} Your people are starving! Build farms quickly - citizens will start to leave.')}else S.sv=0;
+ if(S.res.wood<8&&S.res.gold<8&&S.res.stone<8&&B.length&&pop>0){S.mv=(S.mv||0)+1;const lim=[90,60,45][dif];
+  if((S.rc.mat||0)<RC_MAX.mat){msgs.push('\u{1FAB5} Out of wood, stone and gold! Neighbours help in '+Math.max(0,lim-S.mv)+' s');if(S.mv>=lim){S.mv=0;rescue('mat')}}
+  else msgs.push('\u{1FAB5} Out of materials! Sell goods in the Store or gather wood and stone.')}else S.mv=0;
+ if(S.happy<25&&pop>3)msgs.push('\u{1F61F} Your people are unhappy: everyone works slower. Build taverns, parks, wells and churches!');
+ const gl=[240,180,120][dif],broke=pop===0&&SO.length===0&&S.res.food<5&&S.res.gold<10&&S.res.wood<10&&S.res.stone<10&&OD()>3&&!SC[S.sc].free;
+ if(broke){S.gv=(S.gv||0)+1;msgs.push('\u{1F4A5} Everything is lost! Game over in '+Math.max(0,gl-S.gv)+' s');if(S.gv>=gl)finalLoss()}else S.gv=0;
+ if(S.hadCastle&&!cn('castle')&&S.sc===4){S.hadCastle=0;msg('Your castle was destroyed! You can build a new one.','bad')}
+ const wb=$('warnb');if(wb){if(msgs.length){wb.innerHTML=msgs.join('<br>');wb.classList.remove('hidden')}else wb.classList.add('hidden')}}
+function finalLoss(){if(S.over)return;S.over=true;sfx('lose');
+ modal('\u{1F4A5} Everything is lost','<p>Your people are gone and your stores are empty. But the Grand Citadel still stands...</p>',[['\u{1F49B} Rebuild with help',()=>{closeModal();S.over=false;S.gv=0;S.rc.final=(S.rc.final||0)+1;addRes('food',120);addRes('wood',150);addRes('stone',80);S.res.gold+=120;if(HALL)HALL.hp=maxhp('hall');for(let i=0;i<6;i++)spawnCit(HALL||B[0]);S.happy=Math.max(S.happy,55);rescuePopup('A fresh start!','Kind neighbours sent supplies and 6 settlers. Build again!')},'big'],['Scenario Menu',()=>{clearSave();toTitle()}]])}
+let SKIP=null;
+function skipReason(){if(!S||!inGame)return'No game';if(S.over)return'Game over';if(!isNight())return'It is daytime - wait for dusk';if(S.war)return'Not during a war';if(RA.length||S.pending)return'Raiders are about';if(S.paused)return'The game is paused';if(SKIP)return'Already sleeping';return''}
+function skipNight(){const why=skipReason();if(why){msg('Skip night: '+why+'.','bad');sfx('err');return}
+ const dl=DAY*M(),left=S.tod>.85?(1-S.tod+.2)*dl:(.2-S.tod)*dl;SKIP={left,total:left,start:performance.now(),dur:3200};sfx('cozy');msg('\u{1F319} Sleeping until dawn...')}
+function skipStep(now){const k=SKIP,frac=Math.min(1,(now-k.start)/k.dur),target=k.total*(1-frac);let dt=k.left-target;
+ if(dt>0){const n=Math.ceil(dt/.25),h=dt/n;let done=0;for(let i=0;i<n;i++){sim(h);done+=h;if(S.war||RA.length||S.pending||S.over||modalOpen)break}k.left-=done}
+ if(S.war||RA.length||S.pending){SKIP=null;msg('The night was interrupted!','bad');return}
+ if(k.left<=.05||frac>=1)SKIP=null}
+function updSkip(){const b=$('skipb');if(!b)return;const why=skipReason();b.disabled=!!why;b.title=why?('Skip night unavailable: '+why):'Skip the night (K): fast-forwards to dawn - everything still happens.';b.innerHTML=(why?'\u{1F319} Skip night (K)':'\u{1F319} Night - skip? (K)');b.classList.toggle('on',!why)}
+
+
 // ================= goals / end =================
 function checkGoals(){const g=goals();if(!g.length||S.over)return;let all=true;for(const q of g){if(q[0]==='Happiness'?!(q[1]()>=q[2]):q[1]()<q[2])all=false}if(all)end(true)}
 function end(win,why){if(S.over)return;S.over=true;sfx(win?'win':'lose');
@@ -686,9 +747,9 @@ function end(win,why){if(S.over)return;S.over=true;sfx(win?'win':'lose');
 // ================= new game / save =================
 let META={wins:{}};
 function newState(i,dif,dl){dl=dl||1;dif=dif===undefined?1:dif;const sc=SC[i];const res={food:0,wood:0,stone:0,iron:0,gold:0,grain:0,flour:0,arms:0};Object.assign(res,sc.start);for(const r in sc.start)res[r]=Math.round(res[r]*DIF[dif].res);
- return{sc:i,res,techs:{},rp:sc.rp,day:1,tod:.3,tax:2,happy:60,target:60,speed:1,paused:false,raids:0,repelled:0,kills:0,raidActive:0,nextRaid:Math.round(sc.raid*DIF[dif].gap),dif,dl,pending:null,weather:'clear',wT:40,evT:55,mood:0,fear:0,growT:0,acc:0,t:0,cnt:{},built:0,lost:0,maxPop:0,everPop:0,hungry:0,over:false,raidsOn:false,trader:null,bon:{},flow:null,prevRes:null,rpRate:.1,hadCastle:0,hallLv:1,store:{shelf:{},sold:{gold:0,pieces:0},tot:0,totP:0,drift:{},fair:0},rivals:mkRivals(),war:null,challenge:null,rep:50,ach:{},warsWon:0,warsLost:0,warCd:0,warsSeen:0}}
+ return{sc:i,res,techs:{},rp:sc.rp,day:1,tod:.3,tax:2,happy:60,target:60,speed:1,paused:false,raids:0,repelled:0,kills:0,raidActive:0,nextRaid:Math.round(sc.raid*DIF[dif].gap),dif,dl,pending:null,weather:'clear',wT:40,evT:55,mood:0,fear:0,growT:0,acc:0,t:0,cnt:{},built:0,lost:0,maxPop:0,everPop:0,hungry:0,over:false,raidsOn:false,trader:null,bon:{},flow:null,prevRes:null,rpRate:.1,hadCastle:0,hallLv:1,rc:{},store:{shelf:{},sold:{gold:0,pieces:0},tot:0,totP:0,drift:{},fair:0},rivals:mkRivals(),war:null,challenge:null,rep:50,ach:{},warsWon:0,warsLost:0,warCd:0,warsSeen:0}}
 function startScenario(i){
-  inGame=true;SEED=(Math.random()*1e9)|0;UID=1;HALL=null;B=[];C=[];SO=[];RA=[];PR=[];AR=[];CART=null;sel=null;tool=null;
+  inGame=true;SEED=(Math.random()*1e9)|0;UID=1;HALL=null;SKIP=null;B=[];C=[];SO=[];RA=[];PR=[];AR=[];CART=null;sel=null;tool=null;
  S=newState(i,curDif,curDl);applyDif();SC[i].techs.forEach(t=>S.techs[t]=1);recalcBon();genMap(SEED);
  addB('hall',22,22,1);const h1=addB('house',19,26,1),h2=addB('house',19,29,1);addB('farm',34,26,1);addB('well',35,30,1);
  for(let k=0;k<SC[i].pop;k++)spawnCit(k%2?h2:h1,(k%2?h2:h1).x+rnd(0,1),(k%2?h2:h1).y+rnd(1,2));
@@ -709,13 +770,13 @@ function ensureHall(){if(HALL)return;const fits=(ax,ay)=>{for(let j=0;j<12;j++)f
  if(!pos){pos=[22,22];for(const b of B.slice())if(b.x<34&&b.x+b.w>22&&b.y<34&&b.y+b.h>22){for(const r in D[b.k].cost)addRes(r,D[b.k].cost[r]);removeB(b,false)}txt='The Grand Citadel was built in the centre! Buildings in the way were removed and refunded.'}
  for(let j=0;j<12;j++)for(let i=0;i<12;i++)T[(pos[1]+j)*W+pos[0]+i]=0;buildMini();addB('hall',pos[0],pos[1],1);S.hallLv=Math.max(1,S.hallLv||1);msg(txt,'good')}
 function loadGame(){const o=readSave();if(!o||!o.game)return false;try{const g=o.game;
- SEED=g.seed;UID=1;HALL=null;B=[];C=[];SO=[];RA=[];PR=[];AR=[];CART=null;sel=null;tool=null;
+ SEED=g.seed;UID=1;HALL=null;SKIP=null;B=[];C=[];SO=[];RA=[];PR=[];AR=[];CART=null;sel=null;tool=null;
  T=new Uint8Array(W*H);for(let i=0;i<W*H;i++)T[i]=+g.T[i];OCC=new Array(W*H).fill(null);buildMini();
  S=Object.assign(newState(g.S.sc,1,1),g.S);if(!g.S.dl)S.dl=1;if(S.dif===undefined)S.dif=1;applyDif();S.cnt={};S.pending=g.S.pending||null;recalcBon();inGame=true;
- for(const q of g.B){const b=addB(q[0],q[1],q[2],1);b.hp=q[3];b.prog=q[4]||0;b.lv=q[5]||1}
- ensureHall();
+ for(const q of g.B){const b=addB(q[0],q[1],q[2],1);b.hp=q[3];b.prog=q[4]||0;b.lv=Math.max(1,Math.min(UPM,Math.floor(+q[5])||1))}
+ ensureHall();S.hallLv=Math.max(1,Math.min(UPM,Math.floor(+S.hallLv)||1));
  for(const q of g.C){const h=B[q[0]]||freeHouse(28,28);if(h)spawnCit(h,q[1],q[2])}
- for(const q of g.SO){const h=B[q[0]];if(h)SO.push({x:q[1],y:q[2],hp:SHP,home:h,cd:0,off:rnd(-1.5,1.5),off2:rnd(0,1.5)})}
+ for(const q of g.SO){const h=B[q[0]];if(h)SO.push({x:q[1],y:q[2],hp:SHP*(1+.02*Math.min((h.lv||1)-1,20000)),home:h,cd:0,off:rnd(-1.5,1.5),off2:rnd(0,1.5)})}
  RA=[];if(S.raidActive){S.raidActive=0}
  if(g.RA&&S.war)for(const q of g.RA)RA.push(mkUnit(q[0],S.rivals[S.war.rid],q[1],q[2],q[3],q[4]));
  Object.assign(view,g.view);S.trader=null;S.over=false;
@@ -747,7 +808,7 @@ function buildCtl(){const c=$('ctl');c.innerHTML='';
  const mk=(t,fn,id,tipt)=>{const b=document.createElement('button');b.innerHTML=t;if(id)b.id=id;b.onclick=()=>{ac();sfx('click');fn()};if(tipt){b.onmouseenter=e=>tip(tipt,e);b.onmouseleave=untip}c.appendChild(b);return b};
  mk('⏸',()=>setSpeed(0),'sp0','Pause (Space)');mk('▶',()=>setSpeed(1),'sp1','Normal speed (1)');mk('⏩',()=>setSpeed(2),'sp2','Fast (2)');mk('⏭',()=>setSpeed(3),'sp3','Super fast (3)');
  mk('\u{1F4B1} '+TAXN[S.tax],()=>{S.tax=(S.tax+1)%4;buildCtl();updHUD()},'taxb','Click to change taxes. Higher tax = more gold but unhappy citizens.');
- mk('\u{1F91D} Rivals',showRivals,'rivb','Rival kingdoms: relations, trade, peace');mk('\u{1F9F1} Walls (B)',()=>setTool(tool==='wall'?null:'wall'),'qwall','Build walls - press B. Drag to paint a whole line!');mk('\u{1F6AA} Gate (G)',()=>setTool(tool==='gate'?null:'gate'),'qgate','Build a gate - press G');mk('\u{1F3EA} Store (Q)',showStore,'qstore','Buy anything, or sell at your own price (Q)');mk('\u2694\uFE0F WAR!',showWar,'warb','A war is going on! Click to fight.');mk('\u{1F52C} Techs',showTech,'techb','Research new buildings and bonuses (T)');
+ mk('\u{1F91D} Rivals',showRivals,'rivb','Rival kingdoms: relations, trade, peace');mk('\u{1F9F1} Walls (B)',()=>setTool(tool==='wall'?null:'wall'),'qwall','Build walls - press B. Drag to paint a whole line!');mk('\u{1F6AA} Gate (G)',()=>setTool(tool==='gate'?null:'gate'),'qgate','Build a gate - press G');mk('\u{1F3EA} Store (Q)',showStore,'qstore','Buy anything, or sell at your own price (Q)');mk('\u{1F319} Skip night (K)',skipNight,'skipb','Skip the night (K).');mk('\u2694\uFE0F WAR!',showWar,'warb','A war is going on! Click to fight.');mk('\u{1F52C} Techs',showTech,'techb','Research new buildings and bonuses (T)');
  mk(muted?'\u{1F507}':'\u{1F50A}',()=>{muted=!muted;buildCtl()},'mutb','Sound on/off (M)');
  mk('⚙️',pauseMenu,'menub','Menu (Esc)');$('warb').style.display=S.war?'':'none';setSpeed(S.speed,1);qsync()}
 function qsync(){const a=$('qwall'),b=$('qgate');if(a)a.classList.toggle('on',tool==='wall');if(b)b.classList.toggle('on',tool==='gate')}
@@ -765,24 +826,24 @@ function showTech(){
  modal('Tech Tree',h+'</div>',[['Close',closeModal]]);
  document.querySelectorAll('.tech.av').forEach(el=>el.onclick=()=>{const t=TI[el.dataset.t];if(S.rp<t.c){msg('Not enough research points','bad');sfx('err');return}S.rp-=t.c;S.techs[t.id]=1;recalcBon();sfx('tech');msg('Researched '+t.n+'!'+(t.u.length?' Unlocked: '+t.u.map(u=>D[u].n).join(', '):''),'good');buildBar();showTech()})}
 function updHUD(){if(!S)return;const th=$('top').offsetHeight+6;$('goals').style.top=th+'px';$('log').style.top=th+'px';$('offer').style.top=th+'px';$('warhud').style.top=(th+(S.trader?70:0))+'px';
- let h='';for(const r of['food','wood','stone','iron','gold']){const f=S.flow?S.flow[r]:0;h+='<span class="chip" data-tip="'+RES[r][1]+(r==='gold'?'':' (storage '+storCap()+')')+'<br>Last day: '+(f>=0?'+':'')+Math.round(f||0)+'">'+RES[r][0]+' <b>'+Math.floor(S.res[r])+'</b></span>'}
- h+='<span class="chip" data-tip="Grain (mill) / Flour (bakery) / Arms (soldiers)">'+RES.grain[0]+Math.floor(S.res.grain)+' '+RES.flour[0]+Math.floor(S.res.flour)+' '+RES.arms[0]+Math.floor(S.res.arms)+'</span>';
+ let h='';for(const r of['food','wood','stone','iron','gold']){const f=S.flow?S.flow[r]:0;h+='<span class="chip" data-tip="'+RES[r][1]+(r==='gold'?'':' (storage '+fmt(storCap())+')')+'<br>Last day: '+(f>=0?'+':'')+fmt(Math.round(f||0))+'">'+RES[r][0]+' <b>'+fmt(Math.floor(S.res[r]))+'</b></span>'}
+ h+='<span class="chip" data-tip="Grain (mill) / Flour (bakery) / Arms (soldiers)">'+RES.grain[0]+fmt(Math.floor(S.res.grain))+' '+RES.flour[0]+fmt(Math.floor(S.res.flour))+' '+RES.arms[0]+fmt(Math.floor(S.res.arms))+'</span>';
  $('res').innerHTML=h;
  const hp=S.happy,face=hp>75?'\u{1F604}':hp>55?'\u{1F642}':hp>35?'\u{1F610}':'\u{1F620}';
- $('info').innerHTML='<span class="chip" style="font-size:16px;font-weight:bold;cursor:pointer;background:#5a3b10" onclick="selHall()" data-tip="Grand Citadel level: every building is at least this level. Click to select it.">\u{1F3F0} Lv '+(S.hallLv||1)+'</span><span class="chip" data-tip="Citizens / housing. Build houses for more!">\u{1F465} <b>'+C.length+'</b>/'+(S.cap||0)+'</span><span class="chip" data-tip="Happiness. Taverns, churches, parks, markets and good food raise it.">'+face+' <b>'+Math.round(hp)+'</b></span><span class="chip" data-tip="Soldiers">\u{1F6E1}️ '+SO.length+'</span><span class="chip" data-tip="Research points">\u{1F52C} <b>'+Math.floor(S.rp)+'</b></span><span class="chip" data-tip="Reputation with the rival kingdoms">\u{1F451} '+S.rep+'</span><span class="chip" data-tip="Difficulty">'+DIF[S.dif].n+'</span><span class="chip">'+SEI[season()]+' '+SEASONS[season()]+' D'+S.day+' '+clk()+' '+(isNight()?'\u{1F319}':'☀️')+' '+({clear:'',rain:'\u{1F327}️',storm:'⛈️',snow:'\u{1F328}️'})[S.weather]+'</span>';
- const wb=$('warb');if(wb)wb.style.display=S.war?'':'none';const t=$('taxb');if(t)t.innerHTML='\u{1F4B1} '+TAXN[S.tax];
+ $('info').innerHTML='<span class="chip" style="font-size:16px;font-weight:bold;cursor:pointer;background:#5a3b10" onclick="selHall()" data-tip="Grand Citadel level: every building is at least this level. Click to select it.">\u{1F3F0} Lv '+fmt(S.hallLv||1)+'</span><span class="chip" data-tip="Citizens / housing. Build houses for more!">\u{1F465} <b>'+C.length+'</b>/'+(S.cap||0)+'</span><span class="chip" data-tip="Happiness. Taverns, churches, parks, markets and good food raise it.">'+face+' <b>'+Math.round(hp)+'</b></span><span class="chip" data-tip="Soldiers">\u{1F6E1}️ '+SO.length+'</span><span class="chip" data-tip="Research points">\u{1F52C} <b>'+Math.floor(S.rp)+'</b></span><span class="chip" data-tip="Reputation with the rival kingdoms">\u{1F451} '+S.rep+'</span><span class="chip" data-tip="Difficulty">'+DIF[S.dif].n+'</span><span class="chip">'+SEI[season()]+' '+SEASONS[season()]+' D'+S.day+' '+clk()+' '+(isNight()?'\u{1F319}':'☀️')+' '+({clear:'',rain:'\u{1F327}️',storm:'⛈️',snow:'\u{1F328}️'})[S.weather]+'</span>';
+ updSkip();const wb=$('warb');if(wb)wb.style.display=S.war?'':'none';const t=$('taxb');if(t)t.innerHTML='\u{1F4B1} '+TAXN[S.tax];
  document.querySelectorAll('.bi').forEach(el=>{const k=el.dataset.k;if(!k)return;const d=D[k];const c=el.querySelector('.c');if(avail(k)&&c)c.innerHTML=Object.keys(d.cost).map(r=>'<span'+(S.res[r]<d.cost[r]?' style="color:#f88"':'')+'>'+RES[r][0]+d.cost[r]+'</span>').join(' ')})}
 function updGoals(){const g=$('goals'),L=goals();let h='<h4 id="gt">'+(SC[S.sc].free?'\u{1F9F1} Free Build':'\u{1F3AF} Goals - '+SC[S.sc].n)+'</h4>';
  if(SC[S.sc].free)h+='<div class="g">No goals. Build anything! Raids: '+(S.raidsOn?'on':'off (see menu)')+'</div>';
  if(S.pending)h+='<div class="g" style="color:#f88">⚠ Bandits arrive in '+Math.ceil(S.pending.t)+'s!</div>';
  else if(!SC[S.sc].free||S.raidsOn)h+='<div class="g" style="color:#bbb">Next raid: around day '+Math.max(S.day,Math.ceil(S.day+(S.nextRaid-OD())/M()))+'</div>';
- L.forEach(q=>{const v=q[1](),done=v>=q[2];h+='<div class="g '+(done?'done':'')+'">'+(done?'✔':'◻')+' '+q[0]+': '+Math.floor(v)+'/'+q[2]+'</div>'});
+ L.forEach(q=>{const v=q[1](),done=v>=q[2];h+='<div class="g '+(done?'done':'')+'">'+(done?'✔':'◻')+' '+q[0]+': '+fmt(Math.floor(v))+'/'+q[2]+'</div>'});
  if(S.keep)h+='<div class="g">You won! Keep building.</div>';g.innerHTML=h;
  $('gt').onclick=()=>{for(const d of g.querySelectorAll('.g'))d.style.display=d.style.display==='none'?'':'none'}}
-function bInfo(b){const d=D[b.k];let s='<b>'+d.n+'</b>';if(d.jobs)s+='<br>Workers: '+b.n+'/'+jobsOf(b)+(b.present?' (on duty '+b.present+')':'');if(d.cap)s+='<br>Residents: '+b.res+'/'+d.cap;if(b.st&&d.cyc)s+='<br>Status: '+b.st;if(TW[b.k]&&!D[b.k].out&&b.lv===1)s+='<br>Garrison '+garrison(b)+'/'+trainCap(b);if(canUp(b)||b.lv>1)s+='<br>Level <b>'+b.lv+'/'+UPM+'</b>'+(b.k!=='hall'&&levelable(b.k)?' (min = Hall Lv '+(S.hallLv||1)+')':'')+' - '+(b.k==='warehouse'?'storage +'+(150+50*(b.lv-1)):TW[b.k]&&!D[b.k].out?'garrison '+garrison(b)+'/'+trainCap(b)+', arrow damage '+(TW[b.k].dm*(1+bon('tower'))*(1+.15*(b.lv-1))).toFixed(1):'makes '+costStr(io(b).out));s+='<br>Health: '+Math.round(b.hp)+'/'+maxhp(b.k);return s}
-function updSel(){const p=$('sel');if(!sel||sel.dead){sel=null;p.classList.add('hidden');return}p.classList.remove('hidden');
+function bInfo(b){const d=D[b.k];let s='<b>'+d.n+'</b>';if(d.jobs)s+='<br>Workers: '+b.n+'/'+jobsOf(b)+(b.present?' (on duty '+b.present+')':'');if(d.cap)s+='<br>Residents: '+b.res+'/'+d.cap;if(b.st&&d.cyc)s+='<br>Status: '+b.st;if(TW[b.k]&&!D[b.k].out&&b.lv===1)s+='<br>Garrison '+garrison(b)+'/'+trainCap(b);if(canUp(b)||b.lv>1)s+='<br>Level <b>'+fmt(b.lv)+'/10K</b>'+(b.k!=='hall'&&levelable(b.k)?' (min = Hall Lv '+(S.hallLv||1)+')':'')+' - '+(b.k==='warehouse'?'storage +'+fmt(150+50*(b.lv-1)):TW[b.k]&&!D[b.k].out?'garrison '+garrison(b)+'/'+trainCap(b)+', arrow damage '+fmt(TW[b.k].dm*1.25*(1+bon('tower'))*(1+.15*(b.lv-1))):'makes '+costStr(io(b).out));s+='<br>Health: '+Math.round(b.hp)+'/'+maxhp(b.k);return s}
+function updSel(){if(document.activeElement&&document.activeElement.id==='uptg')return;const p=$('sel');if(!sel||sel.dead){sel=null;p.classList.add('hidden');return}p.classList.remove('hidden');
  p.innerHTML=bInfo(sel)+(trainCap(sel)?'<br>Garrison: <b>'+garrison(sel)+'/'+trainCap(sel)+'</b> <button id="rec" '+(garrison(sel)>=trainCap(sel)||S.res.arms<1||S.res.gold<sg()?'disabled':'')+'>Recruit (1 arms + '+sg()+' gold)</button>':'')+upInfo(sel)+'<br><i style="font-size:11px">'+D[sel.k].d+'</i><br><button id="dem">\u{1F5D1} Demolish (+50% back)</button> <button id="cls">X</button>';
- if(sel.k==='hall'&&$('dem'))$('dem').style.display='none';if($('upg'))$('upg').onclick=()=>upgrade(sel);if($('rec'))$('rec').onclick=()=>recruit(sel,false);$('dem').onclick=()=>{removeB(sel,true);sfx('crunch')};$('cls').onclick=()=>{sel=null;updSel()}}
+ if(sel.k==='hall'&&$('dem'))$('dem').style.display='none';bindUp(sel);if($('rec'))$('rec').onclick=()=>recruit(sel,false);$('dem').onclick=()=>{removeB(sel,true);sfx('crunch')};$('cls').onclick=()=>{sel=null;updSel()}}
 const tp=$('tip');
 function tip(html,e){tp.innerHTML=html;tp.style.display='block';mvTip(e)}
 function mvTip(e){let x=e.clientX+14,y=e.clientY+14;if(x+250>innerWidth)x=innerWidth-255;if(y+120>innerHeight)y=e.clientY-100;tp.style.left=x+'px';tp.style.top=y+'px'}
@@ -827,7 +888,7 @@ addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;ke
  if(modalOpen)return;
  if(e.key===' '){e.preventDefault();setSpeed(S.paused?(S.speed||1):0)}
  else if(e.key==='1')setSpeed(1);else if(e.key==='2')setSpeed(2);else if(e.key==='3')setSpeed(3);
- else if(e.key==='b'||e.key==='B')setTool(tool==='wall'?null:'wall');else if(e.key==='g'||e.key==='G')setTool(tool==='gate'?null:'gate');else if(e.key==='q'||e.key==='Q')showStore();else if(e.key==='t'||e.key==='T')showTech();else if(e.key==='x'||e.key==='X')setTool(tool==='bulldoze'?null:'bulldoze');
+ else if(e.key==='b'||e.key==='B')setTool(tool==='wall'?null:'wall');else if(e.key==='g'||e.key==='G')setTool(tool==='gate'?null:'gate');else if(e.key==='q'||e.key==='Q')showStore();else if(e.key==='k'||e.key==='K')skipNight();else if(e.key==='t'||e.key==='T')showTech();else if(e.key==='x'||e.key==='X')setTool(tool==='bulldoze'?null:'bulldoze');
  else if(e.key==='m'||e.key==='M'){muted=!muted;buildCtl()}
  else if(e.key==='+'||e.key==='='){view.z*=1.15;clampView()}else if(e.key==='-'){view.z/=1.15;clampView()}});
 addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=0});
@@ -862,7 +923,7 @@ function drawHall(b,now){const px=b.x*TS,py=b.y*TS,w=b.w*TS,t=now/1000,night=isN
  for(let i=0;i<3;i++)for(let j=0;j<2;j++){cx.fillStyle=night?'#ffe58a':'#3d5a80';cx.fillRect(mid-46+i*34,py+46+j*54,18,30)}
  for(let i=0;i<7;i++)for(let j=0;j<2;j++){cx.fillStyle=night?'#ffe58a':'#4a6a95';cx.fillRect(px+60+i*44+(i>3?30:0),py+140+j*50,16,24)}
  cx.fillStyle='#4a2f12';cx.beginPath();cx.moveTo(mid-36,py+w-2);cx.lineTo(mid-36,py+w-72);cx.arc(mid,py+w-72,36,Math.PI,0);cx.lineTo(mid+36,py+w-2);cx.closePath();cx.fill();cx.strokeStyle='#222';cx.lineWidth=2;for(let i=-24;i<=24;i+=12){cx.beginPath();cx.moveTo(mid+i,py+w-2);cx.lineTo(mid+i,py+w-78);cx.stroke()}
- cx.fillStyle='#f1c40f';cx.beginPath();cx.arc(mid,py+230,26,0,7);cx.fill();cx.strokeStyle='#7a5a00';cx.lineWidth=3;cx.stroke();cx.fillStyle='#4a3000';cx.font='bold 20px sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText('Lv'+b.lv,mid,py+231);
+ cx.fillStyle='#f1c40f';cx.beginPath();cx.arc(mid,py+230,26,0,7);cx.fill();cx.strokeStyle='#7a5a00';cx.lineWidth=3;cx.stroke();cx.fillStyle='#4a3000';cx.font='bold 20px sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText('Lv'+fmt(b.lv),mid,py+231);
  if(b.hp<maxhp('hall')){cx.fillStyle='#400';cx.fillRect(px+20,py-10,w-40,8);cx.fillStyle='#4f4';cx.fillRect(px+20,py-10,(w-40)*Math.max(0,b.hp/maxhp('hall')),8)}}
 function drawB(b,alpha,now){if(b.k==='hall'){drawHall(b,now);return}
  const d=D[b.k],px=b.x*TS,py=b.y*TS,w=b.w*TS,h=b.h*TS;let sc=1;const age=(now-b.born)/350;if(age<1){sc=0.6+0.4*(1-Math.pow(1-age,3));}
@@ -891,7 +952,7 @@ function drawB(b,alpha,now){if(b.k==='hall'){drawHall(b,now);return}
   if(d.e)cx.fillText(d.e,px+w/2,py+h*.62);
   if(b.k==='farm'){cx.fillStyle='rgba(120,180,60,.55)';for(let i=0;i<4;i++)cx.fillRect(px+6,py+h-14+i*0,w-12,0)}
  }
- if(!alpha&&b.lv>1){cx.fillStyle='#f1c40f';cx.beginPath();cx.arc(px+9,py+h-9,8,0,7);cx.fill();cx.strokeStyle='#7a5a00';cx.lineWidth=1.5;cx.stroke();cx.fillStyle='#4a3000';cx.font='bold 10px sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(b.lv,px+9,py+h-8.5)}
+ if(!alpha&&b.lv>1){if(b._lk!==b.lv){b._lk=b.lv;b._ls=fmt(b.lv)}const lc=lvCol(b.lv),wd=Math.max(8,3.2+b._ls.length*3.6);cx.fillStyle=lc[0];rr(px+9-wd,py+h-17,wd*2,16,8);cx.fill();cx.strokeStyle=lc[1];cx.lineWidth=1.5;cx.stroke();cx.fillStyle=lc[2];cx.font='bold 10px sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(b._ls,px+9,py+h-8.5);if(b.lv>=100){cx.fillStyle=lc[1];cx.fillRect(px+3,py+h-30,1.5,12);cx.fillStyle=lc[0];cx.fillRect(px+4.5,py+h-30,8,6)}}
  if(!alpha&&b.hp<maxhp(b.k)){cx.fillStyle='#400';cx.fillRect(px+2,py-5,w-4,4);cx.fillStyle='#4f4';cx.fillRect(px+2,py-5,(w-4)*Math.max(0,b.hp/maxhp(b.k)),4)}
  if(!alpha&&view.z>.55&&D[b.k].jobs&&S.tod>.3&&S.tod<.8&&(b.st==='needs workers'||(b.st&&b.st.startsWith('needs '))||b.st==='storage full'||b.st==='nothing nearby to gather')){cx.fillStyle='#e33';cx.beginPath();cx.arc(px+w-6,py+2,7,0,7);cx.fill();cx.fillStyle='#fff';cx.font='bold 11px sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText('!',px+w-6,py+2.5)}
  cx.restore()}
@@ -903,7 +964,7 @@ function person(x,y,col,t,walk,cap,hurt){const px=x*TS,py=y*TS,b=walk?Math.abs(M
 function frame(ts){
  requestAnimationFrame(frame);const now=ts||performance.now(),dtr=Math.min(.1,(now-(frame.l||now))/1000);frame.l=now;
  if(inGame&&S){
-  if(!S.paused&&!modalOpen&&!S.over){let dt=dtr*S.speed;let n=Math.ceil(dt/.1);for(let i=0;i<n;i++)sim(dt/n)}
+  if(SKIP&&!modalOpen&&!S.over)skipStep(now);else if(!S.paused&&!modalOpen&&!S.over){let dt=dtr*S.speed;let n=Math.ceil(dt/.1);for(let i=0;i<n;i++)sim(dt/n)}
   const sp=500*dtr/view.z;if(!modalOpen){if(keys.a||keys.arrowleft)view.x-=sp;if(keys.d||keys.arrowright)view.x+=sp;if(keys.w||keys.arrowup)view.y-=sp;if(keys.s||keys.arrowdown)view.y+=sp;clampView()}
   draw(now)}
  else{cx.setTransform(1,0,0,1,0,0);cx.clearRect(0,0,cv.width,cv.height)}}
@@ -925,7 +986,7 @@ function draw(now){
  list.sort((a,b)=>a.y-b.y);
  for(const o of list){if(o.b)drawB(o.b,0,now);else if(o.k===2)drawTree(o.x,o.yy,se,t);else if(o.k===3)drawRock(o.x,o.yy);else drawOre(o.x,o.yy)}
  if(sel&&!sel.dead){cx.strokeStyle='#ffe14d';cx.lineWidth=3;cx.setLineDash([6,4]);cx.strokeRect(sel.x*TS-2,sel.y*TS-2,sel.w*TS+4,sel.h*TS+4);cx.setLineDash([]);
-  const rg=TW[sel.k]?TW[sel.k].rg+.4*(sel.lv-1):D[sel.k].rad;if(rg){cx.strokeStyle='rgba(255,255,255,.7)';cx.lineWidth=2;cx.beginPath();cx.arc((sel.x+sel.w/2)*TS,(sel.y+sel.h/2)*TS,rg*TS,0,7);cx.stroke()}}
+  const rg=TW[sel.k]?TW[sel.k].rg+Math.min(10,.4*(sel.lv-1)):D[sel.k].rad;if(rg){cx.strokeStyle='rgba(255,255,255,.7)';cx.lineWidth=2;cx.beginPath();cx.arc((sel.x+sel.w/2)*TS,(sel.y+sel.h/2)*TS,rg*TS,0,7);cx.stroke()}}
  // entities
  const ents=[];
  for(const c of C){if(c.mode==='home'&&!c.walk&&isNight())continue;ents.push([c.y,0,c])}
@@ -933,7 +994,7 @@ function draw(now){
  ents.sort((a,b)=>a[0]-b[0]);
  for(const e of ents){const o=e[2];
   if(e[1]===0)person(o.x,o.y,o.job?(JC[o.job.k]||'#7986cb'):o.col,t+o.ph,o.walk,o.work?'#eee':null);
-  else if(e[1]===1){person(o.x,o.y,o.col||'#4a6fd8',t+o.x,true,'#9aa7ff');const px=o.x*TS,py=o.y*TS;cx.fillStyle='#ddd';cx.fillRect(px+4,py-12,2,10);cx.fillStyle='#4f4';cx.fillRect(px-6,py-20,12*Math.min(1,o.hp/SHP),2)}
+  else if(e[1]===1){person(o.x,o.y,o.col||'#4a6fd8',t+o.x,true,'#9aa7ff');const px=o.x*TS,py=o.y*TS;cx.fillStyle='#ddd';cx.fillRect(px+4,py-12,2,10);cx.fillStyle='#4f4';cx.fillRect(px-6,py-20,12*Math.min(1,o.hp/(SHP*lvmOf(o))),2)}
   else if(o.war)wunit(o,t);else{person(o.x,o.y,o.hit>0?'#fff':'#a8442e',t+o.x,true,'#222');const px=o.x*TS,py=o.y*TS;cx.fillStyle='#4c9a3a';cx.beginPath();cx.arc(px,py-11,3.6,0,7);cx.fill();cx.fillStyle='#222';cx.fillRect(px-3,py-12,2,2);cx.fillRect(px+1,py-12,2,2);cx.fillStyle='#d33';cx.fillRect(px-4,py-15,8,3);cx.fillStyle='#4f4';cx.fillRect(px-6,py-20,12*Math.max(0,o.hp/o.mhp),2)}}
  if(CART){const px=CART.x*TS,py=CART.y*TS;cx.font='28px "Segoe UI Emoji",sans-serif';cx.textAlign='center';cx.fillText('\u{1F6D2}',px,py)}
  // arrows
@@ -959,6 +1020,7 @@ function draw(now){
  if(S.pending){cx.fillStyle='rgba(255,0,0,'+(.12+.08*Math.sin(t*8))+')';cx.fillRect(0,0,CW,CH);cx.font='bold 22px sans-serif';cx.textAlign='center';cx.fillStyle='#fff';cx.strokeStyle='#900';cx.lineWidth=4;const tt='BANDITS INCOMING! '+Math.ceil(S.pending.t);cx.strokeText(tt,CW/2,110);cx.fillText(tt,CW/2,110)}
 
  if(celeb>0){cx.globalAlpha=Math.min(1,celeb);cx.font='bold 28px sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillStyle='#ffe08a';cx.strokeStyle='#5a2a00';cx.lineWidth=6;cx.strokeText(celebTxt,CW/2,CH*.3);cx.fillText(celebTxt,CW/2,CH*.3);cx.globalAlpha=1}
+ if(SKIP){const pr=1-SKIP.left/SKIP.total;cx.textAlign='center';cx.textBaseline='middle';cx.font='bold 56px "Segoe UI Emoji",sans-serif';cx.fillStyle='#fff';cx.fillText(pr<.7?'\u{1F319}':'\u{1F305}',CW/2,CH*.22);cx.font='bold 20px sans-serif';cx.strokeStyle='#123';cx.lineWidth=4;const tt='Sleeping... '+Math.round(pr*100)+'%';cx.strokeText(tt,CW/2,CH*.22+48);cx.fillText(tt,CW/2,CH*.22+48)}
  // minimap
  if((frame.m=(frame.m||0)+1)%6===0&&minibase){mx.drawImage(minibase,0,0,110,110);const sc=110/W;for(const b of B){mx.fillStyle=b.k==='road'?'#a95':'#f5e';mx.fillRect(b.x*sc,b.y*sc,Math.max(2,b.w*sc),Math.max(2,b.h*sc))}mx.fillStyle='#f33';for(const r of RA)mx.fillRect(r.x*sc-1,r.y*sc-1,3,3);mx.strokeStyle='#fff';mx.lineWidth=1;mx.strokeRect((view.x-CW/2/view.z)/TS*sc,(view.y-CH/2/view.z)/TS*sc,CW/view.z/TS*sc,CH/view.z/TS*sc)}}
 
