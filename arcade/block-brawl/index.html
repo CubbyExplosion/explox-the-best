@@ -2782,7 +2782,8 @@ SCN.stages={enter(){G.stg=G.stg||{tab:0,pg:0};G.stg.pg=0;G.srch.on=false;G.srch.
 const TEAM_MODES=[['2v2','2 vs 2',[0,0,1,1]],['3v3','3 vs 3',[0,0,0,1,1,1]],['4v4','4 vs 4',[0,0,0,0,1,1,1,1]],['2v2v2','2v2v2',[0,0,1,1,2,2]],['coop','Co-op vs Boss',[0,0,0,0]]];
 G.tm={mode:'2v2',ff:false,shared:false,boss:'kingcube'};
 function buildTeamSlots(){const tm=G.tm,def=TEAM_MODES.find(x=>x[0]===tm.mode);const old=G.slots||[];const pool=FIDS.filter(fOK).concat(NEWF.filter(fOK));
- G.slots=def[2].map((team,i)=>{const o=old[i];return{type:i===0?'human':(o&&o.type==='human'&&i<4?'human':'cpu'),f:(o&&o.f&&fOK(o.f))?o.f:pick(pool),team};});
+ const mt=SV.myTeamOn?(SV.myTeam||[]):[];let t0=0;
+ G.slots=def[2].map((team,i)=>{const o=old[i];const sv=team===0?mt[t0++]:null;return{type:i===0?'human':(o&&o.type==='human'&&i<4?'human':'cpu'),f:(sv&&FD[sv]&&fOK(sv))?sv:((o&&o.f&&fOK(o.f))?o.f:pick(pool)),team};});
  if(tm.mode==='coop'){G.slots=G.slots.slice(0,max(1,min(4,G.tm.heroes||2)));G.slots.forEach((s,i)=>{s.team=0;});}
  else if(G.slots[0])G.slots[0].type='human';G.mode='teams';}
 SCN.teams={enter(){if(!G.slots||!G.slots.length||G.slots[0].team===undefined||G.mode!=='teams'){G.tm.heroes=G.tm.heroes||2;buildTeamSlots();}G.mode='teams';},upd(){demoStep();},draw(){
@@ -2793,6 +2794,8 @@ SCN.teams={enter(){if(!G.slots||!G.slots.length||G.slots[0].team===undefined||G.
  if(tm.mode==='coop'){btn('hr','Heroes: '+(tm.heroes||2),440,90,120,26,()=>{tm.heroes=(tm.heroes||2)%4+1;buildTeamSlots();},{sz:12,col:'#34407a'});
   btn('bs','Boss: '+FD[tm.boss].name,568,90,200,26,()=>{const b=['kingcube','mecha','prince'];tm.boss=b[(b.indexOf(tm.boss)+1)%3];},{sz:12,col:'#a03a3a'});}
  txt('Hit your teammate? Not with friendly fire off! Knocked-out friends float as bubbles - touch them to tag them back in.',480,128,12,'#cde');
+ if(SV.myTeamOn){let k=0;const arr=SV.myTeam||[];let ch=0;G.slots.forEach(q=>{if(q.team===0){if(arr[k]!==q.f){arr[k]=q.f;ch=1;}k++;}});if(ch||!SV.myTeam){SV.myTeam=arr;save();}}
+ btn('myt','My Team: '+(SV.myTeamOn?'SAVED (your Team A is kept)':'off - tap to keep Team A'),440,500,250,30,()=>{SV.myTeamOn=!SV.myTeamOn;if(SV.myTeamOn){SV.myTeam=G.slots.filter(q=>q.team===0).map(q=>q.f);}save();sfx('sel');},{sz:12,col:SV.myTeamOn?'#2ea06b':'#34407a'});
  const n=G.slots.length;const cols=tm.mode==='4v4'||tm.mode==='3v3'||tm.mode==='2v2v2'?2:1;
  const teamsN=new Set(G.slots.map(s=>s.team)).size;
  const rowH=n>6?44:52;
@@ -2801,7 +2804,7 @@ SCN.teams={enter(){if(!G.slots||!G.slots.length||G.slots[0].team===undefined||G.
   if(idxInTeam===0)txt('TEAM '+TEAMN[tmI%4],x+8,y-8,13,SLOTCOL[tmI%4],'left');
   btn('row'+i,'',x,y+0,w,rowH,()=>{const lc=UI.lc;if(lc&&lc.x>x+w-100&&(i>0)){s.type=s.type==='human'?'cpu':'human';if(G.slots.filter(q=>q.type==='human').length>4)s.type='cpu';sfx('sel');return;}G.sel={slot:i,multi:true,teams:true,auto:false,back:'teams',next:()=>go('teams'),label:'OK >',pg:0,filter:'All'};go('select');},{col:'#2a2f66',draw:(c,ww,hh)=>{c.fillStyle=SLOTCOL[tmI%4];c.fillRect(-ww/2,-hh/2,6,hh);drawPortrait(c,s.f,-ww/2+32,0,rowH-14);txt(FD[s.f].name,-ww/2+66,-8,15,'#fff','left');txt((FD[s.f].arch||'')+(s.type==='human'?'  -  Player':'  -  CPU'),-ww/2+66,10,11,'#9bf','left');c.fillStyle=s.type==='human'?'#2ea06b':'#555';rr(ww/2-92,-12,84,24,10);c.fill();c.strokeStyle='#fff';c.lineWidth=2;c.stroke();txt(s.type==='human'?'Human':'CPU',ww/2-50,0,13,'#fff');}});
  });
- btn('rr','Randomize',24,500,140,30,()=>{G.slots.forEach(s=>{if(s.type==='cpu')s.f=pick(ROST.filter(i=>fOK(i)&&!FD[i].boss));});},{sz:13,col:'#7a3aa0'});
+ btn('rr','Randomize',24,500,140,30,()=>{G.slots.forEach(s=>{if(s.type==='cpu'&&!(SV.myTeamOn&&s.team===0))s.f=pick(ROST.filter(i=>fOK(i)&&!FD[i].boss));});},{sz:13,col:'#7a3aa0'});
  btn('go','PICK STAGE >',700,490,236,44,()=>{G.stage=G.stage||'plains';G.mode='teams';go('stages');},{col:'#e6492d',sz:22,pulse:1});
  txt('P1: WASD+E(super)+Q(assist)   P2: Arrows+,(super)+N(assist)   More players: gamepads',480,480,11.5,'#cde');
 }};
