@@ -40,7 +40,12 @@ a.btn{display:inline-block;margin-top:12px;background:#ffcd30;color:#1a1a1a;padd
 const TOTAL=1000;
 const Q=['Are you sure?','Really sure?','Pinky promise?','Are you SUPER sure?','Hmm, are you positive?','Double sure?','Triple sure?','Are you absolutely certain?','Would you bet a cookie on it?','Cross your heart?','Are you still sure?','For real this time?','No take-backs. Sure?','Last chance to change your mind!','Just checking... sure?','Are you a hundred percent sure?','Okay but like, sure sure?','Is that your final answer?','Are you reading these? 👀','Still here? Impressive. Sure?','Wow, you have patience!','Dad, you are stubborn 😄','Keep going!','Almost... not really!','Are you sure you are sure?','Deep breath. Sure?','You could be playing a game instead...','But are you sure?','Ok this one is the last — just kidding!','Sure-sure-sure?'];
 let n=0;const q=document.getElementById('q'),count=document.getElementById('count');
-function next(){n++;if(n>TOTAL){return win(false);}q.textContent=Q[(n-1)%Q.length];count.textContent=n+' / '+TOTAL;}
+// remember how many times Dad opened it (only this page's own storage)
+let visits=1;try{visits=(parseInt(localStorage.getItem('dadprank_visits')||'0',10)||0)+1;localStorage.setItem('dadprank_visits',visits);}catch(e){}
+if(visits>1){const b=document.getElementById('bg');if(b)b.querySelector('h2').innerHTML='👋 Back again, Dad? This is time #'+visits+'! 😄<br><span style="font-size:14px;color:#999">(you can close this tab any time)</span>';}
+let sac=null;
+function boing(){try{sac=sac||new (window.AudioContext||window.webkitAudioContext)();const t=sac.currentTime+.01;const o=sac.createOscillator(),g=sac.createGain();o.type='sine';o.frequency.setValueAtTime(260,t);o.frequency.exponentialRampToValueAtTime(520,t+.12);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.04,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+.18);o.connect(g);g.connect(sac.destination);o.start(t);o.stop(t+.2);}catch(e){}}
+function next(){n++;if(n>TOTAL){return win(false);}q.textContent=Q[(n-1)%Q.length];count.textContent=n+' / '+TOTAL;if(n>1)boing();}
 document.getElementById('ok').onclick=next;
 document.getElementById('give').onclick=()=>win(true);
 document.getElementById('x').onclick=()=>win(true);
