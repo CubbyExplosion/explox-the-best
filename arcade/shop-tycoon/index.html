@@ -86,12 +86,17 @@ table.rp{width:100%;border-collapse:collapse;font-size:14px}table.rp td,table.rp
 .brbar button.cap{border-color:#e53935}.brbar button.add{background:var(--grn);color:#fff;border-color:var(--grn)}
 .brbar button small{display:block;opacity:.8;font-size:11px}
 .capbar{height:16px;background:#eadfc6;border-radius:10px;overflow:hidden;margin:4px 0}.capbar i{display:block;height:100%;background:linear-gradient(90deg,#2fbf71,#ffb300);transition:width .3s}.capbar.full i{background:#e53935}
+.jb{display:flex;gap:8px;align-items:center;padding:8px 4px;border-bottom:1px dashed var(--line);text-align:left}.jb .e{font-size:28px}.jb .m{flex:1}.jb small{display:block;opacity:.75}
+#wkGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}#wkGrid button{min-height:70px;font-size:30px;background:#dfe6ee;color:#222;box-shadow:none}#wkGrid button.on{background:#ffd23f;transform:scale(1.04)}
+.lay{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:6px 0}.slot{border:2px dashed var(--line);border-radius:10px;padding:6px;font-size:12px;text-align:center;min-height:54px;background:#fff}.slot.hot{border-color:var(--pur);background:#f1eaff}.slot b{display:block;font-size:15px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}.chip2{background:#fff;border:2px solid var(--line);border-radius:999px;padding:5px 10px;cursor:grab;user-select:none;font-size:13px;font-weight:700}.chip2.sel{border-color:var(--pur);background:#f1eaff}
 </style></head><body>
 <div id="app">
  <div class="top">
   <div class="logo"><img class="lg" data-logo="1" alt="S.I.P."> SUPER SIP<small>S.I.P. ARCADE</small></div>
   <div class="pill money" id="money">💰 100 SIP</div>
   <div style="display:flex;gap:6px">
+   <button class="iconbtn" id="bJobs" title="Job Centre">💼</button>
    <button class="iconbtn" id="bGfx" title="Graphics: Realistic / Lite / Cartoon">🎨</button>
    <button class="iconbtn" id="bRank" title="Top Shops">🏁</button>
    <button class="iconbtn" id="bAch" title="Medals">🏅</button>
@@ -159,6 +164,11 @@ table.rp{width:100%;border-collapse:collapse;font-size:14px}table.rp td,table.rp
 <div class="ov" id="ovRival"><div class="box"><h2>🏁 Rival alert!</h2><p id="rvTxt" style="font-size:18px;font-weight:800"></p><div class="col"><button class="g" id="bRvOk">Back to work!</button><button class="b" id="bRvLb">See Top Shops</button></div></div></div>
 <div class="ov" id="ovRank"><div class="box"><img class="lgb" data-logo="1" alt=""><h2>🏁 Top Shops</h2><div id="lbList" style="text-align:left"></div><div class="col"><button id="bRankClose">Close</button></div></div></div>
 <div class="ov" id="ovBest"><div class="box" style="max-width:640px"><img class="lgb" data-logo="1" alt=""><h1>🏆 THE BEST SHOP ON EARTH! 🏆</h1><p style="font-size:20px;font-weight:800">SUPER SIP sold 1e222 items. Nobody has ever sold more!</p><div id="bestRec" style="text-align:left"></div><div class="col"><button class="g" id="bBestOk">Keep playing!</button></div></div></div>
+<div class="ov" id="ovJobs"><div class="box" style="max-width:640px"><h2>💼 Job Centre</h2><p style="font-size:13px">Part-time jobs earn SIP when the shop is short of cash. Your shop keeps running at reduced speed while you work (and closes if you have no cashier). Jobs pay much less than a healthy shop.</p><div id="jobCV" style="text-align:left;font-size:13px"></div><div id="jobList"></div><div class="col"><button id="bJobsClose">Close</button></div></div></div>
+<div class="ov" id="ovWork"><div class="box"><h2 id="wkTitle">Shift</h2><p id="wkInfo"></p><div class="bar small"><i id="wkBar"></i></div><div id="wkGrid"></div><div class="col"><button class="b" id="wkSkip">Work quietly (skip, 60% pay)</button><button class="x" id="wkQuit" style="font-size:15px;min-height:44px">Leave early (no pay, lowers reliability)</button></div></div></div>
+<div class="ov" id="ovPay"><div class="box"><h2>🧾 Payslip</h2><div id="payTxt" style="text-align:left"></div><div class="col"><button class="g" id="payOk">Collect pay</button></div></div></div>
+<div class="ov" id="ovBroke"><div class="box"><h2>😟 Money is tight</h2><p id="brokeTxt"></p><div class="col"><button class="g" id="brokeYes">💼 Open the Job Centre</button><button class="x" id="brokeNo" style="font-size:15px">Maybe later</button></div></div></div>
+<div class="ov" id="ovDock"><div class="box"><h2>🚚 Receive delivery</h2><p id="dkTxt"></p><div class="col"><button class="g" id="dkOk">Accept delivery</button><button class="b" id="dkRej">Accept and claim refund for damaged</button></div></div></div>
 <div class="ov" id="ovWin"><div class="box"><img class="lgb" data-logo="1" alt=""><h1>🎉🏆🎉</h1><h2>1,000,000 ITEMS SOLD!</h2>
  <p style="font-size:44px">🏪🥳🎊</p>
  <p>SUPER SIP is the greatest shop ever! Everybody loves it.</p>
@@ -250,6 +260,20 @@ EVENTS.push({id:'heat',n:'Heatwave',e:'🔥',d:'Cold drinks and ice cream fly of
 var REGN=['Mia','Leo','Zoe','Max','Ivy','Sam','Ella','Noah','Ruby','Finn','Lola','Theo'];
 var LOCS=['Corner Stand','Small Shop','Corner Store','Big Shop','Two-Floor Shop','Three-Floor Shop','Mini Mall','Town Branch','City Branches','Country Chain','World Chain','Mega Mall Empire'];
 var MAXE=LOCS.length-1;
+var JOBS=[
+ {id:'paper',n:'Paper round',e:'📰',w:5,h:2,t:.15,sk:'phy',req:{exp:0},d:'Deliver newspapers around the neighbourhood.'},
+ {id:'dog',n:'Dog walking',e:'🐕',w:5.5,h:2,t:.15,sk:'care',req:{exp:0},d:'Walk friendly dogs in the park.'},
+ {id:'car',n:'Car wash helper',e:'🚗',w:6,h:2,t:.2,sk:'phy',req:{exp:0},d:'Sponge and rinse cars at the car wash.'},
+ {id:'farm',n:'Farm helper',e:'🚜',w:7,h:3,t:.25,sk:'phy',req:{exp:4},d:'Collect eggs and feed the animals.'},
+ {id:'lib',n:'Library assistant',e:'📚',w:7.5,h:2,t:.1,sk:'num',req:{exp:6,num:1},d:'Shelve books and stamp return dates.'},
+ {id:'pack',n:'Warehouse packer',e:'📦',w:9,h:3,t:.3,sk:'phy',req:{exp:8,phy:2},d:'Pack parcels in a busy warehouse.'},
+ {id:'cafe',n:'Cafe waiter',e:'🍰',w:9.5,h:3,t:.25,sk:'cus',req:{exp:10,cus:2},d:'Carry cakes and drinks to tables.'},
+ {id:'till',n:'Cashier at another shop',e:'🧾',w:11,h:3,t:.2,sk:'cus',req:{exp:15,cus:3,num:2},d:'Work a till in a friendly shop.'},
+ {id:'tutor',n:'Tutor',e:'🎓',w:14,h:2,t:.15,sk:'num',req:{exp:25,num:4},d:'Help younger pupils with maths.'},
+ {id:'van',n:'Delivery van helper',e:'🚚',w:16,h:3,t:.3,sk:'phy',req:{exp:35,phy:4},d:'Ride along and carry parcels to doors.'}];
+var SKN={cus:'Customer service',phy:'Fitness',num:'Numbers',care:'Care'};
+var REGS=[{n:'Mia',look:8,fav:0},{n:'Leo',look:0,fav:1},{n:'Zoe',look:2,fav:2},{n:'Max',look:7,fav:7},{n:'Ivy',look:10,fav:6},{n:'Sam',look:11,fav:4},{n:'Ella',look:3,fav:5},{n:'Noah',look:1,fav:2},{n:'Ruby',look:17,fav:3},{n:'Finn',look:14,fav:7},{n:'Lola',look:15,fav:1},{n:'Theo',look:16,fav:4}];
+var SLOTN=['Eye-level left','Eye-level right','Entrance display','Checkout rack','Top shelf','Bottom shelf'],SLOTM=[1.35,1.3,1.15,1.2,.9,.85];
 var BR_CAP=1000,BRMAX=49,TA=['Harbour','Maple','Sunny','Hilltop','Riverside','Market','Oak','Lake','Station','Garden'],TB=['St','Lane','Park','Rd','Square'];
 function townName(k){return TA[k%10]+' '+TB[Math.floor(k/10)%5]}
 function newBranch(k){return {name:'Super SIP - '+townName(k-1),staff:1,mgr:0,stk:0,px:1,earned:0}}
@@ -310,6 +334,8 @@ A('br1','🏪','Second Shop','Open your first branch.',function(s){return s.br.l
 A('br10','🏙️','Ten Shops','Run 10 shops at once.',function(s){return s.br.length>=9});
 A('br25','🌆','Chain Store','Run 25 shops at once.',function(s){return s.br.length>=24});
 A('br50','🌍','Shop Empire','Run 50 shops at once.',function(s){return s.br.length>=49});
+A('job1','💼','First Paycheque','Finish a shift at a job.',function(s){return s.job.shifts>=1});
+A('job20','🧑‍🔧','Hard Worker','Finish 20 job shifts.',function(s){return s.job.shifts>=20});
 A('exp1','🏬','Moving Up','Expand your shop.',function(s){return s.exp>=1});
 A('exp4','🏙️','Shopping Street','Reach the Two-Floor Shop.',function(s){return s.exp>=4});
 A('exp7','🌆','Town Branch','Open a Town Branch.',function(s){return s.exp>=7});
@@ -340,7 +366,7 @@ function newAcc(){return {rev:0,cogs:0,waste:0,cat:[0,0,0,0,0,0,0,0]}}
 function freshRec(){return {t1k:0,t1m:0,dayItems:0,dayProfit:0,rich:100,big:0,bestStreak:0,rep:0,staff:0,loc:0,margin:0,hasDay:0}}
 function freshState(starter){var st={v:2,money:100,sold:0,run:0,earned:0,runEarned:0,stock:new Float64Array(NI),upg:{},exp:0,fp:0,fran:0,price:1,day:1,dayT:42,
  ip:new Float64Array(NI),seen:new Uint8Array(NI),fav:new Uint8Array(NI),nseen:0,auto:true,
- br:[],sup:0,orders:[],loan:0,trend:[1,1,1,1,1,1,1,1],comp:[1,1],sh:{cat:-1,left:0},acc:newAcc(),last:null,wk:{rev:0,cogs:0,waste:0,rent:0,wages:0,elec:0,tax:0,int:0,profit:0,days:0,fees:0,vat:0,fine:0},clean:100,insp:{n:0,fines:0,good:0},tut:0,ins:false,broke:{fridge:0,till:0},morale:1,raise:0,train:0,sick:0,loyal:0,rivNear:0,oh:8,ch:20,manual:false,eye:-1,imp:-1,regVisits:0,wkLast:null,
+ br:[],sup:0,orders:[],loan:0,trend:[1,1,1,1,1,1,1,1],comp:[1,1],sh:{cat:-1,left:0},acc:newAcc(),last:null,wk:{rev:0,cogs:0,waste:0,rent:0,wages:0,elec:0,tax:0,int:0,profit:0,days:0,fees:0,vat:0,fine:0},clean:100,insp:{n:0,fines:0,good:0},tut:0,ins:false,broke:{fridge:0,till:0},morale:1,raise:0,train:0,sick:0,loyal:0,rivNear:0,oh:8,ch:20,manual:false,eye:-1,imp:-1,regVisits:0,regv:[0,0,0,0,0,0,0,0,0,0,0,0],layout:[-1,-1,-1,-1,-1,-1],rel:[0,0,0],neg:[0,0,0],checkDel:false,job:{exp:0,skills:{cus:0,phy:0,num:0,care:0},jr:{},jh:{},rel:100,tired:0,shifts:0,net:0,ban:0},wkLast:null,
  rec:freshRec(),di:0,streak:0,best:false,riv:[0,0,0,0,0,0],rivBest:[0,0,0,0,0,0],rivSk:[1.15,.95,1,.8,.7,.6],rank:1,
  ach:{},rep:3,clicks:0,vip:0,evSeen:0,celeb:0,away:0,played:0,won:false,savedAt:Date.now(),firstSale:false,muteHint:false};
  if(starter)for(var q=0;q<6;q++)st.stock[q]=50;return st}
@@ -372,7 +398,12 @@ function sanitize(o){var st=freshState();if(!o||typeof o!=='object')return st;
  if(o.sh&&typeof o.sh==='object')st.sh={cat:Math.floor(num(o.sh.cat,-1,-1,7)),left:num(o.sh.left,0,0,5)};
  if(Array.isArray(o.orders))o.orders.slice(0,300).forEach(function(q){var i=Math.floor(num(q&&q.i,-1,-1,NI-1));if(i>=0)st.orders.push({i:i,n:num(q.n,0,0,BIG),t:num(q.t,0,0,600)})});
  if(o.acc){st.acc={rev:num(o.acc.rev,0,0,BIG),cogs:num(o.acc.cogs,0,0,BIG),waste:num(o.acc.waste,0,0,BIG),cat:[0,0,0,0,0,0,0,0]};if(Array.isArray(o.acc.cat))for(var i=0;i<8;i++)st.acc.cat[i]=num(o.acc.cat[i],0,0,BIG)}
- st.clean=num(o.clean,100,0,100);st.ins=!!o.ins;if(o.broke&&typeof o.broke==='object')st.broke={fridge:o.broke.fridge?1:0,till:o.broke.till?1:0};st.morale=num(o.morale,1,.4,1);st.raise=Math.floor(num(o.raise,0,0,5));st.train=Math.floor(num(o.train,0,0,5));st.sick=Math.floor(num(o.sick,0,0,3));st.loyal=num(o.loyal,0,0,1);st.rivNear=Math.floor(num(o.rivNear,0,0,5));st.oh=Math.floor(num(o.oh,8,5,11));st.ch=Math.floor(num(o.ch,20,16,23));st.manual=!!o.manual;st.eye=Math.floor(num(o.eye,-1,-1,7));st.imp=Math.floor(num(o.imp,-1,-1,7));st.regVisits=Math.floor(num(o.regVisits,0,0,1e12));if(o.insp&&typeof o.insp==='object')st.insp={n:num(o.insp.n,0,0,1e9),fines:num(o.insp.fines,0,0,BIG),good:num(o.insp.good,0,0,1e9)};
+ st.clean=num(o.clean,100,0,100);st.ins=!!o.ins;if(o.broke&&typeof o.broke==='object')st.broke={fridge:o.broke.fridge?1:0,till:o.broke.till?1:0};st.morale=num(o.morale,1,.4,1);st.raise=Math.floor(num(o.raise,0,0,5));st.train=Math.floor(num(o.train,0,0,5));st.sick=Math.floor(num(o.sick,0,0,3));st.loyal=num(o.loyal,0,0,1);st.rivNear=Math.floor(num(o.rivNear,0,0,5));st.oh=Math.floor(num(o.oh,8,5,11));st.ch=Math.floor(num(o.ch,20,16,23));st.manual=!!o.manual;st.eye=Math.floor(num(o.eye,-1,-1,7));st.imp=Math.floor(num(o.imp,-1,-1,7));st.regVisits=Math.floor(num(o.regVisits,0,0,1e12));
+ if(Array.isArray(o.regv))for(var i=0;i<12;i++)st.regv[i]=Math.floor(num(o.regv[i],0,0,1e12));
+ if(Array.isArray(o.layout))for(var i=0;i<6;i++)st.layout[i]=Math.floor(num(o.layout[i],-1,-1,7));else{if(st.eye>=0)st.layout[0]=st.eye;if(st.imp>=0)st.layout[3]=st.imp}
+ if(Array.isArray(o.rel))for(var i=0;i<3;i++)st.rel[i]=num(o.rel[i],0,0,100);if(Array.isArray(o.neg))for(var i=0;i<3;i++)st.neg[i]=Math.floor(num(o.neg[i],0,0,5));
+ st.checkDel=!!o.checkDel;
+ if(o.job&&typeof o.job==='object'){var J=o.job,sj=st.job;sj.exp=num(J.exp,0,0,1e9);['cus','phy','num','care'].forEach(function(k){sj.skills[k]=num(J.skills&&J.skills[k],0,0,99)});JOBS.forEach(function(j){sj.jr[j.id]=Math.floor(num(J.jr&&J.jr[j.id],0,0,3));sj.jh[j.id]=num(J.jh&&J.jh[j.id],0,0,1e6)});sj.rel=num(J.rel,100,0,100);sj.tired=num(J.tired,0,0,1);sj.shifts=Math.floor(num(J.shifts,0,0,1e9));sj.net=num(J.net,0,0,1e300);sj.ban=num(J.ban,0,0,1e5)}if(o.insp&&typeof o.insp==='object')st.insp={n:num(o.insp.n,0,0,1e9),fines:num(o.insp.fines,0,0,BIG),good:num(o.insp.good,0,0,1e9)};
  st.tut=typeof o.tut==='number'?Math.floor(num(o.tut,0,0,99)):(st.sold>300?99:0);
  if(o.wk)for(var k in st.wk)st.wk[k]=num(o.wk[k],0,-BIG,BIG);
  st.last=cleanRep(o.last);st.wkLast=cleanRep(o.wkLast);
@@ -382,7 +413,7 @@ function sanitize(o){var st=freshState();if(!o||typeof o!=='object')return st;
  st.rank=Math.floor(num(o.rank,1,1,7));
  st.savedAt=num(o.savedAt,Date.now(),0,Date.now()+60000);
  if(st.run>1e12)st.run=1e12;return st}
-function cleanRep(x){if(!x||typeof x!=='object')return null;var o={};['rev','cogs','waste','rent','wages','elec','tax','int','profit','day','days','fees','vat','fine'].forEach(function(k){o[k]=num(x[k],0,-1e21,1e21)});return o}
+function cleanRep(x){if(!x||typeof x!=='object')return null;var o={};['rev','cogs','waste','rent','wages','elec','tax','int','profit','day','days','fees','vat','fine','till'].forEach(function(k){o[k]=num(x[k],0,-1e21,1e21)});return o}
 function lv(id){return S&&S.upg[id]||0}
 function staffTotal(){return lv('cashier')+lv('stocker')+lv('greeter')+lv('manager')+lv('cleaner')}
 function unlockedCount(){var lo=0,hi=NI;while(lo<hi){var m=(lo+hi)>>1;if(ITEMS[m].unlock<=S.run)lo=m+1;else hi=m}return lo}
@@ -403,14 +434,14 @@ function curEvent(){return R.ev}
 function derive(){
  var d={};
  d.sp=(1+0.05*lv('manager'))*(1+0.08*lv('scanner'))*(1+0.06*S.train)*(0.75+0.25*S.morale)*(S.sick>0?0.8:1);
- d.cr=lv('cashier')*0.22*d.sp*1.2*(S.broke.till?0.5:1);
+ d.cr=lv('cashier')*0.22*d.sp*1.2*(S.broke.till?0.5:1)*(R.work?0.7:1);
  d.stockRate=lv('stocker')*2.5*d.sp;
  var ads=lv('flyers')*.05+lv('radio')*.08+lv('tv')*.12+lv('bill')*.2;
  d.ads=ads;
  var rep=0.6+0.2*S.rep;
  var ev=R.ev,em=1;if(ev){if(ev.id==='rush')em=2;else if(ev.id==='celeb')em=3;else if(ev.id==='rain')em=.7;else if(ev.id==='heat')em=1.1;else if(ev.id==='storm')em=.5}
  d.em=em;
- d.cf=0.7+0.3*S.clean/100;var hr=S.dayT/DAY*24;d.hour=hr;d.open=!S.manual&&hr>=S.oh&&hr<S.ch;
+ d.cf=0.7+0.3*S.clean/100;var hr=S.dayT/DAY*24;d.hour=hr;d.open=!S.manual&&hr>=S.oh&&hr<S.ch&&!(R.work&&lv('cashier')<1);
  var tr=trafficHour(8+(hr-S.oh)*12/Math.max(6,S.ch-S.oh))*DOWM[(S.day-1)%7]*1.9;
  d.lamAvg=d.cf*(1.0+0.15*lv('greeter'))*(1+ads)*rep*Math.pow(1.17,S.exp)*(1+0.1*S.fp)*em*(1+0.25*S.loyal)*(S.rivNear>0?0.9:1);
  d.lam=d.lamAvg*tr;d.traf=tr;
@@ -425,11 +456,12 @@ function derive(){
  R.derived=d;return d}
 function mkt(i){var c=ITEMS[i].cat,sh=(S.sh.cat===c&&S.sh.left>0)?1.25:1;return ITEMS[i].price*S.trend[c]*((S.comp[0]+S.comp[1])/2)*sh}
 function myPrice(i){return S.ip[i]>0?S.ip[i]:mkt(i)}
-function uCost(i,sup){var sp=SUPS[sup===undefined?S.sup:sup],sh=(S.sh.cat===ITEMS[i].cat&&S.sh.left>0)?1.7:1;return ITEMS[i].cost*R.derived.wm*sp.m*sh}
+function uCost(i,sup){var sv=sup===undefined?S.sup:sup,sp=SUPS[sv],sh=(S.sh.cat===ITEMS[i].cat&&S.sh.left>0)?1.7:1;return ITEMS[i].cost*R.derived.wm*sp.m*sh*(1-Math.min(.1,S.rel[sv]/1000))*(S.neg[sv]>0?.95:1)}
 function wCost(i,sup){return uCost(i,sup)*R.derived.im}
 function pendOf(i){return R.pend?R.pend[i]||0:0}
 function weights(){
  var u=unlockedCount();
+ R.cm=[1,1,1,1,1,1,1,1];var cmS=[0,0,0,0,0,0,0,0];for(var k=0;k<6;k++){var lc=S.layout[k];if(lc>=0){if(!cmS[lc]){R.cm[lc]=SLOTM[k];cmS[lc]=1}else R.cm[lc]=Math.max(R.cm[lc],SLOTM[k])}}
  var se=SEASONS[Math.floor((S.day-1)/7)%4],sp=SPECIAL();
  var aI=[],aW=[],aR=[],aP=[],sum=0,rs=0,slotsUsed=0;
  for(var i=0;i<u;i++){var st=S.stock[i];if(st<1){if(pendOf(i)>0)slotsUsed++;continue}
@@ -438,7 +470,7 @@ function weights(){
   if(sp&&sp.cats.indexOf(it.cat)>=0)w*=1.5;
   if(R.ev&&R.ev.id==='rain'&&(it.cat===1||it.cat===2||it.cat===6))w*=2;
   if(R.ev&&R.ev.id==='heat'&&it.cat===0)w*=2;
-  if(it.cat===S.eye)w*=1.35;if(it.cat===S.imp)w*=1.2;if(S.broke.fridge&&it.cat===0)w*=0.5;
+  w*=R.cm[it.cat];if(S.broke.fridge&&it.cat===0)w*=0.5;
   var m=mkt(i),p=S.ip[i]>0?S.ip[i]:m;
   aI.push(i);aW.push(w);aR.push(p/m);aP.push(p);sum+=w;rs+=w*p/m;slotsUsed++}
  var unmet=0.35/(1+aI.length/6);
@@ -483,7 +515,7 @@ function serveOne(c,manual){
   else{addRep(0.2,1);review('Way too expensive!',1);if(c){floatText(c.x,170,'Too pricey!','#d32f2f')}sBad();return 'refuse'}}
  if(c&&c.reg)P*=0.95;
  var rev=qty*P*t.pm*d.pm*d.im;S.acc.cat[ITEMS[item].cat]+=rev;
- S.stock[item]-=qty;bookSale(qty,rev);S.acc.rev=cb(S.acc.rev+rev);R.capLeft-=rev;R.rate._m+=rev;if(c&&c.reg){S.regVisits++;if(Math.random()<.5)floatText(c.x,110,'❤ '+c.reg+' is back!','#d6336c')}
+ S.stock[item]-=qty;bookSale(qty,rev);S.acc.rev=cb(S.acc.rev+rev);R.capLeft-=rev;R.rate._m+=rev;if(c&&c.reg){S.regVisits++;if(c.ri>=0)S.regv[c.ri]++;if(Math.random()<.5)floatText(c.x,110,'❤ '+c.reg+' is back!','#d6336c')}
  if(!S.seen[item]){S.seen[item]=1;S.nseen++}
  if(hag){addRep(.6,1);review('Haggled a discount.',3)}else if(ratio<0.9){addRep(1,1);review('Great prices!',5)}else{addRep(0.9,1);review('Fair prices, nice shop.',4)}
  var rv=rev/d.im,paid=Math.ceil(rv/5)*5;if(paid<rv)paid=rv;
@@ -497,8 +529,9 @@ function pickItem(){if(R.wtDirty)weights();var r=Math.random()*R.wtSum,s=0;for(v
  for(var t=0;t<8;t++){var i=Math.floor(Math.random()*Math.max(1,R.u));if(S.stock[i]<1)return i}return 0}
 function newCustomer(){
  var d=R.derived,t=pickType();var b=Math.max(1,Math.floor(d.basket)+(Math.random()<d.basket%1?1:0));b=Math.max(1,Math.round(b*t.bm));
- var rg=Math.random()<S.loyal*0.4?REGN[Math.floor(Math.random()*REGN.length)]:null;
- return {reg:rg,type:t,mood:.85+Math.random()*.3+(rg?0.2:0),item:pickItem(),qty:b,pat:t.id==='pick'?18:28,maxPat:t.id==='pick'?18:28,x:830,tx:0,leave:0,bounce:Math.random()*6}}
+ var ri=Math.random()<S.loyal*0.4?Math.floor(Math.random()*REGS.length):-1,rg=ri>=0?REGS[ri].n:null,it0=pickItem();
+ if(ri>=0){var lk=REGS[ri].look;t=lk<3?TYPES[0]:lk<5?TYPES[2]:lk<7?TYPES[4]:t;if(Math.random()<.7){var cands=R.actI.filter(function(q){return ITEMS[q].cat===REGS[ri].fav});if(cands.length)it0=cands[Math.floor(Math.random()*cands.length)]}}
+ return {reg:rg,ri:ri,li:ri>=0?REGS[ri].look:undefined,type:t,mood:.85+Math.random()*.3+(rg?0.2:0),item:it0,qty:b,pat:t.id==='pick'?18:28,maxPat:t.id==='pick'?18:28,x:830,tx:0,leave:0,bounce:Math.random()*6}}
 
 /* bulk service of n customers (expected values) */
 function bulkCalc(n,factor,apply){
@@ -543,12 +576,15 @@ function placeOrder(i,n,sup,auto){
  n=Math.max(n,sp.min);if(n>room){if(room<sp.min){if(!auto){toast('Shelves too small for the '+sp.min+'-item minimum order. Buy bigger shelves!');sBad()}return 0}n=room}
  var c=wCost(i,sup),afford=Math.floor(S.money/c);if(afford<sp.min||afford<1){if(!auto)sBad();return 0}
  n=Math.min(n,afford);if(n<sp.min)return 0;
- S.money-=n*c;S.acc.cogs+=n*c;var dl=sp.dl*R.derived.dl*(sup>0?(0.85+Math.random()*0.5):1);
+ var disc=n>=200?.9:n>=50?.95:1;S.rel[sup]=Math.min(100,S.rel[sup]+n*0.02);
+ S.money-=n*c*disc;S.acc.cogs+=n*c*disc;var dl=sp.dl*R.derived.dl*(sup>0?(0.85+Math.random()*0.5):1);
  if(dl<=0.01)S.stock[i]+=n;else{S.orders.push({i:i,n:n,t:dl,s:sup>0?1:0});R.pend=R.pend||[];R.pend[i]=pendOf(i)+n}
  if(isNew)R.nAct++;
  if(!auto){sBuy();R.didOrder=true}return n}
 function runOrders(dt){
- for(var i=S.orders.length-1;i>=0;i--){var o=S.orders[i];o.t-=dt;if(o.t<=0){var dmg=0;if(o.s&&Math.random()<0.15)dmg=Math.min(o.n,Math.ceil(o.n*0.03));S.stock[o.i]+=o.n-dmg;if(dmg)S.acc.waste+=dmg*wCost(o.i,0);S.orders.splice(i,1);R.wtDirty=true;if(!R.off){R.truckT=R_t;if(R_t-(R.dlvMsg||-99)>12){R.dlvMsg=R_t;toast('🚚 Delivery arrived at the back door'+(dmg?' ('+dmg+' damaged in transit)':'')+'.')}}}}
+ for(var i=S.orders.length-1;i>=0;i--){var o=S.orders[i];o.t-=dt;if(o.t<=0){var dmg=0;if(o.s&&Math.random()<0.15)dmg=Math.min(o.n,Math.ceil(o.n*0.03));
+  if(S.checkDel&&!R.off){R.dock=R.dock||[];R.dock.push({i:o.i,n:o.n,dmg:dmg,cost:wCost(o.i,0)});R.dockT=R.dockT||0;S.orders.splice(i,1);R.wtDirty=true;R.truckT=R_t;if(!R.dockShown)dockShow();continue}
+  S.stock[o.i]+=o.n-dmg;if(dmg)S.acc.waste+=dmg*wCost(o.i,0);S.orders.splice(i,1);R.wtDirty=true;if(!R.off){R.truckT=R_t;if(R_t-(R.dlvMsg||-99)>12){R.dlvMsg=R_t;toast('🚚 Delivery arrived at the back door'+(dmg?' ('+dmg+' damaged in transit)':'')+'.')}}}}
  R.pend=new Array(NI).fill(0);for(var i=0;i<S.orders.length;i++)R.pend[S.orders[i].i]+=S.orders[i].n}
 function autoStock(dt){
  var d=R.derived;if(d.stockRate<=0||!S.auto)return;
@@ -577,14 +613,17 @@ function closeBooks(){
  var E=S.exp,st=staffTotal();
  var im=R.derived.im,rent=8*Math.pow(3.4,E)*im,wages=(lv('cashier')*3+lv('stocker')*3+lv('greeter')*2+lv('manager')*8+lv('cleaner')*2)*Math.pow(1.6,E)*im*(1+0.2*S.raise)*(S.ch-S.oh)/12,elec=(2+0.15*st)*Math.pow(2,E)*im;
  var interest=S.loan*0.02,a=S.acc;
- var cs=Math.min(.8,.4+.04*E),fees=a.rev*cs*0.015+(S.ins?5*Math.pow(2.5,E)*im:0)+a.rev*(1-cs)*0.002,vat=0;for(var c=0;c<8;c++)vat+=(a.cat?a.cat[c]:0)*CATVAT[c]/(1+CATVAT[c]);
+ var cs=Math.min(.8,.4+.04*E),fees=a.rev*cs*0.015+(S.ins?5*Math.pow(2.5,E)*im:0)+0,vat=0;for(var c=0;c<8;c++)vat+=(a.cat?a.cat[c]:0)*CATVAT[c]/(1+CATVAT[c]);
  var grace=S.day<=2;if(grace){rent=wages=elec=interest=0}
  var pre=a.rev-a.cogs-a.waste-rent-wages-elec-interest-fees-vat,tax=pre>0&&!grace?pre*0.08:0;
+ var cashExp=a.rev*(1-cs),till=cashExp*0.004*(1-0.05*Math.min(10,lv('manager')))*(0.5+Math.random());fees+=till;
  var bills=rent+wages+elec+interest+tax+fees+vat;
  var chunk=300*Math.pow(4,E)*im;
+ if(S.money<bills&&!R.off)R.billsShort=true;
  if(S.money>=bills)S.money-=bills;else{S.loan=Math.min(S.loan+(bills-S.money),chunk*12);S.money=0}
  if(S.money<chunk*0.05&&S.loan>chunk*2){S.loan=chunk*2;S.money+=chunk*0.1;if(!R.off)toast('🏦 The bank restructured your debt and lent you a little cash to carry on.',true)}
- var rep={day:S.day,rev:a.rev,cogs:a.cogs,waste:a.waste,rent:rent,wages:wages,elec:elec,tax:tax,int:interest,fees:fees,vat:vat,fine:0,profit:a.rev-a.cogs-a.waste-bills,days:1};
+ var rep={day:S.day,rev:a.rev,cogs:a.cogs,waste:a.waste,rent:rent,wages:wages,elec:elec,tax:tax,int:interest,fees:fees,vat:vat,fine:0,profit:a.rev-a.cogs-a.waste-bills,days:1,till:till};
+ if(!R.off&&till>0&&cashExp>0)toast('💵 Till count: expected '+fmt(cashExp)+' in cash, counted '+fmt(cashExp-till)+' (short '+fmt(till)+'). Managers reduce errors.');
  S.last=rep;var w=S.wk;['rev','cogs','waste','rent','wages','elec','tax','int','profit','fees','vat','fine'].forEach(function(k){w[k]=(w[k]||0)+rep[k]});w.days++;
  if(w.days>=7){S.wkLast=cleanRep(w);S.wkLast.day=S.day;for(var k in w)w[k]=0;if(!R.off)toast('📒 Weekly report ready: profit '+fmt(S.wkLast.profit)+' SIP')}
  var rc=S.rec;if(!grace){if(S.di>rc.dayItems)rc.dayItems=S.di;if(!rc.hasDay||rep.profit>rc.dayProfit){rc.dayProfit=rep.profit;rc.hasDay=1}if(a.rev>0&&rep.profit/a.rev>rc.margin)rc.margin=rep.profit/a.rev}
@@ -600,6 +639,7 @@ function dayChange(offline){
  var rep=closeBooks();
  S.day++;S.dayT=0;R.wtDirty=true;R.ev=null;
  if(S.sick>0)S.sick--;else if(staffTotal()>2&&Math.random()<0.08){S.sick=1;if(!offline)toast('🤒 Some staff are off sick today. Work is slower.')}
+ for(var q=0;q<3;q++)if(S.neg[q]>0)S.neg[q]--;
  if(S.rivNear>0)S.rivNear--;else if(S.day>=6&&Math.random()<0.06){S.rivNear=3;if(!offline)toast('🏪 A rival shop opened nearby! Fewer customers for a few days.',true)}
  if(S.day>=6&&Math.random()<0.08){var bk=Math.random()<.5?'fridge':'till';if(!S.broke[bk]){S.broke[bk]=1;if(!offline)toast((bk==='fridge'?'🧊 The fridge broke down!':'🧾 The till broke down!')+' Repair it in the Shop tab.',true)}}
  for(var c=0;c<8;c++){S.trend[c]=clamp(S.trend[c]*(1+(Math.random()-.5)*.14)+(1-S.trend[c])*.1,.8,1.3)}
@@ -623,6 +663,9 @@ function tick(dt,offline){
  S.played+=dt;S.dayT+=dt;R.wtT=(R.wtT||0)+dt;if(R.wtT>=0.5){R.wtT=0;R.wtDirty=true}
  if(R.ev){R.evLeft-=dt;if(R.evLeft<=0){R.ev=null;R.wtDirty=true}}
  R.off=!!offline;
+ if(R.dockShown&&!offline){R.dockT+=dt;if(R.dockT>90){while(R.dock&&R.dock.length)dockDo(false)}}
+ if(R.work&&!offline)workTick(dt);
+ jobsTick(dt,offline);
  {var dm=R.derived.im*R.derived.pm;R.capLeft=Math.min((R.capLeft||0)+BR_CAP*dt*dm,Math.max(2.5,dt*1.1)*BR_CAP*dm)}
  S.clean=clamp(S.clean-(0.012+0.0015*(R.derived&&R.derived.open?Math.min(R.derived.lam,R.derived.cr+0.5):0))*dt+(R.derived?R.derived.cleanRate:0)*dt,0,100);
  if(S.clean<30&&R.derived&&R.derived.open)addRep(0.3,Math.min(2,dt*1.2));
@@ -669,6 +712,11 @@ function tick(dt,offline){
 }
 
 /* ---------- manual actions ---------- */
+function dockShow(){var d=R.dock&&R.dock[0];if(!d){R.dockShown=false;show('ovDock',false);return}R.dockShown=true;R.dockT=0;var it=ITEMS[d.i];
+ $('dkTxt').innerHTML='Truck at the back door: <b>'+it.e+' '+it.n+'</b><br>Ordered '+fmtInt(d.n)+' - counted '+fmtInt(d.n)+' units<br>'+(d.dmg?'<span style="color:#d32f2f;font-weight:800">'+d.dmg+' units are damaged!</span>':'Everything looks fine.');$('dkRej').style.display=d.dmg?'':'none';show('ovDock',true)}
+function dockDo(claim){var d=R.dock.shift();if(!d)return;if(claim&&d.dmg){S.stock[d.i]+=d.n-d.dmg;S.money=cb(S.money+d.dmg*d.cost*0.8);toast('Refund received for '+d.dmg+' damaged units.')}else{S.stock[d.i]+=d.n;S.acc.waste+=d.dmg*d.cost*0.5}R.wtDirty=true;dockShow()}
+function negotiate(){var k=S.sup;if(S.neg[k]>0){toast('You already have a deal with this supplier.');return}if(R_t-(R.negT||-99)<20){toast('Give the supplier a moment before asking again.');return}R.negT=R_t;
+ if(Math.random()<.4+.004*S.rel[k]){S.neg[k]=2;sLevel();toast('🤝 '+SUPS[k].n+' agreed an extra 5% off for 2 days!',true)}else{S.rel[k]=Math.max(0,S.rel[k]-3);sBad();toast(SUPS[k].n+' will not budge today.')}}
 function buyStock(i,n){if(S.run<ITEMS[i].unlock)return 0;var sup=S.sup;if(S.exp<SUPS[sup].req)sup=0;return placeOrder(i,n,sup,false)}
 function restockAll(){R.derived||derive();var bought=0;if(R.wtDirty)weights();
  var cap=R.derived.cap,budget=S.money*0.6,ai=R.actI.slice();
@@ -681,7 +729,37 @@ function buyUpg(id){var u=UBY[id];if(!u)return false;var l=lv(id);if(l>=upMax(u)
  if(u.k==='staff')toast(u.e+' Hired: '+u.n+' #'+(l+1));return true}
 function buyExpand(){if(S.exp>=MAXE)return false;var c=expCost(S.exp);if(S.money<c){sBad();return false}
  S.money-=c;S.exp++;sLevel();toast('🏬 Expanded: '+LOCS[S.exp]+'!');derive();R.wtDirty=true;return true}
+function jobLvl(sk){return Math.floor(S.job.skills[sk])}
+function jobMeets(j){var q=j.req;if(S.job.exp<(q.exp||0))return false;for(var k in q){if(k!=='exp'&&jobLvl(k)<q[k])return false}return true}
+function jobGross(j,full){var J=S.job,rank=J.jr[j.id]||0;return j.w*j.h*(1+.2*rank)*(1+.03*jobLvl(j.sk))*(1-.3*J.tired)*Math.max(1,R.derived.im)}
+function openJobs(){buildJobs();show('ovJobs',true)}
+function buildJobs(){var J=S.job,cv=$('jobCV'),h='<b>Your CV</b><br>Experience: '+J.exp.toFixed(0)+' hours worked, '+J.shifts+' shifts - Reliability '+Math.round(J.rel)+'% - Tiredness '+Math.round(J.tired*100)+'%<br>Skills: '+Object.keys(SKN).map(function(k){return SKN[k]+' '+jobLvl(k)}).join(', ')+(J.ban>0?'<br><span style="color:#d32f2f">Employers lost trust in you for a while: only the paper round is open.</span>':'');cv.innerHTML=h;
+ var L=$('jobList');L.innerHTML='';JOBS.forEach(function(j){var ok=jobMeets(j)&&(J.ban<=0||j.id==='paper'),rk=J.jr[j.id]||0,d=document.createElement('div');d.className='jb';
+  d.innerHTML='<div class="e">'+j.e+'</div><div class="m"><b>'+j.n+(rk?' (rank '+rk+')':'')+'</b><small>'+j.d+' - '+j.h+' hour shift, tiring '+Math.round(j.t*100)+'%</small><small>'+(jobMeets(j)?'Pay: about '+fmt(jobGross(j))+' SIP gross':'Needs: '+(j.req.exp?j.req.exp+'h experience ':'')+Object.keys(j.req).filter(function(k){return k!=='exp'}).map(function(k){return SKN[k]+' '+j.req[k]}).join(', '))+'</small></div>';
+  var b=document.createElement('button');b.className=ok?'g':'x';b.textContent=ok?'Work a shift':'Locked';b.disabled=!ok||!!R.work;b.onclick=function(){startShift(j)};d.appendChild(b);L.appendChild(d)})}
+function startShift(j){if(R.work||!jobMeets(j))return;var J=S.job;if(J.tired>0.8){J.rel=Math.max(0,J.rel-10);toast('You arrived late and tired. Reliability dropped.')}
+ R.work={j:j,t:0,len:25,score:0,cell:-1,cellT:0,auto:false,closed:lv('cashier')<1,hits:0};show('ovJobs',false);$('wkTitle').textContent=j.e+' '+j.n;
+ var g=$('wkGrid');g.innerHTML='';for(var k=0;k<9;k++)(function(k){var b=document.createElement('button');b.textContent=['','','','','','','','',''][k];b.onclick=function(){if(R.work&&R.work.cell===k&&!R.work.auto){R.work.score++;R.work.cell=-1;sChing();updateWork()}};g.appendChild(b)})(k);
+ show('ovWork',true);updateWork();derive()}
+function workTick(dt){var w=R.work;if(!w)return;w.t+=dt;if(!w.auto){w.cellT-=dt;if(w.cellT<=0){w.cellT=0.9;w.cell=Math.floor(Math.random()*9);w.hits++}}
+ if(w.t>=(w.auto?8:w.len))finishShift()}
+function updateWork(){var w=R.work;if(!w)return;var cells=$('wkGrid').children,em=w.j.e;for(var k=0;k<cells.length;k++){cells[k].className=w.cell===k&&!w.auto?'on':'';cells[k].textContent=w.cell===k&&!w.auto?em:''}
+ $('wkInfo').innerHTML=w.auto?'Working quietly...':'Tap the glowing '+w.j.e+' as fast as you can! Score: <b>'+w.score+'</b>'+(w.closed?'<br><span style="color:#d32f2f">Your shop is closed while you work (no cashier).</span>':'<br>Your staff keep the shop running at reduced speed.');
+ $('wkBar').style.width=Math.min(100,w.t/(w.auto?8:w.len)*100)+'%'}
+function finishShift(quit){var w=R.work;if(!w)return;R.work=null;show('ovWork',false);var J=S.job,j=w.j,perf=quit?0:w.auto?0.6:Math.max(0.7,Math.min(1.4,0.7+0.7*w.score/Math.max(1,w.hits*0.6)));
+ if(quit){J.rel=Math.max(0,J.rel-15);toast('You left early. Reliability dropped.');if(J.rel<30){J.ban=300;J.rel=60;toast('Employers have lost trust in you for a while.',true)}derive();return}
+ var gross=jobGross(j)*perf,itax=gross*0.10,ni=gross*0.04,net=gross-itax-ni;
+ S.money=cb(S.money+net);J.net=cb(J.net+net);J.exp+=j.h;J.jh[j.id]=(J.jh[j.id]||0)+j.h;J.skills[j.sk]+=0.34;J.shifts++;J.tired=Math.min(1,J.tired+j.t);J.rel=Math.min(100,J.rel+5);
+ var promo='';if((J.jr[j.id]||0)<3&&J.jh[j.id]>=12*((J.jr[j.id]||0)+1)){J.jr[j.id]=(J.jr[j.id]||0)+1;promo='<p>🎉 <b>Promoted!</b> You are now rank '+J.jr[j.id]+' - more pay per hour.</p>'}
+ $('payTxt').innerHTML='<table class="rp"><tr><td>'+j.e+' '+j.n+' ('+j.h+' h)</td><td></td></tr><tr><td>Gross pay'+(w.auto?' (60% for quiet work)':' (performance x'+perf.toFixed(2)+')')+'</td><td>'+fmt(gross)+'</td></tr><tr><td>Income tax (10%)</td><td>-'+fmt(itax)+'</td></tr><tr><td>National insurance (4%)</td><td>-'+fmt(ni)+'</td></tr><tr><th>Take-home pay</th><th>'+fmt(net)+' SIP</th></tr></table>'+promo+'<p style="font-size:13px">Experience '+J.exp.toFixed(0)+'h - '+SKN[j.sk]+' skill '+J.skills[j.sk].toFixed(1)+' - Tiredness '+Math.round(J.tired*100)+'%'+(w.closed?'<br>Your shop was closed while you worked.':'')+'</p>';
+ show('ovPay',true);sLevel();derive()}
+function jobsTick(dt,offline){var J=S.job;if(J.tired>0)J.tired=Math.max(0,J.tired-dt*0.002);if(J.ban>0)J.ban=Math.max(0,J.ban-dt);
+ if(offline)return;R.offerT=(R.offerT||0)-dt;if(R.offerT>0||R.work)return;if(state!=='play')return;
+ var im=R.derived.im,units=0;for(var j=0;j<R.actI.length;j++)units+=S.stock[R.actI[j]];
+ var low=S.money<5*im&&units<6&&S.sold>=0&&S.played>60;
+ if(low||R.billsShort){R.offerT=300;R.billsShort=false;$('brokeTxt').textContent=R.billsShort2?'':'You are almost out of SIP and cannot restock or pay bills. A part-time job could get you back on your feet. The shop keeps running while you work.';show('ovBroke',true)}}
 function serveManual(target){
+ if(R.work){toast('You are at work right now!');return false}
  var c=target||null;if(!c){for(var i=0;i<R.vis.length;i++){var v=R.vis[i];if(!v.leave&&S.stock[v.item]>=1){c=v;break}}
   if(!c)for(var i=0;i<R.vis.length;i++)if(!R.vis[i].leave){c=R.vis[i];break}}
  if(!c){sPop();return false}
@@ -692,7 +770,7 @@ function serveManual(target){
 function fpGain(){return Math.floor(Math.sqrt(S.run/1500))}
 function canFran(){return S.run>=6000&&fpGain()>=2}
 function doFranchise(){var g=fpGain();S.fp+=g;S.fran++;
- var keep={ach:S.ach,sold:S.sold,earned:S.earned,fp:S.fp,fran:S.fran,played:S.played,won:S.won,best:S.best,day:S.day,evSeen:S.evSeen,celeb:S.celeb,clicks:S.clicks,vip:S.vip,away:S.away,rep:3,seen:S.seen,nseen:S.nseen,fav:S.fav,rec:S.rec,riv:S.riv,rivBest:S.rivBest,rivSk:S.rivSk,rank:S.rank,streak:0,auto:S.auto,tut:S.tut,insp:S.insp};
+ var keep={ach:S.ach,sold:S.sold,earned:S.earned,fp:S.fp,fran:S.fran,played:S.played,won:S.won,best:S.best,day:S.day,evSeen:S.evSeen,celeb:S.celeb,clicks:S.clicks,vip:S.vip,away:S.away,rep:3,seen:S.seen,nseen:S.nseen,fav:S.fav,rec:S.rec,riv:S.riv,rivBest:S.rivBest,rivSk:S.rivSk,rank:S.rank,streak:0,auto:S.auto,tut:S.tut,insp:S.insp,job:S.job,regv:S.regv};
  var n=freshState();for(var k in keep)n[k]=keep[k];S=n;derive();S.money=(100+100*S.fp)*R.derived.im;
  R.view=0;barN=-1;R.q=0;R.vis=[];R.ev=null;R.autoAcc=0;R.stockAcc=0;R.unlockSeen=0;R.wtDirty=true;R.sr.fill(0);R.favList=favList();CAT.dirty=true;R.lastSold=S.sold;
  derive();weights();toast('🧬 Franchise! +'+g+' Franchise Points. Chain scale x'+fmt(R.derived.im));sLevel();save();buildPanel()}
@@ -802,8 +880,9 @@ function buildPanel(){
   $('cq').oninput=function(){CAT.q=this.value;CAT.page=0;CAT.dirty=true};$('cc').onchange=function(){CAT.cat=+this.value;CAT.page=0;CAT.dirty=true};$('cs').onchange=function(){CAT.sort=this.value;CAT.page=0;CAT.dirty=true};
   $('cf').onchange=function(){CAT.fav=this.checked;CAT.page=0;CAT.dirty=true};$('csf').onchange=function(){CAT.shelf=this.checked;CAT.page=0;CAT.dirty=true};
   $('bFav').onclick=stockFavs;$('bAuto').onclick=function(){S.auto=!S.auto;sPop()};
-  var sr=$('supRow');SUPS.forEach(function(sp,k){var b=document.createElement('button');b.className='sm';b.onclick=function(){if(S.exp>=sp.req){S.sup=k;sPop()}else{sBad();toast(sp.n+' opens at '+LOCS[sp.req])}};sr.appendChild(b);
+  var nb=document.createElement('button');nb.className='sm p';nb.textContent='🤝 Negotiate';nb.onclick=function(){negotiate()};var sr=$('supRow');SUPS.forEach(function(sp,k){var b=document.createElement('button');b.className='sm';b.onclick=function(){if(S.exp>=sp.req){S.sup=k;sPop()}else{sBad();toast(sp.n+' opens at '+LOCS[sp.req])}};sr.appendChild(b);
    rows.push(function(){b.textContent=(S.sup===k?'✅ ':'')+sp.n+(S.exp<sp.req?' 🔒':'');b.title=sp.d;b.style.background=S.sup===k?'#2fbf71':'#8b8478'})});
+  sr.appendChild(nb);var ri=document.createElement('span');ri.style.fontSize='12px';sr.appendChild(ri);rows.push(function(){ri.textContent='Relationship '+Math.round(S.rel[S.sup])+'% (-'+Math.round(Math.min(.1,S.rel[S.sup]/1000)*100)+'% price)'+(S.neg[S.sup]>0?' - deal active '+S.neg[S.sup]+'d':'')+' - orders of 50+ save 5%, 200+ save 10%'});
   var nav=document.createElement('div');nav.className='ctl';nav.innerHTML='<button class="sm b" id="pPrev">Prev</button><span id="pTxt"></span><button class="sm b" id="pNext">Next</button>';
   var list=document.createElement('div');elPanel.appendChild(list);elPanel.appendChild(nav);
   $('pPrev').onclick=function(){CAT.page--;CAT.dirty=true};$('pNext').onclick=function(){CAT.page++;CAT.dirty=true};
@@ -865,9 +944,9 @@ function buildPanel(){
   rows.push(function(){r.n.textContent='Location: '+(S.exp<LOCS.length?LOCS[S.exp]:'?')+(S.fran?'  (Chain scale x'+fmt(R.derived.im)+')':'');
    if(S.exp>=MAXE){r.s.textContent='Your empire is complete! Franchise to scale up even more.';b.textContent='MAX';b.disabled=true}
    else{r.s.textContent='Next: '+LOCS[S.exp+1]+'. +17% customers, +6 staff slots per type, +10 shelf slots, longer queue. Rent goes up!';b.textContent='Expand '+fmt(expCost(S.exp));b.disabled=S.money<expCost(S.exp)}});
-  var mg=document.createElement('div');mg.innerHTML='<div class="h">🏬 Running the shop</div><div class="ctl"><button class="sm b" id="mOpen"></button><label>Opens <input type="range" id="mOh" min="5" max="11" step="1"> <b id="mOhT"></b></label><label>Closes <input type="range" id="mCh" min="16" max="23" step="1"> <b id="mChT"></b></label></div><div class="ctl"><label>Eye-level shelf: <select class="tx" id="mEye"></select></label><label>Checkout rack: <select class="tx" id="mImp"></select></label></div>';elPanel.appendChild(mg);
-  var opts='<option value="-1">(none)</option>'+CATS.map(function(c,i){return '<option value="'+i+'">'+c.e+' '+c.n+'</option>'}).join('');
-  $('mEye').innerHTML=opts;$('mImp').innerHTML=opts;$('mEye').value=S.eye;$('mImp').value=S.imp;$('mEye').onchange=function(){S.eye=+this.value;R.wtDirty=true};$('mImp').onchange=function(){S.imp=+this.value;R.wtDirty=true};
+  var mg=document.createElement('div');mg.innerHTML='<div class="h">🏬 Running the shop</div><div class="ctl"><button class="sm b" id="mOpen"></button><label>Opens <input type="range" id="mOh" min="5" max="11" step="1"> <b id="mOhT"></b></label><label>Closes <input type="range" id="mCh" min="16" max="23" step="1"> <b id="mChT"></b></label></div><div class="h">🧱 Shop layout (drag a category into a spot, or tap a category then a spot)</div><div class="chips" id="layChips"></div><div class="lay" id="laySlots"></div><div class="ctl"><button class="sm b" id="mDock"></button></div>';elPanel.appendChild(mg);
+  buildLayout();$('mDock').onclick=function(){S.checkDel=!S.checkDel;sPop()};
+  rows.push(function(){$('mDock').textContent='Check deliveries by hand: '+(S.checkDel?'ON':'OFF')});
   $('mOh').value=S.oh;$('mCh').value=S.ch;$('mOh').oninput=function(){S.oh=+this.value;if(S.ch-S.oh<6)S.ch=S.oh+6;$('mCh').value=S.ch};$('mCh').oninput=function(){S.ch=+this.value;if(S.ch-S.oh<6)S.oh=S.ch-6;$('mOh').value=S.oh};
   $('mOpen').onclick=function(){S.manual=!S.manual;sPop()};
   rows.push(function(){$('mOpen').textContent=S.manual?'🚪 Reopen shop':'🚪 Close shop now';$('mOhT').textContent=S.oh+':00';$('mChT').textContent=S.ch+':00'});
@@ -902,7 +981,7 @@ function buildPanel(){
    r.n.textContent='Chunk: '+fmt(chunk())+' SIP';r.s.textContent='Borrow a chunk to grow faster, repay when you can.';bb.textContent='Borrow '+fmt(chunk());br.textContent='Repay '+fmt(Math.min(chunk(),S.loan));br.disabled=S.loan<=0||S.money<=0;bb.disabled=S.loan+chunk()>chunk()*8});
  } else if(tabNow==='report'){
   var box=document.createElement('div');elPanel.appendChild(box);var lastK='';
-  function rep(t,x){if(!x)return '<p><b>'+t+'</b>: not ready yet.</p>';return '<h4 style="margin:10px 0 4px">'+t+'</h4><table class="rp"><tr><td>Sales</td><td>'+fmt(x.rev)+'</td></tr><tr><td>Stock bought</td><td>-'+fmt(x.cogs)+'</td></tr><tr><td>Spoiled goods</td><td>-'+fmt(x.waste)+'</td></tr><tr><td>Rent</td><td>-'+fmt(x.rent)+'</td></tr><tr><td>Wages</td><td>-'+fmt(x.wages)+'</td></tr><tr><td>Electricity</td><td>-'+fmt(x.elec)+'</td></tr><tr><td>Loan interest</td><td>-'+fmt(x.int)+'</td></tr><tr><td>Card fees, insurance, till shortage</td><td>-'+fmt(x.fees||0)+'</td></tr><tr><td>Sales tax (VAT)</td><td>-'+fmt(x.vat||0)+'</td></tr><tr><td>Inspection fines</td><td>-'+fmt(x.fine||0)+'</td></tr><tr><td>Profit tax (8%)</td><td>-'+fmt(x.tax)+'</td></tr><tr><th>Profit / Loss</th><th style="color:'+(x.profit>=0?'#1b8a4b':'#d32f2f')+'">'+(x.profit>=0?'+':'')+fmt(x.profit)+'</th></tr></table>'}
+  function rep(t,x){if(!x)return '<p><b>'+t+'</b>: not ready yet.</p>';return '<h4 style="margin:10px 0 4px">'+t+'</h4><table class="rp"><tr><td>Sales</td><td>'+fmt(x.rev)+'</td></tr><tr><td>Stock bought</td><td>-'+fmt(x.cogs)+'</td></tr><tr><td>Spoiled goods</td><td>-'+fmt(x.waste)+'</td></tr><tr><td>Rent</td><td>-'+fmt(x.rent)+'</td></tr><tr><td>Wages</td><td>-'+fmt(x.wages)+'</td></tr><tr><td>Electricity</td><td>-'+fmt(x.elec)+'</td></tr><tr><td>Loan interest</td><td>-'+fmt(x.int)+'</td></tr><tr><td>Till shortage (cash count)</td><td>-'+fmt(x.till||0)+'</td></tr><tr><td>Card fees, insurance</td><td>-'+fmt(x.fees||0)+'</td></tr><tr><td>Sales tax (VAT)</td><td>-'+fmt(x.vat||0)+'</td></tr><tr><td>Inspection fines</td><td>-'+fmt(x.fine||0)+'</td></tr><tr><td>Profit tax (8%)</td><td>-'+fmt(x.tax)+'</td></tr><tr><th>Profit / Loss</th><th style="color:'+(x.profit>=0?'#1b8a4b':'#d32f2f')+'">'+(x.profit>=0?'+':'')+fmt(x.profit)+'</th></tr></table>'}
   rows.push(function(){var k=S.day+'|'+Math.floor(S.acc.rev)+'|'+Math.floor(S.money);if(k===lastK)return;lastK=k;
    box.innerHTML='<div class="h">📒 Books</div><p style="font-size:13px">Bills are paid when each day ends. The first 2 days are free.</p>'+rep('Today so far',{rev:S.acc.rev,cogs:S.acc.cogs,waste:S.acc.waste,rent:0,wages:0,elec:0,int:0,tax:0,profit:S.acc.rev-S.acc.cogs-S.acc.waste})+rep('Yesterday (day '+(S.last?S.last.day:0)+')',S.last)+rep('Last full week',S.wkLast)})
  } else if(tabNow==='rec'){
@@ -931,9 +1010,16 @@ function newsHTML(){var h='',se=SEASONS[Math.floor((S.day-1)/7)%4],sp=SPECIAL();
  var q=S.day*7919;H('🗞️ Around town',FL[q%FL.length]+' '+FL[(q>>3)%FL.length]);
  if(S.rivNear>0)H('🏪 New rival','A competing shop has opened nearby. Customers are comparing prices!');
  if(S.broke.fridge||S.broke.till)H('🔧 Out of order','Your '+(S.broke.fridge?'fridge':'till')+' needs repairing.');
- H('❤ Regulars','Loyal customers: '+Math.round(S.loyal*100)+'%. Regulars have visited '+fmtInt(S.regVisits)+' times and get a 5% loyalty discount.');
+ var tp=REGS.map(function(g,k){return {g:g,v:S.regv[k]}}).sort(function(a,b){return b.v-a.v}).slice(0,3).filter(function(x){return x.v>0});H('❤ Regulars','Loyal customers: '+Math.round(S.loyal*100)+'%. Regulars have visited '+fmtInt(S.regVisits)+' times and get a 5% loyalty discount.'+(tp.length?' Best regulars: '+tp.map(function(x){return x.g.n+' ('+x.v+' visits, loves '+CATS[x.g.fav].n+')'}).join(', ')+'.':''));
  var rl=R.rlog||[];H('⭐ Customer reviews',rl.length?rl.map(function(x){return stars(x.s)+' "'+x.t+'" - '+x.w}).join('<br>'):'No reviews yet.');
  return h}
+var layPick=-1;
+function buildLayout(){var ch=$('layChips'),sl=$('laySlots');if(!ch)return;ch.innerHTML='';sl.innerHTML='';
+ CATS.forEach(function(c,i){var d=document.createElement('div');d.className='chip2'+(layPick===i?' sel':'');d.textContent=c.e+' '+c.n;d.draggable=true;d.ondragstart=function(e){try{e.dataTransfer.setData('text/plain',''+i)}catch(x){}layPick=i};d.onclick=function(){layPick=layPick===i?-1:i;buildLayout()};ch.appendChild(d)});
+ for(var k=0;k<6;k++)(function(k){var d=document.createElement('div'),cat=S.layout[k];d.className='slot'+(layPick>=0?' hot':'');d.innerHTML='<b>'+(cat>=0?CATS[cat].e+' '+CATS[cat].n:'(empty)')+'</b>'+SLOTN[k]+' (x'+SLOTM[k]+')';
+  function put(c){for(var q=0;q<6;q++)if(S.layout[q]===c)S.layout[q]=-1;S.layout[k]=c;layPick=-1;R.wtDirty=true;sPop();buildLayout()}
+  d.ondragover=function(e){e.preventDefault()};d.ondrop=function(e){e.preventDefault();var c=layPick;try{var t=e.dataTransfer.getData('text/plain');if(t!=='')c=+t}catch(x){}if(c>=0)put(c)};
+  d.onclick=function(){if(layPick>=0)put(layPick);else if(S.layout[k]>=0){S.layout[k]=-1;R.wtDirty=true;buildLayout()}};sl.appendChild(d)})(k)}
 function favList(){var a=[];for(var i=0;i<NI;i++)if(S.fav[i])a.push(i);return a}
 function recordsHTML(){var rc=S.rec,h='';function L(a,b){h+='<div class="rec"><span>'+a+'</span><b>'+b+'</b></div>'}
  L('⚡ Fastest to 1,000 items',rc.t1k?fmtTime(rc.t1k):'not yet');L('🚀 Fastest to 1,000,000 items',rc.t1m?fmtTime(rc.t1m):'not yet');
@@ -1011,7 +1097,7 @@ function personSprite(li,fr){var key=li*9+fr;if(PS[key])return PS[key];var L=LOO
  var sw=L.fem?10:12;
  function arm(side,front){var off=side>0?Math.PI:0,aa=idle?.07*side:Math.sin(ph+off)*.5,sx=cm+side*(sw-1),sy=34,ex=sx+Math.sin(aa)*14,ey=sy+Math.cos(aa)*14,b=aa*.5+.35,wx=ex+Math.sin(b)*13,wy=ey+Math.cos(b)*13;
   var sl=(L.suit||L.staff===undefined&&false)?L.top:L.top;limb(sx,sy,ex,ey,7.2,sl);limb(ex,ey,wx,wy,(L.suit?6.4:5.4),L.suit?L.top:L.skin);
-  x.fillStyle=shd(L.skin,.95);x.beginPath();x.ellipse(wx,wy+1.5,3.1,3.6,0,0,6.3);x.fill();x.fillStyle='rgba(255,255,255,.25)';x.beginPath();x.ellipse(wx-.7,wy+.8,1,1.4,0,0,6.3);x.fill();if(front&&L.phone){x.fillStyle='#111';x.fillRect(wx-1.6,wy-6,3.4,7);x.fillStyle='#7fd8ff';x.fillRect(wx-1,wy-5.4,2.2,5.2)}}
+  x.fillStyle=shd(L.skin,.95);x.beginPath();x.ellipse(wx,wy+1.5,3.1,3.6,0,0,6.3);x.fill();x.strokeStyle=shd(L.skin,.65);x.lineWidth=.5;for(var fi=-1;fi<=1;fi++){x.beginPath();x.moveTo(wx+fi*1,wy+2.8);x.lineTo(wx+fi*1.1,wy+5.4);x.stroke()}x.beginPath();x.moveTo(wx-2.6,wy+.5);x.lineTo(wx-3.4,wy+2.6);x.stroke();x.fillStyle='rgba(255,255,255,.25)';x.beginPath();x.ellipse(wx-.7,wy+.8,1,1.4,0,0,6.3);x.fill();if(front&&L.phone){x.fillStyle='#111';x.fillRect(wx-1.6,wy-6,3.4,7);x.fillStyle='#7fd8ff';x.fillRect(wx-1,wy-5.4,2.2,5.2)}}
  arm(-1,0);
  /* neck */
  x.fillStyle=shd(L.skin,.85);x.fillRect(cm-3.2,22,6.4,12);
@@ -1035,7 +1121,7 @@ function personSprite(li,fr){var key=li*9+fr;if(PS[key])return PS[key];var L=LOO
  x.fillStyle=shd(L.skin,.8);x.beginPath();x.ellipse(cm-8.2,hy+1,1.7,2.6,0,0,6.3);x.fill();x.beginPath();x.ellipse(cm+8.2,hy+1,1.7,2.6,0,0,6.3);x.fill();
  x.fillStyle=hg;x.beginPath();x.ellipse(cm,hy,8.3,10,0,0,6.3);x.fill();
  x.fillStyle='rgba(230,120,120,.14)';x.beginPath();x.ellipse(cm-4.5,hy+4,2.2,1.4,0,0,6.3);x.fill();x.beginPath();x.ellipse(cm+4.5,hy+4,2.2,1.4,0,0,6.3);x.fill();
- [-3.4,3.4].forEach(function(e){x.fillStyle='#fff';x.beginPath();x.ellipse(cm+e,hy-.5,2.2,1.4,0,0,6.3);x.fill();x.fillStyle='#3b2a1d';x.beginPath();x.arc(cm+e+.3,hy-.4,1.05,0,6.3);x.fill();x.fillStyle='#fff';x.fillRect(cm+e+.1,hy-1,.5,.5);
+ [-3.4,3.4].forEach(function(e){x.fillStyle='#fff';x.beginPath();x.ellipse(cm+e,hy-.5,2.2,1.4,0,0,6.3);x.fill();x.fillStyle='#3b2a1d';x.beginPath();x.arc(cm+e+.3,hy-.4,1.05,0,6.3);x.fill();x.fillStyle='#fff';x.fillRect(cm+e+.1,hy-1,.5,.5);if(L.fem){x.strokeStyle='#111';x.lineWidth=.6;x.beginPath();x.moveTo(cm+e-2.2,hy-1.1);x.lineTo(cm+e-3,hy-2.1);x.moveTo(cm+e+2.2,hy-1.1);x.lineTo(cm+e+3,hy-2.1);x.stroke()}x.fillStyle='rgba(120,70,50,.25)';x.fillRect(cm+e-2,hy-2.2,4,.5);
   x.strokeStyle=shd(L.hair,.9);x.lineWidth=.8;x.beginPath();x.moveTo(cm+e-2.2,hy-3.2);x.quadraticCurveTo(cm+e,hy-4.2,cm+e+2.2,hy-3.1);x.stroke()});
  x.strokeStyle='rgba(120,60,40,.45)';x.lineWidth=.7;x.beginPath();x.moveTo(cm,hy);x.quadraticCurveTo(cm+1.2,hy+3,cm-.2,hy+3.6);x.stroke();
  x.strokeStyle='#8a3f36';x.lineWidth=.9;x.beginPath();x.arc(cm,hy+4.6,2.6,.25,Math.PI-.25);x.stroke();
@@ -1058,9 +1144,12 @@ function prodSprite(cat,vr){var key=cat*4+vr;if(PRODS[key])return PRODS[key];var
  if(cat===0&&vr===1){x.fillStyle=lgr(x,7,0,19,0,[[0,shd(c,1.3)],[.5,c],[1,shd(c,.6)]]);rrp(x,7,12,12,21,4);x.fill();x.fillRect(10.5,5,5,8);x.fillStyle='#ddd';x.fillRect(10,3,6,3);x.fillStyle='#fff';x.fillRect(7,19,12,7);x.fillStyle='#222';x.font='bold 5px sans-serif';x.fillText('POP',8.2,24.6);x.fillStyle='rgba(255,255,255,.5)';x.fillRect(8.5,14,1.5,16)}
  else if(cat===0&&vr===3){x.fillStyle=lgr(x,2,0,24,0,[[0,'#c9a06a'],[1,'#7a5a35']]);rrp(x,2,18,22,15,2);x.fill();x.strokeStyle='rgba(0,0,0,.3)';x.beginPath();x.moveTo(2,25);x.lineTo(24,25);x.stroke();var fc=['#e63946','#f4a261','#2fbf71'];for(var q=0;q<7;q++){x.fillStyle=fc[q%3];x.beginPath();x.arc(5+q*3,17-(q%2)*2,3.2,0,6.3);x.fill();x.fillStyle='rgba(255,255,255,.5)';x.fillRect(4+q*3,15.5-(q%2)*2,1,1)}}
  else if(cat===0){box(3,6,20,27,c,'#fff6d6');x.fillStyle=c2;x.beginPath();x.arc(13,19,3.2,0,6.3);x.fill()}
+ else if(cat===1&&vr===1){x.fillStyle='#8b5a2b';x.beginPath();x.ellipse(13,25,8,8.5,0,0,6.3);x.fill();x.beginPath();x.arc(13,13,6.2,0,6.3);x.arc(8,8,2.4,0,6.3);x.arc(18,8,2.4,0,6.3);x.arc(6,23,2.8,0,6.3);x.arc(20,23,2.8,0,6.3);x.arc(9,32,3,0,6.3);x.arc(17,32,3,0,6.3);x.fill();x.fillStyle='#d9b27a';x.beginPath();x.ellipse(13,26,4.5,5,0,0,6.3);x.arc(13,15,2.6,0,6.3);x.fill();x.fillStyle='#222';x.beginPath();x.arc(10.8,12,.9,0,6.3);x.arc(15.2,12,.9,0,6.3);x.fill();x.fillStyle=c;x.beginPath();x.moveTo(13,19);x.lineTo(9,17.5);x.lineTo(9,21);x.closePath();x.moveTo(13,19);x.lineTo(17,17.5);x.lineTo(17,21);x.closePath();x.fill();x.fillStyle='rgba(255,255,255,.3)';x.beginPath();x.ellipse(10,8,1,.6,0,0,6.3);x.fill()}
  else if(cat===1){box(3,10,20,23,c,'#cfe8ff');x.fillStyle=shd(c,.8);x.fillRect(3,6,20,5);x.fillStyle='#8b5a2b';x.beginPath();x.arc(13,22,4.5,0,6.3);x.fill();x.beginPath();x.arc(10,17.5,1.8,0,6.3);x.arc(16,17.5,1.8,0,6.3);x.fill()}
+ else if(cat===2&&vr===2){x.fillStyle=lgr(x,0,16,0,30,[[0,'#555c6b'],[1,'#22262f']]);rrp(x,2,16,22,13,6);x.fill();x.fillStyle='#111';x.beginPath();x.arc(8,24,2.8,0,6.3);x.arc(18,24,2.8,0,6.3);x.fill();x.fillStyle=c;x.beginPath();x.arc(19,19,1.5,0,6.3);x.fill();x.fillStyle='#e8e8e8';x.beginPath();x.arc(22,21,1.3,0,6.3);x.fill();x.fillRect(7,18,1.6,4);x.fillRect(5.7,19.2,4,1.6);x.fillStyle='rgba(255,255,255,.35)';x.fillRect(5,17,14,1.2)}
  else if(cat===2){box(5,4,16,29,'#1d2a44','#2f6fdd');x.fillStyle=c2;x.fillRect(7,8,12,3)}
  else if(cat===3){for(var k=0;k<3;k++){x.fillStyle=lgr(x,0,24-k*8,0,32-k*8,[[0,shd(P[(vr+k)%4],1.2)],[1,shd(P[(vr+k)%4],.7)]]);rrp(x,3,24-k*8,20,8,2);x.fill()}x.fillStyle='rgba(255,255,255,.25)';x.fillRect(4,9,18,1.5)}
+ else if(cat===4&&vr===2){x.strokeStyle='#2b2f3a';x.lineWidth=2.4;x.beginPath();x.arc(13,17,9,Math.PI,0);x.stroke();x.fillStyle=lgr(x,0,16,0,32,[[0,'#3a4152'],[1,'#14161c']]);rrp(x,2,15,6.5,14,3);x.fill();rrp(x,17.5,15,6.5,14,3);x.fill();x.fillStyle=c;x.fillRect(3,19,4.5,2);x.fillRect(18.5,19,4.5,2);x.fillStyle='rgba(255,255,255,.3)';x.fillRect(3,16,1.2,10)}
  else if(cat===4){box(4,5,18,28,'#222733','#0b0f18');x.fillStyle='#4de0ff';x.fillRect(7,10,12,8);x.fillStyle='rgba(255,255,255,.4)';x.fillRect(7,10,12,2.5)}
  else if(cat===5&&vr%2===1){x.fillStyle=lgr(x,5,0,21,0,[[0,shd(c,1.3)],[.5,c],[1,shd(c,.6)]]);rrp(x,5,9,16,24,3);x.fill();x.fillStyle='#cfcfcf';x.beginPath();x.ellipse(13,9,8,2.2,0,0,6.3);x.fill();x.fillStyle='#fff';x.fillRect(5,17,16,8);x.fillStyle='#222';x.font='bold 5px sans-serif';x.fillText('PAW',7,23.2);x.fillStyle='rgba(255,255,255,.45)';x.fillRect(6.5,11,1.5,20)}
  else if(cat===5){x.fillStyle=lgr(x,3,0,23,0,[[0,shd(c,1.2)],[.5,c],[1,shd(c,.65)]]);x.beginPath();x.moveTo(4,10);x.lineTo(22,10);x.lineTo(24,33);x.lineTo(2,33);x.closePath();x.fill();x.fillStyle='#e8e8e8';for(var z=0;z<6;z++)x.fillRect(4+z*3.1,5,2,5);x.fillStyle='#fff';x.beginPath();x.arc(13,22,5,0,6.3);x.fill();x.fillStyle=c2;x.beginPath();x.arc(13,22,2.5,0,6.3);x.fill()}
@@ -1126,7 +1215,7 @@ function buildBg(E,clean,lite){
 function pickLook(c){if(c.li!==undefined)return c.li;var id=c.type.id,h=Math.floor(c.bounce*977);var a=id==='kid'?[0,1,2]:id==='gran'?[3,4]:id==='vip'?[5,6]:id==='pick'?[9,4,3]:[7,8,10,11,14,15,16,17];c.li=a[h%a.length];return c.li}
 function outside(x0,y0,w,h,hr,dt,lite){
  var day=hr>=6&&hr<19,t=hr<6||hr>=19?0:Math.sin((hr-6)/13*Math.PI);
- var top,bot;if(!day){top='#0b1030';bot='#243060'}else if(hr<8||hr>=17.5){top='#ff9a6b';bot='#ffd59a'}else{top='#5fb3ff';bot='#bfe6ff'}
+ var heat=R.ev&&R.ev.id==='heat';var top,bot;if(heat&&day){top='#ffb347';bot='#ffe7a8'}else if(!day){top='#0b1030';bot='#243060'}else if(hr<8||hr>=17.5){top='#ff9a6b';bot='#ffd59a'}else{top='#5fb3ff';bot='#bfe6ff'}
  cx.fillStyle=lgr(cx,0,y0,0,y0+h,[[0,top],[1,bot]]);cx.fillRect(x0,y0,w,h);
  if(day){var sx=x0+10+(hr-6)/13*(w-20),sy=y0+h*.6-t*h*.5;cx.fillStyle='rgba(255,240,150,.95)';cx.beginPath();cx.arc(sx,sy,8,0,6.3);cx.fill()}
  else{cx.fillStyle='#f4f1d0';cx.beginPath();cx.arc(x0+w*.7,y0+20,7,0,6.3);cx.fill();cx.fillStyle='rgba(255,255,255,.8)';for(var i=0;i<8;i++)cx.fillRect(x0+(i*37%w),y0+(i*23%50),1,1)}
@@ -1147,7 +1236,9 @@ function animVis(dt){var vis=R.vis,pos=0;
  for(var i=0;i<vis.length;i++){var c=vis[i];if(c.leave)continue;c.tx=150+pos*118;pos++;var dx=c.tx-c.x,sp=260*dt;c.x+=Math.abs(dx)<sp?dx:(dx>0?sp:-sp);c.walk=Math.abs(dx)>3;if(c.shake>0)c.shake-=dt}}
 function person(x,y,li,fr,al,flip){var sp=personSprite(li,fr),sc=LOOKS[li].sc;
  cx.globalAlpha=al*.35;var g=cx.createRadialGradient(x,y+2,2,x,y+2,24*sc);g.addColorStop(0,'rgba(0,0,0,.55)');g.addColorStop(1,'rgba(0,0,0,0)');cx.fillStyle=g;cx.save();cx.translate(x,y+2);cx.scale(1,.28);cx.translate(-x,-y-2);cx.beginPath();cx.arc(x,y+2,24*sc,0,6.3);cx.fill();cx.restore();
- var bob=fr===8?Math.sin(R_t*2.2+x*.05)*0.8:0;cx.globalAlpha=al;cx.drawImage(sp.c,x-30*sc,y-104*sc+bob,60*sc,110*sc);cx.globalAlpha=1}
+ var bob=fr===8?Math.sin(R_t*2.2+x*.05)*0.8:0;cx.globalAlpha=al;
+ if(fr===8){cx.save();cx.translate(x+Math.sin(R_t*.7+x)*1.6,y);cx.rotate(Math.sin(R_t*.9+x*.13)*.04);cx.drawImage(sp.c,-30*sc,-104*sc+bob,60*sc,110*sc);cx.restore()}else cx.drawImage(sp.c,x-30*sc,y-104*sc+bob,60*sc,110*sc);
+ cx.globalAlpha=1}
 function drawReal(dt){
  var d=R.derived,hr=d.hour,lite=GFX==='lite',E=S.exp,key=E+'|'+GFX+'|'+Math.floor(S.clean/12);
  if(R.bgKey!==key||!R.bg){R.bg=buildBg(E,S.clean,lite);R.bgKey=key}
@@ -1160,6 +1251,7 @@ function drawReal(dt){
   if(i===undefined){continue}
   var it=ITEMS[i],stk=S.stock[i],f=Math.min(1,stk/cap),n=stk<1?0:Math.max(1,Math.ceil(f*3));var spr=prodSprite(it.cat,it.v%4);
   for(var k=n-1;k>=0;k--)cx.drawImage(spr.c,bx+k*5-2,by-34+k*-1,26*.95,36*.95);
+  cx.fillStyle='rgba(0,0,0,.22)';cx.beginPath();cx.ellipse(bx+14,by+1,13,2.2,0,0,6.3);cx.fill();
   cx.fillStyle='#fff';cx.font='bold 6.5px sans-serif';cx.textAlign='center';cx.fillStyle='#111';cx.fillText(stk<1?'SOLD OUT':fmt(R.actP[sl]),bx+15,by+17.5);cx.textAlign='left'}
  /* ceiling light glow + window rays */
  if(!lite){cx.save();cx.globalCompositeOperation='lighter';for(var i=0;i<4;i++){var lx=100+i*200,g=cx.createRadialGradient(lx,16,2,lx,60,170);g.addColorStop(0,'rgba(255,225,160,'+(d.hour<7||d.hour>=18?.45:.28)+')');g.addColorStop(1,'rgba(255,225,160,0)');cx.fillStyle=g;cx.fillRect(lx-170,0,340,230)}
@@ -1196,6 +1288,7 @@ function drawReal(dt){
  if(extra>0){cx.fillStyle='#2a2347';cx.font='bold 18px sans-serif';cx.textAlign='left';cx.fillText('+'+fmt(extra)+' waiting',150+Math.min(5,Math.max(want,1))*118-30,292)}
  if(R.hintOn&&!S.firstSale){cx.fillStyle='#e53935';cx.font='bold 20px sans-serif';cx.textAlign='center';cx.fillText('👆 Click the customer to sell!',400,168+Math.sin(R_t*6)*4);cx.textAlign='left'}
  /* night tint, closed */
+ if(R.ev&&R.ev.id==='heat'){cx.fillStyle='rgba(255,150,40,.10)';cx.fillRect(0,0,W,H);cx.strokeStyle='rgba(255,255,255,.18)';cx.lineWidth=1.2;for(var q=0;q<7;q++){cx.beginPath();for(var xx=0;xx<=W;xx+=20){var yy=204+q*12+Math.sin(R_t*3+xx*.05+q)*2;if(xx===0)cx.moveTo(xx,yy);else cx.lineTo(xx,yy)}cx.stroke()}cx.fillStyle='rgba(255,230,140,.9)';cx.font='bold 14px sans-serif';cx.fillText('☀️ Heatwave!',W-110,70)}
  if(!d.open||hr<6||hr>=19){cx.fillStyle=d.open?'rgba(10,10,60,.14)':'rgba(10,10,60,.38)';cx.fillRect(0,0,W,H)}
  if(!d.open){cx.fillStyle='#d32f2f';rrp(cx,W/2-110,118,220,46,8);cx.fill();cx.fillStyle='#fff';cx.font='bold 22px sans-serif';cx.textAlign='center';cx.fillText('CLOSED',W/2,140);cx.font='12px sans-serif';cx.fillText('opens 8:00 - staff restock overnight',W/2,157);cx.textAlign='left'}
  if(S.clean<45){cx.fillStyle='#8a4b0e';cx.font='bold 12px sans-serif';cx.fillText('🧽 Shop needs cleaning!',8,292)}
@@ -1303,7 +1396,7 @@ function confirmBox(t,txt,fn){$('cfTitle').textContent=t;$('cfTxt').textContent=
  $('cfYes').onclick=function(){show('ovConfirm',false);fn()};$('cfNo').onclick=function(){show('ovConfirm',false)}}
 function resetSave(){try{localStorage.removeItem(SAVE_KEY)}catch(e){}S=freshState();resetRuntime();$('bContinue').style.display='none';
  show('ovPause',false);paused=false;state='title';show('ovTitle',true);toast('Save deleted')}
-function resetRuntime(){R.view=0;R.unit=3.4;R.capLeft=0;R.capHitT=-99;R.rankInit=false;R.emaRate=0;R.happy=1;R.pend=[];R.favList=favList();R.lastSold=S.sold;CAT.dirty=true;R.q=1;R.vis=[];R.autoAcc=0;R.stockAcc=0;R.ev=null;R.unlockSeen=0;R.wtDirty=true;R.parts=[];R.floats=[];R.fracItems=0;for(var i=0;i<NI;i++)R.sr[i]=0;derive();weights();R.unlockSeen=R.u}
+function resetRuntime(){R.work=null;R.dock=[];R.dockShown=false;R.offerT=0;R.view=0;R.unit=3.4;R.capLeft=0;R.capHitT=-99;R.rankInit=false;R.emaRate=0;R.happy=1;R.pend=[];R.favList=favList();R.lastSold=S.sold;CAT.dirty=true;R.q=1;R.vis=[];R.autoAcc=0;R.stockAcc=0;R.ev=null;R.unlockSeen=0;R.wtDirty=true;R.parts=[];R.floats=[];R.fracItems=0;for(var i=0;i<NI;i++)R.sr[i]=0;derive();weights();R.unlockSeen=R.u}
 function confetti(){var em=['🎉','🎊','⭐','🪙','🏆','✨'];for(var i=0;i<70;i++){var d=document.createElement('div');d.className='cf';d.textContent=em[i%em.length];d.style.left=Math.random()*100+'vw';d.style.animationDuration=(2.5+Math.random()*3)+'s';d.style.animationDelay=Math.random()*2+'s';document.body.appendChild(d);setTimeout(function(x){return function(){x.remove()}}(d),7000)}}
 function showBest(){$('bestRec').innerHTML=recordsHTML();show('ovBest',true);sWin();confetti()}
 function showWin(){confetti();$('winStats').textContent='Total earned: '+fmt(S.earned)+' SIP - Time played: '+fmtTime(S.played)+' - Days: '+S.day;show('ovWin',true);sWin()}
@@ -1329,6 +1422,10 @@ $('bHow').onclick=function(){show('ovHow',true)};$('bHowClose').onclick=function
 $('bReset').onclick=function(){confirmBox('Reset save?','Delete your saved shop for good?',resetSave)};
 $('bPauseReset').onclick=function(){confirmBox('Reset save?','Delete your saved shop for good?',resetSave)};
 $('bResume').onclick=togglePause;$('bPause').onclick=togglePause;
+$('bJobs').onclick=openJobs;$('bJobsClose').onclick=function(){show('ovJobs',false)};$('payOk').onclick=function(){show('ovPay',false)};
+$('wkSkip').onclick=function(){if(R.work){R.work.auto=true;R.work.t=0;updateWork()}};$('wkQuit').onclick=function(){finishShift(true)};
+$('brokeNo').onclick=function(){show('ovBroke',false)};$('brokeYes').onclick=function(){show('ovBroke',false);openJobs()};
+$('dkOk').onclick=function(){dockDo(false)};$('dkRej').onclick=function(){dockDo(true)};
 $('bGfx').onclick=function(){setGfx(GFX==='real'?'lite':GFX==='lite'?'cartoon':'real')};
 $('bMute').onclick=function(){setMute(!muted);ac()};
 $('bAch').onclick=function(){buildAch();show('ovAch',true)};$('bAchClose').onclick=function(){show('ovAch',false)};
@@ -1358,7 +1455,7 @@ function frame(now){
  acc+=dt;var n=0;while(acc>=0.1&&n<5){tick(0.1);acc-=0.1;n++}if(acc>0.5)acc=0;
  R_t+=dt;drawScene(dt);ambience(dt);
  if(GFX==='real'&&!document.hidden&&dt>0){R.fps=(R.fps||60)*.9+(1/Math.max(.001,Math.min(dt,.25)))*.1;if(R.fps<40){R.lowT=(R.lowT||0)+dt;if(R.lowT>3){setGfx('lite');toast('Low frame rate: switched to Realistic-lite')}}else R.lowT=0}
- uiT+=dt;if(uiT>=0.25){uiT=0;updateHUD();updateBar();refreshPanel()}
+ uiT+=dt;if(uiT>=0.25){uiT=0;updateHUD();updateBar();refreshPanel();if(R.work)updateWork()}
  achT+=dt;if(achT>=1){achT=0;checkAch();tutTick()}
  saveT+=dt;if(saveT>=5){saveT=0;save()}}
 
@@ -1371,7 +1468,7 @@ window.addEventListener('error',function(){});
 requestAnimationFrame(frame);
 
 /* test hooks (read/drive only) */
-window.__shop={get S(){return S},R:R,ITEMS:ITEMS,UPG:UPG,tick:tick,CAT:CAT,buyBranch:buyBranch,buyBrUp:buyBrUp,brCost:brCost,brUpCost:brUpCost,brRate:brRate,brRaw:brRaw,buildBar:buildBar,BRU:BRU,setGfx:setGfx,getGfx:function(){return GFX},newsHTML:newsHTML,tutTick:tutTick,ITEMS:ITEMS,NI:NI,serialize:serialize,leaderHTML:leaderHTML,recordsHTML:recordsHTML,placeOrder:placeOrder,mkt:mkt,myPrice:myPrice,setPrice:setPrice,buildList:buildList,stockFavs:stockFavs,MILES:MILES,derive:derive,buyUpg:buyUpg,buyExpand:buyExpand,buyStock:buyStock,restockAll:restockAll,serveManual:serveManual,
+window.__shop={get S(){return S},R:R,ITEMS:ITEMS,UPG:UPG,tick:tick,CAT:CAT,JOBS:JOBS,startShift:startShift,finishShift:finishShift,openJobs:openJobs,negotiate:negotiate,dockDo:dockDo,jobGross:jobGross,REGS:REGS,buyBranch:buyBranch,buyBrUp:buyBrUp,brCost:brCost,brUpCost:brUpCost,brRate:brRate,brRaw:brRaw,buildBar:buildBar,BRU:BRU,setGfx:setGfx,getGfx:function(){return GFX},newsHTML:newsHTML,tutTick:tutTick,ITEMS:ITEMS,NI:NI,serialize:serialize,leaderHTML:leaderHTML,recordsHTML:recordsHTML,placeOrder:placeOrder,mkt:mkt,myPrice:myPrice,setPrice:setPrice,buildList:buildList,stockFavs:stockFavs,MILES:MILES,derive:derive,buyUpg:buyUpg,buyExpand:buyExpand,buyStock:buyStock,restockAll:restockAll,serveManual:serveManual,
  upCost:upCost,upMax:upMax,expCost:expCost,fpGain:fpGain,canFran:canFran,doFranchise:doFranchise,save:save,loadSave:loadSave,sanitize:sanitize,fmt:fmt,
  setState:function(s){S=sanitize(s);resetRuntime()},fresh:function(){S=freshState(true);resetRuntime()},checkAch:checkAch,offlineCatchup:offlineCatchup,startGame:startGame,ACH:ACH,newDay:newDay,lv:lv};
 })();
