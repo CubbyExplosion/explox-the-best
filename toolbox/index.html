@@ -122,6 +122,16 @@ reg('apps', '🗂️ App manager', (el) => {
   paint();
 });
 
+// ================= SEND A HELLO =================
+reg('hello', '💌 Send hello', (el) => {
+  const url = 'https://cubbyexplosion.github.io/explox-the-best/hi-dad/';
+  el.innerHTML = '<div style="font-size:20px;font-weight:800;margin-bottom:4px">💌 Send the Hi Dad card</div><div class="muted" style="margin-bottom:10px">Funny hello card with greetings, shop music and a friendly laugh. It opens the Toolbox when he taps OK. Send it to your dad, or any family member you know.</div><input id="hu" readonly style="width:100%;box-sizing:border-box"><div class="row"><button class="b" id="hc">📋 Copy link</button><button class="b alt" id="hs">📤 Share...</button><a class="b alt" id="ho" target="_blank" rel="noopener">👀 Preview it</a></div><div id="hm" class="muted" style="margin-top:8px"></div><div class="muted" style="margin-top:12px">Tip: paste the link in a message to your dad, or ask him to open it on his computer. Press <b>Ctrl + D</b> on this page to bookmark it so it is one click away.</div>';
+  $('#hu', el).value = url; $('#ho', el).href = url;
+  const msg = (t) => { $('#hm', el).textContent = t; };
+  $('#hc', el).onclick = () => { try { navigator.clipboard.writeText(url).then(() => msg('Copied! Now paste it in a message to your dad.'), () => { $('#hu', el).select(); msg('Press Ctrl+C to copy.'); }); } catch (e) { $('#hu', el).select(); msg('Press Ctrl+C to copy.'); } };
+  $('#hs', el).onclick = () => { if (navigator.share) { navigator.share({ title: 'Come check out!', text: 'A hello from the S.I.P. team', url }).catch(() => { }); } else { msg('Your browser cannot share from here - use Copy link instead.'); } };
+});
+
 // ---- Calculator (safe: no eval, a tiny parser)
 reg('calc', '🧮 Calculator', (el) => {
   el.innerHTML = '<div id="disp">0</div><div class="calc" id="pad"></div>'; let s = '';
