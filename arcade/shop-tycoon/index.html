@@ -680,7 +680,9 @@ function tick(dt,offline){
  syncVis(offline,dt);runOrders(dt);
  if(d.open&&R.q>d.qMax*0.85)addRep(0.3,Math.min(2,dt*1.5));
  /* patience for visible customers */
- if(!offline){for(var i=R.vis.length-1;i>=0;i--){var c=R.vis[i];if(c.leave)continue;c.pat-=dt;
+ if(!offline){for(var i=R.vis.length-1;i>=0;i--){var c=R.vis[i];if(c.leave)continue;
+  if(S.stock[c.item]<1){c.leave=1;c.sold_out=1;R.q=Math.max(0,R.q-1);addRep(0.15,1);floatText(c.x,170,'😞 Sold out...','#d32f2f');review('Sold out of '+ITEMS[c.item].n+'!',2);continue}
+  c.pat-=dt;
   if(c.pat<=0){c.leave=1;R.q=Math.max(0,R.q-1);addRep(0,1);floatText(c.x,170,'Left...','#d32f2f')}}}
  /* auto-serve */
  if(d.cr>0){R.autoAcc+=d.cr*dt;var n=Math.floor(R.autoAcc);
@@ -765,7 +767,7 @@ function serveManual(target){
  if(!c){sPop();return false}
  if(c.leave)return false;
  var res=serveOne(c,true);
- if(res===false){c.shake=.4;if(c.noStock===undefined)c.noStock=1;return false}
+ if(res===false){c.shake=.4;if(c.noStock===undefined)c.noStock=1;if(S.stock[c.item]<1){c.leave=1;c.sold_out=1;R.q=Math.max(0,R.q-1)}return false}
  S.clicks++;c.leave=2;R.q=Math.max(0,R.q-1);return true}
 function fpGain(){return Math.floor(Math.sqrt(S.run/1500))}
 function canFran(){return S.run>=6000&&fpGain()>=2}
