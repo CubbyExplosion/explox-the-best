@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>A message for Dad</title>
+<style>
+:root{--bg:#f4f1ea;--text:#22223a;--accent:#2e7bd6}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:18px system-ui,"Segoe UI",sans-serif;overflow:hidden}
+#bg{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:20px}
+#bg h2{color:#555;font-weight:700}
+#pop{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(88vw,380px);background:#fff;border-radius:16px;box-shadow:0 14px 44px #0003;overflow:hidden}
+#bar{background:var(--accent);color:#fff;padding:10px 14px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+#bar .x{cursor:pointer;opacity:.85;font-weight:400}
+#body{padding:22px 18px;text-align:center}
+#q{font-size:19px;font-weight:700;margin-bottom:6px}
+#count{color:#888;font-size:14px;margin-bottom:14px}
+button{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:11px 20px;font:700 17px system-ui;cursor:pointer;margin:4px}
+button.alt{background:#e6e3dc;color:#444;font-size:14px;padding:8px 14px}
+#win{display:none;position:fixed;inset:0;background:#1b1140;color:#fff;text-align:center;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+#win h1{font-size:40px;color:#ffcd30;margin:0 0 8px}
+#win p{color:#ddd;font-size:18px;max-width:520px}
+.c{position:fixed;top:-20px;width:10px;height:14px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+a.btn{display:inline-block;margin-top:12px;background:#ffcd30;color:#1a1a1a;padding:12px 22px;border-radius:12px;font-weight:800;text-decoration:none}
+</style></head><body>
+<div id="bg"><h2>📬 A message for Dad — keep clicking OK...<br><span style="font-size:14px;color:#999">(you can close this tab any time)</span></h2></div>
+<div id="pop">
+ <div id="bar"><span>Super Important Message</span><span class="x" id="x" title="close">✕</span></div>
+ <div id="body">
+  <div id="q"></div>
+  <div id="count"></div>
+  <button id="ok">OK</button>
+  <button class="alt" id="give">I give up 🏳️</button>
+ </div>
+</div>
+<div id="win">
+ <h1>GOTCHA, DAD! 😄</h1>
+ <p id="wt">You really clicked all the way! That was for the pop-up prank. The S.I.P. team always gets even! 💙</p>
+ <a class="btn" href="../toolbox/">Open the S.I.P. Toolbox</a>
+</div>
+<script>
+const TOTAL=100;
+const Q=['Are you sure?','Really sure?','Pinky promise?','Are you SUPER sure?','Hmm, are you positive?','Double sure?','Triple sure?','Are you absolutely certain?','Would you bet a cookie on it?','Cross your heart?','Are you still sure?','For real this time?','No take-backs. Sure?','Last chance to change your mind!','Just checking... sure?','Are you a hundred percent sure?','Okay but like, sure sure?','Is that your final answer?','Are you reading these? 👀','Still here? Impressive. Sure?','Wow, you have patience!','Dad, you are stubborn 😄','Keep going!','Almost... not really!','Are you sure you are sure?','Deep breath. Sure?','You could be playing a game instead...','But are you sure?','Ok this one is the last — just kidding!','Sure-sure-sure?'];
+let n=0;const q=document.getElementById('q'),count=document.getElementById('count');
+function next(){n++;if(n>TOTAL){return win(false);}q.textContent=Q[(n-1)%Q.length];count.textContent=n+' / '+TOTAL;}
+document.getElementById('ok').onclick=next;
+document.getElementById('give').onclick=()=>win(true);
+document.getElementById('x').onclick=()=>win(true);
+next();
+let ac=null;
+function laugh(){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();const t=ac.currentTime+.05;for(let i=0;i<5;i++){const o=ac.createOscillator(),g=ac.createGain();o.type='triangle';o.frequency.setValueAtTime(330-i*20,t+i*.2);o.frequency.exponentialRampToValueAtTime(240-i*15,t+i*.2+.15);g.gain.setValueAtTime(.0001,t+i*.2);g.gain.exponentialRampToValueAtTime(.03,t+i*.2+.02);g.gain.exponentialRampToValueAtTime(.0001,t+i*.2+.17);o.connect(g);g.connect(ac.destination);o.start(t+i*.2);o.stop(t+i*.2+.19);}}catch(e){}}
+function win(gaveUp){document.getElementById('pop').remove();document.getElementById('bg').remove();const w=document.getElementById('win');w.style.display='flex';
+ if(gaveUp)document.getElementById('wt').textContent='You stopped at '+n+'! That was for the pop-up prank. The S.I.P. team always gets even! 💙';
+ laugh();const cols=['#ffcd30','#ff7ab6','#7df','#9f7','#ff9a3b','#c8f'];
+ for(let i=0;i<120;i++){const c=document.createElement('div');c.className='c';c.style.left=Math.random()*100+'vw';c.style.background=cols[i%cols.length];c.style.animationDuration=(2.5+Math.random()*3)+'s';c.style.animationDelay=(Math.random()*1.5)+'s';document.body.appendChild(c);setTimeout(()=>c.remove(),7500);}}
+</script></body></html>
