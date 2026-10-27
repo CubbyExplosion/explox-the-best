@@ -80,6 +80,12 @@ table.rp{width:100%;border-collapse:collapse;font-size:14px}table.rp td,table.rp
 #tut{background:#e8f6ff;border:2px solid #3a86ff;border-radius:14px;padding:8px 12px;margin:6px 0;font-weight:700;display:none;font-size:14px}
 #tut button{float:right;min-height:30px;padding:2px 10px;font-size:12px;margin-left:8px}
 .news h4{margin:10px 0 2px}.news p{margin:2px 0 8px;line-height:1.45;font-size:14px}
+.brbar{display:flex;gap:6px;overflow-x:auto;margin:6px 0;padding-bottom:2px}
+.brbar button{flex:0 0 auto;background:#fff;color:var(--ink);border:2px solid var(--line);box-shadow:none;font-size:13px;min-height:40px;padding:4px 10px;text-align:left;line-height:1.2}
+.brbar button.on{background:var(--pur);color:#fff;border-color:var(--pur)}
+.brbar button.cap{border-color:#e53935}.brbar button.add{background:var(--grn);color:#fff;border-color:var(--grn)}
+.brbar button small{display:block;opacity:.8;font-size:11px}
+.capbar{height:16px;background:#eadfc6;border-radius:10px;overflow:hidden;margin:4px 0}.capbar i{display:block;height:100%;background:linear-gradient(90deg,#2fbf71,#ffb300);transition:width .3s}.capbar.full i{background:#e53935}
 </style></head><body>
 <div id="app">
  <div class="top">
@@ -101,6 +107,7 @@ table.rp{width:100%;border-collapse:collapse;font-size:14px}table.rp td,table.rp
  </div>
  <div id="tut"></div>
  <div class="stat" id="stat"></div>
+ <div class="brbar" id="brbar"></div>
  <canvas id="cv" width="1600" height="600"></canvas>
  <div class="serve"><button class="g" id="bServe">🛎️ Serve customer (Space)</button><button class="b" id="bRestock">📦 Restock all</button></div>
  <div class="tabs" id="tabs"></div>
@@ -131,6 +138,7 @@ table.rp{width:100%;border-collapse:collapse;font-size:14px}table.rp td,table.rp
   <li>Hire <b>cashiers</b> (auto-sell), <b>stockers</b> (auto-restock), <b>greeters</b> and <b>managers</b>.</li>
   <li>Expand the shop, buy ads and upgrades. Watch for daily events and the seasons.</li>
   <li>You choose the <b>price of every item</b>. Customers compare it to the market price. Watch rent, wages, power and tax in the Report tab.</li>
+  <li>Each shop can earn at most <b>1000 SIP/s</b> (base). To earn more, <b>open branches</b> in new streets from the bar above the shop. Franchise multipliers are applied after the cap.</li>
   <li>Go <b>Franchise</b> for permanent bonuses once you have sold enough.</li>
   <li>Goal: <b>1,000,000 items sold</b>. Your shop keeps working while you are away (up to 8 hours).</li>
   <li>Keys: Space = serve, P / Esc = pause, M = mute.</li>
@@ -240,6 +248,20 @@ var EVENTS=[
  {id:'celeb',n:'Celebrity Visit',e:'🌟',d:'A star is in town! Triple customers!',len:20}];
 var LOCS=['Corner Stand','Small Shop','Corner Store','Big Shop','Two-Floor Shop','Three-Floor Shop','Mini Mall','Town Branch','City Branches','Country Chain','World Chain','Mega Mall Empire'];
 var MAXE=LOCS.length-1;
+var BR_CAP=1000,BRMAX=49,TA=['Harbour','Maple','Sunny','Hilltop','Riverside','Market','Oak','Lake','Station','Garden'],TB=['St','Lane','Park','Rd','Square'];
+function townName(k){return TA[k%10]+' '+TB[Math.floor(k/10)%5]}
+function newBranch(k){return {name:'Super SIP - '+townName(k-1),staff:1,mgr:0,stk:0,px:1,earned:0}}
+function brRaw(b){var p=b.px,pf=p<=1?p*(1+(1-p)*.5):p*Math.max(0,1-(p-1)/.8),sf=Math.min(1.2,.5+.12*b.stk),mf=b.mgr>0?1+.2*b.mgr:.6;return b.staff*5*mf*sf*pf*(.8+.04*S.rep)}
+function brRate(b){return Math.min(BR_CAP,brRaw(b))}
+function brCost(k){return 20000*Math.pow(1.3,k-1)*R.derived.im}
+var BRU={staff:{n:'Staff',e:'🧑‍🤝‍🧑',max:60,cost:function(b){return 150*Math.pow(1.15,b.staff)}},mgr:{n:'Manager',e:'🧑‍💼',max:15,cost:function(b){return 800*Math.pow(1.35,b.mgr)}},stk:{n:'Stock supply',e:'📦',max:10,cost:function(b){return 400*Math.pow(1.5,b.stk)}}};
+function brUpCost(b,k){return BRU[k].cost(b)*R.derived.im}
+function buyBrUp(b,k){var u=BRU[k];if(b[k]>=u.max){return false}var c=brUpCost(b,k);if(S.money<c){sBad();return false}S.money-=c;b[k]++;sBuy();return true}
+function buyBranch(){if(S.br.length>=BRMAX){return false}var c=brCost(S.br.length+1);if(S.money<c){sBad();return false}S.money-=c;S.br.push(newBranch(S.br.length+1));sLevel();toast('🏪 New branch opened: '+S.br[S.br.length-1].name+'!',true);buildBar(true);return true}
+function branchesTick(dt){var d=R.derived,m=d.pm*d.im;
+ for(var i=0;i<S.br.length;i++){var b=S.br[i],base=brRate(b),inc=base*dt*m;if(inc<=0)continue;var items=base*dt*d.im/Math.pow(Math.max(1,R.unit/d.pm),0.95);
+  S.money=cb(S.money+inc);S.earned=cb(S.earned+inc);S.runEarned=cb(S.runEarned+inc);S.sold=cb(S.sold+items);S.run+=items/d.im;S.di+=items;S.acc.rev=cb(S.acc.rev+inc);b.earned=cb(b.earned+inc);R.rate._s+=items;R.rate._c+=inc;
+  if(!S.firstSale)S.firstSale=true}}
 var CATVAT=[0.05,0.1,0.1,0.1,0.15,0.05,0,0.1];
 var SUPS=[{n:'Corner Supplier',m:1,min:1,dl:0,req:0,d:'Instant delivery, any amount, normal price.'},
  {n:'Wholesale Co',m:.9,min:10,dl:20,req:1,d:'-10% cost, min order 10, delivery 20s.'},
@@ -282,6 +304,10 @@ A('hire1','🧑‍💼','First Hire','Hire your first staff member.',function(s)
 A('hire10','👥','Small Team','Have 10 staff.',function(s){return staffTotal()>=10});
 A('hire50','🏢','Big Team','Have 50 staff.',function(s){return staffTotal()>=50});
 A('mgr','🧑‍🏫','Boss Mode','Hire a manager.',function(s){return lv('manager')>=1});
+A('br1','🏪','Second Shop','Open your first branch.',function(s){return s.br.length>=1});
+A('br10','🏙️','Ten Shops','Run 10 shops at once.',function(s){return s.br.length>=9});
+A('br25','🌆','Chain Store','Run 25 shops at once.',function(s){return s.br.length>=24});
+A('br50','🌍','Shop Empire','Run 50 shops at once.',function(s){return s.br.length>=49});
 A('exp1','🏬','Moving Up','Expand your shop.',function(s){return s.exp>=1});
 A('exp4','🏙️','Shopping Street','Reach the Two-Floor Shop.',function(s){return s.exp>=4});
 A('exp7','🌆','Town Branch','Open a Town Branch.',function(s){return s.exp>=7});
@@ -312,7 +338,7 @@ function newAcc(){return {rev:0,cogs:0,waste:0,cat:[0,0,0,0,0,0,0,0]}}
 function freshRec(){return {t1k:0,t1m:0,dayItems:0,dayProfit:0,rich:100,big:0,bestStreak:0,rep:0,staff:0,loc:0,margin:0,hasDay:0}}
 function freshState(starter){var st={v:2,money:100,sold:0,run:0,earned:0,runEarned:0,stock:new Float64Array(NI),upg:{},exp:0,fp:0,fran:0,price:1,day:1,dayT:42,
  ip:new Float64Array(NI),seen:new Uint8Array(NI),fav:new Uint8Array(NI),nseen:0,auto:true,
- sup:0,orders:[],loan:0,trend:[1,1,1,1,1,1,1,1],comp:[1,1],sh:{cat:-1,left:0},acc:newAcc(),last:null,wk:{rev:0,cogs:0,waste:0,rent:0,wages:0,elec:0,tax:0,int:0,profit:0,days:0,fees:0,vat:0,fine:0},clean:100,insp:{n:0,fines:0,good:0},tut:0,wkLast:null,
+ br:[],sup:0,orders:[],loan:0,trend:[1,1,1,1,1,1,1,1],comp:[1,1],sh:{cat:-1,left:0},acc:newAcc(),last:null,wk:{rev:0,cogs:0,waste:0,rent:0,wages:0,elec:0,tax:0,int:0,profit:0,days:0,fees:0,vat:0,fine:0},clean:100,insp:{n:0,fines:0,good:0},tut:0,wkLast:null,
  rec:freshRec(),di:0,streak:0,best:false,riv:[0,0,0,0,0,0],rivBest:[0,0,0,0,0,0],rivSk:[1.15,.95,1,.8,.7,.6],rank:1,
  ach:{},rep:3,clicks:0,vip:0,evSeen:0,celeb:0,away:0,played:0,won:false,savedAt:Date.now(),firstSale:false,muteHint:false};
  if(starter)for(var q=0;q<6;q++)st.stock[q]=50;return st}
@@ -337,6 +363,7 @@ function sanitize(o){var st=freshState();if(!o||typeof o!=='object')return st;
  st.rep=num(o.rep,3,1,5);st.clicks=Math.floor(num(o.clicks,0,0,1e9));st.vip=Math.floor(num(o.vip,0,0,BIG));
  st.evSeen=Math.floor(num(o.evSeen,0,0,1e9));st.celeb=Math.floor(num(o.celeb,0,0,1e9));st.away=Math.floor(num(o.away,0,0,1e9));
  st.played=num(o.played,0,0,1e10);st.won=!!o.won;st.best=!!o.best;st.firstSale=!!o.firstSale||st.sold>0;
+ if(Array.isArray(o.br))o.br.slice(0,BRMAX).forEach(function(b,k){if(!b||typeof b!=='object')return;st.br.push({name:typeof b.name==='string'?b.name.slice(0,40):'Super SIP - '+townName(k),staff:Math.floor(num(b.staff,1,1,60)),mgr:Math.floor(num(b.mgr,0,0,15)),stk:Math.floor(num(b.stk,0,0,10)),px:num(b.px,1,.7,1.4),earned:num(b.earned,0,0,1e300)})});
  st.sup=Math.floor(num(o.sup,0,0,2));st.loan=num(o.loan,0,0,BIG);
  if(Array.isArray(o.trend))for(var i=0;i<8;i++)st.trend[i]=num(o.trend[i],1,.7,1.4);
  if(Array.isArray(o.comp))for(var i=0;i<2;i++)st.comp[i]=num(o.comp[i],1,.8,1.3);
@@ -363,7 +390,7 @@ function hasSave(){try{return !!localStorage.getItem(SAVE_KEY)}catch(e){return f
 
 /* ---------- game runtime ---------- */
 var R={q:0,vis:[],autoAcc:0,stockAcc:0,ev:null,evLeft:0,sr:[],derived:null,parts:[],floats:[],hintOn:true,
- rate:{sold:0,cash:0,cust:0,_s:0,_c:0,_u:0,_t:0},unlockSeen:0,wtDirty:true,wt:null,wtSum:1,ptr:0,lastRep:3,msgs:[]};
+ rate:{sold:0,cash:0,cust:0,main:0,_m:0,_s:0,_c:0,_u:0,_t:0},unlockSeen:0,wtDirty:true,wt:null,wtSum:1,ptr:0,lastRep:3,msgs:[]};
 R.sr=new Float64Array(NI);R.actI=[];R.actW=[];R.actR=[];R.actP=[];R.nAct=0;R.lump=0;R.emaRate=0;R.lastSold=0;R.happy=1;R.riv={};R.u=0;
 
 function maxStaff(){return 6+6*S.exp}
@@ -449,7 +476,7 @@ function serveOne(c,manual){
   if(ratio<1+tolE*1.5&&Math.random()<0.4){hag=true;P=P*0.9}
   else{addRep(0.2,1);review('Way too expensive!',1);if(c){floatText(c.x,170,'Too pricey!','#d32f2f')}sBad();return 'refuse'}}
  var rev=qty*P*t.pm*d.pm*d.im;S.acc.cat[ITEMS[item].cat]+=rev;
- S.stock[item]-=qty;bookSale(qty,rev);S.acc.rev=cb(S.acc.rev+rev);
+ S.stock[item]-=qty;bookSale(qty,rev);S.acc.rev=cb(S.acc.rev+rev);R.capLeft-=rev;R.rate._m+=rev;
  if(!S.seen[item]){S.seen[item]=1;S.nseen++}
  if(hag){addRep(.6,1);review('Haggled a discount.',3)}else if(ratio<0.9){addRep(1,1);review('Great prices!',5)}else{addRep(0.9,1);review('Fair prices, nice shop.',4)}
  var rv=rev/d.im,paid=Math.ceil(rv/5)*5;if(paid<rv)paid=rv;
@@ -466,19 +493,23 @@ function newCustomer(){
  return {type:t,mood:.85+Math.random()*.3,item:pickItem(),qty:b,pat:t.id==='pick'?18:28,maxPat:t.id==='pick'?18:28,x:830,tx:0,leave:0,bounce:Math.random()*6}}
 
 /* bulk service of n customers (expected values) */
-function serveBulk(n){
- var d=R.derived;if(R.wtDirty)weights();
- var demandTot=0,soldTot=0,rev=0,priceLost=0,na=R.actI.length;
+function bulkCalc(n,factor,apply){
+ var d=R.derived,demand=0,sold=0,rev=0,lost=0,na=R.actI.length;
  for(var ti=0;ti<TYPES.length;ti++){var t=TYPES[ti],cn=n*t.mix;
   for(var j=0;j<na;j++){var i=R.actI[j],ratio=R.actR[j],a=accept(ratio,t.tol+d.tolB),bk=Math.max(1,d.basket*t.bm)*bonusQ(ratio);
-   var want=cn*R.actW[j]/R.wtSum*bk;demandTot+=want;
-   var wa=want*(a+(1-a)*0.15);priceLost+=want-wa;
-   var sell=Math.min(wa,S.stock[i]);if(sell<=0)continue;
-   S.stock[i]-=sell;soldTot+=sell;rev+=sell*R.actP[j]*t.pm*d.pm;S.acc.cat[ITEMS[i].cat]+=sell*R.actP[j]*t.pm*d.pm*d.im;
-   if(ti===0&&!S.seen[i]){S.seen[i]=1;S.nseen++}
-   if(t.id==='vip')S.vip+=sell/bk}
-  demandTot+=cn*R.lump/R.wtSum*Math.max(1,d.basket*t.bm)}
- rev*=d.im;
+   var want=cn*R.actW[j]/R.wtSum*bk;demand+=want;
+   var wa=want*(a+(1-a)*0.15);lost+=want-wa;
+   var sell=Math.min(wa,S.stock[i]);if(sell<=0)continue;sell*=factor;
+   sold+=sell;var rv=sell*R.actP[j]*t.pm*d.pm;rev+=rv;
+   if(apply){S.stock[i]-=sell;S.acc.cat[ITEMS[i].cat]+=rv*d.im;if(ti===0&&sell>0&&!S.seen[i]){S.seen[i]=1;S.nseen++}if(t.id==='vip')S.vip+=sell/bk}}
+  demand+=cn*R.lump/R.wtSum*Math.max(1,d.basket*t.bm)}
+ return [demand,sold,rev,lost]}
+function serveBulk(n){
+ var d=R.derived;if(R.wtDirty)weights();
+ var est=bulkCalc(n,1,false),revEst=est[2]*d.im,factor=1;
+ if(revEst>R.capLeft){factor=revEst>0?Math.max(0,R.capLeft/revEst):0;R.capHitT=R_t}
+ var res=bulkCalc(n,factor,true),demandTot=res[0]*(factor>0?factor:1),soldTot=res[1],priceLost=res[3];
+ var rev=res[2]*d.im;R.capLeft-=rev;R.rate._m+=rev;
  var whole=Math.floor(soldTot+R.fracItems);R.fracItems=soldTot+R.fracItems-whole;
  var it=whole*d.im;
  S.money=cb(S.money+rev);S.earned=cb(S.earned+rev);S.runEarned=cb(S.runEarned+rev);S.acc.rev=cb(S.acc.rev+rev);S.sold=cb(S.sold+it);S.run+=whole;S.di+=it;R.rate._s+=it;R.rate._c+=rev;
@@ -486,7 +517,7 @@ function serveBulk(n){
  if(whole>0)S.firstSale=true;
  R.rate._u+=n;
  var hp=demandTot>0?soldTot/demandTot:1;addRep(hp,n);
- if(demandTot>0){if(priceLost/demandTot>0.3)review('Too expensive!',2);else if(soldTot/demandTot<0.7)review('Sold out of things!',2);else if(R.avgRatio<0.9)review('Great prices!',5);else review('Fair prices, nice shop.',4)}
+ if(demandTot>0){if(factor<1)review('Rush! Shop is at its income cap.',4);else if(priceLost/demandTot>0.3)review('Too expensive!',2);else if(soldTot/demandTot<0.7)review('Sold out of things!',2);else if(R.avgRatio<0.9)review('Great prices!',5);else review('Fair prices, nice shop.',4)}
  if(soldTot>0){sChing();for(var k=0;k<3;k++)spawnCoin(300+Math.random()*300,200)}
  return soldTot}
 R.fracItems=0;
@@ -542,7 +573,9 @@ function closeBooks(){
  var grace=S.day<=2;if(grace){rent=wages=elec=interest=0}
  var pre=a.rev-a.cogs-a.waste-rent-wages-elec-interest-fees-vat,tax=pre>0&&!grace?pre*0.08:0;
  var bills=rent+wages+elec+interest+tax+fees+vat;
- if(S.money>=bills)S.money-=bills;else{S.loan+=bills-S.money;S.money=0}
+ var chunk=300*Math.pow(4,E)*im;
+ if(S.money>=bills)S.money-=bills;else{S.loan=Math.min(S.loan+(bills-S.money),chunk*12);S.money=0}
+ if(S.money<chunk*0.05&&S.loan>chunk*2){S.loan=chunk*2;S.money+=chunk*0.1;if(!R.off)toast('🏦 The bank restructured your debt and lent you a little cash to carry on.',true)}
  var rep={day:S.day,rev:a.rev,cogs:a.cogs,waste:a.waste,rent:rent,wages:wages,elec:elec,tax:tax,int:interest,fees:fees,vat:vat,fine:0,profit:a.rev-a.cogs-a.waste-bills,days:1};
  S.last=rep;var w=S.wk;['rev','cogs','waste','rent','wages','elec','tax','int','profit','fees','vat','fine'].forEach(function(k){w[k]=(w[k]||0)+rep[k]});w.days++;
  if(w.days>=7){S.wkLast=cleanRep(w);S.wkLast.day=S.day;for(var k in w)w[k]=0;if(!R.off)toast('📒 Weekly report ready: profit '+fmt(S.wkLast.profit)+' SIP')}
@@ -579,6 +612,7 @@ function tick(dt,offline){
  S.played+=dt;S.dayT+=dt;R.wtT=(R.wtT||0)+dt;if(R.wtT>=0.5){R.wtT=0;R.wtDirty=true}
  if(R.ev){R.evLeft-=dt;if(R.evLeft<=0){R.ev=null;R.wtDirty=true}}
  R.off=!!offline;
+ {var dm=R.derived.im*R.derived.pm;R.capLeft=Math.min((R.capLeft||0)+BR_CAP*dt*dm,Math.max(2.5,dt*1.1)*BR_CAP*dm)}
  S.clean=clamp(S.clean-(0.012+0.0015*(R.derived&&R.derived.open?Math.min(R.derived.lam,R.derived.cr+0.5):0))*dt+(R.derived?R.derived.cleanRate:0)*dt,0,100);
  if(S.clean<30&&R.derived&&R.derived.open)addRep(0.3,Math.min(2,dt*1.2));if(S.dayT>=DAY){dayChange(!!offline)}
  if(R.wtDirty)weights();
@@ -614,7 +648,8 @@ function tick(dt,offline){
  for(var jj=0;jj<R.actI.length;jj++){var i=R.actI[jj];if(PERISH[ITEMS[i].cat]&&S.stock[i]>0){var lo=S.stock[i]*dt/(900*(1+0.05*lv('warehouse')));S.stock[i]-=lo;S.acc.waste+=lo*wCost(i,0);if(S.stock[i]<0.02)S.stock[i]=0;R.wtDirty=R.wtDirty||S.stock[i]<1}}
  autoStock(dt);
  /* rates (1s window) */
- R.rate._t+=dt;if(R.rate._t>=2){var r=R.rate;r.sold=r._s/r._t;r.cash=r._c/r._t;r.cust=r._u/r._t;r._s=r._c=r._u=0;r._t=0}
+ branchesTick(dt);
+ R.rate._t+=dt;if(R.rate._t>=2){var r=R.rate;r.sold=r._s/r._t;r.cash=r._c/r._t;r.cust=r._u/r._t;r.main=r._m/r._t/(d.im*d.pm);if(r.sold>0)R.unit=clamp(r.cash/r.sold,2,1e12);r._s=r._c=r._u=r._m=0;r._t=0}
  if(S.sold>=GOAL&&!S.won){S.won=true;if(!offline)showWin()}
  if(S.sold>=1e222&&!S.best){S.best=true;if(!offline)showBest()}
  S.money=cb(S.money);S.sold=cb(S.sold);
@@ -646,7 +681,7 @@ function canFran(){return S.run>=6000&&fpGain()>=2}
 function doFranchise(){var g=fpGain();S.fp+=g;S.fran++;
  var keep={ach:S.ach,sold:S.sold,earned:S.earned,fp:S.fp,fran:S.fran,played:S.played,won:S.won,best:S.best,day:S.day,evSeen:S.evSeen,celeb:S.celeb,clicks:S.clicks,vip:S.vip,away:S.away,rep:3,seen:S.seen,nseen:S.nseen,fav:S.fav,rec:S.rec,riv:S.riv,rivBest:S.rivBest,rivSk:S.rivSk,rank:S.rank,streak:0,auto:S.auto,tut:S.tut,insp:S.insp};
  var n=freshState();for(var k in keep)n[k]=keep[k];S=n;derive();S.money=(100+100*S.fp)*R.derived.im;
- R.q=0;R.vis=[];R.ev=null;R.autoAcc=0;R.stockAcc=0;R.unlockSeen=0;R.wtDirty=true;R.sr.fill(0);R.favList=favList();CAT.dirty=true;R.lastSold=S.sold;
+ R.view=0;barN=-1;R.q=0;R.vis=[];R.ev=null;R.autoAcc=0;R.stockAcc=0;R.unlockSeen=0;R.wtDirty=true;R.sr.fill(0);R.favList=favList();CAT.dirty=true;R.lastSold=S.sold;
  derive();weights();toast('🧬 Franchise! +'+g+' Franchise Points. Chain scale x'+fmt(R.derived.im));sLevel();save();buildPanel()}
 
 /* ---------- tutorial ---------- */
@@ -666,7 +701,7 @@ function tutTick(){var el=$('tut');if(S.tut>=TUT.length){el.style.display='none'
 function trackRec(dt){var rc=S.rec;
  if(!rc.t1k&&S.sold>=1000)rc.t1k=S.played;if(!rc.t1m&&S.sold>=1e6)rc.t1m=S.played;
  if(S.money>rc.rich)rc.rich=S.money;if(S.rep>rc.rep)rc.rep=S.rep;
- var st=staffTotal();if(st>rc.staff)rc.staff=st;var lc=S.fran*12+S.exp+1;if(lc>rc.loc)rc.loc=lc}
+ var st=staffTotal();if(st>rc.staff)rc.staff=st;var lc=S.fran*60+S.exp+1+S.br.length;if(lc>rc.loc)rc.loc=lc}
 var RIVALS=[{n:'SnackZone',e:'🍭'},{n:'ToyTopia',e:'🎠'},{n:'GadgetGo',e:'🤖'},{n:'PetPal Plaza',e:'🐶'},{n:'Book Burrow',e:'📖'},{n:'Sporty Spot',e:'🏅'}];
 R.rivDay=[0,0,0,0,0,0];R.rivCool=0;R.rankInit=false;
 function perf(){var rep=S.rep/5,pf=R.avgRatio<=1.1?1:Math.max(.4,1.1/R.avgRatio);return clamp(0.4*R.happy+0.3*rep+0.3*pf,0.2,1)}
@@ -707,7 +742,7 @@ function toast(t,a){var d=document.createElement('div');d.className='toast'+(a?'
  setTimeout(function(){if(d.parentNode)d.parentNode.removeChild(d)},a?4500:3500);
  while($('toasts').children.length>4)$('toasts').removeChild($('toasts').firstChild)}
 function buildTabs(){var h=$('tabs');h.innerHTML='';TABS.forEach(function(t){var b=document.createElement('button');b.textContent=t[1];b.dataset.t=t[0];
- b.onclick=function(){tabNow=t[0];if(t[0]==='report')R.sawReport=true;buildPanel();sPop()};h.appendChild(b)});}
+ b.onclick=function(){tabNow=t[0];R.view=0;buildBar(true);if(t[0]==='report')R.sawReport=true;buildPanel();sPop()};h.appendChild(b)});}
 function mkRow(parent,e,cls){var r=document.createElement('div');r.className='row '+(cls||'');
  r.innerHTML='<div class="e"></div><div class="m"><b></b><small></small></div><div class="btns"></div>';
  r.querySelector('.e').textContent=e;parent.appendChild(r);
@@ -722,9 +757,29 @@ function buildList(){var q=CAT.q.trim().toLowerCase(),out=[],u=R.u||0;
  else if(CAT.sort==='new2')out.sort(function(a,b){return (S.seen[a]?1:0)-(S.seen[b]?1:0)});
  CAT.list=out;CAT.dirty=false;var pages=Math.max(1,Math.ceil(out.length/CAT.per));if(CAT.page>=pages)CAT.page=pages-1;if(CAT.page<0)CAT.page=0}
 function setPrice(i,v){R.didPrice=true;v=num(v,0,0,1e300);if(v<=0){S.ip[i]=0}else{var lo=uCost(i)*0.3,hi=mkt(i)*3;S.ip[i]=Math.max(lo,Math.min(hi,v))}R.wtDirty=true;weights()}
+var barBtns=[],barN=-1;
+function buildBar(force){var bar=$('brbar');if(!force&&barN===S.br.length+1&&barBtns.length)return;barN=S.br.length+1;bar.innerHTML='';barBtns=[];
+ for(var k=0;k<=S.br.length;k++)(function(k){var b=document.createElement('button');b.onclick=function(){R.view=k;buildBar(true);buildPanel();sPop()};bar.appendChild(b);barBtns.push(b)})(k);
+ var add=document.createElement('button');add.className='add';add.onclick=function(){if(buyBranch())buildBar(true)};bar.appendChild(add);barBtns.push(add);updateBar()}
+function updateBar(){for(var k=0;k<=S.br.length&&k<barBtns.length-1;k++){var b=barBtns[k],rate=k===0?R.rate.main:brRate(S.br[k-1]),raw=k===0?(R.capHitT>R_t-3?BR_CAP*2:rate):brRaw(S.br[k-1]);
+  b.className=(R.view===k?'on ':'')+(raw>=BR_CAP?'cap':'');
+  b.innerHTML=(k===0?'🏪 Home shop':'🏬 '+S.br[k-1].name.replace('Super SIP - ',''))+'<small>'+fmt(Math.min(rate,BR_CAP))+' / 1000 SIP/s'+(raw>=BR_CAP?' capped!':'')+'</small>'}
+ var add=barBtns[barBtns.length-1];if(add){if(S.br.length>=BRMAX){add.textContent='All 50 shops open';add.disabled=true}else{var c=brCost(S.br.length+1);add.innerHTML='+ Open branch<small>'+fmt(c)+' SIP</small>';add.disabled=S.money<c}}}
+function buildBranchPanel(b,bi){
+ var top=document.createElement('div');elPanel.appendChild(top);
+ var rate,raw;
+ rows.push(function(){raw=brRaw(b);rate=Math.min(BR_CAP,raw);top.innerHTML='<div class="h">🏬 '+b.name+'</div><div style="font-size:14px">Income: <b>'+fmt(rate)+' / 1000 SIP/s</b> (base)'+(raw>=BR_CAP?' <span style="color:#e53935;font-weight:800">capped! Open another branch to earn more.</span>':'')+'</div><div class="capbar'+(raw>=BR_CAP?' full':'')+'"><i style="width:'+Math.min(100,rate/BR_CAP*100)+'%"></i></div><div style="font-size:13px;opacity:.85">Each shop earns at most 1000 SIP/s base. Your profit bonus and chain scale multiply it afterwards (now x'+fmt(R.derived.pm*R.derived.im)+'), so a franchise grows every shop. Earned here: '+fmt(b.earned)+' SIP. Without a manager a branch runs at 60%.</div>'});
+ ['staff','mgr','stk'].forEach(function(k){var u=BRU[k],r=mkRow(elPanel,u.e);var bt=mkBtn(r,'Buy','g',function(){buyBrUp(b,k)}),b5=mkBtn(r,'x5','b',function(){for(var q=0;q<5;q++)if(!buyBrUp(b,k))break});
+  rows.push(function(){r.n.textContent=u.n+'  '+b[k]+' / '+u.max;r.s.textContent=k==='staff'?'More staff serve more customers.':k==='mgr'?'Managers run the branch for you (+20% each).':'Keeps shelves stocked (up to 120% of normal).';
+   if(b[k]>=u.max){bt.textContent='MAX';bt.disabled=true;b5.disabled=true}else{var c=brUpCost(b,k);bt.textContent='Buy '+fmt(c);bt.disabled=S.money<c;b5.disabled=S.money<c}})});
+ var pr=document.createElement('div');pr.innerHTML='<div class="h">💲 Branch prices: <span id="bpl"></span></div><input type="range" id="bpx" min="70" max="140" step="5" style="width:100%">';elPanel.appendChild(pr);
+ var sl=pr.querySelector('#bpx');sl.value=Math.round(b.px*100);sl.oninput=function(){b.px=num(sl.value,100,70,140)/100};
+ rows.push(function(){var l=$('bpl');if(l)l.textContent=Math.round(b.px*100)+'% of market (best earnings are near 100%)'});
+ refreshPanel()}
 function buildPanel(){
  var tb=$('tabs').children;for(var i=0;i<tb.length;i++)tb[i].className=tb[i].dataset.t===tabNow?'on':'';
  elPanel.innerHTML='';rows=[];
+ if(R.view>0&&S.br[R.view-1]){for(var i=0;i<tb.length;i++)tb[i].className='';buildBranchPanel(S.br[R.view-1],R.view-1);return}
  if(tabNow==='stock'){
   var top=document.createElement('div');
   top.innerHTML='<div class="ctl"><input class="tx" id="cq" placeholder="Search items (e.g. red teddy)"><select class="tx" id="cc"><option value="-1">All categories</option>'+CATS.map(function(c,i){return '<option value="'+i+'">'+c.e+' '+c.n+'</option>'}).join('')+'</select><select class="tx" id="cs"><option value="new">Newest first</option><option value="price">Price low-high</option><option value="profit">Most profit</option><option value="new2">Not sold yet first</option></select></div>'+
@@ -827,7 +882,7 @@ function buildPanel(){
  } else if(tabNow==='fran'){
   var box=document.createElement('div');elPanel.appendChild(box);
   rows.push(function(){var g=fpGain(),nx=S.fran+1;
-   box.innerHTML='<div class="h">🧬 Franchise</div><p style="font-size:14px;line-height:1.5">Open a brand new shop with <b>permanent bonuses</b>: each Franchise Point gives <b>+20% profit</b>, <b>+10% customers</b> and <b>+100 SIP</b> starting cash. Every franchise also makes each sale a <b>bulk shipment worth 316x more</b> (chain scale), so your total items sold explodes. Money, stock, staff and upgrades reset; records, medals and your collection stay.</p>'+
+   box.innerHTML='<div class="h">🧬 Franchise</div><p style="font-size:14px;line-height:1.5">Open a brand new shop with <b>permanent bonuses</b>: each Franchise Point gives <b>+20% profit</b>, <b>+10% customers</b> and <b>+100 SIP</b> starting cash. Every franchise also makes each sale a <b>bulk shipment worth 316x more</b> (chain scale), so your total items sold explodes. Money, stock, staff, upgrades and branches reset; records, medals and your collection stay. The 1000 SIP/s cap is per shop on the base rate - the profit bonus and chain scale multiply it afterwards.</p>'+
    '<p>Franchise Points: <b>'+S.fp+'</b> (profit x'+(1+0.2*S.fp).toFixed(1)+', customers x'+(1+0.1*S.fp).toFixed(1)+')<br>Times franchised: '+S.fran+' - Chain scale now x'+fmt(R.derived.im)+'<br>This run sold: '+fmtInt(S.run)+'<br>Points if you franchise now: <b>'+g+'</b></p>'+
    (canFran()?'':'<p style="color:#b24;font-weight:700">Sell 6,000 items this run to unlock (need at least 2 points).</p>')+'<button class="p" id="frBtn" '+(canFran()?'':'disabled')+'>🧬 Franchise now (+'+g+' pts)</button>';
    var fb=$('frBtn');if(fb)fb.onclick=function(){confirmBox('Franchise?','You will get '+g+' Franchise Points but lose your money, stock, staff, upgrades and location.',doFranchise)}})}
@@ -856,7 +911,8 @@ function recordsHTML(){var rc=S.rec,h='';function L(a,b){h+='<div class="rec"><s
  L('🎯 Record to beat: best rival day',RIVALS[bi].e+' '+RIVALS[bi].n+' '+fmt(S.rivBest[bi])+' items');
  var tp=0;for(var i=1;i<6;i++)if(S.riv[i]>S.riv[tp])tp=i;L('🎯 Record to beat: top rival total',RIVALS[tp].e+' '+RIVALS[tp].n+' '+fmt(S.riv[tp])+' items');
  return '<div class="h">🏆 Records Book</div>'+h}
-function leaderHTML(){var a=[{n:'SUPER SIP (you)',e:'🏪',v:S.sold,me:1}];for(var i=0;i<6;i++)a.push({n:RIVALS[i].n,e:RIVALS[i].e,v:S.riv[i]});a.sort(function(x,y){return y.v-x.v});
+function rivBr(i){return Math.max(1,Math.min(50,Math.round((S.br.length+1)*S.riv[i]/Math.max(1,S.sold))))}
+function leaderHTML(){var a=[{n:'SUPER SIP (you) - '+(S.br.length+1)+' shops',e:'🏪',v:S.sold,me:1}];for(var i=0;i<6;i++)a.push({n:RIVALS[i].n+' - '+rivBr(i)+' shops',e:RIVALS[i].e,v:S.riv[i]});a.sort(function(x,y){return y.v-x.v});
  return a.map(function(x,k){return '<div class="rec" style="'+(x.me?'background:#fff0b3;border-radius:8px;padding:6px':'')+'"><span>#'+(k+1)+' '+x.e+' '+x.n+'</span><b>'+fmt(x.v)+'</b></div>'}).join('')}
 function stars(r){var s='';for(var i=1;i<=5;i++)s+=r>=i-.25?'⭐':'☆';return s}
 var lastFranHTML='';
@@ -879,7 +935,7 @@ function updateHUD(){
   $('nextTxt').textContent='Next unlock: '+nxt.e+' '+nxt.n+' at '+fmtInt(nxt.unlock)+' sold ('+fmtInt(nxt.unlock-S.run)+' to go) - '+fmtInt(u)+' / '+fmtInt(NI)+' items unlocked'}
  else{$('lvlBar').style.width='100%';$('nextTxt').textContent='Every item unlocked!'}
  var se=SEASONS[Math.floor((S.day-1)/7)%4],h=Math.floor(d.hour),mn=Math.floor((d.hour-h)*60);
- $('stat').innerHTML='<span>📅 '+DOW[(S.day-1)%7]+' D'+S.day+' 🕐 '+('0'+h).slice(-2)+':'+('0'+mn).slice(-2)+' '+(d.open?'OPEN':'CLOSED')+'</span><span>'+se.e+' '+se.n+'</span><span>'+stars(S.rep)+'</span><span>👥 '+fmt(d.lam)+'/s</span><span>🛒 '+fmt(R.rate.sold)+' items/s</span><span>💵 '+fmt(R.rate.cash)+' SIP/s</span><span>🧺 '+fmtInt(S.nseen)+'/'+fmtInt(NI)+'</span>'+
+ $('stat').innerHTML='<span>📅 '+DOW[(S.day-1)%7]+' D'+S.day+' 🕐 '+('0'+h).slice(-2)+':'+('0'+mn).slice(-2)+' '+(d.open?'OPEN':'CLOSED')+'</span><span>'+se.e+' '+se.n+'</span><span>'+stars(S.rep)+'</span><span>👥 '+fmt(d.lam)+'/s</span><span>🛒 '+fmt(R.rate.sold)+' items/s</span><span>💵 '+fmt(R.rate.cash)+' SIP/s</span><span>🏪 Home '+fmt(Math.min(R.rate.main,BR_CAP))+'/1000'+(R.capHitT>R_t-3?' capped!':'')+'</span><span>🏬 Shops '+(S.br.length+1)+'</span><span>🧺 '+fmtInt(S.nseen)+'/'+fmtInt(NI)+'</span>'+
   (S.loan>0?'<span>🏦 '+fmt(S.loan)+'</span>':'')+(R.review?'<span>💬 '+R.review.t+'</span>':'')+
   (S.fp?'<span>🧬 '+S.fp+' FP</span>':'')+(R.ev?'<span class="chip">'+R.ev.e+' '+R.ev.n+' '+Math.ceil(R.evLeft)+'s</span>':'')}
 
@@ -1102,7 +1158,22 @@ function drawReal(dt){
  for(var i=R.floats.length-1;i>=0;i--){var f=R.floats[i];f.t+=dt;if(f.t>1.4){R.floats.splice(i,1);continue}
   cx.globalAlpha=1-f.t/1.4;cx.fillStyle=f.c;cx.font='bold 17px sans-serif';cx.textAlign='center';cx.fillText(f.txt,f.x,f.y-f.t*40);cx.textAlign='left'}
  cx.globalAlpha=1}
-function drawScene(dt){if(GFX==='cartoon')drawCartoon(dt);else drawReal(dt)}
+function drawBranch(dt,b){
+ var d=R.derived,hr=d.hour,lite=GFX!=='real',key=S.exp+'|'+(GFX==='cartoon'?'lite':GFX)+'|'+Math.floor(S.clean/12);
+ if(R.bgKey!==key||!R.bg){R.bg=buildBg(S.exp,S.clean,lite);R.bgKey=key}
+ outside(20,38,140,100,hr,dt,lite);cx.drawImage(R.bg.c,0,0,W,H);
+ var f=Math.min(1,.3+.07*b.stk);
+ for(var sl=0;sl<36;sl++){var tier=Math.floor(sl/12),col=sl%12,bx=198+col*34,by=84+tier*40,cat=(sl*5+tier)%8,spr=prodSprite(cat,(sl+tier)%4),n=Math.max(1,Math.ceil(f*3));
+  for(var k=n-1;k>=0;k--)cx.drawImage(spr.c,bx+k*5-2,by-34-k,26*.95,36*.95)}
+ var ns=Math.min(8,Math.ceil(b.staff/4));for(var i=0;i<ns;i++)person(60+i*70,198,i%2?13:12,8,1);
+ if(b.mgr>0)person(740,196,5,8,1);
+ cx.drawImage(R.bg.f,0,0,W,H);cx.drawImage(propSprite('reg').c,86,170,60,36);
+ cx.fillStyle='rgba(20,20,40,.85)';rrp(cx,W/2-150,4,300,36,6);cx.fill();lg(W/2-146,7,30);lg(W/2+116,7,30);cx.fillStyle='#ffe066';cx.font='bold 20px "Trebuchet MS",sans-serif';cx.textAlign='center';cx.fillText('SUPER SIP',W/2,26);cx.fillStyle='rgba(255,255,255,.85)';cx.font='bold 11px sans-serif';cx.fillText(b.name.replace('Super SIP - ',''),W/2,37);cx.textAlign='left';
+ var nc=Math.min(8,2+Math.floor(brRate(b)/150));
+ for(var i=0;i<nc;i++){var x=((R_t*55+i*170)%1000)-100,li=(i*3+b.staff)%12;person(x,272,li,Math.floor((R_t*9+i)%8),1);cx.drawImage(propSprite('basket').c,x+9,230,22,13)}
+ if(!d.open||hr<6||hr>=19){cx.fillStyle=d.open?'rgba(10,10,60,.14)':'rgba(10,10,60,.38)';cx.fillRect(0,0,W,H)}
+ var rate=brRate(b),raw=brRaw(b);cx.fillStyle='rgba(20,20,40,.75)';rrp(cx,W-210,258,200,34,8);cx.fill();cx.fillStyle=raw>=BR_CAP?'#ff8a80':'#8cffb0';cx.font='bold 15px sans-serif';cx.textAlign='center';cx.fillText(fmt(rate)+' / 1000 SIP/s'+(raw>=BR_CAP?' capped!':''),W-110,280);cx.textAlign='left'}
+function drawScene(dt){if(R.view>0&&S.br[R.view-1]){R.vis=R.vis;drawBranch(dt,S.br[R.view-1]);return}if(GFX==='cartoon')drawCartoon(dt);else drawReal(dt)}
 function drawCartoon(dt){
  var E=S.exp,wc=WALLS[E];
  var g=cx.createLinearGradient(0,0,0,H);g.addColorStop(0,wc[0]);g.addColorStop(1,wc[1]);cx.fillStyle=g;cx.fillRect(0,0,W,H);
@@ -1171,7 +1242,7 @@ var R_t=0;
 
 cv.addEventListener('pointerdown',function(ev){ac();var rc=cv.getBoundingClientRect();var x=(ev.clientX-rc.left)/rc.width*W,y=(ev.clientY-rc.top)/rc.height*H;
  var best=null,bd=1e9;for(var i=0;i<R.vis.length;i++){var c=R.vis[i];if(c.leave)continue;var dd=Math.abs(c.x-x);if(dd<bd){bd=dd;best=c}}
- if(best&&bd<70&&y>120)serveManual(best);else serveManual(null)});
+ if(R.view>0)return;if(best&&bd<70&&y>120)serveManual(best);else serveManual(null)});
 
 /* ---------- overlays / flow ---------- */
 var state='title',paused=false;
@@ -1180,13 +1251,13 @@ function confirmBox(t,txt,fn){$('cfTitle').textContent=t;$('cfTxt').textContent=
  $('cfYes').onclick=function(){show('ovConfirm',false);fn()};$('cfNo').onclick=function(){show('ovConfirm',false)}}
 function resetSave(){try{localStorage.removeItem(SAVE_KEY)}catch(e){}S=freshState();resetRuntime();$('bContinue').style.display='none';
  show('ovPause',false);paused=false;state='title';show('ovTitle',true);toast('Save deleted')}
-function resetRuntime(){R.rankInit=false;R.emaRate=0;R.happy=1;R.pend=[];R.favList=favList();R.lastSold=S.sold;CAT.dirty=true;R.q=1;R.vis=[];R.autoAcc=0;R.stockAcc=0;R.ev=null;R.unlockSeen=0;R.wtDirty=true;R.parts=[];R.floats=[];R.fracItems=0;for(var i=0;i<NI;i++)R.sr[i]=0;derive();weights();R.unlockSeen=R.u}
+function resetRuntime(){R.view=0;R.unit=3.4;R.capLeft=0;R.capHitT=-99;R.rankInit=false;R.emaRate=0;R.happy=1;R.pend=[];R.favList=favList();R.lastSold=S.sold;CAT.dirty=true;R.q=1;R.vis=[];R.autoAcc=0;R.stockAcc=0;R.ev=null;R.unlockSeen=0;R.wtDirty=true;R.parts=[];R.floats=[];R.fracItems=0;for(var i=0;i<NI;i++)R.sr[i]=0;derive();weights();R.unlockSeen=R.u}
 function confetti(){var em=['🎉','🎊','⭐','🪙','🏆','✨'];for(var i=0;i<70;i++){var d=document.createElement('div');d.className='cf';d.textContent=em[i%em.length];d.style.left=Math.random()*100+'vw';d.style.animationDuration=(2.5+Math.random()*3)+'s';d.style.animationDelay=Math.random()*2+'s';document.body.appendChild(d);setTimeout(function(x){return function(){x.remove()}}(d),7000)}}
 function showBest(){$('bestRec').innerHTML=recordsHTML();show('ovBest',true);sWin();confetti()}
 function showWin(){confetti();$('winStats').textContent='Total earned: '+fmt(S.earned)+' SIP - Time played: '+fmtTime(S.played)+' - Days: '+S.day;show('ovWin',true);sWin()}
 function startGame(fresh){
  if(fresh){S=freshState(true);try{localStorage.removeItem(SAVE_KEY)}catch(e){}}
- resetRuntime();R.q=1;state='play';show('ovTitle',false);ac();buildPanel();last=performance.now()}
+ resetRuntime();R.q=1;state='play';show('ovTitle',false);ac();buildBar(true);buildPanel();last=performance.now()}
 function offlineCatchup(){
  var secs=Math.min(OFFLINE_CAP,Math.max(0,(Date.now()-S.savedAt)/1000));
  if(secs<45)return;
@@ -1235,7 +1306,7 @@ function frame(now){
  acc+=dt;var n=0;while(acc>=0.1&&n<5){tick(0.1);acc-=0.1;n++}if(acc>0.5)acc=0;
  R_t+=dt;drawScene(dt);ambience(dt);
  if(GFX==='real'&&!document.hidden&&dt>0){R.fps=(R.fps||60)*.9+(1/Math.max(.001,Math.min(dt,.25)))*.1;if(R.fps<40){R.lowT=(R.lowT||0)+dt;if(R.lowT>3){setGfx('lite');toast('Low frame rate: switched to Realistic-lite')}}else R.lowT=0}
- uiT+=dt;if(uiT>=0.25){uiT=0;updateHUD();refreshPanel()}
+ uiT+=dt;if(uiT>=0.25){uiT=0;updateHUD();updateBar();refreshPanel()}
  achT+=dt;if(achT>=1){achT=0;checkAch();tutTick()}
  saveT+=dt;if(saveT>=5){saveT=0;save()}}
 
@@ -1248,7 +1319,7 @@ window.addEventListener('error',function(){});
 requestAnimationFrame(frame);
 
 /* test hooks (read/drive only) */
-window.__shop={get S(){return S},R:R,ITEMS:ITEMS,UPG:UPG,tick:tick,CAT:CAT,setGfx:setGfx,getGfx:function(){return GFX},newsHTML:newsHTML,tutTick:tutTick,ITEMS:ITEMS,NI:NI,serialize:serialize,leaderHTML:leaderHTML,recordsHTML:recordsHTML,placeOrder:placeOrder,mkt:mkt,myPrice:myPrice,setPrice:setPrice,buildList:buildList,stockFavs:stockFavs,MILES:MILES,derive:derive,buyUpg:buyUpg,buyExpand:buyExpand,buyStock:buyStock,restockAll:restockAll,serveManual:serveManual,
+window.__shop={get S(){return S},R:R,ITEMS:ITEMS,UPG:UPG,tick:tick,CAT:CAT,buyBranch:buyBranch,buyBrUp:buyBrUp,brCost:brCost,brUpCost:brUpCost,brRate:brRate,brRaw:brRaw,buildBar:buildBar,BRU:BRU,setGfx:setGfx,getGfx:function(){return GFX},newsHTML:newsHTML,tutTick:tutTick,ITEMS:ITEMS,NI:NI,serialize:serialize,leaderHTML:leaderHTML,recordsHTML:recordsHTML,placeOrder:placeOrder,mkt:mkt,myPrice:myPrice,setPrice:setPrice,buildList:buildList,stockFavs:stockFavs,MILES:MILES,derive:derive,buyUpg:buyUpg,buyExpand:buyExpand,buyStock:buyStock,restockAll:restockAll,serveManual:serveManual,
  upCost:upCost,upMax:upMax,expCost:expCost,fpGain:fpGain,canFran:canFran,doFranchise:doFranchise,save:save,loadSave:loadSave,sanitize:sanitize,fmt:fmt,
  setState:function(s){S=sanitize(s);resetRuntime()},fresh:function(){S=freshState(true);resetRuntime()},checkAch:checkAch,offlineCatchup:offlineCatchup,startGame:startGame,ACH:ACH,newDay:newDay,lv:lv};
 })();
