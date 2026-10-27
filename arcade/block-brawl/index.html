@@ -3029,7 +3029,30 @@ const BM=[
  ['mine','Surprise Mine','Plant a mine that blows up',650,P(8,20,14,9,1.2,60,{sp:2,life:420,sz:11,col:'#444',shape:'bomb',mine:1,boom:60},{n:'Surprise Mine',snd:'pick',cd:150})],
  ['rain','Arrow Rain','Arrows fall from the sky ahead of you',800,P(12,26,6,4,.5,80,{sky:1,dx:140,span:150,n:6,sp:0,vy:9,life:60,sz:7,col:'#ccc',shape:'star'},{n:'Arrow Rain',snd:'shoot',cd:220})],
  ['boost','Power-Up','Speed boost for you and your team',900,M(6,1,20,0,0,0,0,[0,0,0,0],{fx:'buff',n:'Power-Up',cd:800})],
- ['jet','Jet Pack','Blast upward on a jet of fire',1000,M(4,26,12,5,6,.8,80,[0,6,50,40],{jet:1.3,n:'Jet Pack',snd:'whoosh',cd:140})]];
+ ['jet','Jet Pack','Blast upward on a jet of fire',1000,M(4,26,12,5,6,.8,80,[0,6,50,40],{jet:1.3,n:'Jet Pack',snd:'whoosh',cd:140})],
+ ['jab','Triple Jab','Three super quick punches',130,M(2,9,12,7,4,.5,25,[30,-6,56,24],{multi:3,n:'Triple Jab',cd:70})],
+ ['spear','Long Spear','Poke foes from far away',200,M(8,4,14,11,7,1.1,30,[40,-10,112,16],{n:'Long Spear',snd:'slash',cd:90})],
+ ['bomb','Bomb Toss','Lob a bomb that bounces and booms',280,P(10,24,15,10,1.2,55,{sp:6,vy:-7,g:.4,life:90,sz:13,col:'#333',shape:'bomb',boom:70,bounce:1},{n:'Bomb Toss',snd:'shoot',cd:130})],
+ ['ice','Ice Shards','Three icy stars that pierce through',320,P(8,20,8,5,.8,30,{sp:13,life:40,sz:10,col:'#9ef',shape:'star',pierce:1,n:3,spr:6},{n:'Ice Shards',snd:'zap',cd:120})],
+ ['wave','Shock Wave','A wave that rolls along the ground',360,P(9,22,9,7,.9,35,{sp:8,life:42,sz:16,col:'#ffe9a8',shape:'wave',pierce:1},{n:'Shock Wave',snd:'boom',cd:120})],
+ ['laser','Laser Beam','A stream of laser shots',420,P(10,30,3,2,.3,20,{sp:16,life:30,sz:7,col:'#f55',shape:'pop'},{burst:10,iv:3,n:'Laser Beam',snd:'zap',cd:150})],
+ ['gun','Machine Gun','Rapid fire - pop pop pop!',460,P(8,40,2,2,.25,20,{sp:15,life:28,sz:6,col:'#fa4',shape:'pop'},{burst:14,iv:4,n:'Machine Gun',snd:'shoot',cd:170})],
+ ['hammer','Giant Hammer','Slow but a HUGE hit',500,M(18,5,26,20,12,1.6,45,[36,-24,76,64],{n:'Giant Hammer',snd:'boom',cd:140})],
+ ['gust','Wind Gust','Blow foes far away from you',520,P(8,20,3,12,1,30,{sp:10,life:36,sz:18,col:'#cfe',shape:'wave',pierce:1},{n:'Wind Gust',snd:'whoosh',cd:100})],
+ ['fire3','Triple Fireball','Three fireballs at once',580,P(14,26,10,7,1,35,{sp:8,life:70,sz:16,col:'#f84',shape:'fire',boom:40,n:3,spr:10},{n:'Triple Fireball',snd:'zap',cd:150})],
+ ['punch','Rocket Punch','Shoot up like a rocket',600,M(6,6,18,11,10,1.3,85,[10,-42,84,74],{vy:-13,vx:4,n:'Rocket Punch',snd:'boom',cd:110})],
+ ['tornado','Tornado Spin','Spin for a long time and hit around you',650,M(5,40,18,2,4,.5,60,[0,-20,100,60],{both:1,multi:4,vx:2,n:'Tornado Spin',snd:'whoosh',cd:160})],
+ ['bounce','Bouncy Ball','A ball that bounces all over',680,P(8,22,8,6,.9,40,{sp:6,vy:-3,g:.3,life:140,sz:12,col:'#7f7',shape:'orb',bounce:1,pierce:1},{n:'Bouncy Ball',snd:'boop',cd:130})],
+ ['zip','Zip Kick','Zip forward and kick',700,M(5,3,16,8,7,1.1,35,[0,-8,90,48],{both:1,fx:'tele',dx:70,dy:0,inv:1,n:'Zip Kick',snd:'boop',cd:80})],
+ ['meteor','Meteor Drop','A fiery rock falls from the sky',760,P(12,26,14,9,1.2,80,{sky:1,dx:70,span:0,n:1,sp:0,vy:11,life:70,sz:20,col:'#f84',shape:'fire',boom:60},{n:'Meteor Drop',snd:'boom',cd:170})],
+ ['comet','Comet Strike','A very fast, hard dash',820,M(5,8,16,14,11,1.3,40,[26,-12,70,44],{dash:1,vx:14,n:'Comet Strike',snd:'boom',cd:130})],
+ ['vortex','Gravity Well','Pull foes into a spinning orb',880,P(10,24,4,2,.3,30,{sp:5,life:100,sz:18,col:'#a6f',shape:'orb',pull:1,pierce:1},{n:'Gravity Well',snd:'zap',cd:180})],
+ ['walkb','Walking Bomb','A bomb that walks to foes and booms',950,P(10,24,16,10,1.2,50,{sp:3,life:150,sz:13,col:'#fa4',shape:'bomb',walk:1,boom:70},{n:'Walking Bomb',snd:'pick',cd:170})],
+ ['slam','Mega Slam','Crush the ground with a giant slam',1050,M(14,6,30,24,13,1.7,50,[30,-30,96,84],{n:'Mega Slam',snd:'boom',cd:170})],
+ ['shield','Super Shield','Block hits for a long time and counter',1150,M(2,50,16,0,0,0,0,[0,0,0,0],{fx:'counter',cd:16,ckb:12,cr:120,n:'Super Shield',snd:'shield',cd2:1})],
+ ['megaheal','Mega Heal','Take away lots of damage',1300,M(4,1,26,0,0,0,0,[0,0,0,0],{fx:'heal',heal:50,n:'Mega Heal',cd:1500})],
+ ['turret','Mini Turret','Leave a little turret that shoots',1400,P(8,22,5,4,.5,20,{sp:0,g:.5,life:420,sz:13,col:'#c0c0c8',shape:'turret',mine:1,turret:1},{n:'Mini Turret',snd:'pick',cd:300})],
+ ['ultra','Ultra Blast','The biggest fireball of all',1600,P(20,34,24,12,1.5,35,{sp:6,life:90,sz:34,col:'#ff5',shape:'fire',boom:100},{n:'Ultra Blast',snd:'boom',cd:260})]];
 const BMD={};BM.forEach(b=>BMD[b[0]]=b);
 function bonusFor(m,pl){if(!(pl&&pl.type==='human'&&pl.pad===0))return null;const id=(m.cfg.training&&G.trial)||getMV().eq;return id&&BMD[id]?BMD[id][4]:null;}
 function wrapTxt(s,n){const w=s.split(' ');const o=[];let l='';for(const x of w){if((l+' '+x).trim().length>n){o.push(l);l=x;}else l=(l+' '+x).trim();}if(l)o.push(l);return o;}
@@ -3045,8 +3068,10 @@ SCN.moves={enter(){G.mvSel=G.mvSel||BM[0][0];G.trial=null;},upd(){},draw(){
  else btn('eqp',eq?'Equipped (tap to remove)':'Equip on V',42,358,206,32,()=>{MV.eq=eq?'':sel[0];sfx('sel');save();},{col:eq?'#d6a02e':'#2e7a4f',sz:14});
  txt(has?(eq?'This is your V move!':'You own this move'):'Not owned yet',145,404,12,has?'#7dff7a':'#cde');
  txt('Your V move: '+(MV.eq&&BMD[MV.eq]?BMD[MV.eq][1]:'none'),145,424,12,'#ffd23f');txt('Own '+Object.keys(MV.own).length+'/'+BM.length,145,442,12,'#cde');
- BM.forEach((b,i)=>{const col=i%4,row=floor(i/4);const x=280+col*160,y=114+row*88,w=150,h=80,own=!!MV.own[b[0]],e=MV.eq===b[0],s=G.mvSel===b[0];
-  btn('mv'+i,'',x,y,w,h,()=>{G.mvSel=b[0];sfx('sel');},{col:e?'#d6a02e':s?'#4a5ad0':own?'#2e7a4f':'#34407a',draw:(c,ww,hh)=>{
+ G.mvPg=G.mvPg||0;const PGN=Math.ceil(BM.length/16);G.mvPg=min(G.mvPg,PGN-1);
+ btn('pgp','<',280,456,60,26,()=>{G.mvPg=(G.mvPg+PGN-1)%PGN;sfx('sel');},{col:'#34407a',sz:16});btn('pgn','>',580,456,60,26,()=>{G.mvPg=(G.mvPg+1)%PGN;sfx('sel');},{col:'#34407a',sz:16});txt('Page '+(G.mvPg+1)+' of '+PGN+'   ('+BM.length+' moves)',460,469,13,'#fff');
+ BM.slice(G.mvPg*16,G.mvPg*16+16).forEach((b,i)=>{const col=i%4,row=floor(i/4);const x=280+col*160,y=114+row*88,w=150,h=80,own=!!MV.own[b[0]],e=MV.eq===b[0],s=G.mvSel===b[0];
+  btn('mv'+b[0],'',x,y,w,h,()=>{G.mvSel=b[0];sfx('sel');},{col:e?'#d6a02e':s?'#4a5ad0':own?'#2e7a4f':'#34407a',draw:(c,ww,hh)=>{
    txt(b[1],0,-18,b[1].length>12?12:14,'#fff');txt(e?'EQUIPPED':own?'Owned':b[3]+' coins',0,2,12,e?'#ffe14a':own?'#7dff7a':'#ffd23f');txt('tap to look / try',0,24,10,'#cde');}});});
  txt('Bonus moves go on the V key (P2: M, touch: MOVE). You can try every move free in the Training Room first!',480,500,13,'#cde');
 }};
