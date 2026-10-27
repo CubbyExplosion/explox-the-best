@@ -79,8 +79,8 @@ setInterval(()=>{try{musicTick();}catch(e){}},90);
 /* ---------- input ---------- */
 const KEYS={},KP={};
 const MAP=[
- {l:'KeyA',r:'KeyD',u:'KeyW',d:'KeyS',j:'Space',a:'KeyF',b:'KeyG',s:'KeyH',g:'KeyR',t:'KeyT',x:'KeyE',as:'KeyQ'},
- {l:'ArrowLeft',r:'ArrowRight',u:'ArrowUp',d:'ArrowDown',j:'Slash',a:'KeyK',b:'KeyL',s:'Semicolon',g:'Quote',t:'Period',x:'Comma',as:'KeyN'}];
+ {l:'KeyA',r:'KeyD',u:'KeyW',d:'KeyS',j:'Space',a:'KeyF',b:'KeyG',s:'KeyH',g:'KeyR',t:'KeyT',x:'KeyE',as:'KeyQ',v:'KeyV'},
+ {l:'ArrowLeft',r:'ArrowRight',u:'ArrowUp',d:'ArrowDown',j:'Slash',a:'KeyK',b:'KeyL',s:'Semicolon',g:'Quote',t:'Period',x:'Comma',as:'KeyN',v:'KeyM'}];
 const GAMEKEYS={};MAP.forEach(m=>{for(const k in m)GAMEKEYS[m[k]]=1;});
 ['Enter','Escape','KeyP','KeyM','Tab'].forEach(k=>GAMEKEYS[k]=1);
 let TOUCH=false,lastKeys=[];
@@ -98,13 +98,13 @@ function fit(){const s=min(innerWidth/W,innerHeight/H);cv.style.width=(W*s)+'px'
 addEventListener('resize',fit);fit();
 /* touch buttons (P1) */
 const TB=[{k:'l',x:20,y:400,w:80,h:80,t:'<'},{k:'r',x:110,y:400,w:80,h:80,t:'>'},{k:'u',x:65,y:310,w:80,h:80,t:'^'},{k:'d',x:65,y:490,w:80,h:44,t:'v'},
- {k:'a',x:700,y:420,w:70,h:70,t:'A'},{k:'b',x:780,y:380,w:70,h:70,t:'B'},{k:'s',x:860,y:420,w:70,h:70,t:'C'},{k:'g',x:780,y:462,w:70,h:60,t:'GUARD'},{k:'x',x:860,y:340,w:70,h:60,t:'ULT'},{k:'as',x:700,y:340,w:70,h:60,t:'AST'}];
+ {k:'a',x:700,y:420,w:70,h:70,t:'A'},{k:'b',x:780,y:380,w:70,h:70,t:'B'},{k:'s',x:860,y:420,w:70,h:70,t:'C'},{k:'g',x:780,y:462,w:70,h:60,t:'GUARD'},{k:'x',x:860,y:340,w:70,h:60,t:'ULT'},{k:'as',x:700,y:340,w:70,h:60,t:'AST'},{k:'v',x:620,y:380,w:70,h:60,t:'MOVE'}];
 function touchState(){const o={};for(const id in PTR){const p=PTR[id];for(const b of TB)if(p.x>=b.x&&p.x<=b.x+b.w&&p.y>=b.y&&p.y<=b.y+b.h)o[b.k]=true;}return o;}
 function padState(i){const o={};let pads=[];try{pads=navigator.getGamepads?navigator.getGamepads():[];}catch(e){}
  const list=[];for(const p of pads)if(p&&p.connected)list.push(p);const p=list[i];if(!p)return o;
  const ax=p.axes||[],bt=p.buttons||[],B=k=>bt[k]&&(bt[k].pressed||bt[k].value>.5);
  if(ax[0]<-.45||B(14))o.l=true;if(ax[0]>.45||B(15))o.r=true;if(ax[1]<-.6||B(12))o.u=true;if(ax[1]>.6||B(13))o.d=true;
- if(B(0))o.j=true;if(B(2))o.a=true;if(B(3))o.b=true;if(B(1))o.s=true;if(B(4)||B(6))o.g=true;if(B(5))o.x=true;if(B(7))o.as=true;if(B(9))o.pause=true;if(B(8))o.t=true;return o;}
+ if(B(0))o.j=true;if(B(2))o.a=true;if(B(3))o.b=true;if(B(1))o.s=true;if(B(4)||B(6))o.g=true;if(B(5))o.x=true;if(B(7))o.as=true;if(B(10))o.v=true;if(B(9))o.pause=true;if(B(8))o.t=true;return o;}
 function readHuman(slot){const o={},m=MAP[slot];if(m)for(const k in m)if(KEYS[m[k]])o[k]=true;
  const pd=padState(slot);for(const k in pd)o[k]=true;
  if(slot===0&&TOUCH){const t=touchState();for(const k in t)o[k]=true;}return o;}
@@ -720,7 +720,8 @@ function startMove(f,m,key){
  let kk=key==='S'?(f.inp.u?'U':f.inp.d?'D':'S'):key;
  if(!f.ground){if(kk==='L'&&d.moves.AL)kk='AL';else if(kk==='H'&&d.moves.AH)kk='AH';}
  if(kk==='U'&&!f.ground&&f.upUsed)return;
- mv=d.moves[kk];if(!mv)return;
+ mv=kk==='V'?(f.bonus&&m.t>=(f.bonusAt||0)?f.bonus:null):d.moves[kk];if(!mv)return;
+ if(kk==='V'&&mv.cd)f.bonusAt=m.t+mv.cd+(mv.su+mv.ac+mv.rc);
  if(kk==='U'&&!f.ground)f.upUsed=1;
  if(m.lab)m.lab.used[kk]=1;
  f.st='atk';f.mv=mv;f.mf=0;f.mvKey=kk;f.hitSet=new Set();f.inv=max(f.inv,mv.inv?mv.su+mv.ac:0);
@@ -1015,6 +1016,7 @@ function tryDuo(f,m){
 /* ====== team rules for stocks ====== */
 function teamsAlive(m){const s=new Set();for(const f of m.fighters)if(!f.out)s.add(f.team);return s;}
 function initFighterX(f,m,pl){
+ f.bonus=bonusFor(m,pl);f.bonusAt=0;
  f.team=pl.team===undefined?f.slot:pl.team;f.tough=!!f.def.boss&&!f.human&&['story','survival','chal','team','time'].includes(m.cfg.mode);if(f.def.boss&&!f.tough)f.dmgIn=1;f.meter=0;f.meterFull=0;f.bsc=f.sc;f.bw=f.w;f.bh=f.h;f.zs=1;f.zg=1;f.wat=0;f.asCd=0;f.ptCd=0;f.bumpCd=0;f.slowT=0;f.hazT=0;f.tsT=0;f.ult=null;f.giantT=0;f.hitT=0;f.inZ=false;
  if(m.cfg.meterStart)f.meter=m.cfg.meterStart;}
 
@@ -1106,7 +1108,7 @@ function fUpdate(f,m){
   let acted=false;
   if(P_('x')&&m.phase==='play'&&f.def.ult&&f.meter>=100&&!f.restrict){if(!tryDuo(f,m))startUlt(f,m);acted=true;}
   else if(P_('as')){tryAssist(f,m);}
-  if(P_('a')){startMove(f,m,'L');acted=true;}else if(P_('b')){startMove(f,m,'H');acted=true;}else if(P_('s')){startMove(f,m,'S');acted=true;}
+  if(P_('a')){startMove(f,m,'L');acted=true;}else if(P_('b')){startMove(f,m,'H');acted=true;}else if(P_('s')){startMove(f,m,'S');acted=true;}else if(P_('v')&&f.bonus){startMove(f,m,'V');acted=true;}
   if(acted&&f.st==='atk'){if(m.tut)m.tut[(f.mvKey==='L'||f.mvKey==='AL')?'L':(f.mvKey==='H'||f.mvKey==='AH')?'H':'S']++;}
   if(!acted){
    if(P_('j')||P_('u')){if(f.ground){doJump(f,m,false);}else if(f.jumps>0||mutOn(m,'moon')){doJump(f,m,true);}}
@@ -2242,6 +2244,7 @@ const MODES=[
  ['tourney','Tournament','8-fighter bracket','#d62e8a',()=>startSelect('tourney')],
  ['chal','Challenges','8 silly special missions','#2eb5d6',()=>go('chal')],
  ['target','Target Bash','Smash all the targets!','#d6502e',()=>startSelect('target')],
+ ['moves','Move Shop','Buy moves - or try them free!','#c0392b',()=>go('moves')],
  ['tut','Boot Camp','Learn the basics (+free hat)','#6a8a2e',()=>startTutorial()]];
 SCN.menu={upd(){demoStep();},draw(){
  drawDemo(.62);const t=G.sceneT;
@@ -2591,7 +2594,7 @@ SCN.mut={upd(){},draw(){drawPlain();title3d('MUTATORS',480,38,42,'#fff','#c0602e
 }};
 SCN.howto={upd(){},draw(){drawPlain();title3d('HOW TO PLAY',480,32,38,'#fff','#2a3ad0');backBtn('menu');
  panel(24,64,440,262);txt('PLAYER 1  (gamepad 1 too)',44,80,15,'#ff9a9a','left');
- const k1=[['A / D','move'],['W or Space','jump (twice = double jump)'],['S','drop through / fast fall'],['F','light attack (also in the air)'],['G','heavy attack (also in the air)'],['H','special  (W+H up, S+H down)'],['R','guard / roll (tap + direction)'],['E','SUPER technique (full meter)'],['Q','call partner ASSIST (teams)'],['T','taunt']];
+ const k1=[['A / D','move'],['W or Space','jump (twice = double jump)'],['S','drop through / fast fall'],['F','light attack (also in the air)'],['G','heavy attack (also in the air)'],['H','special  (W+H up, S+H down)'],['R','guard / roll (tap + direction)'],['E','SUPER technique (full meter)'],['Q','call partner ASSIST (teams)'],['T','taunt'],['V','BONUS move (from Move Shop)']];
  k1.forEach((k,i)=>{txt(k[0],44,102+i*22,14,'#ffd23f','left');txt(k[1],150,102+i*22,13,'#fff','left');});
  panel(476,64,460,262);txt('PLAYER 2  (gamepad 2 too)',496,80,15,'#9ac8ff','left');
  const k2=[['Arrows','move / jump / drop'],['/','jump'],['K','light attack'],['L','heavy attack'],[';','special (Up / Down for variants)'],["'",'guard / roll'],[',','SUPER technique'],['N','call partner ASSIST'],['.','taunt'],['P / Esc','pause']];
@@ -3007,6 +3010,47 @@ SCN.explox={enter(){const E=G.ex;E.claim=SV.exDay===exToday()&&SV.exCode?'ok':'i
   txt('Only a random device id, the code and the name you type are sent. Nothing else.',480,424,13,'#9bf');
   txt('Capital letters count in the account name.',480,444,12,'#cde');
  }};
+
+/* ================= MOVE SHOP: buy bonus moves (key V), try any for free ================= */
+function getMV(){SV.mv=SV.mv||{own:{},eq:''};SV.mv.own=SV.mv.own||{};return SV.mv;}
+const BM=[
+ ['spin','Whirlwind','Spin and hit everyone around you',120,M(5,22,16,3,5,.6,60,[0,-20,116,60],{both:1,multi:6,n:'Whirlwind',snd:'slash',cd:90})],
+ ['rush','Fire Dash','Zoom forward and smash into foes',150,M(5,9,14,10,8,1.2,40,[26,-12,64,42],{dash:1,vx:10,n:'Fire Dash',snd:'boom',cd:100})],
+ ['upper','Sky Slam','A big uppercut that sends foes flying up',180,M(6,6,20,12,10,1.4,88,[10,-42,84,74],{vy:-10,n:'Sky Slam',snd:'boom',cd:100})],
+ ['star','Star Barrage','Throw five stars in a fan',220,P(8,24,4,4,.5,25,{sp:12,life:30,sz:8,col:'#fd4',shape:'star',n:5,spr:12},{n:'Star Barrage',snd:'shoot',cd:110})],
+ ['pound','Ground Pound','Jump high and crash down with a shockwave',260,M(10,12,22,15,9,1.3,75,[0,8,76,34],{fx:'pound',vy:-10,n:'Ground Pound',snd:'boom',cd:130})],
+ ['tele','Teleport Strike','Vanish and pop up in front of foes',300,M(7,4,16,9,6,1,35,[0,-8,110,50],{both:1,fx:'tele',dx:120,dy:0,inv:1,n:'Teleport Strike',snd:'boom',cd:110})],
+ ['fire','Big Fireball','A huge ball of fire that explodes',350,P(14,24,16,9,1.2,35,{sp:7,life:80,sz:22,col:'#f84',shape:'fire',boom:60},{n:'Big Fireball',snd:'zap',cd:130})],
+ ['heal','Heal Burst','Take away some of your damage',400,M(4,1,26,0,0,0,0,[0,0,0,0],{fx:'heal',heal:25,n:'Heal Burst',cd:600})],
+ ['roar','War Cry','A loud roar that shoves foes away',450,M(10,6,24,6,9,1,55,[0,-20,120,60],{both:1,fx:'roar',n:'War Cry',snd:'boom',cd:200})],
+ ['counter','Mirror Counter','Block a hit and hit back harder',500,M(2,26,14,0,0,0,0,[0,0,0,0],{fx:'counter',cd:14,ckb:9,cr:90,n:'Mirror Counter',snd:'shield',cd2:1})],
+ ['homing','Seeker Orbs','Three orbs that chase foes',550,P(10,24,4,4,.5,25,{sp:8,life:90,sz:9,col:'#c8f',shape:'orb',n:3,spr:25,home:1},{n:'Seeker Orbs',snd:'zap',cd:150})],
+ ['boom','Boomerang','Throw it out and it comes back',600,P(10,22,7,6,.8,30,{sp:10,life:60,sz:14,col:'#8cf',shape:'star',pierce:1,back:1},{n:'Boomerang',snd:'shoot',cd:100})],
+ ['mine','Surprise Mine','Plant a mine that blows up',650,P(8,20,14,9,1.2,60,{sp:2,life:420,sz:11,col:'#444',shape:'bomb',mine:1,boom:60},{n:'Surprise Mine',snd:'pick',cd:150})],
+ ['rain','Arrow Rain','Arrows fall from the sky ahead of you',800,P(12,26,6,4,.5,80,{sky:1,dx:140,span:150,n:6,sp:0,vy:9,life:60,sz:7,col:'#ccc',shape:'star'},{n:'Arrow Rain',snd:'shoot',cd:220})],
+ ['boost','Power-Up','Speed boost for you and your team',900,M(6,1,20,0,0,0,0,[0,0,0,0],{fx:'buff',n:'Power-Up',cd:800})],
+ ['jet','Jet Pack','Blast upward on a jet of fire',1000,M(4,26,12,5,6,.8,80,[0,6,50,40],{jet:1.3,n:'Jet Pack',snd:'whoosh',cd:140})]];
+const BMD={};BM.forEach(b=>BMD[b[0]]=b);
+function bonusFor(m,pl){if(!(pl&&pl.type==='human'&&pl.pad===0))return null;const id=(m.cfg.training&&G.trial)||getMV().eq;return id&&BMD[id]?BMD[id][4]:null;}
+function wrapTxt(s,n){const w=s.split(' ');const o=[];let l='';for(const x of w){if((l+' '+x).trim().length>n){o.push(l);l=x;}else l=(l+' '+x).trim();}if(l)o.push(l);return o;}
+function tryMove(id){const pf=SV.eq.f&&fOK(SV.eq.f)?SV.eq.f:'blade';G.trial=id;G.slots=[{f:pf,type:'human',team:0}];G.mode='training';startTraining();toast('Trying: '+BMD[id][1],'Press V (touch: MOVE) - it is free to try!','#7df');}
+SCN.moves={enter(){G.mvSel=G.mvSel||BM[0][0];G.trial=null;},upd(){},draw(){
+ drawPlain();title3d('MOVE SHOP',480,34,40,'#fff','#c0392b');backBtn('menu');coinsHud();const t=G.sceneT,MV=getMV();
+ const sel=BMD[G.mvSel]||BM[0],has=!!MV.own[sel[0]],eq=MV.eq===sel[0];
+ panel(30,114,230,340);const pf=SV.eq.f&&fOK(SV.eq.f)?SV.eq.f:'blade';const f=fakeF(pf,145,250,SV.eq.tint,SV.eq.hat);f.age=t;f.sqx=1+Math.sin(t*.1)*.03;f.sqy=1-Math.sin(t*.1)*.03;
+ cx.save();cx.translate(145,250);cx.scale(1.5,1.5);cx.translate(-145,-250);drawFighter(cx,f,null,true);cx.restore();
+ txtO(sel[1],145,138,19,'#ffd23f');wrapTxt(sel[2],26).slice(0,3).forEach((l,i)=>txt(l,145,272+i*15,12,'#fff'));
+ btn('try','TRY IT FREE',42,322,206,32,()=>tryMove(sel[0]),{col:'#2ea06b',sz:16});
+ if(!has)btn('buy','Buy for '+sel[3]+' coins',42,358,206,32,()=>{if(SV.coins>=sel[3]){SV.coins-=sel[3];MV.own[sel[0]]=1;MV.eq=sel[0];sfx('tada');toast('You learned '+sel[1]+'!','It is on the V key','#ffd23f');save();}else{sfx('back');toast('Not enough coins','Try it free, then win matches to earn more','#ff9a9a');}},{col:SV.coins>=sel[3]?'#d6a02e':'#555',sz:14});
+ else btn('eqp',eq?'Equipped (tap to remove)':'Equip on V',42,358,206,32,()=>{MV.eq=eq?'':sel[0];sfx('sel');save();},{col:eq?'#d6a02e':'#2e7a4f',sz:14});
+ txt(has?(eq?'This is your V move!':'You own this move'):'Not owned yet',145,404,12,has?'#7dff7a':'#cde');
+ txt('Your V move: '+(MV.eq&&BMD[MV.eq]?BMD[MV.eq][1]:'none'),145,424,12,'#ffd23f');txt('Own '+Object.keys(MV.own).length+'/'+BM.length,145,442,12,'#cde');
+ BM.forEach((b,i)=>{const col=i%4,row=floor(i/4);const x=280+col*160,y=114+row*88,w=150,h=80,own=!!MV.own[b[0]],e=MV.eq===b[0],s=G.mvSel===b[0];
+  btn('mv'+i,'',x,y,w,h,()=>{G.mvSel=b[0];sfx('sel');},{col:e?'#d6a02e':s?'#4a5ad0':own?'#2e7a4f':'#34407a',draw:(c,ww,hh)=>{
+   txt(b[1],0,-18,b[1].length>12?12:14,'#fff');txt(e?'EQUIPPED':own?'Owned':b[3]+' coins',0,2,12,e?'#ffe14a':own?'#7dff7a':'#ffd23f');txt('tap to look / try',0,24,10,'#cde');}});});
+ txt('Bonus moves go on the V key (P2: M, touch: MOVE). You can try every move free in the Training Room first!',480,500,13,'#cde');
+}};
+(function(){const om=SCN.menu;SCN.menu={upd:om.upd,draw:om.draw,enter(){G.trial=null;if(om.enter)om.enter();}};})();
 
 addEventListener('beforeunload',save);document.addEventListener('visibilitychange',()=>{if(document.hidden)save();});
 BB.tick=tick;BB.render=render;BB.G=G;BB.SV=SV;BB.gfx=GFX;BB.gfxSet=gfxSet;
