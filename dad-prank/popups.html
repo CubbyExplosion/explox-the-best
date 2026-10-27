@@ -34,6 +34,7 @@ a.btn{display:inline-block;margin-top:12px;background:#ffcd30;color:#1a1a1a;padd
 <div id="win">
  <h1>GOTCHA, DAD! 😄</h1>
  <p id="wt">You really clicked all the way! That was for the pop-up prank. The S.I.P. team always gets even! 💙</p>
+ <div><button id="again" style="margin-top:14px">🔁 Play again!</button></div>
  <a class="btn" href="../toolbox/">Open the S.I.P. Toolbox</a>
 </div>
 <script>
@@ -42,13 +43,15 @@ const Q=['Are you sure?','Really sure?','Pinky promise?','Are you SUPER sure?','
 let n=0;const q=document.getElementById('q'),count=document.getElementById('count');
 // remember how many times Dad opened it (only this page's own storage)
 let visits=1;try{visits=(parseInt(localStorage.getItem('dadprank_visits')||'0',10)||0)+1;localStorage.setItem('dadprank_visits',visits);}catch(e){}
-if(visits>1){const b=document.getElementById('bg');if(b)b.querySelector('h2').innerHTML='👋 Back again, Dad? This is time #'+visits+'! 😄<br><span style="font-size:14px;color:#999">(you can close this tab any time)</span>';}
+const backMsgs={2:'👋 Back again, Dad? Time #2 already! 😄',3:'😏 Time #3?! You just can\'t stay away!',4:'😂 Time #4! Admit it, you love this.',5:'🖐️ FIVE times, Dad?! New high score!',7:'🤣 Time #7! Are you okay buddy?',10:'🏆 TIME #10?! You are now a S.I.P. Prank Legend!',15:'😱 Fifteen times... Dad, go outside! 😂',20:'👑 Time #20! You officially can\'t beat this game.',30:'🤯 THIRTY?! Okay now I\'m worried about you 😄',50:'💀 Time #50. This is your life now, Dad.'};
+if(visits>1){let m='';let keys=Object.keys(backMsgs).map(Number).sort((a,b)=>a-b);for(const k of keys){if(visits>=k)m=backMsgs[k];}if(!m)m='🔁 Back AGAIN? Time #'+visits+'! 😂';const b=document.getElementById('bg');if(b)b.querySelector('h2').innerHTML=m+' <span style="color:#888;font-size:16px">(#'+visits+')</span><br><span style="font-size:14px;color:#999">(you can close this tab any time)</span>';}
 let sac=null;
 function boing(){try{sac=sac||new (window.AudioContext||window.webkitAudioContext)();const t=sac.currentTime+.01;const o=sac.createOscillator(),g=sac.createGain();o.type='sine';o.frequency.setValueAtTime(260,t);o.frequency.exponentialRampToValueAtTime(520,t+.12);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.04,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+.18);o.connect(g);g.connect(sac.destination);o.start(t);o.stop(t+.2);}catch(e){}}
 function next(){n++;if(n>TOTAL){return win(false);}q.textContent=Q[(n-1)%Q.length];count.textContent=n+' / '+TOTAL;if(n>1)boing();}
 document.getElementById('ok').onclick=next;
 document.getElementById('give').onclick=()=>win(true);
 document.getElementById('x').onclick=()=>win(true);
+document.getElementById('again').onclick=()=>location.reload();
 next();
 // "come back" effect — only on THIS tab's own title, never other tabs or sites
 const realTitle=document.title;const begs=['🥺 Please come back Dad!','😢 Don\'t leave me!','👀 Daaaad?','💙 Come back!'];let bi=0,bt=null;
