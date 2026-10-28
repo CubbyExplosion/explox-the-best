@@ -386,6 +386,12 @@ reg('ask', '💬 Ask', (el) => {
       const left = Math.ceil((strikeUntil - Date.now()) / 60000);
       add('ai', toneWrap(esc('😤 Still on strike! ' + left + ' more minute' + (left === 1 ? '' : 's') + '. Say "sorry" to bring me back.'))); return;
     }
+    // asking it to be kind always calms it down (switches to Cheerful)
+    if (/\b(be (kind|nice|nicer|gentle|friendly)|stop being (mean|rude|nasty|grumpy)|be (good|sweet)|calm down|don't be mean|dont be mean|you are (rude|mean))\b/.test(q.toLowerCase())) {
+      aiMode = 'cheerful'; try { localStorage.setItem('pl_mode', aiMode); } catch (e) { } const ps = $('#pmode', el); if (ps) ps.value = 'cheerful';
+      strikeUntil = 0; repeatN = 0; lastNorm = '';
+      add('ai', toneWrap(esc(emote('Oh! You are right, I am sorry. I switched to my Cheerful mood now. I will be kind! How can I help you?')))); return;
+    }
     const n = bumpRepeat(q);
     if (n >= 8) { strikeUntil = Date.now() + 10 * 60 * 1000; add('ai', toneWrap(esc(REFUSALS[Math.floor(Math.random() * REFUSALS.length)]))); speak('I am on strike.'); return; }
     const anger = angerPrefix(n);
