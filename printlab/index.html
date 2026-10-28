@@ -329,8 +329,12 @@ reg('ask', '💬 Ask', (el) => {
   const chat = $('#chat', el), add = (cls, html) => { const d = document.createElement('div'); d.className = 'msg ' + cls; d.innerHTML = html; chat.appendChild(d); d.scrollIntoView({ block: 'nearest' }); return d; };
   const fmt = (s) => esc(s).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
   const local = (q) => {
+    const ql = q.toLowerCase().trim();
+    if (/^(hi|hey+|hello+|yo|hiya|sup|hewwo|howdy|heya|hi there|hello there|good (morning|afternoon|evening)|greetings)[\s!.]*$/.test(ql)) return esc(emote('Hi there! I am the Print Lab helper. Ask me about 3D printing, the meaning of a word, or press Imagine to invent something to make. What would you like to know?'));
+    if (/^(thanks|thank you|ty|thx|cheers)[\s!.]*$/.test(ql)) return esc(emote('You are very welcome! Ask me anything else any time.'));
+    if (/^(bye|goodbye|see ya|cya|good night)[\s!.]*$/.test(ql)) return esc(emote('Bye for now! Come back soon and happy printing!'));
     const t = searchTaught(q); if (t) return '<span class="muted">📚 You taught me this!</span><br><b>' + esc(t[0]) + '</b><br>' + esc(emote(t[1]));
-    const ql = q.toLowerCase();
+    if (!tok(ql).some((w) => w.length >= 3)) return esc(emote('Hmm, tell me a bit more! Ask a full question like "what filament should I use?" or "what does gravity mean?"'));
     if (/\b(who|what) are you\b|your name|about you|are you (an? )?(ai|robot|real)/.test(ql)) return esc(emote('I am the Print Lab helper, a friendly assistant for your S.I.P. 3D printing lab. I can answer 3D printing questions, brainstorm things to make, and learn facts you teach me. Right now I am wearing a mood you picked, so I talk in that voice!'));
     const dm = ql.match(/(?:what(?:'s| is| does)?(?: an?| the)?|define|meaning of|what do you mean by)\s+(?:a |an |the )?["']?([a-z][a-z\-]{1,24})["']?\s*(?:mean|means)?\s*\??$/);
     if (dm) { const w = dm[1]; const g = Object.keys(GLOSS).find((k) => k.toLowerCase() === w); if (g) return esc(emote(w + ': ' + GLOSS[g])); if (DICT[w] && DICT[w]) return esc(emote('The word "' + w + '" means: ' + DICT[w] + '.')); if (search(q).length) { } else return esc(emote('I do not have the word "' + w + '" in my offline dictionary yet. I know lots of common words, 3D printing words, and anything you teach me with the Teach button. A parent can turn on the smart helper, which knows almost every word!')); }
