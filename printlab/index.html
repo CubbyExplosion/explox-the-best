@@ -377,7 +377,12 @@ reg('ask', '💬 Ask', (el) => {
   const ask = async (text) => { const q = (text || $('#q', el).value).trim(); if (!q) return; $('#q', el).value = ''; add('me', esc(q)); history.push({ role: 'user', content: q }); history = history.slice(-10);
     // on strike? won't answer for 10 minutes (every mode) - unless you say sorry
     if (strikeUntil > Date.now()) {
-      if (/\b(sorry|apolog|my bad|i am sorry|forgive)/.test(q.toLowerCase())) { strikeUntil = 0; repeatN = 0; lastNorm = ''; add('ai', toneWrap(esc(emote('Okay... apology accepted. I am back! Ask me anything.')))); return; }
+      const qc = q.toLowerCase();
+      const insult = /\b(dumb|stupid|idiot|hate you|worst|useless|loser|shut up|boring|lame|ugly|bad helper)\b/.test(qc);
+      if (/\b(sorry|apolog|my bad|i am sorry|forgive)/.test(qc)) {
+        if (insult) { strikeUntil = Date.now() + 10 * 60 * 1000; add('ai', toneWrap(esc('😤 That is NOT a real sorry! You still said something mean! Strike reset - try a REAL apology!'))); return; }
+        strikeUntil = 0; repeatN = 0; lastNorm = ''; add('ai', toneWrap(esc(emote('Okay... apology accepted. I am back! Ask me anything.')))); return;
+      }
       const left = Math.ceil((strikeUntil - Date.now()) / 60000);
       add('ai', toneWrap(esc('😤 Still on strike! ' + left + ' more minute' + (left === 1 ? '' : 's') + '. Say "sorry" to bring me back.'))); return;
     }
