@@ -83,6 +83,16 @@ const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt
 // ---- Ask
 const STOP = new Set('a an the is are to of and or in on for how do does what why can i my me you it with at be this that there should when which print printing printer printed 3d make get'.split(' '));
 const tok = (s) => s.toLowerCase().replace(/[^a-z0-9.\- ]/g, ' ').split(/\s+/).filter((w) => w && !STOP.has(w));
+// ---- Things you TEACH the helper (saved only in your own browser)
+let TAUGHT = [];
+try { TAUGHT = JSON.parse(localStorage.getItem('pl_taught') || '[]'); if (!Array.isArray(TAUGHT)) TAUGHT = []; } catch (e) { TAUGHT = []; }
+function saveTaught() { try { localStorage.setItem('pl_taught', JSON.stringify(TAUGHT.slice(0, 500))); } catch (e) { } }
+function searchTaught(q) {
+  const qt = tok(q); if (!qt.length) return null;
+  let best = null, bs = 0;
+  TAUGHT.forEach((e) => { const kw = tok(e[0]), set = new Set(kw); let s = 0; qt.forEach((w) => { if (set.has(w)) s += 3; else if (w.length > 4 && kw.some((k) => k.length > 4 && (k.startsWith(w.slice(0, 5)) || w.startsWith(k.slice(0, 5))))) s += 2; }); if (e[0].toLowerCase().includes(q.toLowerCase().trim())) s += 5; if (s > bs) { bs = s; best = e; } });
+  return bs >= 3 ? best : null;
+}
 function search(q) {
   const qt = tok(q); if (!qt.length) return [];
   const res = KB.map((e) => { const kw = tok(e[0] + ' ' + e[1]), set = new Set(kw); let s = 0; qt.forEach((w) => { if (set.has(w)) s += 3; else if (w.length > 4 && kw.some((k) => k.length > 4 && (k.startsWith(w.slice(0, 5)) || w.startsWith(k.slice(0, 5))))) s += 2; }); if (e[0].toLowerCase().includes(q.toLowerCase().trim())) s += 5; return { e, s }; }).filter((r) => r.s > 0).sort((a, b) => b.s - a.s);
@@ -273,6 +283,30 @@ const MODES = [
 ];
 let aiMode = 'cheerful';
 try { aiMode = localStorage.getItem('pl_mode') || 'cheerful'; } catch (e) { }
+// emotion emoji per mode, added to EVERY sentence
+const EMO = {
+  cheerful: ['😄', '🌟', '😁', '💛', '🎉', '✨'], aggressive: ['😈', '💢', '🔥', '👿', '😤', '⚡'],
+  sad: ['😢', '😔', '🌧️', '💧', '😞', '🥀'], robot: ['🤖', '🔧', '⚙️', '🔋', '📡', '💾'],
+  pirate: ['🏴‍☠️', '⚓', '🦜', '☠️', '🗺️', '🦑'], cute: ['🐣', '🌸', '💕', '🥰', '🐥', '🌈'],
+  sleepy: ['😴', '💤', '🥱', '🌙', '😪', '🛌'], excited: ['🤩', '⚡', '🚀', '🎆', '‼️', '🔥'],
+  wise: ['🧙', '📜', '🦉', '✨', '🔮', '📖'], silly: ['🤪', '🎈', '🍌', '🤸', '🙃', '🎪'],
+  argue: ['🙅', '😒', '🤨', '🗯️', '🙄', '😏'],
+};
+let aiMode_ignore;
+function emote(txt) {
+  const es = EMO[aiMode] || EMO.cheerful;
+  const parts = txt.split(/([.!?]+)(\s+|$)/);
+  let out = '', buf = '';
+  for (let i = 0; i < parts.length; i++) {
+    buf += parts[i];
+    if (/[.!?]+/.test(parts[i]) && parts[i].length <= 4) {
+      out += buf + ' ' + es[Math.floor(Math.random() * es.length)] + ' ';
+      buf = '';
+    }
+  }
+  if (buf.trim()) out += buf + ' ' + es[Math.floor(Math.random() * es.length)];
+  return out.trim();
+}
 function toneWrap(html) {
   const m = MODES.find((x) => x[0] === aiMode) || MODES[0];
   const intro = m[2][Math.floor(Math.random() * m[2].length)];
@@ -280,16 +314,24 @@ function toneWrap(html) {
 }
 function speak(text) { if (!speakOn || !('speechSynthesis' in window)) return; try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text.replace(/[*_#`]/g, '')); u.rate = 1.02; speechSynthesis.speak(u); } catch (e) { } }
 reg('ask', '💬 Ask', (el) => {
-  el.innerHTML = '<div class="card"><div class="row" style="justify-content:space-between"><b id="mode">' + (AI_ON ? '🤖 Smart helper is ON' : '📘 Basic helper (works offline)') + '</b><span><select id="pmode" title="Helper mood"></select> <button class="b alt" id="spk">🔇 Voice: off</button> <button class="b alt" id="mic">🎤 Talk</button></span></div><div class="muted">Ask about 3D printing, game ideas, maths, science, and more. When the smart helper is off I only know the 3D printing basics, and I say so when I do not know something.</div><div id="chat" style="max-height:55vh;overflow:auto"></div><div class="row"><input id="q" placeholder="Why is my print stringy?" style="flex:1;min-width:200px"><button class="b" id="go">Ask</button></div><div class="row" id="chips"></div><div class="muted" style="font-size:13px">Never type your real name, school, address, phone number or passwords here.</div></div>';
+  el.innerHTML = '<div class="card"><div class="row" style="justify-content:space-between"><b id="mode">' + (AI_ON ? '🤖 Smart helper is ON' : '📘 Basic helper (works offline)') + '</b><span><select id="pmode" title="Helper mood"></select> <button class="b alt" id="spk">🔇 Voice: off</button> <button class="b alt" id="mic">🎤 Talk</button></span></div><div class="muted">Ask about 3D printing, game ideas, maths, science, and more. When the smart helper is off I only know the 3D printing basics, and I say so when I do not know something.</div><div id="chat" style="max-height:55vh;overflow:auto"></div><div class="row"><input id="q" placeholder="Why is my print stringy?" style="flex:1;min-width:200px"><button class="b" id="go">Ask</button><button class="b alt" id="teach">📚 Teach</button></div><div class="row" id="chips"></div><div class="muted" style="font-size:13px">Never type your real name, school, address, phone number or passwords here.</div></div>';
   const chat = $('#chat', el), add = (cls, html) => { const d = document.createElement('div'); d.className = 'msg ' + cls; d.innerHTML = html; chat.appendChild(d); d.scrollIntoView({ block: 'nearest' }); return d; };
   const fmt = (s) => esc(s).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
-  const local = (q) => { const r = search(q); return r.length ? r.map((e, i) => (i ? '<hr style="border-color:#ffffff22">' : '') + '<b>' + esc(e[0]) + '</b><br>' + esc(e[2])).join('') : 'I do not know that one yet. In basic mode I know about <b>3D printing: filaments, settings, problems, design, safety and costs</b>. Try one of those, or press <b>Imagine</b> to brainstorm.<br><span class="muted">For other questions ask a parent or teacher. (A parent can turn on the smart helper.)</span>'; };
+  const local = (q) => { const t = searchTaught(q); if (t) return '<span class="muted">📚 You taught me this!</span><br><b>' + esc(t[0]) + '</b><br>' + esc(emote(t[1])); const r = search(q); return r.length ? r.map((e, i) => (i ? '<hr style="border-color:#ffffff22">' : '') + '<b>' + esc(e[0]) + '</b><br>' + esc(emote(e[2]))).join('') : esc(emote('I do not know that one yet. In basic mode I know about 3D printing: filaments, settings, problems, design, safety and costs. You can also teach me with the Teach button!')) + '<br><span class="muted">For other questions ask a parent or teacher. (A parent can turn on the smart helper.)</span>'; };
   const ask = async (text) => { const q = (text || $('#q', el).value).trim(); if (!q) return; $('#q', el).value = ''; add('me', esc(q)); history.push({ role: 'user', content: q }); history = history.slice(-10);
     if (!AI_ON) { const h = local(q); add('ai', toneWrap(h)); speak(h.replace(/<[^>]+>/g, ' ')); history.push({ role: 'assistant', content: h.replace(/<[^>]+>/g, ' ').slice(0, 800) }); return; }
     const wait = add('ai', '<span class="muted">Thinking…</span>');
-    try { const r = await fetch(API + '/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: history, style: aiMode }) }); const j = await r.json(); if (j.ok) { wait.innerHTML = toneWrap(fmt(j.reply)); history.push({ role: 'assistant', content: j.reply }); speak(j.reply); } else { wait.innerHTML = esc(j.error || 'The helper could not answer.') + '<hr style="border-color:#ffffff22">' + toneWrap(local(q)); } }
+    try { const r = await fetch(API + '/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: history, style: aiMode }) }); const j = await r.json(); if (j.ok) { wait.innerHTML = toneWrap(fmt(emote(j.reply))); history.push({ role: 'assistant', content: j.reply }); speak(j.reply); } else { wait.innerHTML = esc(j.error || 'The helper could not answer.') + '<hr style="border-color:#ffffff22">' + toneWrap(local(q)); } }
     catch (e) { wait.innerHTML = 'I could not reach the smart helper, so here is what I know offline:<hr style="border-color:#ffffff22">' + toneWrap(local(q)); } };
   const psel = $('#pmode', el); MODES.forEach((m) => psel.add(new Option(m[1], m[0]))); psel.value = aiMode; psel.onchange = () => { aiMode = psel.value; try { localStorage.setItem('pl_mode', aiMode); } catch (e) { } const m = MODES.find((x) => x[0] === aiMode); add('ai', 'Mood changed to <b>' + esc(m[1]) + '</b>! ' + esc(m[2][0])); };
+  $('#teach', el).onclick = () => {
+    const topic = prompt('What is the question or topic? (do not type your real name, address, school or phone number)');
+    if (!topic || !topic.trim()) return;
+    const ans = prompt('What should I answer when someone asks that?');
+    if (!ans || !ans.trim()) return;
+    TAUGHT.push([topic.trim().slice(0, 120), ans.trim().slice(0, 600)]); saveTaught();
+    add('ai', '📚 Thanks! I learned <b>' + esc(topic.trim()) + '</b>. Ask me about it any time! (I now know ' + TAUGHT.length + ' thing' + (TAUGHT.length === 1 ? '' : 's') + ' you taught me.)');
+  };
   $('#go', el).onclick = () => ask(); $('#q', el).onkeydown = (e) => { if (e.key === 'Enter') ask(); };
   $('#spk', el).onclick = () => { speakOn = !speakOn; $('#spk', el).textContent = speakOn ? '🔊 Voice: on' : '🔇 Voice: off'; if (!speakOn && 'speechSynthesis' in window) speechSynthesis.cancel(); else speak('Voice is on.'); };
   $('#mic', el).onclick = () => { const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) { add('ai', 'Your browser cannot listen to speech. You can still type, and turn on Voice to hear my answers.'); return; }
