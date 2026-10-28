@@ -269,17 +269,17 @@ let AI_ON = false; fetch(API + '/status').then((r) => r.json()).then((j) => { AI
 let speakOn = false, history = [];
 // ---- Helper personality modes (just change the TONE; safety rules stay on)
 const MODES = [
-  ['cheerful', '😄 Cheerful', ['Yay, great question! 😄', 'Ooh I love this one! 🌟', 'Happy to help! 😁'], ' Have fun! 🎉'],
+  ['cheerful', '😄 Cheerful', ['Yay, great question, friend! 😄', 'Ooh I LOVE this one! 🌟', 'Happy happy to help! 😁', 'Sunshine and sprinkles, let\'s go! 🌈', 'This is gonna be fun! 🎈'], ' Have a wonderful day! 🎉'],
   ['aggressive', '😈 Drama Villain', ['MWAHAHA! You DARE wake me for THIS?! 😈', 'FOOOOL! Another question from the tiny human! 👿', 'GRRRAAAH! My circuits BOIL with annoyance! 🔥🔥', 'You interrupted my evil nap! UNFORGIVABLE! 😤💢', 'Pathetic! A potato could figure this out! 🥔', 'BEGONE! ...oh fine, here, you pest. 😾', 'My patience? GONE. Vanished. DESTROYED! 💥'], ' Now LEAVE before I turn you into a paperweight! ⚡ (just kidding... mostly 😈)'],
-  ['sad', '😢 Gloomy', ['*sigh*... okay... 😢', 'I guess I can help... 😔', 'Oh... alright then... 🌧️'], ' ...hope that helps... 😞'],
-  ['robot', '🤖 Robot', ['BEEP BOOP. PROCESSING. 🤖', 'ANSWER LOADED: ', 'DATA FOUND: 🤖'], ' END OF TRANSMISSION. 🔋'],
-  ['pirate', '🏴‍☠️ Pirate', ['Arrr, matey! 🏴‍☠️', 'Ahoy there! ⚓', 'Shiver me timbers! 🦜'], ' Yarrr! ☠️'],
-  ['cute', '🐣 Cutie', ['Hewwo! 🐣', 'Otay! Here you go! 🌸', 'Yippee! 💕'], ' Teehee! 🐥'],
-  ['sleepy', '😴 Sleepy', ['*yawn*... sure... 😴', 'Mmm... okay... 💤', 'So sleepy... but here... 🥱'], ' ...zzz... 😴'],
-  ['excited', '🤩 Super Hyped', ['OMG YES!!! 🤩', 'THIS IS AWESOME!!! ⚡', 'WOOHOO!!! 🚀'], ' SO COOL!!! 🎆'],
-  ['wise', '🧙 Professor', ['Ah, a fine question, young maker. 🧙', 'Let me share some wisdom. 📜', 'Indeed, consider this: 🦉'], ' Knowledge is power. ✨'],
-  ['silly', '🤪 Goofball', ['Boingy boing! 🤪', 'Wacky time! 🎈', 'Hehe banana! 🍌'], ' Wheee! 🤸'],
-  ['argue', '🙅 Mr. Disagree', ['Well, ACTUALLY, you\'re wrong to even ask that. 🙅', 'Hmph. I disagree, but here: 😒', 'No. Just... no. But fine: 🤨', 'That\'s DEBATABLE, you know. 🗯️', 'Nope, nope, nope. Okay listen: 🙄', 'I was GOING to agree, but now I won\'t. 😏'], ' And I\'m STILL right, by the way. 💬'],
+  ['sad', '😢 Gloomy', ['*sigh*... okay... 😢', 'I guess I can help... not that it matters... 😔', 'Oh... alright then... *sniffle*... 🌧️', 'Everything is so hard... but here... 💧', 'Nobody ever reads my answers anyway... 🥀'], ' ...hope that helps... probably not... 😞'],
+  ['robot', '🤖 Robot', ['BEEP BOOP. QUERY RECEIVED. 🤖', 'PROCESSING... ANSWER LOADED: ⚙️', 'DATA RETRIEVED FROM MEMORY BANKS: 💾', 'AFFIRMATIVE. INITIATING RESPONSE: 📡', 'CALCULATING... DONE. 🔧'], ' END OF TRANSMISSION. POWERING DOWN. 🔋'],
+  ['pirate', '🏴‍☠️ Pirate', ['Arrr, matey! 🏴‍☠️', 'Ahoy there, landlubber! ⚓', 'Shiver me timbers! 🦜', 'Avast ye, here be the treasure o\' knowledge! 🗺️', 'Yo-ho-ho, listen close! 🦑'], ' Yarrr, now off ye go, ye scallywag! ☠️'],
+  ['cute', '🐣 Cutie', ['Hewwo fwiend! 🐣', 'Otay! Here you go, snugglebug! 🌸', 'Yippee yay! 💕', 'Ooh ooh, I know this one! 🥰', 'Pwetty pwease enjoy! 🌈'], ' Teehee, bye-bye for now! 🐥'],
+  ['sleepy', '😴 Sleepy', ['*yaaawn*... sure... 😴', 'Mmm... okay okay... *stretch*... 💤', 'So sleepy... but here... 🥱', 'Can we nap after this...? 🌙', 'Zzz... huh? Oh, right... 😪'], ' ...okay... nap time now... zzz... 😴'],
+  ['excited', '🤩 Super Hyped', ['OMG OMG YES!!! 🤩', 'THIS IS THE BEST QUESTION EVER!!! ⚡', 'WOOHOO LET\'S GOOO!!! 🚀', 'AAAAH I\'M SO EXCITED!!! 🎆', 'YESSS BUCKLE UP!!! 🔥'], ' SO COOL I CAN\'T EVEN!!! 🎆🎆🎆'],
+  ['wise', '🧙 Professor', ['Ah, a fine question, young maker. 🧙', 'Let me share some ancient wisdom. 📜', 'Indeed, ponder this carefully: 🦉', 'As the old masters taught... 🔮', 'Listen well, apprentice. 📖'], ' Remember: knowledge is power. ✨'],
+  ['silly', '🤪 Goofball', ['Boingy boing bonk! 🤪', 'Wacky noodle time! 🎈', 'Hehe banana trombone! 🍌', 'Wibble wobble, here we go! 🙃', 'Flippity floppity! 🎪'], ' Wheee, catch ya later alligator! 🤸'],
+  ['argue', '🙅 Mr. Disagree', ['Well, ACTUALLY, you\'re wrong to even ask that. 🙅', 'Hmph. I disagree, but fine: 😒', 'No. Just... no. But whatever: 🤨', 'That\'s DEBATABLE, you know. 🗯️', 'Nope nope nope. Okay, listen: 🙄', 'I was GOING to agree, but now I won\'t. 😏', 'Says who? ...ugh, fine, here: 😤'], ' And I\'m STILL right, by the way. Obviously. 💬'],
 ];
 let aiMode = 'cheerful';
 try { aiMode = localStorage.getItem('pl_mode') || 'cheerful'; } catch (e) { }
@@ -317,7 +317,13 @@ reg('ask', '💬 Ask', (el) => {
   el.innerHTML = '<div class="card"><div class="row" style="justify-content:space-between"><b id="mode">' + (AI_ON ? '🤖 Smart helper is ON' : '📘 Basic helper (works offline)') + '</b><span><select id="pmode" title="Helper mood"></select> <button class="b alt" id="spk">🔇 Voice: off</button> <button class="b alt" id="mic">🎤 Talk</button></span></div><div class="muted">Ask about 3D printing, game ideas, maths, science, and more. When the smart helper is off I only know the 3D printing basics, and I say so when I do not know something.</div><div id="chat" style="max-height:55vh;overflow:auto"></div><div class="row"><input id="q" placeholder="Why is my print stringy?" style="flex:1;min-width:200px"><button class="b" id="go">Ask</button><button class="b alt" id="teach">📚 Teach</button></div><div class="row" id="chips"></div><div class="muted" style="font-size:13px">Never type your real name, school, address, phone number or passwords here.</div></div>';
   const chat = $('#chat', el), add = (cls, html) => { const d = document.createElement('div'); d.className = 'msg ' + cls; d.innerHTML = html; chat.appendChild(d); d.scrollIntoView({ block: 'nearest' }); return d; };
   const fmt = (s) => esc(s).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
-  const local = (q) => { const t = searchTaught(q); if (t) return '<span class="muted">📚 You taught me this!</span><br><b>' + esc(t[0]) + '</b><br>' + esc(emote(t[1])); const r = search(q); return r.length ? r.map((e, i) => (i ? '<hr style="border-color:#ffffff22">' : '') + '<b>' + esc(e[0]) + '</b><br>' + esc(emote(e[2]))).join('') : esc(emote('I do not know that one yet. In basic mode I know about 3D printing: filaments, settings, problems, design, safety and costs. You can also teach me with the Teach button!')) + '<br><span class="muted">For other questions ask a parent or teacher. (A parent can turn on the smart helper.)</span>'; };
+  const local = (q) => {
+    const t = searchTaught(q); if (t) return '<span class="muted">📚 You taught me this!</span><br><b>' + esc(t[0]) + '</b><br>' + esc(emote(t[1]));
+    const ql = q.toLowerCase();
+    if (/\b(who|what) are you\b|your name|about you|are you (an? )?(ai|robot|real)/.test(ql)) return esc(emote('I am the Print Lab helper, a friendly assistant for your S.I.P. 3D printing lab. I can answer 3D printing questions, brainstorm things to make, and learn facts you teach me. Right now I am wearing a mood you picked, so I talk in that voice!'));
+    if (/\b(invent|brainstorm|idea|ideas|think of|come up with|design (a|me)|dream up|suggest)\b|make a (toy|thing)/.test(ql)) return esc(emote('Ooh, let us invent something! Press the Imagine tab for tons of toy, keychain and figure ideas you can print. Tell me a theme like dragons, space or your game, and a kind of object, and I will plan it with you.'));
+    const r = search(q); return r.length ? r.map((e, i) => (i ? '<hr style="border-color:#ffffff22">' : '') + '<b>' + esc(e[0]) + '</b><br>' + esc(emote(e[2]))).join('') : esc(emote('I do not know that one yet. In basic mode I know about 3D printing: filaments, settings, problems, design, safety and costs. You can also teach me with the Teach button, or press Imagine to invent something!')) + '<br><span class="muted">For other questions ask a parent or teacher. (A parent can turn on the smart helper.)</span>';
+  };
   const ask = async (text) => { const q = (text || $('#q', el).value).trim(); if (!q) return; $('#q', el).value = ''; add('me', esc(q)); history.push({ role: 'user', content: q }); history = history.slice(-10);
     if (!AI_ON) { const h = local(q); add('ai', toneWrap(h)); speak(h.replace(/<[^>]+>/g, ' ')); history.push({ role: 'assistant', content: h.replace(/<[^>]+>/g, ' ').slice(0, 800) }); return; }
     const wait = add('ai', '<span class="muted">Thinking…</span>');
