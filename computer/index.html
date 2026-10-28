@@ -28,7 +28,8 @@ html,body{margin:0;height:100%;overflow:hidden;background:#0b0e1a;color:var(--te
 .wbar button:hover{background:#ffffff30}.wbar .cl:hover{background:#c0392b}
 .wbody{flex:1;position:relative;background:#0b0e1a}
 .wbody iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
-.re{position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize}
+.re{position:absolute;right:0;bottom:0;width:26px;height:26px;cursor:nwse-resize;background:linear-gradient(135deg,transparent 50%,#ffffff40 50%);border-bottom-right-radius:12px}
+@media (max-width:760px){.re{display:none}.ic{width:84px;height:92px}.ic .e{font-size:34px}.wbar{height:44px}.wbar button{width:34px;height:32px;font-size:16px}}
 #fsbtn{background:#ffffff14;border:0;color:var(--text);padding:6px 10px;border-radius:8px;cursor:pointer;font-size:13px}
 #boot{position:fixed;inset:0;background:#0b0e1a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:99999}
 #boot img{width:110px;animation:pulse 1.4s infinite}#boot .bn{font-size:26px;font-weight:800;letter-spacing:3px}
@@ -66,10 +67,11 @@ function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function openApp(app){
   const [e,name,url,w,h] = app;
   const win = document.createElement('div'); win.className = 'win';
-  const W = Math.min(w, window.innerWidth-20), H = Math.min(h, window.innerHeight-70);
+  const touchy = window.innerWidth < 760;
+  const W = touchy ? window.innerWidth : Math.min(w, window.innerWidth-20), H = touchy ? (window.innerHeight-44) : Math.min(h, window.innerHeight-70);
   win.style.width = W+'px'; win.style.height = H+'px';
-  win.style.left = clamp(40 + wins.length*26, 4, window.innerWidth-W-4)+'px';
-  win.style.top = clamp(24 + wins.length*22, 4, window.innerHeight-H-50)+'px';
+  win.style.left = touchy ? '0px' : clamp(40 + wins.length*26, 4, window.innerWidth-W-4)+'px';
+  win.style.top = touchy ? '0px' : clamp(24 + wins.length*22, 4, window.innerHeight-H-50)+'px';
   win.style.zIndex = ++z;
   win.innerHTML = '<div class="wbar"><span>'+e+'</span><span class="wt">'+name+'</span><button class="mn" title="Hide">—</button><button class="mx" title="Maximize">▢</button><button class="cl" title="Close">✕</button></div><div class="wbody"><iframe src="'+url+'" allow="fullscreen; microphone"></iframe></div><div class="re"></div>';
   desk.appendChild(win);
