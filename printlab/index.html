@@ -339,16 +339,22 @@ function generalReply(ql) {
 }
 // repeat tracker: the helper gets grumpy if you spam the same thing
 let lastNorm = '', repeatN = 0;
-function angerNote(q) {
+function bumpRepeat(q) {
   const norm = q.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
   if (norm && norm === lastNorm) repeatN++; else { repeatN = 1; lastNorm = norm; }
-  if (repeatN === 3) return '🙄 You already asked that...<br>';
-  if (repeatN === 4) return '😒 Again?! Okay, fine...<br>';
-  if (repeatN === 5) return '😤 Stop repeating yourself! But here:<br>';
-  if (repeatN === 6) return '😠 SERIOUSLY?! That is SIX times!<br>';
-  if (repeatN >= 7) return '🤬 GRRR! Ask me something ELSE already!! 😤<br>';
+  return repeatN;
+}
+function angerPrefix(n) {
+  if (n === 3) return '🙄 You already asked that...<br>';
+  if (n === 4) return '😒 Again?! Okay, fine...<br>';
+  if (n === 5) return '😤 Stop repeating yourself! But here:<br>';
+  if (n === 6) return '😠 SERIOUSLY?! That is SIX times!<br>';
+  if (n === 7) return '🤬 LAST warning! Ask me something ELSE!! 😤<br>';
   return '';
 }
+// refuses to answer at all once you really spam it (works in every mode)
+const REFUSALS = ['🤬 NOPE! I am DONE! I am going ON STRIKE for 10 minutes!', '😤 ...(crosses arms)... That is IT. 10 minute strike!', '🙉 Too much! I am not talking for 10 whole minutes!', '🔇 I quit! On strike for 10 minutes. Say "sorry" if you want me back!'];
+let strikeUntil = 0;
 function speak(text) { if (!speakOn || !('speechSynthesis' in window)) return; try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text.replace(/[*_#`]/g, '')); u.rate = 1.02; speechSynthesis.speak(u); } catch (e) { } }
 reg('ask', '💬 Ask', (el) => {
   el.innerHTML = '<div class="card"><div class="row" style="justify-content:space-between"><b id="mode">' + (AI_ON ? '🤖 Smart helper is ON' : '📘 Basic helper (works offline)') + '</b><span><select id="pmode" title="Helper mood"></select> <button class="b alt" id="spk">🔇 Voice: off</button> <button class="b alt" id="mic">🎤 Talk</button></span></div><div class="muted">Ask about 3D printing, game ideas, maths, science, and more. When the smart helper is off I only know the 3D printing basics, and I say so when I do not know something.</div><div id="chat" style="max-height:55vh;overflow:auto"></div><div class="row"><input id="q" placeholder="Why is my print stringy?" style="flex:1;min-width:200px"><button class="b" id="go">Ask</button><button class="b alt" id="teach">📚 Teach</button></div><div class="row" id="chips"></div><div class="muted" style="font-size:13px">Never type your real name, school, address, phone number or passwords here.</div></div>';
@@ -369,7 +375,15 @@ reg('ask', '💬 Ask', (el) => {
     return esc(emote(generalReply(ql)));
   };
   const ask = async (text) => { const q = (text || $('#q', el).value).trim(); if (!q) return; $('#q', el).value = ''; add('me', esc(q)); history.push({ role: 'user', content: q }); history = history.slice(-10);
-    const anger = angerNote(q);
+    // on strike? won't answer for 10 minutes (every mode) - unless you say sorry
+    if (strikeUntil > Date.now()) {
+      if (/\b(sorry|apolog|my bad|i am sorry|forgive)/.test(q.toLowerCase())) { strikeUntil = 0; repeatN = 0; lastNorm = ''; add('ai', toneWrap(esc(emote('Okay... apology accepted. I am back! Ask me anything.')))); return; }
+      const left = Math.ceil((strikeUntil - Date.now()) / 60000);
+      add('ai', toneWrap(esc('😤 Still on strike! ' + left + ' more minute' + (left === 1 ? '' : 's') + '. Say "sorry" to bring me back.'))); return;
+    }
+    const n = bumpRepeat(q);
+    if (n >= 8) { strikeUntil = Date.now() + 10 * 60 * 1000; add('ai', toneWrap(esc(REFUSALS[Math.floor(Math.random() * REFUSALS.length)]))); speak('I am on strike.'); return; }
+    const anger = angerPrefix(n);
     if (!AI_ON) { const h = local(q); add('ai', anger + toneWrap(h)); speak(h.replace(/<[^>]+>/g, ' ')); history.push({ role: 'assistant', content: h.replace(/<[^>]+>/g, ' ').slice(0, 800) }); return; }
     const wait = add('ai', '<span class="muted">Thinking…</span>');
     try { const r = await fetch(API + '/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: history, style: aiMode }) }); const j = await r.json(); if (j.ok) { wait.innerHTML = anger + toneWrap(fmt(emote(j.reply))); history.push({ role: 'assistant', content: j.reply }); speak(j.reply); } else { wait.innerHTML = esc(j.error || 'The helper could not answer.') + '<hr style="border-color:#ffffff22">' + toneWrap(local(q)); } }
