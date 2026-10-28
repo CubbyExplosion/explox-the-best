@@ -257,17 +257,38 @@ reg('make', '🛠️ Make', (el) => {
 const API = new URLSearchParams(location.search).get('api') || 'https://explox-server.onrender.com/api/printlab';
 let AI_ON = false; fetch(API + '/status').then((r) => r.json()).then((j) => { AI_ON = !!(j && j.enabled); const n = document.getElementById('mode'); if (n) n.textContent = AI_ON ? '🤖 Smart helper is ON' : '📘 Basic helper (works offline)'; }).catch(() => { });
 let speakOn = false, history = [];
+// ---- Helper personality modes (just change the TONE; safety rules stay on)
+const MODES = [
+  ['cheerful', '😄 Cheerful', ['Yay, great question! 😄', 'Ooh I love this one! 🌟', 'Happy to help! 😁'], ' Have fun! 🎉'],
+  ['aggressive', '😤 Tough Coach', ['Alright, LISTEN UP! 💪', 'No slacking - here it is! 🔥', 'Let\'s GO, champ! 😤'], ' Now go do it! 💥'],
+  ['sad', '😢 Gloomy', ['*sigh*... okay... 😢', 'I guess I can help... 😔', 'Oh... alright then... 🌧️'], ' ...hope that helps... 😞'],
+  ['robot', '🤖 Robot', ['BEEP BOOP. PROCESSING. 🤖', 'ANSWER LOADED: ', 'DATA FOUND: 🤖'], ' END OF TRANSMISSION. 🔋'],
+  ['pirate', '🏴‍☠️ Pirate', ['Arrr, matey! 🏴‍☠️', 'Ahoy there! ⚓', 'Shiver me timbers! 🦜'], ' Yarrr! ☠️'],
+  ['cute', '🐣 Cutie', ['Hewwo! 🐣', 'Otay! Here you go! 🌸', 'Yippee! 💕'], ' Teehee! 🐥'],
+  ['sleepy', '😴 Sleepy', ['*yawn*... sure... 😴', 'Mmm... okay... 💤', 'So sleepy... but here... 🥱'], ' ...zzz... 😴'],
+  ['excited', '🤩 Super Hyped', ['OMG YES!!! 🤩', 'THIS IS AWESOME!!! ⚡', 'WOOHOO!!! 🚀'], ' SO COOL!!! 🎆'],
+  ['wise', '🧙 Professor', ['Ah, a fine question, young maker. 🧙', 'Let me share some wisdom. 📜', 'Indeed, consider this: 🦉'], ' Knowledge is power. ✨'],
+  ['silly', '🤪 Goofball', ['Boingy boing! 🤪', 'Wacky time! 🎈', 'Hehe banana! 🍌'], ' Wheee! 🤸'],
+];
+let aiMode = 'cheerful';
+try { aiMode = localStorage.getItem('pl_mode') || 'cheerful'; } catch (e) { }
+function toneWrap(html) {
+  const m = MODES.find((x) => x[0] === aiMode) || MODES[0];
+  const intro = m[2][Math.floor(Math.random() * m[2].length)];
+  return '<span style="opacity:.85">' + intro + '</span><br>' + html + '<br><span style="opacity:.7">' + m[3] + '</span>';
+}
 function speak(text) { if (!speakOn || !('speechSynthesis' in window)) return; try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text.replace(/[*_#`]/g, '')); u.rate = 1.02; speechSynthesis.speak(u); } catch (e) { } }
 reg('ask', '💬 Ask', (el) => {
-  el.innerHTML = '<div class="card"><div class="row" style="justify-content:space-between"><b id="mode">' + (AI_ON ? '🤖 Smart helper is ON' : '📘 Basic helper (works offline)') + '</b><span><button class="b alt" id="spk">🔇 Voice: off</button> <button class="b alt" id="mic">🎤 Talk</button></span></div><div class="muted">Ask about 3D printing, game ideas, maths, science, and more. When the smart helper is off I only know the 3D printing basics, and I say so when I do not know something.</div><div id="chat" style="max-height:55vh;overflow:auto"></div><div class="row"><input id="q" placeholder="Why is my print stringy?" style="flex:1;min-width:200px"><button class="b" id="go">Ask</button></div><div class="row" id="chips"></div><div class="muted" style="font-size:13px">Never type your real name, school, address, phone number or passwords here.</div></div>';
+  el.innerHTML = '<div class="card"><div class="row" style="justify-content:space-between"><b id="mode">' + (AI_ON ? '🤖 Smart helper is ON' : '📘 Basic helper (works offline)') + '</b><span><select id="pmode" title="Helper mood"></select> <button class="b alt" id="spk">🔇 Voice: off</button> <button class="b alt" id="mic">🎤 Talk</button></span></div><div class="muted">Ask about 3D printing, game ideas, maths, science, and more. When the smart helper is off I only know the 3D printing basics, and I say so when I do not know something.</div><div id="chat" style="max-height:55vh;overflow:auto"></div><div class="row"><input id="q" placeholder="Why is my print stringy?" style="flex:1;min-width:200px"><button class="b" id="go">Ask</button></div><div class="row" id="chips"></div><div class="muted" style="font-size:13px">Never type your real name, school, address, phone number or passwords here.</div></div>';
   const chat = $('#chat', el), add = (cls, html) => { const d = document.createElement('div'); d.className = 'msg ' + cls; d.innerHTML = html; chat.appendChild(d); d.scrollIntoView({ block: 'nearest' }); return d; };
   const fmt = (s) => esc(s).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
   const local = (q) => { const r = search(q); return r.length ? r.map((e, i) => (i ? '<hr style="border-color:#ffffff22">' : '') + '<b>' + esc(e[0]) + '</b><br>' + esc(e[2])).join('') : 'I do not know that one yet. In basic mode I know about <b>3D printing: filaments, settings, problems, design, safety and costs</b>. Try one of those, or press <b>Imagine</b> to brainstorm.<br><span class="muted">For other questions ask a parent or teacher. (A parent can turn on the smart helper.)</span>'; };
   const ask = async (text) => { const q = (text || $('#q', el).value).trim(); if (!q) return; $('#q', el).value = ''; add('me', esc(q)); history.push({ role: 'user', content: q }); history = history.slice(-10);
-    if (!AI_ON) { const h = local(q); add('ai', h); speak(h.replace(/<[^>]+>/g, ' ')); history.push({ role: 'assistant', content: h.replace(/<[^>]+>/g, ' ').slice(0, 800) }); return; }
+    if (!AI_ON) { const h = local(q); add('ai', toneWrap(h)); speak(h.replace(/<[^>]+>/g, ' ')); history.push({ role: 'assistant', content: h.replace(/<[^>]+>/g, ' ').slice(0, 800) }); return; }
     const wait = add('ai', '<span class="muted">Thinking…</span>');
-    try { const r = await fetch(API + '/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: history }) }); const j = await r.json(); if (j.ok) { wait.innerHTML = fmt(j.reply); history.push({ role: 'assistant', content: j.reply }); speak(j.reply); } else { wait.innerHTML = esc(j.error || 'The helper could not answer.') + '<hr style="border-color:#ffffff22">' + local(q); } }
-    catch (e) { wait.innerHTML = 'I could not reach the smart helper, so here is what I know offline:<hr style="border-color:#ffffff22">' + local(q); } };
+    try { const r = await fetch(API + '/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: history, style: aiMode }) }); const j = await r.json(); if (j.ok) { wait.innerHTML = toneWrap(fmt(j.reply)); history.push({ role: 'assistant', content: j.reply }); speak(j.reply); } else { wait.innerHTML = esc(j.error || 'The helper could not answer.') + '<hr style="border-color:#ffffff22">' + toneWrap(local(q)); } }
+    catch (e) { wait.innerHTML = 'I could not reach the smart helper, so here is what I know offline:<hr style="border-color:#ffffff22">' + toneWrap(local(q)); } };
+  const psel = $('#pmode', el); MODES.forEach((m) => psel.add(new Option(m[1], m[0]))); psel.value = aiMode; psel.onchange = () => { aiMode = psel.value; try { localStorage.setItem('pl_mode', aiMode); } catch (e) { } const m = MODES.find((x) => x[0] === aiMode); add('ai', 'Mood changed to <b>' + esc(m[1]) + '</b>! ' + esc(m[2][0])); };
   $('#go', el).onclick = () => ask(); $('#q', el).onkeydown = (e) => { if (e.key === 'Enter') ask(); };
   $('#spk', el).onclick = () => { speakOn = !speakOn; $('#spk', el).textContent = speakOn ? '🔊 Voice: on' : '🔇 Voice: off'; if (!speakOn && 'speechSynthesis' in window) speechSynthesis.cancel(); else speak('Voice is on.'); };
   $('#mic', el).onclick = () => { const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) { add('ai', 'Your browser cannot listen to speech. You can still type, and turn on Voice to hear my answers.'); return; }
