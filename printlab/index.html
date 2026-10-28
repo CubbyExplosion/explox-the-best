@@ -323,6 +323,32 @@ function toneWrap(html) {
   const intro = m[2][Math.floor(Math.random() * m[2].length)];
   return '<span style="opacity:.85">' + intro + '</span><br>' + html + '<br><span style="opacity:.7">' + m[3] + '</span>';
 }
+// always give SOME friendly reply, even for things outside the 3D-printing knowledge
+const JOKES = ['Why did the 3D printer go to school? To get a little more class! 📚', 'What do you call a printer that sings? A Dell-a! 🎤', 'Why was the filament so calm? It had no loose ends! 🧵', 'What is a robot\'s favourite snack? Micro-chips! 🤖', 'Why did the model blush? It saw the printer\'s hot end! 🔥', 'How do you fix a wobbly table? With a 3D-printed leg, of course! 🦵'];
+function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+function generalReply(ql) {
+  if (/how are you|how r u|how do you feel|you ok/.test(ql)) return 'I am doing great, thanks for asking! I am always happy to help. How are you?';
+  if (/tell me a joke|say a joke|funny|make me laugh/.test(ql)) return pick(JOKES);
+  if (/your favou?rite|do you like|whats your fav/.test(ql)) return 'Ooh, I love 3D printing, cool inventions, and helping you make things! What is YOUR favourite thing to make?';
+  if (/i (am|feel) (sad|down|upset|angry|mad|bad)/.test(ql)) return 'Aw, I am sorry you feel that way. Making something fun can help - want to invent a little toy together? Press the Imagine tab!';
+  if (/i (am|feel) (happy|good|great|excited|awesome)/.test(ql)) return 'Yay! That makes me happy too! Let us make something awesome - ask me anything!';
+  if (/^(yes|yeah|yep|no|nope|maybe|ok|okay)[\s!.]*$/.test(ql)) return 'Got it! Ask me a 3D printing question, the meaning of a word, or press Imagine to dream up something to make.';
+  if (/can you|could you|will you|do you/.test(ql)) return 'I can answer 3D printing questions, explain what words mean, brainstorm things to make, and learn facts you teach me! Try one of those.';
+  if (/love you|you are (nice|cool|awesome|great|the best)/.test(ql)) return 'Aww, you are awesome too! Thanks! Now let us make something cool. 💙';
+  return 'That is interesting! I am best at 3D printing, word meanings, and ideas to make - ask me about those and I will shine. You can also teach me new things with the Teach button, and a parent can turn on the smart helper for bigger chats.';
+}
+// repeat tracker: the helper gets grumpy if you spam the same thing
+let lastNorm = '', repeatN = 0;
+function angerNote(q) {
+  const norm = q.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+  if (norm && norm === lastNorm) repeatN++; else { repeatN = 1; lastNorm = norm; }
+  if (repeatN === 3) return '🙄 You already asked that...<br>';
+  if (repeatN === 4) return '😒 Again?! Okay, fine...<br>';
+  if (repeatN === 5) return '😤 Stop repeating yourself! But here:<br>';
+  if (repeatN === 6) return '😠 SERIOUSLY?! That is SIX times!<br>';
+  if (repeatN >= 7) return '🤬 GRRR! Ask me something ELSE already!! 😤<br>';
+  return '';
+}
 function speak(text) { if (!speakOn || !('speechSynthesis' in window)) return; try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text.replace(/[*_#`]/g, '')); u.rate = 1.02; speechSynthesis.speak(u); } catch (e) { } }
 reg('ask', '💬 Ask', (el) => {
   el.innerHTML = '<div class="card"><div class="row" style="justify-content:space-between"><b id="mode">' + (AI_ON ? '🤖 Smart helper is ON' : '📘 Basic helper (works offline)') + '</b><span><select id="pmode" title="Helper mood"></select> <button class="b alt" id="spk">🔇 Voice: off</button> <button class="b alt" id="mic">🎤 Talk</button></span></div><div class="muted">Ask about 3D printing, game ideas, maths, science, and more. When the smart helper is off I only know the 3D printing basics, and I say so when I do not know something.</div><div id="chat" style="max-height:55vh;overflow:auto"></div><div class="row"><input id="q" placeholder="Why is my print stringy?" style="flex:1;min-width:200px"><button class="b" id="go">Ask</button><button class="b alt" id="teach">📚 Teach</button></div><div class="row" id="chips"></div><div class="muted" style="font-size:13px">Never type your real name, school, address, phone number or passwords here.</div></div>';
@@ -334,17 +360,19 @@ reg('ask', '💬 Ask', (el) => {
     if (/^(thanks|thank you|ty|thx|cheers)[\s!.]*$/.test(ql)) return esc(emote('You are very welcome! Ask me anything else any time.'));
     if (/^(bye|goodbye|see ya|cya|good night)[\s!.]*$/.test(ql)) return esc(emote('Bye for now! Come back soon and happy printing!'));
     const t = searchTaught(q); if (t) return '<span class="muted">📚 You taught me this!</span><br><b>' + esc(t[0]) + '</b><br>' + esc(emote(t[1]));
-    if (!tok(ql).some((w) => w.length >= 3)) return esc(emote('Hmm, tell me a bit more! Ask a full question like "what filament should I use?" or "what does gravity mean?"'));
+    if (!ql) return esc(emote('Hmm, tell me a bit more! Ask a full question like "what filament should I use?" or "what does gravity mean?"'));
     if (/\b(who|what) are you\b|your name|about you|are you (an? )?(ai|robot|real)/.test(ql)) return esc(emote('I am the Print Lab helper, a friendly assistant for your S.I.P. 3D printing lab. I can answer 3D printing questions, brainstorm things to make, and learn facts you teach me. Right now I am wearing a mood you picked, so I talk in that voice!'));
     const dm = ql.match(/(?:what(?:'s| is| does)?(?: an?| the)?|define|meaning of|what do you mean by)\s+(?:a |an |the )?["']?([a-z][a-z\-]{1,24})["']?\s*(?:mean|means)?\s*\??$/);
     if (dm) { const w = dm[1]; const g = Object.keys(GLOSS).find((k) => k.toLowerCase() === w); if (g) return esc(emote(w + ': ' + GLOSS[g])); if (DICT[w] && DICT[w]) return esc(emote('The word "' + w + '" means: ' + DICT[w] + '.')); if (search(q).length) { } else return esc(emote('I do not have the word "' + w + '" in my offline dictionary yet. I know lots of common words, 3D printing words, and anything you teach me with the Teach button. A parent can turn on the smart helper, which knows almost every word!')); }
     if (/\b(invent|brainstorm|idea|ideas|think of|come up with|design (a|me)|dream up|suggest)\b|make a (toy|thing)/.test(ql)) return esc(emote('Ooh, let us invent something! Press the Imagine tab for tons of toy, keychain and figure ideas you can print. Tell me a theme like dragons, space or your game, and a kind of object, and I will plan it with you.'));
-    const r = search(q); return r.length ? r.map((e, i) => (i ? '<hr style="border-color:#ffffff22">' : '') + '<b>' + esc(e[0]) + '</b><br>' + esc(emote(e[2]))).join('') : esc(emote('I do not know that one yet. In basic mode I know about 3D printing: filaments, settings, problems, design, safety and costs. You can also teach me with the Teach button, or press Imagine to invent something!')) + '<br><span class="muted">For other questions ask a parent or teacher. (A parent can turn on the smart helper.)</span>';
+    const r = search(q); if (r.length) return r.map((e, i) => (i ? '<hr style="border-color:#ffffff22">' : '') + '<b>' + esc(e[0]) + '</b><br>' + esc(emote(e[2]))).join('');
+    return esc(emote(generalReply(ql)));
   };
   const ask = async (text) => { const q = (text || $('#q', el).value).trim(); if (!q) return; $('#q', el).value = ''; add('me', esc(q)); history.push({ role: 'user', content: q }); history = history.slice(-10);
-    if (!AI_ON) { const h = local(q); add('ai', toneWrap(h)); speak(h.replace(/<[^>]+>/g, ' ')); history.push({ role: 'assistant', content: h.replace(/<[^>]+>/g, ' ').slice(0, 800) }); return; }
+    const anger = angerNote(q);
+    if (!AI_ON) { const h = local(q); add('ai', anger + toneWrap(h)); speak(h.replace(/<[^>]+>/g, ' ')); history.push({ role: 'assistant', content: h.replace(/<[^>]+>/g, ' ').slice(0, 800) }); return; }
     const wait = add('ai', '<span class="muted">Thinking…</span>');
-    try { const r = await fetch(API + '/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: history, style: aiMode }) }); const j = await r.json(); if (j.ok) { wait.innerHTML = toneWrap(fmt(emote(j.reply))); history.push({ role: 'assistant', content: j.reply }); speak(j.reply); } else { wait.innerHTML = esc(j.error || 'The helper could not answer.') + '<hr style="border-color:#ffffff22">' + toneWrap(local(q)); } }
+    try { const r = await fetch(API + '/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: history, style: aiMode }) }); const j = await r.json(); if (j.ok) { wait.innerHTML = anger + toneWrap(fmt(emote(j.reply))); history.push({ role: 'assistant', content: j.reply }); speak(j.reply); } else { wait.innerHTML = esc(j.error || 'The helper could not answer.') + '<hr style="border-color:#ffffff22">' + toneWrap(local(q)); } }
     catch (e) { wait.innerHTML = 'I could not reach the smart helper, so here is what I know offline:<hr style="border-color:#ffffff22">' + toneWrap(local(q)); } };
   const psel = $('#pmode', el); MODES.forEach((m) => psel.add(new Option(m[1], m[0]))); psel.value = aiMode; psel.onchange = () => { aiMode = psel.value; try { localStorage.setItem('pl_mode', aiMode); } catch (e) { } const m = MODES.find((x) => x[0] === aiMode); add('ai', 'Mood changed to <b>' + esc(m[1]) + '</b>! ' + esc(m[2][0])); };
   $('#teach', el).onclick = () => {
