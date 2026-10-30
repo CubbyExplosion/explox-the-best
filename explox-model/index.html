@@ -25,6 +25,7 @@ const cv=document.getElementById('cv'),cx=cv.getContext('2d');
 // ---- build the blocky character as colored boxes (y up) ----
 // box: [cx,cy,cz, w,h,d, color]
 const DARK='#14141c', DARK2='#20202c', SKIN='#f0c9b0', SKIN2='#e6bca2', BRIM='#d8d8e4', RED='#d8352e', WHITE='#f4f4f8', SHIRT='#e8e8ee', BLOOD='#b02a22', EYE='#1a1a1a';
+const METAL='#c6cad8', RIDGE='#eef0f8', HANDLE='#6a3a1a', GUARD='#ffcd30', RIVET='#fff3b0', BASE='#2a2f4a';
 const boxes=[];
 function B(x,y,z,w,h,d,c){boxes.push([x,y,z,w,h,d,c]);}
 // legs
@@ -52,6 +53,20 @@ B(-0.42,5.45,fz, 0.3,0.34,0.14, EYE); // left eye
 B( 0.42,5.45,fz, 0.3,0.34,0.14, EYE); // right eye
 // smile (arc of small blocks)
 [[-0.5,4.95],[-0.28,4.82],[0,4.78],[0.28,4.82],[0.5,4.95]].forEach(p=>B(p[0],p[1],fz,0.24,0.2,0.13,EYE));
+// ---- flat base so it stands up ----
+B(0,-0.18,0, 3.6,0.36,2.4, BASE);
+// ---- sword (held at the right side, blade up) ----
+B(1.95,1.65,0.25, 0.28,0.8,0.28, HANDLE);           // grip
+B(1.95,1.2,0.25, 0.38,0.22,0.38, GUARD);            // pommel
+B(1.95,2.15,0.25, 1.02,0.22,0.36, GUARD);           // crossguard
+B(1.95,3.6,0.25, 0.52,2.7,0.16, METAL);             // blade
+B(1.95,5.1,0.25, 0.34,0.34,0.16, METAL);            // blade step
+B(1.95,5.4,0.25, 0.18,0.36,0.16, METAL);            // blade tip
+// RAISED RIDGE down the blade (outdent, sticks out front and back)
+B(1.95,3.6,0.37, 0.14,2.5,0.1, RIDGE);
+B(1.95,3.6,0.13, 0.14,2.5,0.1, RIDGE);
+// raised rivets on the guard (outdents)
+B(-0.0+1.55,2.15,0.46, 0.12,0.12,0.08, RIVET); B(1.95,2.15,0.46, 0.14,0.14,0.08, RIVET); B(2.35,2.15,0.46, 0.12,0.12,0.08, RIVET);
 // ---- party hat (red cone) ----
 const HAT={cx:0,cy:6.35,cz:0, r:0.95, h:1.7, seg:16, col:RED};
 // ---- 3D render ----
