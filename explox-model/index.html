@@ -53,15 +53,14 @@ B(-0.42,5.45,fz, 0.3,0.34,0.14, EYE); // left eye
 B( 0.42,5.45,fz, 0.3,0.34,0.14, EYE); // right eye
 // smile (arc of small blocks)
 [[-0.5,4.95],[-0.28,4.82],[0,4.78],[0.28,4.82],[0.5,4.95]].forEach(p=>B(p[0],p[1],fz,0.24,0.2,0.13,EYE));
-// ---- flat base so it stands up ----
-B(0,-0.18,0, 3.6,0.36,2.4, BASE);
-// ---- sword (held at the right side, blade up) ----
-B(1.95,1.65,0.25, 0.28,0.8,0.28, HANDLE);           // grip
-B(1.95,1.2,0.25, 0.38,0.22,0.38, GUARD);            // pommel
-B(1.95,2.15,0.25, 1.02,0.22,0.36, GUARD);           // crossguard
-B(1.95,3.6,0.25, 0.52,2.7,0.16, METAL);             // blade
-B(1.95,5.1,0.25, 0.34,0.34,0.16, METAL);            // blade step
-B(1.95,5.4,0.25, 0.18,0.36,0.16, METAL);            // blade tip
+// ---- flat base so it stands up (and everything connects to it for printing) ----
+B(0,-0.1,0, 3.9,0.5,2.6, BASE);
+// ---- sword standing on the base beside the right hand (connected = printable) ----
+B(1.9,0.8,0, 0.3,1.4,0.3, HANDLE);                  // grip (reaches down to the base)
+B(1.9,1.6,0, 1.0,0.24,0.34, GUARD);                 // crossguard
+B(1.9,3.25,0, 0.5,3.1,0.18, METAL);                 // blade
+B(1.9,4.95,0, 0.32,0.3,0.18, METAL);                // blade step
+B(1.9,5.2,0, 0.18,0.34,0.18, METAL);                // blade tip
 // ---- party hat (red cone) ----
 const HAT={cx:0,cy:6.35,cz:0, r:0.95, h:1.7, seg:16, col:RED};
 // ---- 3D render ----
