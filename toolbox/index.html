@@ -123,15 +123,22 @@ reg('apps', '🗂️ App manager', (el) => {
 });
 
 // ================= SEND A HELLO =================
-reg('hello', '💌 Send hello', (el) => {
-  const url = 'https://cubbyexplosion.github.io/explox-the-best/hi-dad/';
-  el.innerHTML = '<div style="font-size:20px;font-weight:800;margin-bottom:4px">💌 Send the Hi Dad card</div><div class="muted" style="margin-bottom:10px">Funny hello card with greetings, shop music and a friendly laugh. It opens the Toolbox when he taps OK. Send it to your dad, or any family member you know.</div><input id="hu" readonly style="width:100%;box-sizing:border-box"><div class="row"><button class="b" id="hc">📋 Copy link</button><button class="b alt" id="hs">📤 Share...</button><a class="b alt" id="ho" target="_blank" rel="noopener">👀 Preview it</a></div><div id="hm" class="muted" style="margin-top:8px"></div><div style="margin-top:14px;padding:10px;background:#232c55;border-radius:12px"><b>😜 Comeback prank:</b> a button that runs away when Dad tries to click it! <div class="row" style="margin:6px 0 0"><button class="b" id="pc">📋 Copy prank link</button><a class="b alt" target="_blank" rel="noopener" href="https://cubbyexplosion.github.io/explox-the-best/dad-prank/">👀 Preview</a></div><div class="muted" style="font-size:13px;margin-top:8px">Or the <b>100 pop-ups</b> version: <button class="b alt" id="pp" style="margin-left:4px">📋 Copy 100-popups link</button></div></div><div class="muted" style="margin-top:12px">Tip: paste the link in a message to your dad, or ask him to open it on his computer. Press <b>Ctrl + D</b> on this page to bookmark it so it is one click away.</div>';
-  $('#hu', el).value = url; $('#ho', el).href = url;
-  const msg = (t) => { $('#hm', el).textContent = t; };
-  $('#hc', el).onclick = () => { try { navigator.clipboard.writeText(url).then(() => msg('Copied! Now paste it in a message to your dad.'), () => { $('#hu', el).select(); msg('Press Ctrl+C to copy.'); }); } catch (e) { $('#hu', el).select(); msg('Press Ctrl+C to copy.'); } };
-  $('#pp', el).onclick = () => { const u = 'https://cubbyexplosion.github.io/explox-the-best/dad-prank/popups.html'; try { navigator.clipboard.writeText(u).then(() => msg('100-popups link copied!'), () => { prompt('Copy this link:', u); }); } catch (e) { prompt('Copy this link:', u); } };
-  $('#pc', el).onclick = () => { const u = 'https://cubbyexplosion.github.io/explox-the-best/dad-prank/'; try { navigator.clipboard.writeText(u).then(() => msg('Prank link copied!'), () => { prompt('Copy this link:', u); }); } catch (e) { prompt('Copy this link:', u); } };
-  $('#hs', el).onclick = () => { if (navigator.share) { navigator.share({ title: 'Come check out!', text: 'A hello from the S.I.P. team', url }).catch(() => { }); } else { msg('Your browser cannot share from here - use Copy link instead.'); } };
+reg('hello', '🎉 Fun pages', (el) => {
+  const cards = [
+    ['👋', 'Hi Dad card', 'Greetings in lots of languages, shop music and a friendly laugh.', 'https://cubbyexplosion.github.io/explox-the-best/hi-dad/'],
+    ['😜', 'Runaway button prank', 'A button that runs away when you try to click it!', 'https://cubbyexplosion.github.io/explox-the-best/dad-prank/'],
+    ['🔁', '100 pop-ups prank', 'Keep clicking OK... all the way to the big GOTCHA!', 'https://cubbyexplosion.github.io/explox-the-best/dad-prank/popups.html'],
+  ];
+  el.innerHTML = '<div style="font-size:20px;font-weight:800;margin-bottom:4px">🎉 Fun pages</div><div class="muted" style="margin-bottom:12px">Tap one to open it right away.</div><div id="fp" style="display:grid;gap:12px"></div>';
+  const fp = $('#fp', el);
+  cards.forEach((c) => {
+    const d = document.createElement('div');
+    d.style.cssText = 'display:flex;align-items:center;gap:12px;background:#232c55;border-radius:14px;padding:14px;cursor:pointer';
+    d.innerHTML = '<div style="font-size:34px">' + c[0] + '</div><div style="flex:1"><div style="font-weight:800">' + c[1] + '</div><div class="muted" style="font-size:13px"></div></div><div class="b" style="pointer-events:none">Open ▸</div>';
+    d.children[1].children[1].textContent = c[2];
+    d.onclick = () => window.open(c[3], '_blank', 'noopener');
+    fp.appendChild(d);
+  });
 });
 
 // ---- Calculator (safe: no eval, a tiny parser)
