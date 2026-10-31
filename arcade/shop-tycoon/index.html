@@ -230,19 +230,19 @@ var RAW=[
  [['🤖','Scout Bot Toy'],['🧸','Toy Store Teddy'],['🧩','Explox City Puzzle'],['🪁','Airport Kite'],['🚂','Transit Hub Train'],['🎈','Party Hat Balloons'],['🕷️','Spider Bot Toy'],['👾','Elite Bot Figure']],
  [['🎮','S.I.P. Game Pad'],['🕹️','Pixel Palace Joystick'],['📀','Explox Game Disc'],['♟️','Chess Set'],['🧱','Block Obby Bricks'],['🎯','Foam Dart Blaster'],['🎨','City Life Art Kit']],
  [['🧦','S.I.P. Socks'],['🧢','Explox Cap'],['👕','Explox T-Shirt'],['🎉','Red Party Hat'],['🧤','Hero Gloves'],['👟','Pixel Sneakers'],['🧥','City Jacket'],['🎒','Explox Backpack']],
- [['🔦','Explox Torch'],['🔋','S.I.P. Batteries'],['🎧','Headphones'],['📱','S.I.P. Phone'],['⌚','Gold Watch'],['🔊','Speaker'],['💻','S.I.P. OS Laptop'],['🚁','Drone Bot']],
+ [['🖱️','S.I.P. Mouse',25],['⌨️','S.I.P. Keyboard',40],['🎧','S.I.P. Headphones',80],['📱','S.I.P. Phone',450],['🧠','S.I.P. CPU',700],['💻','S.I.P. OS Laptop',1500],['🎮','S.I.P. GPU',6000],['🖥️','S.I.P. Super Server',38000]],
  [['🐶','S.I.P. Puppy'],['🐱','S.I.P. Kitten'],['🐰','Explox Bunny'],['🐹','City Hamster'],['🦜','Pixel Parrot'],['🐢','Turtle'],['🦴','S.I.P. Dog Bone']],
  [['📒','Explox Notebook'],['✏️','S.I.P. Pencil Set'],['📖','Hero Story Book'],['🗺️','Explox City Map'],['📚','Comic Stack'],['🔭','Science Book'],['🎼','Pixel Palace Music Book']],
  [['⚽','S.I.P. Football'],['🏀','City Basketball'],['🏓','Pixel Ping-pong Set'],['🛹','Explox Skateboard'],['🚲','City Bike'],['⛸️','Skates'],['🏸','Badminton Set']]];
 var BASES=[];(function(){var idx=[0,0,0,0,0,0,0,0],left=true;
- while(left){left=false;for(var c=0;c<8;c++){if(idx[c]<RAW[c].length){var it=RAW[c][idx[c]++];BASES.push({cat:c,e:it[0],n:it[1]});left=true}}}})();
+ while(left){left=false;for(var c=0;c<8;c++){if(idx[c]<RAW[c].length){var it=RAW[c][idx[c]++];BASES.push({cat:c,e:it[0],n:it[1],c:it[2]});left=true}}}})();
 var NB=BASES.length,NV=167,NI=NB*NV;
 var SZ=['Mini','Small','Medium','Large','Giant'],ED=['','Deluxe','S.I.P. Signed ✍️','Super'],CO=[['Red','🔴'],['Orange','🟠'],['Yellow','🟡'],['Green','🟢'],['Blue','🔵'],['Purple','🟣'],['Pink','🌸'],['Brown','🟤'],['Silver','⚪'],['Rainbow','🌈']];
 function Ufun(t){return t<2?17*t:40*Math.pow(1.173,t-3)}
 var ITEMS=new Array(NI),NAMES=new Array(NI);
 (function(){for(var k=0;k<NB;k++){var b=BASES[k];for(var v=0;v<NV;v++){var i=k*NV+v,a=v%5,bb=Math.floor((v%50)/5),c=Math.floor(v/50);
  var nm=b.n,ic=b.e;if(v>0){nm=SZ[a]+' '+CO[bb][0]+' '+(ED[c]?ED[c]+' ':'')+b.n;ic=CO[bb][1]+b.e}
- var cost=Math.round(2*Math.pow(1.1,k)*(1+0.002*v)*100)/100;
+ var cost=Math.round((b.c||2*Math.pow(1.1,k))*(1+0.002*v)*100)/100;
  var sg=(v>0&&c===2)?1:0;ITEMS[i]={r:i,k:k,v:v,cat:b.cat,e:ic,n:nm,cost:cost,price:cost*1.6*(sg?1.2:1),signed:sg,unlock:Math.round(Ufun(k+v/NV))};NAMES[i]=nm.toLowerCase()}}})();
 var TYPES=[
  {id:'kid',e:'🧒',n:'Kid',mix:.30,tol:.5,pm:1,bm:1},
