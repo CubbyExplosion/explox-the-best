@@ -665,13 +665,13 @@ function cupCheck(offline){
  for(var j=0;j<3;j++)a.push({n:CUPX[j].n,e:CUPX[j].e,v:sum/6*(0.45+Math.random()*1.1)});
  a.sort(function(x,y){return y.v-x.v});
  var rk=0;for(var k=0;k<a.length;k++)if(a[k].me)rk=k+1;
- var prize=([0,5000,3000,2000][rk]||500)*Y;S.money=cb(S.money+prize);
+ var prize=(10000+([0,5000,3000,2000][rk]||0))*Y;S.money=cb(S.money+prize);
  if(rk<=3)S.rep=Math.min(5,S.rep+0.2);if(rk===1)C.wins++;if(!C.best||rk<C.best)C.best=rk;
  C.hist.push({y:Y,r:rk,v:a[rk-1].v});if(C.hist.length>50)C.hist.shift();
  C.y0=S.sold;C.riv=S.riv.slice(0,6);
  if(!offline){
   $('cupTitle').textContent='🏆 Year '+Y+' Top 10 Shops Cup';
-  $('cupTxt').textContent=(rk===1?'🥇 YOU WON THE CUP! ':rk<=3?'🏅 You came #'+rk+'! ':'You came #'+rk+' of 10. ')+'Prize: '+fmt(prize)+' SIP'+(rk<=3?' (+reputation)':'');
+  $('cupTxt').textContent=(rk===1?'🥇 YOU WON THE CUP! ':rk<=3?'🏅 You came #'+rk+'! ':'You came #'+rk+' of 10. ')+'You are in the Top 10, so you win 10,000 SIP'+(rk<=3?' + a top-3 bonus (+reputation)':'')+'! Total: '+fmt(prize)+' SIP';
   $('cupList').innerHTML=a.map(function(x,k){return '<div class="rec" style="'+(x.me?'background:#fff0b3;border-radius:8px;padding:6px':'')+'"><span>'+(k===0?'🥇':k===1?'🥈':k===2?'🥉':'#'+(k+1))+' '+x.e+' '+x.n+'</span><b>'+fmt(x.v)+' items</b></div>'}).join('');
   $('bCupOk').onclick=function(){show('ovCup',false)};show('ovCup',true)}}
 function newDay(){dayChange(false)}
