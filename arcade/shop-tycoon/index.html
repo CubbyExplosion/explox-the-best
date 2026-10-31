@@ -534,14 +534,14 @@ function serveOne(c,manual){
   if(ratio<1+tolE*1.5&&Math.random()<0.4){hag=true;P=P*0.9}
   else{addRep(0.2,1);review('Way too expensive!',1);if(c){floatText(c.x,170,'Too pricey!','#d32f2f')}sBad();return 'refuse'}}
  if(c&&c.reg)P*=0.95;
- var rev=qty*P*t.pm*d.pm*d.im;S.acc.cat[ITEMS[item].cat]+=rev;
+ var rev0=qty*P*t.pm*d.pm*d.im,tipA=rev0*(0.05+Math.random()*0.1),rev=rev0+tipA;S.acc.cat[ITEMS[item].cat]+=rev;
  S.stock[item]-=qty;bookSale(qty,rev);S.acc.rev=cb(S.acc.rev+rev);R.capLeft-=rev;R.rate._m+=rev;if(c&&c.reg){S.regVisits++;if(c.ri>=0)S.regv[c.ri]++;if(BR_ID){BRW.d=BRW.d||[];BRW.dv=(BRW.dv||0)+1;if(c.ri>=0)BRW.d[c.ri]=(BRW.d[c.ri]||0)+1}if(Math.random()<.5)floatText(c.x,110,'❤ '+c.reg+' is back!','#d6336c')}
  if(!S.seen[item]){S.seen[item]=1;S.nseen++}
  if(hag){addRep(.6,1);review('Haggled a discount.',3)}else if(ratio<0.9){addRep(1,1);review('Great prices!',5)}else{addRep(0.9,1);review('Fair prices, nice shop.',4)}
  var rv=rev/d.im,paid=Math.ceil(rv/5)*5;if(paid<rv)paid=rv;
  var card=Math.random()<Math.min(.8,.4+.04*S.exp);lastRcpt={t:R_t,e:ITEMS[item].e,n:ITEMS[item].n,q:qty,p:rv,paid:card?rv:paid,ch:card?0:paid-rv,card:card,tax:CATVAT[ITEMS[item].cat]};R.rcptT=R_t;sBeep();if(card)tone(1500,.1,.12,'square',.04);
  if(t.id==='vip')S.vip++;
- sChing();var x=c?c.x:300;floatText(x,150,'+'+fmt(rev),'#1b8a4b');if(Math.random()<.25)floatText(x,128,'Love SUPER SIP!','#8e5bff');
+ sChing();var x=c?c.x:300;floatText(x,150,'+'+fmt(rev),'#1b8a4b');floatText(x,172,'💝 tip +'+fmt(tipA),'#d6336c');if(Math.random()<.25)floatText(x,128,'Love SUPER SIP!','#8e5bff');
  for(var k=0;k<Math.min(4,qty+1);k++)spawnCoin(x,200);
  return true}
 function pickType(){var r=Math.random(),s=0;for(var i=0;i<TYPES.length;i++){s+=TYPES[i].mix;if(r<s)return TYPES[i]}return TYPES[1]}
@@ -570,7 +570,8 @@ function serveBulk(n){
  var est=bulkCalc(n,1,false),revEst=est[2]*d.im,factor=1;
  if(revEst>R.capLeft){factor=revEst>0?Math.max(0,R.capLeft/revEst):0;R.capHitT=R_t}
  var res=bulkCalc(n,factor,true),demandTot=res[0]*(factor>0?factor:1),soldTot=res[1],priceLost=res[3];
- var rev=res[2]*d.im;R.capLeft-=rev;R.rate._m+=rev;
+ var rev=res[2]*d.im*1.1;R.capLeft-=res[2]*d.im;R.rate._m+=rev;   // customers tip about 10% extra
+
  var whole=Math.floor(soldTot+R.fracItems);R.fracItems=soldTot+R.fracItems-whole;
  var it=whole*d.im;
  S.money=cb(S.money+rev);S.earned=cb(S.earned+rev);S.runEarned=cb(S.runEarned+rev);S.acc.rev=cb(S.acc.rev+rev);S.sold=cb(S.sold+it);S.run+=whole;S.di+=it;R.rate._s+=it;R.rate._c+=rev;
