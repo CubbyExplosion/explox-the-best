@@ -912,9 +912,9 @@ function syncFrames(){
  drawSwitcher()}
 function syncPayload(){return {regv:S.regv.slice(),rv:S.regVisits,loyal:S.loyal,money:S.money,upg:S.upg,exp:S.exp,fp:S.fp,fran:S.fran,xtra:S.xtra||0,oh:S.oh,ch:S.ch,h24:S.h24}}
 function brSaveKey(q){return 'sip_shop-tycoon_save_br'+q}
-function sellPrice(k){return Math.max(100,Math.round((R.brR[k-1]||0)*DAY))}   // a shop is worth everything it can sell in one day (its SIP per second x the length of a day)
+function sellPrice(k){return Math.max(100,Math.round((R.brR[k-1]||0)*86400))}   // a shop is worth everything it can sell in one real day: its SIP per second x 86,400 seconds
 function sellShop(k){var b=S.br[k-1];if(!b)return;var rate=R.brR[k-1]||0,price=sellPrice(k);
- confirmBox('Sell '+b.name+'?','You get '+fmt(price)+' SIP: a shop is worth what it sells in one day ('+fmt(rate)+' SIP/s x '+DAY+' seconds). The shop, its shelves and its income are gone for good. You can never sell the Home shop.',function(){
+ confirmBox('Sell '+b.name+'?','You get '+fmt(price)+' SIP: a shop is worth what it sells in one real day ('+fmt(rate)+' SIP/s x 86,400 seconds). The shop, its shelves and its income are gone for good. You can never sell the Home shop.',function(){
   var n=S.br.length+1;if(brBox){for(var f=0;f<brBox.children.length;f++){try{brBox.children[f].contentWindow.postMessage({sipStop:1},location.origin)}catch(x){}}while(brBox.firstChild)brBox.removeChild(brBox.firstChild)}
   S.money=cb(S.money+price);S.br.splice(k-1,1);R.brR.splice(k-1,1);R.brT.splice(k-1,1);
   try{for(var q=k;q<n-1;q++){var v=localStorage.getItem(brSaveKey(q+1));if(v!==null)localStorage.setItem(brSaveKey(q),v);else localStorage.removeItem(brSaveKey(q))}localStorage.removeItem(brSaveKey(n-1))}catch(x){}
