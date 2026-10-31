@@ -282,7 +282,7 @@ var REGS=[{n:'Mia',look:8,fav:0},{n:'Leo',look:0,fav:1},{n:'Zoe',look:2,fav:2},{
 var SLOTN=['Eye-level left','Eye-level right','Entrance display','Checkout rack','Top shelf','Bottom shelf'],SLOTM=[1.35,1.3,1.15,1.2,.9,.85];
 var BR_CAP=1000,BRMAX=49,TA=['Harbour','Maple','Sunny','Hilltop','Riverside','Market','Oak','Lake','Station','Garden'],TB=['St','Lane','Park','Rd','Square'];
 function townName(k){return TA[k%10]+' '+TB[Math.floor(k/10)%5]}
-function newBranch(k){return {name:'Super SIP - '+townName(k-1),staff:1,mgr:0,stk:0,px:1,earned:0,sent:0}}
+function newBranch(k){return {name:'Super SIP - '+townName(k-1),staff:1,mgr:0,stk:0,px:1,earned:0,sent:0,sold:0}}
 function brRaw(b){return (R.brR&&R.brR[S.br.indexOf(b)])||0}
 function brRawOld(b){var p=b.px,pf=p<=1?p*(1+(1-p)*.5):p*Math.max(0,1-(p-1)/.8),sf=Math.min(1.2,.5+.12*b.stk),mf=b.mgr>0?1+.2*b.mgr:.6;return b.staff*5*mf*sf*pf*(.8+.04*S.rep)}
 function brRate(b){return Math.min(BR_CAP,brRaw(b))}
@@ -402,7 +402,7 @@ function sanitize(o){var st=freshState();if(!o||typeof o!=='object')return st;
  st.rep=num(o.rep,3,1,5);st.clicks=Math.floor(num(o.clicks,0,0,1e9));st.vip=Math.floor(num(o.vip,0,0,BIG));
  st.evSeen=Math.floor(num(o.evSeen,0,0,1e9));st.celeb=Math.floor(num(o.celeb,0,0,1e9));st.away=Math.floor(num(o.away,0,0,1e9));
  st.played=num(o.played,0,0,1e10);st.won=!!o.won;st.best=!!o.best;st.firstSale=!!o.firstSale||st.sold>0;
- if(Array.isArray(o.br))o.br.slice(0,BRMAX).forEach(function(b,k){if(!b||typeof b!=='object')return;st.br.push({name:typeof b.name==='string'?b.name.slice(0,40):'Super SIP - '+townName(k),staff:Math.floor(num(b.staff,1,1,60)),mgr:Math.floor(num(b.mgr,0,0,15)),stk:Math.floor(num(b.stk,0,0,10)),px:num(b.px,1,.7,1.4),earned:num(b.earned,0,0,1e300),sent:num(b.sent,0,0,1e300)})});
+ if(Array.isArray(o.br))o.br.slice(0,BRMAX).forEach(function(b,k){if(!b||typeof b!=='object')return;st.br.push({name:typeof b.name==='string'?b.name.slice(0,40):'Super SIP - '+townName(k),staff:Math.floor(num(b.staff,1,1,60)),mgr:Math.floor(num(b.mgr,0,0,15)),stk:Math.floor(num(b.stk,0,0,10)),px:num(b.px,1,.7,1.4),earned:num(b.earned,0,0,1e300),sent:num(b.sent,0,0,1e300),sold:num(b.sold,0,0,1e300)})});
  st.sup=Math.floor(num(o.sup,0,0,2));st.loan=num(o.loan,0,0,BIG);
  if(Array.isArray(o.trend))for(var i=0;i<8;i++)st.trend[i]=num(o.trend[i],1,.7,1.4);
  if(Array.isArray(o.comp))for(var i=0;i<2;i++)st.comp[i]=num(o.comp[i],1,.8,1.3);
@@ -667,7 +667,7 @@ var CUPX=[{n:'TechTown',e:'💻'},{n:'Mega Mart',e:'🛒'},{n:'Corner Cafe',e:'�
 function cupDaysLeft(){return 28-((S.day-1)%28)}
 function cupCheck(offline){
  if(S.day<=1||(S.day-1)%28!==0)return;
- var Y=(S.day-1)/28,C=S.cup,a=[{n:'SUPER SIP (you)',e:'🏪',v:Math.max(0,S.sold-C.y0),me:1}],sum=0;
+ var Y=(S.day-1)/28,C=S.cup,a=[{n:'SUPER SIP (you)',e:'🏪',v:Math.max(0,totalSold()-C.y0),me:1}],sum=0;
  for(var i=0;i<6;i++){var g=Math.max(0,S.riv[i]-C.riv[i]);sum+=g;a.push({n:RIVALS[i].n,e:RIVALS[i].e,v:g})}
  for(var j=0;j<3;j++)a.push({n:CUPX[j].n,e:CUPX[j].e,v:sum/6*(0.45+Math.random()*1.1)});
  a.sort(function(x,y){return y.v-x.v});
@@ -675,7 +675,7 @@ function cupCheck(offline){
  var prize=[0,10000,5000,1000][rk]||100;S.money=cb(S.money+prize);
  if(rk<=3)S.rep=Math.min(5,S.rep+0.2);if(rk===1)C.wins++;if(!C.best||rk<C.best)C.best=rk;
  C.hist.push({y:Y,r:rk,v:a[rk-1].v});if(C.hist.length>50)C.hist.shift();
- C.y0=S.sold;C.riv=S.riv.slice(0,6);
+ C.y0=totalSold();C.riv=S.riv.slice(0,6);
  if(!offline){
   $('cupTitle').textContent='🏆 Year '+Y+' Top 10 Shops Cup';
   $('cupTxt').textContent=(rk===1?'🥇 YOU WON THE CUP! ':rk<=3?'🏅 You came #'+rk+'! ':'You came #'+rk+' of 10. ')+'Prize: '+fmt(prize)+' SIP'+(rk<=3?' (+reputation)':'');
@@ -829,13 +829,14 @@ function trackRec(dt){var rc=S.rec;
 var RIVALS=[{n:'SnackZone',e:'🍭'},{n:'ToyTopia',e:'🎠'},{n:'GadgetGo',e:'🤖'},{n:'PetPal Plaza',e:'🐶'},{n:'Book Burrow',e:'📖'},{n:'Sporty Spot',e:'🏅'}];
 R.rivDay=[0,0,0,0,0,0];R.rivCool=0;R.rankInit=false;
 function perf(){var rep=S.rep/5,pf=R.avgRatio<=1.1?1:Math.max(.4,1.1/R.avgRatio);return clamp(0.4*R.happy+0.3*rep+0.3*pf,0.2,1)}
-function myRank(){var k=1;for(var i=0;i<6;i++)if(S.riv[i]>S.sold)k++;return k}
+function totalSold(){var t=S.sold;for(var i=0;i<S.br.length;i++)t+=S.br[i].sold||0;return t}   // everything sold in the home shop and every branch together
+function myRank(){var k=1,ts=totalSold();for(var i=0;i<6;i++)if(S.riv[i]>ts)k++;return k}
 function rivalsTick(dt,offline){
  if(!S.rb){for(var q=0;q<6;q++)S.riv[q]=Math.max(S.riv[q],Math.round(12100*S.rivSk[q]));S.rb=true}   // rival shops start at a realistic world-average (about 10.5k items)
  var ds=S.sold-R.lastSold;R.lastSold=S.sold;if(ds<0)ds=0;
  R.emaRate+=(ds/dt-R.emaRate)*Math.min(1,dt*0.05);if(R.emaRate<0||R.emaRate!==R.emaRate)R.emaRate=0;
  var mult=1.3-0.6*perf(),im=R.derived.im;
- for(var i=0;i<6;i++){var lead=S.riv[i]-S.sold,lf=lead>20000?0.2:lead>8000?0.5:1,rt=lf*S.rivSk[i]*(R.emaRate*mult+0.05*im);S.riv[i]=cb(S.riv[i]+rt*dt);R.rivDay[i]+=rt*dt}
+ for(var i=0;i<6;i++){var lead=S.riv[i]-totalSold(),lf=lead>20000?0.2:lead>8000?0.5:1,rt=lf*S.rivSk[i]*(R.emaRate*mult+0.05*im);S.riv[i]=cb(S.riv[i]+rt*dt);R.rivDay[i]+=rt*dt}
  R.rivCool-=dt;
  var rk=myRank();
  if(!R.rankInit){S.rank=rk;R.rankInit=true;return}
@@ -911,7 +912,7 @@ document.addEventListener('keydown',function(e){if(BR_ID||!S||e.target&&/INPUT|T
 window.addEventListener('resize',function(){try{syncFrames()}catch(e){}});
 window.addEventListener('message',function(e){
  if(BR_ID||e.origin!==location.origin||!S)return;var d=e.data;if(d&&d.sipSwitch){switchBy(d.sipSwitch);return}var id=d&&d.sipBranch,b=S.br[id-1],earned=d&&+d.earned;
- if(!b||!(earned>=0))return;if(earned<b.sent)b.sent=earned;var delta=earned-b.sent;
+ if(!b||!(earned>=0))return;if(d.sold>=0)b.sold=+d.sold;if(earned<b.sent)b.sent=earned;var delta=earned-b.sent;
  if(delta>0){var now=performance.now(),dt=Math.max(0.5,(now-(R.brT[id-1]||now-2000))/1000);R.brT[id-1]=now;R.brR[id-1]=R.brR[id-1]!==undefined?R.brR[id-1]*0.6+delta/dt*0.4:delta/dt;
   S.money=cb(S.money+delta);S.earned=cb(S.earned+delta);S.runEarned=cb(S.runEarned+delta);S.acc.rev=cb(S.acc.rev+delta);b.earned=cb(b.earned+delta);b.sent=earned;R.rate._c+=delta}
  else R.brR[id-1]=(R.brR[id-1]||0)*0.6});
@@ -1091,13 +1092,13 @@ function recordsHTML(){var rc=S.rec,h='';function L(a,b){h+='<div class="rec"><s
  L('😊 Longest happy-customer streak',fmtInt(rc.bestStreak));L('⭐ Highest reputation',rc.rep.toFixed(2)+' stars');
  L('🧑‍💼 Most staff',fmtInt(rc.staff));L('🏬 Most locations',fmtInt(rc.loc));L('🧬 Franchises',fmtInt(S.fran));
  L('📈 Best price-setting day (profit margin)',(rc.margin*100).toFixed(0)+'%');L('🧺 Collection',fmtInt(S.nseen)+' / '+fmtInt(NI));
- L('⏱️ Total play time',fmtTime(S.played));L('🛒 Total items sold',fmt(S.sold));L('🏁 Current rank',('#'+S.rank));L('🏆 Yearly Top 10 Cups won',S.cup.wins+' (best finish #'+(S.cup.best||'-')+')');
+ L('⏱️ Total play time',fmtTime(S.played));L('🛒 Total items sold (home + all branches)',fmt(totalSold()));L('🏁 Current rank',('#'+S.rank));L('🏆 Yearly Top 10 Cups won',S.cup.wins+' (best finish #'+(S.cup.best||'-')+')');
  var bi=0;for(var i=1;i<6;i++)if(S.rivBest[i]>S.rivBest[bi])bi=i;
  L('🎯 Record to beat: best rival day',RIVALS[bi].e+' '+RIVALS[bi].n+' '+fmt(S.rivBest[bi])+' items');
  var tp=0;for(var i=1;i<6;i++)if(S.riv[i]>S.riv[tp])tp=i;L('🎯 Record to beat: top rival total',RIVALS[tp].e+' '+RIVALS[tp].n+' '+fmt(S.riv[tp])+' items');
  return '<div class="h">🏆 Records Book</div>'+h}
 function rivBr(i){return Math.max(1,Math.min(50,Math.round((S.br.length+1)*S.riv[i]/Math.max(1,S.sold))))}
-function leaderHTML(){var a=[{n:'SUPER SIP (you) - '+(S.br.length+1)+' shops',e:'🏪',v:S.sold,me:1}];for(var i=0;i<6;i++)a.push({n:RIVALS[i].n+' - '+rivBr(i)+' shops',e:RIVALS[i].e,v:S.riv[i]});a.sort(function(x,y){return y.v-x.v});
+function leaderHTML(){var a=[{n:'SUPER SIP (you) - '+(S.br.length+1)+' shops (all together)',e:'🏪',v:totalSold(),me:1}];for(var i=0;i<6;i++)a.push({n:RIVALS[i].n+' - '+rivBr(i)+' shops',e:RIVALS[i].e,v:S.riv[i]});a.sort(function(x,y){return y.v-x.v});
  return a.map(function(x,k){return '<div class="rec" style="'+(x.me?'background:#fff0b3;border-radius:8px;padding:6px':'')+'"><span>#'+(k+1)+' '+x.e+' '+x.n+'</span><b>'+fmt(x.v)+' items sold</b></div>'}).join('')+'<div class="rec"><span>🏆 Yearly Top 10 Cup ends in</span><b>'+cupDaysLeft()+' days</b></div>'}
 function stars(r){var s='';for(var i=1;i<=5;i++)s+=r>=i-.25?'⭐':'☆';return s}
 var lastFranHTML='';
@@ -1120,7 +1121,7 @@ function updateHUD(){
   $('nextTxt').textContent='Next unlock: '+nxt.e+' '+nxt.n+' at '+fmtInt(nxt.unlock)+' sold ('+fmtInt(nxt.unlock-S.run)+' to go) - '+fmtInt(u)+' / '+fmtInt(NI)+' items unlocked'}
  else{$('lvlBar').style.width='100%';$('nextTxt').textContent='Every item unlocked!'}
  var se=SEASONS[Math.floor((S.day-1)/7)%4],h=Math.floor(d.hour),mn=Math.floor((d.hour-h)*60);
- $('stat').innerHTML='<span>📅 '+DOW[(S.day-1)%7]+' D'+S.day+' 🕐 '+('0'+h).slice(-2)+':'+('0'+mn).slice(-2)+' '+(d.open?'OPEN':'CLOSED')+'</span><span>'+se.e+' '+se.n+'</span><span>'+stars(S.rep)+'</span><span>👥 '+fmt(d.lam)+'/s</span><span>🛒 '+fmt(R.rate.sold)+' items/s</span><span>💵 '+fmt(R.rate.cash)+' SIP/s</span><span>🏪 Home '+fmt(Math.min(R.rate.main,BR_CAP))+'/1000'+(R.capHitT>R_t-3?' capped!':'')+'</span><span>🏬 Shops '+(S.br.length+1)+'</span><span>🧺 '+fmtInt(S.nseen)+'/'+fmtInt(NI)+'</span>'+
+ $('stat').innerHTML='<span>📅 '+DOW[(S.day-1)%7]+' D'+S.day+' 🕐 '+('0'+h).slice(-2)+':'+('0'+mn).slice(-2)+' '+(d.open?'OPEN':'CLOSED')+'</span><span>'+se.e+' '+se.n+'</span><span>'+stars(S.rep)+'</span><span>👥 '+fmt(d.lam)+'/s</span><span>🛒 '+fmt(R.rate.sold)+' items/s</span><span>💵 '+fmt(R.rate.cash)+' SIP/s</span><span>🏪 Home '+fmt(Math.min(R.rate.main,BR_CAP))+'/1000'+(R.capHitT>R_t-3?' capped!':'')+'</span><span>🏬 Shops '+(S.br.length+1)+'</span>'+(S.br.length?'<span>🌍 '+fmt(totalSold())+' sold in all shops</span>':'')+'<span>🧺 '+fmtInt(S.nseen)+'/'+fmtInt(NI)+'</span>'+
   (S.loan>0?'<span>🏦 '+fmt(S.loan)+'</span>':'')+(S.broke.fridge?'<span class="chip">🧊 fridge broken</span>':'')+(S.broke.till?'<span class="chip">🧾 till broken</span>':'')+(S.sick>0?'<span class="chip">🤒 sick day</span>':'')+(S.manual?'<span class="chip">🚪 closed</span>':'')+(S.rivNear>0?'<span class="chip">🏪 rival nearby</span>':'')+(R.review?'<span>💬 '+R.review.t+'</span>':'')+
   (S.fp?'<span>🧬 '+S.fp+' FP</span>':'')+(R.ev?'<span class="chip">'+R.ev.e+' '+R.ev.n+' '+Math.ceil(R.evLeft)+'s</span>':'')}
 
@@ -1538,7 +1539,7 @@ window.addEventListener('error',function(){});
 requestAnimationFrame(frame);
 if(BR_ID){document.addEventListener('keydown',function(e){if(e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;if(e.key==='['||e.key===']'){try{parent.postMessage({sipSwitch:e.key==='['?-1:1},location.origin)}catch(x){}}});document.body.classList.add('embed');var es=document.createElement('style');es.textContent='body.embed #brbar{display:none!important}';document.head.appendChild(es);
  var sv=hasSave()?loadSave():null;if(sv){S=sv;startGame(false);offlineCatchup()}else startGame(true);
- setInterval(function(){try{if(S&&state==='play')parent.postMessage({sipBranch:BR_ID,earned:S.earned},location.origin)}catch(e){}},2000)}
+ setInterval(function(){try{if(S&&state==='play')parent.postMessage({sipBranch:BR_ID,earned:S.earned,sold:S.sold},location.origin)}catch(e){}},2000)}
 
 /* test hooks (read/drive only) */
 window.__shop={get S(){return S},R:R,ITEMS:ITEMS,UPG:UPG,tick:tick,CAT:CAT,JOBS:JOBS,startShift:startShift,finishShift:finishShift,openJobs:openJobs,negotiate:negotiate,dockDo:dockDo,jobGross:jobGross,REGS:REGS,buyBranch:buyBranch,buyBrUp:buyBrUp,brCost:brCost,brUpCost:brUpCost,brRate:brRate,brRaw:brRaw,buildBar:buildBar,BRU:BRU,setGfx:setGfx,getGfx:function(){return GFX},newsHTML:newsHTML,tutTick:tutTick,ITEMS:ITEMS,NI:NI,serialize:serialize,leaderHTML:leaderHTML,recordsHTML:recordsHTML,placeOrder:placeOrder,mkt:mkt,myPrice:myPrice,setPrice:setPrice,buildList:buildList,stockFavs:stockFavs,MILES:MILES,derive:derive,buyUpg:buyUpg,buyExpand:buyExpand,buyStock:buyStock,restockAll:restockAll,serveManual:serveManual,
