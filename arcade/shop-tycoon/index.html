@@ -533,7 +533,7 @@ function serveOne(c,manual){
   else{addRep(0.2,1);review('Way too expensive!',1);if(c){floatText(c.x,170,'Too pricey!','#d32f2f')}sBad();return 'refuse'}}
  if(c&&c.reg)P*=0.95;
  var rev=qty*P*t.pm*d.pm*d.im;S.acc.cat[ITEMS[item].cat]+=rev;
- S.stock[item]-=qty;bookSale(qty,rev);S.acc.rev=cb(S.acc.rev+rev);R.capLeft-=rev;R.rate._m+=rev;if(c&&c.reg){S.regVisits++;if(c.ri>=0)S.regv[c.ri]++;if(Math.random()<.5)floatText(c.x,110,'❤ '+c.reg+' is back!','#d6336c')}
+ S.stock[item]-=qty;bookSale(qty,rev);S.acc.rev=cb(S.acc.rev+rev);R.capLeft-=rev;R.rate._m+=rev;if(c&&c.reg){S.regVisits++;if(c.ri>=0)S.regv[c.ri]++;if(BR_ID){BRW.d=BRW.d||[];BRW.dv=(BRW.dv||0)+1;if(c.ri>=0)BRW.d[c.ri]=(BRW.d[c.ri]||0)+1}if(Math.random()<.5)floatText(c.x,110,'❤ '+c.reg+' is back!','#d6336c')}
  if(!S.seen[item]){S.seen[item]=1;S.nseen++}
  if(hag){addRep(.6,1);review('Haggled a discount.',3)}else if(ratio<0.9){addRep(1,1);review('Great prices!',5)}else{addRep(0.9,1);review('Fair prices, nice shop.',4)}
  var rv=rev/d.im,paid=Math.ceil(rv/5)*5;if(paid<rv)paid=rv;
@@ -905,7 +905,7 @@ function syncFrames(){
  while(brBox.children.length>S.br.length)brBox.removeChild(brBox.lastChild);
  for(var k=0;k<brBox.children.length;k++){var on=R.view===k+1,st=brBox.children[k].style;st.top=top+'px';st.height='calc(100% - '+top+'px)';st.opacity=on?1:0;st.pointerEvents=on?'auto':'none';st.zIndex=on?60:-1}
  drawSwitcher()}
-function syncPayload(){return {money:S.money,upg:S.upg,exp:S.exp,fp:S.fp,fran:S.fran,xtra:S.xtra||0,oh:S.oh,ch:S.ch,h24:S.h24}}
+function syncPayload(){return {regv:S.regv.slice(),rv:S.regVisits,loyal:S.loyal,money:S.money,upg:S.upg,exp:S.exp,fp:S.fp,fran:S.fran,xtra:S.xtra||0,oh:S.oh,ch:S.ch,h24:S.h24}}
 function brSaveKey(q){return 'sip_shop-tycoon_save_br'+q}
 function sellPrice(k){return Math.max(100,Math.round((R.brR[k-1]||0)*100))}   // a shop sells for 100 x what it earns each second
 function sellShop(k){var b=S.br[k-1];if(!b)return;var rate=R.brR[k-1]||0,price=sellPrice(k);
@@ -928,10 +928,12 @@ window.addEventListener('resize',function(){try{syncFrames()}catch(e){}});
 if(!BR_ID)setInterval(function(){try{if(R.view>0&&S.br.length)drawSwitcher()}catch(e){}},1000);
 if(!BR_ID)setInterval(function(){try{if(!S||!brBox)return;for(var k=0;k<brBox.children.length;k++){var w=brBox.children[k].contentWindow;if(w)w.postMessage({sipSync:syncPayload()},location.origin)}}catch(e){}},500);
 window.addEventListener('message',function(e){
- if(BR_ID){if(e.origin===location.origin&&e.data&&e.data.sipStop){BRW.stop=true;return}var q=e.origin===location.origin&&e.data&&e.data.sipSync;if(q&&S){var un=S.money-BRW.ref;S.money=q.money+un;BRW.ref=q.money;BRW.ready=true;   // every shop has its own staff, upgrades and expansion; only the money (and the income boost) is shared
+ if(BR_ID){if(e.origin===location.origin&&e.data&&e.data.sipStop){BRW.stop=true;return}var q=e.origin===location.origin&&e.data&&e.data.sipSync;if(q&&S){var un=S.money-BRW.ref;S.money=q.money+un;BRW.ref=q.money;BRW.ready=true;if(q.regv){for(var ri3=0;ri3<12;ri3++)S.regv[ri3]=(q.regv[ri3]|0)+((BRW.d&&BRW.d[ri3])|0);S.regVisits=(q.rv|0)+(BRW.dv|0);S.loyal=+q.loyal||0}   // same regulars, same loyalty everywhere
+    // every shop has its own staff, upgrades and expansion; only the money (and the income boost) is shared
  S.fp=q.fp|0;S.fran=q.fran|0;S.xtra=q.xtra|0;S.x1k=true;R.wtDirty=true;try{derive()}catch(x){}}return}   // a branch is the same shop in another place: same money, upgrades, staff and hours as the main shop
  if(e.origin!==location.origin||!S)return;var d=e.data;if(d&&d.sipSwitch){switchBy(d.sipSwitch);return}var id=d&&d.sipBranch,b=S.br[id-1],earned=d&&+d.earned;
- if(!b||!(earned>=0))return;if(d.md&&isFinite(d.md))S.money=cb(S.money+d.md);try{e.source.postMessage({sipSync:syncPayload()},location.origin)}catch(x){}
+ if(!b||!(earned>=0))return;if(d.md&&isFinite(d.md))S.money=cb(S.money+d.md);
+ if(d.rvd>0){S.regVisits+=d.rvd;if(Array.isArray(d.rd))for(var ri2=0;ri2<12;ri2++)S.regv[ri2]+=d.rd[ri2]|0}   // the same regular customers visit every shoptry{e.source.postMessage({sipSync:syncPayload()},location.origin)}catch(x){}
  if(d.sold>=0){b.sold=+d.sold;if(b.sold<b.got)b.got=b.sold;var ds=b.sold-b.got;if(ds>0){b.got=b.sold;S.sold=cb(S.sold+ds);S.run+=ds/Math.max(1,R.derived.im);S.di+=ds;R.rate._s+=ds}}   // the branch's items count for the main shop too (unlocks, level, goal)
  if(typeof d.seen==='string'){for(var j=0;j<d.seen.length&&j*4<NI;j++){var xx=parseInt(d.seen[j],16)||0;for(var q=0;q<4;q++){var ix=j*4+q;if(xx&(1<<q)&&ix<NI&&!S.seen[ix]){S.seen[ix]=1;S.nseen++}}}}if(earned<b.sent)b.sent=earned;var delta=earned-b.sent;
  if(delta>0){var now=performance.now(),dt=Math.max(0.5,(now-(R.brT[id-1]||now-2000))/1000);R.brT[id-1]=now;R.brR[id-1]=R.brR[id-1]!==undefined?R.brR[id-1]*0.6+delta/dt*0.4:delta/dt;
@@ -1560,11 +1562,12 @@ window.addEventListener('error',function(){});
 requestAnimationFrame(frame);
 if(BR_ID){document.addEventListener('keydown',function(e){if(e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;if(e.key==='['||e.key===']'){try{parent.postMessage({sipSwitch:e.key==='['?-1:1},location.origin)}catch(x){}}});document.body.classList.add('embed');var es=document.createElement('style');es.textContent='body.embed #brbar,body.embed #mXtra,body.embed #tabs [data-t=bank],body.embed #tabs [data-t=fran]{display:none!important}';document.head.appendChild(es);
  var sv=hasSave()?loadSave():null;if(sv){S=sv;startGame(false);BRW.ref=S.money;offlineCatchup()}else{startGame(true);BRW.ref=S.money}
- setInterval(function(){try{if(S&&state==='play')var m={sipBranch:BR_ID,earned:S.earned,sold:S.sold};if(BRW.ready){var md=S.money-BRW.ref;if(md){m.md=md;BRW.ref+=md}}if(S.nseen!==window.__seenSent){window.__seenSent=S.nseen;m.seen=serialize(S).seen}parent.postMessage(m,location.origin)}catch(e){}},2000)}
+ setInterval(function(){try{if(S&&state==='play')var m={sipBranch:BR_ID,earned:S.earned,sold:S.sold};if(BRW.ready){var md=S.money-BRW.ref;if(md){m.md=md;BRW.ref+=md}}
+ if(BRW.dv){m.rvd=BRW.dv;m.rd=BRW.d||[];BRW.dv=0;BRW.d=[]}if(S.nseen!==window.__seenSent){window.__seenSent=S.nseen;m.seen=serialize(S).seen}parent.postMessage(m,location.origin)}catch(e){}},2000)}
 
 /* test hooks (read/drive only) */
 window.__shop={get S(){return S},R:R,ITEMS:ITEMS,UPG:UPG,tick:tick,CAT:CAT,JOBS:JOBS,startShift:startShift,finishShift:finishShift,openJobs:openJobs,negotiate:negotiate,dockDo:dockDo,jobGross:jobGross,REGS:REGS,buyBranch:buyBranch,buyBrUp:buyBrUp,brCost:brCost,brUpCost:brUpCost,brRate:brRate,brRaw:brRaw,buildBar:buildBar,BRU:BRU,setGfx:setGfx,getGfx:function(){return GFX},newsHTML:newsHTML,tutTick:tutTick,ITEMS:ITEMS,NI:NI,serialize:serialize,leaderHTML:leaderHTML,recordsHTML:recordsHTML,placeOrder:placeOrder,mkt:mkt,myPrice:myPrice,setPrice:setPrice,buildList:buildList,stockFavs:stockFavs,MILES:MILES,derive:derive,buyUpg:buyUpg,buyExpand:buyExpand,buyStock:buyStock,restockAll:restockAll,serveManual:serveManual,
  upCost:upCost,upMax:upMax,expCost:expCost,fpGain:fpGain,canFran:canFran,doFranchise:doFranchise,save:save,loadSave:loadSave,sanitize:sanitize,fmt:fmt,
- setState:function(s){S=sanitize(s);resetRuntime()},fresh:function(){S=freshState(true);resetRuntime()},checkAch:checkAch,offlineCatchup:offlineCatchup,startGame:startGame,ACH:ACH,newDay:newDay,lv:lv};
+ setState:function(s){S=sanitize(s);resetRuntime()},fresh:function(){S=freshState(true);resetRuntime()},checkAch:checkAch,offlineCatchup:offlineCatchup,startGame:startGame,ACH:ACH,newDay:newDay,lv:lv,BRW:BRW};
 })();
 </script></body></html>
