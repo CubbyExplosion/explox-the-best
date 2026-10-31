@@ -162,6 +162,7 @@ table.rp{width:100%;border-collapse:collapse;font-size:14px}table.rp td,table.rp
  <p id="awayTxt"></p><div class="col"><button class="g" id="bAwayOk">Collect!</button></div></div></div>
 
 <div class="ov" id="ovRival"><div class="box"><h2>🏁 Rival alert!</h2><p id="rvTxt" style="font-size:18px;font-weight:800"></p><div class="col"><button class="g" id="bRvOk">Back to work!</button><button class="b" id="bRvLb">See Top Shops</button></div></div></div>
+<div class="ov" id="ovCup"><div class="box" style="max-width:560px"><img class="lgb" data-logo="1" alt=""><h2 id="cupTitle">🏆 Top 10 Shops Cup</h2><p id="cupTxt" style="font-weight:800"></p><div id="cupList" style="text-align:left"></div><div class="col"><button class="g" id="bCupOk">Keep playing!</button></div></div></div>
 <div class="ov" id="ovRank"><div class="box"><img class="lgb" data-logo="1" alt=""><h2>🏁 Top Shops</h2><div id="lbList" style="text-align:left"></div><div class="col"><button id="bRankClose">Close</button></div></div></div>
 <div class="ov" id="ovBest"><div class="box" style="max-width:640px"><img class="lgb" data-logo="1" alt=""><h1>🏆 THE BEST SHOP ON EARTH! 🏆</h1><p style="font-size:20px;font-weight:800">SUPER SIP sold 1e222 items. Nobody has ever sold more!</p><div id="bestRec" style="text-align:left"></div><div class="col"><button class="g" id="bBestOk">Keep playing!</button></div></div></div>
 <div class="ov" id="ovJobs"><div class="box" style="max-width:640px"><h2>💼 Job Centre</h2><p style="font-size:13px">Part-time jobs earn SIP when the shop is short of cash. Your shop keeps running at reduced speed while you work (and closes if you have no cashier). Jobs pay much less than a healthy shop.</p><div id="jobCV" style="text-align:left;font-size:13px"></div><div id="jobList"></div><div class="col"><button id="bJobsClose">Close</button></div></div></div>
@@ -370,7 +371,7 @@ function freshRec(){return {t1k:0,t1m:0,dayItems:0,dayProfit:0,rich:100,big:0,be
 function freshState(starter){var st={v:2,money:100,sold:0,run:0,earned:0,runEarned:0,stock:new Float64Array(NI),upg:{},exp:0,fp:0,fran:0,price:1,day:1,dayT:42,
  ip:new Float64Array(NI),seen:new Uint8Array(NI),fav:new Uint8Array(NI),nseen:0,auto:true,
  br:[],sup:0,orders:[],loan:0,trend:[1,1,1,1,1,1,1,1],comp:[1,1],sh:{cat:-1,left:0},acc:newAcc(),last:null,wk:{rev:0,cogs:0,waste:0,rent:0,wages:0,elec:0,tax:0,int:0,profit:0,days:0,fees:0,vat:0,fine:0},clean:100,insp:{n:0,fines:0,good:0},tut:0,ins:false,broke:{fridge:0,till:0},morale:1,raise:0,train:0,sick:0,loyal:0,rivNear:0,oh:8,ch:20,manual:false,eye:-1,imp:-1,regVisits:0,regv:[0,0,0,0,0,0,0,0,0,0,0,0],layout:[-1,-1,-1,-1,-1,-1],rel:[0,0,0],neg:[0,0,0],checkDel:false,job:{exp:0,skills:{cus:0,phy:0,num:0,care:0},jr:{},jh:{},rel:100,tired:0,shifts:0,net:0,ban:0},wkLast:null,
- rec:freshRec(),di:0,streak:0,best:false,riv:[0,0,0,0,0,0],rivBest:[0,0,0,0,0,0],rivSk:[1.15,.95,1,.8,.7,.6],rank:1,
+ rec:freshRec(),di:0,streak:0,best:false,riv:[0,0,0,0,0,0],rivBest:[0,0,0,0,0,0],rivSk:[1.15,.95,1,.8,.7,.6],rank:1,cup:{y0:0,riv:[0,0,0,0,0,0],wins:0,best:0,hist:[]},
  ach:{},rep:3,clicks:0,vip:0,evSeen:0,celeb:0,away:0,played:0,won:false,savedAt:Date.now(),firstSale:false,muteHint:false};
  if(starter)for(var q=0;q<6;q++)st.stock[q]=50;return st}
 function serialize(st){var o={};for(var k in st){var v=st[k];
@@ -414,6 +415,7 @@ function sanitize(o){var st=freshState();if(!o||typeof o!=='object')return st;
  st.di=num(o.di,0,0,BIG);st.streak=num(o.streak,0,0,BIG);
  if(Array.isArray(o.riv))for(var i=0;i<6;i++){st.riv[i]=num(o.riv[i],0,0,BIG);st.rivBest[i]=num(o.rivBest&&o.rivBest[i],0,0,BIG);st.rivSk[i]=num(o.rivSk&&o.rivSk[i],st.rivSk[i],.4,1.5)}
  st.rank=Math.floor(num(o.rank,1,1,7));
+ if(o.cup&&typeof o.cup==='object'){var C=o.cup,sc=st.cup;sc.y0=num(C.y0,0,0,1e300);if(Array.isArray(C.riv))for(var i=0;i<6;i++)sc.riv[i]=num(C.riv[i],0,0,1e300);sc.wins=Math.floor(num(C.wins,0,0,1e6));sc.best=Math.floor(num(C.best,0,0,10));if(Array.isArray(C.hist))sc.hist=C.hist.slice(-50).map(function(h){return{y:Math.floor(num(h&&h.y,0,0,1e6)),r:Math.floor(num(h&&h.r,10,1,10)),v:num(h&&h.v,0,0,1e300)}})}
  st.savedAt=num(o.savedAt,Date.now(),0,Date.now()+60000);
  if(st.run>1e12)st.run=1e12;return st}
 function cleanRep(x){if(!x||typeof x!=='object')return null;var o={};['rev','cogs','waste','rent','wages','elec','tax','int','profit','day','days','fees','vat','fine','till'].forEach(function(k){o[k]=num(x[k],0,-1e21,1e21)});return o}
@@ -641,7 +643,7 @@ function closeBooks(){
  return rep}
 function dayChange(offline){
  var rep=closeBooks();
- S.day++;S.dayT=0;R.wtDirty=true;R.ev=null;
+ S.day++;S.dayT=0;R.wtDirty=true;R.ev=null;cupCheck(offline);
  if(S.sick>0)S.sick--;else if(staffTotal()>2&&Math.random()<0.08){S.sick=1;if(!offline)toast('🤒 Some staff are off sick today. Work is slower.')}
  for(var q=0;q<3;q++)if(S.neg[q]>0)S.neg[q]--;
  if(S.rivNear>0)S.rivNear--;else if(S.day>=6&&Math.random()<0.06){S.rivNear=3;if(!offline)toast('🏪 A rival shop opened nearby! Fewer customers for a few days.',true)}
@@ -654,6 +656,24 @@ function dayChange(offline){
   if(S.day>=2&&Math.random()<0.7){
   var e=EVENTS[Math.floor(Math.random()*EVENTS.length)];R.ev=e;R.evLeft=e.len;S.evSeen++;if(e.id==='celeb')S.celeb++;
   toast(e.e+' '+e.n+'! '+e.d);sPop()}}}
+var CUPX=[{n:'TechTown',e:'💻'},{n:'Mega Mart',e:'🛒'},{n:'Corner Cafe',e:'☕'}];
+function cupDaysLeft(){return 28-((S.day-1)%28)}
+function cupCheck(offline){
+ if(S.day<=1||(S.day-1)%28!==0)return;
+ var Y=(S.day-1)/28,C=S.cup,a=[{n:'SUPER SIP (you)',e:'🏪',v:Math.max(0,S.sold-C.y0),me:1}],sum=0;
+ for(var i=0;i<6;i++){var g=Math.max(0,S.riv[i]-C.riv[i]);sum+=g;a.push({n:RIVALS[i].n,e:RIVALS[i].e,v:g})}
+ for(var j=0;j<3;j++)a.push({n:CUPX[j].n,e:CUPX[j].e,v:sum/6*(0.45+Math.random()*1.1)});
+ a.sort(function(x,y){return y.v-x.v});
+ var rk=0;for(var k=0;k<a.length;k++)if(a[k].me)rk=k+1;
+ var prize=([0,5000,3000,2000][rk]||500)*Y;S.money=cb(S.money+prize);
+ if(rk<=3)S.rep=Math.min(5,S.rep+0.2);if(rk===1)C.wins++;if(!C.best||rk<C.best)C.best=rk;
+ C.hist.push({y:Y,r:rk,v:a[rk-1].v});if(C.hist.length>50)C.hist.shift();
+ C.y0=S.sold;C.riv=S.riv.slice(0,6);
+ if(!offline){
+  $('cupTitle').textContent='🏆 Year '+Y+' Top 10 Shops Cup';
+  $('cupTxt').textContent=(rk===1?'🥇 YOU WON THE CUP! ':rk<=3?'🏅 You came #'+rk+'! ':'You came #'+rk+' of 10. ')+'Prize: '+fmt(prize)+' SIP'+(rk<=3?' (+reputation)':'');
+  $('cupList').innerHTML=a.map(function(x,k){return '<div class="rec" style="'+(x.me?'background:#fff0b3;border-radius:8px;padding:6px':'')+'"><span>'+(k===0?'🥇':k===1?'🥈':k===2?'🥉':'#'+(k+1))+' '+x.e+' '+x.n+'</span><b>'+fmt(x.v)+' items</b></div>'}).join('');
+  $('bCupOk').onclick=function(){show('ovCup',false)};show('ovCup',true)}}
 function newDay(){dayChange(false)}
 
 /* main tick */
@@ -1034,14 +1054,14 @@ function recordsHTML(){var rc=S.rec,h='';function L(a,b){h+='<div class="rec"><s
  L('😊 Longest happy-customer streak',fmtInt(rc.bestStreak));L('⭐ Highest reputation',rc.rep.toFixed(2)+' stars');
  L('🧑‍💼 Most staff',fmtInt(rc.staff));L('🏬 Most locations',fmtInt(rc.loc));L('🧬 Franchises',fmtInt(S.fran));
  L('📈 Best price-setting day (profit margin)',(rc.margin*100).toFixed(0)+'%');L('🧺 Collection',fmtInt(S.nseen)+' / '+fmtInt(NI));
- L('⏱️ Total play time',fmtTime(S.played));L('🛒 Total items sold',fmt(S.sold));L('🏁 Current rank',('#'+S.rank));
+ L('⏱️ Total play time',fmtTime(S.played));L('🛒 Total items sold',fmt(S.sold));L('🏁 Current rank',('#'+S.rank));L('🏆 Yearly Top 10 Cups won',S.cup.wins+' (best finish #'+(S.cup.best||'-')+')');
  var bi=0;for(var i=1;i<6;i++)if(S.rivBest[i]>S.rivBest[bi])bi=i;
  L('🎯 Record to beat: best rival day',RIVALS[bi].e+' '+RIVALS[bi].n+' '+fmt(S.rivBest[bi])+' items');
  var tp=0;for(var i=1;i<6;i++)if(S.riv[i]>S.riv[tp])tp=i;L('🎯 Record to beat: top rival total',RIVALS[tp].e+' '+RIVALS[tp].n+' '+fmt(S.riv[tp])+' items');
  return '<div class="h">🏆 Records Book</div>'+h}
 function rivBr(i){return Math.max(1,Math.min(50,Math.round((S.br.length+1)*S.riv[i]/Math.max(1,S.sold))))}
 function leaderHTML(){var a=[{n:'SUPER SIP (you) - '+(S.br.length+1)+' shops',e:'🏪',v:S.sold,me:1}];for(var i=0;i<6;i++)a.push({n:RIVALS[i].n+' - '+rivBr(i)+' shops',e:RIVALS[i].e,v:S.riv[i]});a.sort(function(x,y){return y.v-x.v});
- return a.map(function(x,k){return '<div class="rec" style="'+(x.me?'background:#fff0b3;border-radius:8px;padding:6px':'')+'"><span>#'+(k+1)+' '+x.e+' '+x.n+'</span><b>'+fmt(x.v)+'</b></div>'}).join('')}
+ return a.map(function(x,k){return '<div class="rec" style="'+(x.me?'background:#fff0b3;border-radius:8px;padding:6px':'')+'"><span>#'+(k+1)+' '+x.e+' '+x.n+'</span><b>'+fmt(x.v)+'</b></div>'}).join('')+'<div class="rec"><span>🏆 Yearly Top 10 Cup ends in</span><b>'+cupDaysLeft()+' days</b></div>'}
 function stars(r){var s='';for(var i=1;i<=5;i++)s+=r>=i-.25?'⭐':'☆';return s}
 var lastFranHTML='';
 function refreshPanel(){for(var i=0;i<rows.length;i++){try{
