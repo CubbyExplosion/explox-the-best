@@ -286,7 +286,7 @@ var REGS=[{n:'Mia',look:8,fav:0},{n:'Leo',look:0,fav:1},{n:'Zoe',look:2,fav:2},{
 var SLOTN=['Eye-level left','Eye-level right','Entrance display','Checkout rack','Top shelf','Bottom shelf'],SLOTM=[1.35,1.3,1.15,1.2,.9,.85];
 var BR_CAP=1000,BRMAX=49,TA=['Harbour','Maple','Sunny','Hilltop','Riverside','Market','Oak','Lake','Station','Garden'],TB=['St','Lane','Park','Rd','Square'];
 function townName(k){return TA[k%10]+' '+TB[Math.floor(k/10)%5]}
-function newBranch(k){return {name:'Super SIP - '+townName(k-1),staff:1,mgr:0,stk:0,px:1,earned:0,sent:0,sold:0}}
+function newBranch(k){return {name:'Super SIP - '+townName(k-1),staff:1,mgr:0,stk:0,px:1,earned:0,sent:0,sold:0,got:0}}
 function brRaw(b){return (R.brR&&R.brR[S.br.indexOf(b)])||0}
 function brRawOld(b){var p=b.px,pf=p<=1?p*(1+(1-p)*.5):p*Math.max(0,1-(p-1)/.8),sf=Math.min(1.2,.5+.12*b.stk),mf=b.mgr>0?1+.2*b.mgr:.6;return b.staff*5*mf*sf*pf*(.8+.04*S.rep)}
 function brRate(b){return Math.min(BR_CAP,brRaw(b))}
@@ -406,7 +406,7 @@ function sanitize(o){var st=freshState();if(!o||typeof o!=='object')return st;
  st.rep=num(o.rep,3,1,5);st.clicks=Math.floor(num(o.clicks,0,0,1e9));st.vip=Math.floor(num(o.vip,0,0,BIG));
  st.evSeen=Math.floor(num(o.evSeen,0,0,1e9));st.celeb=Math.floor(num(o.celeb,0,0,1e9));st.away=Math.floor(num(o.away,0,0,1e9));
  st.played=num(o.played,0,0,1e10);st.won=!!o.won;st.best=!!o.best;st.firstSale=!!o.firstSale||st.sold>0;
- if(Array.isArray(o.br))o.br.slice(0,BRMAX).forEach(function(b,k){if(!b||typeof b!=='object')return;st.br.push({name:typeof b.name==='string'?b.name.slice(0,40):'Super SIP - '+townName(k),staff:Math.floor(num(b.staff,1,1,60)),mgr:Math.floor(num(b.mgr,0,0,15)),stk:Math.floor(num(b.stk,0,0,10)),px:num(b.px,1,.7,1.4),earned:num(b.earned,0,0,1e300),sent:num(b.sent,0,0,1e300),sold:num(b.sold,0,0,1e300)})});
+ if(Array.isArray(o.br))o.br.slice(0,BRMAX).forEach(function(b,k){if(!b||typeof b!=='object')return;st.br.push({name:typeof b.name==='string'?b.name.slice(0,40):'Super SIP - '+townName(k),staff:Math.floor(num(b.staff,1,1,60)),mgr:Math.floor(num(b.mgr,0,0,15)),stk:Math.floor(num(b.stk,0,0,10)),px:num(b.px,1,.7,1.4),earned:num(b.earned,0,0,1e300),sent:num(b.sent,0,0,1e300),sold:num(b.sold,0,0,1e300),got:num(b.got,0,0,1e300)})});
  st.sup=Math.floor(num(o.sup,0,0,2));st.loan=num(o.loan,0,0,BIG);
  if(Array.isArray(o.trend))for(var i=0;i<8;i++)st.trend[i]=num(o.trend[i],1,.7,1.4);
  if(Array.isArray(o.comp))for(var i=0;i<2;i++)st.comp[i]=num(o.comp[i],1,.8,1.3);
@@ -833,7 +833,7 @@ function trackRec(dt){var rc=S.rec;
 var RIVALS=[{n:'SnackZone',e:'🍭'},{n:'ToyTopia',e:'🎠'},{n:'GadgetGo',e:'🤖'},{n:'PetPal Plaza',e:'🐶'},{n:'Book Burrow',e:'📖'},{n:'Sporty Spot',e:'🏅'}];
 R.rivDay=[0,0,0,0,0,0];R.rivCool=0;R.rankInit=false;
 function perf(){var rep=S.rep/5,pf=R.avgRatio<=1.1?1:Math.max(.4,1.1/R.avgRatio);return clamp(0.4*R.happy+0.3*rep+0.3*pf,0.2,1)}
-function totalSold(){var t=S.sold;for(var i=0;i<S.br.length;i++)t+=S.br[i].sold||0;return t}   // everything sold in the home shop and every branch together
+function totalSold(){return S.sold}   // everything sold in the home shop and every branch together
 function myRank(){var k=1,ts=totalSold();for(var i=0;i<6;i++)if(S.riv[i]>ts)k++;return k}
 function rivalsTick(dt,offline){
  if(!S.rb){for(var q=0;q<6;q++)S.riv[q]=Math.max(S.riv[q],Math.round(12100*S.rivSk[q]));S.rb=true}   // rival shops start at a realistic world-average (about 10.5k items)
@@ -918,7 +918,8 @@ if(!BR_ID)setInterval(function(){try{if(!S||!brBox)return;for(var k=0;k<brBox.ch
 window.addEventListener('message',function(e){
  if(BR_ID){if(e.origin===location.origin&&e.data&&e.data.sipXtra>=0&&S){S.xtra=Math.floor(e.data.sipXtra);S.x1k=S.x1k||S.xtra>0}return}   // a branch gets the boosts bought in the main game
  if(e.origin!==location.origin||!S)return;var d=e.data;if(d&&d.sipSwitch){switchBy(d.sipSwitch);return}var id=d&&d.sipBranch,b=S.br[id-1],earned=d&&+d.earned;
- if(!b||!(earned>=0))return;if(d.sold>=0)b.sold=+d.sold;if(earned<b.sent)b.sent=earned;var delta=earned-b.sent;
+ if(!b||!(earned>=0))return;if(d.sold>=0){b.sold=+d.sold;if(b.sold<b.got)b.got=b.sold;var ds=b.sold-b.got;if(ds>0){b.got=b.sold;S.sold=cb(S.sold+ds);S.run+=ds/Math.max(1,R.derived.im);S.di+=ds;R.rate._s+=ds}}   // the branch's items count for the main shop too (unlocks, level, goal)
+ if(typeof d.seen==='string'){for(var j=0;j<d.seen.length&&j*4<NI;j++){var xx=parseInt(d.seen[j],16)||0;for(var q=0;q<4;q++){var ix=j*4+q;if(xx&(1<<q)&&ix<NI&&!S.seen[ix]){S.seen[ix]=1;S.nseen++}}}}if(earned<b.sent)b.sent=earned;var delta=earned-b.sent;
  if(delta>0){var now=performance.now(),dt=Math.max(0.5,(now-(R.brT[id-1]||now-2000))/1000);R.brT[id-1]=now;R.brR[id-1]=R.brR[id-1]!==undefined?R.brR[id-1]*0.6+delta/dt*0.4:delta/dt;
   S.money=cb(S.money+delta);S.earned=cb(S.earned+delta);S.runEarned=cb(S.runEarned+delta);S.acc.rev=cb(S.acc.rev+delta);b.earned=cb(b.earned+delta);b.sent=earned;R.rate._c+=delta}
  else R.brR[id-1]=(R.brR[id-1]||0)*0.6});
@@ -1545,7 +1546,7 @@ window.addEventListener('error',function(){});
 requestAnimationFrame(frame);
 if(BR_ID){document.addEventListener('keydown',function(e){if(e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;if(e.key==='['||e.key===']'){try{parent.postMessage({sipSwitch:e.key==='['?-1:1},location.origin)}catch(x){}}});document.body.classList.add('embed');var es=document.createElement('style');es.textContent='body.embed #brbar,body.embed #mXtra{display:none!important}';document.head.appendChild(es);
  var sv=hasSave()?loadSave():null;if(sv){S=sv;startGame(false);offlineCatchup()}else startGame(true);
- setInterval(function(){try{if(S&&state==='play')parent.postMessage({sipBranch:BR_ID,earned:S.earned,sold:S.sold},location.origin)}catch(e){}},2000)}
+ setInterval(function(){try{if(S&&state==='play')var m={sipBranch:BR_ID,earned:S.earned,sold:S.sold};if(S.nseen!==window.__seenSent){window.__seenSent=S.nseen;m.seen=serialize(S).seen}parent.postMessage(m,location.origin)}catch(e){}},2000)}
 
 /* test hooks (read/drive only) */
 window.__shop={get S(){return S},R:R,ITEMS:ITEMS,UPG:UPG,tick:tick,CAT:CAT,JOBS:JOBS,startShift:startShift,finishShift:finishShift,openJobs:openJobs,negotiate:negotiate,dockDo:dockDo,jobGross:jobGross,REGS:REGS,buyBranch:buyBranch,buyBrUp:buyBrUp,brCost:brCost,brUpCost:brUpCost,brRate:brRate,brRaw:brRaw,buildBar:buildBar,BRU:BRU,setGfx:setGfx,getGfx:function(){return GFX},newsHTML:newsHTML,tutTick:tutTick,ITEMS:ITEMS,NI:NI,serialize:serialize,leaderHTML:leaderHTML,recordsHTML:recordsHTML,placeOrder:placeOrder,mkt:mkt,myPrice:myPrice,setPrice:setPrice,buildList:buildList,stockFavs:stockFavs,MILES:MILES,derive:derive,buyUpg:buyUpg,buyExpand:buyExpand,buyStock:buyStock,restockAll:restockAll,serveManual:serveManual,
