@@ -183,7 +183,8 @@ table.rp{width:100%;border-collapse:collapse;font-size:14px}table.rp td,table.rp
 <script>
 "use strict";
 (function(){
-var SAVE_KEY='sip_shop-tycoon_save';
+var BR_ID=+(new URLSearchParams(location.search).get('branch'))||0;   // >0 = this page is a branch shop running inside the main game
+var SAVE_KEY='sip_shop-tycoon_save'+(BR_ID?'_br'+BR_ID:'');
 var GOAL=1000000, DAY=120, OFFLINE_CAP=8*3600;
 
 /* ---------- helpers ---------- */
@@ -281,8 +282,9 @@ var REGS=[{n:'Mia',look:8,fav:0},{n:'Leo',look:0,fav:1},{n:'Zoe',look:2,fav:2},{
 var SLOTN=['Eye-level left','Eye-level right','Entrance display','Checkout rack','Top shelf','Bottom shelf'],SLOTM=[1.35,1.3,1.15,1.2,.9,.85];
 var BR_CAP=1000,BRMAX=49,TA=['Harbour','Maple','Sunny','Hilltop','Riverside','Market','Oak','Lake','Station','Garden'],TB=['St','Lane','Park','Rd','Square'];
 function townName(k){return TA[k%10]+' '+TB[Math.floor(k/10)%5]}
-function newBranch(k){return {name:'Super SIP - '+townName(k-1),staff:1,mgr:0,stk:0,px:1,earned:0}}
-function brRaw(b){var p=b.px,pf=p<=1?p*(1+(1-p)*.5):p*Math.max(0,1-(p-1)/.8),sf=Math.min(1.2,.5+.12*b.stk),mf=b.mgr>0?1+.2*b.mgr:.6;return b.staff*5*mf*sf*pf*(.8+.04*S.rep)}
+function newBranch(k){return {name:'Super SIP - '+townName(k-1),staff:1,mgr:0,stk:0,px:1,earned:0,sent:0}}
+function brRaw(b){return (R.brR&&R.brR[S.br.indexOf(b)])||0}
+function brRawOld(b){var p=b.px,pf=p<=1?p*(1+(1-p)*.5):p*Math.max(0,1-(p-1)/.8),sf=Math.min(1.2,.5+.12*b.stk),mf=b.mgr>0?1+.2*b.mgr:.6;return b.staff*5*mf*sf*pf*(.8+.04*S.rep)}
 function brRate(b){return Math.min(BR_CAP,brRaw(b))}
 function brCost(k){return 20000*Math.pow(1.3,k-1)*R.derived.im}
 var BRU={staff:{n:'Staff',e:'🧑‍🤝‍🧑',max:60,cost:function(b){return 150*Math.pow(1.15,b.staff)}},mgr:{n:'Manager',e:'🧑‍💼',max:15,cost:function(b){return 800*Math.pow(1.35,b.mgr)}},stk:{n:'Stock supply',e:'📦',max:10,cost:function(b){return 400*Math.pow(1.5,b.stk)}}};
@@ -292,7 +294,8 @@ function buyBranch(){if(S.br.length>=BRMAX){return false}var c=brCost(S.br.lengt
 function branchesTick(dt){var d=R.derived,m=d.pm*d.im;
  if(S.xtra>0){var xi=S.xtra*100*dt;S.money=cb(S.money+xi);S.earned=cb(S.earned+xi);S.runEarned=cb(S.runEarned+xi);S.acc.rev=cb(S.acc.rev+xi);R.rate._c+=xi}
  if(!S.x1k&&(R.rate.main>=BR_CAP||R.rate.cash>=1000))S.x1k=true;
- for(var i=0;i<S.br.length;i++){var b=S.br[i],base=brRate(b),inc=base*dt*m;if(inc<=0)continue;var items=base*dt*d.im/Math.pow(Math.max(1,R.unit/d.pm),0.95);
+ for(var i=0;i<0;i++){var b=S.br[i],base=brRate(b),inc=base*dt*m;   // old pretend-branch income removed: every branch is now its own full game
+ if(inc<=0)continue;var items=base*dt*d.im/Math.pow(Math.max(1,R.unit/d.pm),0.95);
   S.money=cb(S.money+inc);S.earned=cb(S.earned+inc);S.runEarned=cb(S.runEarned+inc);S.sold=cb(S.sold+items);S.run+=items/d.im;S.di+=items;S.acc.rev=cb(S.acc.rev+inc);b.earned=cb(b.earned+inc);R.rate._s+=items;R.rate._c+=inc;
   if(!S.firstSale)S.firstSale=true}}
 function bigBasket(b){if(Math.random()<0.9){var cap=Math.min(100,Math.max(14,b*8));b=Math.round(5*Math.pow(cap/5,Math.random()))}return Math.min(100,b)}   // every customer orders a different amount: usually 5 or more, never more than 100
@@ -399,7 +402,7 @@ function sanitize(o){var st=freshState();if(!o||typeof o!=='object')return st;
  st.rep=num(o.rep,3,1,5);st.clicks=Math.floor(num(o.clicks,0,0,1e9));st.vip=Math.floor(num(o.vip,0,0,BIG));
  st.evSeen=Math.floor(num(o.evSeen,0,0,1e9));st.celeb=Math.floor(num(o.celeb,0,0,1e9));st.away=Math.floor(num(o.away,0,0,1e9));
  st.played=num(o.played,0,0,1e10);st.won=!!o.won;st.best=!!o.best;st.firstSale=!!o.firstSale||st.sold>0;
- if(Array.isArray(o.br))o.br.slice(0,BRMAX).forEach(function(b,k){if(!b||typeof b!=='object')return;st.br.push({name:typeof b.name==='string'?b.name.slice(0,40):'Super SIP - '+townName(k),staff:Math.floor(num(b.staff,1,1,60)),mgr:Math.floor(num(b.mgr,0,0,15)),stk:Math.floor(num(b.stk,0,0,10)),px:num(b.px,1,.7,1.4),earned:num(b.earned,0,0,1e300)})});
+ if(Array.isArray(o.br))o.br.slice(0,BRMAX).forEach(function(b,k){if(!b||typeof b!=='object')return;st.br.push({name:typeof b.name==='string'?b.name.slice(0,40):'Super SIP - '+townName(k),staff:Math.floor(num(b.staff,1,1,60)),mgr:Math.floor(num(b.mgr,0,0,15)),stk:Math.floor(num(b.stk,0,0,10)),px:num(b.px,1,.7,1.4),earned:num(b.earned,0,0,1e300),sent:num(b.sent,0,0,1e300)})});
  st.sup=Math.floor(num(o.sup,0,0,2));st.loan=num(o.loan,0,0,BIG);
  if(Array.isArray(o.trend))for(var i=0;i<8;i++)st.trend[i]=num(o.trend[i],1,.7,1.4);
  if(Array.isArray(o.comp))for(var i=0;i<2;i++)st.comp[i]=num(o.comp[i],1,.8,1.3);
@@ -433,7 +436,7 @@ function hasSave(){try{return !!localStorage.getItem(SAVE_KEY)}catch(e){return f
 /* ---------- game runtime ---------- */
 var R={q:0,vis:[],autoAcc:0,stockAcc:0,ev:null,evLeft:0,sr:[],derived:null,parts:[],floats:[],hintOn:true,
  rate:{sold:0,cash:0,cust:0,main:0,_m:0,_s:0,_c:0,_u:0,_t:0},unlockSeen:0,wtDirty:true,wt:null,wtSum:1,ptr:0,lastRep:3,msgs:[]};
-R.sr=new Float64Array(NI);R.actI=[];R.actW=[];R.actR=[];R.actP=[];R.nAct=0;R.lump=0;R.emaRate=0;R.lastSold=0;R.happy=1;R.riv={};R.u=0;
+R.brR=[];R.brT=[];R.sr=new Float64Array(NI);R.actI=[];R.actW=[];R.actR=[];R.actP=[];R.nAct=0;R.lump=0;R.emaRate=0;R.lastSold=0;R.happy=1;R.riv={};R.u=0;
 
 function maxStaff(){return 6+6*S.exp}
 function maxMgr(){return 5+3*S.exp}
@@ -880,14 +883,31 @@ function buildList(){var q=CAT.q.trim().toLowerCase(),out=[],u=R.u||0;
  CAT.list=out;CAT.dirty=false;var pages=Math.max(1,Math.ceil(out.length/CAT.per));if(CAT.page>=pages)CAT.page=pages-1;if(CAT.page<0)CAT.page=0}
 function setPrice(i,v){R.didPrice=true;v=num(v,0,0,1e300);if(v<=0){S.ip[i]=0}else{var lo=uCost(i)*0.3,hi=mkt(i)*3;S.ip[i]=Math.max(lo,Math.min(hi,v))}R.wtDirty=true;weights()}
 var barBtns=[],barN=-1;
-function buildBar(force){var bar=$('brbar');if(!force&&barN===S.br.length+1&&barBtns.length)return;barN=S.br.length+1;bar.innerHTML='';barBtns=[];
+function buildBar(force){var bar=$('brbar');if(!force&&barN===S.br.length+1&&barBtns.length)return;barN=S.br.length+1;bar.innerHTML='';barBtns=[];try{syncFrames()}catch(e){}
  for(var k=0;k<=S.br.length;k++)(function(k){var b=document.createElement('button');b.onclick=function(){R.view=k;buildBar(true);buildPanel();sPop()};bar.appendChild(b);barBtns.push(b)})(k);
  var add=document.createElement('button');add.className='add';add.onclick=function(){if(buyBranch())buildBar(true)};bar.appendChild(add);barBtns.push(add);updateBar()}
 function updateBar(){for(var k=0;k<=S.br.length&&k<barBtns.length-1;k++){var b=barBtns[k],rate=k===0?R.rate.main:brRate(S.br[k-1]),raw=k===0?(R.capHitT>R_t-3?BR_CAP*2:rate):brRaw(S.br[k-1]);
   b.className=(R.view===k?'on ':'')+(raw>=BR_CAP?'cap':'');
   b.innerHTML=(k===0?'🏪 Home shop':'🏬 '+S.br[k-1].name.replace('Super SIP - ',''))+'<small>'+fmt(Math.min(rate,BR_CAP))+' / 1000 SIP/s'+(raw>=BR_CAP?' capped!':'')+'</small>'}
  var add=barBtns[barBtns.length-1];if(add){if(S.br.length>=BRMAX){add.textContent='All 50 shops open';add.disabled=true}else{var c=brCost(S.br.length+1);add.innerHTML='+ Open branch<small>'+fmt(c)+' SIP</small>';add.disabled=S.money<c}}}
+var brBox=null;
+function syncFrames(){
+ if(BR_ID)return;
+ if(!brBox){brBox=document.createElement('div');brBox.id='brFrames';document.body.appendChild(brBox)}
+ var top=Math.ceil($('brbar').getBoundingClientRect().bottom);
+ while(brBox.children.length<S.br.length){var f=document.createElement('iframe');f.title='Branch shop';f.src=location.pathname+'?branch='+(brBox.children.length+1);f.style.cssText='position:fixed;left:0;right:0;bottom:0;width:100%;border:0;background:#fff';brBox.appendChild(f)}
+ while(brBox.children.length>S.br.length)brBox.removeChild(brBox.lastChild);
+ for(var k=0;k<brBox.children.length;k++){var on=R.view===k+1,st=brBox.children[k].style;st.top=top+'px';st.height='calc(100% - '+top+'px)';st.opacity=on?1:0;st.pointerEvents=on?'auto':'none';st.zIndex=on?60:-1}}
+window.addEventListener('resize',function(){try{syncFrames()}catch(e){}});
+window.addEventListener('message',function(e){
+ if(BR_ID||e.origin!==location.origin||!S)return;var d=e.data,id=d&&d.sipBranch,b=S.br[id-1],earned=d&&+d.earned;
+ if(!b||!(earned>=0))return;if(earned<b.sent)b.sent=earned;var delta=earned-b.sent;
+ if(delta>0){var now=performance.now(),dt=Math.max(0.5,(now-(R.brT[id-1]||now-2000))/1000);R.brT[id-1]=now;R.brR[id-1]=R.brR[id-1]!==undefined?R.brR[id-1]*0.6+delta/dt*0.4:delta/dt;
+  S.money=cb(S.money+delta);S.earned=cb(S.earned+delta);S.runEarned=cb(S.runEarned+delta);S.acc.rev=cb(S.acc.rev+delta);b.earned=cb(b.earned+delta);b.sent=earned;R.rate._c+=delta}
+ else R.brR[id-1]=(R.brR[id-1]||0)*0.6});
 function buildBranchPanel(b,bi){
+ var top=document.createElement('div');elPanel.appendChild(top);top.innerHTML='<div class="h">🏬 '+b.name+'</div><div style="font-size:14px">This branch is a <b>full Super SIP shop</b> of its own, with its own stock, customers, staff and upgrades. Everything it earns is sent to your main money. Earned here so far: <b>'+fmt(b.earned)+' SIP</b>.</div>';rows.push(function(){});return}
+function buildBranchPanelOld(b,bi){
  var top=document.createElement('div');elPanel.appendChild(top);
  var rate,raw;
  rows.push(function(){raw=brRaw(b);rate=Math.min(BR_CAP,raw);top.innerHTML='<div class="h">🏬 '+b.name+'</div><div style="font-size:14px">Income: <b>'+fmt(rate)+' / 1000 SIP/s</b> (base)'+(raw>=BR_CAP?' <span style="color:#e53935;font-weight:800">capped! Open another branch to earn more.</span>':'')+'</div><div class="capbar'+(raw>=BR_CAP?' full':'')+'"><i style="width:'+Math.min(100,rate/BR_CAP*100)+'%"></i></div><div style="font-size:13px;opacity:.85">Each shop earns at most 1000 SIP/s base. Your profit bonus and chain scale multiply it afterwards (now x'+fmt(R.derived.pm*R.derived.im)+'), so a franchise grows every shop. Earned here: '+fmt(b.earned)+' SIP. Without a manager a branch runs at 60%.</div>'});
@@ -1427,14 +1447,14 @@ var state='title',paused=false;
 function show(id,on){$(id).classList.toggle('show',!!on)}
 function confirmBox(t,txt,fn){$('cfTitle').textContent=t;$('cfTxt').textContent=txt;show('ovConfirm',true);
  $('cfYes').onclick=function(){show('ovConfirm',false);fn()};$('cfNo').onclick=function(){show('ovConfirm',false)}}
-function resetSave(){try{localStorage.removeItem(SAVE_KEY)}catch(e){}S=freshState();resetRuntime();$('bContinue').style.display='none';
+function resetSave(){try{localStorage.removeItem(SAVE_KEY);if(!BR_ID)for(var q=1;q<=BRMAX;q++)localStorage.removeItem('sip_shop-tycoon_save_br'+q)}catch(e){}S=freshState();resetRuntime();$('bContinue').style.display='none';
  show('ovPause',false);paused=false;state='title';show('ovTitle',true);toast('Save deleted')}
 function resetRuntime(){R.work=null;R.dock=[];R.dockShown=false;R.offerT=0;R.view=0;R.unit=3.4;R.capLeft=0;R.capHitT=-99;R.rankInit=false;R.emaRate=0;R.happy=1;R.pend=[];R.favList=favList();R.lastSold=S.sold;CAT.dirty=true;R.q=1;R.vis=[];R.autoAcc=0;R.stockAcc=0;R.ev=null;R.unlockSeen=0;R.wtDirty=true;R.parts=[];R.floats=[];R.fracItems=0;for(var i=0;i<NI;i++)R.sr[i]=0;derive();weights();R.unlockSeen=R.u}
 function confetti(){var em=['🎉','🎊','⭐','🪙','🏆','✨'];for(var i=0;i<70;i++){var d=document.createElement('div');d.className='cf';d.textContent=em[i%em.length];d.style.left=Math.random()*100+'vw';d.style.animationDuration=(2.5+Math.random()*3)+'s';d.style.animationDelay=Math.random()*2+'s';document.body.appendChild(d);setTimeout(function(x){return function(){x.remove()}}(d),7000)}}
 function showBest(){$('bestRec').innerHTML=recordsHTML();show('ovBest',true);sWin();confetti()}
 function showWin(){confetti();$('winStats').textContent='Total earned: '+fmt(S.earned)+' SIP - Time played: '+fmtTime(S.played)+' - Days: '+S.day;show('ovWin',true);sWin()}
 function startGame(fresh){
- if(fresh){S=freshState(true);try{localStorage.removeItem(SAVE_KEY)}catch(e){}}
+ if(fresh){S=freshState(true);try{localStorage.removeItem(SAVE_KEY);if(!BR_ID)for(var q=1;q<=BRMAX;q++)localStorage.removeItem('sip_shop-tycoon_save_br'+q)}catch(e){}}
  resetRuntime();R.q=1;state='play';show('ovTitle',false);ac();buildBar(true);buildPanel();last=performance.now()}
 function offlineCatchup(){
  var secs=Math.min(OFFLINE_CAP,Math.max(0,(Date.now()-S.savedAt)/1000));
@@ -1506,6 +1526,9 @@ buildTabs();
 setMute(muted);
 window.addEventListener('error',function(){});
 requestAnimationFrame(frame);
+if(BR_ID){document.body.classList.add('embed');var es=document.createElement('style');es.textContent='body.embed #brbar{display:none!important}';document.head.appendChild(es);
+ var sv=hasSave()?loadSave():null;if(sv){S=sv;startGame(false);offlineCatchup()}else startGame(true);
+ setInterval(function(){try{if(S&&state==='play')parent.postMessage({sipBranch:BR_ID,earned:S.earned},location.origin)}catch(e){}},2000)}
 
 /* test hooks (read/drive only) */
 window.__shop={get S(){return S},R:R,ITEMS:ITEMS,UPG:UPG,tick:tick,CAT:CAT,JOBS:JOBS,startShift:startShift,finishShift:finishShift,openJobs:openJobs,negotiate:negotiate,dockDo:dockDo,jobGross:jobGross,REGS:REGS,buyBranch:buyBranch,buyBrUp:buyBrUp,brCost:brCost,brUpCost:brUpCost,brRate:brRate,brRaw:brRaw,buildBar:buildBar,BRU:BRU,setGfx:setGfx,getGfx:function(){return GFX},newsHTML:newsHTML,tutTick:tutTick,ITEMS:ITEMS,NI:NI,serialize:serialize,leaderHTML:leaderHTML,recordsHTML:recordsHTML,placeOrder:placeOrder,mkt:mkt,myPrice:myPrice,setPrice:setPrice,buildList:buildList,stockFavs:stockFavs,MILES:MILES,derive:derive,buyUpg:buyUpg,buyExpand:buyExpand,buyStock:buyStock,restockAll:restockAll,serveManual:serveManual,
