@@ -290,6 +290,8 @@ function brUpCost(b,k){return BRU[k].cost(b)*R.derived.im}
 function buyBrUp(b,k){var u=BRU[k];if(b[k]>=u.max){return false}var c=brUpCost(b,k);if(S.money<c){sBad();return false}S.money-=c;b[k]++;sBuy();return true}
 function buyBranch(){if(S.br.length>=BRMAX){return false}var c=brCost(S.br.length+1);if(S.money<c){sBad();return false}S.money-=c;S.br.push(newBranch(S.br.length+1));sLevel();toast('🏪 New branch opened: '+S.br[S.br.length-1].name+'!',true);buildBar(true);return true}
 function branchesTick(dt){var d=R.derived,m=d.pm*d.im;
+ if(S.xtra>0){var xi=S.xtra*100*dt;S.money=cb(S.money+xi);S.earned=cb(S.earned+xi);S.runEarned=cb(S.runEarned+xi);S.acc.rev=cb(S.acc.rev+xi);R.rate._c+=xi}
+ if(!S.x1k&&(R.rate.main>=BR_CAP||R.rate.cash>=1000))S.x1k=true;
  for(var i=0;i<S.br.length;i++){var b=S.br[i],base=brRate(b),inc=base*dt*m;if(inc<=0)continue;var items=base*dt*d.im/Math.pow(Math.max(1,R.unit/d.pm),0.95);
   S.money=cb(S.money+inc);S.earned=cb(S.earned+inc);S.runEarned=cb(S.runEarned+inc);S.sold=cb(S.sold+items);S.run+=items/d.im;S.di+=items;S.acc.rev=cb(S.acc.rev+inc);b.earned=cb(b.earned+inc);R.rate._s+=items;R.rate._c+=inc;
   if(!S.firstSale)S.firstSale=true}}
@@ -373,7 +375,7 @@ function freshRec(){return {t1k:0,t1m:0,dayItems:0,dayProfit:0,rich:100,big:0,be
 function freshState(starter){var st={v:2,money:100,sold:0,run:0,earned:0,runEarned:0,stock:new Float64Array(NI),upg:{},exp:0,fp:0,fran:0,price:1,day:1,dayT:42,
  ip:new Float64Array(NI),seen:new Uint8Array(NI),fav:new Uint8Array(NI),nseen:0,auto:true,
  br:[],sup:0,orders:[],loan:0,trend:[1,1,1,1,1,1,1,1],comp:[1,1],sh:{cat:-1,left:0},acc:newAcc(),last:null,wk:{rev:0,cogs:0,waste:0,rent:0,wages:0,elec:0,tax:0,int:0,profit:0,days:0,fees:0,vat:0,fine:0},clean:100,insp:{n:0,fines:0,good:0},tut:0,ins:false,broke:{fridge:0,till:0},morale:1,raise:0,train:0,sick:0,loyal:0,rivNear:0,oh:8,ch:20,manual:false,eye:-1,imp:-1,regVisits:0,regv:[0,0,0,0,0,0,0,0,0,0,0,0],layout:[-1,-1,-1,-1,-1,-1],rel:[0,0,0],neg:[0,0,0],checkDel:false,job:{exp:0,skills:{cus:0,phy:0,num:0,care:0},jr:{},jh:{},rel:100,tired:0,shifts:0,net:0,ban:0},wkLast:null,
- rec:freshRec(),di:0,streak:0,best:false,riv:[0,0,0,0,0,0],rivBest:[0,0,0,0,0,0],rivSk:[1.15,.95,1,.8,.7,.6],rank:1,h24:false,rb:false,cup:{y0:0,riv:[0,0,0,0,0,0],wins:0,best:0,hist:[]},
+ rec:freshRec(),di:0,streak:0,best:false,riv:[0,0,0,0,0,0],rivBest:[0,0,0,0,0,0],rivSk:[1.15,.95,1,.8,.7,.6],rank:1,h24:false,rb:false,xtra:0,x1k:false,cup:{y0:0,riv:[0,0,0,0,0,0],wins:0,best:0,hist:[]},
  ach:{},rep:3,clicks:0,vip:0,evSeen:0,celeb:0,away:0,played:0,won:false,savedAt:Date.now(),firstSale:false,muteHint:false};
  if(starter)for(var q=0;q<6;q++)st.stock[q]=50;return st}
 function serialize(st){var o={};for(var k in st){var v=st[k];
@@ -416,7 +418,7 @@ function sanitize(o){var st=freshState();if(!o||typeof o!=='object')return st;
  if(o.rec&&typeof o.rec==='object')for(var k in st.rec)st.rec[k]=num(o.rec[k],st.rec[k],-BIG,BIG);
  st.di=num(o.di,0,0,BIG);st.streak=num(o.streak,0,0,BIG);
  if(Array.isArray(o.riv))for(var i=0;i<6;i++){st.riv[i]=num(o.riv[i],0,0,BIG);st.rivBest[i]=num(o.rivBest&&o.rivBest[i],0,0,BIG);st.rivSk[i]=num(o.rivSk&&o.rivSk[i],st.rivSk[i],.4,1.5)}
- st.rank=Math.floor(num(o.rank,1,1,7));st.h24=!!o.h24;st.rb=!!o.rb;
+ st.rank=Math.floor(num(o.rank,1,1,7));st.h24=!!o.h24;st.rb=!!o.rb;st.xtra=Math.floor(num(o.xtra,0,0,1e9));st.x1k=!!o.x1k||st.xtra>0;
  if(o.cup&&typeof o.cup==='object'){var C=o.cup,sc=st.cup;sc.y0=num(C.y0,0,0,1e300);if(Array.isArray(C.riv))for(var i=0;i<6;i++)sc.riv[i]=num(C.riv[i],0,0,1e300);sc.wins=Math.floor(num(C.wins,0,0,1e6));sc.best=Math.floor(num(C.best,0,0,10));if(Array.isArray(C.hist))sc.hist=C.hist.slice(-50).map(function(h){return{y:Math.floor(num(h&&h.y,0,0,1e6)),r:Math.floor(num(h&&h.r,10,1,10)),v:num(h&&h.v,0,0,1e300)}})}
  st.savedAt=num(o.savedAt,Date.now(),0,Date.now()+60000);
  if(st.run>1e12)st.run=1e12;return st}
@@ -973,8 +975,9 @@ function buildPanel(){
   rows.push(function(){r.n.textContent='Location: '+(S.exp<LOCS.length?LOCS[S.exp]:'?')+(S.fran?'  (Chain scale x'+fmt(R.derived.im)+')':'');
    if(S.exp>=MAXE){r.s.textContent='Your empire is complete! Franchise to scale up even more.';b.textContent='MAX';b.disabled=true}
    else{r.s.textContent='Next: '+LOCS[S.exp+1]+'. +17% customers, +6 staff slots per type, +10 shelf slots, longer queue. Rent goes up!';b.textContent='Expand '+fmt(expCost(S.exp));b.disabled=S.money<expCost(S.exp)}});
-  var mg=document.createElement('div');mg.innerHTML='<div class="h">🏬 Running the shop</div><div class="ctl"><button class="sm b" id="mOpen"></button><button class="sm b" id="mH24"></button><label>Opens <input type="range" id="mOh" min="5" max="11" step="1"> <b id="mOhT"></b></label><label>Closes <input type="range" id="mCh" min="16" max="23" step="1"> <b id="mChT"></b></label></div><div class="h">🧱 Shop layout (drag a category into a spot, or tap a category then a spot)</div><div class="chips" id="layChips"></div><div class="lay" id="laySlots"></div><div class="ctl"><button class="sm b" id="mDock"></button></div>';elPanel.appendChild(mg);
-  buildLayout();$('mDock').onclick=function(){S.checkDel=!S.checkDel;sPop()};$('mH24').onclick=function(){S.h24=!S.h24;R.wtDirty=true;sPop()};
+  var mg=document.createElement('div');mg.innerHTML='<div class="h">🏬 Running the shop</div><div class="ctl"><button class="sm b" id="mOpen"></button><button class="sm b" id="mH24"></button><button class="sm g" id="mXtra"></button><label>Opens <input type="range" id="mOh" min="5" max="11" step="1"> <b id="mOhT"></b></label><label>Closes <input type="range" id="mCh" min="16" max="23" step="1"> <b id="mChT"></b></label></div><div class="h">🧱 Shop layout (drag a category into a spot, or tap a category then a spot)</div><div class="chips" id="layChips"></div><div class="lay" id="laySlots"></div><div class="ctl"><button class="sm b" id="mDock"></button></div>';elPanel.appendChild(mg);
+  buildLayout();$('mDock').onclick=function(){S.checkDel=!S.checkDel;sPop()};$('mH24').onclick=function(){S.h24=!S.h24;R.wtDirty=true;sPop()};$('mXtra').onclick=function(){if(!S.x1k||S.money<1000){sBad();return}S.money=cb(S.money-1000);S.xtra++;sBuy();toast('⚡ Income boost bought! You now earn +'+fmt(S.xtra*100)+' extra SIP/s.')};
+  rows.push(function(){$('mXtra').textContent=S.x1k?'⚡ Pay 1,000 SIP for +100 SIP/s (you have +'+fmt(S.xtra*100)+'/s)':'🔒 Reach 1,000 SIP/s to unlock the income boost';$('mXtra').disabled=!S.x1k||S.money<1000});
   rows.push(function(){$('mH24').textContent='🌙 Open 24/7: '+(S.h24?'ON (wages x2, power +50%, quiet at night)':'OFF')});
   rows.push(function(){$('mDock').textContent='Check deliveries by hand: '+(S.checkDel?'ON':'OFF')});
   $('mOh').value=S.oh;$('mCh').value=S.ch;$('mOh').oninput=function(){S.oh=+this.value;if(S.ch-S.oh<6)S.ch=S.oh+6;$('mCh').value=S.ch};$('mCh').oninput=function(){S.ch=+this.value;if(S.ch-S.oh<6)S.oh=S.ch-6;$('mOh').value=S.oh};
