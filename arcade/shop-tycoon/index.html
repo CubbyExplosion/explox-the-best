@@ -331,7 +331,8 @@ var UPG=[
  {id:'flyers',k:'ad',e:'📄',n:'Flyers',d:'+5% customers.',base:150,g:1.45,max:15,f:.05},
  {id:'radio',k:'ad',e:'📻',n:'Radio Jingle',d:'+8% customers.',base:3000,g:1.5,max:15,f:.08},
  {id:'tv',k:'ad',e:'📺',n:'TV Spot',d:'+12% customers.',base:80000,g:1.55,max:15,f:.12},
- {id:'bill',k:'ad',e:'🪧',n:'Giant Billboard',d:'+20% customers.',base:2e6,g:1.6,max:15,f:.2}];
+ {id:'bill',k:'ad',e:'🪧',n:'Giant Billboard',d:'+20% customers.',base:2e6,g:1.6,max:15,f:.2},
+ {id:'holiday',k:'ad',e:'🎉',n:'Public Holiday',d:'+80% customers. The very last ad! (one only)',base:1e8,g:1,max:1,f:.8}];
 var UBY={};UPG.forEach(function(u){UBY[u.id]=u});
 function expCost(E){return 400*Math.pow(9,E)*(R.derived?R.derived.im:1)}
 
@@ -453,7 +454,7 @@ function derive(){
  d.sp=(1+0.05*lv('manager'))*(1+0.08*lv('scanner'))*(1+0.06*S.train)*(0.75+0.25*S.morale)*(S.sick>0?0.8:1);
  d.cr=lv('cashier')*0.22*d.sp*1.2*(S.broke.till?0.5:1)*(R.work?0.7:1);
  d.stockRate=lv('stocker')*2.5*d.sp;
- var ads=lv('flyers')*.05+lv('radio')*.08+lv('tv')*.12+lv('bill')*.2;
+ var ads=lv('flyers')*.05+lv('radio')*.08+lv('tv')*.12+lv('bill')*.2+lv('holiday')*.8;
  d.ads=ads;
  var rep=0.6+0.2*S.rep;
  var ev=R.ev,em=1;if(ev){if(ev.id==='rush')em=2;else if(ev.id==='celeb')em=3;else if(ev.id==='rain')em=.7;else if(ev.id==='heat')em=1.1;else if(ev.id==='storm')em=.5}
