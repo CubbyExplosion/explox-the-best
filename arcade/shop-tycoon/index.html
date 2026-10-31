@@ -372,7 +372,7 @@ function freshRec(){return {t1k:0,t1m:0,dayItems:0,dayProfit:0,rich:100,big:0,be
 function freshState(starter){var st={v:2,money:100,sold:0,run:0,earned:0,runEarned:0,stock:new Float64Array(NI),upg:{},exp:0,fp:0,fran:0,price:1,day:1,dayT:42,
  ip:new Float64Array(NI),seen:new Uint8Array(NI),fav:new Uint8Array(NI),nseen:0,auto:true,
  br:[],sup:0,orders:[],loan:0,trend:[1,1,1,1,1,1,1,1],comp:[1,1],sh:{cat:-1,left:0},acc:newAcc(),last:null,wk:{rev:0,cogs:0,waste:0,rent:0,wages:0,elec:0,tax:0,int:0,profit:0,days:0,fees:0,vat:0,fine:0},clean:100,insp:{n:0,fines:0,good:0},tut:0,ins:false,broke:{fridge:0,till:0},morale:1,raise:0,train:0,sick:0,loyal:0,rivNear:0,oh:8,ch:20,manual:false,eye:-1,imp:-1,regVisits:0,regv:[0,0,0,0,0,0,0,0,0,0,0,0],layout:[-1,-1,-1,-1,-1,-1],rel:[0,0,0],neg:[0,0,0],checkDel:false,job:{exp:0,skills:{cus:0,phy:0,num:0,care:0},jr:{},jh:{},rel:100,tired:0,shifts:0,net:0,ban:0},wkLast:null,
- rec:freshRec(),di:0,streak:0,best:false,riv:[0,0,0,0,0,0],rivBest:[0,0,0,0,0,0],rivSk:[1.15,.95,1,.8,.7,.6],rank:1,cup:{y0:0,riv:[0,0,0,0,0,0],wins:0,best:0,hist:[]},
+ rec:freshRec(),di:0,streak:0,best:false,riv:[0,0,0,0,0,0],rivBest:[0,0,0,0,0,0],rivSk:[1.15,.95,1,.8,.7,.6],rank:1,h24:false,cup:{y0:0,riv:[0,0,0,0,0,0],wins:0,best:0,hist:[]},
  ach:{},rep:3,clicks:0,vip:0,evSeen:0,celeb:0,away:0,played:0,won:false,savedAt:Date.now(),firstSale:false,muteHint:false};
  if(starter)for(var q=0;q<6;q++)st.stock[q]=50;return st}
 function serialize(st){var o={};for(var k in st){var v=st[k];
@@ -415,7 +415,7 @@ function sanitize(o){var st=freshState();if(!o||typeof o!=='object')return st;
  if(o.rec&&typeof o.rec==='object')for(var k in st.rec)st.rec[k]=num(o.rec[k],st.rec[k],-BIG,BIG);
  st.di=num(o.di,0,0,BIG);st.streak=num(o.streak,0,0,BIG);
  if(Array.isArray(o.riv))for(var i=0;i<6;i++){st.riv[i]=num(o.riv[i],0,0,BIG);st.rivBest[i]=num(o.rivBest&&o.rivBest[i],0,0,BIG);st.rivSk[i]=num(o.rivSk&&o.rivSk[i],st.rivSk[i],.4,1.5)}
- st.rank=Math.floor(num(o.rank,1,1,7));
+ st.rank=Math.floor(num(o.rank,1,1,7));st.h24=!!o.h24;
  if(o.cup&&typeof o.cup==='object'){var C=o.cup,sc=st.cup;sc.y0=num(C.y0,0,0,1e300);if(Array.isArray(C.riv))for(var i=0;i<6;i++)sc.riv[i]=num(C.riv[i],0,0,1e300);sc.wins=Math.floor(num(C.wins,0,0,1e6));sc.best=Math.floor(num(C.best,0,0,10));if(Array.isArray(C.hist))sc.hist=C.hist.slice(-50).map(function(h){return{y:Math.floor(num(h&&h.y,0,0,1e6)),r:Math.floor(num(h&&h.r,10,1,10)),v:num(h&&h.v,0,0,1e300)}})}
  st.savedAt=num(o.savedAt,Date.now(),0,Date.now()+60000);
  if(st.run>1e12)st.run=1e12;return st}
@@ -447,8 +447,8 @@ function derive(){
  var rep=0.6+0.2*S.rep;
  var ev=R.ev,em=1;if(ev){if(ev.id==='rush')em=2;else if(ev.id==='celeb')em=3;else if(ev.id==='rain')em=.7;else if(ev.id==='heat')em=1.1;else if(ev.id==='storm')em=.5}
  d.em=em;
- d.cf=0.7+0.3*S.clean/100;var hr=S.dayT/DAY*24;d.hour=hr;d.open=!S.manual&&hr>=S.oh&&hr<S.ch&&!(R.work&&lv('cashier')<1);
- var tr=trafficHour(8+(hr-S.oh)*12/Math.max(6,S.ch-S.oh))*DOWM[(S.day-1)%7]*1.9;
+ d.cf=0.7+0.3*S.clean/100;var hr=S.dayT/DAY*24;d.hour=hr;d.open=!S.manual&&(S.h24||(hr>=S.oh&&hr<S.ch))&&!(R.work&&lv('cashier')<1);
+ var tr=(S.h24?(trafficHour(hr)||0.25):trafficHour(8+(hr-S.oh)*12/Math.max(6,S.ch-S.oh)))*DOWM[(S.day-1)%7]*1.9;
  d.lamAvg=d.cf*(1.0+0.15*lv('greeter'))*(1+ads)*rep*Math.pow(1.17,S.exp)*(1+0.1*S.fp)*em*(1+0.25*S.loyal)*(S.rivNear>0?0.9:1);
  d.lam=d.lamAvg*tr;d.traf=tr;
  d.dl=Math.max(0.4,1-0.06*lv('warehouse'));
@@ -618,7 +618,7 @@ function countPos(a,u){var c=0;for(var i=0;i<u;i++)if(a[i]>=1)c++;return c}
 function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
 function closeBooks(){
  var E=S.exp,st=staffTotal();
- var im=R.derived.im,rent=8*Math.pow(3.4,E)*im,wages=(lv('cashier')*3+lv('stocker')*3+lv('greeter')*2+lv('manager')*8+lv('cleaner')*2)*Math.pow(1.6,E)*im*(1+0.2*S.raise)*(S.ch-S.oh)/12,elec=(2+0.15*st)*Math.pow(2,E)*im;
+ var im=R.derived.im,rent=8*Math.pow(3.4,E)*im,wages=(lv('cashier')*3+lv('stocker')*3+lv('greeter')*2+lv('manager')*8+lv('cleaner')*2)*Math.pow(1.6,E)*im*(1+0.2*S.raise)*(S.h24?24:(S.ch-S.oh))/12,elec=(2+0.15*st)*Math.pow(2,E)*im*(S.h24?1.5:1);
  var interest=S.loan*0.02,a=S.acc;
  var cs=Math.min(.8,.4+.04*E),fees=a.rev*cs*0.015+(S.ins?5*Math.pow(2.5,E)*im:0)+0,vat=0;for(var c=0;c<8;c++)vat+=(a.cat?a.cat[c]:0)*CATVAT[c]/(1+CATVAT[c]);
  var grace=S.day<=2;if(grace){rent=wages=elec=interest=0}
@@ -971,8 +971,9 @@ function buildPanel(){
   rows.push(function(){r.n.textContent='Location: '+(S.exp<LOCS.length?LOCS[S.exp]:'?')+(S.fran?'  (Chain scale x'+fmt(R.derived.im)+')':'');
    if(S.exp>=MAXE){r.s.textContent='Your empire is complete! Franchise to scale up even more.';b.textContent='MAX';b.disabled=true}
    else{r.s.textContent='Next: '+LOCS[S.exp+1]+'. +17% customers, +6 staff slots per type, +10 shelf slots, longer queue. Rent goes up!';b.textContent='Expand '+fmt(expCost(S.exp));b.disabled=S.money<expCost(S.exp)}});
-  var mg=document.createElement('div');mg.innerHTML='<div class="h">🏬 Running the shop</div><div class="ctl"><button class="sm b" id="mOpen"></button><label>Opens <input type="range" id="mOh" min="5" max="11" step="1"> <b id="mOhT"></b></label><label>Closes <input type="range" id="mCh" min="16" max="23" step="1"> <b id="mChT"></b></label></div><div class="h">🧱 Shop layout (drag a category into a spot, or tap a category then a spot)</div><div class="chips" id="layChips"></div><div class="lay" id="laySlots"></div><div class="ctl"><button class="sm b" id="mDock"></button></div>';elPanel.appendChild(mg);
-  buildLayout();$('mDock').onclick=function(){S.checkDel=!S.checkDel;sPop()};
+  var mg=document.createElement('div');mg.innerHTML='<div class="h">🏬 Running the shop</div><div class="ctl"><button class="sm b" id="mOpen"></button><button class="sm b" id="mH24"></button><label>Opens <input type="range" id="mOh" min="5" max="11" step="1"> <b id="mOhT"></b></label><label>Closes <input type="range" id="mCh" min="16" max="23" step="1"> <b id="mChT"></b></label></div><div class="h">🧱 Shop layout (drag a category into a spot, or tap a category then a spot)</div><div class="chips" id="layChips"></div><div class="lay" id="laySlots"></div><div class="ctl"><button class="sm b" id="mDock"></button></div>';elPanel.appendChild(mg);
+  buildLayout();$('mDock').onclick=function(){S.checkDel=!S.checkDel;sPop()};$('mH24').onclick=function(){S.h24=!S.h24;R.wtDirty=true;sPop()};
+  rows.push(function(){$('mH24').textContent='🌙 Open 24/7: '+(S.h24?'ON (wages x2, power +50%, quiet at night)':'OFF')});
   rows.push(function(){$('mDock').textContent='Check deliveries by hand: '+(S.checkDel?'ON':'OFF')});
   $('mOh').value=S.oh;$('mCh').value=S.ch;$('mOh').oninput=function(){S.oh=+this.value;if(S.ch-S.oh<6)S.ch=S.oh+6;$('mCh').value=S.ch};$('mCh').oninput=function(){S.ch=+this.value;if(S.ch-S.oh<6)S.oh=S.ch-6;$('mOh').value=S.oh};
   $('mOpen').onclick=function(){S.manual=!S.manual;sPop()};
