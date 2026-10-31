@@ -330,6 +330,9 @@ var UPG=[
  {id:'racks',k:'up',e:'🧱',n:'Display Racks',d:'+25% shelf slots (different items on sale at once).',base:300,g:1.6,max:100},
  {id:'whole',k:'up',e:'🤝',n:'Wholesale Deal',d:'-2% stock cost.',base:500,g:1.7,max:100},
  {id:'web',k:'up',e:'🌐',n:'Online Shop',d:'Online buyers come day and night, even when the shop is closed. Level 1 brings as many buyers as your shop has customers, and every level adds that many again.',base:5000,g:1.35,max:100},
+ {id:'guard',k:'up',e:'💂',n:'Security Guard',d:'Stops robbers at the door: +4% chance per level.',base:800,g:1.5,max:100},
+ {id:'cctv',k:'up',e:'📹',n:'Cameras',d:'Robbers are filmed and caught: you get some of the stolen money back (+3% per level).',base:1500,g:1.5,max:100},
+ {id:'alarm',k:'up',e:'🚨',n:'Alarm System',d:'Scares robbers away before they come in: +5% chance per level.',base:3000,g:1.55,max:100},
  {id:'flyers',k:'ad',e:'📄',n:'Flyers',d:'+5% customers.',base:150,g:1.45,max:100,f:.05},
  {id:'radio',k:'ad',e:'📻',n:'Radio Jingle',d:'+8% customers.',base:3000,g:1.5,max:100,f:.08},
  {id:'tv',k:'ad',e:'📺',n:'TV Spot',d:'+12% customers.',base:80000,g:1.55,max:100,f:.12},
@@ -387,7 +390,7 @@ function freshRec(){return {t1k:0,t1m:0,dayItems:0,dayProfit:0,rich:100,big:0,be
 function freshState(starter){var st={v:2,money:100,sold:0,run:0,earned:0,runEarned:0,stock:new Float64Array(NI),upg:{},exp:0,fp:0,fran:0,price:1,day:1,dayT:42,
  ip:new Float64Array(NI),seen:new Uint8Array(NI),fav:new Uint8Array(NI),nseen:0,auto:true,
  br:[],sup:0,orders:[],loan:0,trend:[1,1,1,1,1,1,1,1],comp:[1,1],sh:{cat:-1,left:0},acc:newAcc(),last:null,wk:{rev:0,cogs:0,waste:0,rent:0,wages:0,elec:0,tax:0,int:0,profit:0,days:0,fees:0,vat:0,fine:0},clean:100,insp:{n:0,fines:0,good:0},tut:0,ins:false,broke:{fridge:0,till:0},morale:1,raise:0,train:0,sick:0,loyal:0,rivNear:0,oh:8,ch:20,manual:false,eye:-1,imp:-1,regVisits:0,regv:[0,0,0,0,0,0,0,0,0,0,0,0],layout:[-1,-1,-1,-1,-1,-1],rel:[0,0,0],neg:[0,0,0],checkDel:false,job:{exp:0,skills:{cus:0,phy:0,num:0,care:0},jr:{},jh:{},rel:100,tired:0,shifts:0,net:0,ban:0},wkLast:null,
- rec:freshRec(),di:0,streak:0,best:false,riv:[0,0,0,0,0,0],rivBest:[0,0,0,0,0,0],rivSk:[1.15,.95,1,.8,.7,.6],rank:1,h24:false,rb:false,xtra:0,x1k:false,cup:{y0:0,riv:[0,0,0,0,0,0],wins:0,best:0,hist:[]},
+ rec:freshRec(),di:0,streak:0,best:false,riv:[0,0,0,0,0,0],rivBest:[0,0,0,0,0,0],rivSk:[1.15,.95,1,.8,.7,.6],rank:1,rob:{stop:0,hit:0,lost:0},h24:false,rb:false,xtra:0,x1k:false,cup:{y0:0,riv:[0,0,0,0,0,0],wins:0,best:0,hist:[]},
  ach:{},rep:3,clicks:0,vip:0,evSeen:0,celeb:0,away:0,played:0,won:false,savedAt:Date.now(),firstSale:false,muteHint:false};
  if(starter)for(var q=0;q<6;q++)st.stock[q]=50;return st}
 function serialize(st){var o={};for(var k in st){var v=st[k];
@@ -430,7 +433,7 @@ function sanitize(o){var st=freshState();if(!o||typeof o!=='object')return st;
  if(o.rec&&typeof o.rec==='object')for(var k in st.rec)st.rec[k]=num(o.rec[k],st.rec[k],-BIG,BIG);
  st.di=num(o.di,0,0,BIG);st.streak=num(o.streak,0,0,BIG);
  if(Array.isArray(o.riv))for(var i=0;i<6;i++){st.riv[i]=num(o.riv[i],0,0,BIG);st.rivBest[i]=num(o.rivBest&&o.rivBest[i],0,0,BIG);st.rivSk[i]=num(o.rivSk&&o.rivSk[i],st.rivSk[i],.4,1.5)}
- st.rank=Math.floor(num(o.rank,1,1,7));st.h24=!!o.h24;st.rb=!!o.rb;st.xtra=Math.floor(num(o.xtra,0,0,1e9));st.x1k=!!o.x1k||st.xtra>0;
+ st.rank=Math.floor(num(o.rank,1,1,7));st.h24=!!o.h24;if(o.rob&&typeof o.rob==='object'){st.rob={stop:Math.floor(num(o.rob.stop,0,0,1e9)),hit:Math.floor(num(o.rob.hit,0,0,1e9)),lost:num(o.rob.lost,0,0,1e300)}}st.rb=!!o.rb;st.xtra=Math.floor(num(o.xtra,0,0,1e9));st.x1k=!!o.x1k||st.xtra>0;
  if(o.cup&&typeof o.cup==='object'){var C=o.cup,sc=st.cup;sc.y0=num(C.y0,0,0,1e300);if(Array.isArray(C.riv))for(var i=0;i<6;i++)sc.riv[i]=num(C.riv[i],0,0,1e300);sc.wins=Math.floor(num(C.wins,0,0,1e6));sc.best=Math.floor(num(C.best,0,0,10));if(Array.isArray(C.hist))sc.hist=C.hist.slice(-50).map(function(h){return{y:Math.floor(num(h&&h.y,0,0,1e6)),r:Math.floor(num(h&&h.r,10,1,10)),v:num(h&&h.v,0,0,1e300)}})}
  st.savedAt=num(o.savedAt,Date.now(),0,Date.now()+60000);
  if(st.run>1e12)st.run=1e12;return st}
@@ -693,6 +696,15 @@ function cupCheck(offline){
   $('cupTxt').textContent=(rk===1?'🥇 YOU WON THE CUP! GRAND PRIZE = 10 x your money! ':rk<=3?'🏅 You came #'+rk+'! ':'You came #'+rk+' of 10. ')+'Prize: '+fmt(prize)+' SIP ('+(11-rk)+' x your money)'+(rk<=3?' (+reputation)':'');
   $('cupList').innerHTML=a.map(function(x,k){return '<div class="rec" style="'+(x.me?'background:#fff0b3;border-radius:8px;padding:6px':'')+'"><span>'+(k===0?'🥇':k===1?'🥈':k===2?'🥉':'#'+(k+1))+' '+x.e+' '+x.n+'</span><b>'+fmt(x.v)+' items</b></div>'}).join('');
   $('bCupOk').onclick=function(){show('ovCup',false)};show('ovCup',true)}}
+function robbery(offline){
+ var al=1-Math.pow(0.95,lv('alarm')),gd=1-Math.pow(0.96,lv('guard')),cv=1-Math.pow(0.97,lv('cctv'));
+ var who=['🦹 A masked robber','🥷 A sneaky thief','🦝 A raccoon bandit'][Math.floor(Math.random()*3)],msg;
+ if(Math.random()<al){msg='🚨 The alarm scared off '+who.toLowerCase()+'!';S.rob.stop++}
+ else if(Math.random()<gd){msg='💂 Your guard caught '+who.toLowerCase()+' at the door!';S.rob.stop++}
+ else if(S.money<50){msg=who+' came in but there was nothing to steal!'}
+ else{var loot=S.money*(0.01+Math.random()*0.04),back=loot*cv;S.money=cb(S.money-loot+back);S.rob.hit++;S.rob.lost+=loot-back;
+  msg=who+' stole '+fmt(loot)+' SIP!'+(back>0?' 📹 The cameras got '+fmt(back)+' SIP back.':' Buy a Security Guard, Cameras or an Alarm!')}
+ if(!offline)rivalAlert(msg,true)}
 function newDay(){dayChange(false)}
 
 /* main tick */
@@ -727,6 +739,9 @@ function tick(dt,offline){
   if(S.stock[c.item]<1){c.leave=1;c.sold_out=1;R.q=Math.max(0,R.q-1);addRep(0.15,1);floatText(c.x,170,'😞 Sold out...','#d32f2f');review('Sold out of '+ITEMS[c.item].n+'!',2);continue}
   c.pat-=dt;
   if(c.pat<=0){c.leave=1;R.q=Math.max(0,R.q-1);addRep(0,1);floatText(c.x,170,'Left...','#d32f2f')}}}
+ /* robbers: they come every few days, more often when the shop is closed */
+ if(R.robT===undefined)R.robT=240+Math.random()*240;
+ R.robT-=dt;if(R.robT<=0){R.robT=(240+Math.random()*240)*(d.open?1:0.6);if(!offline||(R.robOff=(R.robOff||0)+1)<=2)robbery(offline)}
  /* online orders: they come in all day and night, even when the shop is closed */
  if(lv('web')>0){var wr=lv('web')*Math.max(0.5,d.lamAvg*1.5);   // online buyers every second: as many as your shop's own customers, times the Online Shop level
   R.webAcc=(R.webAcc||0)+wr*dt;var wn=Math.floor(R.webAcc);R.webAcc-=wn;if(R.webAcc>Math.max(40,wr*2))R.webAcc=Math.max(40,wr*2);
@@ -1126,7 +1141,7 @@ function recordsHTML(){var rc=S.rec,h='';function L(a,b){h+='<div class="rec"><s
  L('😊 Longest happy-customer streak',fmtInt(rc.bestStreak));L('⭐ Highest reputation',rc.rep.toFixed(2)+' stars');
  L('🧑‍💼 Most staff',fmtInt(rc.staff));L('🏬 Most locations',fmtInt(rc.loc));L('🧬 Franchises',fmtInt(S.fran));
  L('📈 Best price-setting day (profit margin)',(rc.margin*100).toFixed(0)+'%');L('🧺 Collection',fmtInt(S.nseen)+' / '+fmtInt(NI));
- L('⏱️ Total play time',fmtTime(S.played));L('🛒 Total items sold (home + all branches)',fmt(totalSold()));L('💰 Total money earned (home + all branches)',fmt(S.earned)+' SIP');var bsum=0;S.br.forEach(function(b){bsum+=b.earned||0});if(S.br.length)L('🏬 Of that, earned by branches',fmt(bsum)+' SIP');L('🏁 Current rank',('#'+S.rank));L('🏆 Yearly Top 10 Cups won',S.cup.wins+' (best finish #'+(S.cup.best||'-')+')');
+ L('⏱️ Total play time',fmtTime(S.played));L('🛒 Total items sold (home + all branches)',fmt(totalSold()));L('💰 Total money earned (home + all branches)',fmt(S.earned)+' SIP');var bsum=0;S.br.forEach(function(b){bsum+=b.earned||0});if(S.br.length)L('🏬 Of that, earned by branches',fmt(bsum)+' SIP');L('🦹 Robbers stopped',S.rob.stop+' (robberies that got through: '+S.rob.hit+', SIP lost: '+fmt(S.rob.lost)+')');L('🏁 Current rank',('#'+S.rank));L('🏆 Yearly Top 10 Cups won',S.cup.wins+' (best finish #'+(S.cup.best||'-')+')');
  var bi=0;for(var i=1;i<6;i++)if(S.rivBest[i]>S.rivBest[bi])bi=i;
  L('🎯 Record to beat: best rival day',RIVALS[bi].e+' '+RIVALS[bi].n+' '+fmt(S.rivBest[bi])+' items');
  var tp=0;for(var i=1;i<6;i++)if(S.riv[i]>S.riv[tp])tp=i;L('🎯 Record to beat: top rival total',RIVALS[tp].e+' '+RIVALS[tp].n+' '+fmt(S.riv[tp])+' items');
@@ -1501,7 +1516,7 @@ function showWin(){confetti();$('winStats').textContent='Total earned: '+fmt(S.e
 function startGame(fresh){
  if(fresh){S=freshState(true);try{localStorage.removeItem(SAVE_KEY);if(!BR_ID)for(var q=1;q<=BRMAX;q++)localStorage.removeItem('sip_shop-tycoon_save_br'+q)}catch(e){}}
  resetRuntime();R.q=1;state='play';show('ovTitle',false);ac();buildBar(true);buildPanel();last=performance.now()}
-function offlineCatchup(){
+function offlineCatchup(){R.robOff=0;
  var secs=Math.min(OFFLINE_CAP,Math.max(0,(Date.now()-S.savedAt)/1000));
  if(secs<45)return;
  var s0=S.sold,m0=S.money;
