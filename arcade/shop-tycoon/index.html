@@ -712,7 +712,7 @@ function tick(dt,offline){
  if(R.wtDirty)weights();
  var d=derive();
  /* level-ups */
- var uc=R.u;if(uc>R.unlockSeen){if(!offline&&R.unlockSeen>0){var it=ITEMS[uc-1];toast('🔓 New item: '+it.e+' '+it.n+'!');sLevel()}R.unlockSeen=uc}
+ var uc=R.u;if(uc>R.unlockSeen){R.unlockSeen=uc}   // no pop-up when new items unlock
  /* arrivals */
  if(!d.open){if(R.q>0)R.q=Math.max(0,R.q-dt*4)}else R.q+=d.lam*dt;
  syncVis(offline,dt);runOrders(dt);
