@@ -293,7 +293,7 @@ function branchesTick(dt){var d=R.derived,m=d.pm*d.im;
  for(var i=0;i<S.br.length;i++){var b=S.br[i],base=brRate(b),inc=base*dt*m;if(inc<=0)continue;var items=base*dt*d.im/Math.pow(Math.max(1,R.unit/d.pm),0.95);
   S.money=cb(S.money+inc);S.earned=cb(S.earned+inc);S.runEarned=cb(S.runEarned+inc);S.sold=cb(S.sold+items);S.run+=items/d.im;S.di+=items;S.acc.rev=cb(S.acc.rev+inc);b.earned=cb(b.earned+inc);R.rate._s+=items;R.rate._c+=inc;
   if(!S.firstSale)S.firstSale=true}}
-function bigBasket(b){if(Math.random()<0.9)b=Math.max(5,Math.round(b*(1+Math.random()*0.6))+Math.floor(Math.random()*8));return Math.min(100,b)}   // customers usually order at least 5 things, never more than 100
+function bigBasket(b){if(Math.random()<0.9){var cap=Math.min(100,Math.max(14,b*8));b=Math.round(5*Math.pow(cap/5,Math.random()))}return Math.min(100,b)}   // every customer orders a different amount: usually 5 or more, never more than 100
 var CATVAT=[0.05,0.1,0.1,0.1,0.15,0.05,0,0.1];
 var SUPS=[{n:'Corner Supplier',m:1,min:1,dl:0,req:0,d:'Instant delivery, any amount, normal price.'},
  {n:'Wholesale Co',m:.9,min:10,dl:20,req:1,d:'-10% cost, min order 10, delivery 20s.'},
