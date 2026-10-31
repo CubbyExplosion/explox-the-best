@@ -928,8 +928,8 @@ window.addEventListener('resize',function(){try{syncFrames()}catch(e){}});
 if(!BR_ID)setInterval(function(){try{if(R.view>0&&S.br.length)drawSwitcher()}catch(e){}},1000);
 if(!BR_ID)setInterval(function(){try{if(!S||!brBox)return;for(var k=0;k<brBox.children.length;k++){var w=brBox.children[k].contentWindow;if(w)w.postMessage({sipSync:syncPayload()},location.origin)}}catch(e){}},500);
 window.addEventListener('message',function(e){
- if(BR_ID){if(e.origin===location.origin&&e.data&&e.data.sipStop){BRW.stop=true;return}var q=e.origin===location.origin&&e.data&&e.data.sipSync;if(q&&S){var un=S.money-BRW.ref;S.money=q.money+un;BRW.ref=q.money;BRW.ready=true;if(q.upg)for(var id in q.upg)if(!/^(cashier|stocker|greeter|manager|cleaner)$/.test(id))S.upg[id]=q.upg[id];   // staff stay different in every shop; other upgrades are shared
- S.exp=q.exp|0;S.fp=q.fp|0;S.fran=q.fran|0;S.xtra=q.xtra|0;S.x1k=true;S.oh=q.oh;S.ch=q.ch;S.h24=!!q.h24;R.wtDirty=true;try{derive()}catch(x){}}return}   // a branch is the same shop in another place: same money, upgrades, staff and hours as the main shop
+ if(BR_ID){if(e.origin===location.origin&&e.data&&e.data.sipStop){BRW.stop=true;return}var q=e.origin===location.origin&&e.data&&e.data.sipSync;if(q&&S){var un=S.money-BRW.ref;S.money=q.money+un;BRW.ref=q.money;BRW.ready=true;   // every shop has its own staff, upgrades and expansion; only the money (and the income boost) is shared
+ S.fp=q.fp|0;S.fran=q.fran|0;S.xtra=q.xtra|0;S.x1k=true;R.wtDirty=true;try{derive()}catch(x){}}return}   // a branch is the same shop in another place: same money, upgrades, staff and hours as the main shop
  if(e.origin!==location.origin||!S)return;var d=e.data;if(d&&d.sipSwitch){switchBy(d.sipSwitch);return}var id=d&&d.sipBranch,b=S.br[id-1],earned=d&&+d.earned;
  if(!b||!(earned>=0))return;if(d.md&&isFinite(d.md))S.money=cb(S.money+d.md);try{e.source.postMessage({sipSync:syncPayload()},location.origin)}catch(x){}
  if(d.sold>=0){b.sold=+d.sold;if(b.sold<b.got)b.got=b.sold;var ds=b.sold-b.got;if(ds>0){b.got=b.sold;S.sold=cb(S.sold+ds);S.run+=ds/Math.max(1,R.derived.im);S.di+=ds;R.rate._s+=ds}}   // the branch's items count for the main shop too (unlocks, level, goal)
@@ -1558,7 +1558,7 @@ buildTabs();
 setMute(muted);
 window.addEventListener('error',function(){});
 requestAnimationFrame(frame);
-if(BR_ID){document.addEventListener('keydown',function(e){if(e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;if(e.key==='['||e.key===']'){try{parent.postMessage({sipSwitch:e.key==='['?-1:1},location.origin)}catch(x){}}});document.body.classList.add('embed');var es=document.createElement('style');es.textContent='body.embed #brbar,body.embed #mXtra,body.embed #tabs [data-t=up],body.embed #tabs [data-t=ads],body.embed #tabs [data-t=bank],body.embed #tabs [data-t=fran]{display:none!important}';document.head.appendChild(es);
+if(BR_ID){document.addEventListener('keydown',function(e){if(e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;if(e.key==='['||e.key===']'){try{parent.postMessage({sipSwitch:e.key==='['?-1:1},location.origin)}catch(x){}}});document.body.classList.add('embed');var es=document.createElement('style');es.textContent='body.embed #brbar,body.embed #mXtra,body.embed #tabs [data-t=bank],body.embed #tabs [data-t=fran]{display:none!important}';document.head.appendChild(es);
  var sv=hasSave()?loadSave():null;if(sv){S=sv;startGame(false);BRW.ref=S.money;offlineCatchup()}else{startGame(true);BRW.ref=S.money}
  setInterval(function(){try{if(S&&state==='play')var m={sipBranch:BR_ID,earned:S.earned,sold:S.sold};if(BRW.ready){var md=S.money-BRW.ref;if(md){m.md=md;BRW.ref+=md}}if(S.nseen!==window.__seenSent){window.__seenSent=S.nseen;m.seen=serialize(S).seen}parent.postMessage(m,location.origin)}catch(e){}},2000)}
 
