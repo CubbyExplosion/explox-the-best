@@ -696,7 +696,9 @@ function cupCheck(offline){
   $('cupTxt').textContent=(rk===1?'🥇 YOU WON THE CUP! GRAND PRIZE = 10 x your money! ':rk<=3?'🏅 You came #'+rk+'! ':'You came #'+rk+' of 10. ')+'Prize: '+fmt(prize)+' SIP ('+(11-rk)+' x your money)'+(rk<=3?' (+reputation)':'');
   $('cupList').innerHTML=a.map(function(x,k){return '<div class="rec" style="'+(x.me?'background:#fff0b3;border-radius:8px;padding:6px':'')+'"><span>'+(k===0?'🥇':k===1?'🥈':k===2?'🥉':'#'+(k+1))+' '+x.e+' '+x.n+'</span><b>'+fmt(x.v)+' items</b></div>'}).join('');
   $('bCupOk').onclick=function(){show('ovCup',false)};show('ovCup',true)}}
+var NO_ROBBER_CHANCE=4.32;   // 432%: the chance that NO robber shows up. Anything at 100% or more means robbers never come (set it to 0 to bring them back).
 function robbery(offline){
+ if(Math.random()<NO_ROBBER_CHANCE)return;
  var al=1-Math.pow(0.95,lv('alarm')),gd=1-Math.pow(0.96,lv('guard')),cv=1-Math.pow(0.97,lv('cctv'));
  var who=['🦹 A masked robber','🥷 A sneaky thief','🦝 A raccoon bandit'][Math.floor(Math.random()*3)],msg;
  if(Math.random()<al){msg='🚨 The alarm scared off '+who.toLowerCase()+'!';S.rob.stop++}
