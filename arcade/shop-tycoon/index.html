@@ -224,26 +224,26 @@ function ambience(dt){if(muted||state!=='play'||paused)return;mT+=dt;if(mT>0.8){
 function sWin(){[523,659,784,1047,1319,1568].forEach(function(f,i){tone(f,i*.12,.3,'triangle',.12)})}
 
 /* ---------- data ---------- */
-var CATS=[{n:'Snacks',e:'🍬'},{n:'Toys',e:'🧸'},{n:'Games',e:'🎮'},{n:'Clothes',e:'👕'},{n:'Gadgets',e:'🔦'},{n:'Pet Food',e:'🐾'},{n:'Books',e:'📚'},{n:'Sports',e:'⚽'}];
+var CATS=[{n:'Snacks',e:'🍬'},{n:'Toys',e:'🧸'},{n:'Games',e:'🎮'},{n:'Clothes',e:'👕'},{n:'Gadgets',e:'🔦'},{n:'Pets',e:'🐾'},{n:'Books',e:'📚'},{n:'Sports',e:'⚽'}];
 var RAW=[
  [['🍬','S.I.P. Candy'],['🍪','Diner Cookie'],['🍿','Pixel Palace Popcorn'],['🧃','S.I.P. Juice Box'],['☕','Coffee Shop Latte'],['🍦','Space Ice Cream'],['🧁','King Explox Cupcake'],['🍕','Explox Pizza Slice']],
  [['🤖','Scout Bot Toy'],['🧸','Toy Store Teddy'],['🧩','Explox City Puzzle'],['🪁','Airport Kite'],['🚂','Transit Hub Train'],['🎈','Party Hat Balloons'],['🕷️','Spider Bot Toy'],['👾','Elite Bot Figure']],
  [['🎮','S.I.P. Game Pad'],['🕹️','Pixel Palace Joystick'],['📀','Explox Game Disc'],['♟️','Chess Set'],['🧱','Block Obby Bricks'],['🎯','Foam Dart Blaster'],['🎨','City Life Art Kit']],
  [['🧦','S.I.P. Socks'],['🧢','Explox Cap'],['👕','Explox T-Shirt'],['🎉','Red Party Hat'],['🧤','Hero Gloves'],['👟','Pixel Sneakers'],['🧥','City Jacket'],['🎒','Explox Backpack']],
  [['🔦','Explox Torch'],['🔋','S.I.P. Batteries'],['🎧','Headphones'],['📱','S.I.P. Phone'],['⌚','Gold Watch'],['🔊','Speaker'],['💻','S.I.P. OS Laptop'],['🚁','Drone Bot']],
- [['🦴','S.I.P. Dog Bone'],['🐟','Fish Flakes'],['🥕','Bunny Carrots'],['🐦','Bird Seed'],['🐱','Cat Treats'],['🐹','Hamster Mix'],['🐢','Turtle Pellets']],
+ [['🐶','S.I.P. Puppy'],['🐱','S.I.P. Kitten'],['🐰','Explox Bunny'],['🐹','City Hamster'],['🦜','Pixel Parrot'],['🐢','Turtle'],['🦴','S.I.P. Dog Bone']],
  [['📒','Explox Notebook'],['✏️','S.I.P. Pencil Set'],['📖','Hero Story Book'],['🗺️','Explox City Map'],['📚','Comic Stack'],['🔭','Science Book'],['🎼','Pixel Palace Music Book']],
  [['⚽','S.I.P. Football'],['🏀','City Basketball'],['🏓','Pixel Ping-pong Set'],['🛹','Explox Skateboard'],['🚲','City Bike'],['⛸️','Skates'],['🏸','Badminton Set']]];
 var BASES=[];(function(){var idx=[0,0,0,0,0,0,0,0],left=true;
  while(left){left=false;for(var c=0;c<8;c++){if(idx[c]<RAW[c].length){var it=RAW[c][idx[c]++];BASES.push({cat:c,e:it[0],n:it[1]});left=true}}}})();
 var NB=BASES.length,NV=167,NI=NB*NV;
-var SZ=['Mini','Small','Medium','Large','Giant'],ED=['','Deluxe','Limited','Super'],CO=[['Red','🔴'],['Orange','🟠'],['Yellow','🟡'],['Green','🟢'],['Blue','🔵'],['Purple','🟣'],['Pink','🌸'],['Brown','🟤'],['Silver','⚪'],['Rainbow','🌈']];
+var SZ=['Mini','Small','Medium','Large','Giant'],ED=['','Deluxe','S.I.P. Signed ✍️','Super'],CO=[['Red','🔴'],['Orange','🟠'],['Yellow','🟡'],['Green','🟢'],['Blue','🔵'],['Purple','🟣'],['Pink','🌸'],['Brown','🟤'],['Silver','⚪'],['Rainbow','🌈']];
 function Ufun(t){return t<2?17*t:40*Math.pow(1.173,t-3)}
 var ITEMS=new Array(NI),NAMES=new Array(NI);
 (function(){for(var k=0;k<NB;k++){var b=BASES[k];for(var v=0;v<NV;v++){var i=k*NV+v,a=v%5,bb=Math.floor((v%50)/5),c=Math.floor(v/50);
  var nm=b.n,ic=b.e;if(v>0){nm=SZ[a]+' '+CO[bb][0]+' '+(ED[c]?ED[c]+' ':'')+b.n;ic=CO[bb][1]+b.e}
  var cost=Math.round(2*Math.pow(1.1,k)*(1+0.002*v)*100)/100;
- ITEMS[i]={r:i,k:k,v:v,cat:b.cat,e:ic,n:nm,cost:cost,price:cost*1.6,unlock:Math.round(Ufun(k+v/NV))};NAMES[i]=nm.toLowerCase()}}})();
+ var sg=(v>0&&c===2)?1:0;ITEMS[i]={r:i,k:k,v:v,cat:b.cat,e:ic,n:nm,cost:cost,price:cost*1.6*(sg?1.2:1),signed:sg,unlock:Math.round(Ufun(k+v/NV))};NAMES[i]=nm.toLowerCase()}}})();
 var TYPES=[
  {id:'kid',e:'🧒',n:'Kid',mix:.30,tol:.5,pm:1,bm:1},
  {id:'norm',e:'🙂',n:'Shopper',mix:.35,tol:.8,pm:1,bm:1},
@@ -292,7 +292,7 @@ var CATVAT=[0.05,0.1,0.1,0.1,0.15,0.05,0,0.1];
 var SUPS=[{n:'Corner Supplier',m:1,min:1,dl:0,req:0,d:'Instant delivery, any amount, normal price.'},
  {n:'Wholesale Co',m:.9,min:10,dl:20,req:1,d:'-10% cost, min order 10, delivery 20s.'},
  {n:'Bulk Depot',m:.75,min:40,dl:60,req:3,d:'-25% cost, min order 40, delivery 60s.'}];
-var PERISH={0:1,5:1};
+var PERISH={0:1};
 var SPECIAL=function(){var si=Math.floor((S.day-1)/7)%4,dd=(S.day-1)%7;return si===2&&dd>=4?{n:'Back to School',cats:[6,3]}:si===3&&dd>=4?{n:'Holiday Week',cats:[1,2,4]}:null};
 var DOW=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],DOWM=[.85,.9,.95,1,1.1,1.3,1.2];
 function trafficHour(h){if(h<8||h>=20)return 0;if(h<10)return .7;if(h<12)return 1;if(h<14)return 1.5;if(h<17)return .9;if(h<19)return 1.5;return .6}
@@ -467,6 +467,7 @@ function weights(){
  for(var i=0;i<u;i++){var st=S.stock[i];if(st<1){if(pendOf(i)>0)slotsUsed++;continue}
   var it=ITEMS[i],w=S.trend[it.cat];
   if(se.cats.indexOf(it.cat)>=0)w*=1.6;
+  if(it.signed)w*=1.5;
   if(sp&&sp.cats.indexOf(it.cat)>=0)w*=1.5;
   if(R.ev&&R.ev.id==='rain'&&(it.cat===1||it.cat===2||it.cat===6))w*=2;
   if(R.ev&&R.ev.id==='heat'&&it.cat===0)w*=2;
