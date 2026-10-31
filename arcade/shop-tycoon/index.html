@@ -329,6 +329,7 @@ var UPG=[
  {id:'warehouse',k:'up',e:'🏭',n:'Warehouse',d:'Faster deliveries (-6% time) and slower spoilage.',base:2000,g:1.7,max:100},
  {id:'racks',k:'up',e:'🧱',n:'Display Racks',d:'+25% shelf slots (different items on sale at once).',base:300,g:1.6,max:100},
  {id:'whole',k:'up',e:'🤝',n:'Wholesale Deal',d:'-2% stock cost.',base:500,g:1.7,max:100},
+ {id:'web',k:'up',e:'🌐',n:'Online Shop',d:'Sells online even when the shop is closed or it is night: +0.5 orders every second per level.',base:5000,g:1.35,max:100},
  {id:'flyers',k:'ad',e:'📄',n:'Flyers',d:'+5% customers.',base:150,g:1.45,max:100,f:.05},
  {id:'radio',k:'ad',e:'📻',n:'Radio Jingle',d:'+8% customers.',base:3000,g:1.5,max:100,f:.08},
  {id:'tv',k:'ad',e:'📺',n:'TV Spot',d:'+12% customers.',base:80000,g:1.55,max:100,f:.12},
@@ -726,6 +727,8 @@ function tick(dt,offline){
   if(S.stock[c.item]<1){c.leave=1;c.sold_out=1;R.q=Math.max(0,R.q-1);addRep(0.15,1);floatText(c.x,170,'😞 Sold out...','#d32f2f');review('Sold out of '+ITEMS[c.item].n+'!',2);continue}
   c.pat-=dt;
   if(c.pat<=0){c.leave=1;R.q=Math.max(0,R.q-1);addRep(0,1);floatText(c.x,170,'Left...','#d32f2f')}}}
+ /* online orders: they come in all day and night, even when the shop is closed */
+ if(lv('web')>0){R.webAcc=(R.webAcc||0)+lv('web')*0.5*dt;var wn=Math.min(20,Math.floor(R.webAcc));R.webAcc-=wn;if(R.webAcc>40)R.webAcc=40;for(var wk=0;wk<wn;wk++){if(serveOne(null,false))R.webN=(R.webN||0)+1}}
  /* auto-serve */
  if(d.cr>0){R.autoAcc+=d.cr*dt;var n=Math.floor(R.autoAcc);
   n=Math.min(n,Math.floor(R.q));R.autoAcc-=n;if(R.autoAcc>Math.max(1,d.cr))R.autoAcc=Math.max(1,d.cr);
@@ -1150,7 +1153,7 @@ function updateHUD(){
   $('nextTxt').textContent='Next unlock: '+nxt.e+' '+nxt.n+' at '+fmtInt(nxt.unlock)+' sold ('+fmtInt(nxt.unlock-S.run)+' to go) - '+fmtInt(u)+' / '+fmtInt(NI)+' items unlocked'}
  else{$('lvlBar').style.width='100%';$('nextTxt').textContent='Every item unlocked!'}
  var se=SEASONS[Math.floor((S.day-1)/7)%4],h=Math.floor(d.hour),mn=Math.floor((d.hour-h)*60);
- $('stat').innerHTML='<span>📅 '+DOW[(S.day-1)%7]+' D'+S.day+' 🕐 '+('0'+h).slice(-2)+':'+('0'+mn).slice(-2)+' '+(d.open?'OPEN':'CLOSED')+'</span><span>'+se.e+' '+se.n+'</span><span>'+stars(S.rep)+'</span><span>👥 '+fmt(d.lam)+'/s</span><span>🛒 '+fmt(R.rate.sold)+' items/s</span><span>💵 '+fmt(R.rate.cash)+' SIP/s</span><span>🏪 Home '+fmt(Math.min(R.rate.main,BR_CAP))+'/1000'+(R.capHitT>R_t-3?' capped!':'')+'</span><span>🏬 Shops '+(S.br.length+1)+'</span>'+(S.br.length?'<span>🌍 '+fmt(totalSold())+' sold in all shops</span><span>💰 '+fmt(S.earned)+' SIP earned in all shops</span>':'')+'<span>🧺 '+fmtInt(S.nseen)+'/'+fmtInt(NI)+'</span>'+
+ $('stat').innerHTML='<span>📅 '+DOW[(S.day-1)%7]+' D'+S.day+' 🕐 '+('0'+h).slice(-2)+':'+('0'+mn).slice(-2)+' '+(d.open?'OPEN':'CLOSED')+'</span><span>'+se.e+' '+se.n+'</span><span>'+stars(S.rep)+'</span><span>👥 '+fmt(d.lam)+'/s</span><span>🛒 '+fmt(R.rate.sold)+' items/s</span><span>💵 '+fmt(R.rate.cash)+' SIP/s</span><span>🏪 Home '+fmt(Math.min(R.rate.main,BR_CAP))+'/1000'+(R.capHitT>R_t-3?' capped!':'')+'</span><span>🏬 Shops '+(S.br.length+1)+'</span>'+(S.br.length?'<span>🌍 '+fmt(totalSold())+' sold in all shops</span><span>💰 '+fmt(S.earned)+' SIP earned in all shops</span>':'')+''+(lv('web')?'<span>🌐 '+fmtInt(R.webN||0)+' online orders</span>':'')+'<span>🧺 '+fmtInt(S.nseen)+'/'+fmtInt(NI)+'</span>'+
   (S.loan>0?'<span>🏦 '+fmt(S.loan)+'</span>':'')+(S.broke.fridge?'<span class="chip">🧊 fridge broken</span>':'')+(S.broke.till?'<span class="chip">🧾 till broken</span>':'')+(S.sick>0?'<span class="chip">🤒 sick day</span>':'')+(S.manual?'<span class="chip">🚪 closed</span>':'')+(S.rivNear>0?'<span class="chip">🏪 rival nearby</span>':'')+(R.review?'<span>💬 '+R.review.t+'</span>':'')+
   (S.fp?'<span>🧬 '+S.fp+' FP</span>':'')+(R.ev?'<span class="chip">'+R.ev.e+' '+R.ev.n+' '+Math.ceil(R.evLeft)+'s</span>':'')}
 
