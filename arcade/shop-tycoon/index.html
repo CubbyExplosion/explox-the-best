@@ -250,6 +250,10 @@ var tcn=0;
  var nm=bn,ic=be;if(v>0){nm=SZ[a]+' '+CO[bb][0]+' '+(ED[c]?ED[c]+' ':'')+bn;ic=CO[bb][1]+be}
  var cost=Math.round((bc||2*Math.pow(1.1,k))*(1+0.002*v)*100)/100;
  var sg=(v>0&&c===2)?1:0;ITEMS[i]={r:i,k:k,v:v,cat:b.cat,e:ic,n:nm,cost:cost,price:cost*1.6*(sg?1.2:1),signed:sg,unlock:Math.round(Ufun(k+v/NV))};NAMES[i]=nm.toLowerCase()}}})();
+/* price caps: nothing costs more than 1,000 SIP, except electronics (10,000 SIP). Prices below a tenth of the cap stay as they were; the expensive end is squeezed to fit under the cap. */
+(function(){var mx=[0,0,0,0,0,0,0,0],i,it;for(i=0;i<NI;i++){it=ITEMS[i];if(it.price>mx[it.cat])mx[it.cat]=it.price}
+ for(i=0;i<NI;i++){it=ITEMS[i];var cap=it.cat===4?10000:1000,knee=cap/10;if(mx[it.cat]<=cap||it.price<=knee)continue;
+  var e=Math.log(cap/knee)/Math.log(mx[it.cat]/knee),np=knee*Math.pow(it.price/knee,e),r=np/it.price;it.price=np;it.cost=it.cost*r}})();
 var TYPES=[
  {id:'kid',e:'🧒',n:'Kid',mix:.30,tol:.5,pm:1,bm:1},
  {id:'norm',e:'🙂',n:'Shopper',mix:.35,tol:.8,pm:1,bm:1},
