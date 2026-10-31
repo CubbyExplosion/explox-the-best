@@ -910,8 +910,10 @@ function drawSwitcher(){
  var h=document.createElement('span');h.textContent='[ ] keys';h.style.cssText='align-self:center;font-size:11px;color:#fff;opacity:.8;padding:0 4px';swBox.appendChild(h)}
 document.addEventListener('keydown',function(e){if(BR_ID||!S||e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;if(e.key==='[')switchBy(-1);else if(e.key===']')switchBy(1)});
 window.addEventListener('resize',function(){try{syncFrames()}catch(e){}});
+if(!BR_ID)setInterval(function(){try{if(!S||!brBox)return;for(var k=0;k<brBox.children.length;k++){var w=brBox.children[k].contentWindow;if(w)w.postMessage({sipXtra:S.xtra||0},location.origin)}}catch(e){}},1500);
 window.addEventListener('message',function(e){
- if(BR_ID||e.origin!==location.origin||!S)return;var d=e.data;if(d&&d.sipSwitch){switchBy(d.sipSwitch);return}var id=d&&d.sipBranch,b=S.br[id-1],earned=d&&+d.earned;
+ if(BR_ID){if(e.origin===location.origin&&e.data&&e.data.sipXtra>=0&&S){S.xtra=Math.floor(e.data.sipXtra);S.x1k=S.x1k||S.xtra>0}return}   // a branch gets the boosts bought in the main game
+ if(e.origin!==location.origin||!S)return;var d=e.data;if(d&&d.sipSwitch){switchBy(d.sipSwitch);return}var id=d&&d.sipBranch,b=S.br[id-1],earned=d&&+d.earned;
  if(!b||!(earned>=0))return;if(d.sold>=0)b.sold=+d.sold;if(earned<b.sent)b.sent=earned;var delta=earned-b.sent;
  if(delta>0){var now=performance.now(),dt=Math.max(0.5,(now-(R.brT[id-1]||now-2000))/1000);R.brT[id-1]=now;R.brR[id-1]=R.brR[id-1]!==undefined?R.brR[id-1]*0.6+delta/dt*0.4:delta/dt;
   S.money=cb(S.money+delta);S.earned=cb(S.earned+delta);S.runEarned=cb(S.runEarned+delta);S.acc.rev=cb(S.acc.rev+delta);b.earned=cb(b.earned+delta);b.sent=earned;R.rate._c+=delta}
@@ -1537,7 +1539,7 @@ buildTabs();
 setMute(muted);
 window.addEventListener('error',function(){});
 requestAnimationFrame(frame);
-if(BR_ID){document.addEventListener('keydown',function(e){if(e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;if(e.key==='['||e.key===']'){try{parent.postMessage({sipSwitch:e.key==='['?-1:1},location.origin)}catch(x){}}});document.body.classList.add('embed');var es=document.createElement('style');es.textContent='body.embed #brbar{display:none!important}';document.head.appendChild(es);
+if(BR_ID){document.addEventListener('keydown',function(e){if(e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;if(e.key==='['||e.key===']'){try{parent.postMessage({sipSwitch:e.key==='['?-1:1},location.origin)}catch(x){}}});document.body.classList.add('embed');var es=document.createElement('style');es.textContent='body.embed #brbar,body.embed #mXtra{display:none!important}';document.head.appendChild(es);
  var sv=hasSave()?loadSave():null;if(sv){S=sv;startGame(false);offlineCatchup()}else startGame(true);
  setInterval(function(){try{if(S&&state==='play')parent.postMessage({sipBranch:BR_ID,earned:S.earned,sold:S.sold},location.origin)}catch(e){}},2000)}
 
