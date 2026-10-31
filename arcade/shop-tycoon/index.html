@@ -1129,7 +1129,7 @@ function refreshPanel(){for(var i=0;i<rows.length;i++){try{
 
 function updateHUD(){
  var d=R.derived;
- $('money').textContent='💰 '+fmt(S.money)+' SIP';
+ $('money').textContent=BR_ID?'🏪 Home money: '+fmt(S.money)+' SIP (this shop has none of its own)':'💰 '+fmt(S.money)+' SIP';
  var nm=nextMile(),pv=0;for(var i=0;i<MILES.length;i++)if(S.sold>=MILES[i][0])pv=MILES[i][0];
  if(nm<0){$('goalTxt').textContent='Items sold: '+fmt(S.sold)+' (Best Shop on Earth!)';$('goalBar').style.width='100%'}
  else if(nm===0){$('goalTxt').textContent='Items sold: '+fmtInt(S.sold)+' / 1,000,000';$('goalBar').style.width=Math.min(100,S.sold/GOAL*100)+'%'}
