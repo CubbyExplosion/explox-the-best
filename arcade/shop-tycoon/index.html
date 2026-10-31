@@ -226,14 +226,14 @@ function sWin(){[523,659,784,1047,1319,1568].forEach(function(f,i){tone(f,i*.12,
 /* ---------- data ---------- */
 var CATS=[{n:'Snacks',e:'🍬'},{n:'Toys',e:'🧸'},{n:'Games',e:'🎮'},{n:'Clothes',e:'👕'},{n:'Gadgets',e:'🔦'},{n:'Pet Food',e:'🐾'},{n:'Books',e:'📚'},{n:'Sports',e:'⚽'}];
 var RAW=[
- [['🍬','Candy'],['🍪','Cookie'],['🍿','Popcorn'],['🧃','Juice Box'],['🥨','Pretzel'],['🍦','Ice Cream'],['🧁','Cupcake'],['🍕','Pizza Slice']],
- [['🪀','Yo-yo'],['🧸','Teddy Bear'],['🧩','Puzzle'],['🪁','Kite'],['🚂','Toy Train'],['🎈','Balloons'],['🤖','Robot Toy'],['🪆','Doll Set']],
- [['🎮','Game Pad'],['🕹️','Joystick'],['📀','Game Disc'],['♟️','Chess Set'],['🧱','Brick Set'],['🎯','Dart Board'],['🎨','Art Kit']],
- [['🧦','Socks'],['🧢','Cap'],['👕','T-Shirt'],['🧣','Scarf'],['🧤','Gloves'],['👟','Sneakers'],['🧥','Jacket'],['🎒','Backpack']],
- [['🔦','Torch'],['🔋','Batteries'],['🎧','Headphones'],['📷','Camera'],['⌚','Watch'],['🔊','Speaker'],['💻','Laptop'],['🚁','Drone']],
- [['🦴','Dog Bone'],['🐟','Fish Flakes'],['🥕','Bunny Carrots'],['🐦','Bird Seed'],['🐱','Cat Treats'],['🐹','Hamster Mix'],['🐢','Turtle Pellets']],
- [['📒','Notebook'],['✏️','Pencil Set'],['📖','Story Book'],['🗺️','Atlas'],['📚','Comic Stack'],['🔭','Science Book'],['🎼','Music Book']],
- [['⚽','Football'],['🏀','Basketball'],['🏓','Ping-pong Set'],['🛹','Skateboard'],['🚲','Bike'],['⛸️','Skates'],['🏸','Badminton Set']]];
+ [['🍬','S.I.P. Candy'],['🍪','Diner Cookie'],['🍿','Pixel Palace Popcorn'],['🧃','S.I.P. Juice Box'],['☕','Coffee Shop Latte'],['🍦','Space Ice Cream'],['🧁','King Explox Cupcake'],['🍕','Explox Pizza Slice']],
+ [['🤖','Scout Bot Toy'],['🧸','Toy Store Teddy'],['🧩','Explox City Puzzle'],['🪁','Airport Kite'],['🚂','Transit Hub Train'],['🎈','Party Hat Balloons'],['🕷️','Spider Bot Toy'],['👾','Elite Bot Figure']],
+ [['🎮','S.I.P. Game Pad'],['🕹️','Pixel Palace Joystick'],['📀','Explox Game Disc'],['♟️','Chess Set'],['🧱','Block Obby Bricks'],['🎯','Foam Dart Blaster'],['🎨','City Life Art Kit']],
+ [['🧦','S.I.P. Socks'],['🧢','Explox Cap'],['👕','Explox T-Shirt'],['🎉','Red Party Hat'],['🧤','Hero Gloves'],['👟','Pixel Sneakers'],['🧥','City Jacket'],['🎒','Explox Backpack']],
+ [['🔦','Explox Torch'],['🔋','S.I.P. Batteries'],['🎧','Headphones'],['📱','S.I.P. Phone'],['⌚','Gold Watch'],['🔊','Speaker'],['💻','S.I.P. OS Laptop'],['🚁','Drone Bot']],
+ [['🦴','S.I.P. Dog Bone'],['🐟','Fish Flakes'],['🥕','Bunny Carrots'],['🐦','Bird Seed'],['🐱','Cat Treats'],['🐹','Hamster Mix'],['🐢','Turtle Pellets']],
+ [['📒','Explox Notebook'],['✏️','S.I.P. Pencil Set'],['📖','Hero Story Book'],['🗺️','Explox City Map'],['📚','Comic Stack'],['🔭','Science Book'],['🎼','Pixel Palace Music Book']],
+ [['⚽','S.I.P. Football'],['🏀','City Basketball'],['🏓','Pixel Ping-pong Set'],['🛹','Explox Skateboard'],['🚲','City Bike'],['⛸️','Skates'],['🏸','Badminton Set']]];
 var BASES=[];(function(){var idx=[0,0,0,0,0,0,0,0],left=true;
  while(left){left=false;for(var c=0;c<8;c++){if(idx[c]<RAW[c].length){var it=RAW[c][idx[c]++];BASES.push({cat:c,e:it[0],n:it[1]});left=true}}}})();
 var NB=BASES.length,NV=167,NI=NB*NV;
