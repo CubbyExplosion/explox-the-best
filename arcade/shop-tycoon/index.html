@@ -96,6 +96,7 @@ table.rp{width:100%;border-collapse:collapse;font-size:14px}table.rp td,table.rp
   <div class="logo"><img class="lg" data-logo="1" alt="S.I.P."> SUPER SIP<small>S.I.P. ARCADE</small></div>
   <div class="pill money" id="money">💰 100 SIP</div>
   <div style="display:flex;gap:6px">
+   <button class="iconbtn" id="bHome" title="Leave the shop and sleep at home">🏠</button>
    <button class="iconbtn" id="bJobs" title="Job Centre">💼</button>
    <button class="iconbtn" id="bGfx" title="Graphics: Realistic / Lite / Cartoon">🎨</button>
    <button class="iconbtn" id="bRank" title="Top Shops">🏁</button>
@@ -643,7 +644,7 @@ function closeBooks(){
  return rep}
 function dayChange(offline){
  var rep=closeBooks();
- S.day++;S.dayT=0;R.wtDirty=true;R.ev=null;cupCheck(offline);
+ S.day++;S.dayT=0;R.wtDirty=true;R.ev=null;cupCheck(offline&&!R.sleeping);
  if(S.sick>0)S.sick--;else if(staffTotal()>2&&Math.random()<0.08){S.sick=1;if(!offline)toast('🤒 Some staff are off sick today. Work is slower.')}
  for(var q=0;q<3;q++)if(S.neg[q]>0)S.neg[q]--;
  if(S.rivNear>0)S.rivNear--;else if(S.day>=6&&Math.random()<0.06){S.rivNear=3;if(!offline)toast('🏪 A rival shop opened nearby! Fewer customers for a few days.',true)}
@@ -1439,6 +1440,12 @@ function offlineCatchup(){
  var ds=S.sold-s0,dm=S.money-m0;
  if(ds>0||dm>0){S.away++;$('awayTxt').innerHTML='You were away for <b>'+fmtTime(secs)+'</b>'+(secs>=OFFLINE_CAP?' (max 8 hours)':'')+'.<br>Your staff sold <b>'+fmtInt(ds)+'</b> items and your money changed by <b>'+(dm>=0?'+':'')+fmt(dm)+' SIP</b>.';show('ovAway',true)}
 }
+function goHome(){
+ if(state!=='play'||R.work||R.sleeping)return;
+ var d0=S.day,s0=S.sold,n=0;R.sleeping=true;
+ try{while(S.day===d0&&n<3000){tick(1,true);n++}}finally{R.sleeping=false}
+ R.q=0;R.vis=[];R.ev=null;S.morale=1;S.sick=0;if(S.job)S.job.tired=0;
+ toast('🏠😴 You slept at home. Good morning! Day '+S.day+' - your staff sold '+fmtInt(S.sold-s0)+' items while you slept.');save()}
 function togglePause(){if(state!=='play')return;paused=!paused;show('ovPause',paused);if(!paused)last=performance.now()}
 function setMute(m){muted=m;$('bMute').textContent=m?'🔇':'🔊';try{localStorage.setItem('sip_shop-tycoon_mute',m?'1':'0')}catch(e){}}
 
@@ -1448,6 +1455,7 @@ $('bHow').onclick=function(){show('ovHow',true)};$('bHowClose').onclick=function
 $('bReset').onclick=function(){confirmBox('Reset save?','Delete your saved shop for good?',resetSave)};
 $('bPauseReset').onclick=function(){confirmBox('Reset save?','Delete your saved shop for good?',resetSave)};
 $('bResume').onclick=togglePause;$('bPause').onclick=togglePause;
+$('bHome').onclick=function(){confirmBox('🏠 Go home and sleep?','You leave the shop to sleep in your house. Your staff keep the shop running until morning, and you wake up fully rested (staff morale back to full).',goHome)};
 $('bJobs').onclick=openJobs;$('bJobsClose').onclick=function(){show('ovJobs',false)};$('payOk').onclick=function(){show('ovPay',false)};
 $('wkSkip').onclick=function(){if(R.work){R.work.auto=true;R.work.t=0;updateWork()}};$('wkQuit').onclick=function(){finishShift(true)};
 $('brokeNo').onclick=function(){show('ovBroke',false)};$('brokeYes').onclick=function(){show('ovBroke',false);openJobs()};
