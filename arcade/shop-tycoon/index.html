@@ -445,8 +445,8 @@ var R={q:0,vis:[],autoAcc:0,stockAcc:0,ev:null,evLeft:0,sr:[],derived:null,parts
  rate:{sold:0,cash:0,cust:0,main:0,_m:0,_s:0,_c:0,_u:0,_t:0},unlockSeen:0,wtDirty:true,wt:null,wtSum:1,ptr:0,lastRep:3,msgs:[]};
 R.brR=[];R.brT=[];R.sr=new Float64Array(NI);R.actI=[];R.actW=[];R.actR=[];R.actP=[];R.nAct=0;R.lump=0;R.emaRate=0;R.lastSold=0;R.happy=1;R.riv={};R.u=0;
 
-function maxStaff(){return 6+6*S.exp}
-function maxMgr(){return 5+3*S.exp}
+function maxStaff(){return 100}   // every staff type can reach level 100
+function maxMgr(){return 100}
 function upMax(u){return u.max==='staff'?maxStaff():u.max==='mgr'?maxMgr():u.max}
 function upCost(u){var l=lv(u.id);var c=u.base*Math.pow(u.g,l)*R.derived.im;return c<1e9?Math.ceil(c):c}
 function curEvent(){return R.ev}
