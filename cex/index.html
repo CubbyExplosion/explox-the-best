@@ -97,7 +97,7 @@ if(!LS.get('cex_since',0))LS.set('cex_since',Date.now());
 
 /* pretend fans drop friendly comments from time to time (they are labelled "pretend") */
 setInterval(function(){if($('app').style.display==='none'||!items.length||Math.random()<0.6)return;var it=items[Math.floor(Math.random()*items.length)],f=FANS[Math.floor(Math.random()*FANS.length)];
- it.comments.push({n:f[0],e:f[1],t:FANSAY[Math.floor(Math.random()*FANSAY.length)],p:1,at:Date.now()});it.likes+=Math.floor(Math.random()*3);saveItems();if($('t-home').classList.contains('on'))renderHome()},9000);
+ it.comments.push({n:f[0],e:f[1],t:FANSAY[Math.floor(Math.random()*FANSAY.length)],p:1,at:Date.now()});it.likes+=Math.floor(Math.random()*3);saveItems();if($('t-home').classList.contains('on')&&!(document.activeElement&&document.activeElement.tagName==='INPUT'))renderHome()},9000);
 
 /* ---------- views ---------- */
 function enter(){$('lock').style.display='none';$('app').style.display='block';$('who').textContent=acct.av+' '+acct.nick;renderHome();renderCreate();renderFriends();renderLists();renderTop();renderMe()}
@@ -106,10 +106,16 @@ navs.forEach(function(b){b.onclick=function(){navs.forEach(function(x){x.classLi
 
 function thId(it){return it.thumb||(it.type!=='video'&&it.type!=='short'&&it.media&&it.media[0])||''}
 function thumbHTML(it){return '<div class="th" data-open="'+it.id+'"><span class="badge">'+(it.type==='video'?'🎬 Video':it.type==='short'?'📱 Short':it.type==='slides'?'🖼️ Slideshow':'📝 Post')+'</span><img data-img="'+thId(it)+'" alt=""'+(!thId(it)?' style="display:none"':'')+'>'+(!thId(it)?'<div style="font-size:42px;padding:20px;text-align:center">'+esc((it.text||it.title||'').slice(0,90))+'</div>':'')+'</div>'}
+var replyTo=null;
+function commentHTML(it,c,i){var key=it.id+':'+i;
+ return '<div class="cm"><b>'+esc(c.e||'😎')+' '+esc(c.n)+'</b>'+(c.p?'<span class="pretend">pretend fan</span>':'')+' '+esc(c.t)+
+  '<div class="row" style="margin-top:4px;gap:6px"><button data-clike="'+key+'" class="'+(c.liked?'p':'')+'" style="padding:2px 8px;font-size:12px">'+(c.liked?'💖':'🤍')+' '+(c.likes||0)+'</button><button data-creply="'+key+'" style="padding:2px 8px;font-size:12px">↩ Reply</button></div>'+
+  (c.replies||[]).map(function(r){return '<div class="cm" style="margin-left:22px;border-top:0;padding:3px 0"><b>↳ '+esc(r.e||'😎')+' '+esc(r.n)+'</b>'+(r.p?'<span class="pretend">pretend fan</span>':'')+' '+esc(r.t)+'</div>'}).join('')+
+  (replyTo===key?'<div class="row" style="margin:6px 0 2px 22px"><input data-rin="'+key+'" placeholder="Write a reply..." maxlength="140" style="flex:1"><button class="g" data-csendr="'+key+'">Reply</button><button data-ccancel="1">✖</button></div>':'')+'</div>'}
 function cardHTML(it){
  return '<div class="card" id="c-'+it.id+'">'+thumbHTML(it)+'<div class="in"><h3>'+esc(it.title||'Post')+'</h3>'+(it.type==='post'&&it.text?'<div>'+esc(it.text)+'</div>':'')+'<div class="mut">'+acct.av+' '+esc(acct.nick)+' · '+ago(it.at)+'</div>'+
   '<div class="row" style="margin:8px 0"><button data-like="'+it.id+'"'+(it.liked?' class="p" title="You already liked this"':'')+'>'+(it.liked?'💖':'❤️')+' '+it.likes+'</button><button data-open="'+it.id+'">▶ Open</button><button class="r" data-del="'+it.id+'">🗑</button></div>'+
-  '<div>'+it.comments.slice(-4).map(function(c){return '<div class="cm"><b>'+esc(c.e||'😎')+' '+esc(c.n)+'</b>'+(c.p?'<span class="pretend">pretend fan</span>':'')+' '+esc(c.t)+'</div>'}).join('')+'</div>'+
+  '<div>'+it.comments.map(function(c,i){return {c:c,i:i}}).slice(-4).map(function(x){return commentHTML(it,x.c,x.i)}).join('')+'</div>'+
   '<div class="row" style="margin-top:8px"><input data-cin="'+it.id+'" placeholder="Write a comment..." maxlength="140" style="flex:1"><button data-csend="'+it.id+'">Send</button></div></div></div>'}
 function fillImgs(root){root.querySelectorAll('img[data-img]').forEach(function(im){var id=im.dataset.img;if(!id)return;urlOf(id,function(u){if(u)im.src=u})})}
 function renderHome(){var h=$('t-home');
@@ -121,7 +127,14 @@ $('t-home').addEventListener('click',function(e){var t=e.target;
  var l=t.closest('[data-like]');if(l){var it=find(l.dataset.like);if(it.liked)return;it.liked=1;it.likes++;saveItems();renderHome();return}
  var d=t.closest('[data-del]');if(d){if(confirm('Delete this from CEX?')){var x=find(d.dataset.del);(x.media||[]).concat(x.thumb?[x.thumb]:[]).forEach(delM);items=items.filter(function(i){return i!==x});saveItems();renderHome()}return}
  var o=t.closest('[data-open]');if(o){openItem(find(o.dataset.open));return}
+ var cl=t.closest('[data-clike]');if(cl){var pr=cl.dataset.clike.split(':'),ci=find(pr[0]),cm=ci&&ci.comments[+pr[1]];if(cm&&!cm.liked){cm.liked=1;cm.likes=(cm.likes||0)+1;saveItems();renderHome()}return}
+ var rp=t.closest('[data-creply]');if(rp){replyTo=rp.dataset.creply;renderHome();var ri=document.querySelector('[data-rin="'+replyTo+'"]');if(ri)ri.focus();return}
+ if(t.closest('[data-ccancel]')){replyTo=null;renderHome();return}
+ var sr=t.closest('[data-csendr]');if(sr){sendReply(sr.dataset.csendr);return}
  var s=t.closest('[data-csend]');if(s){var inp=document.querySelector('[data-cin="'+s.dataset.csend+'"]'),v=inp.value.trim();if(v){find(s.dataset.csend).comments.push({n:acct.nick,e:acct.av,t:v,at:Date.now()});saveItems();renderHome()}}});
+function sendReply(key){var inp=document.querySelector('[data-rin="'+key+'"]'),v=inp&&inp.value.trim();if(!v)return;var pr=key.split(':'),it=find(pr[0]),c=it&&it.comments[+pr[1]];if(!c)return;(c.replies=c.replies||[]).push({n:acct.nick,e:acct.av,t:v,at:Date.now()});replyTo=null;saveItems();renderHome();
+ if(Math.random()<0.6)setTimeout(function(){var f=FANS[Math.floor(Math.random()*FANS.length)];(c.replies=c.replies||[]).push({n:f[0],e:f[1],t:['Thanks for the reply! 😄','Haha, yes! 😂','I agree!','Same here! 🙌','Good one! ⭐'][Math.floor(Math.random()*5)],p:1,at:Date.now()});saveItems();if($('t-home').classList.contains('on')&&!(document.activeElement&&document.activeElement.tagName==='INPUT'))renderHome()},4000)}
+$('t-home').addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.rin)sendReply(e.target.dataset.rin)});
 function find(id){return items.filter(function(i){return i.id===id})[0]}
 
 function renderFriends(){var f=$('t-friends'),nf=Object.keys(soc.fr).length,ns=Object.keys(soc.sub).length;
