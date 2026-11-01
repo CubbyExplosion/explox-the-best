@@ -37,9 +37,9 @@ canvas{max-width:100%;border-radius:10px;background:#000}
 <div id="app" style="display:none">
  <div id="top"><span class="logo">CEX</span><span class="sp"></span><span id="who" class="mut"></span><button id="logout">Log out</button></div>
  <div id="view">
-  <div class="tab on" id="t-home"></div><div class="tab" id="t-create"></div><div class="tab" id="t-friends"></div><div class="tab" id="t-me"></div>
+  <div class="tab on" id="t-home"></div><div class="tab" id="t-create"></div><div class="tab" id="t-shorts"></div><div class="tab" id="t-friends"></div><div class="tab" id="t-me"></div>
  </div>
- <div id="nav"><button data-t="home" class="on">🏠 Home</button><button data-t="create">➕ Create</button><button data-t="friends">🧑‍🤝‍🧑 Friends</button><button data-t="me">👤 Me</button></div>
+ <div id="nav"><button data-t="home" class="on">🏠 Home</button><button data-t="shorts">📱 Shorts</button><button data-t="create">➕ Create</button><button data-t="friends">🧑‍🤝‍🧑 Friends</button><button data-t="me">👤 Me</button></div>
 </div>
 
 <div class="ov" id="ovPlay"><div class="box"><div id="playBox"></div><div id="playInfo"></div><div class="row" style="margin-top:10px"><button id="playClose">Close</button></div></div></div>
@@ -96,10 +96,10 @@ setInterval(function(){if($('app').style.display==='none'||!items.length||Math.r
 /* ---------- views ---------- */
 function enter(){$('lock').style.display='none';$('app').style.display='block';$('who').textContent=acct.av+' '+acct.nick;renderHome();renderCreate();renderFriends();renderMe()}
 var navs=document.querySelectorAll('#nav button');
-navs.forEach(function(b){b.onclick=function(){navs.forEach(function(x){x.classList.toggle('on',x===b)});document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.id==='t-'+b.dataset.t)});if(b.dataset.t==='home')renderHome();if(b.dataset.t==='me')renderMe();if(b.dataset.t==='friends')renderFriends()}});
+navs.forEach(function(b){b.onclick=function(){navs.forEach(function(x){x.classList.toggle('on',x===b)});document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.id==='t-'+b.dataset.t)});if(b.dataset.t==='home')renderHome();if(b.dataset.t==='me')renderMe();if(b.dataset.t==='friends')renderFriends();if(b.dataset.t==='shorts')renderShorts();else stopShorts()}});
 
-function thId(it){return it.thumb||(it.type!=='video'&&it.media&&it.media[0])||''}
-function thumbHTML(it){return '<div class="th" data-open="'+it.id+'"><span class="badge">'+(it.type==='video'?'🎬 Video':it.type==='slides'?'🖼️ Slideshow':'📝 Post')+'</span><img data-img="'+thId(it)+'" alt=""'+(!thId(it)?' style="display:none"':'')+'>'+(!thId(it)?'<div style="font-size:42px;padding:20px;text-align:center">'+esc((it.text||it.title||'').slice(0,90))+'</div>':'')+'</div>'}
+function thId(it){return it.thumb||(it.type!=='video'&&it.type!=='short'&&it.media&&it.media[0])||''}
+function thumbHTML(it){return '<div class="th" data-open="'+it.id+'"><span class="badge">'+(it.type==='video'?'🎬 Video':it.type==='short'?'📱 Short':it.type==='slides'?'🖼️ Slideshow':'📝 Post')+'</span><img data-img="'+thId(it)+'" alt=""'+(!thId(it)?' style="display:none"':'')+'>'+(!thId(it)?'<div style="font-size:42px;padding:20px;text-align:center">'+esc((it.text||it.title||'').slice(0,90))+'</div>':'')+'</div>'}
 function cardHTML(it){
  return '<div class="card" id="c-'+it.id+'">'+thumbHTML(it)+'<div class="in"><h3>'+esc(it.title||'Post')+'</h3>'+(it.type==='post'&&it.text?'<div>'+esc(it.text)+'</div>':'')+'<div class="mut">'+acct.av+' '+esc(acct.nick)+' · '+ago(it.at)+'</div>'+
   '<div class="row" style="margin:8px 0"><button data-like="'+it.id+'"'+(it.liked?' class="p" title="You already liked this"':'')+'>'+(it.liked?'💖':'❤️')+' '+it.likes+'</button><button data-open="'+it.id+'">▶ Open</button><button class="r" data-del="'+it.id+'">🗑</button></div>'+
@@ -122,11 +122,25 @@ function renderFriends(){var f=$('t-friends'),nf=Object.keys(soc.fr).length,ns=O
  f.innerHTML='<div class="card"><div class="in"><h3>🧑‍🤝‍🧑 Friends and subscriptions</h3><div class="mut">These are made-up characters, not real people. You can friend them and subscribe, but there is no chat.</div><div class="row" style="margin-top:6px"><span class="chip">👫 '+nf+' friends</span><span class="chip">🔔 '+ns+' subscribed</span></div></div></div>'+
   CAST.map(function(c,i){var fr=soc.fr[c[0]],sb=soc.sub[c[0]];return '<div class="card"><div class="in"><div class="row sp"><div class="row"><span class="av" style="font-size:40px">'+c[1]+'</span><div><h3 style="margin:0">'+c[0]+'</h3><div class="mut">'+c[2]+'</div></div></div><div class="row"><button data-fr="'+c[0]+'" class="'+(fr?'g':'')+'">'+(fr?'👫 Friends':'➕ Friend')+'</button><button data-sb="'+c[0]+'" class="'+(sb?'p':'')+'">'+(sb?'🔔 Subscribed':'Subscribe')+'</button></div></div><div class="cm">'+c[1]+' <b>'+c[0]+'</b> <span class="pretend">pretend</span> '+dayPost(i)+'</div></div></div>'}).join('')}
 $('t-friends').addEventListener('click',function(e){var a=e.target.closest('[data-fr]'),b=e.target.closest('[data-sb]');if(a){var n=a.dataset.fr;if(soc.fr[n])delete soc.fr[n];else soc.fr[n]=1;saveSoc();renderFriends();renderMe()}if(b){var m=b.dataset.sb;if(soc.sub[m])delete soc.sub[m];else soc.sub[m]=1;saveSoc();renderFriends();renderHome();renderMe()}});
+/* ---------- shorts: swipe up through short videos ---------- */
+var shortObs=null;
+function stopShorts(){if(shortObs){shortObs.disconnect();shortObs=null}document.querySelectorAll('#t-shorts video').forEach(function(v){v.pause()})}
+function renderShorts(){var t=$('t-shorts');var list=items.filter(function(i){return i.type==='short'}).sort(function(a,b){return b.at-a.at});
+ if(!list.length){t.innerHTML='<div class="card"><div class="in" style="text-align:center;padding:30px"><div style="font-size:50px">📱</div><h3>No Shorts yet</h3><div class="mut">Tap <b>➕ Create</b> then <b>📱 Short</b> to add a short video (up to 60 seconds).</div></div></div>';return}
+ t.innerHTML='<div id="shFeed" style="height:calc(100vh - 150px);overflow-y:auto;scroll-snap-type:y mandatory;border-radius:16px">'+list.map(function(it){return '<div class="sh" data-sh="'+it.id+'" style="height:100%;scroll-snap-align:start;position:relative;background:#000;border-radius:16px;overflow:hidden;margin-bottom:8px"><video loop muted playsinline style="width:100%;height:100%;object-fit:cover" data-vid="'+it.media[0]+'"></video>'+
+  '<div style="position:absolute;left:0;right:0;bottom:0;padding:14px;background:linear-gradient(transparent,#000c)"><b>'+esc(it.title)+'</b><div class="mut">'+acct.av+' '+esc(acct.nick)+'</div><div class="mut">'+esc(it.text||'')+'</div></div>'+
+  '<div style="position:absolute;right:10px;bottom:90px;display:flex;flex-direction:column;gap:10px"><button data-shlike="'+it.id+'" class="'+(it.liked?'p':'')+'">'+(it.liked?'💖':'❤️')+'<br>'+it.likes+'</button><button data-shmute="1">🔇</button></div></div>'}).join('')+'</div><div class="mut" style="text-align:center;margin-top:6px">Swipe or scroll up for the next Short. Tap the video to pause.</div>';
+ t.querySelectorAll('video[data-vid]').forEach(function(v){urlOf(v.dataset.vid,function(u){if(u)v.src=u})});
+ stopShorts();shortObs=new IntersectionObserver(function(es){es.forEach(function(e){var v=e.target.querySelector('video');if(!v)return;if(e.intersectionRatio>0.7){var pr=v.play();if(pr&&pr.catch)pr.catch(function(){})}else v.pause()})},{root:$('shFeed'),threshold:[0,0.7,1]});
+ t.querySelectorAll('.sh').forEach(function(d){shortObs.observe(d)})}
+$('t-shorts').addEventListener('click',function(e){var l=e.target.closest('[data-shlike]');if(l){var it=find(l.dataset.shlike);if(!it.liked){it.liked=1;it.likes++;saveItems();l.className='p';l.innerHTML='💖<br>'+it.likes}return}
+ if(e.target.closest('[data-shmute]')){var vs=document.querySelectorAll('#t-shorts video'),m=!vs[0].muted;vs.forEach(function(v){v.muted=m});e.target.closest('[data-shmute]').textContent=m?'🔇':'🔊';return}
+ var v=e.target.closest('video');if(v){if(v.paused)v.play();else v.pause()}});
 /* ---------- play ---------- */
 var slideT=null;
 function openItem(it){
  if(!it)return;$('ovPlay').classList.add('show');$('playInfo').innerHTML='<h3>'+esc(it.title||'Post')+'</h3><div class="mut">'+esc(it.text||'')+'</div>';var box=$('playBox');box.innerHTML='';
- if(it.type==='video'){urlOf(it.media[0],function(u){box.innerHTML=u?'<video controls autoplay playsinline style="width:100%;border-radius:12px;background:#000" src="'+u+'"></video>':'<div class="mut">This video file is missing from this computer.</div>'})}
+ if(it.type==='video'||it.type==='short'){urlOf(it.media[0],function(u){box.innerHTML=u?'<video controls autoplay playsinline style="width:100%;border-radius:12px;background:#000" src="'+u+'"></video>':'<div class="mut">This video file is missing from this computer.</div>'})}
  else if(it.type==='slides'){var k=0,urls=[];var n=it.media.length;var got=0;
   it.media.forEach(function(id,i){urlOf(id,function(u){urls[i]=u;if(++got===n)start()})});
   function start(){box.innerHTML='<img id="sl" style="width:100%;border-radius:12px;background:#000;max-height:60vh;object-fit:contain"><div id="slcap" style="text-align:center;margin-top:6px"></div><div class="row" style="justify-content:center;margin-top:8px"><button id="slp">⏮</button><button id="slpl">⏸</button><button id="sln">⏭</button><span class="mut" id="slc"></span></div>';
@@ -139,19 +153,19 @@ $('playClose').onclick=function(){$('ovPlay').classList.remove('show');clearInte
 /* ---------- create ---------- */
 var cr={type:'video',files:[],thumbBlob:null,vidURL:''};
 function renderCreate(){var c=$('t-create');
- c.innerHTML='<div class="card"><div class="in"><h3>➕ Create something</h3><div class="row"><button id="ctV" class="p">🎬 Video</button><button id="ctP">📝 Post</button><button id="ctS">🖼️ Slideshow</button></div><div id="cForm"></div></div></div>';
- $('ctV').onclick=function(){cr.type='video';form()};$('ctP').onclick=function(){cr.type='post';form()};$('ctS').onclick=function(){cr.type='slides';form()};form()}
+ c.innerHTML='<div class="card"><div class="in"><h3>➕ Create something</h3><div class="row"><button id="ctV" class="p">🎬 Video</button><button id="ctH">📱 Short</button><button id="ctP">📝 Post</button><button id="ctS">🖼️ Slideshow</button></div><div id="cForm"></div></div></div>';
+ $('ctV').onclick=function(){cr.type='video';form()};$('ctH').onclick=function(){cr.type='short';form()};$('ctP').onclick=function(){cr.type='post';form()};$('ctS').onclick=function(){cr.type='slides';form()};form()}
 function form(){var f=$('cForm');cr.files=[];cr.thumbBlob=null;cr.autoTried=false;
- ['ctV','ctP','ctS'].forEach(function(id){$(id).className=(id==='ctV'&&cr.type==='video')||(id==='ctP'&&cr.type==='post')||(id==='ctS'&&cr.type==='slides')?'p':''});
- if(cr.type==='video'){f.innerHTML='<label>Pick a video file from this computer</label><input type="file" id="fv" accept="video/*"><div id="vprev"></div><label>Title</label><input id="ft" maxlength="80" placeholder="My awesome video"><label>Description</label><textarea id="fd" maxlength="300"></textarea><div id="thbox"></div><div class="row" style="margin-top:12px"><button class="g" id="fgo">Post it</button></div><div class="mut">Videos stay on this computer. They are never uploaded anywhere.</div>';
-  $('fv').onchange=function(){var file=this.files[0];if(!file)return;cr.files=[file];if(cr.vidURL)URL.revokeObjectURL(cr.vidURL);cr.vidURL=URL.createObjectURL(file);
+ ['ctV','ctH','ctP','ctS'].forEach(function(id){$(id).className=(id==='ctV'&&cr.type==='video')||(id==='ctH'&&cr.type==='short')||(id==='ctP'&&cr.type==='post')||(id==='ctS'&&cr.type==='slides')?'p':''});
+ if(cr.type==='video'||cr.type==='short'){f.innerHTML='<label>'+(cr.type==='short'?'Pick a SHORT video (up to 60 seconds)':'Pick a video file from this computer')+'</label><input type="file" id="fv" accept="video/*"><div id="vprev"></div><label>Title</label><input id="ft" maxlength="80" placeholder="My awesome video"><label>Description</label><textarea id="fd" maxlength="300"></textarea><div id="thbox"></div><div class="row" style="margin-top:12px"><button class="g" id="fgo">Post it</button></div><div class="mut">Videos stay on this computer. They are never uploaded anywhere.</div>';
+  $('fv').onchange=function(){var file=this.files[0];if(!file)return;cr.files=[file];if(cr.vidURL)URL.revokeObjectURL(cr.vidURL);cr.vidURL=URL.createObjectURL(file);cr.tooLong=false;
    $('vprev').innerHTML='<video id="pv" controls muted playsinline style="width:100%;margin-top:8px;border-radius:10px;background:#000" src="'+cr.vidURL+'"></video>';
    $('thbox').innerHTML='<label>🖼️ Thumbnail maker</label><div class="mut">Scrub the video to a good moment, then press <b>Use this frame</b>. Or upload your own picture.</div><div class="row" style="margin:6px 0"><button id="useF">📸 Use this frame</button><input type="file" id="thUp" accept="image/*" style="flex:1"></div><div class="row"><input id="thTxt" maxlength="24" placeholder="Words on the thumbnail (optional)" style="flex:1"><input type="color" id="thCol" value="#ffffff" style="width:54px"></div><canvas id="thc" width="640" height="360" style="width:100%;margin-top:8px"></canvas>';
    var cv=$('thc'),cx=cv.getContext('2d'),srcImg=null;
    function draw(){cx.fillStyle='#000';cx.fillRect(0,0,640,360);if(srcImg){var w=srcImg.videoWidth||srcImg.width,h=srcImg.videoHeight||srcImg.height,r=Math.max(640/w,360/h);cx.drawImage(srcImg,(640-w*r)/2,(360-h*r)/2,w*r,h*r)}
     var t=$('thTxt').value;if(t){cx.font='900 54px Arial';cx.textAlign='center';cx.lineWidth=8;cx.strokeStyle='#000';cx.strokeText(t,320,325);cx.fillStyle=$('thCol').value;cx.fillText(t,320,325)}
     cv.toBlob(function(b){cr.thumbBlob=b},'image/jpeg',.85)}
-   $('useF').onclick=function(){srcImg=$('pv');draw()};$('thTxt').oninput=draw;$('thCol').oninput=draw;
+   $('useF').onclick=function(){srcImg=$('pv');draw()};$('thTxt').oninput=draw;$('pv').onloadedmetadata=function(){if(cr.type==='short'&&this.duration>60.5){cr.tooLong=true;alert('Shorts can be up to 60 seconds. This video is '+Math.round(this.duration)+' seconds. Pick a shorter one, or make it a normal Video.')}};$('thCol').oninput=draw;
    $('thUp').onchange=function(){var im=new Image();im.onload=function(){srcImg=im;draw()};im.src=URL.createObjectURL(this.files[0])}}}
  else if(cr.type==='post'){f.innerHTML='<label>What do you want to say?</label><textarea id="fx" maxlength="500" placeholder="Write your post..."></textarea><label>Picture (optional)</label><input type="file" id="fi" accept="image/*"><div class="row" style="margin-top:12px"><button class="g" id="fgo">Post it</button></div>';
   $('fi').onchange=function(){cr.files=this.files[0]?[this.files[0]]:[]}}
@@ -159,14 +173,15 @@ function form(){var f=$('cForm');cr.files=[];cr.thumbBlob=null;cr.autoTried=fals
   $('fm').onchange=function(){cr.files=Array.prototype.slice.call(this.files,0,30);$('caps').innerHTML=cr.files.map(function(x,i){return '<label>Caption for picture '+(i+1)+'</label><input data-cap="'+i+'" maxlength="60">'}).join('')}}
  $('fgo').onclick=publish}
 function publish(){
- if(cr.type==='video'&&!cr.thumbBlob&&!cr.autoTried){cr.autoTried=true;var pv0=$('pv');if(pv0&&pv0.readyState>=2){try{var cc=document.createElement('canvas');cc.width=640;cc.height=360;cc.getContext('2d').drawImage(pv0,0,0,640,360);cc.toBlob(function(b){cr.thumbBlob=b;publish()},'image/jpeg',.85);return}catch(e){}}}
+ if((cr.type==='video'||cr.type==='short')&&!cr.thumbBlob&&!cr.autoTried){cr.autoTried=true;var pv0=$('pv');if(pv0&&pv0.readyState>=2){try{var cc=document.createElement('canvas');cc.width=640;cc.height=360;cc.getContext('2d').drawImage(pv0,0,0,640,360);cc.toBlob(function(b){cr.thumbBlob=b;publish()},'image/jpeg',.85);return}catch(e){}}}
  var it={id:uid(),type:cr.type,title:'',text:'',media:[],thumb:'',likes:0,comments:[],at:Date.now()};
  if(cr.type==='post'){it.text=($('fx').value||'').trim();it.title=it.text.slice(0,40)||'Post';if(!it.text&&!cr.files.length){alert('Write something or add a picture first.');return}}
  else{it.title=($('ft').value||'').trim();if(!it.title){alert('Give it a title first.');return}if(!cr.files.length){alert('Pick a file first.');return}
-  if(cr.type==='video')it.text=($('fd').value||'').trim()}
+  if(cr.type==='short'&&cr.tooLong){alert('This Short is longer than 60 seconds.');return}
+  if(cr.type==='video'||cr.type==='short')it.text=($('fd').value||'').trim()}
  if(cr.type==='slides'){it.caps=[];document.querySelectorAll('[data-cap]').forEach(function(i){it.caps.push(i.value)})}
  var todo=cr.files.map(function(file){var id=uid();it.media.push(id);return [id,file]});
- if(cr.type==='video'&&cr.thumbBlob){it.thumb=uid();todo.push([it.thumb,cr.thumbBlob])}
+ if((cr.type==='video'||cr.type==='short')&&cr.thumbBlob){it.thumb=uid();todo.push([it.thumb,cr.thumbBlob])}
  var left=todo.length;function done(){if(--left>0)return;items.push(it);saveItems();document.querySelector('#nav button[data-t=home]').click();form()}
  if(!left){items.push(it);saveItems();document.querySelector('#nav button[data-t=home]').click();return}
  todo.forEach(function(p){putM(p[0],p[1],done)})}
