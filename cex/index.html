@@ -42,6 +42,7 @@ canvas{max-width:100%;border-radius:10px;background:#000}
  <div id="nav"><button data-t="home" class="on">🏠 Home</button><button data-t="shorts">📱 Shorts</button><button data-t="create">➕ Create</button><button data-t="friends">🧑‍🤝‍🧑 Friends</button><button data-t="lists">📂 Lists</button><button data-t="top">🏆 Top 100</button><button data-t="me">👤 Me</button></div>
 </div>
 
+<div id="qtoast" style="position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:60;background:#2ee6a8;color:#06241a;font-weight:800;padding:10px 16px;border-radius:12px;display:none;max-width:90%;text-align:center"></div>
 <div class="ov" id="ovLive"><div class="box"><h3 style="margin:0 0 4px" id="lvH">🔴 Pretend live stream</h3><div class="mut" id="lvD">Only YOU can see this. The viewers and the chat are made-up characters. Nothing is sent to anyone, and nobody can join.</div>
  <div id="liveSrc" class="row" style="margin-top:10px"><button class="p" id="lvCam">🎥 Use my camera</button><button id="lvScr">🖥️ Share my screen</button><button id="lvClose">Close</button></div>
  <label class="mut" id="lvMicRow" style="display:block;margin-top:8px"><input type="checkbox" id="lvMic" checked> 🎤 use my microphone (your voice is recorded)</label>
@@ -173,9 +174,9 @@ $('playClose').onclick=function(){$('ovPlay').classList.remove('show');clearInte
 /* ---------- create ---------- */
 var cr={type:'video',files:[],thumbBlob:null,vidURL:''};
 function renderCreate(){var c=$('t-create');
- c.innerHTML='<div class="card"><div class="in"><h3>➕ Create something</h3><div class="mut" style="margin-bottom:8px"><div class="row" style="margin-bottom:8px"><button id="recNow" style="background:#e53935;color:#fff">🔴 Record a video</button><button id="goLive" style="background:#6a3ab0;color:#fff">📺 Pretend live stream</button></div>Need to cut or add words to a video first? <a href="../video-editor/" style="color:#c9b5ff">Open the free Video Editor</a></div><div class="row"><button id="ctV" class="p">🎬 Video</button><button id="ctH">📱 Short</button><button id="ctP">📝 Post</button><button id="ctS">🖼️ Slideshow</button></div><div id="cForm"></div></div></div>';
+ c.innerHTML='<div class="card"><div class="in"><h3>➕ Create something</h3><div class="mut" style="margin-bottom:8px"><div class="row" style="margin-bottom:8px"><label class="btn" for="qu" style="background:linear-gradient(90deg,#8e5bff,#ff4fa3);color:#fff;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer">⚡ Quick upload (pick lots of files)</label><input id="qu" type="file" multiple accept="video/*,image/*" style="display:none"></div><div class="mut" style="margin-bottom:8px">Quick upload posts every video and picture you pick all at once. It names them and makes the thumbnails for you. You can also drag files onto this page.</div><div class="row" style="margin-bottom:8px"><button id="recNow" style="background:#e53935;color:#fff">🔴 Record a video</button><button id="goLive" style="background:#6a3ab0;color:#fff">📺 Pretend live stream</button></div>Need to cut or add words to a video first? <a href="../video-editor/" style="color:#c9b5ff">Open the free Video Editor</a></div><div class="row"><button id="ctV" class="p">🎬 Video</button><button id="ctH">📱 Short</button><button id="ctP">📝 Post</button><button id="ctS">🖼️ Slideshow</button></div><div id="cForm"></div></div></div>';
  $('ctV').onclick=function(){cr.type='video';form()};$('ctH').onclick=function(){cr.type='short';form()};$('ctP').onclick=function(){cr.type='post';form()};$('ctS').onclick=function(){cr.type='slides';form()};form()}
-function form(){var f=$('cForm');cr.files=[];cr.thumbBlob=null;cr.autoTried=false;
+function form(){var f=$('cForm');cr.files=[];cr.thumbBlob=null;cr.autoTried=false;cr.busy=false;
  ['ctV','ctH','ctP','ctS'].forEach(function(id){$(id).className=(id==='ctV'&&cr.type==='video')||(id==='ctH'&&cr.type==='short')||(id==='ctP'&&cr.type==='post')||(id==='ctS'&&cr.type==='slides')?'p':''});
  if(cr.type==='video'||cr.type==='short'){f.innerHTML='<label>'+(cr.type==='short'?'Pick a SHORT video (up to 60 seconds)':'Pick a video file from this computer')+'</label><input type="file" id="fv" accept="video/*"><div id="vprev"></div><label>Title</label><input id="ft" maxlength="80" placeholder="My awesome video"><label>Description</label><textarea id="fd" maxlength="300"></textarea><div id="thbox"></div><div class="row" style="margin-top:12px"><button class="g" id="fgo">Post it</button></div><div class="mut">Videos stay on this computer. They are never uploaded anywhere.</div>';
   $('fv').onchange=function(){var file=this.files[0];if(!file)return;cr.files=[file];if(cr.vidURL)URL.revokeObjectURL(cr.vidURL);cr.vidURL=URL.createObjectURL(file);cr.tooLong=false;
@@ -193,6 +194,7 @@ function form(){var f=$('cForm');cr.files=[];cr.thumbBlob=null;cr.autoTried=fals
   $('fm').onchange=function(){cr.files=Array.prototype.slice.call(this.files,0,30);$('caps').innerHTML=cr.files.map(function(x,i){return '<label>Caption for picture '+(i+1)+'</label><input data-cap="'+i+'" maxlength="60">'}).join('')}}
  $('fgo').onclick=publish}
 function publish(){
+ if(cr.busy)return;
  if((cr.type==='video'||cr.type==='short')&&!cr.thumbBlob&&!cr.autoTried){cr.autoTried=true;var pv0=$('pv');if(pv0&&pv0.readyState>=2){try{var cc=document.createElement('canvas');cc.width=640;cc.height=360;cc.getContext('2d').drawImage(pv0,0,0,640,360);cc.toBlob(function(b){cr.thumbBlob=b;publish()},'image/jpeg',.85);return}catch(e){}}}
  var it={id:uid(),type:cr.type,title:'',text:'',media:[],thumb:'',likes:0,comments:[],at:Date.now()};
  if(cr.type==='post'){it.text=($('fx').value||'').trim();it.title=it.text.slice(0,40)||'Post';if(!it.text&&!cr.files.length){alert('Write something or add a picture first.');return}}
@@ -202,7 +204,7 @@ function publish(){
  if(cr.type==='slides'){it.caps=[];document.querySelectorAll('[data-cap]').forEach(function(i){it.caps.push(i.value)})}
  var todo=cr.files.map(function(file){var id=uid();it.media.push(id);return [id,file]});
  if((cr.type==='video'||cr.type==='short')&&cr.thumbBlob){it.thumb=uid();todo.push([it.thumb,cr.thumbBlob])}
- var left=todo.length;function done(){if(--left>0)return;items.push(it);saveItems();document.querySelector('#nav button[data-t=home]').click();form()}
+ var left=todo.length;cr.busy=true;if($('fgo')){$('fgo').disabled=true;$('fgo').textContent='Saving...'}function done(){if(--left>0)return;cr.busy=false;items.push(it);saveItems();document.querySelector('#nav button[data-t=home]').click();form()}
  if(!left){items.push(it);saveItems();document.querySelector('#nav button[data-t=home]').click();return}
  todo.forEach(function(p){putM(p[0],p[1],done)})}
 
@@ -268,6 +270,25 @@ function renderTop(){var me=myScore(),rank=1;BOARD.forEach(function(c){if(c.scor
  $('t-top').innerHTML='<div class="card"><div class="in" style="text-align:center"><div style="font-size:42px">🏆</div><h3 style="margin:4px 0">Top 100 creators</h3><div class="mut">Everyone else here is a made-up character, not a real person.</div><div class="row" style="justify-content:center;margin-top:10px"><span class="chip" style="font-size:16px">You are <b>#'+rank+'</b> of 100</span><span class="chip">⭐ '+me+' points</span></div></div></div>'+
   (rank===1?'<div class="card" style="background:linear-gradient(90deg,#8e5bff,#ff4fa3)"><div class="in" style="text-align:center"><div style="font-size:46px">🏆🎉</div><h3 style="margin:4px 0">YOU ARE #1! CEX CHAMPION!</h3><div>You beat all 99 made-up creators. Amazing work!</div></div></div>':'')+'<div class="card"><div class="in"><h3>How to climb</h3><div class="mut">📝 Post: 50 points · 📱 Short: +30 · ❤️ each like: 10 · 💬 each comment: 3 · 👫 each friend: 20 · 🔔 each subscription: 10</div></div></div>'+
   '<div class="card"><div class="in">'+list.map(function(c,i){var rk=i+1;return '<div class="row sp cm" style="'+(c.me?'background:#3a2c7a;border-radius:10px;padding:8px;border-top:0':'')+'"><span><b style="display:inline-block;width:46px">'+(rk<=3?medal[rk-1]:'#'+rk)+'</b> '+(c.me?acct.av+' <b>'+esc(acct.nick)+'</b> (you)':c.e+' '+c.n)+'</span><b>'+c.score+'</b></div>'}).join('')+'</div></div>'}
+/* ---------- quick upload: lots of files at once ---------- */
+function qmsg(t,keep){var q=$('qtoast');q.textContent=t;q.style.display='block';clearTimeout(qmsg.t);if(!keep)qmsg.t=setTimeout(function(){q.style.display='none'},3500)}
+function probeVideo(file){return new Promise(function(res){var v=document.createElement('video'),url=URL.createObjectURL(file),done=false;v.muted=true;v.playsInline=true;v.preload='metadata';
+ function fin(info){if(done)return;done=true;URL.revokeObjectURL(url);res(info)}
+ var info={dur:0,w:0,h:0,thumb:null};setTimeout(function(){fin(info)},4000);
+ v.onloadedmetadata=function(){info.dur=isFinite(v.duration)?v.duration:0;info.w=v.videoWidth;info.h=v.videoHeight;try{v.currentTime=Math.min(1,(info.dur||1)/2)}catch(e){fin(info)}};
+ v.onseeked=function(){try{var c=document.createElement('canvas');c.width=640;c.height=360;var x=c.getContext('2d'),r=Math.max(640/v.videoWidth,360/v.videoHeight);x.drawImage(v,(640-v.videoWidth*r)/2,(360-v.videoHeight*r)/2,v.videoWidth*r,v.videoHeight*r);c.toBlob(function(b){info.thumb=b;fin(info)},'image/jpeg',.8)}catch(e){fin(info)}};
+ v.onerror=function(){fin(info)};v.src=url})}
+function putP(id,blob){return new Promise(function(r){putM(id,blob,r)})}
+function quickOne(file){var name=file.name.replace(/\.[^.]+$/,'').slice(0,60)||'Upload',it={id:uid(),type:'post',title:name,text:'',media:[],thumb:'',likes:0,comments:[],at:Date.now()};
+ if(file.type.indexOf('image')===0){var id=uid();it.media=[id];return putP(id,file).then(function(){return it})}
+ return probeVideo(file).then(function(info){var mid=uid(),jobs=[putP(mid,file)];it.media=[mid];it.type=(info.h>info.w&&info.dur>0&&info.dur<=60)?'short':'video';if(info.thumb){it.thumb=uid();jobs.push(putP(it.thumb,info.thumb))}return Promise.all(jobs).then(function(){return it})})}
+function quickUpload(list){var files=Array.prototype.filter.call(list,function(f){return f.type.indexOf('video')===0||f.type.indexOf('image')===0});if(!files.length){qmsg('Pick videos or pictures to upload.');return}
+ var done=0,added=[],idx=0,t0=performance.now();qmsg('⚡ Uploading 0 of '+files.length+'...',true);
+ function worker(){if(idx>=files.length)return Promise.resolve();var f=files[idx++];return quickOne(f).then(function(it){added.push(it);done++;qmsg('⚡ Uploading '+done+' of '+files.length+'...',true)}).catch(function(){done++}).then(worker)}
+ Promise.all([worker(),worker(),worker()]).then(function(){added.forEach(function(it){items.push(it)});saveItems();renderHome();renderTop();qmsg('✅ Uploaded '+added.length+' file'+(added.length===1?'':'s')+' in '+((performance.now()-t0)/1000).toFixed(1)+' seconds!');var hb=document.querySelector('#nav button[data-t=home]');if(hb)hb.click()})}
+document.addEventListener('change',function(e){if(e.target&&e.target.id==='qu'){var fl=e.target.files;quickUpload(fl);e.target.value=''}});
+window.addEventListener('dragover',function(e){if($('app').style.display!=='none')e.preventDefault()});
+window.addEventListener('drop',function(e){if($('app').style.display==='none')return;e.preventDefault();if(e.dataTransfer&&e.dataTransfer.files.length)quickUpload(e.dataTransfer.files)});
 /* ---------- me ---------- */
 var AVS=['😎','🦊','🐱','🐶','🦖','🚀','🤖','👾','🌟','🎮','🐢','🦄'];
 function renderMe(){var m=$('t-me');
