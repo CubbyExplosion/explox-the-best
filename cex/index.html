@@ -99,8 +99,8 @@ function pretendFollowers(){return Math.floor((Date.now()-(LS.get('cex_since',Da
 if(!LS.get('cex_since',0))LS.set('cex_since',Date.now());
 
 /* pretend fans drop friendly comments from time to time (they are labelled "pretend") */
-setInterval(function(){if($('app').style.display==='none'||!items.length||Math.random()<0.6)return;var it=items[Math.floor(Math.random()*items.length)],f=FANS[Math.floor(Math.random()*FANS.length)];
- it.comments.push({n:f[0],e:f[1],t:FANSAY[Math.floor(Math.random()*FANSAY.length)],p:1,at:Date.now()});it.likes+=Math.floor(Math.random()*3);saveItems();if($('t-home').classList.contains('on')&&!(document.activeElement&&document.activeElement.tagName==='INPUT'))renderHome()},9000);
+setInterval(function(){if($('app').style.display==='none'||!items.length||Math.random()<0.97)return;var it=items[Math.floor(Math.random()*items.length)],f=FANS[Math.floor(Math.random()*FANS.length)];
+ it.comments.push({n:f[0],e:f[1],t:FANSAY[Math.floor(Math.random()*FANSAY.length)],p:1,at:Date.now()});it.likes+=Math.floor(Math.random()*3);saveItems();if($('t-home').classList.contains('on')&&!(document.activeElement&&document.activeElement.tagName==='INPUT'))renderHome()},60000);
 
 /* ---------- views ---------- */
 function enter(){$('lock').style.display='none';$('app').style.display='block';$('who').textContent=acct.av+' '+acct.nick;renderHome();renderCreate();renderFriends();renderLists();renderTop();renderMe()}
@@ -110,6 +110,26 @@ navs.forEach(function(b){b.onclick=function(){navs.forEach(function(x){x.classLi
 function thId(it){return it.thumb||(it.type!=='video'&&it.type!=='short'&&it.media&&it.media[0])||''}
 function thumbHTML(it){return '<div class="th" data-open="'+it.id+'"><span class="badge">'+(it.type==='video'?'🎬 Video':it.type==='short'?'📱 Short':it.type==='slides'?'🖼️ Slideshow':'📝 Post')+'</span><img data-img="'+thId(it)+'" alt=""'+(!thId(it)?' style="display:none"':'')+'>'+(!thId(it)?'<div style="font-size:42px;padding:20px;text-align:center">'+esc((it.text||it.title||'').slice(0,90))+'</div>':'')+'</div>'}
 var replyTo=null;
+/* what the friends write: they post only about once a month, mostly words and sometimes a little animated short */
+var HUMANSAY=['finally beat that level I was stuck on all week 😅','ok but why is this game so hard sometimes','made pancakes today and they actually turned out good','today I drew a dragon and it looks kind of like a potato lol','anyone else love when it rains and you stay inside?','trying to learn a new trick, wish me luck 🤞','my best score so far, I was SO close to the top','new week, new project, lets go','I think I found my new favorite song','watching clouds is underrated honestly','built a tiny maze today, took forever','who else stays up too late playing? just me?','I tried a new recipe and only burned a little bit','cant decide what to make next, ideas?','my pet did the funniest thing today 😂','learned something cool about space today','took a long walk and saw a really big dog','rainy day = movie day','a small win today and I am happy about it','been practicing and I am getting better!','just a normal day but a good one','lost my game again but it was fun anyway','sunny weather finally ☀️','tried to be quiet and failed hilariously'];
+var SCENES=['bounce','spin','rain','wave'],SCENEEMO={bounce:['🏀','⚽','🎈'],spin:['🌀','⭐','🎡'],rain:['🍂','❄️','🌧️'],wave:['🌊','🐠','🐚']};
+function hsh(a,b){var x=((a+1)*2654435761)^((b+7)*40503);x=(x^(x>>>15))>>>0;return x}
+function friendPosts(list){var day=Math.floor(Date.now()/86400000),out=[];
+ list.forEach(function(c){var ci=CAST.indexOf(c);for(var m=Math.floor(day/30)-2;m<=Math.floor(day/30);m++){var d=m*30+hsh(ci,m)%30;if(d>day||d<day-75)continue;var kind=hsh(ci,m+99)%4===0?'short':'text',scene=SCENES[hsh(ci,m+5)%SCENES.length];out.push({c:c,day:d,ago:day-d,kind:kind,scene:scene,emo:SCENEEMO[scene][hsh(ci,m+11)%3],text:HUMANSAY[(hsh(ci,m+3)+ci*7+m*5)%HUMANSAY.length]})}});
+ return out.sort(function(a,b){return a.ago-b.ago}).slice(0,6)}
+function agoText(n){return n<=0?'today':n===1?'yesterday':n<7?n+' days ago':n<14?'last week':Math.floor(n/7)+' weeks ago'}
+function friendFeedHTML(list){if(!list.length)return '<div class="card"><div class="in mut">Friend or subscribe to someone on the 🧑‍🤝‍🧑 Friends tab and their news shows up here. They post only once in a while, like real people do.</div></div>';
+ var ps=friendPosts(list);if(!ps.length)return '<div class="card"><div class="in mut">Your friends have not posted lately. They only post once in a while. Check back soon! 🙂</div></div>';
+ return '<div class="card"><div class="in"><h3>📰 From your friends</h3>'+ps.map(function(p,i){return '<div class="cm"><b>'+p.c[1]+' '+p.c[0]+'</b> <span class="pretend" title="A made-up character">🤖</span> <span class="mut">'+agoText(p.ago)+'</span><div>'+esc(p.text)+'</div>'+(p.kind==='short'?'<button data-scene="'+p.scene+'" data-emo="'+p.emo+'" data-who="'+esc(p.c[0])+'" style="margin-top:6px">📱 Watch their Short</button>':'')+'</div>'}).join('')+'</div></div>'}
+var sceneRaf=0;
+function playScene(kind,emo,who){$('ovPlay').classList.add('show');$('playInfo').innerHTML='<h3>'+esc(who)+'\'s Short</h3>';var box=$('playBox');box.innerHTML='<canvas id="scv" width="360" height="640" style="width:100%;max-height:70vh;border-radius:12px;background:#000"></canvas>';var cv=$('scv'),x=cv.getContext('2d'),t0=performance.now();cancelAnimationFrame(sceneRaf);
+ (function f(now){var t=(now-t0)/1000,W=360,H=640,g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,'#2b1b6b');g.addColorStop(1,'#ff4fa3');x.fillStyle=g;x.fillRect(0,0,W,H);x.font='60px Arial';x.textAlign='center';x.textBaseline='middle';
+  if(kind==='bounce'){x.fillText(emo,W/2,H-80-Math.abs(Math.sin(t*3))*380)}
+  else if(kind==='spin'){x.save();x.translate(W/2,H/2);x.rotate(t*3);x.font='140px Arial';x.fillText(emo,0,0);x.restore()}
+  else if(kind==='rain'){for(var i=0;i<14;i++){x.fillText(emo,(i*53+30)%W,((t*140+i*97)%(H+80))-40)}}
+  else{for(var j=0;j<6;j++){x.fillText(emo,((t*90+j*70)%(W+80))-40,H/2+Math.sin(t*3+j)*90+j*30-80)}}
+  x.font='900 26px Arial';x.fillStyle='#fff';x.strokeStyle='#000';x.lineWidth=5;var cap=who;x.strokeText(cap,W/2,H-40);x.fillText(cap,W/2,H-40);sceneRaf=requestAnimationFrame(f)})(performance.now())}
+document.addEventListener('click',function(e){var b=e.target&&e.target.closest&&e.target.closest('[data-scene]');if(b)playScene(b.dataset.scene,b.dataset.emo,b.dataset.who)});
 function commentHTML(it,c,i){var key=it.id+':'+i;
  return '<div class="cm"><b>'+esc(c.e||'😎')+' '+esc(c.n)+'</b>'+(c.p?'<span class="pretend" title="A made-up character">🤖</span>':'')+' '+esc(c.t)+
   '<div class="row" style="margin-top:4px;gap:6px"><button data-clike="'+key+'" class="'+(c.liked?'p':'')+'" style="padding:2px 8px;font-size:12px">'+(c.liked?'💖':'🤍')+' '+(c.likes||0)+'</button><button data-creply="'+key+'" style="padding:2px 8px;font-size:12px">↩ Reply</button></div>'+
@@ -122,8 +142,8 @@ function cardHTML(it){
   '<div class="row" style="margin-top:8px"><input data-cin="'+it.id+'" placeholder="Write a comment..." maxlength="140" style="flex:1"><button data-csend="'+it.id+'">Send</button></div></div></div>'}
 function fillImgs(root){root.querySelectorAll('img[data-img]').forEach(function(im){var id=im.dataset.img;if(!id)return;urlOf(id,function(u){if(u)im.src=u})})}
 function renderHome(){var h=$('t-home');
- var subs=CAST.filter(function(c){return soc.sub[c[0]]});
- var subHTML=subs.length?'<div class="card"><div class="in"><h3>🔔 From the characters you subscribed to</h3>'+subs.slice(0,4).map(function(c){return '<div class="cm">'+c[1]+' <b>'+c[0]+'</b> <span class="pretend" title="A made-up character">🤖</span> '+dayPost(CAST.indexOf(c))+'</div>'}).join('')+'</div></div>':'';
+ var subs=CAST.filter(function(c){return soc.sub[c[0]]||soc.fr[c[0]]});
+ var subHTML=friendFeedHTML(subs);
  h.innerHTML=subHTML+(items.length?items.slice().sort(function(a,b){return b.at-a.at}).map(cardHTML).join(''):'<div class="card"><div class="in" style="text-align:center;padding:30px"><div style="font-size:50px">🎬</div><h3>Your CEX is empty</h3><div class="mut">Tap <b>➕ Create</b> to add your first video, post or slideshow.</div></div></div>');
  fillImgs(h)}
 $('t-home').addEventListener('click',function(e){var t=e.target;
@@ -176,7 +196,7 @@ function openItem(it){
    function nx(){k=(k+1)%n;show()}$('slp').onclick=function(){k=(k-1+n)%n;show()};$('sln').onclick=nx;$('slpl').onclick=function(){playing=!playing;this.textContent=playing?'⏸':'▶'};
    show();clearInterval(slideT);slideT=setInterval(function(){if(playing)nx()},3000);if(Q){clearTimeout(Q.t);Q.t=setTimeout(nextQ,n*3000+500)}}}
  else{var m=it.media&&it.media[0];if(m)urlOf(m,function(u){if(u)box.innerHTML='<img src="'+u+'" style="width:100%;border-radius:12px">'});if(Q){clearTimeout(Q.t);Q.t=setTimeout(nextQ,5000)}}}
-$('playClose').onclick=function(){$('ovPlay').classList.remove('show');clearInterval(slideT);if(Q){clearTimeout(Q.t);Q=null}$('playBox').innerHTML=''};
+$('playClose').onclick=function(){$('ovPlay').classList.remove('show');cancelAnimationFrame(sceneRaf);clearInterval(slideT);if(Q){clearTimeout(Q.t);Q=null}$('playBox').innerHTML=''};
 
 /* ---------- create ---------- */
 var cr={type:'video',files:[],thumbBlob:null,vidURL:''};
