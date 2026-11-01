@@ -44,6 +44,10 @@ canvas{width:100%;background:#000;border-radius:10px;display:block;max-height:62
   <div class="row" style="margin:6px 0" id="fxPal"></div><label class="mut"><input type="checkbox" id="fxSnd" checked> also add the matching sound</label><div id="fxList"></div>
   <h2 style="margin-top:14px">🎵 Music</h2><div class="mut">Add a song or sound from a file on your computer: mp3, wav, m4a, or even an mp4 video (its sound is used).</div>
   <div class="row" style="margin:6px 0"><label class="btn p" for="addMus">➕ Add music</label><input id="addMus" type="file" accept="audio/*,video/mp4,video/webm,video/quicktime" multiple style="display:none"></div><div id="musList"></div>
+  <h2 style="margin-top:14px">🎤 Microphone</h2><div class="mut">Record your voice and it is added to your video at the playhead. It stays on this computer.</div>
+  <div class="row" style="margin:6px 0"><button id="micGo" style="background:#e53935;color:#fff">🎤 Record my voice</button><button id="micStop" class="r" style="display:none">⏹ Stop</button><span id="micTime" class="mut"></span></div>
+  <label class="mut"><input type="checkbox" id="micPlay"> play my video while I talk (use headphones so it does not echo)</label>
+  <div id="micMeter" style="height:10px;background:#12142a;border-radius:99px;overflow:hidden;margin-top:6px"><i id="micLvl" style="display:block;height:100%;width:0;background:var(--g)"></i></div>
   <h2 style="margin-top:14px">🔊 Sound effects</h2><div class="mut">Tap a sound to hear it. Press ➕ to put it into the video at the playhead.</div><div id="sfxPal" class="row" style="margin:6px 0"></div><div class="row"><label class="btn" for="addSfx">📁 Add my own sound</label><input id="addSfx" type="file" accept="audio/*" multiple style="display:none"><span class="mut">mp3, wav, m4a...</span></div><div id="sfxList"></div>
   <h2 style="margin-top:14px">📳 Shake</h2><div class="mut">Shakes the picture. Good for big moments and booms.</div><div class="row" style="margin:6px 0"><button id="addSh">➕ Add a shake at the playhead</button></div><div id="shList"></div>
   <h2 style="margin-top:14px">💬 Captions</h2><div class="mut">Type what is said, one line for each caption. Then press the button and the editor spreads them across your video.</div>
@@ -168,7 +172,7 @@ $('texts').addEventListener('click',function(e){if(e.target.dataset.del){texts.s
 /* ---------- music ---------- */
 $('addMus').onchange=function(){Array.prototype.forEach.call(this.files,addMusic);this.value=''};
 function addMusic(f){var el=document.createElement(f.type.indexOf('video')===0?'video':'audio');el.preload='auto';el.src=URL.createObjectURL(f);
- el.onloadedmetadata=function(){musics.push({el:el,name:f.name,dur:el.duration,start:0,trim:0,vol:0.8,gain:null});rmus()};el.onerror=function(){alert('This sound could not be opened: '+f.name)}}
+ el.onloadedmetadata=function(){musics.push({el:el,name:f.name,dur:isFinite(el.duration)&&el.duration>0?el.duration:(f.recDur||1),start:f.recStart||0,trim:0,vol:1,gain:null});rmus()};el.onerror=function(){alert('This sound could not be opened: '+f.name)}}
 function musGain(m){audioSetup();if(!m.gain){try{var sn=aud.createMediaElementSource(m.el);m.gain=aud.createGain();sn.connect(m.gain);m.gain.connect(dest);m.gain.connect(aud.destination)}catch(e){m.gain=null}}if(m.gain)m.gain.gain.value=m.vol;return m.gain}
 function rmus(){$('musList').innerHTML=musics.map(function(m,i){return '<div class="tx" data-m="'+i+'"><div class="row"><b style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🎵 '+m.name.replace(/</g,'&lt;')+'</b><button data-pv="1">▶ Hear</button><button class="r" data-del="1">🗑</button></div><div class="row"><span class="mut">starts at</span><input type="number" step="0.5" min="0" data-k="start" value="'+m.start+'" style="width:70px"><span class="mut">skip first</span><input type="number" step="0.5" min="0" max="'+Math.floor(m.dur)+'" data-k="trim" value="'+m.trim+'" style="width:70px"><span class="mut">seconds</span></div><div class="row"><span class="mut">volume</span><input type="range" min="0" max="1" step="0.05" data-k="vol" value="'+m.vol+'" style="width:140px"></div></div>'}).join('')}
 $('musList').addEventListener('input',function(e){var k=e.target.dataset.k,w=e.target.closest('.tx');if(!k||!w)return;var m=musics[+w.dataset.m];m[k]=+e.target.value;if(k==='vol'&&m.gain)m.gain.gain.value=m.vol});
@@ -229,6 +233,22 @@ async function startRec(kind){
  $('recPrev').srcObject=recStream;$('recBox').style.display='block';recT0=performance.now();recMr.start(500);recTick=setInterval(function(){$('recTime').textContent='🔴 '+fmt((performance.now()-recT0)/1000)},300)}
 $('recCam').onclick=function(){startRec('cam')};$('recScr').onclick=function(){startRec('screen')};
 $('recStop').onclick=function(){if(recMr&&recMr.state!=='inactive')recMr.stop()};
+/* ---------- microphone: record your voice ---------- */
+var micS=null,micMr=null,micCh=[],micT0=0,micTick=0,micAn=null,micRaf=0,micStartAt=0;
+$('micGo').onclick=async function(){
+ if(micMr)return;if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){alert('This browser cannot use the microphone. Try Chrome or Edge.');return}
+ try{micS=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}})}catch(e){alert('The computer needs your OK to use the microphone.');return}
+ audioSetup();if(aud.state==='suspended')aud.resume();
+ var src=aud.createMediaStreamSource(micS);micAn=aud.createAnalyser();micAn.fftSize=256;src.connect(micAn);var buf=new Uint8Array(micAn.frequencyBinCount);
+ (function lvl(){micAn.getByteTimeDomainData(buf);var m=0;for(var i=0;i<buf.length;i++)m=Math.max(m,Math.abs(buf[i]-128));$('micLvl').style.width=Math.min(100,m/128*160)+'%';micRaf=requestAnimationFrame(lvl)})();
+ var mime=['audio/webm;codecs=opus','audio/webm'].filter(function(m){return MediaRecorder.isTypeSupported(m)})[0];
+ micCh=[];micMr=new MediaRecorder(micS,mime?{mimeType:mime}:undefined);micMr.ondataavailable=function(e){if(e.data.size)micCh.push(e.data)};
+ micMr.onstop=function(){clearInterval(micTick);cancelAnimationFrame(micRaf);$('micLvl').style.width='0';var secs=(performance.now()-micT0)/1000;micS.getTracks().forEach(function(t){t.stop()});
+  var f=new File([new Blob(micCh,{type:'audio/webm'})],'my-voice.webm',{type:'audio/webm'});f.recDur=secs;f.recStart=micStartAt;micMr=null;micS=null;$('micGo').style.display='';$('micStop').style.display='none';$('micTime').textContent='Added "my-voice" to your music list.';addMusic(f)};
+ micStartAt=+T.toFixed(1);micT0=performance.now();micMr.start(300);$('micGo').style.display='none';$('micStop').style.display='';
+ micTick=setInterval(function(){$('micTime').textContent='🔴 '+fmt((performance.now()-micT0)/1000)},300);
+ if($('micPlay').checked&&clips.length)startPlay()};
+$('micStop').onclick=function(){if(micMr&&micMr.state!=='inactive')micMr.stop();if(playing)stopPlay()};
 /* ---------- effects ---------- */
 var FXDUR={crack:3,pie:2.5,copen:2,cclose:2,flash:0.4,confetti:3},FXSND={crack:'crack',pie:'splat',copen:'whoosh',cclose:'whoosh',flash:'pop',confetti:'tada'};
 $('fxPal').innerHTML=Object.keys(FXN).map(function(k){return '<button data-fx="'+k+'">'+FXN[k]+'</button>'}).join('');
