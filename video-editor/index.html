@@ -225,7 +225,7 @@ async function startRec(kind){
  if(recMr)return;if(!navigator.mediaDevices){alert('This browser cannot record. Try Chrome or Edge.');return}
  try{recStream=kind==='cam'?await navigator.mediaDevices.getUserMedia({video:{width:1280,height:720},audio:true}):await navigator.mediaDevices.getDisplayMedia({video:true,audio:true})}
  catch(e){alert('Recording did not start. '+(kind==='cam'?'The computer needs your OK to use the camera and microphone.':'Pick a screen or window to record.'));return}
- var mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].filter(function(m){return MediaRecorder.isTypeSupported(m)})[0];
+ var mime=(recStream.getAudioTracks().length?['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm']:['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm']).filter(function(m){return MediaRecorder.isTypeSupported(m)})[0];
  recChunks=[];recMr=new MediaRecorder(recStream,{mimeType:mime});recMr.ondataavailable=function(e){if(e.data.size)recChunks.push(e.data)};
  recMr.onstop=function(){clearInterval(recTick);var secs=(performance.now()-recT0)/1000;recStream.getTracks().forEach(function(t){t.stop()});$('recBox').style.display='none';$('recPrev').srcObject=null;
   var f=new File([new Blob(recChunks,{type:'video/webm'})],(kind==='cam'?'camera':'screen')+'-recording.webm',{type:'video/webm'});f.recDur=secs;recMr=null;recStream=null;addFile(f)};

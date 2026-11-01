@@ -44,6 +44,7 @@ canvas{max-width:100%;border-radius:10px;background:#000}
 
 <div class="ov" id="ovLive"><div class="box"><h3 style="margin:0 0 4px" id="lvH">🔴 Pretend live stream</h3><div class="mut" id="lvD">Only YOU can see this. The viewers and the chat are made-up characters. Nothing is sent to anyone, and nobody can join.</div>
  <div id="liveSrc" class="row" style="margin-top:10px"><button class="p" id="lvCam">🎥 Use my camera</button><button id="lvScr">🖥️ Share my screen</button><button id="lvClose">Close</button></div>
+ <label class="mut" id="lvMicRow" style="display:block;margin-top:8px"><input type="checkbox" id="lvMic" checked> 🎤 use my microphone (your voice is recorded)</label>
  <div id="liveStage" style="display:none;margin-top:10px"><div style="position:relative"><video id="lvVid" muted playsinline autoplay style="width:100%;border-radius:12px;background:#000;max-height:46vh"></video><span class="badge" style="background:#e53935">🔴 LIVE <span id="lvT">0:00</span></span><span class="badge" id="lvVB" style="left:auto;right:8px">👀 <span id="lvV">1</span> pretend viewers</span></div>
   <div id="lvChat" style="height:140px;overflow:auto;margin-top:8px;background:#12132a;border-radius:10px;padding:8px"></div><div class="row" style="margin-top:8px"><button id="lvHeart">❤️ Send hearts</button><button class="r" id="lvStop">⏹ End stream</button></div></div>
  <div id="liveDone" style="display:none;margin-top:10px"><h3 style="margin:0">Stream ended! 🎉</h3><div class="mut" id="lvStats"></div><label>Title for your video</label><input id="lvTitle" maxlength="80" value="My live stream"><div id="lvTypeRow"><label>Post it as</label><select id="lvType"><option value="video">🎬 Video</option><option value="short">📱 Short (up to 60 seconds)</option></select></div><div class="row" style="margin-top:10px"><button class="g" id="lvSave">💾 Save it in CEX</button><button id="lvDiscard">🗑 Throw it away</button></div></div></div></div>
@@ -201,9 +202,11 @@ document.addEventListener('click',function(e){if(!e.target)return;if(e.target.id
 $('lvClose').onclick=function(){$('ovLive').classList.remove('show')};
 async function startLive(kind){
  if(!navigator.mediaDevices){alert('This browser cannot use the camera. Try Chrome or Edge.');return}
- try{lv.stream=kind==='cam'?await navigator.mediaDevices.getUserMedia({video:{width:1280,height:720},audio:true}):await navigator.mediaDevices.getDisplayMedia({video:true,audio:true})}
- catch(e){alert(kind==='cam'?'The computer needs your OK to use the camera and microphone.':'Pick a screen or window to share.');return}
- var mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].filter(function(m){return MediaRecorder.isTypeSupported(m)})[0];
+ try{var wantMic=$('lvMic').checked;lv.extra=[];
+  if(kind==='cam'){lv.stream=await navigator.mediaDevices.getUserMedia({video:{width:1280,height:720},audio:wantMic})}
+  else{var ds=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});lv.extra.push(ds);if(wantMic){var ms=await navigator.mediaDevices.getUserMedia({audio:true});lv.extra.push(ms);lv.stream=new MediaStream(ds.getVideoTracks().concat(ms.getAudioTracks()))}else lv.stream=ds}}
+ catch(e){lv.extra=[];alert(kind==='cam'?'The computer needs your OK to use the camera'+($('lvMic').checked?' and microphone.':'.'):'Pick a screen or window to share, and allow the microphone if you want your voice.');return}
+ var mime=(lv.stream.getAudioTracks().length?['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm']:['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm']).filter(function(m){return MediaRecorder.isTypeSupported(m)})[0];
  lv.chunks=[];lv.mr=new MediaRecorder(lv.stream,{mimeType:mime});lv.mr.ondataavailable=function(e){if(e.data.size)lv.chunks.push(e.data)};lv.mr.onstop=finishLive;
  lv.stream.getVideoTracks()[0].addEventListener('ended',function(){if(lv.mr&&lv.mr.state!=='inactive')endLive()});
  $('lvVid').srcObject=lv.stream;$('liveSrc').style.display='none';$('liveStage').style.display='block';$('lvChat').innerHTML='';lv.viewers=1;lv.t0=performance.now();lv.mr.start(500);
@@ -214,7 +217,7 @@ $('lvCam').onclick=function(){startLive('cam')};$('lvScr').onclick=function(){st
 $('lvHeart').onclick=function(){var ch=$('lvChat');ch.innerHTML+='<div class="cm">❤️❤️❤️ You sent hearts!</div>';ch.scrollTop=ch.scrollHeight};
 function endLive(){try{var c=document.createElement('canvas');c.width=640;c.height=360;c.getContext('2d').drawImage($('lvVid'),0,0,640,360);c.toBlob(function(b){lv.thumb=b},'image/jpeg',.85)}catch(e){lv.thumb=null}if(lv.mr&&lv.mr.state!=='inactive')lv.mr.stop()}
 $('lvStop').onclick=endLive;
-function finishLive(){clearInterval(lv.tm);lv.secs=(performance.now()-lv.t0)/1000;lv.stream.getTracks().forEach(function(t){t.stop()});$('lvVid').srcObject=null;lv.blob=new Blob(lv.chunks,{type:'video/webm'});
+function finishLive(){clearInterval(lv.tm);lv.secs=(performance.now()-lv.t0)/1000;lv.stream.getTracks().forEach(function(t){t.stop()});(lv.extra||[]).forEach(function(st){st.getTracks().forEach(function(t){t.stop()})});$('lvVid').srcObject=null;lv.blob=new Blob(lv.chunks,{type:'video/webm'});
  $('liveStage').style.display='none';$('liveDone').style.display='block';$('lvStats').textContent=lv.mode==='record'?'You recorded '+Math.round(lv.secs)+' seconds.':'You were live for '+Math.round(lv.secs)+' seconds and your pretend stream had up to '+lv.viewers+' pretend viewers. 🤖'}
 $('lvDiscard').onclick=function(){lv.blob=null;$('ovLive').classList.remove('show')};
 $('lvSave').onclick=function(){if(!lv.blob)return;var rec=lv.mode==='record',ty=rec?$('lvType').value:'video';if(ty==='short'&&lv.secs>60.5){alert('A Short can be up to 60 seconds. This recording is '+Math.round(lv.secs)+' seconds, so post it as a Video.');return}var it={id:uid(),type:ty,title:($('lvTitle').value||'My recording').trim(),text:rec?'':'Recorded in a pretend live stream.',media:[uid()],thumb:'',likes:rec?0:lv.viewers,comments:[],at:Date.now()},todo=[[it.media[0],lv.blob]];if(lv.thumb){it.thumb=uid();todo.push([it.thumb,lv.thumb])}
