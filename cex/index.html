@@ -153,7 +153,7 @@ $('playClose').onclick=function(){$('ovPlay').classList.remove('show');clearInte
 /* ---------- create ---------- */
 var cr={type:'video',files:[],thumbBlob:null,vidURL:''};
 function renderCreate(){var c=$('t-create');
- c.innerHTML='<div class="card"><div class="in"><h3>➕ Create something</h3><div class="row"><button id="ctV" class="p">🎬 Video</button><button id="ctH">📱 Short</button><button id="ctP">📝 Post</button><button id="ctS">🖼️ Slideshow</button></div><div id="cForm"></div></div></div>';
+ c.innerHTML='<div class="card"><div class="in"><h3>➕ Create something</h3><div class="mut" style="margin-bottom:8px">Need to cut or add words to a video first? <a href="../video-editor/" style="color:#c9b5ff">Open the free Video Editor</a></div><div class="row"><button id="ctV" class="p">🎬 Video</button><button id="ctH">📱 Short</button><button id="ctP">📝 Post</button><button id="ctS">🖼️ Slideshow</button></div><div id="cForm"></div></div></div>';
  $('ctV').onclick=function(){cr.type='video';form()};$('ctH').onclick=function(){cr.type='short';form()};$('ctP').onclick=function(){cr.type='post';form()};$('ctS').onclick=function(){cr.type='slides';form()};form()}
 function form(){var f=$('cForm');cr.files=[];cr.thumbBlob=null;cr.autoTried=false;
  ['ctV','ctH','ctP','ctS'].forEach(function(id){$(id).className=(id==='ctV'&&cr.type==='video')||(id==='ctH'&&cr.type==='short')||(id==='ctP'&&cr.type==='post')||(id==='ctS'&&cr.type==='slides')?'p':''});
