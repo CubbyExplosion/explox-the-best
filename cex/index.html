@@ -43,6 +43,8 @@ canvas{max-width:100%;border-radius:10px;background:#000}
 </div>
 
 <div id="qtoast" style="position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:60;background:#2ee6a8;color:#06241a;font-weight:800;padding:10px 16px;border-radius:12px;display:none;max-width:90%;text-align:center"></div>
+<div class="ov" id="ovEdit"><div class="box"><h3 style="margin-top:0">✏️ Edit</h3><div id="edTitleRow"><label>Title</label><input id="edTitle" maxlength="80"></div><div id="edTextRow"><label id="edTextLbl">Description</label><textarea id="edText" maxlength="500"></textarea></div><div class="row" style="margin-top:12px"><button class="g" id="edSave">💾 Save</button><button id="edCancel">Cancel</button></div></div></div>
+<div class="ov" id="ovQuick"><div class="box"><h3 style="margin-top:0">⚡ Name your uploads</h3><div class="mut">Choose a name for each one. You can change names later with the ✏️ button.</div><div id="quRows" style="margin-top:8px"></div><div class="row" style="margin-top:12px"><button class="g" id="quGo">⬆ Post them</button><button id="quCancel">Cancel</button></div></div></div>
 <div class="ov" id="ovLive"><div class="box"><h3 style="margin:0 0 4px" id="lvH">🔴 Pretend live stream</h3><div class="mut" id="lvD">Only YOU can see this. The viewers and the chat are made-up characters. Nothing is sent to anyone, and nobody can join.</div>
  <div id="liveSrc" class="row" style="margin-top:10px"><button class="p" id="lvCam">🎥 Use my camera</button><button id="lvScr">🖥️ Share my screen</button><button id="lvClose">Close</button></div>
  <label class="mut" id="lvMicRow" style="display:block;margin-top:8px"><input type="checkbox" id="lvMic" checked> 🎤 use my microphone (your voice is recorded)</label>
@@ -109,23 +111,24 @@ function thId(it){return it.thumb||(it.type!=='video'&&it.type!=='short'&&it.med
 function thumbHTML(it){return '<div class="th" data-open="'+it.id+'"><span class="badge">'+(it.type==='video'?'🎬 Video':it.type==='short'?'📱 Short':it.type==='slides'?'🖼️ Slideshow':'📝 Post')+'</span><img data-img="'+thId(it)+'" alt=""'+(!thId(it)?' style="display:none"':'')+'>'+(!thId(it)?'<div style="font-size:42px;padding:20px;text-align:center">'+esc((it.text||it.title||'').slice(0,90))+'</div>':'')+'</div>'}
 var replyTo=null;
 function commentHTML(it,c,i){var key=it.id+':'+i;
- return '<div class="cm"><b>'+esc(c.e||'😎')+' '+esc(c.n)+'</b>'+(c.p?'<span class="pretend">pretend fan</span>':'')+' '+esc(c.t)+
+ return '<div class="cm"><b>'+esc(c.e||'😎')+' '+esc(c.n)+'</b>'+(c.p?'<span class="pretend" title="A made-up character">🤖</span>':'')+' '+esc(c.t)+
   '<div class="row" style="margin-top:4px;gap:6px"><button data-clike="'+key+'" class="'+(c.liked?'p':'')+'" style="padding:2px 8px;font-size:12px">'+(c.liked?'💖':'🤍')+' '+(c.likes||0)+'</button><button data-creply="'+key+'" style="padding:2px 8px;font-size:12px">↩ Reply</button></div>'+
-  (c.replies||[]).map(function(r){return '<div class="cm" style="margin-left:22px;border-top:0;padding:3px 0"><b>↳ '+esc(r.e||'😎')+' '+esc(r.n)+'</b>'+(r.p?'<span class="pretend">pretend fan</span>':'')+' '+esc(r.t)+'</div>'}).join('')+
+  (c.replies||[]).map(function(r){return '<div class="cm" style="margin-left:22px;border-top:0;padding:3px 0"><b>↳ '+esc(r.e||'😎')+' '+esc(r.n)+'</b>'+(r.p?'<span class="pretend" title="A made-up character">🤖</span>':'')+' '+esc(r.t)+'</div>'}).join('')+
   (replyTo===key?'<div class="row" style="margin:6px 0 2px 22px"><input data-rin="'+key+'" placeholder="Write a reply..." maxlength="140" style="flex:1"><button class="g" data-csendr="'+key+'">Reply</button><button data-ccancel="1">✖</button></div>':'')+'</div>'}
 function cardHTML(it){
  return '<div class="card" id="c-'+it.id+'">'+thumbHTML(it)+'<div class="in"><h3>'+esc(it.title||'Post')+'</h3>'+(it.type==='post'&&it.text?'<div>'+esc(it.text)+'</div>':'')+'<div class="mut">'+acct.av+' '+esc(acct.nick)+' · '+ago(it.at)+'</div>'+
-  '<div class="row" style="margin:8px 0"><button data-like="'+it.id+'"'+(it.liked?' class="p" title="You already liked this"':'')+'>'+(it.liked?'💖':'❤️')+' '+it.likes+'</button><button data-open="'+it.id+'">▶ Open</button><button class="r" data-del="'+it.id+'">🗑</button></div>'+
+  '<div class="row" style="margin:8px 0"><button data-like="'+it.id+'"'+(it.liked?' class="p" title="You already liked this"':'')+'>'+(it.liked?'💖':'❤️')+' '+it.likes+'</button><button data-open="'+it.id+'">▶ Open</button><button data-edit="'+it.id+'">✏️ Edit</button><button class="r" data-del="'+it.id+'">🗑</button></div>'+
   '<div>'+it.comments.map(function(c,i){return {c:c,i:i}}).slice(-4).map(function(x){return commentHTML(it,x.c,x.i)}).join('')+'</div>'+
   '<div class="row" style="margin-top:8px"><input data-cin="'+it.id+'" placeholder="Write a comment..." maxlength="140" style="flex:1"><button data-csend="'+it.id+'">Send</button></div></div></div>'}
 function fillImgs(root){root.querySelectorAll('img[data-img]').forEach(function(im){var id=im.dataset.img;if(!id)return;urlOf(id,function(u){if(u)im.src=u})})}
 function renderHome(){var h=$('t-home');
  var subs=CAST.filter(function(c){return soc.sub[c[0]]});
- var subHTML=subs.length?'<div class="card"><div class="in"><h3>🔔 From the characters you subscribed to</h3>'+subs.slice(0,4).map(function(c){return '<div class="cm">'+c[1]+' <b>'+c[0]+'</b> <span class="pretend">pretend</span> '+dayPost(CAST.indexOf(c))+'</div>'}).join('')+'</div></div>':'';
+ var subHTML=subs.length?'<div class="card"><div class="in"><h3>🔔 From the characters you subscribed to</h3>'+subs.slice(0,4).map(function(c){return '<div class="cm">'+c[1]+' <b>'+c[0]+'</b> <span class="pretend" title="A made-up character">🤖</span> '+dayPost(CAST.indexOf(c))+'</div>'}).join('')+'</div></div>':'';
  h.innerHTML=subHTML+(items.length?items.slice().sort(function(a,b){return b.at-a.at}).map(cardHTML).join(''):'<div class="card"><div class="in" style="text-align:center;padding:30px"><div style="font-size:50px">🎬</div><h3>Your CEX is empty</h3><div class="mut">Tap <b>➕ Create</b> to add your first video, post or slideshow.</div></div></div>');
  fillImgs(h)}
 $('t-home').addEventListener('click',function(e){var t=e.target;
  var l=t.closest('[data-like]');if(l){var it=find(l.dataset.like);if(it.liked)return;it.liked=1;it.likes++;saveItems();renderHome();return}
+ var ed=t.closest('[data-edit]');if(ed){openEdit(find(ed.dataset.edit));return}
  var d=t.closest('[data-del]');if(d){if(confirm('Delete this from CEX?')){var x=find(d.dataset.del);(x.media||[]).concat(x.thumb?[x.thumb]:[]).forEach(delM);items=items.filter(function(i){return i!==x});saveItems();renderHome()}return}
  var o=t.closest('[data-open]');if(o){openItem(find(o.dataset.open));return}
  var cl=t.closest('[data-clike]');if(cl){var pr=cl.dataset.clike.split(':'),ci=find(pr[0]),cm=ci&&ci.comments[+pr[1]];if(cm&&!cm.liked){cm.liked=1;cm.likes=(cm.likes||0)+1;saveItems();renderHome()}return}
@@ -136,11 +139,15 @@ $('t-home').addEventListener('click',function(e){var t=e.target;
 function sendReply(key){var inp=document.querySelector('[data-rin="'+key+'"]'),v=inp&&inp.value.trim();if(!v)return;var pr=key.split(':'),it=find(pr[0]),c=it&&it.comments[+pr[1]];if(!c)return;(c.replies=c.replies||[]).push({n:acct.nick,e:acct.av,t:v,at:Date.now()});replyTo=null;saveItems();renderHome();
  if(Math.random()<0.6)setTimeout(function(){var f=FANS[Math.floor(Math.random()*FANS.length)];(c.replies=c.replies||[]).push({n:f[0],e:f[1],t:['Thanks for the reply! 😄','Haha, yes! 😂','I agree!','Same here! 🙌','Good one! ⭐'][Math.floor(Math.random()*5)],p:1,at:Date.now()});saveItems();if($('t-home').classList.contains('on')&&!(document.activeElement&&document.activeElement.tagName==='INPUT'))renderHome()},4000)}
 $('t-home').addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.rin)sendReply(e.target.dataset.rin)});
+var editing=null;
+function openEdit(it){if(!it)return;editing=it;var post=it.type==='post';$('edTitleRow').style.display=post?'none':'block';$('edTitle').value=it.title||'';$('edTextLbl').textContent=post?'What you wrote':'Description';$('edText').value=it.text||'';$('ovEdit').classList.add('show')}
+$('edCancel').onclick=function(){$('ovEdit').classList.remove('show');editing=null};
+$('edSave').onclick=function(){if(!editing)return;if(editing.type==='post'){editing.text=($('edText').value||'').trim();editing.title=editing.text.slice(0,40)||editing.title||'Post'}else{var t=($('edTitle').value||'').trim();if(!t){alert('A title can not be empty.');return}editing.title=t;editing.text=($('edText').value||'').trim()}saveItems();$('ovEdit').classList.remove('show');editing=null;renderHome();renderShorts&&renderShorts()};
 function find(id){return items.filter(function(i){return i.id===id})[0]}
 
 function renderFriends(){var f=$('t-friends'),nf=Object.keys(soc.fr).length,ns=Object.keys(soc.sub).length;
  f.innerHTML='<div class="card"><div class="in"><h3>🧑‍🤝‍🧑 Friends and subscriptions</h3><div class="mut">These are made-up characters, not real people. You can friend them and subscribe, but there is no chat.</div><div class="row" style="margin-top:6px"><span class="chip">👫 '+nf+' friends</span><span class="chip">🔔 '+ns+' subscribed</span></div></div></div>'+
-  CAST.map(function(c,i){var fr=soc.fr[c[0]],sb=soc.sub[c[0]];return '<div class="card"><div class="in"><div class="row sp"><div class="row"><span class="av" style="font-size:40px">'+c[1]+'</span><div><h3 style="margin:0">'+c[0]+'</h3><div class="mut">'+c[2]+'</div></div></div><div class="row"><button data-fr="'+c[0]+'" class="'+(fr?'g':'')+'">'+(fr?'👫 Friends':'➕ Friend')+'</button><button data-sb="'+c[0]+'" class="'+(sb?'p':'')+'">'+(sb?'🔔 Subscribed':'Subscribe')+'</button></div></div><div class="cm">'+c[1]+' <b>'+c[0]+'</b> <span class="pretend">pretend</span> '+dayPost(i)+'</div></div></div>'}).join('')}
+  CAST.map(function(c,i){var fr=soc.fr[c[0]],sb=soc.sub[c[0]];return '<div class="card"><div class="in"><div class="row sp"><div class="row"><span class="av" style="font-size:40px">'+c[1]+'</span><div><h3 style="margin:0">'+c[0]+'</h3><div class="mut">'+c[2]+'</div></div></div><div class="row"><button data-fr="'+c[0]+'" class="'+(fr?'g':'')+'">'+(fr?'👫 Friends':'➕ Friend')+'</button><button data-sb="'+c[0]+'" class="'+(sb?'p':'')+'">'+(sb?'🔔 Subscribed':'Subscribe')+'</button></div></div><div class="cm">'+c[1]+' <b>'+c[0]+'</b> <span class="pretend" title="A made-up character">🤖</span> '+dayPost(i)+'</div></div></div>'}).join('')}
 $('t-friends').addEventListener('click',function(e){var a=e.target.closest('[data-fr]'),b=e.target.closest('[data-sb]');if(a){var n=a.dataset.fr;if(soc.fr[n])delete soc.fr[n];else soc.fr[n]=1;saveSoc();renderFriends();renderMe()}if(b){var m=b.dataset.sb;if(soc.sub[m])delete soc.sub[m];else soc.sub[m]=1;saveSoc();renderFriends();renderHome();renderMe()}});
 /* ---------- shorts: swipe up through short videos ---------- */
 var shortObs=null;
@@ -228,7 +235,7 @@ async function startLive(kind){
  $('lvVid').srcObject=lv.stream;$('liveSrc').style.display='none';$('liveStage').style.display='block';$('lvChat').innerHTML='';lv.viewers=1;lv.t0=performance.now();lv.mr.start(500);
  lv.tm=setInterval(function(){var sec=(performance.now()-lv.t0)/1000;$('lvT').textContent=Math.floor(sec/60)+':'+('0'+Math.floor(sec%60)).slice(-2);
   if(lv.mode!=='live')return;lv.viewers=Math.max(1,Math.min(80,lv.viewers+Math.round(Math.random()*4-1.3)));$('lvV').textContent=lv.viewers;
-  if(Math.random()<0.55){var f=CAST[Math.floor(Math.random()*CAST.length)],ch=$('lvChat');ch.innerHTML+='<div class="cm"><b>'+f[1]+' '+f[0]+'</b> <span class="pretend">pretend</span> '+LIVESAY[Math.floor(Math.random()*LIVESAY.length)]+'</div>';ch.scrollTop=ch.scrollHeight}},1500)}
+  if(Math.random()<0.55){var f=CAST[Math.floor(Math.random()*CAST.length)],ch=$('lvChat');ch.innerHTML+='<div class="cm"><b>'+f[1]+' '+f[0]+'</b> <span class="pretend" title="A made-up character">🤖</span> '+LIVESAY[Math.floor(Math.random()*LIVESAY.length)]+'</div>';ch.scrollTop=ch.scrollHeight}},1500)}
 $('lvCam').onclick=function(){startLive('cam')};$('lvScr').onclick=function(){startLive('screen')};
 $('lvHeart').onclick=function(){var ch=$('lvChat');ch.innerHTML+='<div class="cm">❤️❤️❤️ You sent hearts!</div>';ch.scrollTop=ch.scrollHeight};
 function endLive(){try{var c=document.createElement('canvas');c.width=640;c.height=360;c.getContext('2d').drawImage($('lvVid'),0,0,640,360);c.toBlob(function(b){lv.thumb=b},'image/jpeg',.85)}catch(e){lv.thumb=null}if(lv.mr&&lv.mr.state!=='inactive')lv.mr.stop()}
@@ -279,12 +286,17 @@ function probeVideo(file){return new Promise(function(res){var v=document.create
  v.onseeked=function(){try{var c=document.createElement('canvas');c.width=640;c.height=360;var x=c.getContext('2d'),r=Math.max(640/v.videoWidth,360/v.videoHeight);x.drawImage(v,(640-v.videoWidth*r)/2,(360-v.videoHeight*r)/2,v.videoWidth*r,v.videoHeight*r);c.toBlob(function(b){info.thumb=b;fin(info)},'image/jpeg',.8)}catch(e){fin(info)}};
  v.onerror=function(){fin(info)};v.src=url})}
 function putP(id,blob){return new Promise(function(r){putM(id,blob,r)})}
-function quickOne(file){var name=file.name.replace(/\.[^.]+$/,'').slice(0,60)||'Upload',it={id:uid(),type:'post',title:name,text:'',media:[],thumb:'',likes:0,comments:[],at:Date.now()};
+function quickOne(file,chosen){var name=(chosen&&chosen.trim())||file.name.replace(/\.[^.]+$/,'').slice(0,60)||'Upload',it={id:uid(),type:'post',title:name,text:'',media:[],thumb:'',likes:0,comments:[],at:Date.now()};
  if(file.type.indexOf('image')===0){var id=uid();it.media=[id];return putP(id,file).then(function(){return it})}
  return probeVideo(file).then(function(info){var mid=uid(),jobs=[putP(mid,file)];it.media=[mid];it.type=(info.h>info.w&&info.dur>0&&info.dur<=60)?'short':'video';if(info.thumb){it.thumb=uid();jobs.push(putP(it.thumb,info.thumb))}return Promise.all(jobs).then(function(){return it})})}
+var quPending=[];
 function quickUpload(list){var files=Array.prototype.filter.call(list,function(f){return f.type.indexOf('video')===0||f.type.indexOf('image')===0});if(!files.length){qmsg('Pick videos or pictures to upload.');return}
+ quPending=files;$('quRows').innerHTML=files.map(function(f,i){return '<div class="row" style="margin:6px 0"><span>'+(f.type.indexOf('video')===0?'🎬':'🖼️')+'</span><input data-qn="'+i+'" maxlength="60" value="'+esc(f.name.replace(/\.[^.]+$/,'').slice(0,60))+'" style="flex:1"></div>'}).join('');$('ovQuick').classList.add('show')}
+$('quCancel').onclick=function(){quPending=[];$('ovQuick').classList.remove('show')};
+$('quGo').onclick=function(){var names=[];document.querySelectorAll('#quRows [data-qn]').forEach(function(i){names.push(i.value)});$('ovQuick').classList.remove('show');var f=quPending;quPending=[];quickRun(f,names)};
+function quickRun(files,names){
  var done=0,added=[],idx=0,t0=performance.now();qmsg('⚡ Uploading 0 of '+files.length+'...',true);
- function worker(){if(idx>=files.length)return Promise.resolve();var f=files[idx++];return quickOne(f).then(function(it){added.push(it);done++;qmsg('⚡ Uploading '+done+' of '+files.length+'...',true)}).catch(function(){done++}).then(worker)}
+ function worker(){if(idx>=files.length)return Promise.resolve();var k=idx++,f=files[k];return quickOne(f,names&&names[k]).then(function(it){added.push(it);done++;qmsg('⚡ Uploading '+done+' of '+files.length+'...',true)}).catch(function(){done++}).then(worker)}
  Promise.all([worker(),worker(),worker()]).then(function(){added.forEach(function(it){items.push(it)});saveItems();renderHome();renderTop();qmsg('✅ Uploaded '+added.length+' file'+(added.length===1?'':'s')+' in '+((performance.now()-t0)/1000).toFixed(1)+' seconds!');var hb=document.querySelector('#nav button[data-t=home]');if(hb)hb.click()})}
 document.addEventListener('change',function(e){if(e.target&&e.target.id==='qu'){var fl=e.target.files;quickUpload(fl);e.target.value=''}});
 window.addEventListener('dragover',function(e){if($('app').style.display!=='none')e.preventDefault()});
