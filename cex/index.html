@@ -37,9 +37,9 @@ canvas{max-width:100%;border-radius:10px;background:#000}
 <div id="app" style="display:none">
  <div id="top"><span class="logo">CEX</span><span class="sp"></span><span id="who" class="mut"></span><button id="logout">Log out</button></div>
  <div id="view">
-  <div class="tab on" id="t-home"></div><div class="tab" id="t-create"></div><div class="tab" id="t-shorts"></div><div class="tab" id="t-friends"></div><div class="tab" id="t-me"></div>
+  <div class="tab on" id="t-home"></div><div class="tab" id="t-create"></div><div class="tab" id="t-shorts"></div><div class="tab" id="t-friends"></div><div class="tab" id="t-lists"></div><div class="tab" id="t-top"></div><div class="tab" id="t-me"></div>
  </div>
- <div id="nav"><button data-t="home" class="on">🏠 Home</button><button data-t="shorts">📱 Shorts</button><button data-t="create">➕ Create</button><button data-t="friends">🧑‍🤝‍🧑 Friends</button><button data-t="me">👤 Me</button></div>
+ <div id="nav"><button data-t="home" class="on">🏠 Home</button><button data-t="shorts">📱 Shorts</button><button data-t="create">➕ Create</button><button data-t="friends">🧑‍🤝‍🧑 Friends</button><button data-t="lists">📂 Lists</button><button data-t="top">🏆 Top 100</button><button data-t="me">👤 Me</button></div>
 </div>
 
 <div class="ov" id="ovLive"><div class="box"><h3 style="margin:0 0 4px" id="lvH">🔴 Pretend live stream</h3><div class="mut" id="lvD">Only YOU can see this. The viewers and the chat are made-up characters. Nothing is sent to anyone, and nobody can join.</div>
@@ -100,9 +100,9 @@ setInterval(function(){if($('app').style.display==='none'||!items.length||Math.r
  it.comments.push({n:f[0],e:f[1],t:FANSAY[Math.floor(Math.random()*FANSAY.length)],p:1,at:Date.now()});it.likes+=Math.floor(Math.random()*3);saveItems();if($('t-home').classList.contains('on'))renderHome()},9000);
 
 /* ---------- views ---------- */
-function enter(){$('lock').style.display='none';$('app').style.display='block';$('who').textContent=acct.av+' '+acct.nick;renderHome();renderCreate();renderFriends();renderMe()}
+function enter(){$('lock').style.display='none';$('app').style.display='block';$('who').textContent=acct.av+' '+acct.nick;renderHome();renderCreate();renderFriends();renderLists();renderTop();renderMe()}
 var navs=document.querySelectorAll('#nav button');
-navs.forEach(function(b){b.onclick=function(){navs.forEach(function(x){x.classList.toggle('on',x===b)});document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.id==='t-'+b.dataset.t)});if(b.dataset.t==='home')renderHome();if(b.dataset.t==='me')renderMe();if(b.dataset.t==='friends')renderFriends();if(b.dataset.t==='shorts')renderShorts();else stopShorts()}});
+navs.forEach(function(b){b.onclick=function(){navs.forEach(function(x){x.classList.toggle('on',x===b)});document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.id==='t-'+b.dataset.t)});if(b.dataset.t==='home')renderHome();if(b.dataset.t==='me')renderMe();if(b.dataset.t==='friends')renderFriends();if(b.dataset.t==='lists')renderLists();if(b.dataset.t==='top')renderTop();if(b.dataset.t==='shorts')renderShorts();else stopShorts()}});
 
 function thId(it){return it.thumb||(it.type!=='video'&&it.type!=='short'&&it.media&&it.media[0])||''}
 function thumbHTML(it){return '<div class="th" data-open="'+it.id+'"><span class="badge">'+(it.type==='video'?'🎬 Video':it.type==='short'?'📱 Short':it.type==='slides'?'🖼️ Slideshow':'📝 Post')+'</span><img data-img="'+thId(it)+'" alt=""'+(!thId(it)?' style="display:none"':'')+'>'+(!thId(it)?'<div style="font-size:42px;padding:20px;text-align:center">'+esc((it.text||it.title||'').slice(0,90))+'</div>':'')+'</div>'}
@@ -143,18 +143,19 @@ $('t-shorts').addEventListener('click',function(e){var l=e.target.closest('[data
  if(e.target.closest('[data-shmute]')){var vs=document.querySelectorAll('#t-shorts video'),m=!vs[0].muted;vs.forEach(function(v){v.muted=m});e.target.closest('[data-shmute]').textContent=m?'🔇':'🔊';return}
  var v=e.target.closest('video');if(v){if(v.paused)v.play();else v.pause()}});
 /* ---------- play ---------- */
-var slideT=null;
+var slideT=null,Q=null;
+function nextQ(){if(!Q)return;clearTimeout(Q.t);Q.i++;if(Q.i<Q.ids.length){var n=find(Q.ids[Q.i]);if(n){openItem(n);return}}$('playClose').click()}
 function openItem(it){
  if(!it)return;$('ovPlay').classList.add('show');$('playInfo').innerHTML='<h3>'+esc(it.title||'Post')+'</h3><div class="mut">'+esc(it.text||'')+'</div>';var box=$('playBox');box.innerHTML='';
- if(it.type==='video'||it.type==='short'){urlOf(it.media[0],function(u){box.innerHTML=u?'<video controls autoplay playsinline style="width:100%;border-radius:12px;background:#000" src="'+u+'"></video>':'<div class="mut">This video file is missing from this computer.</div>'})}
+ if(it.type==='video'||it.type==='short'){urlOf(it.media[0],function(u){box.innerHTML=u?'<video controls autoplay playsinline style="width:100%;border-radius:12px;background:#000" src="'+u+'"></video>':'<div class="mut">This video file is missing from this computer.</div>';var vv=box.querySelector('video');if(Q){if(vv)vv.onended=nextQ;else Q.t=setTimeout(nextQ,2500)}})}
  else if(it.type==='slides'){var k=0,urls=[];var n=it.media.length;var got=0;
   it.media.forEach(function(id,i){urlOf(id,function(u){urls[i]=u;if(++got===n)start()})});
   function start(){box.innerHTML='<img id="sl" style="width:100%;border-radius:12px;background:#000;max-height:60vh;object-fit:contain"><div id="slcap" style="text-align:center;margin-top:6px"></div><div class="row" style="justify-content:center;margin-top:8px"><button id="slp">⏮</button><button id="slpl">⏸</button><button id="sln">⏭</button><span class="mut" id="slc"></span></div>';
    var playing=true;function show(){$('sl').src=urls[k];$('slcap').textContent=(it.caps&&it.caps[k])||'';$('slc').textContent=(k+1)+' / '+n}
    function nx(){k=(k+1)%n;show()}$('slp').onclick=function(){k=(k-1+n)%n;show()};$('sln').onclick=nx;$('slpl').onclick=function(){playing=!playing;this.textContent=playing?'⏸':'▶'};
-   show();clearInterval(slideT);slideT=setInterval(function(){if(playing)nx()},3000)}}
- else{var m=it.media&&it.media[0];if(m)urlOf(m,function(u){if(u)box.innerHTML='<img src="'+u+'" style="width:100%;border-radius:12px">'})}}
-$('playClose').onclick=function(){$('ovPlay').classList.remove('show');clearInterval(slideT);$('playBox').innerHTML=''};
+   show();clearInterval(slideT);slideT=setInterval(function(){if(playing)nx()},3000);if(Q){clearTimeout(Q.t);Q.t=setTimeout(nextQ,n*3000+500)}}}
+ else{var m=it.media&&it.media[0];if(m)urlOf(m,function(u){if(u)box.innerHTML='<img src="'+u+'" style="width:100%;border-radius:12px">'});if(Q){clearTimeout(Q.t);Q.t=setTimeout(nextQ,5000)}}}
+$('playClose').onclick=function(){$('ovPlay').classList.remove('show');clearInterval(slideT);if(Q){clearTimeout(Q.t);Q=null}$('playBox').innerHTML=''};
 
 /* ---------- create ---------- */
 var cr={type:'video',files:[],thumbBlob:null,vidURL:''};
@@ -222,6 +223,38 @@ function finishLive(){clearInterval(lv.tm);lv.secs=(performance.now()-lv.t0)/100
 $('lvDiscard').onclick=function(){lv.blob=null;$('ovLive').classList.remove('show')};
 $('lvSave').onclick=function(){if(!lv.blob)return;var rec=lv.mode==='record',ty=rec?$('lvType').value:'video';if(ty==='short'&&lv.secs>60.5){alert('A Short can be up to 60 seconds. This recording is '+Math.round(lv.secs)+' seconds, so post it as a Video.');return}var it={id:uid(),type:ty,title:($('lvTitle').value||'My recording').trim(),text:rec?'':'Recorded in a pretend live stream.',media:[uid()],thumb:'',likes:rec?0:lv.viewers,comments:[],at:Date.now()},todo=[[it.media[0],lv.blob]];if(lv.thumb){it.thumb=uid();todo.push([it.thumb,lv.thumb])}
  var left=todo.length;todo.forEach(function(q){putM(q[0],q[1],function(){if(--left===0){items.push(it);saveItems();lv.blob=null;$('ovLive').classList.remove('show');document.querySelector('#nav button[data-t=home]').click()}})})};
+/* ---------- playlists ---------- */
+var PL=LS.get('cex_playlists',[]),plOpen=null;function savePL(){LS.set('cex_playlists',PL)}
+var PLEMO=['🎬','🎮','😂','🎵','⭐','🔥','🏆','🚀','🌈','🧱'];
+function plItems(p){return p.items.map(find).filter(Boolean)}
+function renderLists(){var t=$('t-lists');
+ if(plOpen){var p=PL.filter(function(x){return x.id===plOpen})[0];if(!p){plOpen=null;return renderLists()}var its=plItems(p),others=items.filter(function(i){return p.items.indexOf(i.id)<0});
+  t.innerHTML='<div class="card"><div class="in"><div class="row sp"><button data-plback="1">◀ All playlists</button><button class="g" data-plplay="'+p.id+'"'+(its.length?'':' disabled')+'>▶ Play all</button></div><h3 style="margin:10px 0 2px">'+p.emoji+' '+esc(p.name)+'</h3><div class="mut">'+its.length+' in this playlist</div></div></div>'+
+   '<div class="card"><div class="in"><h3>In this playlist</h3>'+(its.length?its.map(function(i,k){return '<div class="row sp cm"><span>'+(k+1)+'. '+(i.type==='video'?'🎬':i.type==='short'?'📱':i.type==='slides'?'🖼️':'📝')+' '+esc(i.title||'Post')+'</span><span class="row"><button data-plup="'+i.id+'">▲</button><button data-pldn="'+i.id+'">▼</button><button data-plopen="'+i.id+'">▶</button><button class="r" data-plrm="'+i.id+'">✖</button></span></div>'}).join(''):'<div class="mut">Empty. Add something from below.</div>')+'</div></div>'+
+   '<div class="card"><div class="in"><h3>Add from my CEX</h3>'+(others.length?others.map(function(i){return '<div class="row sp cm"><span>'+(i.type==='video'?'🎬':i.type==='short'?'📱':i.type==='slides'?'🖼️':'📝')+' '+esc(i.title||'Post')+'</span><button class="g" data-pladd="'+i.id+'">➕ Add</button></div>'}).join(''):'<div class="mut">Everything you made is already in this playlist (or you have not made anything yet).</div>')+'</div></div>';return}
+ t.innerHTML='<div class="card"><div class="in"><h3>📂 My playlists</h3><div class="mut">Group your videos, Shorts and posts into lists, then play a whole list.</div><div class="row" style="margin-top:8px"><select id="plEmo" style="width:70px">'+PLEMO.map(function(e){return '<option>'+e+'</option>'}).join('')+'</select><input id="plName" maxlength="40" placeholder="Playlist name" style="flex:1"><button class="p" id="plMake">➕ Make</button></div></div></div>'+
+  (PL.length?PL.map(function(p){return '<div class="card"><div class="in row sp"><div><h3 style="margin:0">'+p.emoji+' '+esc(p.name)+'</h3><div class="mut">'+plItems(p).length+' items</div></div><div class="row"><button data-plopenlist="'+p.id+'">Open</button><button class="g" data-plplay="'+p.id+'">▶ Play</button><button class="r" data-pldel="'+p.id+'">🗑</button></div></div></div>'}).join(''):'<div class="card"><div class="in mut" style="text-align:center;padding:20px">No playlists yet. Make your first one above!</div></div>')}
+$('t-lists').addEventListener('click',function(e){var t=e.target,pl=function(id){return PL.filter(function(x){return x.id===id})[0]};
+ if(t.id==='plMake'){var nm=($('plName').value||'').trim();if(!nm){alert('Give your playlist a name first.');return}PL.push({id:uid(),name:nm,emoji:$('plEmo').value,items:[]});savePL();renderLists();return}
+ var b=t.closest('button');if(!b)return;var d=b.dataset;
+ if(d.plopenlist){plOpen=d.plopenlist;renderLists()}else if(d.plback){plOpen=null;renderLists()}
+ else if(d.pldel){if(confirm('Delete this playlist? Your videos stay safe.')){PL=PL.filter(function(x){return x.id!==d.pldel});savePL();renderLists()}}
+ else if(d.pladd){pl(plOpen).items.push(d.pladd);savePL();renderLists()}else if(d.plrm){var q=pl(plOpen);q.items=q.items.filter(function(x){return x!==d.plrm});savePL();renderLists()}
+ else if(d.plup||d.pldn){var q2=pl(plOpen),id=d.plup||d.pldn,i=q2.items.indexOf(id),j=d.plup?i-1:i+1;if(j>=0&&j<q2.items.length){var tmp=q2.items[i];q2.items[i]=q2.items[j];q2.items[j]=tmp;savePL();renderLists()}}
+ else if(d.plopen){Q=null;openItem(find(d.plopen))}
+ else if(d.plplay){var q3=pl(d.plplay),ids=plItems(q3).map(function(x){return x.id});if(ids.length){Q={ids:ids,i:0,t:0};openItem(find(ids[0]))}}});
+/* ---------- Top 100 leaderboard (everyone else is a made-up character) ---------- */
+var ADJ=['Pixel','Turbo','Cosmic','Mega','Rainbow','Block','Star','Nova','Jelly','Puzzle','Robo','Snow'],ANI=[['Fox','🦊'],['Turtle','🐢'],['Cat','🐱'],['Rex','🦖'],['Panda','🐼'],['Bot','🤖'],['Pup','🐶'],['Owl','🦉'],['Bee','🐝'],['Frog','🐸'],['Bear','🐻'],['Koala','🐨']];
+var BOARD=(function(){var all=[];ADJ.forEach(function(a){ANI.forEach(function(n){all.push({n:a+n[0],e:n[1]})})});var r=1234567,rnd=function(){r=(r*1103515245+12345)&0x7fffffff;return r/0x7fffffff};for(var i=all.length-1;i>0;i--){var j=Math.floor(rnd()*(i+1)),tmp=all[i];all[i]=all[j];all[j]=tmp}
+ return all.slice(0,99).map(function(c,i){c.score=Math.round(5000*Math.pow(0.96,i)*(0.97+rnd()*0.06));return c})})();
+function myScore(){var likes=items.reduce(function(a,i){return a+i.likes},0),coms=items.reduce(function(a,i){return a+i.comments.length},0),shorts=items.filter(function(i){return i.type==='short'}).length;
+ return items.length*50+shorts*30+likes*10+coms*3+Object.keys(soc.fr).length*20+Object.keys(soc.sub).length*10}
+function renderTop(){var me=myScore(),rank=1;BOARD.forEach(function(c){if(c.score>me)rank++});var rows=BOARD.slice().sort(function(a,b){return b.score-a.score}),list=[],placed=false;
+ rows.forEach(function(c){if(!placed&&me>=c.score){list.push({me:1,score:me});placed=true}list.push(c)});if(!placed)list.push({me:1,score:me});
+ var medal=['🥇','🥈','🥉'];
+ $('t-top').innerHTML='<div class="card"><div class="in" style="text-align:center"><div style="font-size:42px">🏆</div><h3 style="margin:4px 0">Top 100 creators</h3><div class="mut">Everyone else here is a made-up character, not a real person.</div><div class="row" style="justify-content:center;margin-top:10px"><span class="chip" style="font-size:16px">You are <b>#'+rank+'</b> of 100</span><span class="chip">⭐ '+me+' points</span></div></div></div>'+
+  (rank===1?'<div class="card" style="background:linear-gradient(90deg,#8e5bff,#ff4fa3)"><div class="in" style="text-align:center"><div style="font-size:46px">🏆🎉</div><h3 style="margin:4px 0">YOU ARE #1! CEX CHAMPION!</h3><div>You beat all 99 made-up creators. Amazing work!</div></div></div>':'')+'<div class="card"><div class="in"><h3>How to climb</h3><div class="mut">📝 Post: 50 points · 📱 Short: +30 · ❤️ each like: 10 · 💬 each comment: 3 · 👫 each friend: 20 · 🔔 each subscription: 10</div></div></div>'+
+  '<div class="card"><div class="in">'+list.map(function(c,i){var rk=i+1;return '<div class="row sp cm" style="'+(c.me?'background:#3a2c7a;border-radius:10px;padding:8px;border-top:0':'')+'"><span><b style="display:inline-block;width:46px">'+(rk<=3?medal[rk-1]:'#'+rk)+'</b> '+(c.me?acct.av+' <b>'+esc(acct.nick)+'</b> (you)':c.e+' '+c.n)+'</span><b>'+c.score+'</b></div>'}).join('')+'</div></div>'}
 /* ---------- me ---------- */
 var AVS=['😎','🦊','🐱','🐶','🦖','🚀','🤖','👾','🌟','🎮','🐢','🦄'];
 function renderMe(){var m=$('t-me');
