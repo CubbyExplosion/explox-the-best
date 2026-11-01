@@ -102,7 +102,7 @@ function thId(it){return it.thumb||(it.type!=='video'&&it.media&&it.media[0])||'
 function thumbHTML(it){return '<div class="th" data-open="'+it.id+'"><span class="badge">'+(it.type==='video'?'🎬 Video':it.type==='slides'?'🖼️ Slideshow':'📝 Post')+'</span><img data-img="'+thId(it)+'" alt=""'+(!thId(it)?' style="display:none"':'')+'>'+(!thId(it)?'<div style="font-size:42px;padding:20px;text-align:center">'+esc((it.text||it.title||'').slice(0,90))+'</div>':'')+'</div>'}
 function cardHTML(it){
  return '<div class="card" id="c-'+it.id+'">'+thumbHTML(it)+'<div class="in"><h3>'+esc(it.title||'Post')+'</h3>'+(it.type==='post'&&it.text?'<div>'+esc(it.text)+'</div>':'')+'<div class="mut">'+acct.av+' '+esc(acct.nick)+' · '+ago(it.at)+'</div>'+
-  '<div class="row" style="margin:8px 0"><button data-like="'+it.id+'">❤️ '+it.likes+'</button><button data-open="'+it.id+'">▶ Open</button><button class="r" data-del="'+it.id+'">🗑</button></div>'+
+  '<div class="row" style="margin:8px 0"><button data-like="'+it.id+'"'+(it.liked?' class="p" title="You already liked this"':'')+'>'+(it.liked?'💖':'❤️')+' '+it.likes+'</button><button data-open="'+it.id+'">▶ Open</button><button class="r" data-del="'+it.id+'">🗑</button></div>'+
   '<div>'+it.comments.slice(-4).map(function(c){return '<div class="cm"><b>'+esc(c.e||'😎')+' '+esc(c.n)+'</b>'+(c.p?'<span class="pretend">pretend fan</span>':'')+' '+esc(c.t)+'</div>'}).join('')+'</div>'+
   '<div class="row" style="margin-top:8px"><input data-cin="'+it.id+'" placeholder="Write a comment..." maxlength="140" style="flex:1"><button data-csend="'+it.id+'">Send</button></div></div></div>'}
 function fillImgs(root){root.querySelectorAll('img[data-img]').forEach(function(im){var id=im.dataset.img;if(!id)return;urlOf(id,function(u){if(u)im.src=u})})}
@@ -112,7 +112,7 @@ function renderHome(){var h=$('t-home');
  h.innerHTML=subHTML+(items.length?items.slice().sort(function(a,b){return b.at-a.at}).map(cardHTML).join(''):'<div class="card"><div class="in" style="text-align:center;padding:30px"><div style="font-size:50px">🎬</div><h3>Your CEX is empty</h3><div class="mut">Tap <b>➕ Create</b> to add your first video, post or slideshow.</div></div></div>');
  fillImgs(h)}
 $('t-home').addEventListener('click',function(e){var t=e.target;
- var l=t.closest('[data-like]');if(l){var it=find(l.dataset.like);it.likes++;saveItems();renderHome();return}
+ var l=t.closest('[data-like]');if(l){var it=find(l.dataset.like);if(it.liked)return;it.liked=1;it.likes++;saveItems();renderHome();return}
  var d=t.closest('[data-del]');if(d){if(confirm('Delete this from CEX?')){var x=find(d.dataset.del);(x.media||[]).concat(x.thumb?[x.thumb]:[]).forEach(delM);items=items.filter(function(i){return i!==x});saveItems();renderHome()}return}
  var o=t.closest('[data-open]');if(o){openItem(find(o.dataset.open));return}
  var s=t.closest('[data-csend]');if(s){var inp=document.querySelector('[data-cin="'+s.dataset.csend+'"]'),v=inp.value.trim();if(v){find(s.dataset.csend).comments.push({n:acct.nick,e:acct.av,t:v,at:Date.now()});saveItems();renderHome()}}});
