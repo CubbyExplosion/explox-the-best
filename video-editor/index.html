@@ -35,6 +35,9 @@ canvas{width:100%;background:#000;border-radius:10px;display:block;max-height:62
  <section class="panel">
   <h2>Clips</h2>
   <div class="row"><label class="btn p" for="add">➕ Add videos or pictures</label><input id="add" type="file" accept="video/*,image/*" multiple style="display:none"><button id="split">✂️ Split at playhead</button></div>
+  <div class="row" style="margin-top:8px"><button id="recCam" style="background:#e53935;color:#fff">🔴 Record camera</button><button id="recScr">🖥️ Record screen</button></div>
+  <div id="recBox" style="display:none;margin-top:6px"><video id="recPrev" muted playsinline autoplay style="width:100%;max-height:200px;border-radius:10px;background:#000"></video><div class="row" style="margin-top:6px"><span id="recTime" class="mut">🔴 0:00</span><button id="recStop" class="r">⏹ Stop and add to my video</button></div></div>
+  <div class="mut" style="margin-top:4px">Recordings are saved only on this computer. Nothing is uploaded or streamed.</div>
   <div id="clips"><div class="mut" style="padding:14px">Add a video to start. Drag clips with the arrows to put them in order.</div></div>
   <h2 style="margin-top:14px">Text on screen</h2><button id="addTx">➕ Add text</button><div id="texts"></div>
   <h2 style="margin-top:14px">🎭 Effects</h2><div class="mut">Cracks, pies, curtains and more. Press one and it is added at the playhead. Drag the green mark on the preview to choose where a crack or a pie lands.</div>
@@ -68,7 +71,7 @@ $('add').onchange=function(){Array.prototype.forEach.call(this.files,addFile);th
 function addFile(f){var url=URL.createObjectURL(f),id=uid();
  if(f.type.indexOf('image')===0){var im=new Image();im.onload=function(){medias[id]={img:im,url:url};clips.push({m:id,type:'image',name:f.name,imgDur:4,in:0,out:4,speed:1,vol:1,filter:'none',fi:false,fo:false,flip:false,zoom:1,rot:0});sel=clips.length-1;render();draw()};im.src=url;return}
  var v=document.createElement('video');v.preload='auto';v.playsInline=true;v.src=url;v.crossOrigin='anonymous';
- v.onloadedmetadata=function(){medias[id]={el:v,url:url,dur:v.duration};clips.push({m:id,type:'video',name:f.name,in:0,out:v.duration,speed:1,vol:1,filter:'none',fi:false,fo:false,flip:false,zoom:1,rot:0});sel=clips.length-1;render();seekTo(0)};
+ v.onloadedmetadata=function(){var dd=isFinite(v.duration)&&v.duration>0?v.duration:(f.recDur||1);medias[id]={el:v,url:url,dur:dd};clips.push({m:id,type:'video',name:f.name,in:0,out:dd,speed:1,vol:1,filter:'none',fi:false,fo:false,flip:false,zoom:1,rot:0});sel=clips.length-1;render();seekTo(0)};
  v.onerror=function(){alert('This file could not be opened: '+f.name)}}
 function audioSetup(){if(aud)return;aud=new (window.AudioContext||window.webkitAudioContext)();dest=aud.createMediaStreamDestination()}
 function gainFor(id){var m=medias[id];if(!m.el)return null;audioSetup();if(!m.gain){try{var s=aud.createMediaElementSource(m.el);m.gain=aud.createGain();s.connect(m.gain);m.gain.connect(dest);m.gain.connect(aud.destination)}catch(e){m.gain=null}}return m.gain}
@@ -212,6 +215,20 @@ $('shList').addEventListener('click',function(e){var w=e.target.closest('.tx');i
 var EMO=['😂','🔥','💯','👍','🎉','⭐','❤️','😎','🚀','💥','😮','🤩','👀','✨','🏆','🎮'];
 $('emoPal').innerHTML=EMO.map(function(e){return '<button style="font-size:22px;padding:4px 8px" data-emo="'+e+'">'+e+'</button>'}).join('');
 $('emoPal').addEventListener('click',function(e){var em=e.target.dataset.emo;if(!em)return;if(selOv&&selOv.kind==='s'&&stickers[selOv.i]){stickers[selOv.i].t=em;stickers[selOv.i].img=null}else{var tt=total()||5;stickers.push({t:em,x:50,y:50,size:120,s:0,e:Math.max(tt,3)});selOv={kind:'s',i:stickers.length-1}}rst();draw()});
+/* ---------- record the camera or the screen ---------- */
+var recStream=null,recMr=null,recChunks=[],recT0=0,recTick=0;
+async function startRec(kind){
+ if(recMr)return;if(!navigator.mediaDevices){alert('This browser cannot record. Try Chrome or Edge.');return}
+ try{recStream=kind==='cam'?await navigator.mediaDevices.getUserMedia({video:{width:1280,height:720},audio:true}):await navigator.mediaDevices.getDisplayMedia({video:true,audio:true})}
+ catch(e){alert('Recording did not start. '+(kind==='cam'?'The computer needs your OK to use the camera and microphone.':'Pick a screen or window to record.'));return}
+ var mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].filter(function(m){return MediaRecorder.isTypeSupported(m)})[0];
+ recChunks=[];recMr=new MediaRecorder(recStream,{mimeType:mime});recMr.ondataavailable=function(e){if(e.data.size)recChunks.push(e.data)};
+ recMr.onstop=function(){clearInterval(recTick);var secs=(performance.now()-recT0)/1000;recStream.getTracks().forEach(function(t){t.stop()});$('recBox').style.display='none';$('recPrev').srcObject=null;
+  var f=new File([new Blob(recChunks,{type:'video/webm'})],(kind==='cam'?'camera':'screen')+'-recording.webm',{type:'video/webm'});f.recDur=secs;recMr=null;recStream=null;addFile(f)};
+ recStream.getVideoTracks()[0].addEventListener('ended',function(){if(recMr&&recMr.state!=='inactive')recMr.stop()});
+ $('recPrev').srcObject=recStream;$('recBox').style.display='block';recT0=performance.now();recMr.start(500);recTick=setInterval(function(){$('recTime').textContent='🔴 '+fmt((performance.now()-recT0)/1000)},300)}
+$('recCam').onclick=function(){startRec('cam')};$('recScr').onclick=function(){startRec('screen')};
+$('recStop').onclick=function(){if(recMr&&recMr.state!=='inactive')recMr.stop()};
 /* ---------- effects ---------- */
 var FXDUR={crack:3,pie:2.5,copen:2,cclose:2,flash:0.4,confetti:3},FXSND={crack:'crack',pie:'splat',copen:'whoosh',cclose:'whoosh',flash:'pop',confetti:'tada'};
 $('fxPal').innerHTML=Object.keys(FXN).map(function(k){return '<button data-fx="'+k+'">'+FXN[k]+'</button>'}).join('');

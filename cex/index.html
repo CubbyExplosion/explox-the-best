@@ -42,6 +42,11 @@ canvas{max-width:100%;border-radius:10px;background:#000}
  <div id="nav"><button data-t="home" class="on">🏠 Home</button><button data-t="shorts">📱 Shorts</button><button data-t="create">➕ Create</button><button data-t="friends">🧑‍🤝‍🧑 Friends</button><button data-t="me">👤 Me</button></div>
 </div>
 
+<div class="ov" id="ovLive"><div class="box"><h3 style="margin:0 0 4px">🔴 Pretend live stream</h3><div class="mut">Only YOU can see this. The viewers and the chat are made-up characters. Nothing is sent to anyone, and nobody can join.</div>
+ <div id="liveSrc" class="row" style="margin-top:10px"><button class="p" id="lvCam">🎥 Use my camera</button><button id="lvScr">🖥️ Share my screen</button><button id="lvClose">Close</button></div>
+ <div id="liveStage" style="display:none;margin-top:10px"><div style="position:relative"><video id="lvVid" muted playsinline autoplay style="width:100%;border-radius:12px;background:#000;max-height:46vh"></video><span class="badge" style="background:#e53935">🔴 LIVE <span id="lvT">0:00</span></span><span class="badge" style="left:auto;right:8px">👀 <span id="lvV">1</span> pretend viewers</span></div>
+  <div id="lvChat" style="height:140px;overflow:auto;margin-top:8px;background:#12132a;border-radius:10px;padding:8px"></div><div class="row" style="margin-top:8px"><button id="lvHeart">❤️ Send hearts</button><button class="r" id="lvStop">⏹ End stream</button></div></div>
+ <div id="liveDone" style="display:none;margin-top:10px"><h3 style="margin:0">Stream ended! 🎉</h3><div class="mut" id="lvStats"></div><label>Title for your video</label><input id="lvTitle" maxlength="80" value="My live stream"><div class="row" style="margin-top:10px"><button class="g" id="lvSave">💾 Save it in CEX</button><button id="lvDiscard">🗑 Throw it away</button></div></div></div></div>
 <div class="ov" id="ovPlay"><div class="box"><div id="playBox"></div><div id="playInfo"></div><div class="row" style="margin-top:10px"><button id="playClose">Close</button></div></div></div>
 
 <script>
@@ -153,7 +158,7 @@ $('playClose').onclick=function(){$('ovPlay').classList.remove('show');clearInte
 /* ---------- create ---------- */
 var cr={type:'video',files:[],thumbBlob:null,vidURL:''};
 function renderCreate(){var c=$('t-create');
- c.innerHTML='<div class="card"><div class="in"><h3>➕ Create something</h3><div class="mut" style="margin-bottom:8px">Need to cut or add words to a video first? <a href="../video-editor/" style="color:#c9b5ff">Open the free Video Editor</a></div><div class="row"><button id="ctV" class="p">🎬 Video</button><button id="ctH">📱 Short</button><button id="ctP">📝 Post</button><button id="ctS">🖼️ Slideshow</button></div><div id="cForm"></div></div></div>';
+ c.innerHTML='<div class="card"><div class="in"><h3>➕ Create something</h3><div class="mut" style="margin-bottom:8px"><button id="goLive" style="margin-bottom:8px;background:#e53935;color:#fff">🔴 Go Live (pretend stream)</button><br>Need to cut or add words to a video first? <a href="../video-editor/" style="color:#c9b5ff">Open the free Video Editor</a></div><div class="row"><button id="ctV" class="p">🎬 Video</button><button id="ctH">📱 Short</button><button id="ctP">📝 Post</button><button id="ctS">🖼️ Slideshow</button></div><div id="cForm"></div></div></div>';
  $('ctV').onclick=function(){cr.type='video';form()};$('ctH').onclick=function(){cr.type='short';form()};$('ctP').onclick=function(){cr.type='post';form()};$('ctS').onclick=function(){cr.type='slides';form()};form()}
 function form(){var f=$('cForm');cr.files=[];cr.thumbBlob=null;cr.autoTried=false;
  ['ctV','ctH','ctP','ctS'].forEach(function(id){$(id).className=(id==='ctV'&&cr.type==='video')||(id==='ctH'&&cr.type==='short')||(id==='ctP'&&cr.type==='post')||(id==='ctS'&&cr.type==='slides')?'p':''});
@@ -186,6 +191,31 @@ function publish(){
  if(!left){items.push(it);saveItems();document.querySelector('#nav button[data-t=home]').click();return}
  todo.forEach(function(p){putM(p[0],p[1],done)})}
 
+/* ---------- pretend live stream (nobody else can see it) ---------- */
+var LIVESAY=['Hi! 👋','This is so cool!','Love the stream! ❤️','LOL 😂','Wow! 🔥','Can you show that again?','You are awesome! ⭐','First time here, nice!','🎉🎉🎉','So fun!','Epic! 😎','Best stream ever!'];
+var lv={stream:null,mr:null,chunks:[],t0:0,tm:0,viewers:1,secs:0,thumb:null,blob:null};
+document.addEventListener('click',function(e){if(e.target&&e.target.id==='goLive'){$('liveSrc').style.display='flex';$('liveStage').style.display='none';$('liveDone').style.display='none';$('ovLive').classList.add('show')}});
+$('lvClose').onclick=function(){$('ovLive').classList.remove('show')};
+async function startLive(kind){
+ if(!navigator.mediaDevices){alert('This browser cannot use the camera. Try Chrome or Edge.');return}
+ try{lv.stream=kind==='cam'?await navigator.mediaDevices.getUserMedia({video:{width:1280,height:720},audio:true}):await navigator.mediaDevices.getDisplayMedia({video:true,audio:true})}
+ catch(e){alert(kind==='cam'?'The computer needs your OK to use the camera and microphone.':'Pick a screen or window to share.');return}
+ var mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].filter(function(m){return MediaRecorder.isTypeSupported(m)})[0];
+ lv.chunks=[];lv.mr=new MediaRecorder(lv.stream,{mimeType:mime});lv.mr.ondataavailable=function(e){if(e.data.size)lv.chunks.push(e.data)};lv.mr.onstop=finishLive;
+ lv.stream.getVideoTracks()[0].addEventListener('ended',function(){if(lv.mr&&lv.mr.state!=='inactive')endLive()});
+ $('lvVid').srcObject=lv.stream;$('liveSrc').style.display='none';$('liveStage').style.display='block';$('lvChat').innerHTML='';lv.viewers=1;lv.t0=performance.now();lv.mr.start(500);
+ lv.tm=setInterval(function(){var sec=(performance.now()-lv.t0)/1000;$('lvT').textContent=Math.floor(sec/60)+':'+('0'+Math.floor(sec%60)).slice(-2);
+  lv.viewers=Math.max(1,Math.min(80,lv.viewers+Math.round(Math.random()*4-1.3)));$('lvV').textContent=lv.viewers;
+  if(Math.random()<0.55){var f=CAST[Math.floor(Math.random()*CAST.length)],ch=$('lvChat');ch.innerHTML+='<div class="cm"><b>'+f[1]+' '+f[0]+'</b> <span class="pretend">pretend</span> '+LIVESAY[Math.floor(Math.random()*LIVESAY.length)]+'</div>';ch.scrollTop=ch.scrollHeight}},1500)}
+$('lvCam').onclick=function(){startLive('cam')};$('lvScr').onclick=function(){startLive('screen')};
+$('lvHeart').onclick=function(){var ch=$('lvChat');ch.innerHTML+='<div class="cm">❤️❤️❤️ You sent hearts!</div>';ch.scrollTop=ch.scrollHeight};
+function endLive(){try{var c=document.createElement('canvas');c.width=640;c.height=360;c.getContext('2d').drawImage($('lvVid'),0,0,640,360);c.toBlob(function(b){lv.thumb=b},'image/jpeg',.85)}catch(e){lv.thumb=null}if(lv.mr&&lv.mr.state!=='inactive')lv.mr.stop()}
+$('lvStop').onclick=endLive;
+function finishLive(){clearInterval(lv.tm);lv.secs=(performance.now()-lv.t0)/1000;lv.stream.getTracks().forEach(function(t){t.stop()});$('lvVid').srcObject=null;lv.blob=new Blob(lv.chunks,{type:'video/webm'});
+ $('liveStage').style.display='none';$('liveDone').style.display='block';$('lvStats').textContent='You were live for '+Math.round(lv.secs)+' seconds and your pretend stream had up to '+lv.viewers+' pretend viewers. 🤖'}
+$('lvDiscard').onclick=function(){lv.blob=null;$('ovLive').classList.remove('show')};
+$('lvSave').onclick=function(){if(!lv.blob)return;var it={id:uid(),type:'video',title:($('lvTitle').value||'My live stream').trim(),text:'Recorded in a pretend live stream.',media:[uid()],thumb:'',likes:lv.viewers,comments:[],at:Date.now()},todo=[[it.media[0],lv.blob]];if(lv.thumb){it.thumb=uid();todo.push([it.thumb,lv.thumb])}
+ var left=todo.length;todo.forEach(function(q){putM(q[0],q[1],function(){if(--left===0){items.push(it);saveItems();lv.blob=null;$('ovLive').classList.remove('show');document.querySelector('#nav button[data-t=home]').click()}})})};
 /* ---------- me ---------- */
 var AVS=['😎','🦊','🐱','🐶','🦖','🚀','🤖','👾','🌟','🎮','🐢','🦄'];
 function renderMe(){var m=$('t-me');
