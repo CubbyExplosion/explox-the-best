@@ -30,7 +30,7 @@ textarea{min-height:90px;resize:vertical}label{display:block;margin:10px 0 4px;c
 canvas{max-width:100%;border-radius:10px;background:#000}
 </style></head><body>
 <div id="lock"><div class="big logo">CEX</div><h2 id="lockTitle">Welcome to CEX</h2><div class="mut" id="lockSub"></div>
- <input id="pin" type="password" inputmode="numeric" maxlength="10" placeholder="passcode"><div id="lockMsg" style="min-height:20px;color:#ff8a8a"></div>
+ <input id="uname" maxlength="16" placeholder="pick a username" autocomplete="off" style="max-width:260px;text-align:center;font-size:20px;display:none"><input id="pin" type="password" inputmode="numeric" maxlength="10" placeholder="passcode"><div id="lockMsg" style="min-height:20px;color:#ff8a8a"></div>
  <button class="p" id="lockGo">Sign in</button><button id="lockForgot" style="background:transparent;color:var(--mut)">Forgot passcode?</button>
  <div class="mut" style="max-width:340px;font-size:12px">CEX is private. It lives only on this computer. There is no chat and no strangers.</div></div>
 
@@ -69,14 +69,14 @@ function uid(){return 'i'+Date.now().toString(36)+Math.random().toString(36).sli
 function hash(s,cb){try{var d=new TextEncoder().encode('cex-salt:'+s);crypto.subtle.digest('SHA-256',d).then(function(h){cb(Array.from(new Uint8Array(h)).map(function(b){return b.toString(16).padStart(2,'0')}).join(''))})}catch(e){cb('x'+s)}}
 var acct=LS.get('cex_acct',null);
 function showLock(){
- $('lock').style.display='flex';$('app').style.display='none';$('pin').value='';$('lockMsg').textContent='';
+ $('uname').style.display=acct?'none':'block';$('lock').style.display='flex';$('app').style.display='none';$('pin').value='';$('lockMsg').textContent='';
  if(acct){$('lockTitle').textContent='Welcome back'+(acct.nick?', '+acct.nick:'')+'!';$('lockSub').textContent='Type your passcode to sign in.';$('lockGo').textContent='Sign in';$('lockForgot').style.display=''}
- else{$('lockTitle').textContent='Make your CEX account';$('lockSub').textContent='Pick a passcode of 4 to 10 numbers. Do not use your real name anywhere.';$('lockGo').textContent='Create account';$('lockForgot').style.display='none'}}
+ else{$('lockTitle').textContent='Make your CEX account';$('lockSub').textContent='Choose a username (letters and numbers, 3 to 16) and a passcode of 4 to 10 numbers. Never use your real name.';$('lockGo').textContent='Create account';$('lockForgot').style.display='none'}}
 $('lockGo').onclick=function(){
- var p=$('pin').value.replace(/\D/g,'');if(p.length<4){$('lockMsg').textContent='Use 4 to 10 numbers.';return}
+ var p=$('pin').value.replace(/\D/g,''),un=($('uname').value||'').trim();if(!acct&&!/^[A-Za-z0-9_]{3,16}$/.test(un)){$('lockMsg').textContent='Pick a username with 3 to 16 letters or numbers (no spaces).';return}if(p.length<4){$('lockMsg').textContent='Use 4 to 10 numbers.';return}
  hash(p,function(h){
   if(acct){if(h===acct.h)enter();else{$('lockMsg').textContent='Wrong passcode. Try again.';$('pin').value=''}}
-  else{acct={h:h,nick:'Explorer'+Math.floor(100+Math.random()*900),av:'😎',bio:'Welcome to my CEX!'};LS.set('cex_acct',acct);enter()}})};
+  else{acct={h:h,nick:un,av:'😎',bio:'Welcome to my CEX!'};LS.set('cex_acct',acct);enter()}})};
 $('pin').addEventListener('keydown',function(e){if(e.key==='Enter')$('lockGo').click()});
 $('lockForgot').onclick=function(){if(confirm('Forgot your passcode? The only way in is to delete your CEX account and all its posts from this computer. Do that?')){localStorage.removeItem('cex_acct');localStorage.removeItem('cex_items');acct=null;items=[];showLock()}};
 $('logout').onclick=function(){showLock()};
@@ -260,11 +260,11 @@ var AVS=['😎','🦊','🐱','🐶','🦖','🚀','🤖','👾','🌟','🎮','
 function renderMe(){var m=$('t-me');
  m.innerHTML='<div class="card"><div class="in" style="text-align:center"><div class="av">'+acct.av+'</div><h3 style="margin:4px 0">'+esc(acct.nick)+'</h3><div class="mut">'+esc(acct.bio)+'</div>'+
   '<div class="row" style="justify-content:center;margin:10px 0"><span class="chip">🎬 '+items.length+' posts</span><span class="chip">⭐ '+pretendFollowers()+' pretend followers</span><span class="chip">👫 '+Object.keys(soc.fr).length+' friends</span><span class="chip">🔔 '+Object.keys(soc.sub).length+' subs</span><span class="chip">❤️ '+items.reduce(function(a,i){return a+i.likes},0)+' likes</span></div></div></div>'+
-  '<div class="card"><div class="in"><h3>✏️ Edit my profile</h3><label>Nickname (never your real name)</label><input id="mn" maxlength="20" value="'+esc(acct.nick)+'"><label>About me</label><input id="mb" maxlength="80" value="'+esc(acct.bio)+'"><label>Picture</label><div>'+AVS.map(function(a){return '<button data-av="'+a+'" style="font-size:24px;margin:2px">'+a+'</button>'}).join('')+'</div><div class="row" style="margin-top:12px"><button class="g" id="ms">Save</button></div></div></div>'+
+  '<div class="card"><div class="in"><h3>✏️ Edit my profile</h3><label>Username (3 to 16 letters or numbers, never your real name)</label><input id="mn" maxlength="20" value="'+esc(acct.nick)+'"><label>About me</label><input id="mb" maxlength="80" value="'+esc(acct.bio)+'"><label>Picture</label><div>'+AVS.map(function(a){return '<button data-av="'+a+'" style="font-size:24px;margin:2px">'+a+'</button>'}).join('')+'</div><div class="row" style="margin-top:12px"><button class="g" id="ms">Save</button></div></div></div>'+
   '<div class="card"><div class="in"><h3>🔐 Passcode</h3><div class="mut">Your passcode is only a lock on this computer.</div><div class="row" style="margin-top:8px"><input id="np" type="password" inputmode="numeric" maxlength="10" placeholder="new passcode (4-10 numbers)" style="flex:1"><button id="npb">Change</button></div></div></div>'+
   '<div class="card"><div class="in"><h3>🧑‍🤝‍🧑 My pretend fans</h3><div class="mut">Made-up characters who cheer for you. They are not real people.</div><div class="row" style="margin-top:6px">'+FANS.map(function(f){return '<span class="chip">'+f[1]+' '+f[0]+'</span>'}).join('')+'</div></div></div>';
  var av=acct.av;m.querySelectorAll('[data-av]').forEach(function(b){b.onclick=function(){av=b.dataset.av;m.querySelectorAll('[data-av]').forEach(function(x){x.style.outline=x===b?'3px solid var(--a)':''})}});
- $('ms').onclick=function(){acct.nick=($('mn').value||'Explorer').trim().slice(0,20);acct.bio=($('mb').value||'').slice(0,80);acct.av=av;LS.set('cex_acct',acct);$('who').textContent=acct.av+' '+acct.nick;renderMe();renderHome()};
+ $('ms').onclick=function(){var nn=($('mn').value||'').trim();if(!/^[A-Za-z0-9_]{3,16}$/.test(nn)){alert('A username needs 3 to 16 letters or numbers, with no spaces.');return}acct.nick=nn;acct.bio=($('mb').value||'').slice(0,80);acct.av=av;LS.set('cex_acct',acct);$('who').textContent=acct.av+' '+acct.nick;renderMe();renderHome()};
  $('npb').onclick=function(){var p=$('np').value.replace(/\D/g,'');if(p.length<4){alert('Use 4 to 10 numbers.');return}hash(p,function(h){acct.h=h;LS.set('cex_acct',acct);$('np').value='';alert('Passcode changed.')})}}
 
 openDB(function(){showLock()});
