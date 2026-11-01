@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Exiverse - 100,000 mods for Exworld</title>
+<meta name="description" content="Exiverse: browse 100,000 mods for Exworld. Speed boots, moon gravity, long days, wide views and more. Build a pack and paste it into the game.">
+<style>
+:root{--bg:#0d0b1f;--card:#1a1740;--card2:#241f58;--ink:#f1eeff;--mut:#a9a3d6;--a:#7c5cff;--b:#22d3ee;--g:#2ee6a8;--line:#352f78;--gold:#ffd24a}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1200px 600px at 70% -10%,#2a1f7a55,transparent),var(--bg);color:var(--ink);font:15px/1.45 system-ui,Segoe UI,Arial,sans-serif}
+header{padding:16px 16px 8px;max-width:1100px;margin:auto}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between}
+h1{margin:0;font-size:30px;letter-spacing:.5px;background:linear-gradient(90deg,var(--b),var(--a),#ff4fa3);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--mut);margin-top:2px}
+button{font:inherit;color:var(--ink);background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:8px 12px;cursor:pointer}
+button:hover{border-color:var(--a)}button.p{background:linear-gradient(90deg,var(--a),#a04cff);border-color:transparent;font-weight:700}
+button.g{background:#14624a;border-color:#1f8f6b}button:disabled{opacity:.5;cursor:default}
+main{max-width:1100px;margin:auto;padding:0 16px 40px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+input,select{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:9px 12px}
+input[type=search]{flex:1;min-width:200px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}
+.chip{border-radius:999px;padding:6px 12px;background:var(--card);border:1px solid var(--line);cursor:pointer}
+.chip.on{background:var(--a);border-color:var(--a);font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.mod{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:6px;cursor:pointer}
+.mod:hover{border-color:var(--b)}
+.ic{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:26px;flex:none}
+.row{display:flex;gap:10px;align-items:center}
+.nm{font-weight:800;line-height:1.2}
+.mut{color:var(--mut);font-size:13px}
+.eff{display:flex;gap:5px;flex-wrap:wrap}
+.e{background:#0d0b1f;border:1px solid var(--line);border-radius:8px;padding:2px 7px;font-size:12px}
+.tier{font-size:11px;font-weight:800;border-radius:6px;padding:1px 6px;color:#101010}
+.t1{background:#bfc6d4}.t2{background:#7ee08a}.t3{background:#58b6ff}.t4{background:#c07bff}.t5{background:var(--gold)}
+.pager{display:flex;gap:8px;align-items:center;justify-content:center;margin:16px 0;flex-wrap:wrap}
+.pager input{width:90px;text-align:center}
+.ov{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;padding:14px;z-index:20}
+.ov.show{display:flex}
+.box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;max-width:560px;width:100%;max-height:90vh;overflow:auto}
+.note{color:var(--mut);font-size:13px}
+textarea{width:100%;font:12px/1.3 monospace;color:var(--ink);background:#0d0b1f;border:1px solid var(--line);border-radius:10px;padding:8px}
+footer{max-width:1100px;margin:auto;padding:0 16px 30px;color:var(--mut);font-size:13px}
+a{color:var(--b)}
+.pk{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+@media(max-width:520px){h1{font-size:26px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <div><h1>🌌 Exiverse</h1><div class="sub"><b id="cnt">100,000</b> mods for Exworld</div></div>
+    <div class="row"><button id="rnd">🎲 Surprise me</button><button class="p" id="packBtn">🎒 My pack (<span id="pn">0</span>)</button></div>
+  </div>
+</header>
+<main>
+  <div class="bar">
+    <input type="search" id="q" placeholder="Search 100,000 mods... (try: moon, boots, turbo, or #4242)">
+    <select id="sort"><option value="pop">Most popular</option><option value="rate">Top rated</option><option value="new">Newest</option><option value="az">A to Z</option></select>
+    <select id="tier"><option value="0">Any power</option><option value="1">Basic</option><option value="2">Good</option><option value="3">Great</option><option value="4">Epic</option><option value="5">Legendary</option></select>
+  </div>
+  <div class="chips" id="cats"></div>
+  <div class="mut" id="res" style="margin-bottom:8px"></div>
+  <div class="grid" id="grid"></div>
+  <div class="pager"><button id="prev">◀ Back</button><span>Page <input type="number" id="pg" min="1" value="1"> of <b id="pt">1</b></span><button id="next">Next ▶</button></div>
+</main>
+<footer>
+  Every mod here is made by the Exiverse mod maker, and the studios, stars and download counts are made up for fun. Mods are tiny tweaks that work in <a href="https://exquisite-llama-690a41.netlify.app/play/" target="_blank" rel="noopener">Exworld</a>.
+  Nothing is uploaded: your pack stays on this computer until you copy the code yourself.
+</footer>
+
+<div class="ov" id="ovMod"><div class="box" id="modBox"></div></div>
+<div class="ov" id="ovPack"><div class="box" id="packBox"></div></div>
+
+<script>
+(function(){
+function $(i){return document.getElementById(i)}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function H(a,b){var x=Math.imul(a+1,2654435761)^Math.imul(b+7,40503);x^=x>>>15;x=Math.imul(x,2246822519);x^=x>>>13;x=Math.imul(x,3266489917);x^=x>>>16;return x>>>0}
+var N=100000;
+/* ---------- what the mods are made of ---------- */
+var CATS=[
+ {k:'speed',e:'🏃',n:'Speed',nouns:['Boots','Sneakers','Dash Module','Sprint Engine','Runner Pack','Zoom Core','Jet Shoes','Turbo Legs','Lightning Laces']},
+ {k:'jump',e:'🦘',n:'Jump',nouns:['Springs','Hop Boots','Bounce Pads','Kangaroo Kit','Leap Core','Cloud Steps','Pogo Legs','Trampoline Soles']},
+ {k:'grav',e:'🌙',n:'Low Gravity',nouns:['Moon Boots','Float Core','Feather Fall','Low-G Pack','Space Drift','Balloon Belt','Antigrav Charm','Cloud Cape']},
+ {k:'day',e:'🌅',n:'Time',nouns:['Sun Clock','Day Dial','Night Owl Lamp','Time Stretch','Slow Sun','Fast Moon','Sky Winder','Hourglass']},
+ {k:'fov',e:'👁️',n:'Vision',nouns:['Wide Lens','Hawk Eyes','Panorama Visor','Zoom Specs','Scout Goggles','Vista Glass','Eagle Lens']},
+ {k:'swim',e:'🏊',n:'Swimming',nouns:['Fins','Dolphin Pack','Aqua Boots','Wave Rider','Splash Core','Otter Suit','Reef Flippers']},
+ {k:'combo',e:'✨',n:'Combo',nouns:['Hero Pack','Explorer Kit','Adventurer Bundle','Wanderer Set','Ranger Pack','Pioneer Gear','Starter Pack Plus','Champion Kit']}
+];
+var FLAV='Turbo Cozy Jelly Pixel Cosmic Rainbow Frosty Sunny Bouncy Fuzzy Golden Silver Comet Maple Nimbus Zippy Mellow Sparkly Stormy Lucky Misty Ember Glacier Coral Dusty Neon Velvet Wobbly Breezy Crystal Meteor Orbit Lunar Solar Thunder Whisper Clover Pebble Bubble Thistle Jolly Quick Gentle Brave Mighty Tiny Giant Swift Silent Radiant Ancient Magic Secret Royal Wild Happy Chilly Toasty Fizzy Snowy Mossy Rusty Minty Peachy Cherry Berry Lemon Mango Cocoa Honey Ginger Pepper Cloud Star Moon Sun Wave River Canyon Forest Meadow Desert Tundra Island Jungle Volcano Aurora Galaxy Nebula Quasar Pulsar Photon Quantum Hyper Mega Ultra Super Prime Alpha Delta Omega'.split(' ');
+var PRE='Pocket Deluxe Extra Classic Lite Pro Max Mini Grand Epic Smart Handy Ultimate Simple Fancy Rapid Gentle Bright Cool Sweet Dream Spark Glow Proper Perfect Little Big Neo Retro Turbo Zen'.split(' ');
+var STUD='Pixel Pals,Blocksmith Guild,Moonlit Mods,Tiny Toad Labs,Orbit Workshop,Fizz Forge,Cloudy Crafters,Nova Nest,Jelly Jam Studio,Rocket Pocket,Maple Make,Starlight Smiths,Glow Garage,Bubble Works,Comet Cabin,Zig Zag Zone,Mossy Mill,Sunny Side Studio,Frost Foundry,Ember Ink,Puzzle Pie,Wiggle Workshop,Echo Egg,Honey Hive Dev,Lava Lamp Lab,Penguin Press,Quasar Quill,Rainy Day Dev,Sparkle Shed,Thunder Thumb'.split(',');
+var LINES=['A fan favorite for long adventures.','Perfect for exploring new lands.','Tiny download, big fun.','Built on a rainy afternoon.','Works great with building projects.','Tested on a hundred hills.','Makes mountain trips way easier.','Made for curious explorers.','Smooth, simple and a bit silly.','Try it on a sunny hill!','The one everyone talks about.','Soft landings and happy faces.','Feels brand new every time.','Tuned for long, lazy days.','Packed with good vibes.'];
+var TIERS=['Basic','Good','Great','Epic','Legendary'];
+function r2(v){return Math.round(v*100)/100}
+var EFFX={
+ speed:function(s,r,h){return r2(1+.1+.7*s*r)},
+ jump:function(s,r,h){return r2(1+.1+.7*s*r)},
+ grav:function(s,r,h){return r2(Math.max(.3,1-(.08+.6*s*r)))},
+ day:function(s,r,h){return (h&1)?r2(Math.min(5,1+.2+3*s*r)):r2(Math.max(.2,1/(1+.2+2*s*r)))},
+ fov:function(s,r,h){return Math.round(2+22*s*r)},
+ swim:function(s,r,h){return r2(1+.1+1*s*r)}
+};
+var LABEL={speed:function(v){return '🏃 Run +'+Math.round((v-1)*100)+'%'},jump:function(v){return '🦘 Jump +'+Math.round((v-1)*100)+'%'},grav:function(v){return '🌙 Gravity -'+Math.round((1-v)*100)+'%'},day:function(v){return v>=1?'🌅 Days '+v+'x faster':'🌅 Days '+r2(1/v)+'x longer'},fov:function(v){return '👁️ View +'+v+'°'},swim:function(v){return '🏊 Swim +'+Math.round((v-1)*100)+'%'}};
+var NAMES=new Array(N),LC=new Array(N),CAT=new Uint8Array(N),TIER=new Uint8Array(N),STUDIO=new Uint8Array(N),DL=new Uint32Array(N),RATE=new Uint16Array(N),VER=new Array(N),EF=new Array(N),LINE=new Uint8Array(N);
+(function build(){var seen={};
+ for(var i=0;i<N;i++){
+  var c=H(i,1)%CATS.length,t0=H(i,2)%100,tier=t0<35?1:t0<63?2:t0<83?3:t0<95?4:5,s=tier/5,r=.82+(H(i,3)%40)/100,e={};
+  var cat=CATS[c];
+  if(cat.k==='combo'){var ks=['speed','jump','grav','day','fov','swim'],a=H(i,4)%6,b=(a+1+H(i,5)%5)%6,list=[ks[a],ks[b]];if(H(i,6)%3===0){var d=(b+1+H(i,7)%4)%6;if(d!==a)list.push(ks[d])}
+   list.forEach(function(k){e[k]=EFFX[k](s*.6,r,H(i,8))})}
+  else e[cat.k]=EFFX[cat.k](s,r,H(i,8));
+  var nm=(H(i,9)%10<6?PRE[H(i,10)%PRE.length]+' ':'')+FLAV[H(i,11)%FLAV.length]+' '+cat.nouns[H(i,12)%cat.nouns.length];
+  var key=nm.toLowerCase();seen[key]=(seen[key]||0)+1;if(seen[key]>1)nm+=' Mk '+seen[key];
+  NAMES[i]=nm;LC[i]=nm.toLowerCase();CAT[i]=c;TIER[i]=tier;STUDIO[i]=H(i,13)%STUD.length;
+  var u=(H(i,14)%10000)/10000;DL[i]=Math.floor(Math.pow(u,3.2)*9500000)+(tier*60)+H(i,15)%90;
+  RATE[i]=Math.min(50,35+Math.round(tier*2+(H(i,16)%60)/10));VER[i]=(1+H(i,17)%4)+'.'+(H(i,18)%10)+'.'+(H(i,19)%10);EF[i]=e;LINE[i]=H(i,20)%LINES.length}
+})();
+function sortIdx(cmp){var a=new Uint32Array(N);for(var i=0;i<N;i++)a[i]=i;return Array.prototype.sort.call(a,cmp)}
+var ORD={};
+ORD.pop=sortIdx(function(a,b){return DL[b]-DL[a]||a-b});
+ORD.rate=sortIdx(function(a,b){return RATE[b]-RATE[a]||DL[b]-DL[a]||a-b});
+ORD.new=sortIdx(function(a,b){return b-a});
+ORD.az=sortIdx(function(a,b){return LC[a]<LC[b]?-1:LC[a]>LC[b]?1:a-b});
+var TCOL=['#34304f','#1f6b3a','#1d4f86','#5a2a8a','#7a5a00'];
+function effChips(i){var e=EF[i],o='';for(var k in e)o+='<span class="e">'+LABEL[k](e[k])+'</span>';return o}
+function fmt(n){return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n)}
+function stars(i){return '⭐ '+(RATE[i]/10).toFixed(1)}
+/* ---------- list ---------- */
+var st={cat:-1,q:'',tier:0,sort:'pop',page:1,list:[]},PER=24;
+var pack=[];try{pack=JSON.parse(localStorage.getItem('exiverse_pack')||'[]').filter(function(x){return x>=0&&x<N}).slice(0,20)}catch(e){}
+function savePack(){try{localStorage.setItem('exiverse_pack',JSON.stringify(pack))}catch(e){}$('pn').textContent=pack.length}
+function filter(){var q=st.q.trim().toLowerCase(),o=ORD[st.sort],out=[];
+ if(q.charAt(0)==='#'){var n=parseInt(q.slice(1),10);if(n>=1&&n<=N)out=[n-1];st.list=out;return}
+ var words=q?q.split(/\s+/):[];
+ for(var j=0;j<N;j++){var i=o[j];if(st.cat>=0&&CAT[i]!==st.cat)continue;if(st.tier&&TIER[i]!==st.tier)continue;
+  if(words.length){var ok=true;for(var w=0;w<words.length;w++)if(LC[i].indexOf(words[w])<0){ok=false;break}if(!ok)continue}
+  out.push(i)}
+ st.list=out}
+function card(i){var c=CATS[CAT[i]],inP=pack.indexOf(i)>=0;
+ return '<div class="mod" data-m="'+i+'"><div class="row"><div class="ic" style="background:'+TCOL[TIER[i]-1]+'">'+c.e+'</div><div><div class="nm">'+esc(NAMES[i])+'</div><div class="mut">'+esc(STUD[STUDIO[i]])+'</div></div></div>'+
+  '<div class="eff">'+effChips(i)+'</div><div class="row" style="justify-content:space-between"><span class="mut"><span class="tier t'+TIER[i]+'">'+TIERS[TIER[i]-1]+'</span> '+stars(i)+' · ⬇ '+fmt(DL[i])+'</span><button data-add="'+i+'" class="'+(inP?'g':'p')+'">'+(inP?'✔ Added':'➕ Add')+'</button></div></div>'}
+function render(){var tp=Math.max(1,Math.ceil(st.list.length/PER));if(st.page>tp)st.page=tp;if(st.page<1)st.page=1;
+ var from=(st.page-1)*PER,sl=st.list.slice(from,from+PER);
+ $('grid').innerHTML=sl.length?sl.map(card).join(''):'<div class="mut" style="padding:30px;text-align:center">No mods match. Try a different word.</div>';
+ $('res').textContent=st.list.length.toLocaleString()+' mod'+(st.list.length===1?'':'s')+' found';$('pt').textContent=tp.toLocaleString();$('pg').value=st.page;$('pg').max=tp;
+ $('prev').disabled=st.page<=1;$('next').disabled=st.page>=tp}
+function refresh(){filter();st.page=1;render()}
+$('cats').innerHTML='<span class="chip on" data-c="-1">🌌 All</span>'+CATS.map(function(c,i){return '<span class="chip" data-c="'+i+'">'+c.e+' '+c.n+'</span>'}).join('');
+$('cats').onclick=function(e){var c=e.target.closest('[data-c]');if(!c)return;st.cat=+c.dataset.c;[].forEach.call($('cats').children,function(x){x.classList.toggle('on',x===c)});refresh()};
+var qt=0;$('q').oninput=function(){clearTimeout(qt);qt=setTimeout(function(){st.q=$('q').value;refresh()},180)};
+$('sort').onchange=function(){st.sort=this.value;refresh()};$('tier').onchange=function(){st.tier=+this.value;refresh()};
+$('prev').onclick=function(){st.page--;render();window.scrollTo(0,0)};$('next').onclick=function(){st.page++;render();window.scrollTo(0,0)};
+$('pg').onchange=function(){st.page=Math.max(1,parseInt(this.value,10)||1);render()};
+$('rnd').onclick=function(){openMod(Math.floor(Math.random()*N))};
+/* ---------- add / details ---------- */
+function addMod(i){var k=pack.indexOf(i);if(k>=0)pack.splice(k,1);else{if(pack.length>=20){alert('Your pack holds 20 mods. Take one out first.');return}pack.push(i)}savePack();render()}
+$('grid').onclick=function(e){var a=e.target.closest('[data-add]');if(a){addMod(+a.dataset.add);return}var m=e.target.closest('[data-m]');if(m)openMod(+m.dataset.m)};
+function openMod(i){var c=CATS[CAT[i]],inP=pack.indexOf(i)>=0;
+ $('modBox').innerHTML='<div class="row"><div class="ic" style="background:'+TCOL[TIER[i]-1]+';width:60px;height:60px;font-size:34px">'+c.e+'</div><div><h2 style="margin:0">'+esc(NAMES[i])+'</h2><div class="mut">by '+esc(STUD[STUDIO[i]])+' · mod #'+(i+1).toLocaleString()+' · v'+VER[i]+'</div></div></div>'+
+  '<p>'+esc(LINES[LINE[i]])+' This mod changes how you play in Exworld:</p><div class="eff" style="margin-bottom:10px">'+effChips(i)+'</div>'+
+  '<div class="mut"><span class="tier t'+TIER[i]+'">'+TIERS[TIER[i]-1]+'</span> '+stars(i)+' · ⬇ '+fmt(DL[i])+' downloads · works in Exworld ✔</div>'+
+  '<div class="row" style="margin-top:14px"><button data-add2="'+i+'" class="'+(inP?'g':'p')+'">'+(inP?'✔ In my pack (tap to remove)':'➕ Add to my pack')+'</button><button id="mClose">Close</button></div>';
+ $('ovMod').classList.add('show');
+ $('mClose').onclick=function(){$('ovMod').classList.remove('show')};
+ $('modBox').querySelector('[data-add2]').onclick=function(){addMod(i);openMod(i)}}
+$('ovMod').onclick=function(e){if(e.target===this)this.classList.remove('show')};
+/* ---------- the pack ---------- */
+var LIM={speed:[1,3],jump:[1,2.5],grav:[.3,1],fov:[0,30],day:[.2,5],swim:[1,3]};
+function combine(){var t={speed:1,jump:1,grav:1,fov:0,day:1,swim:1};pack.forEach(function(i){var e=EF[i];for(var k in e){if(k==='fov')t.fov+=e[k];else t[k]*=e[k]}});
+ var capped=false;for(var k in LIM){var v=Math.min(LIM[k][1],Math.max(LIM[k][0],t[k]));if(v!==t[k])capped=true;t[k]=r2(v)}return {t:t,capped:capped}}
+function packCode(){var c=combine();var json=JSON.stringify({n:pack.map(function(i){return NAMES[i]}),e:c.t});return 'EXV1:'+btoa(unescape(encodeURIComponent(json)))}
+function openPack(){var c=combine(),t=c.t;
+ $('packBox').innerHTML='<h2 style="margin:0 0 6px">🎒 My pack</h2><div class="note">Pick up to 20 mods. Then copy the code and paste it into Exworld.</div>'+
+  (pack.length?pack.map(function(i){return '<div class="pk"><span>'+CATS[CAT[i]].e+' <b>'+esc(NAMES[i])+'</b><br><span class="mut">'+effChips(i).replace(/<[^>]+>/g,' ').trim()+'</span></span><button data-rm="'+i+'">✖</button></div>'}).join(''):'<p class="mut">Nothing yet. Tap ➕ Add on a mod.</p>')+
+  (pack.length?'<p><b>All together:</b> Run ×'+t.speed+' · Jump ×'+t.jump+' · Gravity ×'+t.grav+' · View +'+Math.round(t.fov)+'° · Days ×'+t.day+' · Swim ×'+t.swim+(c.capped?'<br><span class="note">Some numbers hit the safe limit so the game stays playable.</span>':'')+'</p><textarea id="codeBox" rows="4" readonly></textarea>':'')+
+  '<div class="row" style="margin-top:10px;flex-wrap:wrap">'+(pack.length?'<button class="p" id="cpy">📋 Copy pack code</button><button id="clr">Empty pack</button>':'')+'<button id="pClose">Close</button></div>'+
+  '<p class="note">In Exworld: press Esc, then <b>☰ Menu → 🧩 Mods</b>, paste the code, and press Add mods.</p>';
+ $('ovPack').classList.add('show');
+ if(pack.length)$('codeBox').value=packCode();
+ $('pClose').onclick=function(){$('ovPack').classList.remove('show')};
+ if($('cpy'))$('cpy').onclick=function(){var cb=$('codeBox');cb.select();var done=function(){$('cpy').textContent='✔ Copied!'};if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(cb.value).then(done,function(){document.execCommand('copy');done()});else{document.execCommand('copy');done()}};
+ if($('clr'))$('clr').onclick=function(){pack=[];savePack();render();openPack()};
+ [].forEach.call($('packBox').querySelectorAll('[data-rm]'),function(b){b.onclick=function(){pack.splice(pack.indexOf(+b.dataset.rm),1);savePack();render();openPack()}})}
+$('packBtn').onclick=openPack;$('ovPack').onclick=function(e){if(e.target===this)this.classList.remove('show')};
+window.__exv={N:N,NAMES:NAMES,EF:EF,TIER:TIER,CAT:CAT,get pack(){return pack},set pack(v){pack=v},packCode:packCode,filter:function(o){for(var k in o)st[k]=o[k];filter();return st.list.length},st:st};
+savePack();refresh();
+})();
+</script>
+</body>
+</html>
