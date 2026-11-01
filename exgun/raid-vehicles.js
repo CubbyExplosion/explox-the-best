@@ -54,6 +54,18 @@ function decorate(v) {
     D(2.2, 0.1, 1.6, m.dark, 0, 1.62, -2.6); for (let i = 0; i < 6; i++) D(2.0, 0.03, 0.08, m.steel, 0, 1.68, -3.2 + i * 0.22); D(0.8, 0.6, 0.8, m.olive, 1.2, 1.9, -3.0); D(0.5, 0.4, 0.6, m.canvas, -1.1, 1.9, -3.0); Cy(0.025, 0.025, 3.0, m.dark, -1.4, 3.4, -3.2); D(1.2, 0.04, 0.5, m.dark, 0, 1.0, 4.2);
     const T = v.turret; Cy(0.45, 0.5, 0.2, m.dark, -0.6, 1.15, -0.3, T); Cy(0.05, 0.05, 0.9, m.dark, -0.6, 1.5, -0.3, T); D(0.4, 0.15, 0.2, m.dark, -0.6, 1.2, 0.1, T); for (let i = 0; i < 3; i++) { Cy(0.07, 0.07, 0.3, m.dark, -1.3, 0.8, 0.3 + i * 0.25, T, Math.PI / 2); Cy(0.07, 0.07, 0.3, m.dark, 1.3, 0.8, 0.3 + i * 0.25, T, Math.PI / 2); }
     D(2.2, 0.5, 0.7, m.canvas, 0, 0.6, -1.7, T); D(0.35, 0.2, 0.35, m.dark, 0.9, 0.95, 0.9, T); Cy(0.025, 0.025, 2.4, m.dark, 1.0, 2.1, -1.4, T);
+    // ⚡ EXPLOX TANK — twin tesla coils + the hero popping out of the hatch with his party hat
+    const copper = new THREE.MeshStandardMaterial({ color: 0xb5632a, metalness: 0.95, roughness: 0.25 }), insul = new THREE.MeshStandardMaterial({ color: 0x24242a, roughness: 0.6 }), orbMat = new THREE.MeshBasicMaterial({ color: 0x9fe0ff });
+    const skin = new THREE.MeshStandardMaterial({ color: 0xe8b483, roughness: 0.7 }), shirt = new THREE.MeshStandardMaterial({ color: 0x2f6fd6, roughness: 0.8 }), black = new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.6 }), hatMat = new THREE.MeshStandardMaterial({ color: 0xd83a3a, roughness: 0.55 });
+    v._teslaOrbs = [];
+    [-1, 1].forEach(s => { Cy(0.26, 0.3, 0.12, insul, s * 0.95, 1.12, -1.6, T); Cy(0.16, 0.2, 0.9, copper, s * 0.95, 1.6, -1.6, T); Cy(0.26, 0.26, 0.08, insul, s * 0.95, 2.05, -1.6, T); const orb = new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 10), orbMat); orb.position.set(s * 0.95, 2.28, -1.6); orb.userData.vehicle = true; T.add(orb); v._teslaOrbs.push(orb); });
+    const hatch = new THREE.Group(); hatch.position.set(0.75, 1.1, 0.25); T.add(hatch);
+    Cy(0.44, 0.48, 0.14, m.dark, 0, 0, 0, hatch); Cy(0.42, 0.42, 0.06, insul, -0.4, 0.14, 0, hatch); D(0.4, 0.42, 0.32, shirt, 0, 0.42, 0, hatch);   // hatch ring + open lid + shoulders
+    D(0.52, 0.52, 0.52, skin, 0, 0.92, 0, hatch);                                                                                                  // blocky Explox head
+    [-1, 1].forEach(s => D(0.1, 0.13, 0.05, black, s * 0.13, 1.0, 0.27, hatch)); for (let i = 0; i < 4; i++) D(0.07, 0.07, 0.04, black, -0.12 + i * 0.08, 0.82, 0.27, hatch);  // smiley eyes + smile
+    D(0.58, 0.08, 0.58, hatMat, 0, 1.2, 0, hatch); const cone = new THREE.Mesh(new THREE.ConeGeometry(0.29, 0.58, 14), hatMat); cone.position.set(0, 1.52, 0); cone.castShadow = true; cone.userData.vehicle = true; hatch.add(cone);  // party hat
+    const pom = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), orbMat); pom.position.set(0, 1.84, 0); pom.userData.vehicle = true; hatch.add(pom); v._teslaOrbs.push(pom);
+    v._hatTip = new THREE.Vector3(0.75, 1.1 + 1.84, 0.25);
     if (v.barrel) { Cy(0.22, 0.22, 0.5, m.dark, 0, 0.6, 0, v.barrel); D(0.5, 0.5, 0.3, m.steel, 0, 2.55, 0, v.barrel); }
     const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.8), numTex(Math.floor(rnd(100, 999)), enemy ? '#ffeeee' : '#eef')); pl.position.set(1.27, 0.4, 0.5); pl.rotation.y = Math.PI / 2; T.add(pl); const pl2 = pl.clone(); pl2.position.x = -1.27; pl2.rotation.y = -Math.PI / 2; T.add(pl2); v._exh = [new THREE.Vector3(0.9, 1.5, -3.3), new THREE.Vector3(-0.9, 1.5, -3.3)]; v._eng = new THREE.Vector3(0, 1.8, -2.4);
   } else if (k === 'turret') { v._exh = []; v._eng = new THREE.Vector3(0, 1.2, 0); }
@@ -95,6 +107,16 @@ function frame(dt) {
     if (v.cannonCd > (v._cd || 0) + 0.5 && v.kind === 'tank') { v._kick = 0.55; flash(v, 2.2); }
     if (v.mgCd > (v._mg || 0) + 0.02 && v.turret) flash(v, 0.5);
     v._cd = v.cannonCd; v._mg = v.mgCd;
+    if (v._teslaOrbs && v.alive && d < 150) {                                      // ⚡ crackling tesla arcs that dance around the hero
+      v._teslaOrbs.forEach(o => o.scale.setScalar(0.8 + Math.random() * 0.6));
+      v._tslT = (v._tslT || 0) - dt;
+      if (v._tslT <= 0) { v._tslT = 0.04 + Math.random() * 0.05;
+        const a = v._teslaOrbs[0].getWorldPosition(new THREE.Vector3()), b = v._teslaOrbs[1].getWorldPosition(new THREE.Vector3());
+        const mid = a.clone().lerp(b, Math.random()).add(new THREE.Vector3(rnd(-0.25, 0.25), rnd(0, 0.35), rnd(-0.25, 0.25)));
+        puff(mid, { color: 0xaef0ff, s0: 0.14, s1: 0.5, life: 0.11, op: 0.95, add: true, v: new THREE.Vector3(0, rnd(-0.5, 0.5), 0) });
+        if (v._hatTip && Math.random() < 0.55) { const tip = v._hatTip.clone().applyMatrix4(v.turret.matrixWorld); puff(tip.lerp(a, Math.random()), { color: 0xccf6ff, s0: 0.12, s1: 0.4, life: 0.1, op: 0.85, add: true }); }
+      }
+    }
     if (!v.alive) { if (!v._wreck) { v._wreck = true; v._camo.color.set(0x1a1816); v._camo.map = null; v._camo.needsUpdate = true; v._camo.roughness = 1; } v._fireT = (v._fireT || 0) - dt; if (v._fireT <= 0 && d < 140) { v._fireT = 0.09; const p = v.pos.clone().add(new THREE.Vector3(rnd(-0.8, 0.8), 1.5, rnd(-0.8, 0.8))); puff(p, { color: 0xff7a22, s0: 0.8, s1: 1.8, life: 0.5, op: 0.85, add: true, v: new THREE.Vector3(0, 2.5, 0) }); if (Math.random() < 0.6) puff(p.clone().add(new THREE.Vector3(0, 0.6, 0)), { color: 0x151515, s0: 1.2, s1: 4.5, life: 2.8, op: 0.7, v: new THREE.Vector3(rnd(-0.4, 0.4), 3, rnd(-0.4, 0.4)) }); } return; }
     const ratio = v.hp / v.maxHp; v._smT = (v._smT || 0) - dt;
     if (v._smT <= 0 && d < 120) {

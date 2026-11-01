@@ -115,12 +115,12 @@ var HUMANSAY=['finally beat that level I was stuck on all week 😅','ok but why
 var SCENES=['bounce','spin','rain','wave'],SCENEEMO={bounce:['🏀','⚽','🎈'],spin:['🌀','⭐','🎡'],rain:['🍂','❄️','🌧️'],wave:['🌊','🐠','🐚']};
 function hsh(a,b){var x=((a+1)*2654435761)^((b+7)*40503);x=(x^(x>>>15))>>>0;return x}
 function friendPosts(list){var day=Math.floor(Date.now()/86400000),out=[];
- list.forEach(function(c){var ci=CAST.indexOf(c);for(var m=Math.floor(day/30)-2;m<=Math.floor(day/30);m++){var d=m*30+hsh(ci,m)%30;if(d>day||d<day-75)continue;var kind=hsh(ci,m+99)%4===0?'short':'text',scene=SCENES[hsh(ci,m+5)%SCENES.length];out.push({c:c,day:d,ago:day-d,kind:kind,scene:scene,emo:SCENEEMO[scene][hsh(ci,m+11)%3],text:HUMANSAY[(hsh(ci,m+3)+ci*7+m*5)%HUMANSAY.length]})}});
+ list.forEach(function(c){var ci=CAST.indexOf(c);for(var m=Math.floor(day/30)-2;m<=Math.floor(day/30);m++){var d=m*30+hsh(ci,m)%30;if(d>day||d<day-75)continue;var kind=hsh(ci,m+99)%4===0?'short':'text',scene=SCENES[hsh(ci,m+5)%SCENES.length];out.push({c:c,key:c[0]+':'+d,views:3+hsh(ci,d)%47,c0:0,day:d,ago:day-d,kind:kind,scene:scene,emo:SCENEEMO[scene][hsh(ci,m+11)%3],text:HUMANSAY[(hsh(ci,m+3)+ci*7+m*5)%HUMANSAY.length]})}});
  return out.sort(function(a,b){return a.ago-b.ago}).slice(0,6)}
 function agoText(n){return n<=0?'today':n===1?'yesterday':n<7?n+' days ago':n<14?'last week':Math.floor(n/7)+' weeks ago'}
 function friendFeedHTML(list){if(!list.length)return '<div class="card"><div class="in mut">Friend or subscribe to someone on the 🧑‍🤝‍🧑 Friends tab and their news shows up here. They post only once in a while, like real people do.</div></div>';
  var ps=friendPosts(list);if(!ps.length)return '<div class="card"><div class="in mut">Your friends have not posted lately. They only post once in a while. Check back soon! 🙂</div></div>';
- return '<div class="card"><div class="in"><h3>📰 From your friends</h3>'+ps.map(function(p,i){return '<div class="cm"><b>'+p.c[1]+' '+p.c[0]+'</b> <span class="pretend" title="A made-up character">🤖</span> <span class="mut">'+agoText(p.ago)+'</span><div>'+esc(p.text)+'</div>'+(p.kind==='short'?'<button data-scene="'+p.scene+'" data-emo="'+p.emo+'" data-who="'+esc(p.c[0])+'" style="margin-top:6px">📱 Watch their Short</button>':'')+'</div>'}).join('')+'</div></div>'}
+ return '<div class="card"><div class="in"><h3>📰 From your friends</h3>'+ps.map(function(p,i){return '<div class="cm"><b>'+p.c[1]+' '+p.c[0]+'</b> <span class="pretend" title="A made-up character">🤖</span> <span class="mut">'+agoText(p.ago)+' · 👁 '+(p.views+((soc.seen||{})[p.key]?1:0))+' views</span><div>'+esc(p.text)+'</div>'+(p.kind==='short'?'<button data-key="'+p.key+'" data-scene="'+p.scene+'" data-emo="'+p.emo+'" data-who="'+esc(p.c[0])+'" style="margin-top:6px">📱 Watch their Short</button>':'')+'</div>'}).join('')+'</div></div>'}
 var sceneRaf=0;
 function playScene(kind,emo,who){$('ovPlay').classList.add('show');$('playInfo').innerHTML='<h3>'+esc(who)+'\'s Short</h3>';var box=$('playBox');box.innerHTML='<canvas id="scv" width="360" height="640" style="width:100%;max-height:70vh;border-radius:12px;background:#000"></canvas>';var cv=$('scv'),x=cv.getContext('2d'),t0=performance.now();cancelAnimationFrame(sceneRaf);
  (function f(now){var t=(now-t0)/1000,W=360,H=640,g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,'#2b1b6b');g.addColorStop(1,'#ff4fa3');x.fillStyle=g;x.fillRect(0,0,W,H);x.font='60px Arial';x.textAlign='center';x.textBaseline='middle';
@@ -129,14 +129,14 @@ function playScene(kind,emo,who){$('ovPlay').classList.add('show');$('playInfo')
   else if(kind==='rain'){for(var i=0;i<14;i++){x.fillText(emo,(i*53+30)%W,((t*140+i*97)%(H+80))-40)}}
   else{for(var j=0;j<6;j++){x.fillText(emo,((t*90+j*70)%(W+80))-40,H/2+Math.sin(t*3+j)*90+j*30-80)}}
   x.font='900 26px Arial';x.fillStyle='#fff';x.strokeStyle='#000';x.lineWidth=5;var cap=who;x.strokeText(cap,W/2,H-40);x.fillText(cap,W/2,H-40);sceneRaf=requestAnimationFrame(f)})(performance.now())}
-document.addEventListener('click',function(e){var b=e.target&&e.target.closest&&e.target.closest('[data-scene]');if(b)playScene(b.dataset.scene,b.dataset.emo,b.dataset.who)});
+document.addEventListener('click',function(e){var b=e.target&&e.target.closest&&e.target.closest('[data-scene]');if(b){soc.seen=soc.seen||{};if(!soc.seen[b.dataset.key]){soc.seen[b.dataset.key]=1;saveSoc();setTimeout(function(){if($('t-home').classList.contains('on'))renderHome()},0)}playScene(b.dataset.scene,b.dataset.emo,b.dataset.who)}});
 function commentHTML(it,c,i){var key=it.id+':'+i;
  return '<div class="cm"><b>'+esc(c.e||'😎')+' '+esc(c.n)+'</b>'+(c.p?'<span class="pretend" title="A made-up character">🤖</span>':'')+' '+esc(c.t)+
   '<div class="row" style="margin-top:4px;gap:6px"><button data-clike="'+key+'" class="'+(c.liked?'p':'')+'" style="padding:2px 8px;font-size:12px">'+(c.liked?'💖':'🤍')+' '+(c.likes||0)+'</button><button data-creply="'+key+'" style="padding:2px 8px;font-size:12px">↩ Reply</button></div>'+
   (c.replies||[]).map(function(r){return '<div class="cm" style="margin-left:22px;border-top:0;padding:3px 0"><b>↳ '+esc(r.e||'😎')+' '+esc(r.n)+'</b>'+(r.p?'<span class="pretend" title="A made-up character">🤖</span>':'')+' '+esc(r.t)+'</div>'}).join('')+
   (replyTo===key?'<div class="row" style="margin:6px 0 2px 22px"><input data-rin="'+key+'" placeholder="Write a reply..." maxlength="140" style="flex:1"><button class="g" data-csendr="'+key+'">Reply</button><button data-ccancel="1">✖</button></div>':'')+'</div>'}
 function cardHTML(it){
- return '<div class="card" id="c-'+it.id+'">'+thumbHTML(it)+'<div class="in"><h3>'+esc(it.title||'Post')+'</h3>'+(it.type==='post'&&it.text?'<div>'+esc(it.text)+'</div>':'')+'<div class="mut">'+acct.av+' '+esc(acct.nick)+' · '+ago(it.at)+'</div>'+
+ return '<div class="card" id="c-'+it.id+'">'+thumbHTML(it)+'<div class="in"><h3>'+esc(it.title||'Post')+'</h3>'+(it.type==='post'&&it.text?'<div>'+esc(it.text)+'</div>':'')+'<div class="mut">'+acct.av+' '+esc(acct.nick)+' · '+ago(it.at)+' · 👁 '+(it.views||0)+(it.views===1?' view':' views')+'</div>'+
   '<div class="row" style="margin:8px 0"><button data-like="'+it.id+'"'+(it.liked?' class="p" title="You already liked this"':'')+'>'+(it.liked?'💖':'❤️')+' '+it.likes+'</button><button data-open="'+it.id+'">▶ Open</button><button data-edit="'+it.id+'">✏️ Edit</button><button class="r" data-del="'+it.id+'">🗑</button></div>'+
   '<div>'+it.comments.map(function(c,i){return {c:c,i:i}}).slice(-4).map(function(x){return commentHTML(it,x.c,x.i)}).join('')+'</div>'+
   '<div class="row" style="margin-top:8px"><input data-cin="'+it.id+'" placeholder="Write a comment..." maxlength="140" style="flex:1"><button data-csend="'+it.id+'">Send</button></div></div></div>'}
@@ -175,10 +175,10 @@ function stopShorts(){if(shortObs){shortObs.disconnect();shortObs=null}document.
 function renderShorts(){var t=$('t-shorts');var list=items.filter(function(i){return i.type==='short'}).sort(function(a,b){return b.at-a.at});
  if(!list.length){t.innerHTML='<div class="card"><div class="in" style="text-align:center;padding:30px"><div style="font-size:50px">📱</div><h3>No Shorts yet</h3><div class="mut">Tap <b>➕ Create</b> then <b>📱 Short</b> to add a short video (up to 60 seconds).</div></div></div>';return}
  t.innerHTML='<div id="shFeed" style="height:calc(100vh - 150px);overflow-y:auto;scroll-snap-type:y mandatory;border-radius:16px">'+list.map(function(it){return '<div class="sh" data-sh="'+it.id+'" style="height:100%;scroll-snap-align:start;position:relative;background:#000;border-radius:16px;overflow:hidden;margin-bottom:8px"><video loop muted playsinline style="width:100%;height:100%;object-fit:cover" data-vid="'+it.media[0]+'"></video>'+
-  '<div style="position:absolute;left:0;right:0;bottom:0;padding:14px;background:linear-gradient(transparent,#000c)"><b>'+esc(it.title)+'</b><div class="mut">'+acct.av+' '+esc(acct.nick)+'</div><div class="mut">'+esc(it.text||'')+'</div></div>'+
+  '<div style="position:absolute;left:0;right:0;bottom:0;padding:14px;background:linear-gradient(transparent,#000c)"><b>'+esc(it.title)+'</b><div class="mut">'+acct.av+' '+esc(acct.nick)+'</div><div class="mut vw">👁 '+(it.views||0)+' views</div><div class="mut">'+esc(it.text||'')+'</div></div>'+
   '<div style="position:absolute;right:10px;bottom:90px;display:flex;flex-direction:column;gap:10px"><button data-shlike="'+it.id+'" class="'+(it.liked?'p':'')+'">'+(it.liked?'💖':'❤️')+'<br>'+it.likes+'</button><button data-shmute="1">🔇</button></div></div>'}).join('')+'</div><div class="mut" style="text-align:center;margin-top:6px">Swipe or scroll up for the next Short. Tap the video to pause.</div>';
  t.querySelectorAll('video[data-vid]').forEach(function(v){urlOf(v.dataset.vid,function(u){if(u)v.src=u})});
- stopShorts();shortObs=new IntersectionObserver(function(es){es.forEach(function(e){var v=e.target.querySelector('video');if(!v)return;if(e.intersectionRatio>0.7){var pr=v.play();if(pr&&pr.catch)pr.catch(function(){})}else v.pause()})},{root:$('shFeed'),threshold:[0,0.7,1]});
+ stopShorts();shortObs=new IntersectionObserver(function(es){es.forEach(function(e){var v=e.target.querySelector('video');if(!v)return;if(e.intersectionRatio>0.7){var vi=find(e.target.dataset.sh);if(vi&&!e.target.dataset.seen){e.target.dataset.seen='1';var f1=addView(vi);var vb=e.target.querySelector('.vw');if(vb)vb.textContent=f1?'🥇 You are the first viewer!':'👁 '+vi.views+' views'}var pr=v.play();if(pr&&pr.catch)pr.catch(function(){})}else v.pause()})},{root:$('shFeed'),threshold:[0,0.7,1]});
  t.querySelectorAll('.sh').forEach(function(d){shortObs.observe(d)})}
 $('t-shorts').addEventListener('click',function(e){var l=e.target.closest('[data-shlike]');if(l){var it=find(l.dataset.shlike);if(!it.liked){it.liked=1;it.likes++;saveItems();l.className='p';l.innerHTML='💖<br>'+it.likes}return}
  if(e.target.closest('[data-shmute]')){var vs=document.querySelectorAll('#t-shorts video'),m=!vs[0].muted;vs.forEach(function(v){v.muted=m});e.target.closest('[data-shmute]').textContent=m?'🔇':'🔊';return}
@@ -186,8 +186,9 @@ $('t-shorts').addEventListener('click',function(e){var l=e.target.closest('[data
 /* ---------- play ---------- */
 var slideT=null,Q=null;
 function nextQ(){if(!Q)return;clearTimeout(Q.t);Q.i++;if(Q.i<Q.ids.length){var n=find(Q.ids[Q.i]);if(n){openItem(n);return}}$('playClose').click()}
+function addView(it){it.views=(it.views||0)+1;saveItems();return it.views===1}
 function openItem(it){
- if(!it)return;$('ovPlay').classList.add('show');$('playInfo').innerHTML='<h3>'+esc(it.title||'Post')+'</h3><div class="mut">'+esc(it.text||'')+'</div>';var box=$('playBox');box.innerHTML='';
+ if(!it)return;var first=addView(it);$('ovPlay').classList.add('show');$('playInfo').innerHTML='<h3>'+esc(it.title||'Post')+'</h3>'+(first?'<div class="chip" style="background:#2ee6a8;color:#06241a;font-weight:800">🥇 You are the first viewer!</div>':'<div class="mut">👁 '+it.views+' views</div>')+'<div class="mut">'+esc(it.text||'')+'</div>';var box=$('playBox');box.innerHTML='';
  if(it.type==='video'||it.type==='short'){urlOf(it.media[0],function(u){box.innerHTML=u?'<video controls autoplay playsinline style="width:100%;border-radius:12px;background:#000" src="'+u+'"></video>':'<div class="mut">This video file is missing from this computer.</div>';var vv=box.querySelector('video');if(Q){if(vv)vv.onended=nextQ;else Q.t=setTimeout(nextQ,2500)}})}
  else if(it.type==='slides'){var k=0,urls=[];var n=it.media.length;var got=0;
   it.media.forEach(function(id,i){urlOf(id,function(u){urls[i]=u;if(++got===n)start()})});
@@ -196,7 +197,7 @@ function openItem(it){
    function nx(){k=(k+1)%n;show()}$('slp').onclick=function(){k=(k-1+n)%n;show()};$('sln').onclick=nx;$('slpl').onclick=function(){playing=!playing;this.textContent=playing?'⏸':'▶'};
    show();clearInterval(slideT);slideT=setInterval(function(){if(playing)nx()},3000);if(Q){clearTimeout(Q.t);Q.t=setTimeout(nextQ,n*3000+500)}}}
  else{var m=it.media&&it.media[0];if(m)urlOf(m,function(u){if(u)box.innerHTML='<img src="'+u+'" style="width:100%;border-radius:12px">'});if(Q){clearTimeout(Q.t);Q.t=setTimeout(nextQ,5000)}}}
-$('playClose').onclick=function(){$('ovPlay').classList.remove('show');cancelAnimationFrame(sceneRaf);clearInterval(slideT);if(Q){clearTimeout(Q.t);Q=null}$('playBox').innerHTML=''};
+$('playClose').onclick=function(){$('ovPlay').classList.remove('show');if($('t-home').classList.contains('on'))renderHome();cancelAnimationFrame(sceneRaf);clearInterval(slideT);if(Q){clearTimeout(Q.t);Q=null}$('playBox').innerHTML=''};
 
 /* ---------- create ---------- */
 var cr={type:'video',files:[],thumbBlob:null,vidURL:''};
