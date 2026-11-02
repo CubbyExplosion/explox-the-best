@@ -66,7 +66,7 @@ a{color:var(--b)}
   <div class="pager"><button id="prev">◀ Back</button><span>Page <input type="number" id="pg" min="1" value="1"> of <b id="pt">1</b></span><button id="next">Next ▶</button></div>
 </main>
 <footer>
-  Every mod here is made by the Exiverse mod maker, and the studios, stars and download counts are made up for fun. Mods can speed you up, change gravity, or give you bombs, TNT, rockets, airstrikes and more, in <a href="https://exquisite-llama-690a41.netlify.app/play/" target="_blank" rel="noopener">Exworld</a>.
+  Every mod here is made by the Exiverse mod maker, and the studios, stars and download counts are made up for fun. Mods can speed you up, change gravity, or give you guns, tanks, bombs, TNT, rockets, nukes, jetpacks, teleporting and more, in <a href="https://exquisite-llama-690a41.netlify.app/play/" target="_blank" rel="noopener">Exworld</a>.
   Nothing is uploaded: your pack stays on this computer until you copy the code yourself.
 </footer>
 
@@ -96,9 +96,20 @@ var CATS=[
  {k:'bolt',act:1,e:'⚡',n:'Lightning',nouns:['Lightning Staff','Thunder Rod','Storm Wand','Zap Gloves','Tesla Coil']},
  {k:'wave',act:1,e:'💥',n:'Shockwaves',nouns:['Shockwave Gauntlet','Stomp Boots','Boom Wave','Quake Hammer','Pulse Ring']},
  {k:'fire',act:1,e:'🎆',n:'Fireworks',nouns:['Firework Kit','Party Popper','Sparkler Pack','Celebration Cannon','Rainbow Rockets']},
- {k:'art',act:1,e:'🪖',n:'War',nouns:['Artillery Cannon','Cannon Battery','War Drum','Barrage Banner','Battle Horn','Field Gun']}
+ {k:'art',act:1,e:'🪖',n:'War',nouns:['Artillery Cannon','Cannon Battery','War Drum','Barrage Banner','Battle Horn','Field Gun']},
+ {k:'mg',act:1,e:'🔫',n:'Guns',nouns:['Machine Gun','Rapid Blaster','Bullet Storm','Gatling Gun','Burst Rifle','Pocket Gun']},
+ {k:'sniper',act:1,e:'🎯',n:'Snipers',nouns:['Sniper Rifle','Eagle Scope','Long Shot','Hawk Rifle','Far Eye']},
+ {k:'laser',act:1,e:'🔦',n:'Lasers',nouns:['Laser Gun','Ray Cutter','Beam Blade','Photon Beam','Light Saw']},
+ {k:'cannon',act:1,e:'⚙️',n:'Cannons',nouns:['Tank Cannon','Heavy Gun','Siege Cannon','Big Bertha','Iron Thunder']},
+ {k:'tank',act:1,e:'🚜',n:'Tanks',nouns:['Battle Tank','Mini Tank','Tank Kit','Rolling Fortress','Steel Beast','Pocket Tank']},
+ {k:'meteor',act:1,e:'☄️',n:'Meteors',nouns:['Meteor Shower','Comet Call','Star Drop','Asteroid Kit','Sky Rocks']},
+ {k:'hole',act:1,e:'🕳️',n:'Black Holes',nouns:['Black Hole','Gravity Well','Void Orb','Vortex Gem','Pull Stone']},
+ {k:'jet',act:1,e:'🪂',n:'Jetpacks',nouns:['Jetpack','Rocket Boots','Sky Wings','Thruster Pack','Lift Gear']},
+ {k:'blink',act:1,e:'🌀',n:'Teleport',nouns:['Teleport Pearl','Blink Stone','Warp Gem','Portal Charm','Hop Orb']},
+ {k:'dash',act:1,e:'💨',n:'Dash',nouns:['Dash Burst','Zoom Kick','Turbo Burst','Speed Surge','Swoosh Band']},
+ {k:'shield',act:1,e:'🛡️',n:'Shields',nouns:['Force Field','Shield Orb','Barrier Bubble','Guardian Charm','Iron Dome']}
 ];
-var ACTN={bomb:'Bomb',tnt:'TNT rain',rocket:'Rocket',nuke:'Nuke',air:'Airstrike',bolt:'Lightning',wave:'Shockwave',fire:'Fireworks',art:'Artillery'};
+var ACTN={bomb:'Bomb',tnt:'TNT rain',rocket:'Rocket',nuke:'Nuke',air:'Airstrike',bolt:'Lightning',wave:'Shockwave',fire:'Fireworks',art:'Artillery',mg:'Machine gun',sniper:'Sniper',laser:'Laser',cannon:'Tank cannon',tank:'Tank',meteor:'Meteors',hole:'Black hole',jet:'Jetpack',blink:'Teleport',dash:'Dash',shield:'Force field'};
 var FLAV='Turbo Cozy Jelly Pixel Cosmic Rainbow Frosty Sunny Bouncy Fuzzy Golden Silver Comet Maple Nimbus Zippy Mellow Sparkly Stormy Lucky Misty Ember Glacier Coral Dusty Neon Velvet Wobbly Breezy Crystal Meteor Orbit Lunar Solar Thunder Whisper Clover Pebble Bubble Thistle Jolly Quick Gentle Brave Mighty Tiny Giant Swift Silent Radiant Ancient Magic Secret Royal Wild Happy Chilly Toasty Fizzy Snowy Mossy Rusty Minty Peachy Cherry Berry Lemon Mango Cocoa Honey Ginger Pepper Cloud Star Moon Sun Wave River Canyon Forest Meadow Desert Tundra Island Jungle Volcano Aurora Galaxy Nebula Quasar Pulsar Photon Quantum Hyper Mega Ultra Super Prime Alpha Delta Omega'.split(' ');
 var PRE='Pocket Deluxe Extra Classic Lite Pro Max Mini Grand Epic Smart Handy Ultimate Simple Fancy Rapid Gentle Bright Cool Sweet Dream Spark Glow Proper Perfect Little Big Neo Retro Turbo Zen'.split(' ');
 var STUD='Pixel Pals,Blocksmith Guild,Moonlit Mods,Tiny Toad Labs,Orbit Workshop,Fizz Forge,Cloudy Crafters,Nova Nest,Jelly Jam Studio,Rocket Pocket,Maple Make,Starlight Smiths,Glow Garage,Bubble Works,Comet Cabin,Zig Zag Zone,Mossy Mill,Sunny Side Studio,Frost Foundry,Ember Ink,Puzzle Pie,Wiggle Workshop,Echo Egg,Honey Hive Dev,Lava Lamp Lab,Penguin Press,Quasar Quill,Rainy Day Dev,Sparkle Shed,Thunder Thumb'.split(',');
@@ -118,10 +129,10 @@ var ACTI={};CATS.forEach(function(c,i){ACTI[c.k]=i});
 var NAMES=new Array(N),LC=new Array(N),CAT=new Uint8Array(N),TIER=new Uint8Array(N),STUDIO=new Uint8Array(N),DL=new Uint32Array(N),RATE=new Uint16Array(N),VER=new Array(N),EF=new Array(N),LINE=new Uint8Array(N);
 (function build(){var seen={};
  for(var i=0;i<N;i++){
-  var u0=H(i,1)%100,c=u0<40?H(i,21)%7:7+H(i,22)%9,t0=H(i,2)%100,tier=t0<35?1:t0<63?2:t0<83?3:t0<95?4:5,s=tier/5,r=.82+(H(i,3)%40)/100,e={};
+  var u0=H(i,1)%100,c=u0<30?H(i,21)%7:7+H(i,22)%(CATS.length-7),t0=H(i,2)%100,tier=t0<35?1:t0<63?2:t0<83?3:t0<95?4:5,s=tier/5,r=.82+(H(i,3)%40)/100,e={};
   var cat=CATS[c];
   if(cat.k==='combo'){var ks=['speed','jump','grav','day','fov','swim'],a=H(i,4)%6,b=(a+1+H(i,5)%5)%6,list=[ks[a],ks[b]];if(H(i,6)%3===0){var d=(b+1+H(i,7)%4)%6;if(d!==a)list.push(ks[d])}
-   list.forEach(function(k){e[k]=EFFX[k](s*.6,r,H(i,8))})}
+   list.forEach(function(k){e[k]=EFFX[k](s*.6,r,H(i,8))});if(H(i,30)%2===0){var ac=CATS[7+H(i,31)%(CATS.length-7)];e.ab={k:ac.k,t:tier}}}
   else if(cat.act)e.ab={k:cat.k,t:tier};
   else e[cat.k]=EFFX[cat.k](s,r,H(i,8));
   var nm=(H(i,9)%10<6?PRE[H(i,10)%PRE.length]+' ':'')+FLAV[H(i,11)%FLAV.length]+' '+cat.nouns[H(i,12)%cat.nouns.length];
