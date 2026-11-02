@@ -66,7 +66,7 @@ a{color:var(--b)}
   <div class="pager"><button id="prev">◀ Back</button><span>Page <input type="number" id="pg" min="1" value="1"> of <b id="pt">1</b></span><button id="next">Next ▶</button></div>
 </main>
 <footer>
-  Every mod here is made by the Exiverse mod maker, and the studios, stars and download counts are made up for fun. Mods are tiny tweaks that work in <a href="https://exquisite-llama-690a41.netlify.app/play/" target="_blank" rel="noopener">Exworld</a>.
+  Every mod here is made by the Exiverse mod maker, and the studios, stars and download counts are made up for fun. Mods can speed you up, change gravity, or give you bombs, TNT, rockets, airstrikes and more, in <a href="https://exquisite-llama-690a41.netlify.app/play/" target="_blank" rel="noopener">Exworld</a>.
   Nothing is uploaded: your pack stays on this computer until you copy the code yourself.
 </footer>
 
@@ -87,8 +87,18 @@ var CATS=[
  {k:'day',e:'🌅',n:'Time',nouns:['Sun Clock','Day Dial','Night Owl Lamp','Time Stretch','Slow Sun','Fast Moon','Sky Winder','Hourglass']},
  {k:'fov',e:'👁️',n:'Vision',nouns:['Wide Lens','Hawk Eyes','Panorama Visor','Zoom Specs','Scout Goggles','Vista Glass','Eagle Lens']},
  {k:'swim',e:'🏊',n:'Swimming',nouns:['Fins','Dolphin Pack','Aqua Boots','Wave Rider','Splash Core','Otter Suit','Reef Flippers']},
- {k:'combo',e:'✨',n:'Combo',nouns:['Hero Pack','Explorer Kit','Adventurer Bundle','Wanderer Set','Ranger Pack','Pioneer Gear','Starter Pack Plus','Champion Kit']}
+ {k:'combo',e:'✨',n:'Combo',nouns:['Hero Pack','Explorer Kit','Adventurer Bundle','Wanderer Set','Ranger Pack','Pioneer Gear','Starter Pack Plus','Champion Kit']},
+ {k:'bomb',act:1,e:'💣',n:'Bombs',nouns:['Bomb','Cherry Bomb','Boom Ball','Pocket Bomb','Mega Bomb','Fuse Pack']},
+ {k:'tnt',act:1,e:'🧨',n:'TNT',nouns:['TNT Rain','Dynamite Bundle','TNT Crate','Blast Barrel','Boom Box']},
+ {k:'rocket',act:1,e:'🚀',n:'Rockets',nouns:['Rocket Launcher','Missile','Rocket Pack','Bazooka','Sky Rocket']},
+ {k:'nuke',act:1,e:'☢️',n:'Nukes',nouns:['Nuke','Mega Nuke','Big Red Button','Doom Core','Giga Boom']},
+ {k:'air',act:1,e:'🛩️',n:'Airstrikes',nouns:['Airstrike','Bomber Call','Jet Raid','Sky Barrage','Fighter Squad']},
+ {k:'bolt',act:1,e:'⚡',n:'Lightning',nouns:['Lightning Staff','Thunder Rod','Storm Wand','Zap Gloves','Tesla Coil']},
+ {k:'wave',act:1,e:'💥',n:'Shockwaves',nouns:['Shockwave Gauntlet','Stomp Boots','Boom Wave','Quake Hammer','Pulse Ring']},
+ {k:'fire',act:1,e:'🎆',n:'Fireworks',nouns:['Firework Kit','Party Popper','Sparkler Pack','Celebration Cannon','Rainbow Rockets']},
+ {k:'art',act:1,e:'🪖',n:'War',nouns:['Artillery Cannon','Cannon Battery','War Drum','Barrage Banner','Battle Horn','Field Gun']}
 ];
+var ACTN={bomb:'Bomb',tnt:'TNT rain',rocket:'Rocket',nuke:'Nuke',air:'Airstrike',bolt:'Lightning',wave:'Shockwave',fire:'Fireworks',art:'Artillery'};
 var FLAV='Turbo Cozy Jelly Pixel Cosmic Rainbow Frosty Sunny Bouncy Fuzzy Golden Silver Comet Maple Nimbus Zippy Mellow Sparkly Stormy Lucky Misty Ember Glacier Coral Dusty Neon Velvet Wobbly Breezy Crystal Meteor Orbit Lunar Solar Thunder Whisper Clover Pebble Bubble Thistle Jolly Quick Gentle Brave Mighty Tiny Giant Swift Silent Radiant Ancient Magic Secret Royal Wild Happy Chilly Toasty Fizzy Snowy Mossy Rusty Minty Peachy Cherry Berry Lemon Mango Cocoa Honey Ginger Pepper Cloud Star Moon Sun Wave River Canyon Forest Meadow Desert Tundra Island Jungle Volcano Aurora Galaxy Nebula Quasar Pulsar Photon Quantum Hyper Mega Ultra Super Prime Alpha Delta Omega'.split(' ');
 var PRE='Pocket Deluxe Extra Classic Lite Pro Max Mini Grand Epic Smart Handy Ultimate Simple Fancy Rapid Gentle Bright Cool Sweet Dream Spark Glow Proper Perfect Little Big Neo Retro Turbo Zen'.split(' ');
 var STUD='Pixel Pals,Blocksmith Guild,Moonlit Mods,Tiny Toad Labs,Orbit Workshop,Fizz Forge,Cloudy Crafters,Nova Nest,Jelly Jam Studio,Rocket Pocket,Maple Make,Starlight Smiths,Glow Garage,Bubble Works,Comet Cabin,Zig Zag Zone,Mossy Mill,Sunny Side Studio,Frost Foundry,Ember Ink,Puzzle Pie,Wiggle Workshop,Echo Egg,Honey Hive Dev,Lava Lamp Lab,Penguin Press,Quasar Quill,Rainy Day Dev,Sparkle Shed,Thunder Thumb'.split(',');
@@ -103,14 +113,16 @@ var EFFX={
  fov:function(s,r,h){return Math.round(2+22*s*r)},
  swim:function(s,r,h){return r2(1+.1+1*s*r)}
 };
-var LABEL={speed:function(v){return '🏃 Run +'+Math.round((v-1)*100)+'%'},jump:function(v){return '🦘 Jump +'+Math.round((v-1)*100)+'%'},grav:function(v){return '🌙 Gravity -'+Math.round((1-v)*100)+'%'},day:function(v){return v>=1?'🌅 Days '+v+'x faster':'🌅 Days '+r2(1/v)+'x longer'},fov:function(v){return '👁️ View +'+v+'°'},swim:function(v){return '🏊 Swim +'+Math.round((v-1)*100)+'%'}};
+var LABEL={ab:function(v){return CATS[ACTI[v.k]].e+' Power: '+ACTN[v.k]+' ('+v.t+'/5)'},speed:function(v){return '🏃 Run +'+Math.round((v-1)*100)+'%'},jump:function(v){return '🦘 Jump +'+Math.round((v-1)*100)+'%'},grav:function(v){return '🌙 Gravity -'+Math.round((1-v)*100)+'%'},day:function(v){return v>=1?'🌅 Days '+v+'x faster':'🌅 Days '+r2(1/v)+'x longer'},fov:function(v){return '👁️ View +'+v+'°'},swim:function(v){return '🏊 Swim +'+Math.round((v-1)*100)+'%'}};
+var ACTI={};CATS.forEach(function(c,i){ACTI[c.k]=i});
 var NAMES=new Array(N),LC=new Array(N),CAT=new Uint8Array(N),TIER=new Uint8Array(N),STUDIO=new Uint8Array(N),DL=new Uint32Array(N),RATE=new Uint16Array(N),VER=new Array(N),EF=new Array(N),LINE=new Uint8Array(N);
 (function build(){var seen={};
  for(var i=0;i<N;i++){
-  var c=H(i,1)%CATS.length,t0=H(i,2)%100,tier=t0<35?1:t0<63?2:t0<83?3:t0<95?4:5,s=tier/5,r=.82+(H(i,3)%40)/100,e={};
+  var u0=H(i,1)%100,c=u0<40?H(i,21)%7:7+H(i,22)%9,t0=H(i,2)%100,tier=t0<35?1:t0<63?2:t0<83?3:t0<95?4:5,s=tier/5,r=.82+(H(i,3)%40)/100,e={};
   var cat=CATS[c];
   if(cat.k==='combo'){var ks=['speed','jump','grav','day','fov','swim'],a=H(i,4)%6,b=(a+1+H(i,5)%5)%6,list=[ks[a],ks[b]];if(H(i,6)%3===0){var d=(b+1+H(i,7)%4)%6;if(d!==a)list.push(ks[d])}
    list.forEach(function(k){e[k]=EFFX[k](s*.6,r,H(i,8))})}
+  else if(cat.act)e.ab={k:cat.k,t:tier};
   else e[cat.k]=EFFX[cat.k](s,r,H(i,8));
   var nm=(H(i,9)%10<6?PRE[H(i,10)%PRE.length]+' ':'')+FLAV[H(i,11)%FLAV.length]+' '+cat.nouns[H(i,12)%cat.nouns.length];
   var key=nm.toLowerCase();seen[key]=(seen[key]||0)+1;if(seen[key]>1)nm+=' Mk '+seen[key];
@@ -169,13 +181,14 @@ function openMod(i){var c=CATS[CAT[i]],inP=pack.indexOf(i)>=0;
 $('ovMod').onclick=function(e){if(e.target===this)this.classList.remove('show')};
 /* ---------- the pack ---------- */
 var LIM={speed:[1,3],jump:[1,2.5],grav:[.3,1],fov:[0,30],day:[.2,5],swim:[1,3]};
-function combine(){var t={speed:1,jump:1,grav:1,fov:0,day:1,swim:1};pack.forEach(function(i){var e=EF[i];for(var k in e){if(k==='fov')t.fov+=e[k];else t[k]*=e[k]}});
+function combine(){var t={speed:1,jump:1,grav:1,fov:0,day:1,swim:1};pack.forEach(function(i){var e=EF[i];for(var k in e){if(k==='ab')continue;if(k==='fov')t.fov+=e[k];else t[k]*=e[k]}});
  var capped=false;for(var k in LIM){var v=Math.min(LIM[k][1],Math.max(LIM[k][0],t[k]));if(v!==t[k])capped=true;t[k]=r2(v)}return {t:t,capped:capped}}
-function packCode(){var c=combine();var json=JSON.stringify({n:pack.map(function(i){return NAMES[i]}),e:c.t});return 'EXV1:'+btoa(unescape(encodeURIComponent(json)))}
+function powers(){var a=[];pack.forEach(function(i){if(EF[i].ab)a.push([EF[i].ab.k,EF[i].ab.t,NAMES[i]])});return a}
+function packCode(){var c=combine();var json=JSON.stringify({n:pack.map(function(i){return NAMES[i]}),e:c.t,a:powers().slice(0,6)});return 'EXV1:'+btoa(unescape(encodeURIComponent(json)))}
 function openPack(){var c=combine(),t=c.t;
  $('packBox').innerHTML='<h2 style="margin:0 0 6px">🎒 My pack</h2><div class="note">Pick up to 20 mods. Then copy the code and paste it into Exworld.</div>'+
   (pack.length?pack.map(function(i){return '<div class="pk"><span>'+CATS[CAT[i]].e+' <b>'+esc(NAMES[i])+'</b><br><span class="mut">'+effChips(i).replace(/<[^>]+>/g,' ').trim()+'</span></span><button data-rm="'+i+'">✖</button></div>'}).join(''):'<p class="mut">Nothing yet. Tap ➕ Add on a mod.</p>')+
-  (pack.length?'<p><b>All together:</b> Run ×'+t.speed+' · Jump ×'+t.jump+' · Gravity ×'+t.grav+' · View +'+Math.round(t.fov)+'° · Days ×'+t.day+' · Swim ×'+t.swim+(c.capped?'<br><span class="note">Some numbers hit the safe limit so the game stays playable.</span>':'')+'</p><textarea id="codeBox" rows="4" readonly></textarea>':'')+
+  (pack.length?'<p><b>All together:</b> Run ×'+t.speed+' · Jump ×'+t.jump+' · Gravity ×'+t.grav+' · View +'+Math.round(t.fov)+'° · Days ×'+t.day+' · Swim ×'+t.swim+(c.capped?'<br><span class="note">Some numbers hit the safe limit so the game stays playable.</span>':'')+'</p>'+(powers().length?'<p><b>Powers:</b> '+powers().slice(0,6).map(function(a){return CATS[ACTI[a[0]]].e+' '+esc(a[2])}).join(', ')+'<br><span class="note">In Exworld press Z to use a power and Q to switch. A pack holds up to 6 powers.</span></p>':'')+'<textarea id="codeBox" rows="4" readonly></textarea>':'')+
   '<div class="row" style="margin-top:10px;flex-wrap:wrap">'+(pack.length?'<button class="p" id="cpy">📋 Copy pack code</button><button id="clr">Empty pack</button>':'')+'<button id="pClose">Close</button></div>'+
   '<p class="note">In Exworld: press Esc, then <b>☰ Menu → 🧩 Mods</b>, paste the code, and press Add mods.</p>';
  $('ovPack').classList.add('show');
