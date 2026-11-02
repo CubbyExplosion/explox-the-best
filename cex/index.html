@@ -354,4 +354,33 @@ function renderMe(){var m=$('t-me');
  $('npb').onclick=function(){var p=$('np').value.replace(/\D/g,'');if(p.length<4){alert('Use 4 to 10 numbers.');return}hash(p,function(h){acct.h=h;LS.set('cex_acct',acct);$('np').value='';alert('Passcode changed.')})}}
 
 openDB(function(){showLock()});
+/* ---------- our own game ads: full screen, up to 30 seconds, at most once every 10 minutes ---------- */
+var ADS=[
+ {n:'Explox',e:'🧱',t:'Build, explore and survive in the block world!',u:'../play/',c:['#1f7a3a','#7be07b']},
+ {n:'EXGUN',e:'🔫',t:'Raid bases and drive tanks in EXGUN!',u:'../exgun/',c:['#7a2a1f','#ff9a5a']},
+ {n:'Block Obby',e:'🏃',t:'Jump, dash and beat the obby!',u:'../play/obby/',c:['#3a2a8a','#8ec5ff']},
+ {n:'Super SIP',e:'🛒',t:'Run your own shop and open branches!',u:'../arcade/shop-tycoon/',c:['#8a5a10','#ffd24a']},
+ {n:'City Life',e:'🏙️',t:'Build your own city and live in it!',u:'../city-life/',c:['#1f4a7a','#6ad0ff']},
+ {n:'Exiverse',e:'🌌',t:'100,000 mods for Exworld: guns, tanks, jetpacks!',u:'../exiverse/',c:['#3a1f7a','#ff4fa3']},
+ {n:'Video Editor',e:'🎞️',t:'Cut, caption and add sounds to your videos, free!',u:'../video-editor/',c:['#7a1f5a','#ffa0d8']}
+];
+var AD_GAP=10*60*1000,adT=null,adOpen=false;
+function adBusy(){return adOpen||$('app').style.display==='none'||document.hidden||['ovPlay','ovLive','ovEdit','ovQuick'].some(function(i){var o=$(i);return o&&o.classList.contains('show')})||(lv&&lv.mr&&lv.mr.state==='recording')}
+function showAd(){
+ var a=ADS[Math.floor(Math.random()*ADS.length)],secs=15+Math.floor(Math.random()*16),left=secs,skipAt=5;
+ adOpen=true;LS.set('cex_lastad',Date.now());
+ var paused=[];document.querySelectorAll('video').forEach(function(v){if(!v.paused){paused.push(v);v.pause()}});
+ var d=document.createElement('div');d.id='cexAd';d.style.cssText='position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;color:#fff;background:linear-gradient(160deg,'+a.c[0]+','+a.c[1]+');font-family:inherit';
+ d.innerHTML='<div style="position:absolute;top:12px;left:14px;font-size:13px;background:#0008;border-radius:8px;padding:4px 10px">📢 Ad · one of our own games</div><div style="position:absolute;top:10px;right:12px"><button id="adSkip" disabled style="padding:8px 14px;border-radius:10px;border:0;background:#0009;color:#fff;font-weight:700"></button></div>'+
+  '<div id="adEmo" style="font-size:110px">'+a.e+'</div><h1 style="margin:6px 0;font-size:44px;text-shadow:0 3px 0 #0006">'+a.n+'</h1><div style="font-size:20px;max-width:520px;margin-bottom:20px">'+a.t+'</div>'+
+  '<a href="'+a.u+'" target="_blank" rel="noopener" style="background:#fff;color:#222;text-decoration:none;font-weight:800;font-size:20px;padding:14px 28px;border-radius:14px">▶ Play '+a.n+'</a>'+
+  '<div style="position:absolute;left:0;right:0;bottom:0;height:8px;background:#0005"><div id="adBar" style="height:100%;width:0;background:#fff"></div></div>';
+ document.body.appendChild(d);var t0=Date.now(),sk=$('adSkip'),em=$('adEmo');
+ function close(){clearInterval(iv);d.remove();adOpen=false;paused.forEach(function(v){try{v.play()}catch(e){}});schedule(AD_GAP)}
+ function tick(){var el=(Date.now()-t0)/1000;left=Math.max(0,Math.ceil(secs-el));$('adBar').style.width=Math.min(100,el/secs*100)+'%';em.style.transform='scale('+(1+0.08*Math.sin(el*3))+') rotate('+Math.sin(el*2)*6+'deg)';
+  if(el>=skipAt){sk.disabled=false;sk.textContent='Skip ▶'}else sk.textContent='Skip in '+Math.ceil(skipAt-el);
+  if(el>=secs)close()}
+ var iv=setInterval(tick,100);tick();sk.onclick=function(){if(!sk.disabled)close()}}
+function schedule(ms){clearTimeout(adT);adT=setTimeout(function(){if(adBusy()){schedule(30000);return}showAd()},ms)}
+(function(){var last=LS.get('cex_lastad',0),wait=Math.max(AD_GAP-(Date.now()-last),last?0:AD_GAP);schedule(Math.min(AD_GAP,Math.max(wait,60000)))})();
 </script></body></html>
