@@ -262,6 +262,11 @@ const bgMusic = (() => {
   ];
   REAL_TRACKS.forEach(t=>TRACKS.push({name:t.name, real:true, file:t.file}));
 
+  // The 49 beep songs after "City Vibes" now play as real piano + real drum recordings (short looping mp3s).
+  // Track 0, City Vibes, keeps the ORIGINAL beep beat on purpose.
+  const INSTRUMENT_TRACKS={'Night Drive':'night_drive','Rush Hour':'rush_hour','Rainy Day':'rainy_day','Morning Jog':'morning_jog','Action Zone':'action_zone','Chill Lounge':'chill_lounge','Rooftop Beats':'rooftop_beats','Mission Zone':'mission_zone','Golden Hour':'golden_hour','Street Life':'street_life','Midnight City':'midnight_city','Neon Lights':'neon_lights','Park Walk':'park_walk','Skate Park':'skate_park','Downtown Groove':'downtown_groove','Late Night':'late_night','Sunrise Ride':'sunrise_ride','Arcade Jam':'arcade_jam','Penthouse View':'penthouse_view','Market Day':'market_day','Speed Run':'speed_run','Hip Hop City':'hip_hop_city','Jazz Cafe':'jazz_cafe','Lunch Break':'lunch_break','Office Hours':'office_hours','River Walk':'river_walk','Club Night':'club_night','Quiet Evening':'quiet_evening','Galaxy Drive':'galaxy_drive','Funk Town':'funk_town','Study Hall':'study_hall','Neon District':'neon_district','Tower Block':'tower_block','Beach Cruise':'beach_cruise','Sport Mode':'sport_mode','Crystal City':'crystal_city','Bus Stop':'bus_stop','Night Watch':'night_watch','Metro Groove':'metro_groove','Rain and Jazz':'rain_and_jazz','Solar Blast':'solar_blast','Times Square':'times_square','Robot Dance':'robot_dance','Corner Store':'corner_store','Sunset Chill':'sunset_chill','Alley Cats':'alley_cats','Storm Chaser':'storm_chaser','Cyber City':'cyber_city','Champion Run':'champion_run'};
+  TRACKS.forEach((t,i)=>{ const f=INSTRUMENT_TRACKS[t.name]; if(i>0 && f && !t.real){ t.file='AiGame/explox/music/tracks/'+f+'.mp3'; t.inst=true; } });
+
   // 50 instrument presets — mt/bt=osc type, mv/bv=volume, md/bd=dur multiplier
   // kf/kv/kd=kick freq/vol/dur  hf/hc/hv=hihat freq/cutoff/vol  sf/sv=snare freq/vol
   const INSTRUMENTS=[
@@ -405,7 +410,7 @@ const bgMusic = (() => {
       if(idx<0||idx>=TRACKS.length) return;
       _currentTrack=idx;
       const t=TRACKS[idx];
-      if(t.real){
+      if(t.real||t.inst){
         // A real song plays through an <audio> element, not the beep engine — stop the beeps first.
         if(tmr){ clearInterval(tmr); tmr=null; }
         if(!realAudio){ realAudio=new Audio(); realAudio.loop=true; }
@@ -452,7 +457,7 @@ function selectMusicTrack(idx){
   // show track name as notification
   const t=bgMusic.TRACKS[idx];
   if(t&&typeof showNotif==='function'){
-    const meta = t.real ? '🎤 real song' : '('+t.minutes+' min)';
+    const meta = t.real ? '🎤 real song' : (t.inst ? '🎹 real instruments' : '('+t.minutes+' min)');
     showNotif('🎵 Now playing: '+t.name+' '+meta);
   }
 }
@@ -464,14 +469,14 @@ function renderMusicList(){
   let shownRealHeader=false; // flips true right before the first t.real===true track, so the header only prints once
   bgMusic.TRACKS.forEach((t,i)=>{
     if(i===0){
-      html+=`<div style="color:#888;font-size:10px;font-weight:bold;letter-spacing:2px;margin-bottom:6px;">🎹 SYNTH TRACKS</div>`;
+      html+=`<div style="color:#888;font-size:10px;font-weight:bold;letter-spacing:2px;margin-bottom:6px;">🎹 BACKGROUND TRACKS</div>`;
     }
     if(t.real && !shownRealHeader){
       shownRealHeader=true;
       html+=`<div style="color:#ff88cc;font-size:10px;font-weight:bold;letter-spacing:2px;margin:12px 0 6px;padding-top:10px;border-top:1px solid #333;">🎤 REAL SONGS</div>`;
     }
     const a=i===ct;
-    const meta = t.real ? '🎤 Real Song' : `${t.minutes}m · ${t.bpm} BPM`;
+    const meta = t.real ? '🎤 Real Song' : (t.inst ? `🎹 Real piano & drums · ${t.bpm} BPM` : `${t.minutes}m · ${t.bpm} BPM (original beat)`);
     const songId = karaokeSongIdForTrack(t);
     const hasLyrics = !!songId;
     const hasTiming = hasLyrics && KARAOKE_SONGS[songId].timing && KARAOKE_SONGS[songId].timing.length;
