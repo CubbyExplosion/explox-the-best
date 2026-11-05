@@ -19,7 +19,7 @@
   const hemi = new THREE.HemisphereLight(0xbbccff, 0x332211, 0.9); SC.add(hemi);
   const sun = new THREE.DirectionalLight(0xffffff, 0.9); sun.position.set(10, 20, 12); SC.add(sun);
   const rim = new THREE.PointLight(0xff88aa, 0.8, 60); rim.position.set(-8, 6, -6); SC.add(rim);
-  let stage = null, stageKey = '', castKey = '', cast = [], fxGroup = new THREE.Group(), gagState = {}, words = [];
+  let stage = null, fxGroup = new THREE.Group(), words = [];
   SC.add(fxGroup);
 
   function renderer(w, h) {
@@ -221,194 +221,260 @@
     return 'city';
   }
 
-  // ---------- the crowd: hundreds of fans dressed like Cubby (red + white chef hat), Hubby (blue + red cap),
-  // Gernaldst (yellow + duck hat) and other S.I.P. team fans. Drawn with instancing so 360 people cost 6 draw calls. ----------
-  const CROWD_N = 360;
-  let crowd = null;
-  function buildCrowd() {
-    const g = new THREE.Group(), r = rnd(777);
-    const mk = (w, h, d) => { const m = new THREE.InstancedMesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: 0xffffff }), CROWD_N); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; g.add(m); return m; };
-    const parts = { legs: mk(.8, .95, .4), torso: mk(.8, 1.0, .45), head: mk(.9, .9, .9), hat: mk(1.0, .5, 1.0), armL: mk(.3, .85, .3), armR: mk(.3, .85, .3) };
-    const people = [], skins = [0xffcc80, 0xf5c89a, 0xd4956a, 0xe8c080, 0x8d5e3c, 0xf0c8a0], hairs = [0x212121, 0x5d4037, 0x3a2410, 0xffcc66, 0xaa3311, 0x1a1a1a], shirts = [0x42a5f5, 0x66bb6a, 0xab47bc, 0xff7043, 0x26c6da, 0xec407a, 0x8d6e63, 0x9ccc65];
-    let i = 0, row = 0;
-    while (i < CROWD_N) {
-      const rad = 21 + row * 1.9, n = Math.floor(2 * Math.PI * rad / 2.0);
-      for (let k = 0; k < n && i < CROWD_N; k++, i++) {
-        const a = k / n * 6.283 + (row % 2) * .08 + (r() - .5) * .04, type = Math.floor(r() * 9);
-        const pp = { x: Math.cos(a) * rad, z: Math.sin(a) * rad, ang: -a - Math.PI / 2, ph: r() * 6.28, type, sc: .95 + r() * .35, skin: skins[Math.floor(r() * skins.length)] };
-        if (type <= 2) { pp.shirt = [0xef5350, 0x1e88e5, 0xfdd835][type]; pp.hatc = [0xffffff, 0xe53935, 0xffee58][type]; pp.hatS = [[1.0, 1.9, 1.0, 3.7], [1.2, .5, 1.3, 3.3], [1.0, .75, 1.0, 3.35]][type]; pp.pants = 0x37474f; }
-        else { pp.shirt = shirts[Math.floor(r() * shirts.length)]; pp.hatc = hairs[Math.floor(r() * hairs.length)]; pp.hatS = [1.08, .35, 1.0, 3.3]; pp.pants = [0x37474f, 0x263238, 0x3949ab, 0x5d4037][Math.floor(r() * 4)]; }
-        people.push(pp);
-        const c = new THREE.Color();
-        parts.legs.setColorAt(i, c.setHex(pp.pants)); parts.torso.setColorAt(i, c.setHex(pp.shirt)); parts.head.setColorAt(i, c.setHex(pp.skin));
-        parts.hat.setColorAt(i, c.setHex(pp.hatc)); parts.armL.setColorAt(i, c.setHex(pp.shirt)); parts.armR.setColorAt(i, c.setHex(pp.shirt));
-      }
-      row++;
+  // ---------- props: the 3D things a scene's caption talks about ----------
+  const propCache = {};
+  function makeProp(kind) {
+    if (propCache[kind]) return propCache[kind];
+    const g = new THREE.Group();
+    const E = (c) => ({ emissive: c });
+    switch (kind) {
+      case 'rocket': { box(g, 1.6, 4, 1.6, 0xeeeeee, 0, 2.5, 0); const n = new THREE.Mesh(new THREE.ConeGeometry(.95, 1.8, 10), mat(0xdd3322)); n.position.y = 5.4; g.add(n); box(g, .4, 1.8, 3, 0xdd3322, 0, 1, 0); box(g, 3, 1.8, .4, 0xdd3322, 0, 1, 0); box(g, .8, .8, .1, 0x66ccff, 0, 3.4, .85, E(0x225577)); g.userData.flame = box(g, .9, 1.6, .9, 0xff9922, 0, -.6, 0, E(0xff6600)); break; }
+      case 'pizza': { const d = new THREE.Mesh(new THREE.CylinderGeometry(2.3, 2.3, .4, 24), mat(0xf4b942)); d.rotation.x = Math.PI / 2; d.position.y = 3.4; g.add(d); for (let i = 0; i < 8; i++) { const p = new THREE.Mesh(new THREE.CylinderGeometry(.35, .35, .1, 10), mat(0xcc2222)); p.rotation.x = Math.PI / 2; p.position.set(Math.cos(i * 2.4) * 1.3, 3.4 + Math.sin(i * 2.4) * 1.3, .25); g.add(p); } g.userData.spin = 'z'; break; }
+      case 'coins': { for (let i = 0; i < 26; i++) { const c = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, .14, 14), mat(0xffd54f, E(0x886600))); c.position.set((i % 6 - 2.5) * .8 + (i % 2) * .2, .1 + Math.floor(i / 6) * .22, (Math.floor(i / 6) - 2) * .7); c.rotation.z = Math.random() * .6; g.add(c); } break; }
+      case 'car': { box(g, 4.2, .9, 2, 0xe53935, 0, .9, 0); box(g, 2.2, .8, 1.8, 0xe53935, -.2, 1.7, 0); box(g, 1.0, .6, 1.85, 0x88ccee, .5, 1.7, 0); [[-1.3, 1], [1.3, 1], [-1.3, -1], [1.3, -1]].forEach(([x, z]) => box(g, .8, .8, .4, 0x222222, x, .4, z * 1.0)); break; }
+      case 'house': { box(g, 6, 3.6, 5, 0xd7b98e, 0, 1.8, 0); const r = new THREE.Mesh(new THREE.ConeGeometry(4.6, 2.4, 4), mat(0xb23b2e)); r.rotation.y = Math.PI / 4; r.position.y = 4.8; g.add(r); box(g, 1, 2, .2, 0x5d4037, 0, 1, 2.55); box(g, 1, 1, .2, 0xffee99, -2, 2.2, 2.55, E(0x998833)); box(g, 1, 1, .2, 0xffee99, 2, 2.2, 2.55, E(0x998833)); break; }
+      case 'wall': { for (let y = 0; y < 5; y++) for (let x = -5; x <= 5; x++) box(g, 1.9, .9, 1, ((x + y) % 2) ? 0x9e5b45 : 0xb36b50, x * 2 + (y % 2), .45 + y, 0); break; }
+      case 'tree': { box(g, 1, 4, 1, 0x6d4c41, 0, 2, 0); box(g, 4.4, 3.4, 4.4, 0x2e7d32, 0, 5.4, 0); box(g, 3, 2.4, 3, 0x388e3c, 0, 7.6, 0); break; }
+      case 'portal': { const t = new THREE.Mesh(new THREE.TorusGeometry(2.6, .35, 10, 32), mat(0x66ddff, E(0x2288aa))); t.position.y = 3.2; g.add(t); const d = new THREE.Mesh(new THREE.CircleGeometry(2.4, 24), new THREE.MeshBasicMaterial({ color: 0x99ffff, transparent: true, opacity: .35 })); d.position.y = 3.2; g.add(d); g.userData.spin = 'portal'; break; }
+      case 'moon': { const m = new THREE.Mesh(new THREE.SphereGeometry(3, 18, 12), mat(0xfffbe0, E(0xaaa070))); m.position.set(0, 14, 0); g.add(m); break; }
+      case 'sun': { const m = new THREE.Mesh(new THREE.SphereGeometry(3.2, 18, 12), mat(0xffee66, E(0xaa8800))); m.position.set(0, 14, 0); g.add(m); break; }
+      case 'trophy': { const c = new THREE.Mesh(new THREE.CylinderGeometry(1.5, .8, 2, 14), mat(0xffd54f, E(0x886600))); c.position.y = 3.6; g.add(c); box(g, .4, 1.2, .4, 0xffd54f, 0, 2.2, 0, E(0x886600)); box(g, 2, .4, 2, 0xffd54f, 0, 1.4, 0, E(0x886600)); box(g, 2.6, .9, 2.6, 0x6d4c41, 0, .45, 0); g.userData.spin = 'y'; break; }
+      case 'book': { box(g, 3.6, .5, 2.6, 0x6a1b9a, 0, 1.2, 0); box(g, 3.4, .35, 2.4, 0xfffde7, 0, 1.55, 0); g.userData.spin = 'y'; break; }
+      case 'fire': { for (let i = 0; i < 5; i++) { const c = new THREE.Mesh(new THREE.ConeGeometry(.7 - i * .06, 2.2 + (i % 2), 6), mat(i % 2 ? 0xff5522 : 0xffaa22, E(0x883300))); c.position.set((i - 2) * .6, 1.1, (i % 2) * .4); g.add(c); } g.userData.flicker = true; break; }
+      case 'lantern': { box(g, .12, 4, .12, 0x333333, 0, 2, 0); box(g, .9, 1.1, .9, 0xffee99, 0, 4.4, 0, E(0xbb9933)); box(g, 1.1, .2, 1.1, 0x333333, 0, 5.05, 0); break; }
+      case 'heart': { for (let i = 0; i < 6; i++) { const h = new THREE.Group(); [-.3, .3].forEach(x => { const s = new THREE.Mesh(new THREE.SphereGeometry(.38, 10, 8), mat(0xff4081, E(0x661133))); s.position.set(x, .2, 0); h.add(s); }); const c = new THREE.Mesh(new THREE.ConeGeometry(.62, .9, 4), mat(0xff4081, E(0x661133))); c.rotation.z = Math.PI; c.position.y = -.3; h.add(c); h.position.set((i - 2.5) * 1.6, 5 + (i % 3), -2 - (i % 2)); g.add(h); } g.userData.float = true; break; }
+      case 'bolt': { for (let i = 0; i < 4; i++) box(g, .4, 3, .4, 0xffee33, (i % 2 ? .8 : -.8), 11 - i * 2.6, -3, E(0xffcc00)).rotation.z = (i % 2 ? .5 : -.5); g.userData.flicker = true; break; }
+      case 'shield': { box(g, 2.6, 3.2, .4, 0x1e63c9, 0, 3.2, 0); box(g, 1.2, 1.6, .5, 0xffd54f, 0, 3.2, 0, E(0x665500)); g.userData.spin = 'y'; break; }
     }
-    Object.values(parts).forEach(m => { m.instanceColor.needsUpdate = true; });
-    crowd = { g, parts, people, P: new THREE.Matrix4(), L: new THREE.Matrix4(), M: new THREE.Matrix4(), q: new THREE.Quaternion(), e: new THREE.Euler(), v: new THREE.Vector3(), sv: new THREE.Vector3() };
-    SC.add(g);
+    g.visible = false; SC.add(g); propCache[kind] = g; return g;
   }
-  function updateCrowd(t, inten) {
-    if (!crowd) buildCrowd();
-    const c = crowd, P = c.P, L = c.L, M = c.M, ps = c.parts;
-    const put = (mesh, i, x, y, z, rx, sx, sy, sz) => { c.e.set(rx || 0, 0, 0); c.q.setFromEuler(c.e); c.v.set(x, y, z); c.sv.set(sx || 1, sy || 1, sz || 1); L.compose(c.v, c.q, c.sv); M.multiplyMatrices(P, L); mesh.setMatrixAt(i, M); };
-    for (let i = 0; i < c.people.length; i++) {
-      const p = c.people[i];
-      const jump = Math.max(0, Math.sin(t * (4 + p.type % 3) + p.ph)) * (.4 + .9 * inten);
-      c.e.set(0, p.ang, 0); c.q.setFromEuler(c.e); c.v.set(p.x, jump, p.z); c.sv.set(p.sc, p.sc, p.sc); P.compose(c.v, c.q, c.sv);
-      const arm = inten > .6 ? -2.7 + Math.sin(t * 9 + p.ph) * .6 : -.3 + Math.sin(t * 3 + p.ph) * .5;
-      put(ps.legs, i, 0, .52, 0); put(ps.torso, i, 0, 1.75, 0); put(ps.head, i, 0, 2.75, 0);
-      put(ps.hat, i, 0, p.hatS[3], 0, 0, p.hatS[0], p.hatS[1], p.hatS[2]);
-      const ay = 2.2 - .4 * Math.cos(arm), az = -.4 * Math.sin(arm);
-      put(ps.armL, i, -.6, ay, az, arm); put(ps.armR, i, .6, ay, az, arm);
-    }
-    Object.values(ps).forEach(m => { m.instanceMatrix.needsUpdate = true; });
+  const PROPS = [
+    [/rocket|spaceship|mothership|fleet|launch|warp|blast off|engines?\b/i, 'rocket'], [/pizza|cheese|calzone|pepperoni|slice/i, 'pizza'],
+    [/\$|money|coins?\b|s\.i\.p|treasure|bank|rich|gold|paid|salary|market/i, 'coins'], [/\bcars?\b|racing|race\b|kart|truck|\bbus\b|grand prix|track\b|engine/i, 'car'],
+    [/house|home\b|cabin|roof|doorstep|\broom\b|build/i, 'house'], [/\bwall\b|\bgate\b|fence|prison|bars\b|cell\b/i, 'wall'], [/\btree\b|forest|\boak\b|woods/i, 'tree'],
+    [/clock|time\b|portal|future|machine|yesterday|tomorrow/i, 'portal'], [/moon|midnight|2am|nighttime|night\b/i, 'moon'], [/\bsun\b|sunrise|dawn|morning|daylight/i, 'sun'],
+    [/trophy|champion|medal|winner|tournament|games\b|cup\b/i, 'trophy'], [/\bbook\b|almanac|\bmap\b|letter|page\b|chapter/i, 'book'], [/\bfire\b|flame|burn|torch|candle/i, 'fire'],
+    [/lantern|\blamp\b|glow|flashlight/i, 'lantern'], [/heart|love\b|wedding|romance|kiss/i, 'heart'], [/storm|lightning|thunder|\bbolt\b|wrath|zap|power/i, 'bolt'], [/badge|shield|protect|defend|guard\b/i, 'shield'],
+  ];
+  function propFor(text) { for (const [re, k] of PROPS) if (re.test(text)) return k; return null; }
+
+  // ---------- who plays whom: the movie's own two main characters (from its picture settings) played by Explox people ----------
+  const FN_KIND = () => {
+    const m = new Map(), add = (n, k) => { try { const f = (0, eval)('typeof ' + n + " === 'function' ? " + n + ' : null'); if (f) m.set(f, k); } catch (e) { } };
+    [['_cRobot', 'robot'], ['_cDino', 'dino'], ['_cGrandma', 'grandma'], ['_cNinja', 'ninja'], ['_cCat', 'cat'], ['_cPizza', 'pizza'], ['_cDetective', 'detective'], ['_cAlien', 'alien'], ['_cDragon', 'dragon'],
+      ['_cRocket', 'pilot'], ['_cCar', 'racer'], ['_cKiller', 'ninja'], ['_cDoc', 'doctor'], ['_cMason', 'pioneer'], ['_cSettler', 'pioneer'], ['_cOak', 'hero'], ['_cLantern', 'wizard'], ['_cCabin', 'pioneer'], ['_cJake', 'athlete']].forEach(([n, k]) => add(n, k));
+    return m;
+  };
+  let fnKind = null;
+  const KIND_WORDS = { robot: /robot|android|\bbot\b|mecha/i, dino: /dino|rex\b|reptile/i, ninja: /ninja|shadow|clan|sensei/i, grandma: /grandma|granny|nana/i, cat: /\bcat\b|kitty|feline/i, pizza: /pizza|calzone|pepperoni/i,
+    detective: /detective|inspector|clue|sleuth/i, ghost: /ghost|spirit|phantom/i, alien: /alien|martian|visitor/i, dragon: /dragon/i, racer: /racer|driver|racing/i, pilot: /pilot|rocket|captain/i, king: /king|queen|mayor|crown|royal/i,
+    doctor: /doctor|nurse|medic/i, athlete: /athlete|player|champion|team/i, wizard: /wizard|magic|time traveler/i };
+  function mainKinds(mi, mv) {
+    if (!fnKind) fnKind = FN_KIND();
+    const vis = (typeof _MVIS !== 'undefined') ? _MVIS[mi] : null; const tags = tagsFor(mv);
+    const a = (vis && fnKind.get(vis[3])) || tags[0] || 'hero', b = (vis && fnKind.get(vis[4])) || tags[1] || 'robot';
+    return [a, b === a ? (tags.find(t => t !== a) || 'hero') : b, tags.find(t => t !== a && t !== b) || 'hero'];
   }
 
-  // ---------- scene director ----------
-  const STYLES = ['march', 'chase', 'fight', 'party', 'fly', 'sneak', 'talk'];
-  function styleFor(text, mi, si) {
-    const t = (text || '').toLowerCase();
-    if (/fight|battle|attack|war|punch|kick|strike|clash|duel|defend/.test(t)) return 'fight';
-    if (/run|race|chase|escape|rush|launch|speed|zoom|flee|dash/.test(t)) return 'chase';
-    if (/dance|party|celebrat|cheer|win|victory|festival|laugh|joke|hooray|finally/.test(t)) return 'party';
-    if (/fly|flight|sky|soar|wing|rocket|space|orbit|plane|cloud|warp/.test(t)) return 'fly';
-    if (/secret|mystery|dark|night|ghost|shadow|search|sneak|clue|hid|silent/.test(t)) return 'sneak';
-    if (/meet|talk|plan|council|learn|teach|train|speech|say|ask|decid/.test(t)) return 'talk';
-    return STYLES[hash(mi, si, 7) % STYLES.length];
+  // ---------- reading a scene's caption ----------
+  const sceneInfoCache = {};
+  function verbStyle(t, mi, si) {
+    if (/fight|battle|attack|punch|kick|strike|clash|duel|defend|brawl|war\b|fist/.test(t)) return 'fight';
+    if (/\brun|race|chase|escape|rush|flee|dash|sprint|speed/.test(t)) return 'run';
+    if (/launch|\bfly|flight|soar|wings|take off|takes off|orbit|warp|cruis/.test(t)) return 'fly';
+    if (/dance|party|celebrat|cheer|victory|win\b|wins\b|festival|hooray|finally|parade|laugh|joke/.test(t)) return 'party';
+    if (/sneak|creep|tiptoe|secret|hid\b|hide|hiding|silent|quiet|search|investigat|follow/.test(t)) return 'sneak';
+    if (/scream|panic|afraid|scared|terrified|horror|run for|trembl/.test(t)) return 'panic';
+    if (/scan|look|watch|spot|notice|stare|gaze|horizon|wonder|realiz|discover|find|found/.test(t)) return 'look';
+    if (/build|hammer|raise|rises|construct|work|craft|cook|bake|fix|repair/.test(t)) return 'work';
+    if (/walk|march|travel|journey|arrive|head to|heads to|steps|stroll|enter|leav|return|wander/.test(t)) return 'walk';
+    if (/meet|talk|say|says|ask|speak|tell|warn|call|plan|council|decid|learn|teach|train|whisper|shout|speech|announce|promise|\"/.test(t)) return 'talk';
+    return ['talk', 'look', 'walk'][hash(mi, si, 4) % 3];
   }
+  function getInfo(mi, si, mv, sc) {
+    const key = mi + '_' + si; if (sceneInfoCache[key]) return sceneInfoCache[key];
+    const text = (sc.text || ''), lc = text.toLowerCase(), [ka, kb, kc] = mainKinds(mi, mv);
+    const bWords = (typeof _MCHARS !== 'undefined' && _MCHARS[mi]) ? _MCHARS[mi] : [];
+    const mentionB = bWords.some(k => (' ' + lc + ' ').indexOf(k) !== -1) || (KIND_WORDS[kb] && KIND_WORDS[kb].test(lc));
+    const mentionA = (KIND_WORDS[ka] && KIND_WORDS[ka].test(lc)) || /\bhero|captain|\bhe\b|\bshe\b|\bwe\b|\bi\b|\bour\b/.test(lc);
+    const style = verbStyle(lc, mi, si);
+    const present = [];
+    if (!(mentionB && !mentionA && style !== 'fight' && style !== 'talk')) present.push('A');
+    if (mentionB || ['fight', 'run', 'talk', 'party'].indexOf(style) >= 0) present.push('B');
+    if (style === 'party' || /sidekick|friend|team|together|\bthey\b|\ball\b|family|everyone|both/.test(lc)) present.push('C');
+    if (!present.length) present.push('A');
+    const groupRe = /army|fleet|soldiers|troops|villagers|townsfolk|\btown\b|everyone|citizens|clan|ninjas|guards|\bteam\b|family|friends|students|crew|warriors|settlers|neighbou?rs|dinos\b|robots\b|aliens\b|pizzas\b/;
+    const g = groupRe.exec(lc); const big = /army|fleet|clan|students|troops|\btown\b|everyone/.test(lc);
+    const extraKind = mentionB ? kb : ka;
+    const comedy = /comedy|family|slice|friendship/i.test(mv.genre) || /pizza|grandma|cat|alien/i.test(mv.title);
+    const spaceRe = /space|planet|galaxy|rocket|orbit|star\b|stars\b|asteroid|moon base|mothership|warp/, natureRe = /forest|woods|field|farm|mountain|river|lake|valley|garden|island|ocean|sea\b|beach|sky\b|cloud|cabin|meadow|wings/, cityRe = /city|street|town|market|shop|store|bank|building|house|school|academy|stadium|road|track|alley|roof/;
+    let kind = spaceRe.test(lc) ? 'space' : natureRe.test(lc) ? 'nature' : cityRe.test(lc) ? 'city' : kindFor(mv, mi, '');
+    const dark = /night|dark|shadow|ghost|mystery|midnight|2am|secret|cave|storm|villain|fear|silent|empty|nobody|lost|missing|danger|trap|alone|war\b/.test(lc);
+    const info = { text, style, present, extraN: g ? (big ? 6 : 4) : 0, extraKind, kinds: { A: ka, B: kb, C: kc }, prop: propFor(lc), kind, dark, comedy, surprise: /[!?]/.test(text) };
+    sceneInfoCache[key] = info; return info;
+  }
+
+  // ---------- cast: the movie's characters are played by Explox people ----------
+  const people = {};     // cache of built people by key
   function npcPool() {
-    const defs = (typeof NPC_DEFS !== 'undefined' ? NPC_DEFS : []).filter(d => d && ['Citizen', 'Shopkeeper', 'Waiter', 'Officer', 'Foreman', 'Jogger', 'Tourist', 'Vendor', 'Celebrity'].indexOf(d.role) >= 0);
+    const defs = (typeof NPC_DEFS !== 'undefined' ? NPC_DEFS : []).filter(d => d && ['Citizen', 'Shopkeeper', 'Waiter', 'Officer', 'Foreman', 'Jogger', 'Tourist', 'Vendor'].indexOf(d.role) >= 0);
     return defs.length ? defs : [{ name: 'Sam', skin: 0xf5c89a, shirt: 0x2255aa, pants: 0x333344, hair: 'short', hairColor: 0x2a1505 }, { name: 'Mia', skin: 0xd4956a, shirt: 0x1166bb, pants: 0x222233, hair: 'long', hairColor: 0x1a1a1a }];
   }
-  function setupCast(mi, mv) {
-    if (castKey === 'c' + mi && cast.length) return;
-    cast.forEach(c => SC.remove(c.g)); cast = [];
-    const pool = npcPool(), r = rnd(hash(mi, 11, 5)), tags = tagsFor(mv);
-    const pick = () => pool[Math.floor(r() * pool.length)];
-    // every Explox celebrity (Chaz Diamond, Vex Nova, Bree Millions) is a star of every movie
+  const SIPDEFS = [
+    { name: 'Cubby', skin: 0xffcc80, shirt: 0xef5350, pants: 0x37474f, hair: 'short', hairColor: 0x212121, hat: 'chef' },
+    { name: 'Hubby', skin: 0xffcc80, shirt: 0x1e88e5, pants: 0x37474f, hair: 'short', hairColor: 0x5d4037, hat: 'cap', hatColor: 0xe53935 },
+    { name: 'Gernaldst', skin: 0xffcc80, shirt: 0xfdd835, pants: 0x37474f, hair: 'short', hairColor: 0x5d4037, hat: 'duck' }];
+  function personFor(key, def, kind, label) {
+    if (people[key]) return people[key];
+    const p = buildPerson(def, { name: label || def.name, hat: kind && kind !== 'hero' ? null : def.hat, hatColor: def.hatColor, noTag: !label });
+    p.costume = kind; if (kind) costume(p, kind); p.g.visible = false; p.g.scale.setScalar(1.45); SC.add(p.g); people[key] = p; return p;
+  }
+  function actorsFor(mi, mv, info) {
     const stars = (typeof NPC_DEFS !== 'undefined' ? NPC_DEFS : []).filter(d => d && d.role === 'Celebrity');
-    ['hero', 'friend', 'villain'].forEach((role, i) => {
-      const def = stars.length ? stars[(i + mi) % stars.length] : pick(), p = buildPerson(def, { name: '★ ' + def.name }); p.role = role; costume(p, tags[i % tags.length]); p.costume = tags[i % tags.length]; p.g.scale.setScalar(1.45); SC.add(p.g); cast.push(p);
+    const star = (i) => stars.length ? stars[(i + mi) % stars.length] : npcPool()[i % npcPool().length];
+    const out = [];
+    info.present.forEach((who, idx) => {
+      const i = ['A', 'B', 'C'].indexOf(who), kind = info.kinds[who];
+      out.push(personFor('m' + mi + who, star(i), kind, '★ ' + star(i).name));
     });
-    const SIP = [
-      { name: 'Cubby', skin: 0xffcc80, shirt: 0xef5350, pants: 0x37474f, hair: 'short', hairColor: 0x212121, hat: 'chef', prop: 'chips' },
-      { name: 'Hubby', skin: 0xffcc80, shirt: 0x1e88e5, pants: 0x37474f, hair: 'short', hairColor: 0x5d4037, hat: 'cap', hatColor: 0xe53935, prop: 'blaster1' },
-      { name: 'Gernaldst', skin: 0xffcc80, shirt: 0xfdd835, pants: 0x37474f, hair: 'short', hairColor: 0x5d4037, hat: 'duck', prop: 'blaster2' }];
-    SIP.forEach(def => {
-      const p = buildPerson(def, { name: def.name, hatColor: def.hatColor }); p.role = 'extra'; p.g.scale.setScalar(1.35);
-      if (def.prop === 'chips') { const bg = box(p.armR, .5, .65, .22, 0xffd54f, 0, -.9, .25); box(bg, .36, .2, .06, 0xd84315, 0, 0, .13); }
-      else { const bl = box(p.armR, .3, .3, 1.0, def.prop === 'blaster1' ? 0xab47bc : 0x43a047, 0, -.8, .6); box(bl, .2, .2, .2, 0xe1f5fe, 0, 0, .6, { transparent: true, opacity: .7 }); }
-      if (def.name === 'Gernaldst') p.mouth.scale.set(1.5, 3, 1);
-      SC.add(p.g); cast.push(p);
-    });
-    for (let i = 0; i < 3; i++) { const def = pick(), p = buildPerson(def, { name: def.name, noTag: true }); p.role = 'extra'; p.g.scale.setScalar(1.2); SC.add(p.g); cast.push(p); }
-    castKey = 'c' + mi;
+    return out;
   }
-  function stars(parent, y, t, n, color) {   // BONK stars spinning around a head
-    for (let i = 0; i < n; i++) {
-      const a = t * 6 + i * 6.283 / n; const s = new THREE.Mesh(new THREE.OctahedronGeometry(.18), new THREE.MeshBasicMaterial({ color: color || 0xffee33 }));
-      s.position.set(Math.cos(a) * .9, y + Math.sin(t * 8 + i) * .1, Math.sin(a) * .9); s.userData.fx = true; fxGroup.add(s); s.userData.parent = parent;
-    }
+  function extrasFor(mi, info, n) {
+    const pool = SIPDEFS.concat(npcPool()), out = [];
+    for (let i = 0; i < n; i++) { const def = pool[(i + hash(mi, 5, 1)) % pool.length]; out.push(personFor('x' + info.extraKind + '_' + i + '_' + (def.name), def, info.extraKind, null)); }
+    return out;
   }
+
+  // ---------- animation helpers ----------
   function clearFx() { while (fxGroup.children.length) { const c = fxGroup.children.pop(); if (c.geometry) c.geometry.dispose(); } }
+  function stars(y, t, n, at) {
+    for (let i = 0; i < n; i++) { const a = t * 6 + i * 6.283 / n; const s = new THREE.Mesh(new THREE.OctahedronGeometry(.2), new THREE.MeshBasicMaterial({ color: 0xffee33 })); s.position.set(at.x + Math.cos(a) * 1.0, y, at.z + Math.sin(a) * 1.0); fxGroup.add(s); }
+  }
   function confetti(t, n) {
     for (let i = 0; i < n; i++) {
       const c = new THREE.Mesh(new THREE.BoxGeometry(.25, .06, .25), new THREE.MeshBasicMaterial({ color: [0xff3366, 0xffcc00, 0x33ddff, 0x66ff66, 0xcc66ff][i % 5] }));
       const sd = (i * 97) % 13, fall = ((t * (1.5 + (i % 5) * .3) + sd * .37) % 5);
-      c.position.set(((i * 0.618) % 1 - .5) * 26, 9 - fall * 2.2, (((i * 0.382) % 1) - .5) * 14);
-      c.rotation.set(t * 3 + i, t * 2, i); fxGroup.add(c);
+      c.position.set(((i * 0.618) % 1 - .5) * 20, 9 - fall * 2.2, (((i * 0.382) % 1) - .5) * 12); c.rotation.set(t * 3 + i, t * 2, i); fxGroup.add(c);
     }
   }
   function limbs(p, a, b, c, d) { p.armL.rotation.x = a; p.armR.rotation.x = b; p.legL.rotation.x = c; p.legR.rotation.x = d; }
-  function pose(p) { p.g.rotation.set(0, p.g.rotation.y, 0); p.body.rotation.set(0, 0, 0); p.body.position.set(0, 0, 0); p.head.rotation.set(0, 0, 0); p.head.scale.setScalar(p.costume === 'alien' ? 1.25 : 1); limbs(p, 0, 0, 0, 0); p.armL.rotation.z = 0; p.armR.rotation.z = 0; p.mouth.scale.set(1, 1, 1); }
+  function pose(p) { p.g.rotation.set(0, p.g.rotation.y, 0); p.body.rotation.set(0, 0, 0); p.body.position.set(0, 0, 0); p.head.rotation.set(0, 0, 0); p.head.scale.setScalar(p.costume === 'alien' ? 1.25 : 1); limbs(p, 0, 0, 0, 0); p.armL.rotation.z = 0; p.armR.rotation.z = 0; p.mouth.scale.set(1, 1, 1); p.g.position.y = 0; }
   function walk(p, t, sp, big) { const s = Math.sin(t * sp) * (big || .8); limbs(p, -s, s, s, -s); p.body.position.y = Math.abs(Math.sin(t * sp)) * .12; }
-  function words2d(t, text, i) { words.push({ t0: t, text, i }); }
+  function words2d(t0, text, i) { words.push({ t0, text, i }); }
+  let shown = [];
 
+  // ---------- the director: puts the right characters in the right place doing what the caption says ----------
   function direct(mi, si, mv, sc, t) {
-    const dur = sc.dur || 5, u = clamp(t / dur, 0, 1), style = styleFor(sc.text, mi, si), r = rnd(hash(mi, si, 3));
-    const hero = cast[0], friend = cast[1], vil = cast[2], ex = cast.slice(3);
-    cast.forEach(pose); clearFx(); words = [];
-    const camStyle = ['orbit', 'dolly', 'crane', 'side'][hash(mi, si, 9) % 4];
-    let look = new THREE.Vector3(0, 2.6, 0), shake = 0;
+    const info = getInfo(mi, si, mv, sc), dur = sc.dur || 5, u = clamp(t / dur, 0, 1);
+    shown.forEach(p => { p.g.visible = false; }); shown = []; clearFx(); words = [];
+    Object.keys(propCache).forEach(k => { propCache[k].visible = false; });
+    const act = actorsFor(mi, mv, info), ex = info.extraN ? extrasFor(mi, info, info.extraN) : [];
+    act.concat(ex).forEach(p => { pose(p); p.g.visible = true; shown.push(p); });
+    const a0 = act[0], a1 = act[1], a2 = act[2], style = info.style;
     const face = (p, ang) => { p.g.rotation.y = ang; };
-    const kind = stageKey.split('|')[0];
-    cast.forEach(p => { p.g.visible = true; });
-    updateCrowd(t, style === 'party' ? 1 : style === 'fight' ? .9 : style === 'chase' ? .7 : .45);
-    if (style === 'march') {
-      const x0 = -14 + t * 2.6; [hero, friend, vil].forEach((p, i) => { p.g.position.set(x0 + i * 3.2 - 3, 0, 0 + (i - 1) * 1.6); face(p, Math.PI / 2); walk(p, t + i, 7); });
-      ex.forEach((p, i) => { p.g.position.set(x0 - 6 - i * 2.4, 0, (i % 2 ? 3.4 : -3.4)); face(p, Math.PI / 2); walk(p, t + i * .4, 7); });
-      look.set(x0, 2.5, 0);
-      if (u > .45 && u < .75) { hero.head.scale.setScalar(1 + Math.sin((u - .45) * Math.PI / .3) * .9); words2d(.45, 'BIG HEAD!', 1); }
-    } else if (style === 'chase') {
-      const R0 = 8, w = t * 1.15; [[vil, 0], [hero, .95], [friend, 1.6]].forEach(([p, off], i) => { const a = w - off; p.g.position.set(Math.cos(a) * R0, 0, Math.sin(a) * R0 * .6); face(p, -a); walk(p, t + i, 12, 1.1); p.body.rotation.x = .25; });
-      ex.forEach((p, i) => { p.g.position.set(-14 + i * 9, 0, -7); face(p, 0); limbs(p, Math.sin(t * 9 + i) * 2.2, -Math.sin(t * 9 + i) * 2.2, 0, 0); });
-      const slipT = dur * .55;
-      if (t > slipT && t < slipT + 1.2) { const q = (t - slipT) / 1.2; hero.body.rotation.x = -q * 6.283; hero.body.position.y = Math.sin(q * 3.14) * 2.2; limbs(hero, 2.5, 2.5, 1, -1); words2d(slipT, 'WHOA!', 2);
-        const bn = new THREE.Mesh(new THREE.BoxGeometry(.9, .12, .3), new THREE.MeshLambertMaterial({ color: 0xffdd33 })); bn.position.set(hero.g.position.x, .1, hero.g.position.z); bn.rotation.y = 1; fxGroup.add(bn); }
-      look.copy(vil.g.position).setY(2.4);
-    } else if (style === 'fight') {
-      hero.g.position.set(-2.6 + Math.sin(t * 2) * .4, 0, 0); vil.g.position.set(2.6 - Math.sin(t * 2) * .4, 0, 0); face(hero, Math.PI / 2); face(vil, -Math.PI / 2);
-      const ph = t * 5; limbs(hero, -1.5 + Math.sin(ph) * 1.6, -1.5 - Math.sin(ph) * 1.6, Math.sin(ph) * .3, -Math.sin(ph) * .3); limbs(vil, -1.5 - Math.sin(ph + 1.7) * 1.6, -1.5 + Math.sin(ph + 1.7) * 1.6, 0, 0);
-      friend.g.position.set(-6.5, 0, 3); face(friend, Math.PI / 3); limbs(friend, Math.sin(t * 7) * 2.4, -Math.sin(t * 7) * 2.4, 0, 0);
-      ex.forEach((p, i) => { p.g.position.set(-9 + i * 6, 0, -6); face(p, 0); limbs(p, 2.6 + Math.sin(t * 6 + i) * .4, 2.6 - Math.sin(t * 6 + i) * .4, 0, 0); });
-      const bt = (Math.floor(t / .9)), ph2 = (t % .9);
-      if (ph2 < .35) { stars(vil, 4.0, t, 5); words2d(bt * .9, ['BONK!', 'POW!', 'SPLAT!', 'KAPOW!'][bt % 4], 3); vil.body.rotation.z = Math.sin(ph2 * 18) * .25; vil.mouth.scale.set(.5, 3, 1); shake = .35; }
-      look.set(0, 2.6, 0);
-    } else if (style === 'party') {
-      const all = cast; all.forEach((p, i) => { const a = i * 6.283 / all.length + t * .5; p.g.position.set(Math.cos(a) * 5.2, 0, Math.sin(a) * 4.2); face(p, -a + Math.PI); p.g.position.y = Math.abs(Math.sin(t * 5 + i)) * 1.1; limbs(p, 2.8 + Math.sin(t * 9 + i) * .6, 2.8 - Math.sin(t * 9 + i) * .6, Math.sin(t * 9 + i) * .6, -Math.sin(t * 9 + i) * .6); p.body.rotation.y = Math.sin(t * 4 + i) * .5; p.mouth.scale.set(1.2, 2.2, 1); });
-      confetti(t, 90); if (u > .3 && u < .6) words2d(.3, 'PARTY!', 4);
-      look.set(0, 2.2, 0);
-    } else if (style === 'fly') {
-      cast.forEach((p, i) => { const k = i - 3; p.g.position.set(k * 2.4 + Math.sin(t + i) * .6, 5 + Math.sin(t * 2 + i) * .5 + (i === 0 ? 1.2 : 0), -1 + (i % 2) * 2.5); face(p, Math.PI / 2 * .0); p.g.rotation.x = -1.35; limbs(p, 2.9, 2.9, .1, -.1); p.body.rotation.z = Math.sin(t * 3 + i) * .08; });
-      if (stage) stage.position.z = (t * 26) % 40;
-      look.set(0, 5, 0);
-    } else if (style === 'sneak') {
-      cast.forEach((p, i) => { const a = -Math.PI / 2 + i * .55 - t * .3; p.g.position.set(-8 + ((t * 1.1 + i * 2.2) % 18), 0, -2 + Math.sin(i + t) * 1.5); face(p, Math.PI / 2); walk(p, t * .7 + i, 5, .5); p.body.rotation.x = .35; p.head.rotation.y = Math.sin(t * 2 + i) * .8; p.mouth.scale.set(.4, .6, 1); });
-      if (u > .5 && u < .7) { vil.head.scale.setScalar(1.7); words2d(.5, 'BOO!', 5); }
-      look.set(0, 2.2, 0); rim.intensity = 1.6;
-    } else {   // talk
-      cast.forEach((p, i) => { const a = i * 6.283 / cast.length; p.g.position.set(Math.cos(a) * 3.6, 0, Math.sin(a) * 3.6); face(p, -a - Math.PI / 2); const k = Math.sin(t * 2.2 + i * 2) > .2; limbs(p, k ? 2.2 + Math.sin(t * 8 + i) * .5 : 0, k ? -.4 : 0, 0, 0); p.head.rotation.y = Math.sin(t * 1.5 + i) * .3; p.mouth.scale.set(1, k ? 1.4 + Math.abs(Math.sin(t * 12 + i)) * 2 : 1, 1); });
-      if (u > .55 && u < .8) { cast[3].head.scale.setScalar(1.8); words2d(.55, 'WHAT?!', 6); }
-      look.set(0, 2.4, 0);
+    const look = new THREE.Vector3(0, 2.6, 0); let shake = 0, spread = 4;
+    const prop = info.prop ? makeProp(info.prop) : null;
+    if (prop) {
+      prop.visible = true; prop.rotation.set(0, 0, 0); prop.scale.setScalar(1); const k = info.prop;
+      if (k === 'moon' || k === 'sun') prop.position.set(-14, 0, -30);
+      else if (k === 'wall') { prop.position.set(0, 0, -7); }
+      else if (k === 'house') prop.position.set(8, 0, -6);
+      else if (k === 'tree') prop.position.set(-9, 0, -5);
+      else if (k === 'rocket') { prop.position.set(9, style === 'fly' ? u * 3 : 0, -4); }
+      else if (k === 'coins') prop.position.set(-3.6, 0, 3);
+      else if (k === 'car') prop.position.set(-8, 0, -3);
+      else if (k === 'heart' || k === 'bolt') prop.position.set(0, 0, 0);
+      else prop.position.set(7.5, 0, -2.5);
+      if (prop.userData.spin === 'y') prop.rotation.y = t * 1.2; if (prop.userData.spin === 'z') prop.rotation.z = t * .8; if (prop.userData.spin === 'portal') prop.rotation.y = t * .7;
+      if (prop.userData.flame) prop.userData.flame.scale.y = .8 + Math.abs(Math.sin(t * 25)) * .9;
+      if (prop.userData.flicker) prop.scale.setScalar(.95 + Math.abs(Math.sin(t * 17)) * .15);
+      if (prop.userData.float) prop.position.y = Math.sin(t * 2) * .5 + 1;
     }
-    if (hero.costume === 'ghost' || cast.some(c => c.extras.ghost)) cast.forEach(c => { if (c.extras.ghost) c.g.position.y += .6 + Math.sin(t * 3) * .3; });
-    cast.forEach(c => { if (c.extras.wings) { const f = Math.sin(t * 7) * .5; c.extras.wings[0].rotation.z = f; c.extras.wings[1].rotation.z = -f; } });
-    // camera
-    const seed = hash(mi, si, 2) % 628 / 100;
-    if (camStyle === 'orbit') { const a = seed + t * .35; CAM.position.set(Math.cos(a) * 12, 4.6, Math.sin(a) * 12 + 3); }
-    else if (camStyle === 'dolly') { CAM.position.set(Math.sin(seed) * 5, 3.4 + u * 1.0, 19 - u * 9); }
-    else if (camStyle === 'crane') { CAM.position.set(-8, 1.4 + u * 9, 13 - u * 3); }
-    else { CAM.position.set(look.x + 2, 3.6, 11); }
+    if (style === 'walk') {
+      const x0 = -11 + t * 2.7;
+      act.forEach((p, i) => { p.g.position.set(x0 + i * 3 - 1.5, 0, (i - (act.length - 1) / 2) * 1.8); face(p, Math.PI / 2); walk(p, t + i, 7); });
+      ex.forEach((p, i) => { p.g.position.set(x0 - 4 - Math.floor(i / 2) * 2.6, 0, (i % 2 ? 2.6 : -2.6)); face(p, Math.PI / 2); walk(p, t + i * .4, 7); });
+      look.set(x0, 2.5, 0); spread = 6;
+    } else if (style === 'run') {
+      const R0 = 7.5, w = t * 1.2; act.forEach((p, i) => { const a = w - i * 1.05; p.g.position.set(Math.cos(a) * R0, 0, Math.sin(a) * R0 * .6); face(p, -a); walk(p, t + i, 12, 1.1); p.body.rotation.x = .25; });
+      ex.forEach((p, i) => { const a = w - 2.4 - i * .45; p.g.position.set(Math.cos(a) * R0, 0, Math.sin(a) * R0 * .6); face(p, -a); walk(p, t + i, 12, 1.1); p.body.rotation.x = .25; });
+      if (info.comedy && a0) { const sT = dur * .55; if (t > sT && t < sT + 1.1) { const q = (t - sT) / 1.1; a0.body.rotation.x = -q * 6.283; a0.body.position.y = Math.sin(q * 3.14) * 2.2; limbs(a0, 2.5, 2.5, 1, -1); words2d(sT, 'WHOA!', 2); } }
+      look.copy(a0.g.position).setY(2.4); spread = 9;
+    } else if (style === 'fight') {
+      const A = a0, B = a1 || ex[0];
+      if (B && !a1) { B.g.visible = true; }
+      A.g.position.set(-2.6 + Math.sin(t * 2) * .4, 0, 0); B.g.position.set(2.6 - Math.sin(t * 2) * .4, 0, 0); face(A, Math.PI / 2); face(B, -Math.PI / 2);
+      const ph = t * 5; limbs(A, -1.5 + Math.sin(ph) * 1.6, -1.5 - Math.sin(ph) * 1.6, Math.sin(ph) * .3, -Math.sin(ph) * .3); limbs(B, -1.5 - Math.sin(ph + 1.7) * 1.6, -1.5 + Math.sin(ph + 1.7) * 1.6, 0, 0);
+      if (a2) { a2.g.position.set(-6, 0, 3); face(a2, Math.PI / 3); limbs(a2, Math.sin(t * 7) * 2.4, -Math.sin(t * 7) * 2.4, 0, 0); }
+      let n = 0; ex.forEach((p, i) => { if (p === B) return; const left = (i % 2 === 0); p.g.position.set((left ? -1 : 1) * (6 + Math.floor(n / 2) * 2.4), 0, (left ? 1 : -1) * 3); face(p, left ? Math.PI / 2 : -Math.PI / 2); limbs(p, -1.5 + Math.sin(t * 5 + i) * 1.4, -1.5 - Math.sin(t * 5 + i) * 1.4, 0, 0); n++; });
+      const bt = Math.floor(t / .9), ph2 = t % .9;
+      if (ph2 < .35) { stars(4.1, t, 5, B.g.position); words2d(bt * .9, ['BONK!', 'POW!', 'SPLAT!', 'KAPOW!'][bt % 4], 3); B.body.rotation.z = Math.sin(ph2 * 18) * .25; B.mouth.scale.set(.5, 3, 1); shake = .3; }
+      look.set(0, 2.6, 0); spread = 6;
+    } else if (style === 'party') {
+      const all = act.concat(ex); all.forEach((p, i) => { const a = i * 6.283 / all.length + t * .5; p.g.position.set(Math.cos(a) * 4.4, Math.abs(Math.sin(t * 5 + i)) * 1.1, Math.sin(a) * 3.6); face(p, -a + Math.PI); limbs(p, 2.8 + Math.sin(t * 9 + i) * .6, 2.8 - Math.sin(t * 9 + i) * .6, Math.sin(t * 9 + i) * .6, -Math.sin(t * 9 + i) * .6); p.body.rotation.y = Math.sin(t * 4 + i) * .5; p.mouth.scale.set(1.2, 2.2, 1); });
+      confetti(t, 90); look.set(0, 2.2, 0); spread = 6;
+    } else if (style === 'fly') {
+      const all = act.concat(ex); all.forEach((p, i) => { p.g.position.set((i - (all.length - 1) / 2) * 2.6 + Math.sin(t + i) * .5, 5 + Math.sin(t * 2 + i) * .5, -(i % 2) * 2); face(p, 0); p.g.rotation.x = -1.35; limbs(p, 2.9, 2.9, .1, -.1); });
+      if (stage) stage.position.z = (t * 26) % 40;
+      look.set(0, 5, 0); spread = 7;
+    } else if (style === 'sneak') {
+      act.forEach((p, i) => { p.g.position.set(-8 + ((t * 1.1 + i * 2.6) % 18), 0, -1 + Math.sin(i + t) * 1.2); face(p, Math.PI / 2); walk(p, t * .7 + i, 5, .5); p.body.rotation.x = .35; p.head.rotation.y = Math.sin(t * 2 + i) * .8; p.mouth.scale.set(.4, .6, 1); });
+      ex.forEach((p, i) => { p.g.position.set(-12 + ((t * 1.1 + i * 2.2) % 22), 0, 2.6 - (i % 2) * 5); face(p, Math.PI / 2); walk(p, t * .7 + i, 5, .5); p.body.rotation.x = .35; });
+      look.set(act[0].g.position.x, 2.2, 0); spread = 8;
+    } else if (style === 'panic') {
+      act.concat(ex).forEach((p, i) => { const a = t * 3 + i * 1.7; p.g.position.set(Math.cos(a) * 2.6 + (i - 1) * 2, 0, Math.sin(a) * 1.8); face(p, -a); limbs(p, 2.6 + Math.sin(t * 14 + i) * .7, 2.6 - Math.sin(t * 14 + i) * .7, Math.sin(t * 12 + i) * 1, -Math.sin(t * 12 + i) * 1); p.mouth.scale.set(1.3, 3.4, 1); p.head.rotation.z = Math.sin(t * 10 + i) * .2; p.g.position.y = Math.abs(Math.sin(t * 7 + i)) * .5; });
+      shake = .15; look.set(0, 2.4, 0); spread = 5;
+    } else if (style === 'look') {
+      act.forEach((p, i) => { p.g.position.set((i - (act.length - 1) / 2) * 3.4, 0, 0); face(p, Math.sin(t * .6 + i) * .8); p.head.rotation.y = Math.sin(t * 1.4 + i) * .9; p.armR.rotation.x = 2.4; p.armR.rotation.z = -.2; p.body.position.y = Math.sin(t * 2 + i) * .05; });
+      ex.forEach((p, i) => { p.g.position.set((i - (ex.length - 1) / 2) * 2.6, 0, -3.6); face(p, 0); p.head.rotation.y = Math.sin(t * 1.4 + i) * .9; });
+      look.set(0, 2.6, 0); spread = 4;
+    } else if (style === 'work') {
+      act.forEach((p, i) => { p.g.position.set((i - (act.length - 1) / 2) * 3.4 - 1, 0, 1); face(p, -.3); p.armR.rotation.x = -1.4 + Math.sin(t * 8 + i) * 1.2; p.armL.rotation.x = -.6; p.body.rotation.x = .15; });
+      ex.forEach((p, i) => { p.g.position.set(-5 + i * 2.4, 0, -2.6); face(p, 0); p.armR.rotation.x = -1.4 + Math.sin(t * 8 + i) * 1.2; });
+      look.set(0, 2.4, 0); spread = 5;
+    } else {  // talk
+      act.forEach((p, i) => {
+        const side = act.length === 1 ? 0 : (i === 0 ? -1 : 1) * 2.2 + (i === 2 ? 2.4 : 0); p.g.position.set(side, 0, i === 2 ? 1.5 : 0); face(p, act.length === 1 ? .35 : (i === 1 ? -Math.PI / 2 + .5 : Math.PI / 2 - .5));
+        const speaking = Math.floor(t / 1.6 + i) % act.length === i || act.length === 1;
+        limbs(p, speaking ? 1.8 + Math.sin(t * 7 + i) * .6 : 0, speaking ? -.3 : 0, 0, 0); p.head.rotation.y = Math.sin(t * 1.5 + i) * .25; p.mouth.scale.set(1, speaking ? 1.4 + Math.abs(Math.sin(t * 12 + i)) * 2.4 : 1, 1);
+      });
+      ex.forEach((p, i) => { p.g.position.set((i - (ex.length - 1) / 2) * 2.4, 0, -3.8); face(p, 0); p.head.rotation.y = Math.sin(t * 1.3 + i) * .3; });
+      if (info.comedy && info.surprise && u > .55 && u < .8 && a1) { a1.head.scale.setScalar(1.7); words2d(.55 * dur, 'WHAT?!', 6); }
+      look.set(0, 2.4, 0); spread = 4.5;
+    }
+    act.concat(ex).forEach(c => { if (c.costume === 'ghost') c.g.position.y += .6 + Math.sin(t * 3) * .3; if (c.extras.wings) { const f = Math.sin(t * 7) * .5; c.extras.wings[0].rotation.z = f; c.extras.wings[1].rotation.z = -f; } });
+    // camera: close enough to see the actors, moving in a different way for each scene
+    const camStyle = ['orbit', 'dolly', 'crane', 'side'][hash(mi, si, 9) % 4], seed = hash(mi, si, 2) % 628 / 100, D = clamp(7 + spread * .9, 9, 17);
+    if (camStyle === 'orbit') { const a = seed + t * .3; CAM.position.set(look.x + Math.cos(a) * D * .8, 4.2, look.z + Math.sin(a) * D * .8 + D * .4); }
+    else if (camStyle === 'dolly') { CAM.position.set(look.x + Math.sin(seed) * 4, 3.2 + u * .8, look.z + D * 1.15 - u * D * .5); }
+    else if (camStyle === 'crane') { CAM.position.set(look.x - 6, 1.6 + u * 7, look.z + D * .9 - u * 2); }
+    else { CAM.position.set(look.x + 2, 3.4, look.z + D); }
     if (shake) CAM.position.add(new THREE.Vector3((Math.random() - .5) * shake, (Math.random() - .5) * shake, 0));
-    CAM.lookAt(look);
-    rim.position.set(look.x - 8, 6, look.z + 4);
+    CAM.lookAt(look); rim.position.set(look.x - 8, 6, look.z + 4);
+    return info;
   }
 
+  // ---------- sets: each of the three is built once and shown or hidden ----------
+  const stages = {};
   // ---------- public entry: replaces each scene's 2D drawing ----------
   function draw3D(mi, si, mv, sc, ctx, w, h, t) {
     const rd = renderer(w, h); if (!rd) return false;
     try {
       const vis = (typeof _MVIS !== 'undefined' && _MVIS[mi]) ? _MVIS[mi] : null;
-      const kind = kindFor(mv, mi, sc.text);
+      const info = getInfo(mi, si, mv, sc);
       const accent = vis ? hexOf(vis[2]) : 0xff7733, skyTop = vis ? hexOf(vis[0]) : hexOf(mv.bg), skyMid = vis ? hexOf(vis[1]) : hexOf(mv.bg);
-      const key = kind + '|' + mi + '|' + (kind === 'space' ? '' : (si % 2));
-      if (key !== stageKey) {
-        if (stage) { SC.remove(stage); stage.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } }); }
-        stage = buildStage(kind, accent, skyTop, hash(mi, kind.length, 1)); SC.add(stage); stageKey = key;
-      }
-      setupCast(mi, mv);
-      SC.background = new THREE.Color(kind === 'city' ? 0x1a2238 : kind === 'nature' ? 0x7ec8ff : skyTop);
-      SC.fog = new THREE.Fog(SC.background.getHex(), 40, 130);
-      hemi.color.setHex(kind === 'nature' ? 0xffffff : 0x9fb4ff); hemi.groundColor.setHex(skyMid); hemi.intensity = kind === 'nature' ? 1.1 : .8;
-      sun.color.setHex(kind === 'nature' ? 0xfff2cc : accent); sun.intensity = 1.0; rim.color.setHex(accent); rim.intensity = 1.0;
-      if (stage) stage.children.forEach(c => { if (c.userData && c.userData.spin) { c.rotation.x = t * c.userData.spin; c.rotation.y = t * c.userData.spin * .7; } if (c.userData && c.userData.drift) c.position.x += Math.sin(t * .4) * .01 * c.userData.drift; });
-      if (stage && !/fly/.test(styleFor(sc.text, mi, si))) stage.position.z = 0;
+      Object.keys(stages).forEach(k => { stages[k].visible = (k === info.kind); });
+      if (!stages[info.kind]) { stages[info.kind] = buildStage(info.kind, 0xff7733, skyTop, hash(7, info.kind.length, 1)); SC.add(stages[info.kind]); }
+      stage = stages[info.kind]; stage.visible = true; if (info.style !== 'fly') stage.position.z = 0;
+      const dark = info.dark || info.kind === 'space';
+      const bg = info.kind === 'space' ? 0x05071a : info.dark ? (info.kind === 'nature' ? 0x16253a : 0x0e1424) : info.kind === 'nature' ? 0x7ec8ff : 0x1f2a44;
+      SC.background = new THREE.Color(bg); SC.fog = new THREE.Fog(bg, 38, 120);
+      hemi.color.setHex(dark ? 0x7788bb : 0xffffff); hemi.groundColor.setHex(skyMid); hemi.intensity = dark ? .55 : 1.0;
+      sun.color.setHex(dark ? 0x99aaff : 0xfff2cc); sun.intensity = dark ? .6 : 1.0; rim.color.setHex(accent); rim.intensity = info.dark ? 1.5 : 1.0;
+      stage.children.forEach(c => { if (c.userData && c.userData.spin) { c.rotation.x = t * c.userData.spin; c.rotation.y = t * c.userData.spin * .7; } });
       direct(mi, si, mv, sc, t);
       rd.render(SC, CAM);
       ctx.drawImage(rd.domElement, 0, 0, w, h);
-      // funny sound-effect words on top of the picture
       words.forEach(wd => {
         const age = t - wd.t0, a = clamp(1 - age * .6, 0, 1); if (age < 0 || a <= 0) return;
         ctx.save(); ctx.translate(w * (.28 + (wd.i * .13) % .5), h * (.3 + (wd.i * .09) % .18)); ctx.rotate(((wd.i % 3) - 1) * .18); ctx.scale(1 + Math.min(age, .25) * 2, 1 + Math.min(age, .25) * 2);
@@ -426,5 +492,5 @@
       sc.draw = function (ctx, w, h, t) { if (!draw3D(mi, si, mv, sc, ctx, w, h, t)) d2.call(sc, ctx, w, h, t); };
     });
   });
-  window.__cinema3d = { draw: draw3D, tagsFor, status: () => ({ failed, hasRenderer: !!R }) };
+  window.__cinema3d = { draw: draw3D, tagsFor, info: getInfo, status: () => ({ failed, hasRenderer: !!R }) };
 })();
