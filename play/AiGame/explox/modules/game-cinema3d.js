@@ -512,7 +512,7 @@
         ctx.strokeText(wd.text, 0, 0); ctx.fillText(wd.text, 0, 0); ctx.restore();
       });
       const dl = getDialogue(mi, si, mv, sc).find(l => t >= l.start && t <= l.end);
-      if (dl) { const idx = curInfoNow ? curInfoNow.present.indexOf(dl.who) : 0; drawBubble(ctx, w, h, dl, curActors[idx >= 0 ? idx : 0]); }
+      if (dl) drawDialogueCaption(ctx, w, h, dl);
       return true;
     } catch (e) { failed = true; if (window.console) console.warn('cinema3d fell back to 2D:', e); return false; }
   }
@@ -599,6 +599,26 @@
       if (/!/.test(l.text)) { u.rate *= 1.05; u.pitch = clamp(u.pitch + .05, .5, 1.8); }
       window.speechSynthesis.speak(u);
     });
+  }
+  // the characters' lines are shown as movie-style captions at the bottom of the screen, above the narrator's caption
+  function drawDialogueCaption(ctx, w, h, line) {
+    const fs = Math.max(16, Math.round(w / 40)), col = { A: '#ffd54f', B: '#4fc3f7', C: '#ff8ab3' }[line.who] || '#ffffff';
+    ctx.save(); ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+    const name = String(line.role || '').toUpperCase() + ': ', quote = '\u201C' + line.text + '\u201D';
+    ctx.font = `900 ${fs}px Arial`; const nw = ctx.measureText(name).width; ctx.font = `bold ${fs}px Arial`;
+    const maxW = w * .86, rows = []; let cur = '';
+    quote.split(' ').forEach(wd => { const tt = cur ? cur + ' ' + wd : wd; if (nw + ctx.measureText(tt).width > maxW && cur) { rows.push(cur); cur = wd; } else cur = tt; }); if (cur) rows.push(cur);
+    const y0 = h * .80 - (rows.length - 1) * fs * 1.2, tw = Math.max.apply(null, rows.map((r, i) => ctx.measureText(r).width + (i === 0 ? nw : 0)));
+    ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(w / 2 - tw / 2 - fs * .8, y0 - fs * 1.1, tw + fs * 1.6, rows.length * fs * 1.2 + fs * .5);
+    rows.forEach((r, i) => {
+      const y = y0 + i * fs * 1.2; ctx.lineWidth = fs * .18; ctx.strokeStyle = 'rgba(0,0,0,.9)';
+      if (i === 0) {
+        const total = nw + ctx.measureText(r).width, x0 = w / 2 - total / 2; ctx.textAlign = 'left';
+        ctx.font = `900 ${fs}px Arial`; ctx.strokeText(name, x0, y); ctx.fillStyle = col; ctx.fillText(name, x0, y);
+        ctx.font = `bold ${fs}px Arial`; ctx.strokeText(r, x0 + nw, y); ctx.fillStyle = '#fff'; ctx.fillText(r, x0 + nw, y); ctx.textAlign = 'center';
+      } else { ctx.font = `bold ${fs}px Arial`; ctx.strokeText(r, w / 2, y); ctx.fillStyle = '#fff'; ctx.fillText(r, w / 2, y); }
+    });
+    ctx.restore();
   }
   function drawBubble(ctx, w, h, line, actor) {
     if (!actor) return;
