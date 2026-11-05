@@ -512,6 +512,56 @@
     } catch (e) { failed = true; if (window.console) console.warn('cinema3d fell back to 2D:', e); return false; }
   }
 
+
+  // ---------- the narrator: picks the best natural voice on this computer, speaks in short dramatic phrases ----------
+  let VOICES = [];
+  const loadVoices = () => { try { VOICES = window.speechSynthesis.getVoices() || []; } catch (e) { VOICES = []; } };
+  loadVoices(); try { window.speechSynthesis.addEventListener('voiceschanged', loadVoices); } catch (e) { }
+  const vScore = (v) => {
+    const n = v.name || '', l = v.lang || ''; if (!/^en/i.test(l)) return -1; let s = 0;
+    if (/natural/i.test(n)) s += 100; if (/neural|online/i.test(n)) s += 60; if (/google/i.test(n)) s += 35; if (/microsoft/i.test(n)) s += 8;
+    if (/en-US|en-GB|en-AU/i.test(l)) s += 10; if (/daniel|alex|samantha|karen|moira|fiona|tessa|serena|oliver|susan/i.test(n)) s += 30;
+    if (/zira|hazel|mark|george|james|catherine/i.test(n) && !/natural|online/i.test(n)) s -= 6;
+    if (/espeak|robot|compact/i.test(n)) s -= 40; return s;
+  };
+  const MALE = /guy|davis|ryan|daniel|david|alex|mark|george|roger|christopher|eric|brian|male|fred|tom|aaron|james|liam|william|thomas|oliver|steffan|andrew|jason/i;
+  const FEMALE = /jenny|aria|sonia|libby|samantha|zira|karen|moira|fiona|tessa|hazel|susan|emma|michelle|female|natasha|clara|ava|ana|nancy|jane|sara|serena/i;
+  function pickVoice(mi, mv) {
+    if (!VOICES.length) loadVoices();
+    const ranked = VOICES.map(v => [vScore(v), v]).filter(x => x[0] >= 0).sort((a, b) => b[0] - a[0]).map(x => x[1]);
+    if (!ranked.length) return null;
+    const lightGenre = /comedy|family|slice|friend|romance|sports/i.test(mv.genre || '') || /pizza|grandma|cat/i.test(mv.title || '');
+    const want = lightGenre ? FEMALE : MALE, pool = ranked.filter(v => want.test(v.name));
+    const top = (pool.length ? pool : ranked).slice(0, 2);
+    return top[mi % top.length];
+  }
+  function cleanForSpeech(txt) {
+    return String(txt || '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/S\.I\.P\.?/g, 'sip')
+      .replace(/\b([A-Z]{2,})\b/g, (m) => m.charAt(0) + m.slice(1).toLowerCase()).replace(/\s+/g, ' ').trim();
+  }
+  let narratorName = '';
+  window.__cinemaNarrate = function (text, mi, dur) {
+    try {
+      const mv = CINEMA_MOVIES[mi] || CINEMA_MOVIES[0], synth = window.speechSynthesis; synth.cancel();
+      const v = pickVoice(mi, mv); const natural = v && /natural|neural|online|google/i.test(v.name);
+      narratorName = v ? v.name.replace(/Microsoft\s+/i, '').replace(/\s*(Online)?\s*\(Natural\).*$/i, '').replace(/\s*-\s*English.*$/i, '').replace(/\s+Desktop.*/i, '').replace(/^Google\s+/i, '').trim() : '';
+      const serious = /drama|epic|mystery|thriller|action|mecha|sacred|origin|war|frontier|hometown/i.test(mv.genre || '');
+      const baseRate = serious ? .92 : (/comedy|family|slice/i.test(mv.genre || '') ? 1.02 : .98), basePitch = natural ? (serious ? .95 : 1.02) : (serious ? .88 : 1.0);
+      const parts = cleanForSpeech(text).match(/[^.!?\u2026]+[.!?\u2026]*/g) || [cleanForSpeech(text)];
+      parts.forEach((ph) => {
+        ph = ph.trim(); if (!ph) return;
+        const u = new SpeechSynthesisUtterance(ph); if (v) { u.voice = v; u.lang = v.lang; }
+        let rate = baseRate, pitch = basePitch, vol = .95;
+        if (/!/.test(ph)) { rate *= 1.06; pitch += .06; vol = 1; }
+        if (/\?/.test(ph)) { pitch += .08; }
+        if (/\u2026|\.\.\./.test(ph)) { rate *= .86; pitch -= .04; }
+        if (ph.length < 24) { rate *= .93; }                 // short lines are delivered slowly and heavily
+        u.rate = clamp(rate, .6, 1.3); u.pitch = clamp(pitch, .5, 1.5); u.volume = vol;
+        synth.speak(u);
+      });
+    } catch (e) { }
+  };
+
   function drawCredits(mv, mi, elapsed) {
     const cv = document.getElementById('cinemaCanvas'); if (!cv) return; const ctx = cv.getContext('2d'), w = cv.width, h = cv.height;
     ctx.fillStyle = '#05050c'; ctx.fillRect(0, 0, w, h);
@@ -521,7 +571,7 @@
     lines.push(['head', 'STARRING']);
     cl.forEach(c => { lines.push(['actor', '\u2605 ' + c.actor]); lines.push(['role', 'as  ' + c.role]); lines.push(['gap', '']); });
     lines.push(['head', 'ALSO STARRING']); lines.push(['actor', 'Cubby  \u2022  Hubby  \u2022  Gernaldst']); lines.push(['role', 'and the people of Explox']); lines.push(['gap', '']);
-    lines.push(['head', 'NARRATOR']); lines.push(['actor', 'The Explox Cinemas Voice']); lines.push(['gap', '']);
+    lines.push(['head', 'NARRATED BY']); lines.push(['actor', narratorName ? narratorName + ' (the Explox Cinemas voice)' : 'The Explox Cinemas Voice']); lines.push(['gap', '']);
     lines.push(['head', 'DIRECTED BY']); lines.push(['actor', 'Explox Cinemas']); lines.push(['gap', '']); lines.push(['gap', '']);
     lines.push(['end', '\u2726  THE END  \u2726']);
     const lh = Math.max(34, h * .075), total = lines.length * lh;
@@ -545,7 +595,7 @@
     cinemaState.phase = 'credits';
     try { sfx.credits(); } catch (e) { }
     window.speechSynthesis.cancel();
-    setTimeout(() => { if (cinemaState.phase !== 'credits') return; const u = new SpeechSynthesisUtterance('The End.'); u.rate = .7; u.pitch = .8; u.volume = .9; window.speechSynthesis.speak(u); }, 800);
+    setTimeout(() => { if (cinemaState.phase !== 'credits') return; window.__cinemaNarrate('The end.', cinemaState.movieIdx, 3); }, 800);
     if (cinemaState.animFrame) cancelAnimationFrame(cinemaState.animFrame);
     const cv = document.getElementById('cinemaCanvas'), mv = cinemaState.movie, mi = cinemaState.movieIdx, t0 = performance.now();
     document.getElementById('cinemaSkip').style.display = 'none'; document.getElementById('cinemaClose').style.display = 'block';

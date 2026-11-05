@@ -611,12 +611,15 @@ function animateCinemaScene() {
   // Narrator — speak scene text once, 0.4s after scene starts so sounds play first
   if(cinemaState.narratedScene !== cinemaState.sceneIndex && t > 0.4) {
     cinemaState.narratedScene = cinemaState.sceneIndex;
+    if (window.__cinemaNarrate) { window.__cinemaNarrate(scene.text, cinemaState.movieIdx, scene.dur); }
+    else {
     window.speechSynthesis.cancel();
     const utt = new SpeechSynthesisUtterance(scene.text);
     const voices = [{rate:0.82,pitch:0.65},{rate:0.88,pitch:1.1},{rate:1.05,pitch:1.25},{rate:0.76,pitch:0.88},{rate:0.9,pitch:0.7},{rate:0.95,pitch:1.3},{rate:0.78,pitch:0.6},{rate:1.1,pitch:0.85},{rate:0.92,pitch:1.0},{rate:1.0,pitch:1.2},{rate:0.85,pitch:0.72},{rate:1.08,pitch:1.28},{rate:1.0,pitch:0.95},{rate:0.8,pitch:0.8}];
     const v = voices[cinemaState.movieIdx] || {rate:0.88,pitch:1};
     utt.rate = v.rate; utt.pitch = v.pitch; utt.volume = 0.85;
     window.speechSynthesis.speak(utt);
+    }
   }
 
   // Cinematic black bars
