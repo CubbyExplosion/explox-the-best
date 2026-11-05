@@ -334,7 +334,7 @@
   const STOPW = new Set(['The', 'A', 'An', 'In', 'On', 'At', 'But', 'And', 'With', 'Then', 'Now', 'They', 'He', 'She', 'It', 'We', 'This', 'That', 'Every', 'Meanwhile', 'Suddenly', 'Soon', 'Later', 'Finally', 'Once', 'One', 'Two', 'Three', 'Our', 'His', 'Her', 'Their', 'If', 'When', 'As', 'After', 'Before', 'Behind', 'Deep', 'Far', 'Long', 'Back', 'Not', 'No', 'Yes', 'Who', 'What', 'Where', 'Why', 'How', 'All', 'Some', 'Even', 'Just', 'Still', 'Only', 'Explox', 'City', 'Night', 'Day', 'Time', 'Life', 'Citizens', 'Everyone', 'Inside', 'Outside', 'Together', 'Somewhere', 'Nobody', 'Someone', 'Welcome', 'Today', 'Tonight', 'Tomorrow', 'Yesterday']);
   const FALLBACK_ROLE = { robot: 'Robo', dino: 'Dino', ninja: 'Ninja', grandma: 'Grandma', cat: 'Super Cat', pizza: 'Evil Pizza', detective: 'The Detective', ghost: 'The Ghost', alien: 'The Alien', dragon: 'The Dragon', racer: 'The Racer', pilot: 'The Pilot', king: 'The King', doctor: 'The Doctor', athlete: 'The Champion', pioneer: 'The Pioneer', wizard: 'The Wizard', hero: 'The Hero' };
   const castCache = {};
-  function castList(mi, mv) {
+  function castRoles(mi, mv) {
     if (castCache[mi]) return castCache[mi];
     const counts = {};
     (mv.scenes || []).forEach(sc => {
@@ -347,13 +347,16 @@
     const BADW = /\b(Bank|Church|Library|Event|Racing|Clue|Academy|Market|School|Square|Tower|City|Hall|Court|Wall|House|Road|Street|Park|Arena|Games|War|Supper|Rise|Mission|Chapter|Scene|Planet|Galaxy|Space|Station|Ship|Race|Grand|Prix|Fist|Clan|Army|Fleet|Council|Team|Crew|Gang|Squad|Badge|Coin|Wrath|Mayor's|Pizza Shop|Satan|Devil|Demon|Trial|Scrapyard|Mall)\b/;
     const person = (c) => !BADW.test(c) && (/^(Captain|Detective|Doctor|Dr|Mayor|King|Queen|Sensei|Super|Mr|Mrs|Miss|Professor|Officer|Chief|Coach|Lord|Lady|Sir|General|Major|Evil|Dino|Robo|Grandma|Ghost|Baby)\b/.test(c) || c.indexOf('-') >= 0 || (c.indexOf(' ') < 0 && counts[c] >= 3));
     const good = cands.filter(person);
-    const list = kinds.map((k, i) => {
+    const roles = kinds.map((k, i) => {
       const re = KIND_WORDS[k]; let name = (i < 2) ? (good.find(c => !used.has(c) && re && re.test(c)) || good.find(c => !used.has(c) && counts[c] >= 2)) : null;
       if (!name) name = (i === 2 && k === 'hero') ? 'The Sidekick' : (FALLBACK_ROLE[k] || 'The Hero'); used.add(name);
-      const a = stars.length ? stars[(i + mi) % stars.length].name : 'Explox Star';
-      return { actor: a, role: name, kind: k };
+      return { role: name, kind: k };
     });
-    castCache[mi] = list; return list;
+    castCache[mi] = roles; return roles;
+  }
+  function castList(mi, mv) {
+    const roles = castRoles(mi, mv), stars = (typeof NPC_DEFS !== 'undefined' ? NPC_DEFS : []).filter(d => d && d.role === 'Celebrity');
+    return roles.map((r, i) => ({ actor: stars.length ? stars[(i + mi) % stars.length].name : 'Explox Star', role: r.role, kind: r.kind }));
   }
   function actorsFor(mi, mv, info) {
     const stars = (typeof NPC_DEFS !== 'undefined' ? NPC_DEFS : []).filter(d => d && d.role === 'Celebrity');
@@ -388,7 +391,7 @@
   function pose(p) { p.g.rotation.set(0, p.g.rotation.y, 0); p.body.rotation.set(0, 0, 0); p.body.position.set(0, 0, 0); p.head.rotation.set(0, 0, 0); p.head.scale.setScalar(p.costume === 'alien' ? 1.25 : 1); limbs(p, 0, 0, 0, 0); p.armL.rotation.z = 0; p.armR.rotation.z = 0; p.mouth.scale.set(1, 1, 1); p.g.position.y = 0; }
   function walk(p, t, sp, big) { const s = Math.sin(t * sp) * (big || .8); limbs(p, -s, s, s, -s); p.body.position.y = Math.abs(Math.sin(t * sp)) * .12; }
   function words2d(t0, text, i) { words.push({ t0, text, i }); }
-  let shown = [];
+  let shown = [], curActors = [], curInfoNow = null;
 
   // ---------- the director: puts the right characters in the right place doing what the caption says ----------
   function direct(mi, si, mv, sc, t) {
@@ -397,7 +400,7 @@
     Object.keys(propCache).forEach(k => { propCache[k].visible = false; });
     const act = actorsFor(mi, mv, info), ex = info.extraN ? extrasFor(mi, info, info.extraN) : [];
     act.concat(ex).forEach(p => { pose(p); p.g.visible = true; shown.push(p); });
-    const a0 = act[0], a1 = act[1], a2 = act[2], style = info.style;
+    const a0 = act[0], a1 = act[1], a2 = act[2], style = info.style; curActors = act; curInfoNow = info;
     const face = (p, ang) => { p.g.rotation.y = ang; };
     const look = new THREE.Vector3(0, 2.6, 0); let shake = 0, spread = 4;
     const prop = info.prop ? makeProp(info.prop) : null;
@@ -508,6 +511,8 @@
         ctx.globalAlpha = a; ctx.font = `900 ${Math.round(h * .085)}px Arial Black, Arial`; ctx.textAlign = 'center'; ctx.lineWidth = h * .014; ctx.strokeStyle = '#220022'; ctx.fillStyle = ['#ffee33', '#ff5588', '#44e0ff', '#7dff6a'][wd.i % 4];
         ctx.strokeText(wd.text, 0, 0); ctx.fillText(wd.text, 0, 0); ctx.restore();
       });
+      const dl = getDialogue(mi, si, mv, sc).find(l => t >= l.start && t <= l.end);
+      if (dl) { const idx = curInfoNow ? curInfoNow.present.indexOf(dl.who) : 0; drawBubble(ctx, w, h, dl, curActors[idx >= 0 ? idx : 0]); }
       return true;
     } catch (e) { failed = true; if (window.console) console.warn('cinema3d fell back to 2D:', e); return false; }
   }
@@ -540,6 +545,80 @@
       .replace(/\b([A-Z]{2,})\b/g, (m) => m.charAt(0) + m.slice(1).toLowerCase()).replace(/\s+/g, ' ').trim();
   }
   let narratorName = '';
+
+  // ---------- dialogue: the characters talk (speech bubbles + their own voices) ----------
+  const STYLE_LINES = {
+    fight: [[['A', 'Take that, {B}!'], ['B', "You can't beat me!"]], [['A', 'Not today!'], ['B', 'Ha! Try again!']], [['A', 'This ends now!'], ['B', 'We will see about that!']]],
+    run: [[['A', 'Faster! Faster!'], ['B', 'Come back here!']], [['B', "You can't escape!"], ['A', 'Watch me!']], [['A', 'Keep running!'], ['B', 'Wait for me!']]],
+    talk: [[['A', 'Listen to me. We have a plan.'], ['B', 'I am with you.']], [['A', 'Are you ready?'], ['B', 'Always ready!']], [['B', 'What do we do now?'], ['A', 'We stay together.']]],
+    look: [[['A', 'Wait... do you see that?']], [['A', 'Something is out there.']], [['A', 'I have a funny feeling.'], ['B', 'Let us go and look.']]],
+    party: [[['A', 'Woohoo! We did it!'], ['B', 'Best day ever!']], [['B', 'Hooray!'], ['A', 'Everybody dance!']]],
+    sneak: [[['A', 'Shhh. Be very quiet.'], ['B', 'I think someone is following us.']], [['A', 'Step slowly...'], ['B', 'I am so nervous.']]],
+    panic: [[['A', 'Aaaah! Run!'], ['B', 'Wait for me!']], [['B', 'What is that?!'], ['A', 'I do not want to find out!']]],
+    work: [[['A', 'Almost done. Hand me that.'], ['B', 'Here you go!']], [['A', 'Together we can build anything!']]],
+    walk: [[['A', "Let's go. It's this way."], ['B', 'Right behind you!']], [['A', 'Stay close to me.']], [['B', 'Are we there yet?'], ['A', 'Almost!']]],
+    fly: [[['A', 'Hold on tight!'], ['B', 'Whoa! This is amazing!']], [['A', 'Here we go!']]],
+  };
+  const PROP_LINES = { rocket: 'Engines at full power!', coins: 'Look at all that S.I.P.!', pizza: 'Mmm... pizza!', house: 'What a beautiful home!', wall: 'We built this wall together.', portal: 'The portal is opening!', trophy: 'We are the champions!',
+    fire: 'It is getting hot in here!', heart: 'I love this place.', bolt: 'Run! Lightning!', book: 'It is all written in this book.', shield: 'Stand behind me!', car: 'Start your engines!', moon: 'What a quiet night.', sun: 'What a beautiful morning!', tree: 'This old tree has seen everything.', lantern: 'Follow the light.' };
+  const dlgCache = {};
+  const wc = (t) => String(t || '').trim().split(/\s+/).length;
+  function getDialogue(mi, si, mv, sc) {
+    const key = mi + '_' + si; if (dlgCache[key]) return dlgCache[key];
+    const info = getInfo(mi, si, mv, sc), roles = castRoles(mi, mv), nameOf = { A: roles[0].role, B: roles[1].role, C: roles[2].role };
+    const h = hash(mi, si, 21), lines = [];
+    const quote = (sc.text || '').match(/["\u201C]([^"\u201D]{3,90})["\u201D]/);
+    const style = STYLE_LINES[info.style] ? info.style : 'talk', variants = STYLE_LINES[style], pick = variants[h % variants.length];
+    if (quote) { lines.push(['A', quote[1].replace(/\s+/g, ' ').trim()]); if (pick[1]) lines.push(pick[1].slice()); }
+    else if (info.prop && PROP_LINES[info.prop] && h % 2 === 0) { lines.push(['A', PROP_LINES[info.prop]]); if (pick[pick.length - 1][0] !== 'A') lines.push(pick[pick.length - 1].slice()); }
+    else pick.forEach(l => lines.push(l.slice()));
+    if (info.present.indexOf('C') >= 0 && !info.comedy && h % 3 === 0) lines.push(['C', 'I knew it!']);
+    if (info.comedy && info.surprise) lines.push([info.present.indexOf('B') >= 0 ? 'B' : 'A', ['What?!', 'No way!', 'Oh no, oh no!'][h % 3]]);
+    // keep only lines spoken by someone who is in the shot; fill in names
+    const out = []; lines.forEach(l => { let who = l[0]; if (info.present.indexOf(who) < 0) who = info.present[0]; out.push({ who, text: l[1].replace('{B}', nameOf.B).replace('{A}', nameOf.A), role: nameOf[who] }); });
+    const res = out.slice(0, 3);
+    // timing (seconds into the scene): the narrator reads the caption first, then the characters speak
+    let tcur = 0.4 + wc(sc.text) / 2.6 + 0.45;
+    res.forEach(l => { l.start = tcur; l.end = tcur + wc(l.text) / 2.6 + 0.3; tcur = l.end + 0.25; });
+    res.total = tcur + 0.5; dlgCache[key] = res; return res;
+  }
+  function charVoice(who, narrator) {
+    if (!VOICES.length) loadVoices();
+    const ranked = VOICES.map(v => [vScore(v), v]).filter(x => x[0] >= 0).sort((a, b) => b[0] - a[0]).map(x => x[1]);
+    const others = ranked.filter(v => !narrator || v.name !== narrator.name), pool = others.length ? others : ranked;
+    if (!pool.length) return { voice: null };
+    const idx = { A: 0, B: 1, C: 2 }[who] || 0, v = pool[idx % pool.length];
+    return { voice: v, rate: { A: .96, B: 1.04, C: 1.1 }[who] || 1, pitch: pool.length >= 3 ? { A: .95, B: 1.05, C: 1.12 }[who] : { A: .82, B: 1.22, C: 1.45 }[who] };
+  }
+  function speakDialogue(mi, si, narratorVoice) {
+    const mv = CINEMA_MOVIES[mi], sc = mv && mv.scenes[si]; if (!sc) return;
+    getDialogue(mi, si, mv, sc).forEach(l => {
+      const u = new SpeechSynthesisUtterance(cleanForSpeech(l.text)), cv = charVoice(l.who, narratorVoice);
+      if (cv.voice) { u.voice = cv.voice; u.lang = cv.voice.lang; }
+      u.rate = clamp(cv.rate || 1, .7, 1.3); u.pitch = clamp(cv.pitch || 1, .5, 1.8); u.volume = 1;
+      if (/!/.test(l.text)) { u.rate *= 1.05; u.pitch = clamp(u.pitch + .05, .5, 1.8); }
+      window.speechSynthesis.speak(u);
+    });
+  }
+  function drawBubble(ctx, w, h, line, actor) {
+    if (!actor) return;
+    const v = new THREE.Vector3(actor.g.position.x, actor.g.position.y + 5.6 * (actor.g.scale.y / 1.45), actor.g.position.z).project(CAM);
+    if (v.z > 1) return;
+    let sx = (v.x * .5 + .5) * w, sy = (-v.y * .5 + .5) * h;
+    const fs = Math.max(14, Math.round(h * .042)); ctx.save(); ctx.font = `bold ${fs}px Arial`; ctx.textAlign = 'left';
+    const maxW = w * .38, words = line.text.split(' '), rows = []; let cur = '';
+    words.forEach(wd => { const tt = cur ? cur + ' ' + wd : wd; if (ctx.measureText(tt).width > maxW && cur) { rows.push(cur); cur = wd; } else cur = tt; }); if (cur) rows.push(cur);
+    const tw = Math.max.apply(null, rows.map(r => ctx.measureText(r).width).concat([ctx.measureText(line.role || '').width * .7])), pad = fs * .6, bw = tw + pad * 2, bh = rows.length * fs * 1.2 + pad * 2 + fs * .8;
+    let bx = clamp(sx - bw / 2, 8, w - bw - 8), by = clamp(sy - bh - fs * 1.2, h * .09, h * .6);
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = '#111'; ctx.lineWidth = Math.max(2, fs * .12); ctx.beginPath();
+    const r = fs * .6; ctx.moveTo(bx + r, by); ctx.arcTo(bx + bw, by, bx + bw, by + bh, r); ctx.arcTo(bx + bw, by + bh, bx, by + bh, r); ctx.arcTo(bx, by + bh, bx, by, r); ctx.arcTo(bx, by, bx + bw, by, r); ctx.closePath(); ctx.fill(); ctx.stroke();
+    const tx = clamp(sx, bx + r * 1.5, bx + bw - r * 1.5); ctx.beginPath(); ctx.moveTo(tx - fs * .5, by + bh - 1); ctx.lineTo(sx, Math.min(sy, by + bh + fs * 1.4)); ctx.lineTo(tx + fs * .5, by + bh - 1); ctx.closePath(); ctx.fillStyle = '#fff'; ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.fillRect(tx - fs * .45, by + bh - 3, fs * .9, 5);
+    ctx.fillStyle = '#c2185b'; ctx.font = `italic bold ${Math.round(fs * .7)}px Arial`; ctx.fillText(line.role || '', bx + pad, by + pad + fs * .6);
+    ctx.fillStyle = '#111'; ctx.font = `bold ${fs}px Arial`; rows.forEach((row, i) => ctx.fillText(row, bx + pad, by + pad + fs * .8 + (i + 1) * fs * 1.2 - fs * .2));
+    ctx.restore();
+  }
+
   window.__cinemaNarrate = function (text, mi, dur) {
     try {
       const mv = CINEMA_MOVIES[mi] || CINEMA_MOVIES[0], synth = window.speechSynthesis; synth.cancel();
@@ -559,6 +638,7 @@
         u.rate = clamp(rate, .6, 1.3); u.pitch = clamp(pitch, .5, 1.5); u.volume = vol;
         synth.speak(u);
       });
+      speakDialogue(mi, cinemaState.sceneIndex, v);
     } catch (e) { }
   };
 
@@ -611,6 +691,7 @@
       if (sc.draw3dWired) return; sc.draw3dWired = true; const d2 = sc.draw;
       sc.draw2d = d2;
       sc.draw = function (ctx, w, h, t) { if (!draw3D(mi, si, mv, sc, ctx, w, h, t)) d2.call(sc, ctx, w, h, t); };
+      try { const dl = getDialogue(mi, si, mv, sc); sc.dur = Math.max(sc.dur || 5, Math.min(11, dl.total || 5)); } catch (e) { }
     });
   });
   window.__cinema3d = { draw: draw3D, tagsFor, info: getInfo, castList, drawCredits, status: () => ({ failed, hasRenderer: !!R }) };
