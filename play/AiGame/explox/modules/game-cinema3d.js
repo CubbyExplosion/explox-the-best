@@ -85,6 +85,8 @@
     else if (hat === 'fedora') { H(1.5, .1, 1.5, 0x7a5c3a, 0, .57, 0); H(.9, .65, .9, 0x7a5c3a, 0, .9, 0); H(.91, .08, .91, 0x333333, 0, .62, 0); }
     else if (hat === 'wizard') { const w = new THREE.Mesh(new THREE.ConeGeometry(.6, 1.8, 8), mat(0x4444aa)); w.position.set(0, 1.45, 0); head.add(w); H(1.3, .12, 1.3, 0x4444aa, 0, .56, 0); }
     else if (hat === 'sunglasses') { H(.9, .22, .1, 0x111111, 0, .1, .5); }
+    else if (hat === 'chef') { H(1.1, .3, 1.1, 0xffffff, 0, .62, 0); H(.95, 1.0, .95, 0xffffff, 0, 1.15, 0); }
+    else if (hat === 'duck') { H(1.0, .34, 1.0, 0xffee58, 0, .62, 0); H(.7, .5, .7, 0xffee58, .1, .98, 0); H(.5, .16, .3, 0xfb8c00, .1, .95, .5); H(.14, .14, .08, 0x222222, .3, 1.05, .36); }
     if (def.role === 'Celebrity') { H(.82, .22, .1, 0x0a0a0a, 0, .1, .5); }
     const tag = o.noTag ? null : tagSprite(o.name || def.name); if (tag) g.add(tag);
     return { g, body, head, torso, armL, armR, legL, legR, mouth, def, tag, baseY: 0, extras: {} };
@@ -194,19 +196,19 @@
       const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(pts, 3));
       g.add(new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffffff, size: 1.4, sizeAttenuation: false })));
       [[-30, 22, -45, 9, 0xcc5522], [38, 30, -60, 14, 0x3366cc], [8, 12, -80, 5, 0xaaaa33]].forEach(([x, y, z, rr, c], i) => { const m = new THREE.Mesh(new THREE.SphereGeometry(rr, 20, 14), mat(c, { emissive: new THREE.Color(c).multiplyScalar(.25) })); m.position.set(x, y, z); g.add(m); if (i === 1) { const ring = new THREE.Mesh(new THREE.TorusGeometry(rr * 1.7, .5, 6, 36), mat(0xddccaa)); ring.rotation.x = 1.2; ring.position.copy(m.position); g.add(ring); } });
-      const fl = new THREE.Mesh(new THREE.BoxGeometry(60, .6, 40), mat(0x2a3040)); fl.position.y = -.3; g.add(fl);
-      const grid = new THREE.GridHelper(60, 30, accent, 0x334466); grid.position.y = .02; g.add(grid);
+      const fl = new THREE.Mesh(new THREE.BoxGeometry(110, .6, 110), mat(0x2a3040)); fl.position.y = -.3; g.add(fl);
+      const grid = new THREE.GridHelper(110, 55, accent, 0x334466); grid.position.y = .02; g.add(grid);
       for (let i = 0; i < 14; i++) { const a = box(g, 1 + r() * 2, 1 + r() * 2, 1 + r() * 2, 0x777788, (r() - .5) * 70, 4 + r() * 16, -18 - r() * 30); a.userData.spin = r() * 1.2 + .3; }
     } else if (kind === 'city') {
-      const road = new THREE.Mesh(new THREE.BoxGeometry(80, .4, 60), mat(0x34373d)); road.position.y = -.2; g.add(road);
+      const road = new THREE.Mesh(new THREE.BoxGeometry(150, .4, 150), mat(0x34373d)); road.position.y = -.2; g.add(road);
       for (let i = -4; i <= 4; i++) box(g, 3, .06, .5, 0xffee88, i * 9, .02, 4);
       const wt = winTex(); const wm = new THREE.MeshLambertMaterial({ map: wt });
-      for (let row = 0; row < 2; row++) for (let i = -6; i <= 6; i++) { const h = 8 + r() * 22; const b = new THREE.Mesh(new THREE.BoxGeometry(6, h, 6), wm.clone()); b.material.map = wt.clone(); b.material.map.needsUpdate = true; b.material.map.repeat.set(1, Math.max(1, Math.round(h / 8))); b.position.set(i * 8 + r() * 2, h / 2, -14 - row * 16); b.material.color.setHex(row ? 0x8899aa : 0xaabbcc); g.add(b); }
+      for (let row = 0; row < 2; row++) for (let i = -6; i <= 6; i++) { const h = 8 + r() * 22; const b = new THREE.Mesh(new THREE.BoxGeometry(6, h, 6), wm.clone()); b.material.map = wt.clone(); b.material.map.needsUpdate = true; b.material.map.repeat.set(1, Math.max(1, Math.round(h / 8))); b.position.set(i * 8 + r() * 2, h / 2, -52 - row * 16); b.material.color.setHex(row ? 0x8899aa : 0xaabbcc); g.add(b); }
       for (let i = -3; i <= 3; i++) { box(g, .3, 6, .3, 0x333333, i * 12, 3, 9); const l = box(g, .9, .5, .9, 0xffeeaa, i * 12, 6.2, 9, { emissive: 0xaa8833 }); }
     } else {
-      const gr = new THREE.Mesh(new THREE.CylinderGeometry(60, 60, .6, 40), mat(0x4a8c3a)); gr.position.y = -.3; g.add(gr);
-      for (let i = 0; i < 7; i++) { const h = new THREE.Mesh(new THREE.SphereGeometry(10 + r() * 8, 14, 10), mat(0x3d7a31)); h.scale.y = .55; h.position.set(-50 + i * 17, -2, -34 - r() * 16); g.add(h); }
-      for (let i = 0; i < 26; i++) { const x = (r() - .5) * 70, z = -6 - r() * 30; box(g, .8, 3, .8, 0x6d4c41, x, 1.5, z); box(g, 3.2, 3.2, 3.2, 0x2e7d32 + ((i % 3) * 0x0a1400), x, 4.2, z); }
+      const gr = new THREE.Mesh(new THREE.CylinderGeometry(70, 70, .6, 40), mat(0x4a8c3a)); gr.position.y = -.3; g.add(gr);
+      for (let i = 0; i < 7; i++) { const h = new THREE.Mesh(new THREE.SphereGeometry(10 + r() * 8, 14, 10), mat(0x3d7a31)); h.scale.y = .55; h.position.set(-50 + i * 17, -2, -62 - r() * 12); g.add(h); }
+      for (let i = 0; i < 26; i++) { const x = (r() - .5) * 90, z = -40 - r() * 26; box(g, .8, 3, .8, 0x6d4c41, x, 1.5, z); box(g, 3.2, 3.2, 3.2, 0x2e7d32 + ((i % 3) * 0x0a1400), x, 4.2, z); }
       const sn = new THREE.Mesh(new THREE.SphereGeometry(4, 14, 10), mat(0xffee88, { emissive: 0xaa8800 })); sn.position.set(30, 32, -70); g.add(sn);
       for (let i = 0; i < 8; i++) { const c = box(g, 6 + r() * 5, 1.4, 3, 0xffffff, (r() - .5) * 90, 22 + r() * 12, -40 - r() * 20, { transparent: true, opacity: .9 }); c.userData.drift = .5 + r(); }
     }
@@ -217,6 +219,51 @@
     if (/space|galax|planet|rocket|alien|orbit|star|robot dino|prix|time travel|mothership/.test(t)) return 'space';
     if (/forest|tree|nature|dragon|island|village|farm|mountain|wings|grandma|ninja|valley|river|cabin|garden/.test(t)) return 'nature';
     return 'city';
+  }
+
+  // ---------- the crowd: hundreds of fans dressed like Cubby (red + white chef hat), Hubby (blue + red cap),
+  // Gernaldst (yellow + duck hat) and other S.I.P. team fans. Drawn with instancing so 360 people cost 6 draw calls. ----------
+  const CROWD_N = 360;
+  let crowd = null;
+  function buildCrowd() {
+    const g = new THREE.Group(), r = rnd(777);
+    const mk = (w, h, d) => { const m = new THREE.InstancedMesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: 0xffffff }), CROWD_N); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; g.add(m); return m; };
+    const parts = { legs: mk(.8, .95, .4), torso: mk(.8, 1.0, .45), head: mk(.9, .9, .9), hat: mk(1.0, .5, 1.0), armL: mk(.3, .85, .3), armR: mk(.3, .85, .3) };
+    const people = [], skins = [0xffcc80, 0xf5c89a, 0xd4956a, 0xe8c080, 0x8d5e3c, 0xf0c8a0], hairs = [0x212121, 0x5d4037, 0x3a2410, 0xffcc66, 0xaa3311, 0x1a1a1a], shirts = [0x42a5f5, 0x66bb6a, 0xab47bc, 0xff7043, 0x26c6da, 0xec407a, 0x8d6e63, 0x9ccc65];
+    let i = 0, row = 0;
+    while (i < CROWD_N) {
+      const rad = 21 + row * 1.9, n = Math.floor(2 * Math.PI * rad / 2.0);
+      for (let k = 0; k < n && i < CROWD_N; k++, i++) {
+        const a = k / n * 6.283 + (row % 2) * .08 + (r() - .5) * .04, type = Math.floor(r() * 9);
+        const pp = { x: Math.cos(a) * rad, z: Math.sin(a) * rad, ang: -a - Math.PI / 2, ph: r() * 6.28, type, sc: .95 + r() * .35, skin: skins[Math.floor(r() * skins.length)] };
+        if (type <= 2) { pp.shirt = [0xef5350, 0x1e88e5, 0xfdd835][type]; pp.hatc = [0xffffff, 0xe53935, 0xffee58][type]; pp.hatS = [[1.0, 1.9, 1.0, 3.7], [1.2, .5, 1.3, 3.3], [1.0, .75, 1.0, 3.35]][type]; pp.pants = 0x37474f; }
+        else { pp.shirt = shirts[Math.floor(r() * shirts.length)]; pp.hatc = hairs[Math.floor(r() * hairs.length)]; pp.hatS = [1.08, .35, 1.0, 3.3]; pp.pants = [0x37474f, 0x263238, 0x3949ab, 0x5d4037][Math.floor(r() * 4)]; }
+        people.push(pp);
+        const c = new THREE.Color();
+        parts.legs.setColorAt(i, c.setHex(pp.pants)); parts.torso.setColorAt(i, c.setHex(pp.shirt)); parts.head.setColorAt(i, c.setHex(pp.skin));
+        parts.hat.setColorAt(i, c.setHex(pp.hatc)); parts.armL.setColorAt(i, c.setHex(pp.shirt)); parts.armR.setColorAt(i, c.setHex(pp.shirt));
+      }
+      row++;
+    }
+    Object.values(parts).forEach(m => { m.instanceColor.needsUpdate = true; });
+    crowd = { g, parts, people, P: new THREE.Matrix4(), L: new THREE.Matrix4(), M: new THREE.Matrix4(), q: new THREE.Quaternion(), e: new THREE.Euler(), v: new THREE.Vector3(), sv: new THREE.Vector3() };
+    SC.add(g);
+  }
+  function updateCrowd(t, inten) {
+    if (!crowd) buildCrowd();
+    const c = crowd, P = c.P, L = c.L, M = c.M, ps = c.parts;
+    const put = (mesh, i, x, y, z, rx, sx, sy, sz) => { c.e.set(rx || 0, 0, 0); c.q.setFromEuler(c.e); c.v.set(x, y, z); c.sv.set(sx || 1, sy || 1, sz || 1); L.compose(c.v, c.q, c.sv); M.multiplyMatrices(P, L); mesh.setMatrixAt(i, M); };
+    for (let i = 0; i < c.people.length; i++) {
+      const p = c.people[i];
+      const jump = Math.max(0, Math.sin(t * (4 + p.type % 3) + p.ph)) * (.4 + .9 * inten);
+      c.e.set(0, p.ang, 0); c.q.setFromEuler(c.e); c.v.set(p.x, jump, p.z); c.sv.set(p.sc, p.sc, p.sc); P.compose(c.v, c.q, c.sv);
+      const arm = inten > .6 ? -2.7 + Math.sin(t * 9 + p.ph) * .6 : -.3 + Math.sin(t * 3 + p.ph) * .5;
+      put(ps.legs, i, 0, .52, 0); put(ps.torso, i, 0, 1.75, 0); put(ps.head, i, 0, 2.75, 0);
+      put(ps.hat, i, 0, p.hatS[3], 0, 0, p.hatS[0], p.hatS[1], p.hatS[2]);
+      const ay = 2.2 - .4 * Math.cos(arm), az = -.4 * Math.sin(arm);
+      put(ps.armL, i, -.6, ay, az, arm); put(ps.armR, i, .6, ay, az, arm);
+    }
+    Object.values(ps).forEach(m => { m.instanceMatrix.needsUpdate = true; });
   }
 
   // ---------- scene director ----------
@@ -245,7 +292,18 @@
     ['hero', 'friend', 'villain'].forEach((role, i) => {
       const def = stars.length ? stars[(i + mi) % stars.length] : pick(), p = buildPerson(def, { name: '★ ' + def.name }); p.role = role; costume(p, tags[i % tags.length]); p.costume = tags[i % tags.length]; p.g.scale.setScalar(1.45); SC.add(p.g); cast.push(p);
     });
-    for (let i = 0; i < 4; i++) { const def = pick(), p = buildPerson(def, { name: def.name, noTag: true }); p.role = 'extra'; p.g.scale.setScalar(1.2); SC.add(p.g); cast.push(p); }
+    const SIP = [
+      { name: 'Cubby', skin: 0xffcc80, shirt: 0xef5350, pants: 0x37474f, hair: 'short', hairColor: 0x212121, hat: 'chef', prop: 'chips' },
+      { name: 'Hubby', skin: 0xffcc80, shirt: 0x1e88e5, pants: 0x37474f, hair: 'short', hairColor: 0x5d4037, hat: 'cap', hatColor: 0xe53935, prop: 'blaster1' },
+      { name: 'Gernaldst', skin: 0xffcc80, shirt: 0xfdd835, pants: 0x37474f, hair: 'short', hairColor: 0x5d4037, hat: 'duck', prop: 'blaster2' }];
+    SIP.forEach(def => {
+      const p = buildPerson(def, { name: def.name, hatColor: def.hatColor }); p.role = 'extra'; p.g.scale.setScalar(1.35);
+      if (def.prop === 'chips') { const bg = box(p.armR, .5, .65, .22, 0xffd54f, 0, -.9, .25); box(bg, .36, .2, .06, 0xd84315, 0, 0, .13); }
+      else { const bl = box(p.armR, .3, .3, 1.0, def.prop === 'blaster1' ? 0xab47bc : 0x43a047, 0, -.8, .6); box(bl, .2, .2, .2, 0xe1f5fe, 0, 0, .6, { transparent: true, opacity: .7 }); }
+      if (def.name === 'Gernaldst') p.mouth.scale.set(1.5, 3, 1);
+      SC.add(p.g); cast.push(p);
+    });
+    for (let i = 0; i < 3; i++) { const def = pick(), p = buildPerson(def, { name: def.name, noTag: true }); p.role = 'extra'; p.g.scale.setScalar(1.2); SC.add(p.g); cast.push(p); }
     castKey = 'c' + mi;
   }
   function stars(parent, y, t, n, color) {   // BONK stars spinning around a head
@@ -277,6 +335,7 @@
     const face = (p, ang) => { p.g.rotation.y = ang; };
     const kind = stageKey.split('|')[0];
     cast.forEach(p => { p.g.visible = true; });
+    updateCrowd(t, style === 'party' ? 1 : style === 'fight' ? .9 : style === 'chase' ? .7 : .45);
     if (style === 'march') {
       const x0 = -14 + t * 2.6; [hero, friend, vil].forEach((p, i) => { p.g.position.set(x0 + i * 3.2 - 3, 0, 0 + (i - 1) * 1.6); face(p, Math.PI / 2); walk(p, t + i, 7); });
       ex.forEach((p, i) => { p.g.position.set(x0 - 6 - i * 2.4, 0, (i % 2 ? 3.4 : -3.4)); face(p, Math.PI / 2); walk(p, t + i * .4, 7); });
