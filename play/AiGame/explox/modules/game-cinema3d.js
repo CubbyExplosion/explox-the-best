@@ -40,11 +40,13 @@
   function box(parent, w, h, d, color, x, y, z, o) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color, o)); m.position.set(x, y, z); parent.add(m); return m;
   }
-  function tagSprite(name) {
-    const c = document.createElement('canvas'); c.width = 256; c.height = 64; const x = c.getContext('2d');
-    x.fillStyle = 'rgba(0,0,0,.65)'; x.fillRect(0, 8, 256, 48); x.fillStyle = '#fff'; x.font = 'bold 26px Arial'; x.textAlign = 'center'; x.fillText(name, 128, 42);
+  function tagSprite(name, role) {
+    const c = document.createElement('canvas'); c.width = 320; c.height = 110; const x = c.getContext('2d');
+    x.fillStyle = 'rgba(0,0,0,.7)'; x.fillRect(0, role ? 4 : 30, 320, role ? 102 : 52);
+    x.fillStyle = '#fff'; x.font = 'bold 32px Arial'; x.textAlign = 'center'; x.fillText(name, 160, role ? 44 : 66);
+    if (role) { x.fillStyle = '#ffd54f'; x.font = 'italic bold 28px Arial'; x.fillText('as ' + role, 160, 90); }
     const t = new THREE.CanvasTexture(c); const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthTest: false }));
-    s.scale.set(2.6, 0.65, 1); s.position.y = 4.3; return s;
+    s.scale.set(3.4, 1.17, 1); s.position.y = 4.6; return s;
   }
   function buildPerson(def, o) {
     o = o || {};
@@ -88,7 +90,7 @@
     else if (hat === 'chef') { H(1.1, .3, 1.1, 0xffffff, 0, .62, 0); H(.95, 1.0, .95, 0xffffff, 0, 1.15, 0); }
     else if (hat === 'duck') { H(1.0, .34, 1.0, 0xffee58, 0, .62, 0); H(.7, .5, .7, 0xffee58, .1, .98, 0); H(.5, .16, .3, 0xfb8c00, .1, .95, .5); H(.14, .14, .08, 0x222222, .3, 1.05, .36); }
     if (def.role === 'Celebrity') { H(.82, .22, .1, 0x0a0a0a, 0, .1, .5); }
-    const tag = o.noTag ? null : tagSprite(o.name || def.name); if (tag) g.add(tag);
+    const tag = o.noTag ? null : tagSprite(o.name || def.name, o.role); if (tag) g.add(tag);
     return { g, body, head, torso, armL, armR, legL, legR, mouth, def, tag, baseY: 0, extras: {} };
   }
 
@@ -266,7 +268,7 @@
     return m;
   };
   let fnKind = null;
-  const KIND_WORDS = { robot: /robot|android|\bbot\b|mecha/i, dino: /dino|rex\b|reptile/i, ninja: /ninja|shadow|clan|sensei/i, grandma: /grandma|granny|nana/i, cat: /\bcat\b|kitty|feline/i, pizza: /pizza|calzone|pepperoni/i,
+  const KIND_WORDS = { robot: /robo|robot|android|\bbot\b|mecha/i, dino: /dino|rex\b|reptile/i, ninja: /ninja|shadow|clan|sensei/i, grandma: /grandma|granny|nana/i, cat: /\bcat\b|kitty|feline/i, pizza: /pizza|calzone|pepperoni/i,
     detective: /detective|inspector|clue|sleuth/i, ghost: /ghost|spirit|phantom/i, alien: /alien|martian|visitor/i, dragon: /dragon/i, racer: /racer|driver|racing/i, pilot: /pilot|rocket|captain/i, king: /king|queen|mayor|crown|royal/i,
     doctor: /doctor|nurse|medic/i, athlete: /athlete|player|champion|team/i, wizard: /wizard|magic|time traveler/i };
   function mainKinds(mi, mv) {
@@ -324,18 +326,43 @@
     { name: 'Cubby', skin: 0xffcc80, shirt: 0xef5350, pants: 0x37474f, hair: 'short', hairColor: 0x212121, hat: 'chef' },
     { name: 'Hubby', skin: 0xffcc80, shirt: 0x1e88e5, pants: 0x37474f, hair: 'short', hairColor: 0x5d4037, hat: 'cap', hatColor: 0xe53935 },
     { name: 'Gernaldst', skin: 0xffcc80, shirt: 0xfdd835, pants: 0x37474f, hair: 'short', hairColor: 0x5d4037, hat: 'duck' }];
-  function personFor(key, def, kind, label) {
+  function personFor(key, def, kind, label, role) {
     if (people[key]) return people[key];
-    const p = buildPerson(def, { name: label || def.name, hat: kind && kind !== 'hero' ? null : def.hat, hatColor: def.hatColor, noTag: !label });
+    const p = buildPerson(def, { name: label || def.name, role: role, hat: kind && kind !== 'hero' ? null : def.hat, hatColor: def.hatColor, noTag: !label });
     p.costume = kind; if (kind) costume(p, kind); p.g.visible = false; p.g.scale.setScalar(1.45); SC.add(p.g); people[key] = p; return p;
+  }
+  const STOPW = new Set(['The', 'A', 'An', 'In', 'On', 'At', 'But', 'And', 'With', 'Then', 'Now', 'They', 'He', 'She', 'It', 'We', 'This', 'That', 'Every', 'Meanwhile', 'Suddenly', 'Soon', 'Later', 'Finally', 'Once', 'One', 'Two', 'Three', 'Our', 'His', 'Her', 'Their', 'If', 'When', 'As', 'After', 'Before', 'Behind', 'Deep', 'Far', 'Long', 'Back', 'Not', 'No', 'Yes', 'Who', 'What', 'Where', 'Why', 'How', 'All', 'Some', 'Even', 'Just', 'Still', 'Only', 'Explox', 'City', 'Night', 'Day', 'Time', 'Life', 'Citizens', 'Everyone', 'Inside', 'Outside', 'Together', 'Somewhere', 'Nobody', 'Someone', 'Welcome', 'Today', 'Tonight', 'Tomorrow', 'Yesterday']);
+  const FALLBACK_ROLE = { robot: 'Robo', dino: 'Dino', ninja: 'Ninja', grandma: 'Grandma', cat: 'Super Cat', pizza: 'Evil Pizza', detective: 'The Detective', ghost: 'The Ghost', alien: 'The Alien', dragon: 'The Dragon', racer: 'The Racer', pilot: 'The Pilot', king: 'The King', doctor: 'The Doctor', athlete: 'The Champion', pioneer: 'The Pioneer', wizard: 'The Wizard', hero: 'The Hero' };
+  const castCache = {};
+  function castList(mi, mv) {
+    if (castCache[mi]) return castCache[mi];
+    const counts = {};
+    (mv.scenes || []).forEach(sc => {
+      const found = (sc.text || '').match(/\b[A-Z][a-z]+(?:-[A-Z][a-z]+)*(?: [A-Z][a-z]+(?:-[A-Z][a-z]+)*)*/g) || [];
+      found.forEach(m => { let n = m.split(' '); while (n.length && STOPW.has(n[0])) n.shift(); n = n.join(' '); if (n.length < 3) return; if (n.indexOf(' ') < 0 && n.indexOf('-') < 0 && /s$/.test(n)) return; counts[n] = (counts[n] || 0) + 1; });
+    });
+    const cands = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || b.length - a.length);
+    const kinds = mainKinds(mi, mv), used = new Set(), stars = (typeof NPC_DEFS !== 'undefined' ? NPC_DEFS : []).filter(d => d && d.role === 'Celebrity');
+    // only things that sound like a character (not a place, an object or a group)
+    const BADW = /\b(Bank|Church|Library|Event|Racing|Clue|Academy|Market|School|Square|Tower|City|Hall|Court|Wall|House|Road|Street|Park|Arena|Games|War|Supper|Rise|Mission|Chapter|Scene|Planet|Galaxy|Space|Station|Ship|Race|Grand|Prix|Fist|Clan|Army|Fleet|Council|Team|Crew|Gang|Squad|Badge|Coin|Wrath|Mayor's|Pizza Shop|Satan|Devil|Demon|Trial|Scrapyard|Mall)\b/;
+    const person = (c) => !BADW.test(c) && (/^(Captain|Detective|Doctor|Dr|Mayor|King|Queen|Sensei|Super|Mr|Mrs|Miss|Professor|Officer|Chief|Coach|Lord|Lady|Sir|General|Major|Evil|Dino|Robo|Grandma|Ghost|Baby)\b/.test(c) || c.indexOf('-') >= 0 || (c.indexOf(' ') < 0 && counts[c] >= 3));
+    const good = cands.filter(person);
+    const list = kinds.map((k, i) => {
+      const re = KIND_WORDS[k]; let name = (i < 2) ? (good.find(c => !used.has(c) && re && re.test(c)) || good.find(c => !used.has(c) && counts[c] >= 2)) : null;
+      if (!name) name = (i === 2 && k === 'hero') ? 'The Sidekick' : (FALLBACK_ROLE[k] || 'The Hero'); used.add(name);
+      const a = stars.length ? stars[(i + mi) % stars.length].name : 'Explox Star';
+      return { actor: a, role: name, kind: k };
+    });
+    castCache[mi] = list; return list;
   }
   function actorsFor(mi, mv, info) {
     const stars = (typeof NPC_DEFS !== 'undefined' ? NPC_DEFS : []).filter(d => d && d.role === 'Celebrity');
     const star = (i) => stars.length ? stars[(i + mi) % stars.length] : npcPool()[i % npcPool().length];
     const out = [];
+    const cl = castList(mi, mv);
     info.present.forEach((who, idx) => {
       const i = ['A', 'B', 'C'].indexOf(who), kind = info.kinds[who];
-      out.push(personFor('m' + mi + who, star(i), kind, '★ ' + star(i).name));
+      out.push(personFor('m' + mi + who, star(i), kind, '\u2605 ' + star(i).name, cl[i].role));
     });
     return out;
   }
@@ -485,6 +512,50 @@
     } catch (e) { failed = true; if (window.console) console.warn('cinema3d fell back to 2D:', e); return false; }
   }
 
+  function drawCredits(mv, mi, elapsed) {
+    const cv = document.getElementById('cinemaCanvas'); if (!cv) return; const ctx = cv.getContext('2d'), w = cv.width, h = cv.height;
+    ctx.fillStyle = '#05050c'; ctx.fillRect(0, 0, w, h);
+    for (let i = 0; i < 70; i++) { const a = .3 + .5 * Math.abs(Math.sin(elapsed * .8 + i * 2.3)); ctx.fillStyle = `rgba(255,240,180,${a})`; ctx.fillRect((i * 137.5 % 1) * w * 0 + ((i * 97.3) % w), (i * 61.7 + elapsed * 6) % h, 2, 2); }
+    const cl = castList(mi, mv), lines = [];
+    lines.push(['title', mv.title.toUpperCase()]); lines.push(['small', 'AN EXPLOX CINEMAS PRODUCTION']); lines.push(['gap', '']);
+    lines.push(['head', 'STARRING']);
+    cl.forEach(c => { lines.push(['actor', '\u2605 ' + c.actor]); lines.push(['role', 'as  ' + c.role]); lines.push(['gap', '']); });
+    lines.push(['head', 'ALSO STARRING']); lines.push(['actor', 'Cubby  \u2022  Hubby  \u2022  Gernaldst']); lines.push(['role', 'and the people of Explox']); lines.push(['gap', '']);
+    lines.push(['head', 'NARRATOR']); lines.push(['actor', 'The Explox Cinemas Voice']); lines.push(['gap', '']);
+    lines.push(['head', 'DIRECTED BY']); lines.push(['actor', 'Explox Cinemas']); lines.push(['gap', '']); lines.push(['gap', '']);
+    lines.push(['end', '\u2726  THE END  \u2726']);
+    const lh = Math.max(34, h * .075), total = lines.length * lh;
+    const speed = lh * 1.15, y0 = h + 20 - elapsed * speed, stop = h / 2 - total + h * .1;   // scroll up, then the last lines rest in the middle
+    const yTop = Math.max(y0, h * .5 - total + lh * 2.6 + 0);
+    ctx.textAlign = 'center';
+    lines.forEach((l, i) => {
+      const y = yTop + i * lh; if (y < -lh || y > h + lh) return; const [k, tx] = l;
+      if (k === 'title') { ctx.fillStyle = '#ffd54f'; ctx.font = `900 ${Math.round(lh * .95)}px Arial Black, Arial`; }
+      else if (k === 'head') { ctx.fillStyle = '#ff9acb'; ctx.font = `bold ${Math.round(lh * .55)}px Arial`; }
+      else if (k === 'actor') { ctx.fillStyle = '#ffffff'; ctx.font = `bold ${Math.round(lh * .72)}px Arial`; }
+      else if (k === 'role') { ctx.fillStyle = '#9fe3ff'; ctx.font = `italic ${Math.round(lh * .6)}px Arial`; }
+      else if (k === 'end') { ctx.fillStyle = '#ffd54f'; ctx.font = `900 ${Math.round(lh * 1.0)}px Arial Black, Arial`; }
+      else { ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.font = `${Math.round(lh * .42)}px Arial`; }
+      const mw = ctx.measureText(tx).width; if (mw > w * .92) { const fs = parseInt(ctx.font.match(/(\d+)px/)[1], 10); ctx.font = ctx.font.replace(/\d+px/, Math.floor(fs * w * .92 / mw) + 'px'); }
+      ctx.fillText(tx, w / 2, y);
+    });
+    if (typeof cinemaState !== 'undefined' && cinemaState.snacks && cinemaState.snacks.length) { ctx.fillStyle = 'rgba(255,204,0,.8)'; ctx.font = `${Math.max(12, w / 60)}px Arial`; ctx.fillText('You enjoyed: ' + cinemaState.snacks.map(x => x.emoji).join(' '), w / 2, 36); }
+  }
+  const creditsFn = function () {
+    cinemaState.phase = 'credits';
+    try { sfx.credits(); } catch (e) { }
+    window.speechSynthesis.cancel();
+    setTimeout(() => { if (cinemaState.phase !== 'credits') return; const u = new SpeechSynthesisUtterance('The End.'); u.rate = .7; u.pitch = .8; u.volume = .9; window.speechSynthesis.speak(u); }, 800);
+    if (cinemaState.animFrame) cancelAnimationFrame(cinemaState.animFrame);
+    const cv = document.getElementById('cinemaCanvas'), mv = cinemaState.movie, mi = cinemaState.movieIdx, t0 = performance.now();
+    document.getElementById('cinemaSkip').style.display = 'none'; document.getElementById('cinemaClose').style.display = 'block';
+    const tick = () => { if (cinemaState.phase !== 'credits') return; drawCredits(mv, mi, (performance.now() - t0) / 1000); cinemaState.animFrame = requestAnimationFrame(tick); };
+    tick();
+  };
+  // game-social.js loads after this file and defines its own showCinemaCredits, so take over once everything has loaded
+  const installCredits = () => { window.showCinemaCredits = creditsFn; };
+  installCredits(); window.addEventListener('load', installCredits);
+
   CINEMA_MOVIES.forEach((mv, mi) => {
     (mv.scenes || []).forEach((sc, si) => {
       if (sc.draw3dWired) return; sc.draw3dWired = true; const d2 = sc.draw;
@@ -492,5 +563,5 @@
       sc.draw = function (ctx, w, h, t) { if (!draw3D(mi, si, mv, sc, ctx, w, h, t)) d2.call(sc, ctx, w, h, t); };
     });
   });
-  window.__cinema3d = { draw: draw3D, tagsFor, info: getInfo, status: () => ({ failed, hasRenderer: !!R }) };
+  window.__cinema3d = { draw: draw3D, tagsFor, info: getInfo, castList, drawCredits, status: () => ({ failed, hasRenderer: !!R }) };
 })();
