@@ -240,8 +240,10 @@
     cast.forEach(c => SC.remove(c.g)); cast = [];
     const pool = npcPool(), r = rnd(hash(mi, 11, 5)), tags = tagsFor(mv);
     const pick = () => pool[Math.floor(r() * pool.length)];
+    // every Explox celebrity (Chaz Diamond, Vex Nova, Bree Millions) is a star of every movie
+    const stars = (typeof NPC_DEFS !== 'undefined' ? NPC_DEFS : []).filter(d => d && d.role === 'Celebrity');
     ['hero', 'friend', 'villain'].forEach((role, i) => {
-      const def = pick(), p = buildPerson(def, { name: def.name }); p.role = role; costume(p, tags[i % tags.length]); p.costume = tags[i % tags.length]; p.g.scale.setScalar(1.45); SC.add(p.g); cast.push(p);
+      const def = stars.length ? stars[(i + mi) % stars.length] : pick(), p = buildPerson(def, { name: '★ ' + def.name }); p.role = role; costume(p, tags[i % tags.length]); p.costume = tags[i % tags.length]; p.g.scale.setScalar(1.45); SC.add(p.g); cast.push(p);
     });
     for (let i = 0; i < 4; i++) { const def = pick(), p = buildPerson(def, { name: def.name, noTag: true }); p.role = 'extra'; p.g.scale.setScalar(1.2); SC.add(p.g); cast.push(p); }
     castKey = 'c' + mi;
