@@ -1330,6 +1330,8 @@
     } catch (e) { }
   }
   CSFX.introNow = function () { introTheme(window.__introSeed || 1); };
+  // how long each feeling lingers after the line is said (seconds)
+  const EMO_HOLD = { sad: 3.4, joy: 2.6, scared: 2.6, warm: 2.6, relieved: 2.6, angry: 2.2, shocked: 2.2, worried: 2.6, excited: 1.8, surprised: 1.8, happy: 2.0, determined: 1.6, serious: 1.6, curious: 1.4 };
   // ---------- the director: puts the right characters in the right place doing what the caption says ----------
   function directBeat(mi, si, mv, sc, t, info, dur, camSeed) {
     const u = clamp(t / dur, 0, 1); flashA = 0; zoomPunch = 0; fightHud = null; fightCam = null; soccerHud = null; battleHud = null; if (crowd) crowd.g.visible = false; if (battleObj) battleObj.g.visible = false; weirdFlip = false;
@@ -1505,8 +1507,8 @@
     }
     csFlow(style, t, mi);
     const emo = info.emo || [], xe = style === 'party' ? 'joy' : (emo[1] || emo[0] || 'neutral');
-    act.forEach((pp, ii) => emote(pp, emo[ii] || emo[0] || 'neutral', t, true)); ex.forEach(pp => emote(pp, xe, t, false));
-    { const tS = t + beatOffset, dlg = getDialogue(mi, si, mv, sc), ln = dlg.find(l => l.who !== 'N' && tS >= l.start - .15 && tS <= l.end + .5);
+    { const tS0 = t + beatOffset, dlgE = getDialogue(mi, si, mv, sc); act.forEach((pp, ii) => { const who = info.present[ii]; let e = emo[ii] || emo[0] || 'neutral'; const hl = dlgE.filter(l => l.who === who && tS0 >= l.start - .2 && tS0 <= l.end + (EMO_HOLD[l.emo] || 2.5) + 1.5).pop(); if (hl && hl.emo) e = hl.emo; emote(pp, e, t, true); }); } ex.forEach(pp => emote(pp, xe, t, false));
+    { const tS = t + beatOffset, dlg = getDialogue(mi, si, mv, sc), ln = dlg.find(l => l.who !== 'N' && tS >= l.start - .15 && tS <= l.end + (EMO_HOLD[l.emo] || .6));
       if (ln && ACT_SET.has(style)) { const pi = info.present.indexOf(ln.who), sp = pi >= 0 ? act[pi] : null; if (sp) sp.mouth.scale.set(1, 1.4 + Math.abs(Math.sin(t * 12)) * 2.4, 1); }
       else if (ln) { const pi = info.present.indexOf(ln.who), sp = pi >= 0 ? act[pi] : null, ek = pickEmote(ln); if (sp && ek) { applyEmote(sp, ek, Math.max(0, tS - ln.start + .15)); if (sp.emoS) sp.emoS.visible = false; if (playing(mi) && tS - ln.start < .6 && EMOTE_SFX[ek]) csOnce(mi + '_' + si + '_' + ln.start + 'e', EMOTE_SFX[ek]); } } }
     let sightCam = null;
@@ -1763,13 +1765,13 @@
     const S = sc.script, res = []; res.beats = []; res.beatStarts = []; res.beatEnds = []; dlgCache[key] = res;
     const roles = castRoles(mi, mv), nameOf = { A: roles[0].role, B: roles[1].role, C: roles[2].role, N: (mv.tv ? '' : 'NARRATOR \u2022 ') + narratorPersona(mi, mv) };
     let tcur = 0.4 + wc(sc.text) / 2.6 + 0.9 + (si === 0 && !mv.tv ? (wc(mv.title) + 17) / 2.6 + 1.0 : 0);
-    const base = scriptLines(mi, si, mv, sc), lines = base.map(l => { const o = { who: l[0], emo: l[1], act: l[2], text: l[3], role: nameOf[l[0]], pers: l[0] === 'N' ? null : persFor(mi, mv, 'ABC'.indexOf(l[0])), start: tcur }; o.end = o.start + wc(o.text) / 2.4 + 0.5; tcur = o.end + 1.5; res.push(o); return o; });
+    const base = scriptLines(mi, si, mv, sc), lines = base.map(l => { const o = { who: l[0], emo: l[1], act: l[2], text: l[3], role: nameOf[l[0]], pers: l[0] === 'N' ? null : persFor(mi, mv, 'ABC'.indexOf(l[0])), start: tcur }; o.end = o.start + wc(o.text) / 2.4 + 0.5; tcur = o.end + (({ sad: 3.0, relieved: 2.6, warm: 2.4, scared: 2.2, shocked: 2.4, joy: 2.0, worried: 2.2 })[o.emo] || 1.5); res.push(o); return o; });
     for (let i = 0; i < lines.length; i += 2) {
       const grp = lines.slice(i, i + 2), first = grp[0], who = {};
       grp.forEach(l => { if (l.who !== 'N') who[l.who] = l; });
       const present = ['A', 'B'].concat(who.C ? ['C'] : []);
       const emo = present.map(w => { if (who[w]) return who[w].emo; const sp = grp.find(l => l.who !== 'N' && l.who !== w); return sp ? listenerEmo(sp.emo) : 'neutral'; });
-      { const a0s = first.act || 'talk', grpTxt = grp.map(l => l.text).join(' '); res.beats.push({ style: (a0s === 'talk' || a0s === 'look' || a0s === 'walk') ? (chatActivity(mi, si, i, { dark: sc.script.tod === 'night' || sc.script.tod === 'storm', comedy: !!mv.comedy }, grpTxt + ' ' + (sc.text || '')) || a0s) : a0s, present, emo }); }
+      { const a0s = first.act || 'talk', grpTxt = grp.map(l => l.text).join(' '); res.beats.push({ style: ((a0s === 'talk' || a0s === 'look' || a0s === 'walk') && !grp.some(l => ['sad', 'warm', 'scared', 'relieved', 'shocked'].indexOf(l.emo) >= 0)) ? (chatActivity(mi, si, i, { dark: sc.script.tod === 'night' || sc.script.tod === 'storm', comedy: !!mv.comedy }, grpTxt + ' ' + (sc.text || '')) || a0s) : a0s, present, emo }); }
       res.beatStarts.push(i === 0 ? 0 : Math.max(0.5, first.start - 0.6));
     }
     for (let k = 0; k < res.beatStarts.length; k++) res.beatEnds.push(k + 1 < res.beatStarts.length ? res.beatStarts[k + 1] : 0);
