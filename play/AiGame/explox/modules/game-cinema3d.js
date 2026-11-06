@@ -509,6 +509,7 @@
     detective: /detective|inspector|clue|sleuth/i, ghost: /ghost|spirit|phantom/i, alien: /alien|martian|visitor/i, dragon: /dragon/i, racer: /racer|driver|racing/i, pilot: /pilot|rocket|captain/i, king: /king|queen|mayor|crown|royal/i,
     doctor: /doctor|nurse|medic/i, athlete: /athlete|player|champion|team/i, wizard: /wizard|magic|time traveler/i };
   function mainKinds(mi, mv) {
+    if (mv.cast) return [mv.cast.A.kind, mv.cast.B.kind, mv.cast.C.kind];
     if (!fnKind) fnKind = FN_KIND();
     const vis = (typeof _MVIS !== 'undefined') ? _MVIS[mi] : null; const tags = tagsFor(mv);
     const a = (vis && fnKind.get(vis[3])) || tags[0] || 'hero', b = (vis && fnKind.get(vis[4])) || tags[1] || 'robot';
@@ -532,6 +533,7 @@
   }
   function getInfo(mi, si, mv, sc) {
     const key = mi + '_' + si; if (sceneInfoCache[key]) return sceneInfoCache[key];
+    if (sc.script) { const sI = scriptInfo(mi, si, mv, sc); sceneInfoCache[key] = sI; return sI; }
     const text = (sc.text || ''), lc = text.toLowerCase(), [ka, kb, kc] = mainKinds(mi, mv);
     const bWords = (typeof _MCHARS !== 'undefined' && _MCHARS[mi]) ? _MCHARS[mi] : [];
     const mentionB = bWords.some(k => (' ' + lc + ' ').indexOf(k) !== -1) || (KIND_WORDS[kb] && KIND_WORDS[kb].test(lc));
@@ -572,6 +574,7 @@
   const FALLBACK_ROLE = { robot: 'Robo', dino: 'Dino', ninja: 'Ninja', grandma: 'Grandma', cat: 'Super Cat', pizza: 'Evil Pizza', detective: 'The Detective', ghost: 'The Ghost', alien: 'The Alien', dragon: 'The Dragon', racer: 'The Racer', pilot: 'The Pilot', king: 'The King', doctor: 'The Doctor', athlete: 'The Champion', pioneer: 'The Pioneer', wizard: 'The Wizard', hero: 'The Hero' };
   const castCache = {};
   function castRoles(mi, mv) {
+    if (mv.cast) return [mv.cast.A, mv.cast.B, mv.cast.C].map(c => ({ role: c.role, kind: c.kind }));
     if (castCache[mi]) return castCache[mi];
     const counts = {};
     (mv.scenes || []).forEach(sc => {
@@ -627,13 +630,14 @@
   function limbs(p, a, b, c, d) { p.armL.rotation.x = a; p.armR.rotation.x = b; p.legL.rotation.x = c; p.legR.rotation.x = d; }
   function pose(p) { p.g.rotation.set(0, p.g.rotation.y, 0); p.body.rotation.set(0, 0, 0); p.body.position.set(0, 0, 0); p.head.rotation.set(0, 0, 0); p.head.scale.setScalar(p.costume === 'alien' ? 1.25 : 1); limbs(p, 0, 0, 0, 0); p.armL.rotation.z = 0; p.armR.rotation.z = 0; p.mouth.scale.set(1, 1, 1); p.g.position.y = 0; }
   function walk(p, t, sp, big) { const s = Math.sin(t * sp) * (big || .8); limbs(p, -s, s, s, -s); p.body.position.y = Math.abs(Math.sin(t * sp)) * .12; }
-  let beatOffset = 0, lastSceneKey = '';
+  let beatOffset = 0, lastSceneKey = '', flashA = 0, zoomPunch = 0;
+  const fxTorus = new THREE.TorusGeometry(1, .08, 6, 28), fxStar = new THREE.OctahedronGeometry(.22), fxMatW = new THREE.MeshBasicMaterial({ color: 0xffffff }), fxMatY = new THREE.MeshBasicMaterial({ color: 0xffe033 });
   function words2d(t0, text, i) { words.push({ t0: t0 + beatOffset, text, i }); }
   let shown = [], curActors = [], curInfoNow = null;
 
   // ---------- the director: puts the right characters in the right place doing what the caption says ----------
   function directBeat(mi, si, mv, sc, t, info, dur, camSeed) {
-    const u = clamp(t / dur, 0, 1);
+    const u = clamp(t / dur, 0, 1); flashA = 0; zoomPunch = 0;
     shown.forEach(p => { p.g.visible = false; }); shown = []; clearFx(); words = [];
     Object.keys(propCache).forEach(k => { propCache[k].visible = false; });
     const act = actorsFor(mi, mv, info), ex = info.extraN ? extrasFor(mi, info, info.extraN) : [];
@@ -669,15 +673,54 @@
       if (info.comedy && a0) { const sT = dur * .55; if (t > sT && t < sT + 1.1) { const q = (t - sT) / 1.1; a0.body.rotation.x = -q * 6.283; a0.body.position.y = Math.sin(q * 3.14) * 2.2; limbs(a0, 2.5, 2.5, 1, -1); words2d(sT, 'WHOA!', 2); } }
       look.copy(a0.g.position).setY(2.4); spread = 9;
     } else if (style === 'fight') {
-      const A = a0, B = a1 || ex[0];
-      if (B && !a1) { B.g.visible = true; }
-      A.g.position.set(-2.6 + Math.sin(t * 2) * .4, 0, 0); B.g.position.set(2.6 - Math.sin(t * 2) * .4, 0, 0); face(A, Math.PI / 2); face(B, -Math.PI / 2);
-      const ph = t * 5; limbs(A, -1.5 + Math.sin(ph) * 1.6, -1.5 - Math.sin(ph) * 1.6, Math.sin(ph) * .3, -Math.sin(ph) * .3); limbs(B, -1.5 - Math.sin(ph + 1.7) * 1.6, -1.5 + Math.sin(ph + 1.7) * 1.6, 0, 0);
-      if (a2) { a2.g.position.set(-6, 0, 3); face(a2, Math.PI / 3); limbs(a2, Math.sin(t * 7) * 2.4, -Math.sin(t * 7) * 2.4, 0, 0); }
-      let n = 0; ex.forEach((p, i) => { if (p === B) return; const left = (i % 2 === 0); p.g.position.set((left ? -1 : 1) * (6 + Math.floor(n / 2) * 2.4), 0, (left ? 1 : -1) * 3); face(p, left ? Math.PI / 2 : -Math.PI / 2); limbs(p, -1.5 + Math.sin(t * 5 + i) * 1.4, -1.5 - Math.sin(t * 5 + i) * 1.4, 0, 0); n++; });
-      const bt = Math.floor(t / .9), ph2 = t % .9;
-      if (ph2 < .35) { stars(4.1, t, 5, B.g.position); words2d(bt * .9, ['BONK!', 'POW!', 'SPLAT!', 'KAPOW!'][bt % 4], 3); B.body.rotation.z = Math.sin(ph2 * 18) * .25; B.mouth.scale.set(.5, 3, 1); shake = .3; }
-      look.set(0, 2.6, 0); spread = 6;
+      // cool cartoon martial arts: punches, kicks, flying kicks and spins, with dodges and flips, hit sparks, shockwaves and speed lines
+      const A = a0, B = a1 || ex[0]; if (B && !a1) B.g.visible = true;
+      const CY = 1.8, cyc = Math.floor(t / CY), tt = t - cyc * CY, atkA = cyc % 2 === 0;
+      const atk = atkA ? A : B, def = atkA ? B : A, dir = atkA ? 1 : -1;
+      const mvn = ['punch', 'kick', 'jumpkick', 'spin', 'punch', 'kick'][hash(cyc, mi + si, 3) % 6], dodge = hash(cyc, si + 5, 7) % 10 < 3;
+      const ease = (x) => x * x * (3 - 2 * x), cl = (x) => clamp(x, 0, 1), lerp = (a, b, k) => a + (b - a) * k;
+      const IMP = .55, wind = cl(tt / .35), strike = cl((tt - .35) / .2), rec = cl((tt - IMP) / .5);
+      face(A, Math.PI / 2); face(B, -Math.PI / 2);
+      [A, B].forEach((pp, k) => {   // fighting stance: knees bent, guard up, shuffling feet
+        pp.g.position.set((pp === A ? -2.4 : 2.4) + Math.sin(t * 2 + k) * .3, 0, 0); pp.body.position.y = -.1 + Math.sin(t * 6 + k) * .05;
+        limbs(pp, -1.0, -1.0 + Math.sin(t * 7 + k) * .15, Math.sin(t * 5 + k) * .3, -Math.sin(t * 5 + k) * .3);
+      });
+      const lunge = ease(strike) * (mvn === 'jumpkick' ? 2.3 : 1.5) * (1 - ease(rec));
+      atk.g.position.x += dir * lunge;
+      if (mvn === 'punch') {
+        atk.armR.rotation.x = tt < .35 ? lerp(-1.0, 1.3, ease(wind)) : tt < IMP ? lerp(1.3, -1.8, ease(strike)) : lerp(-1.8, -1.0, ease(rec));
+        atk.body.rotation.y = (tt < .35 ? lerp(0, -.4, wind) : tt < IMP ? lerp(-.4, .5, strike) : lerp(.5, 0, rec)); atk.body.rotation.x = .2 * ease(strike) * (1 - rec);
+      } else if (mvn === 'kick') {
+        atk.legR.rotation.x = tt < .35 ? lerp(0, .6, ease(wind)) : tt < IMP ? lerp(.6, -1.6, ease(strike)) : lerp(-1.6, 0, ease(rec));
+        atk.body.rotation.x = -.3 * ease(strike) * (1 - rec); atk.armL.rotation.x = -.8; atk.armR.rotation.x = .9;
+      } else if (mvn === 'jumpkick') {
+        const ja = cl((tt - .2) / .6); atk.g.position.y = Math.sin(Math.PI * ja) * 2.4;
+        if (ja > 0 && ja < 1) { atk.legL.rotation.x = -1.2; atk.legR.rotation.x = -.9; atk.body.rotation.x = -.5; atk.armL.rotation.x = 1.3; atk.armR.rotation.x = 1.1; }
+      } else {
+        const sp = cl((tt - .25) / .45); atk.body.rotation.y = Math.PI * 2 * ease(sp);
+        if (sp > 0 && sp < 1) { atk.armL.rotation.z = -1.4; atk.armR.rotation.z = 1.4; atk.armL.rotation.x = 0; atk.armR.rotation.x = 0; atk.legR.rotation.x = -.8; }
+      }
+      if (dodge) {   // the other one backflips out of the way and the attacker whiffs
+        const ds = cl((tt - .3) / .55); def.g.position.x += dir * 1.3 * ease(ds) * (1 - ease(cl((tt - .9) / .6))); def.g.position.y = Math.sin(Math.PI * ds) * 2.2; def.body.rotation.x = -Math.PI * 2 * ease(ds) * dir;
+        if (ds > 0 && ds < 1) { def.armL.rotation.z = -1.1; def.armR.rotation.z = 1.1; }
+        if (tt > IMP) atk.body.rotation.x += .45 * Math.sin(Math.PI * cl((tt - IMP) / .5));
+      } else if (tt > IMP) {   // a hit: head snaps back, knocked away, tumbling after the big moves
+        const hr = cl((tt - IMP) / .5), kb = ease(cl((tt - IMP) / .3)) * 1.6 - ease(cl((tt - IMP - .5) / .6)) * 1.6;
+        def.g.position.x += dir * kb; def.head.rotation.x = -.7 * Math.sin(Math.PI * hr); def.body.rotation.x = -.4 * Math.sin(Math.PI * hr); def.mouth.scale.set(.6, 3, 1);
+        if (mvn !== 'punch') { def.body.rotation.z = Math.PI * 2 * ease(cl((tt - IMP) / .55)) * dir; def.g.position.y += Math.sin(Math.PI * cl((tt - IMP) / .5)) * 1.0; }
+      }
+      // effects
+      const age = tt - IMP, ix = (A.g.position.x + B.g.position.x) / 2, imx = atk.g.position.x + dir * .9;
+      if (tt > .3 && tt < .58) for (let k = 0; k < 5; k++) { const l = wMesh(1.8, .05, .05, 0xffffff, atk.g.position.x - dir * (.9 + k * .3), 1.6 + k * .45, (k - 2) * .35); }
+      if (age >= 0 && age < .55 && !dodge) {
+        const ring = new THREE.Mesh(fxTorus, fxMatW); ring.userData.shared = true; const rs = age < .25 ? .4 + age * 8 : (.4 + 2) * (1 - (age - .25) / .3); ring.scale.setScalar(Math.max(.01, rs)); ring.position.set(imx, 2.4, .2); ring.lookAt(CAM.position); fxGroup.add(ring);
+        if (age < .4) for (let k = 0; k < 9; k++) { const a2 = k * Math.PI * 2 / 9, d = age * 7, st = new THREE.Mesh(fxStar, fxMatY); st.userData.shared = true; st.position.set(imx + Math.cos(a2) * d, 2.4 + Math.sin(a2) * d, .3 * Math.sin(k)); st.scale.setScalar(1.2 - age * 2); fxGroup.add(st); }
+        words2d(cyc * CY + IMP, ['POW!', 'WHAM!', 'BAM!', 'BIFF!', 'ZAP!', 'WHACK!', 'KABOOM!'][hash(cyc, si, 9) % 7], 3 + cyc % 3);
+        if (age < .1) flashA = (1 - age / .1) * .9; if (age < .25) zoomPunch = 1 - age / .25; if (age < .3) shake = .55 * (1 - age / .3);
+      } else if (age >= 0 && age < .5 && dodge) words2d(cyc * CY + IMP, 'WHOOSH!', 1 + cyc % 3);
+      if (a2) { a2.g.position.set(-6.2, 0, 3); face(a2, Math.PI / 3); limbs(a2, 2.5 + Math.sin(t * 8) * .5, 2.5 - Math.sin(t * 8) * .5, 0, 0); a2.g.position.y = Math.abs(Math.sin(t * 6)) * .5; }
+      let n = 0; ex.forEach((p, k) => { if (p === B) return; const left = (k % 2 === 0); p.g.position.set((left ? -1 : 1) * (6 + Math.floor(n / 2) * 2.4), Math.abs(Math.sin(t * 6 + k)) * .5, (left ? 1 : -1) * 3); face(p, left ? Math.PI / 2 : -Math.PI / 2); limbs(p, 2.6 + Math.sin(t * 8 + k) * .5, 2.6 - Math.sin(t * 8 + k) * .5, 0, 0); n++; });
+      look.set(ix, 2.6, 0); spread = 5;
     } else if (style === 'party') {
       const all = act.concat(ex); all.forEach((p, i) => { const a = i * 6.283 / all.length + t * .5; p.g.position.set(Math.cos(a) * 4.4, Math.abs(Math.sin(t * 5 + i)) * 1.1, Math.sin(a) * 3.6); face(p, -a + Math.PI); limbs(p, 2.8 + Math.sin(t * 9 + i) * .6, 2.8 - Math.sin(t * 9 + i) * .6, Math.sin(t * 9 + i) * .6, -Math.sin(t * 9 + i) * .6); p.body.rotation.y = Math.sin(t * 4 + i) * .5; p.mouth.scale.set(1.2, 2.2, 1); });
       confetti(t, 90); look.set(0, 2.2, 0); spread = 6;
@@ -714,7 +757,7 @@
     act.forEach((pp, ii) => emote(pp, emo[ii] || emo[0] || 'neutral', t, true)); ex.forEach(pp => emote(pp, xe, t, false));
     act.concat(ex).forEach(c => { if (c.costume === 'ghost') c.g.position.y += .6 + Math.sin(t * 3) * .3; if (c.extras.wings) { const f = Math.sin(t * 7) * .5; c.extras.wings[0].rotation.z = f; c.extras.wings[1].rotation.z = -f; } });
     // camera: close enough to see the actors, moving in a different way for each scene
-    const camStyle = ['orbit', 'dolly', 'crane', 'side'][hash(mi, si, 9 + camSeed) % 4], seed = hash(mi, si, 2 + camSeed) % 628 / 100, D = clamp(7 + spread * .9, 9, 17) * (camSeed > 0 ? .78 : 1);
+    const camStyle = ['orbit', 'dolly', 'crane', 'side'][hash(mi, si, 9 + camSeed) % 4], seed = hash(mi, si, 2 + camSeed) % 628 / 100, D = clamp(7 + spread * .9, 9, 17) * (camSeed > 0 ? .78 : 1) * (1 - zoomPunch * .22);
     if (camStyle === 'orbit') { const a = seed + t * .3; CAM.position.set(look.x + Math.cos(a) * D * .8, 4.2, look.z + Math.sin(a) * D * .8 + D * .4); }
     else if (camStyle === 'dolly') { CAM.position.set(look.x + Math.sin(seed) * 4, 3.2 + u * .8, look.z + D * 1.15 - u * D * .5); }
     else if (camStyle === 'crane') { CAM.position.set(look.x - 6, 1.6 + u * 7, look.z + D * .9 - u * 2); }
@@ -726,6 +769,11 @@
   // a scene is a sequence of shots; each shot has its own camera, action and dialogue
   function direct(mi, si, mv, sc, t) {
     const info = getInfo(mi, si, mv, sc), dl = getDialogue(mi, si, mv, sc), nb = dl.beats ? dl.beats.length : 1;
+    if (dl.beatStarts) {
+      let bt = 0; for (let k = 0; k < dl.beatStarts.length; k++) if (t >= dl.beatStarts[k]) bt = k;
+      const bs = dl.beatStarts[bt], be = dl.beatEnds[bt], bb = dl.beats[bt]; beatOffset = bs;
+      return directBeat(mi, si, mv, sc, t - bs, Object.assign({}, info, { style: bb.style, present: bb.present, emo: bb.emo }), Math.max(2, be - bs), bt);
+    }
     const BL = dl.beatLen || 4, beat = Math.min(nb - 1, Math.floor(t / BL)), b = (dl.beats && dl.beats[beat]) || { style: info.style, present: info.present };
     beatOffset = beat * BL;
     return directBeat(mi, si, mv, sc, t - beat * BL, Object.assign({}, info, { style: b.style, present: b.present, emo: b.emo }), BL, beat);
@@ -758,7 +806,8 @@
       if (info.tod === 'storm' && ((t * .43 + si * .21) % 1) < .07) { hemi.intensity = 2.6; SC.background = new THREE.Color(0xdde6ff); }
       rd.render(SC, CAM);
       ctx.drawImage(rd.domElement, 0, 0, w, h);
-      { const dlx = getDialogue(mi, si, mv, sc), BL = dlx.beatLen || 4, bi = Math.min(2, Math.floor(t / BL)), pos = t - bi * BL;
+      if (flashA > 0) { ctx.fillStyle = 'rgba(255,255,255,' + (flashA * .5) + ')'; ctx.fillRect(0, 0, w, h); }
+      { const dlx = getDialogue(mi, si, mv, sc); let BL, bi, pos; if (dlx.beatStarts) { bi = 0; for (let k = 0; k < dlx.beatStarts.length; k++) if (t >= dlx.beatStarts[k]) bi = k; BL = dlx.beatEnds[bi] - dlx.beatStarts[bi]; pos = t - dlx.beatStarts[bi]; } else { BL = dlx.beatLen || 4; bi = Math.min(2, Math.floor(t / BL)); pos = t - bi * BL; }
         let fade = bi === 0 ? Math.max(0, 1 - t / 0.45) : Math.max(0, 1 - pos / 0.22); if (pos > BL - 0.18) fade = Math.max(fade, (pos - (BL - 0.18)) / 0.18);
         if (fade > 0) { ctx.fillStyle = 'rgba(0,0,0,' + Math.min(1, fade) + ')'; ctx.fillRect(0, 0, w, h); } }
       { const nEnd = 0.4 + wc(sc.text) / 2.6 + (si === 0 ? (wc(mv.title) + 7) / 2.6 + 1.0 : 0) + 0.3;
@@ -867,6 +916,32 @@
   }
   // Natural spoken lines that fit what is happening in the scene (never the narration read back). Scenes that are only
   // scene-setting or lore are left to the narrator, so nobody says anything that does not fit.
+  // ---------- scripted movies: the scene itself says where it is, when, what is there and what everybody says ----------
+  function scriptInfo(mi, si, mv, sc) {
+    const S = sc.script, who = [];
+    S.lines.forEach(l => { if (l[0] !== 'N' && who.indexOf(l[0]) < 0) who.push(l[0]); });
+    const [ka, kb, kc] = mainKinds(mi, mv), tod = S.tod || 'day', kind = S.place || 'city';
+    return { text: sc.text || '', style: (S.lines[0] && S.lines[0][2]) || 'talk', present: ['A', 'B', 'C'].filter(w => who.indexOf(w) >= 0 || w !== 'C'), extraN: S.crowd || 0, extraKind: S.crowdKind || ka,
+      kinds: { A: ka, B: kb, C: kc }, prop: S.prop || null, kind, dark: tod === 'night' || tod === 'storm', comedy: !!mv.comedy, surprise: false, tod, weather: S.weather || weatherOf('', kind, tod), script: true };
+  }
+  function listenerEmo(e) { return ({ angry: 'scared', scared: 'worried', joy: 'joy', excited: 'happy', sad: 'worried', surprised: 'surprised', shocked: 'surprised', determined: 'determined', curious: 'curious', worried: 'worried', happy: 'happy', serious: 'serious', warm: 'happy', relieved: 'happy' })[e] || 'neutral'; }
+  function scriptDialogue(mi, si, mv, sc, key) {
+    const S = sc.script, res = []; res.beats = []; res.beatStarts = []; res.beatEnds = []; dlgCache[key] = res;
+    const roles = castRoles(mi, mv), nameOf = { A: roles[0].role, B: roles[1].role, C: roles[2].role, N: 'NARRATOR \u2022 ' + narratorPersona(mi, mv) };
+    let tcur = 0.4 + wc(sc.text) / 2.6 + 0.9 + (si === 0 ? (wc(mv.title) + 7) / 2.6 + 1.0 : 0);
+    const lines = S.lines.map(l => { const o = { who: l[0], emo: l[1], act: l[2], text: l[3], role: nameOf[l[0]], start: tcur }; o.end = o.start + wc(o.text) / 2.4 + 0.5; tcur = o.end + 1.5; res.push(o); return o; });
+    for (let i = 0; i < lines.length; i += 2) {
+      const grp = lines.slice(i, i + 2), first = grp[0], who = {};
+      grp.forEach(l => { if (l.who !== 'N') who[l.who] = l; });
+      const present = ['A', 'B'].concat(who.C ? ['C'] : []);
+      const emo = present.map(w => { if (who[w]) return who[w].emo; const sp = grp.find(l => l.who !== 'N' && l.who !== w); return sp ? listenerEmo(sp.emo) : 'neutral'; });
+      res.beats.push({ style: first.act || 'talk', present, emo });
+      res.beatStarts.push(i === 0 ? 0 : Math.max(0.5, first.start - 0.6));
+    }
+    for (let k = 0; k < res.beatStarts.length; k++) res.beatEnds.push(k + 1 < res.beatStarts.length ? res.beatStarts[k + 1] : 0);
+    res.total = Math.max(60, tcur + 0.8); res.beatEnds[res.beatEnds.length - 1] = res.total;
+    return res;
+  }
   // Every caption is one story moment of about 11 seconds, shown as three shots (wide, talking, reaction) with fades between them.
   // The two characters talk to each other by name about what is happening, where they are and what is in the scene.
   const BEATS = 3;
@@ -904,6 +979,7 @@
   const addr = (n) => String(n || '').replace(/^The\s+/i, '');
   function getDialogue(mi, si, mv, sc) {
     const key = mi + '_' + si; if (dlgCache[key]) return dlgCache[key];
+    if (sc.script) return scriptDialogue(mi, si, mv, sc, key);
     const info = getInfo(mi, si, mv, sc), roles = castRoles(mi, mv), nameOf = { A: roles[0].role, B: roles[1].role, C: roles[2].role };
     const text = String(sc.text || ''), h = hash(mi, si, 21), res = [];
     res.beats = []; res.beatLen = 4; res.total = 12; dlgCache[key] = res;
@@ -947,9 +1023,10 @@
     getDialogue(mi, si, mv, sc).forEach(l => {
       speechTimers.push(setTimeout(() => {
         try {
-          const u = new SpeechSynthesisUtterance(cleanForSpeech(l.text)), cv = charVoice(l.who, narratorVoice);
+          const u = new SpeechSynthesisUtterance(cleanForSpeech(l.text)), cv = l.who === 'N' ? { voice: narratorVoice, rate: .95, pitch: 1 } : charVoice(l.who, narratorVoice);
           if (cv.voice) { u.voice = cv.voice; u.lang = cv.voice.lang; }
           u.rate = clamp(cv.rate || 1, .7, 1.3); u.pitch = clamp(cv.pitch || 1, .5, 1.8); u.volume = 1;
+          if (l.emo) { const EV = { angry: [1.08, -.05], scared: [1.15, .2], sad: [.85, -.1], joy: [1.1, .1], excited: [1.1, .1], worried: [1.05, .05] }[l.emo]; if (EV) { u.rate = clamp(u.rate * EV[0], .6, 1.4); u.pitch = clamp(u.pitch + EV[1], .4, 1.9); } }
           if (/!/.test(l.text)) { u.rate *= 1.05; u.pitch = clamp(u.pitch + .05, .5, 1.8); }
           window.speechSynthesis.speak(u);
         } catch (e) { }
@@ -958,7 +1035,7 @@
   }
   // the characters' lines are shown as movie-style captions at the bottom of the screen, above the narrator's caption
   function drawDialogueCaption(ctx, w, h, line) {
-    const fs = Math.max(16, Math.round(w / 40)), col = { A: '#ffd54f', B: '#4fc3f7', C: '#ff8ab3' }[line.who] || '#ffffff';
+    const fs = Math.max(16, Math.round(w / 40)), col = { A: '#ffd54f', B: '#4fc3f7', C: '#ff8ab3', N: '#b9f6ca' }[line.who] || '#ffffff';
     ctx.save(); ctx.textAlign = 'center'; ctx.lineJoin = 'round';
     const name = String(line.role || '').toUpperCase() + ': ', quote = '\u201C' + line.text + '\u201D';
     ctx.font = `900 ${fs}px Arial`; const nw = ctx.measureText(name).width; ctx.font = `bold ${fs}px Arial`;
