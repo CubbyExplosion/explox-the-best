@@ -700,7 +700,8 @@
   function limbs(p, a, b, c, d) { p.armL.rotation.x = a; p.armR.rotation.x = b; p.legL.rotation.x = c; p.legR.rotation.x = d; }
   function pose(p) { p.g.rotation.set(0, p.g.rotation.y, 0); p.body.rotation.set(0, 0, 0); p.body.position.set(0, 0, 0); p.head.rotation.set(0, 0, 0); p.head.scale.setScalar(p.costume === 'alien' ? 1.25 : 1); limbs(p, 0, 0, 0, 0); p.armL.rotation.z = 0; p.armR.rotation.z = 0; p.mouth.scale.set(1, 1, 1); p.g.position.y = 0; }
   function walk(p, t, sp, big) { const s = Math.sin(t * sp) * (big || .8); limbs(p, -s, s, s, -s); p.body.position.y = Math.abs(Math.sin(t * sp)) * .12; }
-  let beatOffset = 0, lastSceneKey = '', flashA = 0, zoomPunch = 0, titleKey = -1, fightKey = '';
+  let beatOffset = 0, lastSceneKey = '', flashA = 0, zoomPunch = 0, titleKey = -1, fightKey = '', fightHud = null, fightCam = null; const fightT0 = {}, fightLast = {};
+  const auraMat = { A: new THREE.MeshBasicMaterial({ color: 0xffd54a, transparent: true, opacity: .33 }), B: new THREE.MeshBasicMaterial({ color: 0x40c4ff, transparent: true, opacity: .33 }) }, dustMat = new THREE.MeshBasicMaterial({ color: 0xc8b28a });
   const fxTorus = new THREE.TorusGeometry(1, .08, 6, 28), fxStar = new THREE.OctahedronGeometry(.22), fxMatW = new THREE.MeshBasicMaterial({ color: 0xffffff }), fxMatY = new THREE.MeshBasicMaterial({ color: 0xffe033 });
   function words2d(t0, text, i) { words.push({ t0: t0 + beatOffset, text, i }); }
   let shown = [], curActors = [], curInfoNow = null;
@@ -959,7 +960,8 @@
     drum() { tn(150, 'sine', .22, .15, 0, 55); nz(.07, .05, 0, 'highpass', 3000); }, creak() { tn(190, 'sawtooth', .04, .35, 0, 130); }, whump() { nz(.16, .16, 0, 'lowpass', 420); }, toss() { tn(500, 'sine', .06, .06, 0, 850); },
     hammer() { tn(900, 'square', .09, .04); nz(.1, .04, 0, 'bandpass', 1500); }, squeak() { tn(1400, 'sine', .07, .13, 0, 1950); }, ding() { tn(1568, 'sine', .1, .35); tn(2349, 'sine', .06, .3, .05); },
     grunt() { tn(125, 'sawtooth', .09, .16, 0, 80); }, swish() { nz(.06, .22, 0, 'bandpass', 900, .5, 1800); }, bird() { tn(2600, 'sine', .05, .09, 0, 3500); tn(3000, 'sine', .04, .08, .11, 2400); },
-    cheer2() { for (let i = 0; i < 5; i++) tn(300 + Math.random() * 300, 'sawtooth', .03, .25, Math.random() * .2, 500); }, clap2() { for (let i = 0; i < 3; i++) nz(.1, .04, i * .09, 'bandpass', 1800, 1); }, boom2() { tn(60, 'sawtooth', .3, .5, 0, 30); nz(.25, .45, 0, 'lowpass', 700, .5, 120); },
+    cheer2() { for (let i = 0; i < 5; i++) tn(300 + Math.random() * 300, 'sawtooth', .03, .25, Math.random() * .2, 500); }, clap2() { for (let i = 0; i < 3; i++) nz(.1, .04, i * .09, 'bandpass', 1800, 1); }, boom2() { tn(60, 'sawtooth', .3, .5, 0, 30); nz(.25, .45, 0, 'lowpass', 700, .5, 120); }, bam() { tn(160, 'square', .2, .07); tn(80, 'sine', .18, .12, .04); nz(.12, .06, 0, 'bandpass', 1800, 1); },
+    charge() { tn(120, 'sawtooth', .09, 1.1, 0, 1100); tn(240, 'square', .05, 1.1, 0, 1600); }, smash() { tn(55, 'sawtooth', .35, .7, 0, 25); nz(.3, .6, 0, 'lowpass', 900, .5, 120); nz(.15, .15, 0, 'highpass', 3000); tn(1800, 'sine', .08, .3, .05, 300); },
     rocketLaunch() { nz(.2, 1.0, 0, 'lowpass', 400, .5, 1800); tn(70, 'sawtooth', .15, 1, 0, 200); }, yum() { tn(500, 'sine', .09, .15, 0, 700); tn(700, 'sine', .08, .2, .12, 900); }, doorbell() { tn(660, 'sine', .12, .35); tn(523, 'sine', .12, .5, .35); },
     rustle() { nz(.07, .5, 0, 'bandpass', 3000, .8); }, warp() { tn(150, 'sine', .12, .7, 0, 1400); tn(300, 'triangle', .08, .7, 0, 2000); }, chime() { tn(988, 'sine', .08, .7); tn(1319, 'sine', .06, .7, .1); },
     fanfare() { [523, 659, 784, 1047].forEach((f, i) => tn(f, 'square', .06, i === 3 ? .5 : .16, i * .12)); }, pageflip() { nz(.08, .12, 0, 'highpass', 4000); nz(.06, .1, .1, 'bandpass', 3000); }, flame() { nz(.1, .5, 0, 'bandpass', 900, .7, 2500); },
@@ -1014,7 +1016,7 @@
   function csStop() { try { if (csState.amb) csState.amb.stop(); csState.amb = null; csState.ambKey = ''; csEngine(false); csState.style = ''; csState.once = {}; } catch (e) { } }
   // ---------- the director: puts the right characters in the right place doing what the caption says ----------
   function directBeat(mi, si, mv, sc, t, info, dur, camSeed) {
-    const u = clamp(t / dur, 0, 1); flashA = 0; zoomPunch = 0;
+    const u = clamp(t / dur, 0, 1); flashA = 0; zoomPunch = 0; fightHud = null; fightCam = null;
     shown.forEach(p => { p.g.visible = false; }); shown = []; clearFx(); words = [];
     Object.keys(propCache).forEach(k => { propCache[k].visible = false; });
     const act = actorsFor(mi, mv, info), ex = info.extraN ? extrasFor(mi, info, info.extraN) : [];
@@ -1051,56 +1053,94 @@
       if (info.comedy && a0) { const sT = dur * .55; if (t > sT && t < sT + 1.1) { const q = (t - sT) / 1.1; a0.body.rotation.x = -q * 6.283; a0.body.position.y = Math.sin(q * 3.14) * 2.2; limbs(a0, 2.5, 2.5, 1, -1); words2d(sT, 'WHOA!', 2); } }
       look.copy(a0.g.position).setY(2.4); spread = 9;
     } else if (style === 'fight') {
-      // cool cartoon martial arts: punches, kicks, flying kicks and spins, with dodges and flips, hit sparks, shockwaves and speed lines
+      // 100x fights: a 3-hit combo, a charged SUPER MOVE (leap-slam, energy blast or tornado), slow-motion impacts, launches, shockwaves, dust, cracks, health bars and a combo counter
       const A = a0, B = a1 || ex[0]; if (B && !a1) B.g.visible = true;
-      const CY = 1.8, cyc = Math.floor(t / CY), tt = t - cyc * CY, atkA = cyc % 2 === 0;
-      const atk = atkA ? A : B, def = atkA ? B : A, dir = atkA ? 1 : -1;
-      const prof = profileOf(mi, mv, atkA ? 0 : 1), sig = hash(cyc, si + 2, 11) % 10 < 6, mvn = sig ? prof.mtype : ['punch', 'kick', 'jumpkick', 'spin', 'punch', 'kick'][hash(cyc, mi + si, 3) % 6], dodge = hash(cyc, si + 5, 7) % 10 < 3;
-      if (sig && tt >= .3 && tt < 1.1) words2d(cyc * CY + .3, prof.move + '!', 6 + cyc % 2);
+      const ST = t + beatOffset, fk = mi + '_' + si; if (fightT0[fk] === undefined || ST < (fightLast[fk] || 0) - .5) fightT0[fk] = ST; fightLast[fk] = ST;
+      const f0 = fightT0[fk], FT = ST - f0, CY = 3.8, cyc = Math.floor(FT / CY), tr = FT - cyc * CY, tw = tr < 1.95 ? tr : tr < 2.2 ? 1.95 + (tr - 1.95) * .2 : tr - .2;
+      const W = (rel, text, i) => words2d(f0 + rel - beatOffset, text, i), hsh = hash(mi, si, 3), ROLEA = [1, 0, 1, 1, 0, 0, 1, 0];
+      const isA = (c) => ROLEA[(c + hsh) % 8] === 1, atkA = isA(cyc);
+      const atk = atkA ? A : B, def = atkA ? B : A, dir = atkA ? 1 : -1, prof = profileOf(mi, mv, atkA ? 0 : 1), fin = hash(cyc, si + mi, 13) % 3;
       const ease = (x) => x * x * (3 - 2 * x), cl = (x) => clamp(x, 0, 1), lerp = (a, b, k) => a + (b - a) * k;
-      const IMP = .55, wind = cl(tt / .35), strike = cl((tt - .35) / .2), rec = cl((tt - IMP) / .5);
+      const homeA = -3.1, homeB = 3.1, home = (pp) => pp === A ? homeA : homeB;
+      const HIT = [.6, .9, 1.2], hts = [0, 1, 2].map(q => ['punch', 'kick', 'punch', 'kick', 'jumpkick', 'spin'][hash(cyc * 3 + q, mi + si, 9) % 6]);
+      const landed = HIT.filter(h2 => tw >= h2).length, push = HIT.reduce((a2, h2) => a2 + ease(cl((tw - h2) / .14)) * .3, 0);
+      // positions
+      const dx0 = home(def) + dir * push, dashK = ease(cl(tw / .5));
       face(A, Math.PI / 2); face(B, -Math.PI / 2);
-      [A, B].forEach((pp, k) => {   // fighting stance: knees bent, guard up, shuffling feet
-        pp.g.position.set((pp === A ? -2.4 : 2.4) + Math.sin(t * 2 + k) * .3, 0, 0); pp.body.position.y = -.1 + Math.sin(t * 6 + k) * .05;
-        limbs(pp, -1.0, -1.0 + Math.sin(t * 7 + k) * .15, Math.sin(t * 5 + k) * .3, -Math.sin(t * 5 + k) * .3);
+      [A, B].forEach((pp, k) => { pp.g.position.set(home(pp) + Math.sin(t * 2 + k) * .15, 0, 0); pp.body.position.y = -.1 + Math.sin(t * 6 + k) * .05; limbs(pp, -1.0, -1.0 + Math.sin(t * 7 + k) * .15, Math.sin(t * 5 + k) * .3, -Math.sin(t * 5 + k) * .3); });
+      def.g.position.x = dx0; atk.g.position.x = lerp(home(atk), dx0 - dir * 1.7, dashK);
+      const IMPT = 2.0, q2 = cl((tw - IMPT) / .9), fl2 = tw >= IMPT && tw < IMPT + .9, afterIm = tw >= IMPT;
+      // dash: a speed blur
+      if (tw < .5 && tw > .05) for (let k = 0; k < 6; k++) wMesh(2.2, .05, .05, 0xffffff, atk.g.position.x - dir * (1 + k * .3), 1.3 + k * .4, (k - 3) * .3);
+      // the 3-hit combo
+      HIT.forEach((h2, i) => {
+        const u = tw - h2; if (u < -.2 || u > .5 || tw >= 1.35) return; const ph = cl((u + .15) / .3), sw = Math.sin(Math.PI * ph), tp = hts[i];
+        if (u > -.2 && u < .3) {
+          if (tp === 'punch') { (i % 2 ? atk.armL : atk.armR).rotation.x = lerp(1.3, -1.9, ease(ph)); atk.body.rotation.y = dir * (i % 2 ? .5 : -.5) * sw; }
+          else if (tp === 'kick') { atk.legR.rotation.x = lerp(.5, -1.7, ease(ph)); atk.body.rotation.x = -.3 * sw; atk.armL.rotation.x = -.8; atk.armR.rotation.x = .9; }
+          else if (tp === 'jumpkick') { atk.g.position.y = sw * 1.5; atk.legL.rotation.x = -1.2; atk.legR.rotation.x = -.9; atk.body.rotation.x = -.5; atk.armL.rotation.x = 1.3; atk.armR.rotation.x = 1.1; }
+          else { atk.body.rotation.y = Math.PI * 2 * ease(ph); atk.armL.rotation.z = -1.4; atk.armR.rotation.z = 1.4; atk.legR.rotation.x = -.8; }
+        }
+        if (u >= 0 && u < .45) {   // the hit lands: the other one snaps back, sparks, a word, a thud
+          const a2 = u, ix2 = def.g.position.x - dir * .6, r2 = cl(u / .35);
+          def.head.rotation.x = -.7 * Math.sin(Math.PI * r2); def.body.rotation.x = -.35 * Math.sin(Math.PI * r2); def.mouth.scale.set(.6, 3, 1);
+          const ring = new THREE.Mesh(fxTorus, fxMatW); ring.userData.shared = true; ring.scale.setScalar(Math.max(.01, .4 + a2 * 6)); ring.position.set(ix2, 2.4, .2); ring.lookAt(CAM.position); fxGroup.add(ring);
+          for (let k = 0; k < 7; k++) { const aa = k * Math.PI * 2 / 7, dd = a2 * 8, st = new THREE.Mesh(fxStar, fxMatY); st.userData.shared = true; st.position.set(ix2 + Math.cos(aa) * dd, 2.4 + Math.sin(aa) * dd, .3 * Math.sin(k)); st.scale.setScalar(Math.max(.01, 1.1 - a2 * 2.2)); fxGroup.add(st); }
+          W(cyc * CY + h2, ['POW!', 'WHAM!', 'BAM!', 'BIFF!', 'ZAP!', 'WHACK!'][hash(cyc * 3 + i, si, 9) % 6], 3 + i); if (u < .08) { flashA = Math.max(flashA, .35); zoomPunch = Math.max(zoomPunch, .6); shake = Math.max(shake, .45); }
+          if (playing(mi)) csOnce(mi + '_' + si + '_' + cyc + '_hit' + i, 'bam');
+        }
       });
-      const lunge = ease(strike) * (mvn === 'jumpkick' ? 2.3 : 1.5) * (1 - ease(rec));
-      atk.g.position.x += dir * lunge;
-      if (mvn === 'punch') {
-        atk.armR.rotation.x = tt < .35 ? lerp(-1.0, 1.3, ease(wind)) : tt < IMP ? lerp(1.3, -1.8, ease(strike)) : lerp(-1.8, -1.0, ease(rec));
-        atk.body.rotation.y = (tt < .35 ? lerp(0, -.4, wind) : tt < IMP ? lerp(-.4, .5, strike) : lerp(.5, 0, rec)); atk.body.rotation.x = .2 * ease(strike) * (1 - rec);
-      } else if (mvn === 'kick') {
-        atk.legR.rotation.x = tt < .35 ? lerp(0, .6, ease(wind)) : tt < IMP ? lerp(.6, -1.6, ease(strike)) : lerp(-1.6, 0, ease(rec));
-        atk.body.rotation.x = -.3 * ease(strike) * (1 - rec); atk.armL.rotation.x = -.8; atk.armR.rotation.x = .9;
-      } else if (mvn === 'jumpkick') {
-        const ja = cl((tt - .2) / .6); atk.g.position.y = Math.sin(Math.PI * ja) * 2.4;
-        if (ja > 0 && ja < 1) { atk.legL.rotation.x = -1.2; atk.legR.rotation.x = -.9; atk.body.rotation.x = -.5; atk.armL.rotation.x = 1.3; atk.armR.rotation.x = 1.1; }
-      } else {
-        const sp = cl((tt - .25) / .45); atk.body.rotation.y = Math.PI * 2 * ease(sp);
-        if (sp > 0 && sp < 1) { atk.armL.rotation.z = -1.4; atk.armR.rotation.z = 1.4; atk.armL.rotation.x = 0; atk.armR.rotation.x = 0; atk.legR.rotation.x = -.8; }
+      // charge-up: aura, rings, 'SUPER MOVE'
+      const hudSuper = tw > 1.4 && tw < 2.0;
+      if (tw > 1.35 && tw < IMPT + .05) {
+        const cK = cl((tw - 1.35) / .6), aura = new THREE.Mesh(ballGeo, auraMat[atkA ? 'A' : 'B']); aura.userData.shared = true; aura.scale.setScalar(1.7 + cK * 1.6 + Math.sin(t * 30) * .2); aura.position.set(atk.g.position.x, 2.3, 0); fxGroup.add(aura);
+        for (let k = 0; k < 3; k++) { const ag = ((tw * 1.8) + k / 3) % 1, rg = new THREE.Mesh(fxTorus, fxMatY); rg.userData.shared = true; rg.rotation.x = -Math.PI / 2; rg.scale.setScalar(Math.max(.01, 3.2 * (1 - ag))); rg.position.set(atk.g.position.x, .1 + ag * .3, 0); fxGroup.add(rg); }
+        if (fin !== 1 || tw < 1.75) { atk.body.rotation.x = .35; atk.armL.rotation.x = atk.armR.rotation.x = 1.0; atk.g.position.y = fin === 0 ? 0 : 0; }
+        def.armL.rotation.x = def.armR.rotation.x = 2.2; def.armL.rotation.z = .6; def.armR.rotation.z = -.6; def.mouth.scale.set(1, 2.2, 1); shake = Math.max(shake, .12 + cK * .2);
+        if (playing(mi)) csOnce(mi + '_' + si + '_' + cyc + '_chg', 'charge');
       }
-      if (dodge) {   // the other one backflips out of the way and the attacker whiffs
-        const ds = cl((tt - .3) / .55); def.g.position.x += dir * 1.3 * ease(ds) * (1 - ease(cl((tt - .9) / .6))); def.g.position.y = Math.sin(Math.PI * ds) * 2.2; def.body.rotation.x = -Math.PI * 2 * ease(ds) * dir;
-        if (ds > 0 && ds < 1) { def.armL.rotation.z = -1.1; def.armR.rotation.z = 1.1; }
-        if (tt > IMP) atk.body.rotation.x += .45 * Math.sin(Math.PI * cl((tt - IMP) / .5));
-      } else if (tt > IMP) {   // a hit: head snaps back, knocked away, tumbling after the big moves
-        const hr = cl((tt - IMP) / .5), kb = ease(cl((tt - IMP) / .3)) * 1.6 - ease(cl((tt - IMP - .5) / .6)) * 1.6;
-        def.g.position.x += dir * kb; def.head.rotation.x = -.7 * Math.sin(Math.PI * hr); def.body.rotation.x = -.4 * Math.sin(Math.PI * hr); def.mouth.scale.set(.6, 3, 1);
-        if (mvn !== 'punch') { def.body.rotation.z = Math.PI * 2 * ease(cl((tt - IMP) / .55)) * dir; def.g.position.y += Math.sin(Math.PI * cl((tt - IMP) / .5)) * 1.0; }
+      // the SUPER MOVE (3 kinds)
+      if (fin === 0 && tw >= 1.5 && tw < IMPT + .3) { const q = cl((tw - 1.5) / .5); atk.g.position.y = Math.sin(Math.PI * q) * 4.3; atk.g.position.x = lerp(dx0 - dir * 1.7, dx0 - dir * 1.1, q); limbs(atk, 2.8, 2.8, -.4, .4); atk.body.rotation.x = q > .5 ? .6 : -.2; }
+      if (fin === 1 && tw >= 1.4 && tw < IMPT + .02) {
+        const ball = new THREE.Mesh(ballGeo, auraMat[atkA ? 'A' : 'B']); ball.userData.shared = true; const rel = cl((tw - 1.8) / .2);
+        if (tw < 1.8) { ball.scale.setScalar(.6 + (tw - 1.4) * 4.5); ball.position.set(atk.g.position.x + dir * 1.2, 2.5, .3); atk.armL.rotation.x = atk.armR.rotation.x = -1.4; }
+        else { ball.scale.setScalar(2.4); ball.position.set(lerp(atk.g.position.x + dir * 1.2, def.g.position.x, rel), 2.5, .3); atk.armL.rotation.x = atk.armR.rotation.x = -1.7; for (let k = 1; k < 5; k++) { const tr2 = new THREE.Mesh(ballGeo, auraMat[atkA ? 'A' : 'B']); tr2.userData.shared = true; tr2.scale.setScalar(2.2 - k * .4); tr2.position.set(ball.position.x - dir * k * .9, 2.5, .3); fxGroup.add(tr2); } }
+        fxGroup.add(ball);
       }
-      // effects
-      const age = tt - IMP, ix = (A.g.position.x + B.g.position.x) / 2, imx = atk.g.position.x + dir * .9;
-      if (tt > .3 && tt < .58) for (let k = 0; k < 5; k++) { const l = wMesh(1.8, .05, .05, 0xffffff, atk.g.position.x - dir * (.9 + k * .3), 1.6 + k * .45, (k - 2) * .35); }
-      if (age >= 0 && age < .55 && !dodge) {
-        if (age < .08 && fightKey !== cyc + '_' + si + '_' + mi && playing(mi)) { fightKey = cyc + '_' + si + '_' + mi; try { (mvn === 'punch' ? sfx.chop : sfx.clang)(); } catch (e) { } }
-        const ring = new THREE.Mesh(fxTorus, fxMatW); ring.userData.shared = true; const rs = age < .25 ? .4 + age * 8 : (.4 + 2) * (1 - (age - .25) / .3); ring.scale.setScalar(Math.max(.01, rs)); ring.position.set(imx, 2.4, .2); ring.lookAt(CAM.position); fxGroup.add(ring);
-        if (age < .4) for (let k = 0; k < 9; k++) { const a2 = k * Math.PI * 2 / 9, d = age * 7, st = new THREE.Mesh(fxStar, fxMatY); st.userData.shared = true; st.position.set(imx + Math.cos(a2) * d, 2.4 + Math.sin(a2) * d, .3 * Math.sin(k)); st.scale.setScalar(1.2 - age * 2); fxGroup.add(st); }
-        words2d(cyc * CY + IMP, ['POW!', 'WHAM!', 'BAM!', 'BIFF!', 'ZAP!', 'WHACK!', 'KABOOM!'][hash(cyc, si, 9) % 7], 3 + cyc % 3);
-        if (age < .1) flashA = (1 - age / .1) * .9; if (age < .25) zoomPunch = 1 - age / .25; if (age < .3) shake = .55 * (1 - age / .3);
-      } else if (age >= 0 && age < .5 && dodge) words2d(cyc * CY + IMP, 'WHOOSH!', 1 + cyc % 3);
+      if (fin === 2 && tw >= 1.5 && tw < IMPT + .3) { const q = cl((tw - 1.5) / .5); atk.body.rotation.y = tw * 24; atk.g.position.x = lerp(dx0 - dir * 1.7, dx0 - dir * 1.0, q); atk.armL.rotation.z = -1.5; atk.armR.rotation.z = 1.5; atk.armL.rotation.x = atk.armR.rotation.x = 0; for (let k = 0; k < 5; k++) { const rg = new THREE.Mesh(fxTorus, fxMatW); rg.userData.shared = true; rg.rotation.x = -Math.PI / 2; rg.scale.setScalar(.8 + k * .5); rg.position.set(atk.g.position.x, .4 + k * .85, 0); fxGroup.add(rg); } }
+      // the impact: freeze-frame slow motion, a giant shockwave, cracks, and the other one flies
+      if (afterIm) {
+        const age = tw - IMPT;
+        def.g.position.x = dx0 + dir * q2 * 2.2; def.g.position.y = Math.sin(Math.PI * q2) * (fin === 2 ? 3.6 : 4.8); def.g.rotation.z = dir * Math.PI * 2 * (fin === 2 ? 2.5 : 1.3) * q2; def.armL.rotation.z = -1.4; def.armR.rotation.z = 1.4; def.mouth.scale.set(1, 3.2, 1);
+        if (tw < IMPT + .9) { atk.g.position.y = 0; atk.body.rotation.x = 0; }
+        if (age < .7) {
+          for (let k = 0; k < 2; k++) { const ring = new THREE.Mesh(fxTorus, k ? fxMatY : fxMatW); ring.userData.shared = true; ring.scale.setScalar(Math.max(.01, .5 + age * (k ? 11 : 17))); ring.position.set(dx0 - dir * .3, 2.4, .2); ring.lookAt(CAM.position); fxGroup.add(ring); }
+          if (age < .5) for (let k = 0; k < 16; k++) { const aa = k * Math.PI * 2 / 16, dd = age * 16, st = new THREE.Mesh(fxStar, fxMatY); st.userData.shared = true; st.position.set(dx0 + Math.cos(aa) * dd, 2.4 + Math.sin(aa) * dd, .3 * Math.sin(k)); st.scale.setScalar(Math.max(.01, 1.6 - age * 3)); fxGroup.add(st); }
+          if (age < .15) { flashA = Math.max(flashA, (1 - age / .15)); } zoomPunch = Math.max(zoomPunch, 1 - age / .4); shake = Math.max(shake, 1.0 * (1 - age / .5));
+          if (age < .6) { W(cyc * CY + 2.0, prof.move + '!', 7); W(cyc * CY + 2.1, 'K.O. HIT!', 2 + cyc % 3); }
+          if (playing(mi)) csOnce(mi + '_' + si + '_' + cyc + '_smash', 'smash');
+        }
+        if (fin === 0 || fin === 2) { const ck2 = Math.min(1, age * 8); for (let k = 0; k < 9; k++) { const cr = wMesh(.14, .05, 3.2 * ck2, 0x1a1a1a, dx0 - dir * .3 + Math.cos(k * .7) * 1.6 * ck2, .03, Math.sin(k * .7) * 1.6 * ck2); cr.rotation.y = k * .7 + Math.PI / 2; } }
+        // landing: dust and a thud
+        const la = tw - (IMPT + .9); if (la > 0 && la < .6) { const dr = new THREE.Mesh(fxTorus, dustMat); dr.userData.shared = true; dr.rotation.x = -Math.PI / 2; dr.scale.setScalar(Math.max(.01, .5 + la * 9)); dr.position.set(def.g.position.x, .15, 0); fxGroup.add(dr); shake = Math.max(shake, .6 * (1 - la / .6)); W(cyc * CY + 3.0, ['CRASH!', 'THUD!', 'WHUMP!'][cyc % 3], 3); if (playing(mi)) csOnce(mi + '_' + si + '_' + cyc + '_land', 'thump'); }
+        if (tw > IMPT + .9) {   // dizzy on the ground, then they get up while the winner poses
+          const lie = 1 - ease(cl((tw - 3.15) / .5)); def.g.rotation.z = dir * 1.4 * lie; def.g.position.y = .3 * lie; for (let k = 0; k < 3; k++) spr('\u{1F4AB}', def.g.position.x + Math.cos(t * 5 + k * 2.1) * .9, 4 + Math.sin(t * 3 + k) * .2, Math.sin(t * 5 + k * 2.1) * .5, .9 * lie + .01);
+          atk.armL.rotation.x = atk.armR.rotation.x = 2.7; atk.mouth.scale.set(1.3, 2.4, 1); atk.g.position.y = Math.abs(Math.sin(t * 8)) * .35;
+        }
+        if (tw > 3.3) { const hk = ease(cl((tw - 3.3) / .5)); def.g.position.x = lerp(def.g.position.x, home(def), hk); atk.g.position.x = lerp(atk.g.position.x, home(atk), hk); }
+      }
+      // cameras: wide, a low close-up while charging, then pulling back and following the launch
+      let cpos = null, clook = null, ck = 0;
+      if (tw > 1.35 && tw < IMPT) { ck = ease(cl((tw - 1.35) / .2)); cpos = new THREE.Vector3(atk.g.position.x - dir * 1.5, 1.9, 10.5); clook = new THREE.Vector3(atk.g.position.x + dir * 1.2, 2.8, 0); }
+      else if (afterIm && tw < 3.4) { ck = tw > 3.1 ? 1 - (tw - 3.1) / .3 : 1; cpos = new THREE.Vector3(def.g.position.x * .35, 3.8, 15.5); clook = new THREE.Vector3(def.g.position.x * .8, 2.6 + def.g.position.y * .4, 0); }
+      fightCam = cpos ? { pos: cpos, look: clook, k: ck } : null;
+      // health bars and the combo counter
+      const dmg = 3 * 3 + 12; let hpA = 100, hpB = 100; for (let c = 0; c < cyc; c++) { if (isA(c)) hpB -= dmg; else hpA -= dmg; }
+      { const dd = landed * 3 + (afterIm ? 12 : 0); if (atkA) hpB -= dd; else hpA -= dd; }
+      fightHud = { a: Math.max(10, hpA), b: Math.max(10, hpB), nameA: String(castRoles(mi, mv)[0].role).toUpperCase(), nameB: String(castRoles(mi, mv)[1].role).toUpperCase(), combo: tw < 1.35 ? landed : 0, sup: hudSuper ? prof.move : '' };
       if (a2) { a2.g.position.set(-6.2, 0, 3); face(a2, Math.PI / 3); limbs(a2, 2.5 + Math.sin(t * 8) * .5, 2.5 - Math.sin(t * 8) * .5, 0, 0); a2.g.position.y = Math.abs(Math.sin(t * 6)) * .5; }
-      let n = 0; ex.forEach((p, k) => { if (p === B) return; const left = (k % 2 === 0); p.g.position.set((left ? -1 : 1) * (6 + Math.floor(n / 2) * 2.4), Math.abs(Math.sin(t * 6 + k)) * .5, (left ? 1 : -1) * 3); face(p, left ? Math.PI / 2 : -Math.PI / 2); limbs(p, 2.6 + Math.sin(t * 8 + k) * .5, 2.6 - Math.sin(t * 8 + k) * .5, 0, 0); n++; });
-      look.set(ix, 2.6, 0); spread = 5;
+      let n = 0; ex.forEach((p, k) => { if (p === B) return; const left = (k % 2 === 0); p.g.position.set((left ? -1 : 1) * (6.6 + Math.floor(n / 2) * 2.4), Math.abs(Math.sin(t * 6 + k)) * (afterIm && tw < 3 ? 1.0 : .5), (left ? 1 : -1) * 3); face(p, left ? Math.PI / 2 : -Math.PI / 2); limbs(p, 2.6 + Math.sin(t * 8 + k) * .5, 2.6 - Math.sin(t * 8 + k) * .5, 0, 0); n++; });
+      look.set((A.g.position.x + B.g.position.x) / 2, 2.6, 0); spread = 6;
     } else if (style === 'party') {
       const all = act.concat(ex); all.forEach((p, i) => { const a = i * 6.283 / all.length + t * .5; p.g.position.set(Math.cos(a) * 4.4, Math.abs(Math.sin(t * 5 + i)) * 1.1, Math.sin(a) * 3.6); face(p, -a + Math.PI); limbs(p, 2.8 + Math.sin(t * 9 + i) * .6, 2.8 - Math.sin(t * 9 + i) * .6, Math.sin(t * 9 + i) * .6, -Math.sin(t * 9 + i) * .6); p.body.rotation.y = Math.sin(t * 4 + i) * .5; p.mouth.scale.set(1.2, 2.2, 1); });
       confetti(t, 90); look.set(0, 2.2, 0); spread = 6;
@@ -1177,6 +1217,7 @@
     else if (camStyle === 'dolly') { CAM.position.set(look.x + Math.sin(seed) * 4, 3.2 + u * .8, look.z + D * 1.15 - u * D * .5); }
     else if (camStyle === 'crane') { CAM.position.set(look.x - 6, 1.6 + u * 7, look.z + D * .9 - u * 2); }
     else { CAM.position.set(look.x + 2, 3.4, look.z + D); }
+    if (fightCam) { CAM.position.lerp(fightCam.pos, fightCam.k); look.lerp(fightCam.look, fightCam.k); }
     if (sightCam) {   // over the shoulder of whoever is looking: you see exactly what they see
       const S = sightCam.sp.g.position, P = sightCam.P, dx = P.x - S.x, dz = P.z - S.z, L = Math.hypot(dx, dz) || 1, nx = dx / L, nz = dz / L;
       CAM.position.lerp(new THREE.Vector3(S.x - nx * 6.5 - nz * 5.2, 5.4, S.z - nz * 6.5 + nx * 5.2), sightCam.k); look.lerp(new THREE.Vector3(P.x * .75, 2.4, P.z * .8), sightCam.k);
@@ -1259,6 +1300,19 @@
         ctx.globalAlpha = a; ctx.font = `900 ${Math.round(h * .085)}px Arial Black, Arial`; { const fw = ctx.measureText(wd.text).width; if (fw > w * .8) ctx.font = `900 ${Math.floor(h * .085 * w * .8 / fw)}px Arial Black, Arial`; } ctx.textAlign = 'center'; ctx.lineWidth = h * .014; ctx.strokeStyle = '#220022'; ctx.fillStyle = ['#ffee33', '#ff5588', '#44e0ff', '#7dff6a'][wd.i % 4];
         ctx.strokeText(wd.text, 0, 0); ctx.fillText(wd.text, 0, 0); ctx.restore();
       });
+      if (fightHud) {   // fighting-game health bars, a combo counter and the SUPER MOVE banner
+        const f = fightHud, bw = w * .36, bh = h * .034, y = h * .075, col = (v) => v > 50 ? '#5dff6a' : v > 25 ? '#ffd23f' : '#ff4040';
+        ctx.save(); ctx.font = '900 ' + Math.round(h * .03) + 'px Arial Black, Arial'; ctx.lineJoin = 'round';
+        [[w * .04, f.a, f.nameA, 'left'], [w * .96 - bw, f.b, f.nameB, 'right']].forEach(([x, hp, nm, side]) => {
+          ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(x - 4, y - 4, bw + 8, bh + 8); ctx.fillStyle = '#3a1010'; ctx.fillRect(x, y, bw, bh); ctx.fillStyle = col(hp);
+          const fw = bw * hp / 100; ctx.fillRect(side === 'left' ? x : x + bw - fw, y, fw, bh); ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(side === 'left' ? x : x + bw - fw, y, fw, bh * .35);
+          ctx.textAlign = side; ctx.lineWidth = h * .008; ctx.strokeStyle = '#000'; ctx.fillStyle = '#fff'; const tx = side === 'left' ? x : x + bw; ctx.strokeText(nm, tx, y - h * .012); ctx.fillText(nm, tx, y - h * .012);
+        });
+        ctx.textAlign = 'center'; ctx.font = '900 ' + Math.round(h * .045) + 'px Arial Black, Arial'; ctx.fillStyle = '#ffd23f'; ctx.strokeStyle = '#000'; ctx.lineWidth = h * .01; ctx.strokeText('VS', w / 2, y + bh); ctx.fillText('VS', w / 2, y + bh);
+        if (f.combo >= 2) { ctx.save(); ctx.translate(w * .16, h * .3); ctx.rotate(-.12); ctx.font = '900 ' + Math.round(h * .075) + 'px Arial Black, Arial'; ctx.textAlign = 'center'; ctx.lineWidth = h * .014; ctx.strokeStyle = '#220022'; ctx.fillStyle = '#ffee33'; const tx = f.combo + ' HIT COMBO!'; ctx.strokeText(tx, 0, 0); ctx.fillText(tx, 0, 0); ctx.restore(); }
+        if (f.sup) { ctx.globalAlpha = .75 + .25 * Math.sin(t * 30); ctx.font = '900 ' + Math.round(h * .055) + 'px Arial Black, Arial'; ctx.fillStyle = '#ff4d4d'; ctx.strokeStyle = '#fff'; ctx.lineWidth = h * .008; const tx = 'SUPER MOVE: ' + f.sup; ctx.strokeText(tx, w / 2, h * .2); ctx.fillText(tx, w / 2, h * .2); }
+        ctx.restore();
+      }
       const dl = getDialogue(mi, si, mv, sc).find(l => t >= l.start && t <= l.end);
       if (dl) drawDialogueCaption(ctx, w, h, dl);
       return true;
