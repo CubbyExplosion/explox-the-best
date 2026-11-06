@@ -569,9 +569,20 @@
     if (/fight|battle|attack|punch|kick|strike|clash|duel|defend|brawl|war\b|fist/.test(t)) return 'fight';
     if (/\b(run|runs|running|ran|race|races|racing|chase|chases|chasing|escape|escapes|rush|rushes|flee|flees|fleeing|sprint|sprints|speed|speeds)\b/.test(t)) return 'run';
     if (/\b(launch|launches|launched|fly|flies|flying|flight|soar|soars|wings|take off|takes off|orbit|orbits|warp|cruise|cruising)\b/.test(t)) return 'fly';
+    if (/\b(dance|dances|danced|dancing|disco|twirl|twirls|groove|boogie)\b/.test(t)) return 'dance';
+    if (/high.?five|\b(hug|hugs|hugged|reunite|reunited|reunion|congratulat\w*)\b/.test(t)) return 'highfive';
+    if (/\b(sing|sings|sang|singing|song|songs|concert|singer|karaoke|choir)\b/.test(t)) return 'sing';
     if (/dance|party|celebrat|cheer|victory|win\b|wins\b|festival|hooray|finally|parade|laugh|joke/.test(t)) return 'party';
     if (/sneak|creep|tiptoe|secret|hid\b|hide|hiding|silent|quiet|search|investigat|follow/.test(t)) return 'sneak';
     if (/scream|panic|afraid|scared|terrified|horror|run for|trembl/.test(t)) return 'panic';
+    if (/\b(jump|jumps|jumped|leap|leaps|leapt|hop|hops|vault|vaults|parkour|hurdle|hurdles|bounce|bounces)\b/.test(t)) return 'jump';
+    if (/\b(climb|climbs|climbed|climbing|ladder|ladders|scale|scales|cliff|cliffs|rope|ropes|ascend|ascends)\b/.test(t)) return 'climb';
+    if (/\b(dig|digs|dug|digging|shovel|plant|plants|planted|garden|gardens|bury|buried|treasure|farm|farms|seed|seeds)\b/.test(t)) return 'dig';
+    if (/\b(catch|catches|throw|throws|threw|toss|tosses|ball|balls|soccer|football|basketball|frisbee|play|plays|playing)\b/.test(t)) return 'play';
+    if (/\b(eat|eats|ate|eating|lunch|dinner|breakfast|feast|snack|snacks|taste|tastes|bite|bites|hungry|dessert|picnic|meal|cake|soup)\b/.test(t)) return 'eat';
+    if (/\b(paint|paints|painted|painting|draw|draws|drew|drawing|write|writes|wrote|written|sketch|canvas|artist|mural|read|reads|reading|book|books)\b/.test(t)) return 'write';
+    if (/\b(train|trains|trained|training|exercise|exercises|practice|practices|practiced|workout|stretch|stretches|lift|lifts|lifting|muscle|muscles|gym|strong|stronger|push-ups?)\b/.test(t)) return 'exercise';
+    if (/\b(buy|buys|bought|pay|pays|paid|coin|coins|money|shop|shops|store|sell|sells|sold|trade|trades|price|prices|cash|rich|richest)\b/.test(t)) return 'shop';
     if (/scan|look|watch|spot|notice|stare|gaze|horizon|wonder|realiz|discover|find|found/.test(t)) return 'look';
     if (/build|hammer|raise|rises|construct|work|craft|cook|bake|fix|repair/.test(t)) return 'work';
     if (/walk|march|travel|journey|arrive|head to|heads to|steps|stroll|enter|leav|return|wander/.test(t)) return 'walk';
@@ -682,6 +693,118 @@
   function words2d(t0, text, i) { words.push({ t0: t0 + beatOffset, text, i }); }
   let shown = [], curActors = [], curInfoNow = null;
 
+  // ---------- things to DO: jump, dance, play ball, eat, paint, dig, climb, work out, shop, sing, high-five ----------
+  const ACT_STYLES = ['jump', 'dance', 'play', 'eat', 'write', 'dig', 'climb', 'exercise', 'shop', 'sing', 'highfive'], ACT_SET = new Set(ACT_STYLES);
+  function chatActivity(mi, si, k, info, txt) {   // what are they doing while they talk?
+    const vs = verbStyle(String(txt || '').toLowerCase(), mi, si); if (ACT_SET.has(vs)) return vs;
+    if (info && info.dark) return null;
+    const pool = info && info.comedy ? ['play', 'dance', 'eat', 'jump', 'exercise', 'highfive', 'sing', 'write', 'shop', 'dig'] : ['write', 'exercise', 'play', 'jump', 'dig', 'shop', 'eat', 'climb'];
+    return hash(mi, si + k, 31) % 100 < 70 ? pool[hash(mi, si * 3 + k, 17) % pool.length] : null;
+  }
+  const ballGeo = new THREE.SphereGeometry(.45, 14, 10), ballMat = new THREE.MeshBasicMaterial({ color: 0xff5533 });
+  function spr(em, x, y, z, sz) { const sp = new THREE.Sprite(emojiMat(em)); sp.userData.shared = true; sp.position.set(x, y, z); sp.scale.setScalar(Math.max(.01, sz)); fxGroup.add(sp); return sp; }
+  function notes(t, cx, cz, n) { for (let k = 0; k < n; k++) { const ag = (t * .6 + k / n) % 1; spr(k % 2 ? '\u{1F3B5}' : '\u{1F3B6}', cx + Math.sin(k * 2.3 + t) * 2.8, 3.4 + ag * 3.4, cz + Math.cos(k * 1.7) * 1.2, 1.2 * (1 - ag * .5)); } }
+  function toward(p, x, z) { p.g.rotation.y = Math.atan2(x - p.g.position.x, z - p.g.position.z); }
+  const lrp = (a, b, k) => a + (b - a) * k, eas = (x) => x * x * (3 - 2 * x);
+  function activity(style, act, ex, t, u, look, mi, si) {
+    const all = act.concat(ex), n = all.length, A = act[0], B = act[1] || ex[0], sn = Math.sin; let spread = 5;
+    const crowd = (z, face0) => ex.forEach((p, i) => { p.g.position.set((i - (ex.length - 1) / 2) * 2.4, Math.abs(sn(t * 6 + i)) * .4, z); p.g.rotation.y = face0; limbs(p, 2.7 + sn(t * 8 + i) * .5, 2.7 - sn(t * 8 + i) * .5, 0, 0); });
+    if (style === 'jump') {   // parkour: run up, leap the hurdle, flips for some
+      wMesh(.4, 1.3, 4.4, 0xcc6633, 0, .65, 0); wMesh(.5, .22, 4.6, 0xffffff, 0, 1.4, 0);
+      all.forEach((p, i) => { const ph = (t * .5 + i * .31) % 1, lane = (i - (n - 1) / 2) * 1.5; p.g.position.set(-7 + ph * 14, 0, lane); p.g.rotation.y = Math.PI / 2; walk(p, t * 1.3 + i, 12, 1); p.body.rotation.x = .2;
+        const j = clamp((ph - .4) / .22, 0, 1); if (j > 0 && j < 1) { p.g.position.y = sn(Math.PI * j) * 2.8; limbs(p, 2.7, 2.7, -1.2, -1.2); p.body.rotation.x = i % 2 ? -6.283 * j : .3; p.mouth.scale.set(1.2, 2.2, 1); } });
+      look.set(0, 2.2, 0); return 10;
+    }
+    if (style === 'dance') {   // everybody has their own move: twirl, disco point, or the robot arms
+      all.forEach((p, i) => { const m = i % 3, b = sn(t * 8 + i * .7); p.g.position.set((i - (n - 1) / 2) * 2.4, Math.abs(sn(t * 4 + i)) * .35, (i % 2) * -1.2); p.g.rotation.y = 0;
+        if (m === 0) { p.body.rotation.y = t * 4 + i; limbs(p, 2.8, 2.8, b * .4, -b * .4); }
+        else if (m === 1) { p.armR.rotation.z = -.9; p.armR.rotation.x = Math.floor(t * 2 + i) % 2 ? 2.8 : .3; p.armL.rotation.x = 0; p.legL.rotation.x = b * .5; p.body.rotation.z = b * .12; }
+        else { p.armL.rotation.z = -1.2 * b; p.armR.rotation.z = -1.2 * b; p.armL.rotation.x = p.armR.rotation.x = .5; p.body.rotation.y = b * .5; p.legL.rotation.x = sn(t * 8) * .3; p.legR.rotation.x = -sn(t * 8) * .3; }
+        p.mouth.scale.set(1.1, 1.8, 1); });
+      notes(t, 0, -1, 6); look.set(0, 2.4, 0); return 9;
+    }
+    if (style === 'play') {   // catch the ball: it flies in an arc between the two (or they dribble it)
+      if (B) { const ph = (t * .7) % 1, fl = Math.floor(t * .7) % 2, Th = fl ? B : A, Ca = fl ? A : B;
+        A.g.position.set(-3.4, 0, 0); B.g.position.set(3.4, 0, 0); A.g.rotation.y = Math.PI / 2; B.g.rotation.y = -Math.PI / 2;
+        Th.armR.rotation.x = lrp(1.6, -1.9, eas(clamp(ph / .3, 0, 1))); Th.body.rotation.y = lrp(-.4, .3, clamp(ph / .3, 0, 1)) * (Th === A ? 1 : -1);
+        Ca.armL.rotation.x = Ca.armR.rotation.x = -1.5; if (ph > .85) { Ca.g.position.y = sn(Math.PI * (ph - .85) / .15) * .5; }
+        [A, B].forEach((pp, k) => { pp.legL.rotation.x = sn(t * 6 + k) * .25; pp.legR.rotation.x = -sn(t * 6 + k) * .25; });
+        const bx = lrp(Th.g.position.x, Ca.g.position.x, ph), b = new THREE.Mesh(ballGeo, ballMat); b.userData.shared = true; b.position.set(bx, 2.4 + sn(Math.PI * ph) * 2.6, 0); b.rotation.set(t * 8, 0, t * 6); fxGroup.add(b); }
+      else { A.g.position.set(0, 0, 0); A.g.rotation.y = 0; A.armR.rotation.x = -.9 + sn(t * 8) * .5; const b = new THREE.Mesh(ballGeo, ballMat); b.userData.shared = true; b.position.set(1.2, .5 + Math.abs(sn(t * 4)) * 2.2, .5); fxGroup.add(b); }
+      ex.forEach((p, i) => { const left = i % 2 === 0; p.g.position.set((left ? -1 : 1) * (6 + Math.floor(i / 2) * 2), Math.abs(sn(t * 6 + i)) * .4, -1.5); p.g.rotation.y = left ? Math.PI / 2 : -Math.PI / 2; limbs(p, 2.7 + sn(t * 8 + i) * .5, 2.7 - sn(t * 8 + i) * .5, 0, 0); });
+      look.set(0, 2.6, 0); return 9;
+    }
+    if (style === 'eat') {   // a table with food: fork up to the mouth, chewing, happy faces
+      wMesh(7, .22, 2.4, 0x8d5a2b, 0, 1.55, 0); [-3, 3].forEach(x => [-.9, .9].forEach(z => wMesh(.25, 1.5, .25, 0x6d4220, x, .75, z)));
+      all.slice(0, 3).forEach((p, i) => { const x = (i - (Math.min(n, 3) - 1) / 2) * 2.6; wMesh(1.2, .1, 1.2, 0xffffff, x, 1.7, 0); wMesh(.7, .3, .7, [0xe53935, 0xffb300, 0x7cb342][i % 3], x, 1.9, 0);
+        p.g.position.set(x, 0, -1.7); p.g.rotation.y = 0; const sv = sn(t * 3 + i * 1.3), k = (sv + 1) / 2;
+        p.armR.rotation.x = lrp(-1.1, 2.1, k); p.armL.rotation.x = -.6; p.head.rotation.x = .1 + k * .1; p.mouth.scale.set(1, 1 + Math.abs(sn(t * 9 + i)) * 1.8, 1); p.body.position.y = -.05; p.legL.rotation.x = p.legR.rotation.x = -1.4; p.g.position.y = -.45; });
+      ex.forEach((p, i) => { p.g.position.set((i - (ex.length - 1) / 2) * 2.6, 0, -4.2); p.g.rotation.y = 0; p.armR.rotation.x = lrp(-1, 2, (sn(t * 3 + i) + 1) / 2); });
+      const yum = spr('\u{1F60B}', sn(t) * 2, 4.4 + Math.abs(sn(t * 2)) * .5, -1.7, 1.1);
+      look.set(0, 2.2, 0); return 8;
+    }
+    if (style === 'write') {   // painting on a big canvas: the picture fills up as the scene goes on
+      const cx = 0, cz = -2.6; wMesh(.18, 4.2, .18, 0x6d4220, -2, 2.1, cz); wMesh(.18, 4.2, .18, 0x6d4220, 2, 2.1, cz); wMesh(4.6, 3.2, .16, 0xfffdf5, 0, 3.4, cz);
+      const nstr = Math.min(18, Math.floor(t * 1.6 + 1)); for (let k = 0; k < nstr; k++) wMesh(.5 + (k % 3) * .25, .35 + (k % 2) * .2, .1, [0xe53935, 0x1e88e5, 0xfdd835, 0x43a047, 0x8e24aa][k % 5], -1.6 + (k * 0.9) % 3.4, 2.4 + ((k * 0.55) % 2), cz + .12);
+      if (A) { A.g.position.set(-3.6, 0, -1); toward(A, cx, cz); A.armR.rotation.x = -1.4 + sn(t * 6) * .5; A.armR.rotation.z = sn(t * 3) * .4; A.body.rotation.x = .1; }
+      if (B) { B.g.position.set(3.6, 0, -.6); toward(B, cx, cz); B.armR.rotation.x = 2.0; B.head.rotation.z = .2 + sn(t * 1.5) * .1; B.head.rotation.y = -.2; }
+      ex.forEach((p, i) => { p.g.position.set((i - (ex.length - 1) / 2) * 2.4, 0, -5); p.g.rotation.y = 0; });
+      look.set(0, 2.6, -1); return 8;
+    }
+    if (style === 'dig') {   // dig a hole together, dirt flies, and at the end they find a treasure chest
+      const found = u > .68; wMesh(2.6, .06, 2.6, 0x2a1a0e, 0, .04, 0); const pile = .35 + Math.min(u / .68, 1) * .65; wMesh(2.2 * pile, 1.0 * pile, 1.6 * pile, 0x6d4c2e, 0, .45 * pile, -2.2);
+      for (let k = 0; k < 5; k++) { const ph = (t * 1.5 + k * .2) % 1; wMesh(.28, .28, .28, 0x6d4c2e, lrp(-0.6, 0.7, ph) * (k % 2 ? 1 : -1) * 1.5, .6 + sn(Math.PI * ph) * 2.2, .4); }
+      if (found) { wMesh(1.5, .9, 1, 0x8a5a1c, 0, .5, 0); wMesh(1.5, .25, 1, 0xffd54a, 0, 1.05, 0); for (let k = 0; k < 4; k++) spr('\u2728', sn(t * 3 + k * 1.7) * 1.6, 2 + Math.abs(sn(t * 2 + k)) * 1.2, .8, .9); }
+      [A, B].forEach((pp, k) => { if (!pp) return; pp.g.position.set(k ? 2.6 : -2.6, 0, 0); pp.g.rotation.y = k ? -Math.PI / 2 : Math.PI / 2;
+        if (found) { limbs(pp, 2.8, 2.8, 0, 0); pp.g.position.y = Math.abs(sn(t * 7 + k)) * .8; pp.mouth.scale.set(1.2, 2.4, 1); }
+        else { const d = sn(t * 5 + k * 2); pp.body.rotation.x = .55; pp.armL.rotation.x = pp.armR.rotation.x = -1.0 + d * .9; } });
+      ex.forEach((p, i) => { p.g.position.set((i - (ex.length - 1) / 2) * 2.4, 0, -3.6); p.g.rotation.y = 0; if (found) limbs(p, 2.7 + sn(t * 8 + i) * .5, 2.7 - sn(t * 8 + i) * .5, 0, 0); });
+      look.set(0, 1.8, 0); return 9;
+    }
+    if (style === 'climb') {   // up a rocky wall with a rope, the other one cheers from the ground
+      wMesh(.8, 11, 8, 0x8a8aa0, 4.9, 5.5, 0); for (let j = 0; j < 9; j++) wMesh(.4, .35, .9, [0xff7043, 0xffee58, 0x66bb6a][j % 3], 4.4, .8 + j * 1.15, (j % 2 ? 1 : -1) * 1.2); wMesh(.12, 11, .12, 0xd2a24c, 4.2, 5.5, .2);
+      if (A) { const y = 3 + 2.7 * sn(t * .55); A.g.position.set(3.6, y, 0); A.g.rotation.y = Math.PI / 2; const c = sn(t * 4); A.armL.rotation.x = 2.6 + c * .3; A.armR.rotation.x = 2.6 - c * .3; A.legL.rotation.x = c * .6; A.legR.rotation.x = -c * .6; A.body.rotation.x = -.1; A.head.rotation.x = -.5; }
+      if (B) { B.g.position.set(1.4, 0, .6); B.g.rotation.y = Math.PI / 2; B.head.rotation.x = -.7; B.armR.rotation.x = 2.8 + sn(t * 6) * .3; B.armL.rotation.x = 2.5; B.mouth.scale.set(1.2, 2.4, 1); }
+      ex.forEach((p, i) => { p.g.position.set(-2.4 - i * 2.2, Math.abs(sn(t * 6 + i)) * .4, (i % 2) * 2 - 1); p.g.rotation.y = Math.PI / 2; limbs(p, 2.7 + sn(t * 8 + i) * .5, 2.7 - sn(t * 8 + i) * .5, 0, 0); });
+      look.set(2.6, 3.4, 0); return 12;
+    }
+    if (style === 'exercise') {   // jumping jacks, squats and weight lifting
+      all.forEach((p, i) => { const m = i % 3, k = (sn(t * 6 + (i > 2 ? .6 : 0)) + 1) / 2; p.g.position.set((i - (n - 1) / 2) * 2.5, 0, (i % 2) * -1); p.g.rotation.y = 0;
+        if (m === 0) { p.armL.rotation.z = -k * 2.8; p.armR.rotation.z = k * 2.8; p.legL.rotation.z = -k * .5; p.legR.rotation.z = k * .5; p.g.position.y = k * .55; }
+        else if (m === 1) { p.g.position.y = -.5 * k; p.legL.rotation.x = p.legR.rotation.x = -k * 1.0; p.body.rotation.x = .3 * k; p.armL.rotation.x = p.armR.rotation.x = -1.4; }
+        else { p.armL.rotation.x = p.armR.rotation.x = 2.6; const by = 3.4 + k * 1.3; wMesh(2.4, .16, .16, 0x333333, p.g.position.x, by, p.g.position.z); wMesh(.5, .7, .5, 0x222222, p.g.position.x - 1.2, by, p.g.position.z); wMesh(.5, .7, .5, 0x222222, p.g.position.x + 1.2, by, p.g.position.z); p.mouth.scale.set(1.1, 2, 1); }
+        if (k > .8) spr('\u{1F4A6}', p.g.position.x + .9, 4.4 + p.g.position.y, p.g.position.z, .8); });
+      look.set(0, 2.4, 0); return 9;
+    }
+    if (style === 'shop') {   // a shop counter: coins go one way, the goods come back
+      wMesh(6, 1.6, 1.2, 0xa66a32, 0, .8, -1.6); wMesh(7.5, .2, 1.5, 0xe0b070, 0, 1.7, -1.6); for (let j = 0; j < 5; j++) wMesh(1, 1, .8, [0xe53935, 0x1e88e5, 0xfdd835, 0x43a047, 0xab47bc][j], -3.6 + j * 1.8, 3.4 + (j % 2) * .9, -3.6); wMesh(8.5, .18, 1, 0x6d4220, 0, 2.9, -3.6);
+      if (B) { B.g.position.set(0, 0, -2.6); B.g.rotation.y = 0; B.armR.rotation.x = 2.3 * (sn(t * 2) > .6 ? 1 : 0); B.head.rotation.z = sn(t * 2) * .12; B.p = 1; }
+      if (A) { A.g.position.set(-3.4, 0, -.6); toward(A, 0, -1.6); }
+      const c = (t * .5) % 1; if (A) { if (c < .5) { const q = c / .5; spr('\u{1FA99}', lrp(-3.2, 0, q), 2.8 + sn(Math.PI * q) * 1.4, -1, 1); A.armR.rotation.x = -1.3 * sn(Math.PI * Math.min(q * 1.4, 1)); } else { const q = (c - .5) / .5; spr('\u{1F381}', lrp(0, -3.2, q), 2.8 + sn(Math.PI * q) * 1.4, -1, 1.2); A.armL.rotation.x = A.armR.rotation.x = -1.2; A.g.position.y = q > .9 ? .3 : 0; } }
+      ex.forEach((p, i) => { p.g.position.set(-5.4 - i * 2.2, 0, 1 - (i % 2) * 2); p.g.rotation.y = Math.PI / 2; p.armR.rotation.x = 2.2; });
+      look.set(-1, 2.4, -1); return 9;
+    }
+    if (style === 'sing') {   // a little stage with a singer, backup dancers and music notes
+      wMesh(9, .4, 4.2, 0x7b1fa2, 0, .2, -1.4); wMesh(.1, 2.6, .1, 0x333333, 1.2, 1.7, -.6); wMesh(.3, .3, .3, 0x333333, 1.2, 3, -.6);
+      if (A) { A.g.position.set(0, .4, -1.2); A.g.rotation.y = 0; A.armR.rotation.x = 2.1; A.armL.rotation.x = 2.8 * (sn(t * 3) > 0 ? 1 : .2); A.head.rotation.x = -.35; A.mouth.scale.set(1.2, 1.8 + Math.abs(sn(t * 9)) * 2.2, 1); A.body.rotation.z = sn(t * 3) * .08; }
+      if (B) { B.g.position.set(-3, .4, -1.4); B.g.rotation.y = .3; limbs(B, 2.6 + sn(t * 5) * .5, 2.6 - sn(t * 5) * .5, 0, 0); B.body.rotation.z = sn(t * 5) * .15; B.mouth.scale.set(1.1, 1.8, 1); }
+      if (act[2]) { act[2].g.position.set(3, .4, -1.4); act[2].g.rotation.y = -.3; limbs(act[2], 2.6 - sn(t * 5) * .5, 2.6 + sn(t * 5) * .5, 0, 0); act[2].body.rotation.z = -sn(t * 5) * .15; act[2].mouth.scale.set(1.1, 1.8, 1); }
+      ex.forEach((p, i) => { p.g.position.set((i % 2 ? 1 : -1) * (6 + Math.floor(i / 2) * 2), Math.abs(sn(t * 5 + i)) * .4, 0); p.g.rotation.y = i % 2 ? -Math.PI / 2 : Math.PI / 2; p.armL.rotation.x = 2.8; p.armR.rotation.x = 2.8; p.body.rotation.z = sn(t * 3 + i) * .15; });
+      notes(t, 0, -1, 7); look.set(0, 2.8, 0); return 10;
+    }
+    if (style === 'highfive') {   // run at each other, SMACK a high five, then jump for joy
+      const T = 3, cyc = Math.floor(t / T), ph = (t % T) / T;
+      const dx = ph < .4 ? lrp(5, .75, eas(ph / .4)) : ph < .65 ? .75 : lrp(.75, 3.2, eas((ph - .65) / .35));
+      [A, B].forEach((pp, k) => { if (!pp) return; const sg = k ? 1 : -1; pp.g.position.set(sg * dx, 0, 0); pp.g.rotation.y = k ? -Math.PI / 2 : Math.PI / 2;
+        if (ph < .4) { walk(pp, t, 14, 1); pp.body.rotation.x = .15; if (ph > .22) { pp.armR.rotation.x = 2.9; } }
+        else if (ph < .65) { pp.armR.rotation.x = 2.9; pp.armL.rotation.x = 0; pp.mouth.scale.set(1.3, 2.4, 1); pp.g.position.y = ph > .45 ? Math.abs(sn((ph - .45) * 14)) * .5 : 0; }
+        else { limbs(pp, 2.8, 2.8, 0, 0); pp.g.position.y = Math.abs(sn((ph - .65) * 22 + k)) * 1.0; pp.mouth.scale.set(1.3, 2.4, 1); } });
+      if (ph > .38 && ph < .52) { const age = ph - .38; for (let k = 0; k < 9; k++) { const a2 = k * Math.PI * 2 / 9, d = age * 20, st = new THREE.Mesh(fxStar, fxMatY); st.userData.shared = true; st.position.set(Math.cos(a2) * d, 3.6 + Math.sin(a2) * d, .3); st.scale.setScalar(1.3 - age * 5); fxGroup.add(st); } words2d(cyc * T + .4 * T, 'HIGH FIVE!', 2 + cyc % 3); zoomPunch = 0; }
+      ex.forEach((p, i) => { const left = i % 2 === 0; p.g.position.set((left ? -1 : 1) * (6 + Math.floor(i / 2) * 2), Math.abs(sn(t * 6 + i)) * .4, -1.5); p.g.rotation.y = left ? Math.PI / 2 : -Math.PI / 2; limbs(p, 2.7 + sn(t * 8 + i) * .5, 2.7 - sn(t * 8 + i) * .5, 0, 0); });
+      look.set(0, 2.6, 0); return 9;
+    }
+    return 5;
+  }
   // ---------- the director: puts the right characters in the right place doing what the caption says ----------
   function directBeat(mi, si, mv, sc, t, info, dur, camSeed) {
     const u = clamp(t / dur, 0, 1); flashA = 0; zoomPunch = 0;
@@ -792,6 +915,8 @@
       act.forEach((p, i) => { p.g.position.set((i - (act.length - 1) / 2) * 3.4 - 1, 0, 1); face(p, -.3); p.armR.rotation.x = -1.4 + Math.sin(t * 8 + i) * 1.2; p.armL.rotation.x = -.6; p.body.rotation.x = .15; });
       ex.forEach((p, i) => { p.g.position.set(-5 + i * 2.4, 0, -2.6); face(p, 0); p.armR.rotation.x = -1.4 + Math.sin(t * 8 + i) * 1.2; });
       look.set(0, 2.4, 0); spread = 5;
+    } else if (ACT_SET.has(style)) {
+      spread = activity(style, act, ex, t, u, look, mi, si);
     } else {  // talk
       act.forEach((p, i) => {
         const side = act.length === 1 ? 0 : (i === 0 ? -1 : 1) * 2.2 + (i === 2 ? 2.4 : 0); p.g.position.set(side, 0, i === 2 ? 1.5 : 0); face(p, act.length === 1 ? .35 : (i === 1 ? -Math.PI / 2 + .5 : Math.PI / 2 - .5));
@@ -805,7 +930,8 @@
     const emo = info.emo || [], xe = style === 'party' ? 'joy' : (emo[1] || emo[0] || 'neutral');
     act.forEach((pp, ii) => emote(pp, emo[ii] || emo[0] || 'neutral', t, true)); ex.forEach(pp => emote(pp, xe, t, false));
     { const tS = t + beatOffset, dlg = getDialogue(mi, si, mv, sc), ln = dlg.find(l => l.who !== 'N' && tS >= l.start - .15 && tS <= l.end + .5);
-      if (ln) { const pi = info.present.indexOf(ln.who), sp = pi >= 0 ? act[pi] : null, ek = pickEmote(ln); if (sp && ek) { applyEmote(sp, ek, Math.max(0, tS - ln.start + .15)); if (sp.emoS) sp.emoS.visible = false; } } }
+      if (ln && ACT_SET.has(style)) { const pi = info.present.indexOf(ln.who), sp = pi >= 0 ? act[pi] : null; if (sp) sp.mouth.scale.set(1, 1.4 + Math.abs(Math.sin(t * 12)) * 2.4, 1); }
+      else if (ln) { const pi = info.present.indexOf(ln.who), sp = pi >= 0 ? act[pi] : null, ek = pickEmote(ln); if (sp && ek) { applyEmote(sp, ek, Math.max(0, tS - ln.start + .15)); if (sp.emoS) sp.emoS.visible = false; } } }
     act.concat(ex).forEach(c => { if (c.costume === 'ghost') c.g.position.y += .6 + Math.sin(t * 3) * .3; if (c.extras.wings) { const f = Math.sin(t * 7) * .5; c.extras.wings[0].rotation.z = f; c.extras.wings[1].rotation.z = -f; } });
     // camera: close enough to see the actors, moving in a different way for each scene
     const camStyle = ['orbit', 'dolly', 'crane', 'side'][hash(mi, si, 9 + camSeed) % 4], seed = hash(mi, si, 2 + camSeed) % 628 / 100, D = clamp(7 + spread * .9, 9, 17) * (camSeed > 0 ? .78 : 1) * (1 - zoomPunch * .22);
@@ -987,7 +1113,7 @@
       grp.forEach(l => { if (l.who !== 'N') who[l.who] = l; });
       const present = ['A', 'B'].concat(who.C ? ['C'] : []);
       const emo = present.map(w => { if (who[w]) return who[w].emo; const sp = grp.find(l => l.who !== 'N' && l.who !== w); return sp ? listenerEmo(sp.emo) : 'neutral'; });
-      res.beats.push({ style: first.act || 'talk', present, emo });
+      { const a0s = first.act || 'talk', grpTxt = grp.map(l => l.text).join(' '); res.beats.push({ style: (a0s === 'talk' || a0s === 'look' || a0s === 'walk') ? (chatActivity(mi, si, i, { dark: sc.script.tod === 'night' || sc.script.tod === 'storm', comedy: !!mv.comedy }, grpTxt + ' ' + (sc.text || '')) || a0s) : a0s, present, emo }); }
       res.beatStarts.push(i === 0 ? 0 : Math.max(0.5, first.start - 0.6));
     }
     for (let k = 0; k < res.beatStarts.length; k++) res.beatEnds.push(k + 1 < res.beatStarts.length ? res.beatStarts[k + 1] : 0);
@@ -1144,7 +1270,9 @@
     lines.forEach(l => { const o = { who: l[0], text: l[1], role: l[2] || nameOf[l[0]], pers: l[0] === 'A' ? persA : persB, emo: (EMOCAT[cat] || ['neutral', 'neutral'])[l[0] === 'A' ? 0 : 1], start: tcur }; o.end = o.start + wc(o.text) / 2.6 + 0.3; tcur = o.end + 0.45; res.push(o); });
     const dur = clamp(Math.max(11.4, tcur + 1.0), 11.4, 20); res.total = dur; res.beatLen = dur / BEATS;
     const e0 = EMOCAT[cat] || ['neutral', 'neutral'], e2 = REACT_EMO[cat] || (cat === 'win' ? ['joy', 'joy'] : e0);
-    res.beats.push({ style: info.style, present: ['A', 'B'], emo: e0 }, { style: 'talk', present: ['A', 'B'].concat(info.present.indexOf('C') >= 0 ? ['C'] : []), emo: e0.concat(['neutral']) }, { style: REACT_STYLE[cat] || 'talk', present: ['A', 'B'], emo: e2 });
+    const calm = (st) => (st === 'talk' || st === 'look' || st === 'walk' || st === 'work');
+    const sA = calm(info.style) ? (chatActivity(mi, si, 0, info, text) || info.style) : info.style, sB = chatActivity(mi, si, 1, info, lines.map(l => l[1]).join(' ')) || 'talk', rr = REACT_STYLE[cat] || 'talk', sC = rr === 'talk' ? (chatActivity(mi, si, 2, info, '') || 'talk') : rr;
+    res.beats.push({ style: sA, present: ['A', 'B'], emo: e0 }, { style: sB, present: ['A', 'B'].concat(info.present.indexOf('C') >= 0 ? ['C'] : []), emo: e0.concat(['neutral']) }, { style: sC, present: ['A', 'B'], emo: e2 });
     return res;
   }
   function charVoice(who, narrator) {
