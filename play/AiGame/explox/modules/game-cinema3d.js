@@ -278,7 +278,7 @@
     if (/\bha\b|hee hee|funny|joke|laugh/.test(t)) return 'laugh';
     if (/oh no|this is bad|terrible/.test(t)) return 'facepalm';
     if (/\bready\b|on it|yes sir|at your service/.test(t)) return 'salute';
-    if (/look at|over here|this way|look out/.test(t) && e !== 'sad') return 'point';
+    if (/look at|over here|this way|look out|oh,? look|look there|look over|over there|there'?s a|what is that|what'?s that|is that a/.test(t) && e !== 'sad') return 'point';
     if (/\?\s*$/.test(t)) return 'shrug';
     const opts = EMOTE_MAP[e]; return opts ? opts[hash(t.length, (ln.start * 10) | 0, 2) % opts.length] : null;
   }
@@ -930,6 +930,14 @@
   // ---------- what they see, you see: when a line talks about something, it appears in the scene, everyone turns to look at it, and the camera cuts to over their shoulder ----------
   const SIGHT_PROP = [[/rocket|spaceship|mothership/i, 'rocket'], [/pizza/i, 'pizza'], [/treasure|\bcoins?\b|\bgold\b|money/i, 'coins'], [/\bcars?\b|truck|\bbus\b/i, 'car'], [/\bhouse\b|cabin/i, 'house'], [/\btree\b|forest/i, 'tree'], [/portal|time machine/i, 'portal'], [/\bmoon\b/i, 'moon'], [/\bsun\b|sunrise/i, 'sun'], [/trophy|medal|\bcup\b/i, 'trophy'], [/\bbook\b|\bmap\b|letter/i, 'book'], [/\bfire\b|flames?\b|torch|campfire/i, 'fire'], [/lantern|flashlight|\blamp\b/i, 'lantern'], [/lightning|thunder|storm/i, 'bolt'], [/shield|badge/i, 'shield']];
   const SIGHT_BEING = [[/dragon/i, 'dragon'], [/\bdino(saurs?)?\b/i, 'dino'], [/\brobots?\b|android/i, 'robot'], [/ghost/i, 'ghost'], [/\baliens?\b|martian/i, 'alien'], [/ninjas?\b/i, 'ninja'], [/\bcats?\b|kitty/i, 'cat'], [/wizard/i, 'wizard'], [/\bkings?\b|queen/i, 'king'], [/detective/i, 'detective'], [/grandma|granny/i, 'grandma'], [/doctor/i, 'doctor']];
+  // "oh look!": with no thing named, they spot something that really belongs in the place they are in
+  const LOOKCUE = /\b(oh,? look|look at|look there|look over|look,|look!|i see|you see|see that|see it|there'?s a|there is a|over there|what is that|what'?s that|check (that )?out|behold|spot(ted)?|is that a)\b/i;
+  const SETTING_SIGHT = { library: [['prop', 'book'], ['being', 'ghost']], hospital: [['prop', 'heart'], ['being', 'doctor']], police: [['prop', 'shield'], ['being', 'detective']], cityhall: [['prop', 'trophy'], ['being', 'king']], prison: [['prop', 'wall'], ['prop', 'lantern']],
+    suburbs: [['prop', 'house'], ['prop', 'car'], ['being', 'cat']], park: [['prop', 'tree'], ['being', 'cat'], ['prop', 'sun']], airport: [['prop', 'rocket'], ['being', 'pilot']], city: [['prop', 'car'], ['prop', 'house'], ['being', 'robot']], space: [['prop', 'rocket'], ['prop', 'moon'], ['being', 'alien']],
+    vault: [['prop', 'coins'], ['prop', 'shield']], track: [['prop', 'car'], ['being', 'racer']], arena: [['prop', 'trophy'], ['being', 'athlete']], dojo: [['being', 'ninja'], ['prop', 'shield']], lab: [['prop', 'portal'], ['being', 'robot'], ['prop', 'bolt']], house: [['prop', 'lantern'], ['prop', 'heart'], ['being', 'cat']],
+    school: [['prop', 'book'], ['prop', 'trophy']], shop: [['prop', 'pizza'], ['prop', 'coins']], market: [['prop', 'pizza'], ['prop', 'coins'], ['being', 'grandma']], desert: [['prop', 'sun'], ['being', 'dino']], snow: [['prop', 'lantern'], ['prop', 'fire']], beach: [['prop', 'sun'], ['prop', 'heart']],
+    jungle: [['prop', 'tree'], ['being', 'dino']], castle: [['being', 'dragon'], ['prop', 'shield'], ['being', 'king']], scrapyard: [['prop', 'car'], ['being', 'robot']], temple: [['prop', 'fire'], ['prop', 'lantern'], ['being', 'ghost']], nature: [['prop', 'tree'], ['prop', 'sun'], ['being', 'dino']] };
+  function settingThing(kind, h) { const L = SETTING_SIGHT[kind] || [['prop', 'tree'], ['prop', 'sun']], pick = L[h % L.length]; return pick[0] === 'prop' ? { prop: pick[1] } : { being: pick[1] }; }
   function sightFor(text) {
     const t = String(text || ''); for (const [re, k] of SIGHT_BEING) if (re.test(t)) return { being: k };
     for (const [re, k] of SIGHT_PROP) if (re.test(t)) return { prop: k };
@@ -1076,7 +1084,7 @@
       if (ln && ACT_SET.has(style)) { const pi = info.present.indexOf(ln.who), sp = pi >= 0 ? act[pi] : null; if (sp) sp.mouth.scale.set(1, 1.4 + Math.abs(Math.sin(t * 12)) * 2.4, 1); }
       else if (ln) { const pi = info.present.indexOf(ln.who), sp = pi >= 0 ? act[pi] : null, ek = pickEmote(ln); if (sp && ek) { applyEmote(sp, ek, Math.max(0, tS - ln.start + .15)); if (sp.emoS) sp.emoS.visible = false; } } }
     let sightCam = null;
-    { const tS = t + beatOffset, dlg = getDialogue(mi, si, mv, sc), ln = dlg.find(l => tS >= l.start - .1 && tS <= l.end + .6), sg = ln && sightFor(ln.text);
+    { const tS = t + beatOffset, dlg = getDialogue(mi, si, mv, sc), ln = dlg.find(l => tS >= l.start - .1 && tS <= l.end + .6), sg = ln && (sightFor(ln.text) || (LOOKCUE.test(ln.text) ? settingThing(info.kind, hash(mi * 3 + si, (ln.start * 10) | 0, 5)) : null));
       if (sg) {
         const side = hash(mi + si, (ln.start * 10) | 0, 2) % 2 ? 1 : -1, P = new THREE.Vector3(side * 8.2, 0, -4.6);
         if (sg.prop) { const o = makeProp(sg.prop); if (prop && prop !== o) prop.visible = false; o.visible = true; o.rotation.set(0, 0, 0); o.scale.setScalar(1); o.position.copy(P); if (o.userData.spin === 'y') o.rotation.y = t * 1.2; if (o.userData.spin === 'z') o.rotation.z = t * .8; if (o.userData.float) o.position.y = Math.sin(t * 2) * .5 + 1; if (o.userData.flicker) o.scale.setScalar(.95 + Math.abs(Math.sin(t * 17)) * .15); }
@@ -1099,7 +1107,7 @@
     else { CAM.position.set(look.x + 2, 3.4, look.z + D); }
     if (sightCam) {   // over the shoulder of whoever is looking: you see exactly what they see
       const S = sightCam.sp.g.position, P = sightCam.P, dx = P.x - S.x, dz = P.z - S.z, L = Math.hypot(dx, dz) || 1, nx = dx / L, nz = dz / L;
-      CAM.position.lerp(new THREE.Vector3(S.x - nx * 7.5 - nz * 3.2, 4.6, S.z - nz * 7.5 + nx * 3.2), sightCam.k); look.lerp(new THREE.Vector3(P.x * .8, 2.6, P.z * .8), sightCam.k);
+      CAM.position.lerp(new THREE.Vector3(S.x - nx * 6.5 - nz * 5.2, 5.4, S.z - nz * 6.5 + nx * 5.2), sightCam.k); look.lerp(new THREE.Vector3(P.x * .75, 2.4, P.z * .8), sightCam.k);
     }
     if (shake) CAM.position.add(new THREE.Vector3((Math.random() - .5) * shake, (Math.random() - .5) * shake, 0));
     CAM.lookAt(look); rim.position.set(look.x - 8, 6, look.z + 4);
