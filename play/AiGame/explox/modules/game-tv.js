@@ -32,7 +32,7 @@
   const C3 = (a, b, c) => ({ A: { role: a[0], kind: a[1], pers: a[2] }, B: { role: b[0], kind: b[1], pers: b[2] }, C: { role: c[0], kind: c[1], pers: c[2] } });
   function program(tag, title, narrator, cast, scenes) {
     if (/NEWS/.test(tag)) scenes = deskify(scenes);
-    const idx = slot(), m = CINEMA_MOVIES[idx]; m.comedy = !/NEWS/.test(tag); m.ticker = ''; m.title = title; m.tvTag = tag; m.narrator = narrator; m.cast = cast; m.scenes = scenes;
+    const idx = slot(), m = CINEMA_MOVIES[idx]; m.comedy = !/NEWS|SOCCER/.test(tag); m.ticker = ''; m.title = title; m.tvTag = tag; m.narrator = narrator; m.cast = cast; m.scenes = scenes;
     try { window.__cinema3d.reset(idx); window.__cinema3d.wire(idx); } catch (e) { } return idx;
   }
 
@@ -122,9 +122,55 @@
     return program(v.tag, v.title, 'Fun Voice', v.cast, [S(v.place, 'day', v.prop, v.title + '.', v.lines.map(l => L(l[0], l[1], l[2], l[3]))), S(v.place, 'day', v.prop, 'And that is the end of the video.', [L('A', 'joy', 'highfive', 'Thank you for watching, Explox!'), L('B', 'joy', 'party', 'Like, share and have a great day!')])]);
   }
   function funBlock(n) { const out = [], pool = FUN.slice().sort(() => Math.random() - .5); for (let i = 0; i < n; i++) { out.push(funProgram(pool[i % pool.length])); if (i % 2 === 1 && i < n - 1) out.push('ad2'); } return out; }
+  // ── ⚽ Soccer: Explox against the cities of the world — every match is different ──
+  const CITIES = [['Paris', 'Poodles', 0x1e88e5], ['Tokyo', 'Tigers', 0xff7043], ['Rio', 'Rockets', 0xfdd835], ['London', 'Lions', 0x8e24aa], ['Cairo', 'Cobras', 0x43a047], ['Sydney', 'Seagulls', 0x26c6da], ['Berlin', 'Bears', 0x6d4c41], ['Madrid', 'Mustangs', 0xd81b60], ['Rome', 'Roosters', 0xef6c00], ['Moscow', 'Moose', 0x546e7a], ['Delhi', 'Dragons', 0xc62828], ['Lima', 'Llamas', 0x7cb342], ['Oslo', 'Otters', 0x00acc1], ['Toronto', 'Turtles', 0x2e7d32], ['Seoul', 'Sharks', 0x3949ab], ['Dubai', 'Dolphins', 0x00897b], ['Lagos', 'Leopards', 0xf9a825], ['Athens', 'Owls', 0x5e35b1], ['Lisbon', 'Lynx', 0xe64a19], ['Vienna', 'Vikings', 0x78909c], ['Mexico City', 'Monkeys', 0xad1457], ['Nairobi', 'Nightingales', 0x558b2f], ['Bangkok', 'Butterflies', 0xec407a], ['Havana', 'Hummingbirds', 0x039be5]];
+  const STARS = ['Pablo Pepper', 'Mika Moon', 'Hugo Hops', 'Lola Lightning', 'Ravi Rocket', 'Tina Turbo', 'Oscar Orbit', 'Nina Nimble', 'Leo Lasso', 'Zara Zoom', 'Benny Boot', 'Cleo Curve'];
+  const rnd = (n) => Math.floor(Math.random() * n), pk = (a) => a[rnd(a.length)];
+  const wpick = (a) => a[rnd(a.length)];
+  function soccerMatch() {
+    const city = pk(CITIES), opp = city[0] + ' ' + city[1], names = STARS.slice().sort(() => Math.random() - .5), star = names[0], mates = [names[1], names[2]], ex3 = ['Zippy Zed', 'Champion Chuck', 'Nugget the Dino'];
+    let eg = wpick([0, 1, 1, 2, 2, 2, 3, 3, 4]), og = wpick([0, 0, 1, 1, 1, 2, 3]); while (eg + og > 6) og--;
+    const plays = []; for (let i = 0; i < eg; i++) plays.push({ att: 'ex', type: Math.random() < .35 ? 'trick' : 'goal' }); for (let i = 0; i < og; i++) plays.push({ att: 'opp', type: Math.random() < .3 ? 'trick' : 'goal' });
+    while (plays.length < 6) plays.push({ att: Math.random() < .6 ? 'ex' : 'opp', type: pk(['save', 'miss', 'post', 'tackle', 'save', 'miss']) });
+    plays.sort(() => Math.random() - .5);
+    const mins = [8, 19, 31, 52, 67, 81].map(x => x + rnd(5)); let a = 0, b = 0;
+    const cast = C3([ex3[0], 'racer', 'hero'], [star + ' of ' + city[0], 'athlete', 'rival'], [ex3[1], 'athlete', 'goof']);
+    const oppName = city[0].toUpperCase();
+    const mk = (type, att, before, after, min, say, lines) => { const sc = S('arena', 'day', 'trophy', say, lines.map(l => L(l[0], l[1], 'soccer', l[2]))); sc.script.soccer = { type: type, att: att, opp: oppName, col: city[2], before: before.slice(), after: after.slice(), min: min }; return sc; };
+    const scenes = [mk('kickoff', 'ex', [0, 0], [0, 0], 1, 'Welcome to Explox Stadium: Explox against the ' + opp + '.', [
+      ['N', 'excited', 'Welcome to Explox Stadium! Today, it is Explox against the ' + opp + '!'],
+      ['N', 'joy', 'The crowd is on its feet, the sun is shining, and the ball is round.'],
+      ['A', 'excited', 'Let us play, team! Wheels up, everybody!'],
+      ['B', 'determined', 'Good luck, Explox. The ' + city[1] + ' came here to win.'],
+      ['C', 'joy', 'Friendly game, friends. May the best team win!'],
+      ['N', 'excited', 'The referee blows the whistle, and the match begins!']])];
+    plays.forEach((pl, i) => {
+      const before = [a, b], goal = pl.type === 'goal' || pl.type === 'trick'; if (goal) { if (pl.att === 'ex') a++; else b++; } const after = [a, b], min = mins[i];
+      const team = pl.att === 'ex' ? 'Explox' : 'the ' + opp, names3 = pl.att === 'ex' ? ex3 : [star, mates[0], mates[1]], stars = pl.att === 'ex' ? ['A', 'C'] : ['B', 'B'], who = stars[rnd(2)], scorer = names3[2] || names3[0], keeper = pl.att === 'ex' ? star : 'Champion Chuck';
+      const L0 = ['N', 'excited', 'The ' + min + 'th minute. ' + team + ' are pushing forward!'], L1 = [who, 'determined', pk(['Pass it here!', 'I am open!', 'Over here, over here!', 'Give me the ball!', 'Send it through!'])], L2 = ['N', 'excited', names3[0] + ' passes to ' + names3[1] + ', and now to ' + names3[2] + '!'];
+      const score = 'Explox ' + a + ', ' + city[1] + ' ' + b;
+      let tail;
+      if (pl.type === 'goal') tail = [['N', 'shocked', 'He shoots... he SCORES! Goal for ' + team + '! What a strike by ' + scorer + '!'], [who, 'joy', pk(['Yes! Did you see that?', 'Goal! Goal! Goal!', 'I told you I would score!'])], ['N', 'joy', score + '. The crowd is going wild!']];
+      else if (pl.type === 'trick') tail = [['N', 'shocked', scorer + ' leaps up, turns upside down, and it is a bicycle kick! Incredible!'], ['N', 'shocked', 'It is in! A goal for ' + team + ' that nobody will forget!'], [who, 'joy', pk(['Did you see my flip?', 'I flew like a bird!', 'That was my best trick ever!'])], ['N', 'joy', score + '. What a goal!']];
+      else if (pl.type === 'save') tail = [['N', 'excited', scorer + ' takes a powerful shot...'], ['N', 'shocked', 'But ' + keeper + ' dives and makes a fantastic save!'], [pl.att === 'ex' ? 'B' : 'C', 'joy', pk(['Not today!', 'Caught it!', 'Nice try, but I am ready!'])], ['N', 'relieved', 'The score stays ' + score + '. What a save!']];
+      else if (pl.type === 'post') tail = [['N', 'excited', scorer + ' fires a shot at the corner...'], ['N', 'shocked', 'It hits the post! So close! The crowd gasps!'], [who, 'worried', 'Oh no! So close!'], ['N', 'worried', 'Still ' + score + '. What a near miss!']];
+      else if (pl.type === 'miss') tail = [['N', 'excited', scorer + ' winds up and kicks it as hard as he can...'], ['N', 'surprised', 'It sails over the bar and into the clouds! Somebody get that ball!'], [who, 'worried', 'Oops! I kicked it to the moon!'], ['N', 'curious', 'Still ' + score + '. The ball is on its way to space.']];
+      else tail = [['N', 'surprised', 'A big sliding tackle steals the ball!'], [pl.att === 'ex' ? 'B' : 'C', 'determined', 'Mine now! Thank you very much!'], ['N', 'excited', 'And off goes the counter-attack! What a play!'], ['N', 'curious', 'Still ' + score + '. Exciting stuff!']];
+      scenes.push(mk(pl.type, pl.att, before, after, min, 'Minute ' + min + ': ' + (goal ? 'goal chance' : pl.type) + '.', [L0, L1, L2].concat(tail)));
+    });
+    const res = a > b ? 'Explox wins! What a day for our city!' : a === b ? 'It is a draw, and a great game for everybody!' : 'The ' + city[1] + ' win this time, but Explox played with heart.';
+    scenes.push(mk('final', 'ex', [a, b], [a, b], 90, 'Full time: Explox ' + a + ', ' + opp + ' ' + b + '.', [
+      ['N', 'excited', 'The final whistle! The final score: Explox ' + a + ', the ' + opp + ' ' + b + '!'],
+      ['N', a > b ? 'joy' : 'warm', res],
+      ['A', a >= b ? 'joy' : 'warm', a >= b ? 'What a match! Thank you, Explox, for cheering!' : 'We will get them next time. Good game, everyone!'],
+      ['B', 'warm', 'Great game, Explox. See you at the next match!'],
+      ['C', 'happy', 'Good sport, good game, good friends. Now, who wants pizza?']]));
+    return program('\u26BD SOCCER', 'Explox vs ' + opp, 'Match Commentator', cast, scenes);
+  }
+  function soccerBlock(n) { const out = []; for (let i = 0; i < n; i++) { out.push(soccerMatch()); if (i < n - 1) out.push('ad2'); } return out; }
   function shopBlock() { return ['ad2', 'ad2', 'ad2']; }
   function movieBlock(idx) { return ['ad1', idx, 'ad1']; }
-  function liveBlock() { const m = CINEMA_MOVIES.filter(x => !x.tv); const mi = CINEMA_MOVIES.indexOf(m[Math.floor(Math.random() * m.length)]); const r = Math.random(); return r < .25 ? newsPrograms() : r < .45 ? funBlock(2).concat(['ad2']) : ['ad2', mi]; }
+  function liveBlock() { const m = CINEMA_MOVIES.filter(x => !x.tv); const mi = CINEMA_MOVIES.indexOf(m[Math.floor(Math.random() * m.length)]); const r = Math.random(); return r < .2 ? newsPrograms() : r < .4 ? funBlock(2).concat(['ad2']) : r < .6 ? [soccerMatch(), 'ad2'] : ['ad2', mi]; }
 
   // ── the TV: queue, billing, screen ────────────────────────────────────────
   function resolve(it) { if (it === 'ad1') return adBreak(1); if (it === 'ad2') return adBreak(2); return it; }
@@ -193,11 +239,12 @@
       '<button class="tvCh" id="tvMovies">🎬 All Movies<small>Every Explox Cinemas movie, with commercials before and after</small></button>' +
       '<button class="tvCh" id="tvNews">📰 Explox News<small>Fresh news every time, with the real new movies and real shop prices</small></button>' +
       '<button class="tvCh" id="tvFun">😂 Fun Videos<small>Dancing robots, cats, pizza fails, bubbles and more</small></button>' +
+      '<button class="tvCh" id="tvSoccer">\u26BD Soccer: Explox vs the World<small>Cool matches against Paris, Tokyo, Rio and more. A brand-new match every time!</small></button>' +
       '<button class="tvCh" id="tvShop">🛍️ Shopping Channel<small>Non-stop commercials for real products in Explox</small></button>' +
       '<button class="tvCh" id="tvLive">📺 Explox TV Live<small>A never-ending mix: news, videos, commercials and movies</small></button>' +
       (r ? '' : '<button class="tvCh" id="tvRent" style="border-color:#ffd54f">🔑 Rent this TV for one Explox day – ' + fmt(RENT) + ' S.I.P.<small>Watch everything for free for 30 real minutes (one Explox day)</small></button>') +
       '<div style="text-align:center;margin-top:10px"><button class="tvBtn" id="tvLeave" style="background:#333;color:#ccc">⏻ Turn off</button></div>';
-    $('tvMovies').onclick = openMovies; $('tvNews').onclick = () => startTV(newsPrograms(), ''); $('tvFun').onclick = () => startTV(funBlock(4), ''); $('tvShop').onclick = () => startTV(shopBlock(), ''); $('tvLive').onclick = () => startTV(liveBlock(), 'live'); $('tvLeave').onclick = closeMenu;
+    $('tvMovies').onclick = openMovies; $('tvNews').onclick = () => startTV(newsPrograms(), ''); $('tvFun').onclick = () => startTV(funBlock(4), ''); $('tvSoccer').onclick = () => startTV(soccerBlock(2), ''); $('tvShop').onclick = () => startTV(shopBlock(), ''); $('tvLive').onclick = () => startTV(liveBlock(), 'live'); $('tvLeave').onclick = closeMenu;
     if ($('tvRent')) $('tvRent').onclick = rent;
   }
   function rent() {
@@ -213,5 +260,5 @@
     Array.prototype.forEach.call(b.querySelectorAll('.tvCard'), c => { c.onclick = () => startTV(movieBlock(+c.getAttribute('data-i')), ''); });
   }
   window.watchHotelTV = openMenu; window.watchExploxTV = openMenu;
-  window.__exploxTV = { open: openMenu, status: () => ({ on: tv.on, rented: rented(), perMin: PER_MIN, rent: RENT }), news: newsPrograms, ads: adBreak };
+  window.__exploxTV = { open: openMenu, status: () => ({ on: tv.on, rented: rented(), perMin: PER_MIN, rent: RENT }), news: newsPrograms, soccer: soccerMatch, ads: adBreak };
 })();

@@ -705,21 +705,21 @@
   function pose(p) { if (p.weirdScaled) { p.g.scale.setScalar(1.45); p.weirdScaled = false; } p.head.scale.setScalar(1);
  p.g.rotation.set(0, p.g.rotation.y, 0); p.body.rotation.set(0, 0, 0); p.body.position.set(0, 0, 0); p.head.rotation.set(0, 0, 0); p.head.scale.setScalar(p.costume === 'alien' ? 1.25 : 1); limbs(p, 0, 0, 0, 0); p.armL.rotation.z = 0; p.armR.rotation.z = 0; p.mouth.scale.set(1, 1, 1); p.g.position.y = 0; }
   function walk(p, t, sp, big) { const s = Math.sin(t * sp) * (big || .8); limbs(p, -s, s, s, -s); p.body.position.y = Math.abs(Math.sin(t * sp)) * .12; }
-  let beatOffset = 0, lastSceneKey = '', flashA = 0, zoomPunch = 0, titleKey = -1, fightKey = '', fightHud = null, fightCam = null; const fightT0 = {}, fightLast = {};
+  let soccerHud = null; let beatOffset = 0, lastSceneKey = '', flashA = 0, zoomPunch = 0, titleKey = -1, fightKey = '', fightHud = null, fightCam = null; const fightT0 = {}, fightLast = {};
   const auraMat = { A: new THREE.MeshBasicMaterial({ color: 0xffd54a, transparent: true, opacity: .33 }), B: new THREE.MeshBasicMaterial({ color: 0x40c4ff, transparent: true, opacity: .33 }) }, dustMat = new THREE.MeshBasicMaterial({ color: 0xc8b28a });
   const fxTorus = new THREE.TorusGeometry(1, .08, 6, 28), fxStar = new THREE.OctahedronGeometry(.22), fxMatW = new THREE.MeshBasicMaterial({ color: 0xffffff }), fxMatY = new THREE.MeshBasicMaterial({ color: 0xffe033 });
   function words2d(t0, text, i) { words.push({ t0: t0 + beatOffset, text, i }); }
   let shown = [], curActors = [], curInfoNow = null;
 
   // ---------- things to DO: jump, dance, play ball, eat, paint, dig, climb, work out, shop, sing, high-five ----------
-  const ACT_STYLES = ['jump', 'dance', 'play', 'eat', 'write', 'dig', 'climb', 'exercise', 'shop', 'sing', 'highfive', 'fish', 'camp', 'magic', 'bubbles', 'photo', 'skate', 'snowball', 'juggle', 'tugwar', 'cook', 'drum', 'build', 'drive', 'spinning', 'desk'], ACT_SET = new Set(ACT_STYLES);
+  const ACT_STYLES = ['jump', 'dance', 'play', 'eat', 'write', 'dig', 'climb', 'exercise', 'shop', 'sing', 'highfive', 'fish', 'camp', 'magic', 'bubbles', 'photo', 'skate', 'snowball', 'juggle', 'tugwar', 'cook', 'drum', 'build', 'drive', 'spinning', 'desk'], ACT_SET = new Set(ACT_STYLES); ACT_SET.add('soccer');
   function chatActivity(mi, si, k, info, txt) {   // what are they doing while they talk?
     const vs = verbStyle(String(txt || '').toLowerCase(), mi, si); if (ACT_SET.has(vs)) return vs;
     if (info && info.dark) return null;
     const pool = info && info.comedy ? ACT_STYLES.filter(x => x !== 'desk') : ['write', 'exercise', 'play', 'jump', 'dig', 'shop', 'eat', 'climb', 'fish', 'camp', 'photo', 'build', 'cook', 'drum', 'skate', 'magic'];
     return hash(mi, si + k, 31) % 100 < 70 ? pool[hash(mi, si * 3 + k, 17) % pool.length] : null;
   }
-  const ballGeo = new THREE.SphereGeometry(.45, 14, 10), ballMat = new THREE.MeshBasicMaterial({ color: 0xff5533 });
+  const ballGeo = new THREE.SphereGeometry(.45, 14, 10), ballMat = new THREE.MeshBasicMaterial({ color: 0xff5533 }), soccerMat = new THREE.MeshBasicMaterial({ color: 0xffffff }), netMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .22 });
   function spr(em, x, y, z, sz) { const sp = new THREE.Sprite(emojiMat(em)); sp.userData.shared = true; sp.position.set(x, y, z); sp.scale.setScalar(Math.max(.01, sz)); fxGroup.add(sp); return sp; }
   function notes(t, cx, cz, n) { for (let k = 0; k < n; k++) { const ag = (t * .6 + k / n) % 1; spr(k % 2 ? '\u{1F3B5}' : '\u{1F3B6}', cx + Math.sin(k * 2.3 + t) * 2.8, 3.4 + ag * 3.4, cz + Math.cos(k * 1.7) * 1.2, 1.2 * (1 - ag * .5)); } }
   function toward(p, x, z) { p.g.rotation.y = Math.atan2(x - p.g.position.x, z - p.g.position.z); }
@@ -930,6 +930,71 @@
       words2d(Math.floor(t / 4) * 4 + .2, 'WHEEE!', 2); if ((t % 4) > 3) words2d(Math.floor(t / 4) * 4 + 3.1, 'WOW, DIZZY!', 4);
       look.set(0, 2.3, 0); return 8;
     }
+    if (style === 'soccer') {   // a real little soccer match: pitch, goals, two teams, passes, shots, saves, bicycle kicks, tackles, celebrations
+      const mvv = CINEMA_MOVIES[mi], scc = mvv.scenes[si], SO = (scc.script && scc.script.soccer) || { att: 'ex', type: 'kickoff', opp: 'THEM', col: 0x1e88e5, before: [0, 0], after: [0, 0], min: 1 };
+      const dlg = getDialogue(mi, si, mvv, scc), TT = Math.max(12, dlg.total - 3), ST = t + beatOffset, f = clamp(ST / TT, 0, 1), dir = SO.att === 'opp' ? -1 : 1, kind0 = SO.type, goalish = kind0 === 'goal' || kind0 === 'trick';
+      const cl = (x) => clamp(x, 0, 1), P = (x, z) => ({ x: x, z: z }), mixp = (a, b, k) => ({ x: lrp(a.x, b.x, k), z: lrp(a.z, b.z, k) }), key = (n) => mi + '_' + si + '_' + n, Wd = (fr, text, i) => words2d(fr * TT - beatOffset, text, i);
+      // the pitch
+      wmT(26, .1, 16, 0x2e9b3a, 0, .05, 0); for (let q = 0; q < 7; q++) wmT(2, .12, 16, 0x37a944, -12 + q * 4, .06, 0);
+      [[26, .14, .3, 0, -8], [26, .14, .3, 0, 8], [.3, .14, 16, -13, 0], [.3, .14, 16, 13, 0], [.25, .14, 16, 0, 0], [.25, .14, 8, -10.5, 0], [.25, .14, 8, 10.5, 0]].forEach(l => wMesh(l[0], l[1], l[2], 0xffffff, l[3], .13, l[4]));
+      const cc = new THREE.Mesh(fxTorus, fxMatW); cc.userData.shared = true; cc.rotation.x = -Math.PI / 2; cc.scale.setScalar(2.4); cc.position.set(0, .15, 0); fxGroup.add(cc);
+      const rip = (goalish && f > .7) ? 1 + Math.sin((f - .7) * 60) * .08 * (1 - cl((f - .7) / .2)) : 1;
+      [-1, 1].forEach(sg => { wMesh(.25, 2.7, .25, 0xffffff, sg * 13, 1.35, -1.9); wMesh(.25, 2.7, .25, 0xffffff, sg * 13, 1.35, 1.9); wMesh(.25, .25, 4.05, 0xffffff, sg * 13, 2.7, 0); const nt = new THREE.Mesh(wGeo, netMat); nt.userData.shared = true; nt.scale.set(1.8 * rip, 2.6, 3.8); nt.position.set(sg * 13.95, 1.3, 0); fxGroup.add(nt); });
+      // teams: Explox play to the right, the visitors to the left
+      const exT = [act[0], act[2]].filter(Boolean).concat(ex.filter((_, i) => i % 2 === 0)), opT = [act[1]].filter(Boolean).concat(ex.filter((_, i) => i % 2 === 1));
+      const atkT = dir > 0 ? exT : opT, defT = dir > 0 ? opT : exT, keeper = defT[defT.length - 1] || defT[0], atk = atkT.length ? atkT : [A], defs = defT.length > 1 ? defT.slice(0, -1) : defT;
+      const bibs = (arr, col) => arr.forEach(p => { if (p) wMesh(.95, .95, .12, col, p.g.position.x, p.g.position.y + 2.3, p.g.position.z + .55); });
+      const ball = new THREE.Mesh(ballGeo, soccerMat); ball.userData.shared = true; ball.scale.setScalar(.65);
+      const a1 = atk[0], a2 = atk[1 % atk.length], a3 = atk[2 % atk.length], cheer = (p, k) => { limbs(p, 2.8, 2.8, 0, 0); p.g.position.y = Math.abs(sn(t * 8 + k)) * .8; p.mouth.scale.set(1.3, 2.4, 1); }, sad = (p) => { p.armL.rotation.x = p.armR.rotation.x = 2.3; p.head.rotation.x = .5; };
+      let bp = { x: 0, y: .5, z: 0 };
+      if (kind0 === 'kickoff' || kind0 === 'final') {
+        const win = SO.after[0] >= SO.after[1];
+        [exT, opT].forEach((tm, k) => tm.forEach((p, i) => { p.g.position.set((k ? 1 : -1) * (3 + (i % 3) * 3.2), 0, (i - (tm.length - 1) / 2) * 3.4); toward(p, 0, 0); walk(p, t + i, 8, .5); if (kind0 === 'final') { if ((k === 0) === win) cheer(p, i); else sad(p); } }));
+        const ang = t * 1.1; bp = kind0 === 'final' ? { x: 0, y: .5, z: 0 } : { x: Math.cos(ang) * 4, y: .5 + Math.abs(sn(ang * 3)) * .5, z: Math.sin(ang) * 2.5 };
+        if (kind0 === 'kickoff' && ST < 2 && playing(mi)) csOnce(key('whistle'), 'whistle');
+        if (kind0 === 'final' && ST < 2 && playing(mi)) csOnce(key('whistle'), 'whistle');
+        if (kind0 === 'final') confetti(t, win ? 70 : 0);
+      } else {
+        const W0 = P(-dir * 7, -2), W1 = P(-dir * 2.5, 3), W2 = P(dir * 4.2, -1.5), ease2 = (x) => x * x * (3 - 2 * x);
+        const pa1 = f < .2 ? mixp(P(-dir * 10, -2), W0, ease2(cl(f / .2))) : mixp(W0, P(dir * 1, -4.5), ease2(cl((f - .2) / .5)));
+        const pa2 = f < .34 ? mixp(P(-dir * 6, 4), W1, ease2(cl(f / .34))) : mixp(W1, P(dir * 7, 3), ease2(cl((f - .34) / .36)));
+        const pa3 = f < .48 ? mixp(P(-dir * 3, -3.5), W2, ease2(cl(f / .48))) : W2;
+        // the ball
+        const tgt = kind0 === 'goal' || kind0 === 'trick' ? { x: dir * 13.4, y: .9, z: (hash(mi + si, 9, 3) % 2 ? .95 : -.95) } : kind0 === 'save' ? { x: dir * 12, y: 1.1, z: .2 } : kind0 === 'post' ? { x: dir * 13, y: 1.3, z: 1.9 } : { x: dir * 13.6, y: 4.6, z: 1.2 };
+        if (f < .2) bp = { x: pa1.x + dir * .9, y: .45 + Math.abs(sn(f * 60)) * .15, z: pa1.z };
+        else if (f < .34) { const k = (f - .2) / .14; bp = { x: lrp(W0.x + dir * .9, W1.x, k), y: .5 + sn(Math.PI * k) * 1.1, z: lrp(W0.z, W1.z, k) }; }
+        else if (f < .48) { const k = (f - .34) / .14; bp = { x: lrp(W1.x, W2.x, k), y: .5 + sn(Math.PI * k) * 1.3, z: lrp(W1.z, W2.z, k) }; }
+        else if (f < .58) bp = { x: W2.x + dir * .8, y: .45, z: W2.z };
+        else if (kind0 === 'tackle') { const k = cl((f - .58) / .3); bp = { x: lrp(W2.x + dir * .8, -dir * 4, k), y: .45 + Math.abs(sn(k * 9)) * .3, z: lrp(W2.z, 2.5, k) }; }
+        else if (f < .7) { const k = (f - .58) / .12; bp = { x: lrp(W2.x + dir * .8, tgt.x, k), y: lrp(.5, tgt.y, k) + sn(Math.PI * k) * .9, z: lrp(W2.z, tgt.z, k) }; }
+        else if (kind0 === 'post') { const k = cl((f - .7) / .14); bp = { x: lrp(tgt.x, dir * 9.5, k), y: Math.abs(sn(k * 6)) * .8 + .4, z: lrp(tgt.z, 4, k) }; }
+        else if (kind0 === 'miss') { const k = cl((f - .7) / .3); bp = { x: lrp(tgt.x, dir * 17, k), y: lrp(tgt.y, 1, k), z: tgt.z }; }
+        else bp = { x: tgt.x, y: kind0 === 'save' ? 1.3 : .55, z: tgt.z };
+        // players
+        const place = (p, q, face) => { p.g.position.set(q.x, 0, q.z); toward(p, face.x, face.z); walk(p, t * 1.2 + q.x, 12, .9); p.body.rotation.x = .12; };
+        const bpp = { x: bp.x, z: bp.z };
+        place(a1, pa1, bpp); if (a2 !== a1) place(a2, pa2, bpp); if (a3 !== a1 && a3 !== a2) place(a3, pa3, bpp);
+        atk.slice(3).forEach((p, i) => place(p, P(dir * (3 + i * 2) - (f > .5 ? 0 : dir * 3), (i % 2 ? 5 : -5)), bpp));
+        defs.forEach((p, i) => { const lag = .18 + i * .1, k = clamp(f - lag, 0, 1); place(p, P(clamp(bp.x + dir * (2.2 + i * 1.8), -11, 11), clamp(bp.z + (i % 2 ? 2.6 : -2.6) * (1 + i * .3), -6.5, 6.5)), bpp); });
+        // a sliding tackle, a bicycle kick, and the goalkeeper
+        if (kind0 === 'tackle' && defs[0] && f > .46 && f < .7) { const d0 = defs[0], k = cl((f - .46) / .2); d0.g.position.set(lrp(W2.x + dir * 3, W2.x + dir * .6, ease2(k)), 0, W2.z); d0.g.rotation.y = dir > 0 ? -Math.PI / 2 : Math.PI / 2; d0.g.rotation.z = (dir > 0 ? -1 : 1) * 1.3 * sn(Math.PI * Math.min(k * 1.2, 1) * .8); d0.g.position.y = .25; if (f > .5 && playing(mi)) csOnce(key('tackle'), 'smack'); }
+        if (kind0 === 'trick' && f > .5 && f < .66) { const k = cl((f - .5) / .14); a3.g.position.y = sn(Math.PI * k) * 2.6; a3.body.rotation.x = dir * -Math.PI * 2 * k; a3.legR.rotation.x = -1.4; a3.armL.rotation.z = -1.3; a3.armR.rotation.z = 1.3; }
+        else if (f > .54 && f < .62 && kind0 !== 'tackle') { a3.legR.rotation.x = -1.6 * sn(Math.PI * cl((f - .54) / .08)); }
+        const kx = dir * 12.2, kz = (f > .6 && f < .86) ? (kind0 === 'save' ? clamp(tgt.z, -1.4, 1.4) * cl((f - .6) / .1) : kind0 === 'goal' || kind0 === 'trick' ? -Math.sign(tgt.z) * 1.4 * cl((f - .6) / .1) : 0) : clamp(bp.z * .4, -1.3, 1.3);
+        if (keeper) { keeper.g.position.set(kx, 0, kz); toward(keeper, 0, bp.z); keeper.armL.rotation.x = keeper.armR.rotation.x = 1.4; keeper.legL.rotation.x = sn(t * 6) * .25; keeper.legR.rotation.x = -sn(t * 6) * .25;
+          if (f > .62 && f < .8 && (kind0 === 'save' || kind0 === 'goal' || kind0 === 'trick')) { const k = cl((f - .62) / .1); keeper.g.rotation.z = (kz >= 0 ? -1 : 1) * (dir > 0 ? 1 : -1) * 1.2 * k * (kind0 === 'save' ? 1 : .9); keeper.g.position.y = sn(Math.PI * k) * .7 + .3; keeper.armL.rotation.x = keeper.armR.rotation.x = 2.8; } }
+        // sounds, flashes, words, celebrations
+        if (playing(mi)) { if (f > .2 && f < .24) csOnce(key('k1'), 'thump'); if (f > .34 && f < .38) csOnce(key('k2'), 'thump'); if (f > .58 && f < .62) csOnce(key('shot'), 'bam'); if (f > .7 && goalish) { csOnce(key('goal'), 'applause'); csOnce(key('goal2'), 'cheer2'); } if (f > .7 && kind0 === 'save') csOnce(key('sv'), 'clap2'); if (f > .7 && kind0 === 'miss') csOnce(key('ms'), 'sigh'); if (f > .7 && kind0 === 'post') csOnce(key('ps'), 'clink'); }
+        if (goalish && f > .7 && f < .75) { flashA = Math.max(flashA, (1 - (f - .7) / .05) * .6); zoomPunch = Math.max(zoomPunch, .5); }
+        if (f > .62) Wd(.62, kind0 === 'goal' ? 'GOAL!!!' : kind0 === 'trick' ? 'BICYCLE KICK GOAL!' : kind0 === 'save' ? 'WHAT A SAVE!' : kind0 === 'post' ? 'OFF THE POST!' : kind0 === 'miss' ? 'OVER THE BAR!' : 'BIG TACKLE!', kind0 === 'goal' || kind0 === 'trick' ? 3 : 2);
+        if (f > .72) { if (goalish) { atk.forEach((p, i) => { if (p !== a3) { p.g.position.x = lrp(p.g.position.x, a3.g.position.x - dir * (1 + i * .7), .25); p.g.position.z = lrp(p.g.position.z, a3.g.position.z + (i - 1) * .9, .25); } cheer(p, i); }); defs.forEach(sad); if (keeper) sad(keeper); confetti(t, 60); } else if (kind0 === 'save') { if (keeper) { keeper.armL.rotation.x = keeper.armR.rotation.x = 1.0; } defs.forEach((p, i) => { if (i === 0) cheer(p, i); }); } else if (kind0 === 'miss' || kind0 === 'post') { atk.forEach(p => { p.armL.rotation.x = p.armR.rotation.x = 2.4; p.head.rotation.x = .3; }); } }
+      }
+      bibs(exT, 0xe53935); bibs(opT, SO.col || 0x1e88e5);
+      ball.position.set(bp.x, bp.y, bp.z); ball.rotation.set(t * 9, 0, t * 6); fxGroup.add(ball);
+      const done = goalish && f > .72; soccerHud = { a: SO.opp, sa: done ? SO.after[0] : SO.before[0], sb: done ? SO.after[1] : SO.before[1], min: SO.min, col: SO.col };
+      if (SO.type === 'final') soccerHud.min = 90;
+      look.set(clamp(bp.x * .55, -6, 6), 1.8, 0); return 15;
+    }
     if (style === 'desk') {   // one serious person sits behind a counter, perfectly still, while nothing at all happens
       wmT(7.5, 1.5, 2.2, 0x8a6a4a, 0, .75, .4); wmT(7.8, .18, 2.5, 0xb08a5e, 0, 1.6, .4); wmT(1.8, .45, .1, 0xffffff, 0, 1.2, 1.55); wmT(1, .35, .8, 0xffffff, -2.6, 1.85, .4); wmT(.9, .3, .7, 0xfff9c4, -2.4, 2.1, .3);
       wmT(.6, 1.4, .6, 0x2e7d32, 3.3, 2.1, -.2); wmT(1.3, 1.3, .12, 0xffffff, 3.6, 5.4, -4.2); const hand = wmT(.12, .55, .1, 0x111111, 3.6, 5.6, -4.1); hand.rotation.z = -t * .05;
@@ -962,8 +1027,8 @@
   }
   function activity(style, act, ex, t, u, look, mi, si, beatNo) {
     const h = hash(mi * 7 + si, beatNo || 0, 3), vr = { tempo: TEMPO[h % 5], hue: HUES[hash(h, 5, 2) % 12], fl: hash(h, 7, 5) };
-    HUE = vr.hue; const tt = t * vr.tempo, sp = activityBase(style, act, ex, tt, u, look, mi, si); HUE = 0;
-    act.concat(ex).forEach((p, i) => { const T = 3.3, c = Math.floor((tt + i * .73) / T), q = ((tt + i * .73) % T) / T / .28; if (q < 1 && hash(c, i + vr.fl, 4) % 3 !== 0 && !(style === 'dance' || style === 'highfive' || style === 'drive' || style === 'spinning' || style === 'desk')) flourish(p, FLOURISH[hash(c, i + vr.fl, 9) % 8], q); });
+    HUE = style === 'soccer' ? 0 : vr.hue; const tt = style === 'soccer' ? t : t * vr.tempo, sp = activityBase(style, act, ex, tt, u, look, mi, si); HUE = 0;
+    act.concat(ex).forEach((p, i) => { const T = 3.3, c = Math.floor((tt + i * .73) / T), q = ((tt + i * .73) % T) / T / .28; if (q < 1 && hash(c, i + vr.fl, 4) % 3 !== 0 && !(style === 'dance' || style === 'highfive' || style === 'drive' || style === 'spinning' || style === 'desk' || style === 'soccer')) flourish(p, FLOURISH[hash(c, i + vr.fl, 9) % 8], q); });
     return sp;
   }
   // ---------- what they see, you see: when a line talks about something, it appears in the scene, everyone turns to look at it, and the camera cuts to over their shoulder ----------
@@ -1074,7 +1139,7 @@
   }
   // ---------- the director: puts the right characters in the right place doing what the caption says ----------
   function directBeat(mi, si, mv, sc, t, info, dur, camSeed) {
-    const u = clamp(t / dur, 0, 1); flashA = 0; zoomPunch = 0; fightHud = null; fightCam = null; weirdFlip = false;
+    const u = clamp(t / dur, 0, 1); flashA = 0; zoomPunch = 0; fightHud = null; fightCam = null; soccerHud = null; weirdFlip = false;
     shown.forEach(p => { p.g.visible = false; }); shown = []; clearFx(); words = [];
     Object.keys(propCache).forEach(k => { propCache[k].visible = false; });
     const act = actorsFor(mi, mv, info), ex = info.extraN ? extrasFor(mi, info, info.extraN) : [];
@@ -1264,7 +1329,7 @@
     { const tS = t + beatOffset, dlg = getDialogue(mi, si, mv, sc), ln = dlg.find(l => tS >= l.start - .1 && tS <= l.end + 1.4), first = dlg.length ? dlg[0].start : 0;
       const txt = ln ? ln.text : (tS < first ? sc.text : ''), lt = String(txt || '').toLowerCase(), t0 = ln ? ln.start : 0, age = tS - t0, who = ln && ln.who !== 'N' ? Math.max(0, info.present.indexOf(ln.who)) : hash(mi, si, 8) % Math.max(1, act.length);
       if (ln && playing(mi) && age >= 0 && age < .7) { let n2 = 0; for (const [re, nm] of WORD_SFX) { if (n2 >= 2) break; if (re.test(lt)) { n2++; csOnce(mi + '_' + si + '_' + t0 + 'w' + nm, nm); } } }
-      if (/\b(explo\w*|boom|crash\w*|bang|blast\w*|kaboom|thunder\w*)\b/.test(lt) && age >= 0 && age < 1.2) { if (playing(mi)) csOnce(mi + '_' + si + '_' + t0 + 'b', 'boom2'); if (age < .35) { flashA = Math.max(flashA, (1 - age / .35) * .9); shake = Math.max(shake, .6 * (1 - age / .35)); } words2d(t0 - beatOffset + .05, 'BOOM!', 3); }
+      if (/\b(explod\w*|explosion\w*|boom|crash\w*|bang|blast\w*|kaboom|thunder\w*)\b/.test(lt) && age >= 0 && age < 1.2) { if (playing(mi)) csOnce(mi + '_' + si + '_' + t0 + 'b', 'boom2'); if (age < .35) { flashA = Math.max(flashA, (1 - age / .35) * .9); shake = Math.max(shake, .6 * (1 - age / .35)); } words2d(t0 - beatOffset + .05, 'BOOM!', 3); }
       if (/\b(fall|falls|fell|falling|trip|trips|tripped|slip|slips|slipped|tumble\w*)\b/.test(lt) && age >= 0 && age < 1.8) { if (playing(mi)) csOnce(mi + '_' + si + '_' + t0 + 'f', 'thump'); const v = act[who % act.length], lie = eas(Math.min(age / .4, 1)) * (1 - eas(clamp((age - 1.3) / .4, 0, 1))); v.g.rotation.x = -1.4 * lie; v.g.position.y += .5 * lie; v.mouth.scale.set(1, 3, 1); if (lie > .5) { spr('\u{1F4AB}', v.g.position.x, 5.2, v.g.position.z, 1.1); words2d(t0 - beatOffset + .2, 'OOF!', 2); } }
       if (/\b(sleep|sleeps|asleep|sleeping|nap|naps|snore\w*|yawn\w*|dream\w*)\b/.test(lt) && age >= 0 && age < 6) { if (playing(mi) && Math.floor(age / 2.4) !== csState.snoreIdx) { csState.snoreIdx = Math.floor(age / 2.4); try { CSFX.snore(); } catch (e) { } } const v = act[who % act.length]; v.head.rotation.x = .55; v.body.rotation.x = .25; v.armL.rotation.x = v.armR.rotation.x = .2; v.mouth.scale.set(1, .5, 1); for (let k = 0; k < 3; k++) { const ag = (t * .5 + k / 3) % 1; spr('\u{1F4A4}', v.g.position.x + .8 + ag * .8, 5 + ag * 1.8, v.g.position.z, 1 - ag * .5); } }
     }
@@ -1286,7 +1351,7 @@
   }
   // what is being SAID right now (the narrator's caption at the start, then every line) decides what is being DONE
   function wordsStyle(dl, sc, mi, si, t) {
-    if (/BORING|NEWS/.test((CINEMA_MOVIES[mi] && CINEMA_MOVIES[mi].tvTag) || '')) return null;   // the Boring Channel never does anything exciting, whatever the words say
+    if (/BORING|NEWS|SOCCER/.test((CINEMA_MOVIES[mi] && CINEMA_MOVIES[mi].tvTag) || '')) return null;   // the Boring Channel never does anything exciting, whatever the words say
     const first = dl.length ? dl[0].start : 0, ln = dl.find(l => t >= l.start - .1 && t <= l.end + .4);
     const txt = ln ? ln.text : (t < first - .1 ? sc.text : null); if (!txt) return null;
     const v = verbStyle(String(txt).toLowerCase(), mi, si, true); return v && v !== 'talk' && v !== 'look' ? v : null;
@@ -1368,6 +1433,12 @@
         if (mv.tv && mv.ticker) { const tf = Math.max(12, Math.round(h * .03)); ctx.save(); ctx.fillStyle = 'rgba(10,20,60,.88)'; ctx.fillRect(0, h * .905, w, tf * 1.6); ctx.fillStyle = '#e53935'; ctx.fillRect(0, h * .905, tf * 5.2, tf * 1.6); ctx.fillStyle = '#fff'; ctx.font = '900 ' + tf + 'px Arial Black, Arial'; ctx.textAlign = 'left'; ctx.fillText('LIVE', tf * .8, h * .905 + tf * 1.15); ctx.beginPath(); ctx.rect(tf * 5.3, h * .905, w, tf * 1.6); ctx.clip(); ctx.font = 'bold ' + tf + 'px Arial'; const tw2 = ctx.measureText(mv.ticker).width + w * .3; ctx.fillText(mv.ticker, w - ((t * w * .09) % (tw2 + w)), h * .905 + tf * 1.15); ctx.restore(); }
         if (si === 0 && !mv.tv && t > 6.8 && t < 13.2) { const cl3 = castList(mi, mv), k = Math.min(2, Math.floor((t - 6.8) / 2.1)), q = (t - 6.8) - k * 2.1, c3 = cl3[k], a3 = q < .35 ? q / .35 : (q > 1.75 ? Math.max(0, (2.1 - q) / .35) : 1), fs3 = Math.max(14, Math.round(h * .042));
           if (c3) { ctx.save(); ctx.globalAlpha = a3; ctx.translate((1 - a3) * -w * .1, 0); const bx = w * .04, by = h * .6, bw3 = w * .46, bh3 = fs3 * 3.4; ctx.fillStyle = 'rgba(0,0,0,.62)'; ctx.fillRect(bx, by, bw3, bh3); ctx.fillStyle = ['#ffd54f', '#4fc3f7', '#ff8ab3'][k]; ctx.fillRect(bx, by, fs3 * .3, bh3); ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.font = '900 ' + fs3 + 'px Arial Black, Arial'; ctx.fillText(String(c3.role).toUpperCase(), bx + fs3 * .8, by + fs3 * 1.15); ctx.font = 'bold ' + Math.round(fs3 * .62) + 'px Arial'; ctx.fillStyle = '#9fe3ff'; ctx.fillText('played by \u2605 ' + c3.actor, bx + fs3 * .8, by + fs3 * 2.05); ctx.fillStyle = '#ffd54f'; ctx.font = 'italic ' + Math.round(fs3 * .6) + 'px Arial'; ctx.fillText(c3.tag || '', bx + fs3 * .8, by + fs3 * 2.8); ctx.restore(); } }
+      }
+      if (soccerHud) {   // the scoreboard
+        const sh2 = soccerHud, fs5 = Math.max(13, Math.round(h * .034)), bwid = w * .66, bx = w / 2 - bwid / 2, by = h * .06;
+        ctx.save(); ctx.fillStyle = 'rgba(0,0,0,.78)'; ctx.fillRect(bx, by, bwid, fs5 * 1.9); ctx.fillStyle = '#e53935'; ctx.fillRect(bx, by, fs5 * .5, fs5 * 1.9); ctx.fillStyle = '#' + ('000000' + (sh2.col || 0x1e88e5).toString(16)).slice(-6); ctx.fillRect(bx + bwid - fs5 * .5, by, fs5 * .5, fs5 * 1.9);
+        ctx.font = '900 ' + fs5 + 'px Arial Black, Arial'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText('EXPLOX  ' + sh2.sa + ' : ' + sh2.sb + '  ' + String(sh2.a).toUpperCase(), w / 2, by + fs5 * 1.3);
+        ctx.font = 'bold ' + Math.round(fs5 * .7) + 'px Arial'; ctx.fillStyle = '#ffd54f'; ctx.fillText(sh2.min + "'", bx + fs5 * 2.2, by + fs5 * 1.25); ctx.restore();
       }
       if (fightHud) {   // fighting-game health bars, a combo counter and the SUPER MOVE banner
         const f = fightHud, bw = w * .36, bh = h * .034, y = h * .075, col = (v) => v > 50 ? '#5dff6a' : v > 25 ? '#ffd23f' : '#ff4040';
@@ -1692,7 +1763,7 @@
     magic: ['penthouse_view', 'neon_lights', 'galaxy_drive'], night: ['neon_district', 'metro_groove'], adventure: ['mission_zone', 'galaxy_drive', 'beach_cruise'],
   };
   const MOOD_VOL = { scared: .15, sad: .17, serious: .16, night: .16, worried: .16, sneak: .15, fight: .26, chase: .26, party: .24, angry: .24, excited: .24, joy: .22 };
-  const STYLE_MOOD = { fight: 'fight', run: 'chase', sneak: 'sneak', panic: 'scared', party: 'party', dance: 'party', highfive: 'joy', sing: 'happy', drum: 'excited', magic: 'magic', fly: 'adventure', climb: 'determined', exercise: 'determined', build: 'determined', skate: 'excited', jump: 'excited', play: 'happy', eat: 'happy', cook: 'happy', camp: 'warm', fish: 'relieved', write: 'curious', shop: 'curious', dig: 'curious', photo: 'happy', snowball: 'joy', juggle: 'joy', bubbles: 'joy', tugwar: 'determined', drive: 'adventure', spinning: 'joy', desk: 'serious' };
+  const STYLE_MOOD = { fight: 'fight', run: 'chase', sneak: 'sneak', panic: 'scared', party: 'party', dance: 'party', highfive: 'joy', sing: 'happy', drum: 'excited', magic: 'magic', fly: 'adventure', climb: 'determined', exercise: 'determined', build: 'determined', skate: 'excited', jump: 'excited', play: 'happy', eat: 'happy', cook: 'happy', camp: 'warm', fish: 'relieved', write: 'curious', shop: 'curious', dig: 'curious', photo: 'happy', snowball: 'joy', juggle: 'joy', bubbles: 'joy', tugwar: 'determined', drive: 'adventure', spinning: 'joy', desk: 'serious', soccer: 'excited' };
   const TOD_MOOD = { night: 'night', storm: 'angry', dawn: 'joy', dusk: 'warm', day: 'happy' };
   function moodAt(mi, si, mv, sc, t) {
     const info = getInfo(mi, si, mv, sc), dl = getDialogue(mi, si, mv, sc), ln = dl.find(l => t >= l.start - .1 && t <= l.end + .6); let bb = null;
