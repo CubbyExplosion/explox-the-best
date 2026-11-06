@@ -282,8 +282,8 @@
   const sceneInfoCache = {};
   function verbStyle(t, mi, si) {
     if (/fight|battle|attack|punch|kick|strike|clash|duel|defend|brawl|war\b|fist/.test(t)) return 'fight';
-    if (/\brun|race|chase|escape|rush|flee|dash|sprint|speed/.test(t)) return 'run';
-    if (/launch|\bfly|flight|soar|wings|take off|takes off|orbit|warp|cruis/.test(t)) return 'fly';
+    if (/\b(run|runs|running|ran|race|races|racing|chase|chases|chasing|escape|escapes|rush|rushes|flee|flees|fleeing|sprint|sprints|speed|speeds)\b/.test(t)) return 'run';
+    if (/\b(launch|launches|launched|fly|flies|flying|flight|soar|soars|wings|take off|takes off|orbit|orbits|warp|cruise|cruising)\b/.test(t)) return 'fly';
     if (/dance|party|celebrat|cheer|victory|win\b|wins\b|festival|hooray|finally|parade|laugh|joke/.test(t)) return 'party';
     if (/sneak|creep|tiptoe|secret|hid\b|hide|hiding|silent|quiet|search|investigat|follow/.test(t)) return 'sneak';
     if (/scream|panic|afraid|scared|terrified|horror|run for|trembl/.test(t)) return 'panic';
@@ -563,24 +563,76 @@
     fire: 'It is getting hot in here!', heart: 'I love this place.', bolt: 'Run! Lightning!', book: 'It is all written in this book.', shield: 'Stand behind me!', car: 'Start your engines!', moon: 'What a quiet night.', sun: 'What a beautiful morning!', tree: 'This old tree has seen everything.', lantern: 'Follow the light.' };
   const dlgCache = {};
   const wc = (t) => String(t || '').trim().split(/\s+/).length;
+  // The lines come from the caption itself: a character either says what the caption says about them (in the first person),
+  // reacts to the event in it, or answers the other character. Pure scene-setting and dark lore captions are left to the narrator.
+  const MATURE = /satan|devil|demon|kill|blood|bleed|death|dead\b|\bdie\b|dies\b|murder|weapon|blade|grave|curse|bounty|hunter|wrath/i;
+  const EVENT = /attack|escape|chase|race|fight|battle|find|found|discover|jump|run\b|ran\b|fall|fell|win\b|won\b|lose|lost|steal|stolen|arriv|launch|land|\bhit\b|crash|explo|rescue|save|build|open|catch|throw|danc|celebrat|cheer|scan|search|examin|follow|hid|sneak|warn|shout|scream|flee|zoom|fly|climb|fix|cook|bake|meet|talk|ask|answer|plan|decid|train|learn|teach|lead|begin|start|gather|march|enter|leave|return|prepar|regroup|surround|signal|roar|surpris|adjust|survey|tame|clue|suspic|breaking|shock/i;
+  const IRREG = { is: 'am', has: 'have', does: 'do', goes: 'go' };
+  function firstSentence(t) {
+    t = String(t || '').replace(/\s+/g, ' ').trim(); const m = t.match(/^[^.!?\u2026]+[.!?\u2026]?/); let x = (m ? m[0] : t).trim();
+    if (x.split(' ').length > 13) x = x.split(/\s[\u2014:;,-]\s|[\u2014:;,]/)[0].trim();
+    if (x.split(' ').length > 13) x = x.split(' ').slice(0, 12).join(' ');
+    if (!/[.!?\u2026]$/.test(x)) x += '.'; return x;
+  }
+  const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  function firstPerson(sentence, nameOf) {
+    for (const who of ['A', 'B', 'C']) {
+      const n = nameOf[who]; if (!n) continue;
+      const m = sentence.match(new RegExp('^(?:The )?' + esc(n) + ' ([a-z]+)(.*)$', 'i')); if (!m) continue;
+      let v = m[1]; if (!/s$/i.test(v) && !IRREG[v.toLowerCase()]) continue;
+      v = IRREG[v.toLowerCase()] || (/ies$/i.test(v) ? v.slice(0, -3) + 'y' : /(ches|shes|sses|xes|zes)$/i.test(v) ? v.slice(0, -2) : /ss$/i.test(v) ? v : v.slice(0, -1));
+      return { who, text: 'I ' + v + m[2].replace(/\b(their|his|her|its)\b/gi, 'my') };
+    }
+    return null;
+  }
+  // Natural spoken lines that fit what is happening in the scene (never the narration read back). Scenes that are only
+  // scene-setting or lore are left to the narrator, so nobody says anything that does not fit.
+  const CATS = {
+    fight:  [['Take that!', 'Not today!', 'You will not win!'], ['Ha! Try again!', 'You cannot stop me!', 'We will see about that!']],
+    race:   [['Start your engines!', 'Pedal to the metal!', 'Here we go, racers!'], ['Catch me if you can!', 'I am right behind you!', 'This is going to be close!']],
+    chase:  [['Faster! Faster!', 'Do not let them catch us!', 'Keep running!'], ['Wait for me!', 'I am right behind you!', 'Come back here!']],
+    danger: [['Look out!', 'Watch out!', 'Danger ahead!'], ['Stay close to me!', 'I am ready for them!', 'We can handle this together!']],
+    discover: [['Wait... what is that?', 'Did you see that?', 'I think I found something!'], ['Let us take a closer look.', 'Stay careful. Let us find out.', 'What do you think it is?']],
+    start:  [['Here we go!', 'This is it!', 'Let us get started!'], ['I am ready!', 'Let us do this!', 'Right behind you!']],
+    win:    [['Yes! We did it!', 'Woohoo!', 'Hooray!'], ['We did it together!', 'Best day ever!', 'I knew we could do it!']],
+    trouble: [['Oh no!', 'This is bad!', 'That cannot be!'], ['Do not give up. We can fix this.', 'We will find a way.', 'Stay calm. Think!']],
+    plan:   [['Here is the plan.', 'Listen to me, everyone.', 'We need to work together.'], ['Understood.', 'I am with you.', 'Tell us what to do.']],
+    travel: [['This way. Stay close.', 'Keep your eyes open.', 'We are getting closer.'], ['Right behind you!', 'I see something up ahead.', 'Lead the way!']],
+    build:  [['Hand me that!', 'Almost done!', 'Together we can build anything!'], ['Here you go!', 'Looks great!', 'Nice work!']],
+  };
+  const CAT_RE = [
+    ['danger', /\b(attacks?|attacked|explosion|hit|crash(es)?|danger|monsters?|alarm|warning|traps?|trapped|ambush(es)?|invade[sd]?|threat|enem(y|ies)|surrounded)\b/i],
+    ['discover', /\b(discover(s|ed)?|found|finds?|notices?|noticed|spots?|spotted|clue|scanner|strange|temple|hidden|secret)\b/i],
+    ['trouble', /\b(stolen|lost|missing|falls?|fell|fails?|failed|broke|broken|trouble|stuck|crisis|shock|gone)\b/i],
+    ['win', /\b(wins?|won|victory|celebrates?|celebrated|cheers?|cheered|fireworks|success|finally|saved|rescues?|rescued|comeback)\b/i],
+    ['start', /\b(arrives?|arrived|launch(es|ed)?|begins?|starts?|started|prepares?|prepared|regroups?|marches|marched|set off|take off|takes off)\b/i],
+    ['plan', /\b(plans?|decides?|decided|meets?|asks?|answers?|council|learns?|teach(es)?|train(s|ing)?|speech|announces?|announced|promises?|promised|whispers?|whispered|warns?|warned)\b/i],
+    ['travel', /\b(walks?|walked|journey|travels?|traveled|wanders?|follows?|followed|returns?|returned|leaves?|explores?|explored|examin(e|es|ing)|surveys?|investigat(e|es|ing))\b/i],
+    ['build', /\b(builds?|building|built|fix(es|ed)?|repairs?|repaired|cooks?|cooked|bakes?|baked|crafts?|crafted|raises?|raised|hammers?|invents?|invented|paints?|painted)\b/i],
+  ];
   function getDialogue(mi, si, mv, sc) {
     const key = mi + '_' + si; if (dlgCache[key]) return dlgCache[key];
     const info = getInfo(mi, si, mv, sc), roles = castRoles(mi, mv), nameOf = { A: roles[0].role, B: roles[1].role, C: roles[2].role };
-    const h = hash(mi, si, 21), lines = [];
-    const quote = (sc.text || '').match(/["\u201C]([^"\u201D]{3,90})["\u201D]/);
-    const style = STYLE_LINES[info.style] ? info.style : 'talk', variants = STYLE_LINES[style], pick = variants[h % variants.length];
-    if (quote) { lines.push(['A', quote[1].replace(/\s+/g, ' ').trim()]); if (pick[1]) lines.push(pick[1].slice()); }
-    else if (info.prop && PROP_LINES[info.prop] && h % 2 === 0) { lines.push(['A', PROP_LINES[info.prop]]); if (pick[pick.length - 1][0] !== 'A') lines.push(pick[pick.length - 1].slice()); }
-    else pick.forEach(l => lines.push(l.slice()));
-    if (info.present.indexOf('C') >= 0 && !info.comedy && h % 3 === 0) lines.push(['C', 'I knew it!']);
-    if (info.comedy && info.surprise) lines.push([info.present.indexOf('B') >= 0 ? 'B' : 'A', ['What?!', 'No way!', 'Oh no, oh no!'][h % 3]]);
-    // keep only lines spoken by someone who is in the shot; fill in names
-    const out = []; lines.forEach(l => { let who = l[0]; if (info.present.indexOf(who) < 0) who = info.present[0]; out.push({ who, text: l[1].replace('{B}', nameOf.B).replace('{A}', nameOf.A), role: nameOf[who] }); });
-    const res = out.slice(0, 3);
-    // timing (seconds into the scene): the narrator reads the caption first, then the characters speak
-    let tcur = 0.4 + wc(sc.text) / 2.6 + 0.45;
+    const text = String(sc.text || ''), h = hash(mi, si, 21), res = [];
+    res.total = 0.4 + wc(text) / 2.6 + 0.4; dlgCache[key] = res;
+    if (MATURE.test(text)) return res;
+    const quote = text.match(/["\u201C]([^"\u201D]{3,90})["\u201D]/);
+    let cat = /\b(race|races|racing|raced|racer|racers|grid|slalom|lap|laps)\b/i.test(text) ? 'race' : info.style === 'fight' ? 'fight' : info.style === 'run' ? 'chase' : info.style === 'sneak' ? 'discover' : null;
+    if (!cat) { const f = CAT_RE.find(c => c[1].test(text)); cat = f ? f[0] : null; }
+    const hasB = info.present.indexOf('B') >= 0 || info.present.indexOf('C') >= 0;
+    const lines = [];
+    const who = text.match(/^([A-Z][A-Za-z' -]{2,26}):\s*["\u201C]/); const label = who ? who[1] : null;
+    if (quote) { lines.push(['A', quote[1].replace(/\s+/g, ' ').trim()]); if (hasB && cat) lines.push(['B', CATS[cat][1][h % 3]]); }
+    else if (cat) {
+      let a = CATS[cat][0][h % 3];
+      if (['rocket', 'pizza', 'trophy', 'car', 'portal', 'house'].indexOf(info.prop) >= 0 && (cat === 'start' || cat === 'win') && h % 2 === 0) a = PROP_LINES[info.prop];
+      lines.push(['A', a]); if (hasB) lines.push(['B', CATS[cat][1][(h >>> 2) % 3]]);
+    }
+    lines.slice(0, 2).forEach((l, n) => { let w = l[0]; if (info.present.indexOf(w) < 0) w = info.present[0]; if (res.length && res[res.length - 1].who === w) return; res.push({ who: w, text: l[1], role: (n === 0 && label && quote) ? label : nameOf[w] }); });
+    if (!res.length) return res;
+    let tcur = 0.4 + wc(text) / 2.6 + 0.45;
     res.forEach(l => { l.start = tcur; l.end = tcur + wc(l.text) / 2.6 + 0.3; tcur = l.end + 0.25; });
-    res.total = tcur + 0.5; dlgCache[key] = res; return res;
+    res.total = tcur + 0.5; return res;
   }
   function charVoice(who, narrator) {
     if (!VOICES.length) loadVoices();
@@ -714,5 +766,5 @@
       try { const dl = getDialogue(mi, si, mv, sc); sc.dur = Math.max(sc.dur || 5, Math.min(11, dl.total || 5)); } catch (e) { }
     });
   });
-  window.__cinema3d = { draw: draw3D, tagsFor, info: getInfo, castList, drawCredits, status: () => ({ failed, hasRenderer: !!R }) };
+  window.__cinema3d = { draw: draw3D, tagsFor, info: getInfo, castList, drawCredits, dialogue: getDialogue, status: () => ({ failed, hasRenderer: !!R }) };
 })();
