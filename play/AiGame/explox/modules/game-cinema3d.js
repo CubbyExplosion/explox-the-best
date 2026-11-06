@@ -705,21 +705,21 @@
   function pose(p) { if (p.weirdScaled) { p.g.scale.setScalar(1.45); p.weirdScaled = false; } p.head.scale.setScalar(1);
  p.g.rotation.set(0, p.g.rotation.y, 0); p.body.rotation.set(0, 0, 0); p.body.position.set(0, 0, 0); p.head.rotation.set(0, 0, 0); p.head.scale.setScalar(p.costume === 'alien' ? 1.25 : 1); limbs(p, 0, 0, 0, 0); p.armL.rotation.z = 0; p.armR.rotation.z = 0; p.mouth.scale.set(1, 1, 1); p.g.position.y = 0; }
   function walk(p, t, sp, big) { const s = Math.sin(t * sp) * (big || .8); limbs(p, -s, s, s, -s); p.body.position.y = Math.abs(Math.sin(t * sp)) * .12; }
-  let soccerHud = null; let beatOffset = 0, lastSceneKey = '', flashA = 0, zoomPunch = 0, titleKey = -1, fightKey = '', fightHud = null, fightCam = null; const fightT0 = {}, fightLast = {};
+  let soccerHud = null, battleHud = null; let beatOffset = 0, lastSceneKey = '', flashA = 0, zoomPunch = 0, titleKey = -1, fightKey = '', fightHud = null, fightCam = null; const fightT0 = {}, fightLast = {};
   const auraMat = { A: new THREE.MeshBasicMaterial({ color: 0xffd54a, transparent: true, opacity: .33 }), B: new THREE.MeshBasicMaterial({ color: 0x40c4ff, transparent: true, opacity: .33 }) }, dustMat = new THREE.MeshBasicMaterial({ color: 0xc8b28a });
   const fxTorus = new THREE.TorusGeometry(1, .08, 6, 28), fxStar = new THREE.OctahedronGeometry(.22), fxMatW = new THREE.MeshBasicMaterial({ color: 0xffffff }), fxMatY = new THREE.MeshBasicMaterial({ color: 0xffe033 });
   function words2d(t0, text, i) { words.push({ t0: t0 + beatOffset, text, i }); }
   let shown = [], curActors = [], curInfoNow = null;
 
   // ---------- things to DO: jump, dance, play ball, eat, paint, dig, climb, work out, shop, sing, high-five ----------
-  const ACT_STYLES = ['jump', 'dance', 'play', 'eat', 'write', 'dig', 'climb', 'exercise', 'shop', 'sing', 'highfive', 'fish', 'camp', 'magic', 'bubbles', 'photo', 'skate', 'snowball', 'juggle', 'tugwar', 'cook', 'drum', 'build', 'drive', 'spinning', 'desk'], ACT_SET = new Set(ACT_STYLES); ACT_SET.add('soccer');
+  const ACT_STYLES = ['jump', 'dance', 'play', 'eat', 'write', 'dig', 'climb', 'exercise', 'shop', 'sing', 'highfive', 'fish', 'camp', 'magic', 'bubbles', 'photo', 'skate', 'snowball', 'juggle', 'tugwar', 'cook', 'drum', 'build', 'drive', 'spinning', 'desk'], ACT_SET = new Set(ACT_STYLES); ACT_SET.add('soccer'); ACT_SET.add('battle');
   function chatActivity(mi, si, k, info, txt) {   // what are they doing while they talk?
     const vs = verbStyle(String(txt || '').toLowerCase(), mi, si); if (ACT_SET.has(vs)) return vs;
     if (info && info.dark) return null;
     const pool = info && info.comedy ? ACT_STYLES.filter(x => x !== 'desk') : ['write', 'exercise', 'play', 'jump', 'dig', 'shop', 'eat', 'climb', 'fish', 'camp', 'photo', 'build', 'cook', 'drum', 'skate', 'magic'];
     return hash(mi, si + k, 31) % 100 < 70 ? pool[hash(mi, si * 3 + k, 17) % pool.length] : null;
   }
-  const ballGeo = new THREE.SphereGeometry(.45, 14, 10), ballMat = new THREE.MeshBasicMaterial({ color: 0xff5533 }), soccerMat = new THREE.MeshBasicMaterial({ color: 0xffffff }), netMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .22 });
+  const ballGeo = new THREE.SphereGeometry(.45, 14, 10), ballMat = new THREE.MeshBasicMaterial({ color: 0xff5533 }), soccerMat = new THREE.MeshBasicMaterial({ color: 0xffffff }), pieMat = new THREE.MeshBasicMaterial({ color: 0xfff3c4 }), snowMat = new THREE.MeshBasicMaterial({ color: 0xffffff }), waterMat = new THREE.MeshBasicMaterial({ color: 0x4fc3f7 }), bombMat = new THREE.MeshBasicMaterial({ color: 0x111111 }), boomMat = new THREE.MeshBasicMaterial({ color: 0xff7a18, transparent: true, opacity: .75 }), boomMat2 = new THREE.MeshBasicMaterial({ color: 0xffe14d, transparent: true, opacity: .85 }), smokeMat = new THREE.MeshBasicMaterial({ color: 0x555555, transparent: true, opacity: .55 }), netMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .22 });
   function spr(em, x, y, z, sz) { const sp = new THREE.Sprite(emojiMat(em)); sp.userData.shared = true; sp.position.set(x, y, z); sp.scale.setScalar(Math.max(.01, sz)); fxGroup.add(sp); return sp; }
   function notes(t, cx, cz, n) { for (let k = 0; k < n; k++) { const ag = (t * .6 + k / n) % 1; spr(k % 2 ? '\u{1F3B5}' : '\u{1F3B6}', cx + Math.sin(k * 2.3 + t) * 2.8, 3.4 + ag * 3.4, cz + Math.cos(k * 1.7) * 1.2, 1.2 * (1 - ag * .5)); } }
   function toward(p, x, z) { p.g.rotation.y = Math.atan2(x - p.g.position.x, z - p.g.position.z); }
@@ -930,6 +930,21 @@
       words2d(Math.floor(t / 4) * 4 + .2, 'WHEEE!', 2); if ((t % 4) > 3) words2d(Math.floor(t / 4) * 4 + 3.1, 'WOW, DIZZY!', 4);
       look.set(0, 2.3, 0); return 8;
     }
+    if (style === 'battle') {   // a huge cartoon battle
+      const mvv = CINEMA_MOVIES[mi], scc = mvv.scenes[si], SO = (scc.script && scc.script.battle) || { n1: 100, n2: 100, kind: 'war', win: 0, survivors: 5, bombs: 3, name1: 'RED', name2: 'BLUE' };
+      const dlg = getDialogue(mi, si, mvv, scc), T = Math.max(20, dlg.total - 3), ST = t + beatOffset, key = mi + '_' + si + '_' + SO.n1 + '_' + SO.n2 + '_' + (SO.seed || 0);
+      if (stage) stage.visible = false; ex.forEach(pp => { pp.g.visible = false; }); act.forEach(pp => { pp.g.visible = false; });
+      wMesh(260, .1, 210, SO.ground || 0x6b8e3a, 0, -.05, 0); wMesh(40, .1, 74, 0x8a7448, 0, 0, 0);
+      const camT = battleDraw(SO, key, ST, T, mi);
+      if (SO.giants) {   // two giants join the fight
+        const R = soccerRoster(), g1 = R[0], g2 = R[11]; kit(g1, (SO.cols || [])[0] || 0xe53935, 0x263238); kit(g2, (SO.cols || [])[1] || 0x1e88e5, 0x263238);
+        [g1, g2].forEach((gg, i) => { gg.g.visible = true; if (shown.indexOf(gg) < 0) shown.push(gg); gg.g.scale.setScalar(7); gg.weirdScaled = true; const sg = i ? 1 : -1, cyc = (ST * .45 + i * .5) % 1, hitv = cyc > .55 && cyc < .7; gg.g.position.set(sg * (11 - ((ST * .5) % 1) * 0 - (hitv ? 1.5 : 0)), 0, 0); gg.g.rotation.y = sg > 0 ? -Math.PI / 2 : Math.PI / 2; pose(gg); limbs(gg, -1, -1, sn(ST * 3 + i) * .3, -sn(ST * 3 + i) * .3); if (cyc > .3 && cyc < .55) { gg.armR.rotation.x = lrp(1.3, -1.9, (cyc - .3) / .25); gg.body.rotation.y = -sg * .4; } else if (hitv) { gg.armR.rotation.x = -1.9; } else { gg.armR.rotation.x = -1.0; }
+          if (hitv && cyc < .6) { const rg = new THREE.Mesh(fxTorus, fxMatW); rg.userData.shared = true; rg.scale.setScalar(2 + (cyc - .55) * 90); rg.position.set(0, 14, 0); rg.lookAt(CAM.position); fxGroup.add(rg); flashA = Math.max(flashA, .25); zoomPunch = Math.max(zoomPunch, .4); if (playing(mi)) csOnce(key + 'g' + Math.floor(ST * .45 + i * .5), 'smash'); } });
+      }
+      const ch0 = clamp(ST / (T * .24), 0, 1), che = ch0 * ch0 * (3 - 2 * ch0), wide = new THREE.Vector3(sn(ST * .1) * 22 * che, lrp(52, 26, che), lrp(100, 48, che)), wlook = new THREE.Vector3(0, 1.5, 0);
+      if (camT) { const k = camT.k; fightCam = { pos: wide.clone().lerp(new THREE.Vector3(camT.x * .6 + 12, 18, camT.z * .6 + 34), k), look: wlook.clone().lerp(new THREE.Vector3(camT.x, 2, camT.z), k), k: 1 }; } else fightCam = { pos: wide, look: wlook, k: 1 };
+      look.set(0, 2, 0); return 40;
+    }
     if (style === 'soccer') {   // real-looking soccer: 22 human players and a referee, fast play, fouls, penalties, real kicks; the commentary and the action line up
       const mvv = CINEMA_MOVIES[mi], scc = mvv.scenes[si], SO = (scc.script && scc.script.soccer) || { att: 'ex', type: 'kickoff', opp: 'THEM', col: 0x1e88e5, before: [0, 0], after: [0, 0], min: 1 };
       const dlg = getDialogue(mi, si, mvv, scc), ST = t + beatOffset, dir = SO.att === 'opp' ? -1 : 1, kind0 = SO.type, K = SK, isPen = kind0 === 'penalty', isThrow = kind0 === 'throwin', isCor = kind0 === 'corner', isGK = kind0 === 'goalkick', isFK = kind0 === 'freekick', isInj = kind0 === 'injury', isOff = kind0 === 'offside', sideS = hash(mi + si, 5, 3) % 2 ? 1 : -1, res = (isPen || isCor || isFK) ? (SO.result || 'goal') : (isOff ? 'goal' : kind0), goalish = (res === 'goal' || res === 'trick') && !isOff;
@@ -1093,8 +1108,8 @@
   }
   function activity(style, act, ex, t, u, look, mi, si, beatNo) {
     const h = hash(mi * 7 + si, beatNo || 0, 3), vr = { tempo: TEMPO[h % 5], hue: HUES[hash(h, 5, 2) % 12], fl: hash(h, 7, 5) };
-    HUE = style === 'soccer' ? 0 : vr.hue; const tt = style === 'soccer' ? t : t * vr.tempo, sp = activityBase(style, act, ex, tt, u, look, mi, si); HUE = 0;
-    act.concat(ex).forEach((p, i) => { const T = 3.3, c = Math.floor((tt + i * .73) / T), q = ((tt + i * .73) % T) / T / .28; if (q < 1 && hash(c, i + vr.fl, 4) % 3 !== 0 && !(style === 'dance' || style === 'highfive' || style === 'drive' || style === 'spinning' || style === 'desk' || style === 'soccer')) flourish(p, FLOURISH[hash(c, i + vr.fl, 9) % 8], q); });
+    HUE = (style === 'soccer' || style === 'battle') ? 0 : vr.hue; const tt = (style === 'soccer' || style === 'battle') ? t : t * vr.tempo, sp = activityBase(style, act, ex, tt, u, look, mi, si); HUE = 0;
+    act.concat(ex).forEach((p, i) => { const T = 3.3, c = Math.floor((tt + i * .73) / T), q = ((tt + i * .73) % T) / T / .28; if (q < 1 && hash(c, i + vr.fl, 4) % 3 !== 0 && !(style === 'dance' || style === 'highfive' || style === 'drive' || style === 'spinning' || style === 'desk' || style === 'soccer' || style === 'battle')) flourish(p, FLOURISH[hash(c, i + vr.fl, 9) % 8], q); });
     return sp;
   }
   // ---------- what they see, you see: when a line talks about something, it appears in the scene, everyone turns to look at it, and the camera cuts to over their shoulder ----------
@@ -1129,7 +1144,7 @@
     drum() { tn(150, 'sine', .22, .15, 0, 55); nz(.07, .05, 0, 'highpass', 3000); }, creak() { tn(190, 'sawtooth', .04, .35, 0, 130); }, whump() { nz(.16, .16, 0, 'lowpass', 420); }, toss() { tn(500, 'sine', .06, .06, 0, 850); },
     hammer() { tn(900, 'square', .09, .04); nz(.1, .04, 0, 'bandpass', 1500); }, squeak() { tn(1400, 'sine', .07, .13, 0, 1950); }, ding() { tn(1568, 'sine', .1, .35); tn(2349, 'sine', .06, .3, .05); },
     grunt() { tn(125, 'sawtooth', .09, .16, 0, 80); }, swish() { nz(.06, .22, 0, 'bandpass', 900, .5, 1800); }, bird() { tn(2600, 'sine', .05, .09, 0, 3500); tn(3000, 'sine', .04, .08, .11, 2400); },
-    cheer2() { for (let i = 0; i < 5; i++) tn(300 + Math.random() * 300, 'sawtooth', .03, .25, Math.random() * .2, 500); }, clap2() { for (let i = 0; i < 3; i++) nz(.1, .04, i * .09, 'bandpass', 1800, 1); }, boom2() { tn(60, 'sawtooth', .3, .5, 0, 30); nz(.25, .45, 0, 'lowpass', 700, .5, 120); }, bam() { tn(160, 'square', .2, .07); tn(80, 'sine', .18, .12, .04); nz(.12, .06, 0, 'bandpass', 1800, 1); },
+    cheer2() { for (let i = 0; i < 5; i++) tn(300 + Math.random() * 300, 'sawtooth', .03, .25, Math.random() * .2, 500); }, clap2() { for (let i = 0; i < 3; i++) nz(.1, .04, i * .09, 'bandpass', 1800, 1); }, whoosh2() { tn(1400, 'sine', .08, .9, 0, 200); nz(.06, .9, 0, 'bandpass', 1500, 1, 300); }, boom2() { tn(60, 'sawtooth', .3, .5, 0, 30); nz(.25, .45, 0, 'lowpass', 700, .5, 120); }, bam() { tn(160, 'square', .2, .07); tn(80, 'sine', .18, .12, .04); nz(.12, .06, 0, 'bandpass', 1800, 1); },
     charge() { tn(120, 'sawtooth', .09, 1.1, 0, 1100); tn(240, 'square', .05, 1.1, 0, 1600); }, smash() { tn(55, 'sawtooth', .35, .7, 0, 25); nz(.3, .6, 0, 'lowpass', 900, .5, 120); nz(.15, .15, 0, 'highpass', 3000); tn(1800, 'sine', .08, .3, .05, 300); },
     rocketLaunch() { nz(.2, 1.0, 0, 'lowpass', 400, .5, 1800); tn(70, 'sawtooth', .15, 1, 0, 200); }, yum() { tn(500, 'sine', .09, .15, 0, 700); tn(700, 'sine', .08, .2, .12, 900); }, doorbell() { tn(660, 'sine', .12, .35); tn(523, 'sine', .12, .5, .35); },
     rustle() { nz(.07, .5, 0, 'bandpass', 3000, .8); }, warp() { tn(150, 'sine', .12, .7, 0, 1400); tn(300, 'triangle', .08, .7, 0, 2000); }, chime() { tn(988, 'sine', .08, .7); tn(1319, 'sine', .06, .7, .1); },
@@ -1235,9 +1250,89 @@
       d.position.set(q[0] + sw, q[1] + 1.6 + b, q[2]); d.scale.set(.62, .62, .62); d.updateMatrix(); c.hm.setMatrixAt(i, d.matrix); }
     c.bm.instanceMatrix.needsUpdate = true; c.hm.instanceMatrix.needsUpdate = true;
   }
+  // ---------- big cartoon battles: up to 1000 fighters a side, charging armies, falling bombs and big explosions; knocked-out fighters tumble away (no blood) ----------
+  let battleObj = null; const battleCache = {};
+  function ensureBattle() {
+    if (battleObj) return battleObj; const g = new THREE.Group(), MAXN = 2100; SC.add(g);
+    const mk = () => { const m = new THREE.InstancedMesh(wGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), MAXN); m.frustumCulled = false; g.add(m); return m; };
+    return (battleObj = { g, bm: mk(), hm: mk(), wm: mk(), MAXN, d: new THREE.Object3D(), key: '' });
+  }
+  function battleData(key, SO, T) {
+    if (battleCache[key]) return battleCache[key];
+    const royale = SO.kind === 'royale', n1 = SO.n1, n2 = royale ? 0 : SO.n2, N = royale ? n1 : n1 + n2, seed = hash(SO.seed || 1, N, 7), rnd = (i, k) => (hash(i * 31 + k, seed, k + 3) % 10000) / 10000, cl = (x) => clamp(x, 0, 1);
+    const a = { N, side: new Uint8Array(N), hx: new Float32Array(N), hz: new Float32Array(N), ox: new Float32Array(N), oz: new Float32Array(N), ko: new Float32Array(N), vx: new Float32Array(N), vz: new Float32Array(N), ph: new Float32Array(N), bombs: [] };
+    const cols = [clamp(Math.ceil(Math.sqrt(Math.max(n1, 1) / 1.6)), 3, 40), clamp(Math.ceil(Math.sqrt(Math.max(n2, 1) / 1.6)), 3, 40)], rows = [Math.ceil(n1 / cols[0]), Math.ceil(Math.max(n2, 1) / cols[1])], win = SO.win | 0, nWin = win ? n2 : n1, sv = Math.min(SO.survivors || 1, nWin);
+    for (let i = 0; i < N; i++) {
+      const sd = royale ? i % 6 : (i < n1 ? 0 : 1), idx = royale ? Math.floor(i / 6) : (sd ? i - n1 : i); a.side[i] = sd; a.ph[i] = rnd(i, 9) * 6.283;
+      if (royale) { const ang = rnd(i, 1) * 6.283, r1 = 36 + rnd(i, 2) * 14, r2 = Math.sqrt(rnd(i, 3)) * 17, ang2 = rnd(i, 4) * 6.283; a.hx[i] = Math.cos(ang) * r1; a.hz[i] = Math.sin(ang) * r1 * .8; a.ox[i] = Math.cos(ang2) * r2; a.oz[i] = Math.sin(ang2) * r2; const rank = (i * 7919) % N; a.ko[i] = rank === N - 1 ? 1e9 : T * (.18 + .8 * rank / N); }
+      else {
+        const nc = cols[sd], nr = rows[sd], col = idx % nc, row = Math.floor(idx / nc), sg = sd ? 1 : -1, zs = Math.min(1.6, 30 / nr);
+        a.hx[i] = sg * (28 + col * 1.7); a.hz[i] = (row - nr / 2) * 1.6; a.ox[i] = sg * (.8 + rnd(i, 1) * 11); a.oz[i] = (row - nr / 2) * zs + (rnd(i, 2) - .5) * 2;
+        const surv = sd === win && sv > 0 && (((idx * 2654435761) >>> 0) % Math.max(1, nWin)) < sv, r = rnd(i, 5);
+        a.ko[i] = sd === win ? (surv ? 1e9 : T * (.5 + .47 * r)) : T * (.3 + .62 * r);
+      }
+      const ang3 = rnd(i, 6) * 6.283, sp = 5 + rnd(i, 7) * 9; a.vx[i] = Math.cos(ang3) * sp; a.vz[i] = Math.sin(ang3) * sp;
+    }
+    const B = SO.bombs | 0;
+    for (let k = 0; k < B; k++) { const tb = T * (.3 + .6 * (k + .5) / B), big = (k === B - 1 && B > 3), r = big ? 12 : 6.8, ang = rnd(k + 500, 1) * 6.283, rr = Math.sqrt(rnd(k + 500, 2)) * 15; const bx = royale ? Math.cos(ang) * rr : -12 + 24 * rnd(k + 500, 3), bz = royale ? Math.sin(ang) * rr : -(Math.max(rows[0], rows[1]) * .55) + Math.max(rows[0], rows[1]) * 1.1 * rnd(k + 500, 4) * .9; a.bombs.push({ t: tb, x: bx, z: Math.max(-26, Math.min(26, bz)), r, big }); }
+    a.bombs.forEach((bm, k) => { for (let i = 0; i < N; i++) { const dx = a.ox[i] - bm.x, dz = a.oz[i] - bm.z, d = Math.hypot(dx, dz); if (d < bm.r && bm.t < a.ko[i]) { a.ko[i] = bm.t + rnd(i, 20 + k) * .12; const sp = 8 + (1 - d / bm.r) * 14, nn = d || 1; a.vx[i] = dx / nn * sp; a.vz[i] = dz / nn * sp; } } });
+    return (battleCache[key] = a);
+  }
+  function battleDraw(SO, key, ST, T, mi) {
+    const b = ensureBattle(), a = battleData(key, SO, T), N = a.N, d = b.d, sn = Math.sin, ease = (x) => x * x * (3 - 2 * x), cl = (x) => clamp(x, 0, 1), royale = SO.kind === 'royale';
+    b.g.visible = true; b.bm.count = b.hm.count = b.wm.count = N;
+    if (b.key !== key) { b.key = key; const cols = SO.cols || [0xe53935, 0x1e88e5], heads = SO.heads || [0xf5c89a, 0xf5c89a], royaleCols = [0xe53935, 0x1e88e5, 0x43a047, 0xfdd835, 0x8e24aa, 0xff7043]; for (let i = 0; i < N; i++) { const sd = a.side[i]; try { b.bm.setColorAt(i, new THREE.Color(royale ? royaleCols[sd] : cols[sd])); b.hm.setColorAt(i, new THREE.Color(royale ? 0xf5c89a : heads[sd])); b.wm.setColorAt(i, new THREE.Color(SO.wcol || 0xcfd8dc)); } catch (e) { } } if (b.bm.instanceColor) b.bm.instanceColor.needsUpdate = true; if (b.hm.instanceColor) b.hm.instanceColor.needsUpdate = true; if (b.wm.instanceColor) b.wm.instanceColor.needsUpdate = true; }
+    const charge = ease(cl(ST / (T * .24))); let alive = [0, 0, 0, 0, 0, 0];
+    for (let i = 0; i < N; i++) {
+      const sd = a.side[i], ph = a.ph[i], koT = a.ko[i], dt = ST - koT; let x, y = 1.3, z, sc = 1, rz = 0, ry = 0, wscale = 1;
+      x = a.hx[i] + (a.ox[i] - a.hx[i]) * charge; z = a.hz[i] + (a.oz[i] - a.hz[i]) * charge;
+      if (charge < 1) y += Math.abs(sn(ST * 9 + ph)) * .35; else { x += sn(ST * 3 + ph) * .9; z += Math.cos(ST * 2.6 + ph) * .9; y += Math.abs(sn(ST * 7 + ph)) * .25; }
+      if (dt > 0) { const e = Math.min(dt, 1.6); x += a.vx[i] * e; z += a.vz[i] * e; y += Math.max(0, 5 * e - 5 * e * e * 1.6) + (e > 1.55 ? 0 : 0); rz = dt * 9; ry = dt * 5; if (dt > 1.6) { y = .45; rz = 1.5; } sc = dt > 2.4 ? Math.max(0, 1 - (dt - 2.4) / .8) : 1; }
+      else alive[sd]++;
+      const sw = sn(ST * 8 + ph);
+      d.position.set(x, y, z); d.rotation.set(0, ry, rz); d.scale.set(1.5 * sc, 2.25 * sc, 1.05 * sc); d.updateMatrix(); b.bm.setMatrixAt(i, d.matrix);
+      d.position.set(x, y + 1.9 * sc, z); d.rotation.set(0, ry, rz); d.scale.set(1.2 * sc, 1.2 * sc, 1.2 * sc); d.updateMatrix(); b.hm.setMatrixAt(i, d.matrix);
+      const wl = SO.wlen || 1.5, side = royale ? 1 : (sd ? -1 : 1);
+      d.position.set(x + side * 1.1, y + .8 + (dt > 0 ? 0 : sw * .6), z); d.rotation.set(0, ry, dt > 0 ? rz : -sw * .9 * side); d.scale.set((SO.wthick || .16) * 1.4 * sc, wl * 1.4 * sc, (SO.wthick || .16) * 1.4 * sc); d.updateMatrix(); b.wm.setMatrixAt(i, d.matrix);
+    }
+    b.bm.instanceMatrix.needsUpdate = b.hm.instanceMatrix.needsUpdate = b.wm.instanceMatrix.needsUpdate = true;
+    // projectiles: pies, snowballs, water balloons flying between the armies
+    if (SO.proj) { const pm = SO.proj === 'pies' ? 0xfff3c4 : SO.proj === 'snow' ? 0xffffff : 0x4fc3f7; const mt = SO.proj === 'pies' ? pieMat : SO.proj === 'snow' ? snowMat : waterMat; for (let k = 0; k < 40; k++) { const ph2 = (ST * .6 + k * .173) % 1, dirp = k % 2 ? 1 : -1, zz = -20 + ((k * 37) % 40), m = new THREE.Mesh(ballGeo, mt); m.userData.shared = true; m.scale.setScalar(1.1); m.position.set(dirp * (22 - ph2 * 44), 1 + sn(Math.PI * ph2) * 9, zz + sn(k) * 3); fxGroup.add(m); } }
+    // bombs: a black bomb falls, then a big cartoon explosion
+    const bombs = a.bombs; let camT = null;
+    bombs.forEach((bm, k) => {
+      const q = ST - bm.t, key2 = key + '_b' + k;
+      if (q > -1.1 && q < 0) { const fall = (q + 1.1) / 1.1, m = new THREE.Mesh(ballGeo, bombMat); m.userData.shared = true; m.scale.setScalar(bm.big ? 3.4 : 2); m.position.set(bm.x, 38 * (1 - fall * fall) + .8, bm.z); fxGroup.add(m); const f2 = new THREE.Mesh(fxStar, fxMatY); f2.userData.shared = true; f2.position.set(bm.x, m.position.y + (bm.big ? 1.9 : 1.2), bm.z); f2.scale.setScalar(.9 + sn(ST * 40) * .3); fxGroup.add(f2); if (playing(mi)) csOnce(key2 + 'w', 'whoosh2'); }
+      if (q >= 0 && q < 2.2) {
+        const e = cl(q / .45), rr = bm.r * (.4 + .9 * ease(e)), fade = q > 1.2 ? 1 - (q - 1.2) / 1 : 1;
+        const ex1 = new THREE.Mesh(ballGeo, boomMat); ex1.userData.shared = true; ex1.scale.setScalar(rr * 2.2 * fade + .01); ex1.position.set(bm.x, rr * .5, bm.z); fxGroup.add(ex1);
+        const ex2 = new THREE.Mesh(ballGeo, boomMat2); ex2.userData.shared = true; ex2.scale.setScalar(rr * 1.4 * (q < .8 ? 1 : fade) + .01); ex2.position.set(bm.x, rr * .5, bm.z); fxGroup.add(ex2);
+        const ring = new THREE.Mesh(fxTorus, fxMatW); ring.userData.shared = true; ring.rotation.x = -Math.PI / 2; ring.scale.setScalar(Math.max(.01, bm.r * 1.8 * e * fade)); ring.position.set(bm.x, .3, bm.z); fxGroup.add(ring);
+        for (let j = 0; j < 7; j++) { const sm = new THREE.Mesh(ballGeo, smokeMat); sm.userData.shared = true; const aj = j * 0.9; sm.scale.setScalar((1.6 + q * 1.6) * (1 + (j % 3) * .3)); sm.position.set(bm.x + Math.cos(aj) * bm.r * .5 * e, 2 + q * 5 + j * .5, bm.z + Math.sin(aj) * bm.r * .5 * e); fxGroup.add(sm); }
+        if (q < .12) flashA = Math.max(flashA, (1 - q / .12) * (bm.big ? .9 : .5)); zoomPunch = Math.max(zoomPunch, q < .3 ? 1 - q / .3 : 0);
+        if (playing(mi)) csOnce(key2 + 'x', bm.big ? 'smash' : 'boom2'); if (q < 1.2) words2d(bm.t - beatOffset + .05, bm.big ? 'MEGA BOMB!' : 'BOOM!', 3 + (k % 3));
+        camT = { x: bm.x, z: bm.z, k: ease(cl(q / .4)) * (1 - ease(cl((q - 1.6) / .6))) };
+      }
+    });
+    let t1 = 0, t2 = 0; if (royale) { t1 = alive[0] + alive[1] + alive[2] + alive[3] + alive[4] + alive[5]; } else { t1 = alive[0]; t2 = alive[1]; }
+    battleHud = { royale, a: SO.name1, b: SO.name2, n1: SO.n1, n2: SO.n2, left1: t1, left2: t2, col1: (SO.cols || [])[0], col2: (SO.cols || [])[1], weapon: SO.weapon, finished: ST > T * .98 };
+    return camT;
+  }
+  // ---------- TV show intros: a title sequence with a logo, the episode title, the cast, and a theme tune made for each show ----------
+  function introTheme(seed) {
+    try {
+      const c = CA(), now = c.currentTime + .05, midi = (m) => 440 * Math.pow(2, (m - 69) / 12), minor = seed % 3 !== 0, sc = minor ? [0, 2, 3, 5, 7, 8, 10, 12] : [0, 2, 4, 5, 7, 9, 11, 12], root = [45, 47, 48, 50, 52][seed % 5], bpm = 128 + (seed % 5) * 6, st = 60 / bpm / 2, motif = []; for (let i = 0; i < 8; i++) motif.push(sc[(seed * (i + 3) * 7 + i * 5) % 8]);
+      const note = (f, type, v, d, at) => { const o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.setValueAtTime(f, now + at); g.gain.setValueAtTime(v, now + at); g.gain.exponentialRampToValueAtTime(.0008, now + at + d); o.connect(g); g.connect(c.destination); o.start(now + at); o.stop(now + at + d + .02); };
+      const hit = (v, d, at, hp) => { const s2 = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain(); s2.buffer = NB(); fl.type = hp ? 'highpass' : 'lowpass'; fl.frequency.value = hp ? 4500 : 300; g.gain.setValueAtTime(v, now + at); g.gain.exponentialRampToValueAtTime(.0008, now + at + d); s2.connect(fl); fl.connect(g); g.connect(c.destination); s2.start(now + at); s2.stop(now + at + d + .02); };
+      for (let i = 0; i < 32; i++) { const at = i * st; note(midi(root - 12 + (i % 8 < 4 ? 0 : sc[2])), 'sawtooth', .09, st * .9, at); note(midi(root + sc[(i * 3 + seed) % 8]), 'square', .035, st * .8, at); if (i % 4 === 0) { note(110, 'sine', .22, .22, at); hit(.1, .12, at, false); } if (i % 4 === 2) hit(.08, .1, at, true); if (i % 2 === 1) hit(.03, .05, at, true); }
+      for (let i = 0; i < 16; i++) { const at = 8 * st + i * st * 1; note(midi(root + 12 + motif[i % 8]), 'triangle', .1, st * (i % 4 === 3 ? 2.2 : .9), at); }
+      note(midi(root + 12), 'sawtooth', .1, 1.4, 28 * st); note(midi(root + 19), 'sawtooth', .08, 1.4, 28 * st); note(55, 'sine', .3, 1.2, 28 * st);
+    } catch (e) { }
+  }
+  CSFX.introNow = function () { introTheme(window.__introSeed || 1); };
   // ---------- the director: puts the right characters in the right place doing what the caption says ----------
   function directBeat(mi, si, mv, sc, t, info, dur, camSeed) {
-    const u = clamp(t / dur, 0, 1); flashA = 0; zoomPunch = 0; fightHud = null; fightCam = null; soccerHud = null; if (crowd) crowd.g.visible = false; weirdFlip = false;
+    const u = clamp(t / dur, 0, 1); flashA = 0; zoomPunch = 0; fightHud = null; fightCam = null; soccerHud = null; battleHud = null; if (crowd) crowd.g.visible = false; if (battleObj) battleObj.g.visible = false; weirdFlip = false;
     shown.forEach(p => { p.g.visible = false; }); shown = []; clearFx(); words = [];
     Object.keys(propCache).forEach(k => { propCache[k].visible = false; });
     const act = actorsFor(mi, mv, info), ex = info.extraN ? extrasFor(mi, info, info.extraN) : [];
@@ -1449,7 +1544,7 @@
   }
   // what is being SAID right now (the narrator's caption at the start, then every line) decides what is being DONE
   function wordsStyle(dl, sc, mi, si, t) {
-    if (/BORING|NEWS|SOCCER/.test((CINEMA_MOVIES[mi] && CINEMA_MOVIES[mi].tvTag) || '')) return null;   // the Boring Channel never does anything exciting, whatever the words say
+    if (/BORING|NEWS|SOCCER|FIGHT|SHOW/.test((CINEMA_MOVIES[mi] && CINEMA_MOVIES[mi].tvTag) || '')) return null;   // the Boring Channel never does anything exciting, whatever the words say
     const first = dl.length ? dl[0].start : 0, ln = dl.find(l => t >= l.start - .1 && t <= l.end + .4);
     const txt = ln ? ln.text : (t < first - .1 ? sc.text : null); if (!txt) return null;
     const v = verbStyle(String(txt).toLowerCase(), mi, si, true); return v && v !== 'talk' && v !== 'look' ? v : null;
@@ -1531,6 +1626,27 @@
         if (mv.tv && mv.ticker) { const tf = Math.max(12, Math.round(h * .03)); ctx.save(); ctx.fillStyle = 'rgba(10,20,60,.88)'; ctx.fillRect(0, h * .905, w, tf * 1.6); ctx.fillStyle = '#e53935'; ctx.fillRect(0, h * .905, tf * 5.2, tf * 1.6); ctx.fillStyle = '#fff'; ctx.font = '900 ' + tf + 'px Arial Black, Arial'; ctx.textAlign = 'left'; ctx.fillText('LIVE', tf * .8, h * .905 + tf * 1.15); ctx.beginPath(); ctx.rect(tf * 5.3, h * .905, w, tf * 1.6); ctx.clip(); ctx.font = 'bold ' + tf + 'px Arial'; const tw2 = ctx.measureText(mv.ticker).width + w * .3; ctx.fillText(mv.ticker, w - ((t * w * .09) % (tw2 + w)), h * .905 + tf * 1.15); ctx.restore(); }
         if (si === 0 && !mv.tv && t > 6.8 && t < 13.2) { const cl3 = castList(mi, mv), k = Math.min(2, Math.floor((t - 6.8) / 2.1)), q = (t - 6.8) - k * 2.1, c3 = cl3[k], a3 = q < .35 ? q / .35 : (q > 1.75 ? Math.max(0, (2.1 - q) / .35) : 1), fs3 = Math.max(14, Math.round(h * .042));
           if (c3) { ctx.save(); ctx.globalAlpha = a3; ctx.translate((1 - a3) * -w * .1, 0); const bx = w * .04, by = h * .6, bw3 = w * .46, bh3 = fs3 * 3.4; ctx.fillStyle = 'rgba(0,0,0,.62)'; ctx.fillRect(bx, by, bw3, bh3); ctx.fillStyle = ['#ffd54f', '#4fc3f7', '#ff8ab3'][k]; ctx.fillRect(bx, by, fs3 * .3, bh3); ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.font = '900 ' + fs3 + 'px Arial Black, Arial'; ctx.fillText(String(c3.role).toUpperCase(), bx + fs3 * .8, by + fs3 * 1.15); ctx.font = 'bold ' + Math.round(fs3 * .62) + 'px Arial'; ctx.fillStyle = '#9fe3ff'; ctx.fillText('played by \u2605 ' + c3.actor, bx + fs3 * .8, by + fs3 * 2.05); ctx.fillStyle = '#ffd54f'; ctx.font = 'italic ' + Math.round(fs3 * .6) + 'px Arial'; ctx.fillText(c3.tag || '', bx + fs3 * .8, by + fs3 * 2.8); ctx.restore(); } }
+      }
+        if (mv.tv && mv.tvIntro && si === 0 && t < 10.5) {   // the title sequence
+          const I = mv.tvIntro, k = clamp(t / 1.2, 0, 1), e = k * k * (3 - 2 * k), sc2 = 2.4 - 1.4 * e, fade = t < 9 ? 1 : Math.max(0, (10.5 - t) / 1.5), hx = '#' + String(I.col || '#ff5722').replace('#', '');
+          if (playing(mi)) { window.__introSeed = I.seed; csOnce('intro_' + mi + '_' + I.seed + '_' + I.ep, 'introNow'); }
+          ctx.save(); ctx.globalAlpha = fade; ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, 0, w, h);
+          for (let q = 0; q < 9; q++) { const ang = q * .7 + t * .6; ctx.fillStyle = 'rgba(255,255,255,' + (.05 + .04 * Math.sin(t * 3 + q)) + ')'; ctx.beginPath(); ctx.moveTo(w / 2, h * .46); ctx.lineTo(w / 2 + Math.cos(ang) * w, h * .46 + Math.sin(ang) * w); ctx.lineTo(w / 2 + Math.cos(ang + .12) * w, h * .46 + Math.sin(ang + .12) * w); ctx.closePath(); ctx.fill(); }
+          ctx.textAlign = 'center'; ctx.lineJoin = 'round'; let fsz = Math.round(h * .15 * sc2); ctx.font = '900 ' + fsz + 'px Arial Black, Arial'; const tw3 = ctx.measureText(I.name.toUpperCase()).width; if (tw3 > w * .92) { fsz = Math.floor(fsz * w * .92 / tw3); ctx.font = '900 ' + fsz + 'px Arial Black, Arial'; }
+          const gr = ctx.createLinearGradient(0, h * .3, 0, h * .5); gr.addColorStop(0, '#ffffff'); gr.addColorStop(1, hx); ctx.shadowColor = hx; ctx.shadowBlur = h * .05; ctx.lineWidth = h * .014; ctx.strokeStyle = '#1a0010'; ctx.strokeText(I.name.toUpperCase(), w / 2, h * .46); ctx.fillStyle = gr; ctx.fillText(I.name.toUpperCase(), w / 2, h * .46); ctx.shadowBlur = 0;
+          ctx.font = 'bold ' + Math.round(h * .04) + 'px Arial'; ctx.fillStyle = '#ffd54f'; if (t > .8) ctx.fillText('\u2605  EXPLOX TV ORIGINAL SERIES  \u2605', w / 2, h * .3);
+          if (t > 2) { ctx.globalAlpha = fade * Math.min(1, (t - 2) / .6); ctx.font = '900 ' + Math.round(h * .05) + 'px Arial Black, Arial'; ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = h * .01; const et = 'EPISODE ' + I.ep + ': ' + I.epTitle.toUpperCase(); ctx.strokeText(et, w / 2, h * .56); ctx.fillText(et, w / 2, h * .56); }
+          (I.cast || []).forEach((cr, qi) => { const t0 = 3.8 + qi * .9; if (t > t0) { ctx.globalAlpha = fade * Math.min(1, (t - t0) / .4); ctx.textAlign = 'left'; ctx.font = '900 ' + Math.round(h * .04) + 'px Arial Black, Arial'; ctx.fillStyle = ['#ffd54f', '#ff8a80', '#80d8ff'][qi]; ctx.strokeStyle = '#000'; ctx.lineWidth = h * .008; const x0 = w * .06 + (1 - Math.min(1, (t - t0) / .4)) * -w * .1; ctx.strokeText(cr, x0, h * (.68 + qi * .06)); ctx.fillText(cr, x0, h * (.68 + qi * .06)); } });
+          ctx.restore();
+        }
+      if (battleHud) {   // how many fighters are left on each side
+        const bh = battleHud, fs6 = Math.max(13, Math.round(h * .042)), by = h * .07; ctx.save(); ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+        ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fillRect(w * .12, by, w * .76, fs6 * 2.3); ctx.font = '900 ' + fs6 + 'px Arial Black, Arial'; ctx.fillStyle = '#fff';
+        if (bh.royale) { ctx.fillText('BATTLE ROYALE  \u2022  ' + bh.left1 + ' of ' + bh.n1 + ' fighters left', w / 2, by + fs6 * 1.5); }
+        else { ctx.fillStyle = '#' + ('000000' + ((bh.col1 || 0xe53935).toString(16))).slice(-6); ctx.fillRect(w * .12, by, fs6 * .5, fs6 * 2.3); ctx.fillStyle = '#' + ('000000' + ((bh.col2 || 0x1e88e5).toString(16))).slice(-6); ctx.fillRect(w * .88 - fs6 * .5, by, fs6 * .5, fs6 * 2.3); ctx.fillStyle = '#fff'; ctx.fillText(String(bh.a).toUpperCase() + '  ' + bh.left1 + '   vs   ' + bh.left2 + '  ' + String(bh.b).toUpperCase(), w / 2, by + fs6 * 1.5); }
+        ctx.font = 'bold ' + Math.round(fs6 * .6) + 'px Arial'; ctx.fillStyle = '#ffd54f'; ctx.fillText(String(bh.weapon || '').toUpperCase(), w / 2, by + fs6 * 2.9);
+        if (bh.finished) { const winner = bh.royale ? 'LAST FIGHTER STANDING!' : (bh.left1 > bh.left2 ? String(bh.a).toUpperCase() : bh.left2 > bh.left1 ? String(bh.b).toUpperCase() : 'IT IS A DRAW') + (bh.left1 === bh.left2 ? '!' : ' WIN!'); ctx.font = '900 ' + Math.round(fs6 * 1.5) + 'px Arial Black, Arial'; ctx.lineWidth = fs6 * .25; ctx.strokeStyle = '#220022'; ctx.fillStyle = '#ffee33'; ctx.strokeText(winner, w / 2, h * .5); ctx.fillText(winner, w / 2, h * .5); }
+        ctx.restore();
       }
       if (soccerHud) {   // the scoreboard
         const sh2 = soccerHud, fs5 = Math.max(13, Math.round(h * .034)), bwid = w * .66, bx = w / 2 - bwid / 2, by = h * .06;
@@ -1861,7 +1977,7 @@
     magic: ['penthouse_view', 'neon_lights', 'galaxy_drive'], night: ['neon_district', 'metro_groove'], adventure: ['mission_zone', 'galaxy_drive', 'beach_cruise'],
   };
   const MOOD_VOL = { scared: .15, sad: .17, serious: .16, night: .16, worried: .16, sneak: .15, fight: .26, chase: .26, party: .24, angry: .24, excited: .24, joy: .22 };
-  const STYLE_MOOD = { fight: 'fight', run: 'chase', sneak: 'sneak', panic: 'scared', party: 'party', dance: 'party', highfive: 'joy', sing: 'happy', drum: 'excited', magic: 'magic', fly: 'adventure', climb: 'determined', exercise: 'determined', build: 'determined', skate: 'excited', jump: 'excited', play: 'happy', eat: 'happy', cook: 'happy', camp: 'warm', fish: 'relieved', write: 'curious', shop: 'curious', dig: 'curious', photo: 'happy', snowball: 'joy', juggle: 'joy', bubbles: 'joy', tugwar: 'determined', drive: 'adventure', spinning: 'joy', desk: 'serious', soccer: 'excited' };
+  const STYLE_MOOD = { fight: 'fight', run: 'chase', sneak: 'sneak', panic: 'scared', party: 'party', dance: 'party', highfive: 'joy', sing: 'happy', drum: 'excited', magic: 'magic', fly: 'adventure', climb: 'determined', exercise: 'determined', build: 'determined', skate: 'excited', jump: 'excited', play: 'happy', eat: 'happy', cook: 'happy', camp: 'warm', fish: 'relieved', write: 'curious', shop: 'curious', dig: 'curious', photo: 'happy', snowball: 'joy', juggle: 'joy', bubbles: 'joy', tugwar: 'determined', drive: 'adventure', spinning: 'joy', desk: 'serious', soccer: 'excited', battle: 'fight' };
   const TOD_MOOD = { night: 'night', storm: 'angry', dawn: 'joy', dusk: 'warm', day: 'happy' };
   function moodAt(mi, si, mv, sc, t) {
     const info = getInfo(mi, si, mv, sc), dl = getDialogue(mi, si, mv, sc), ln = dl.find(l => t >= l.start - .1 && t <= l.end + .6); let bb = null;

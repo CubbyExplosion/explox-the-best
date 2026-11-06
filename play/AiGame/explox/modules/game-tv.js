@@ -32,7 +32,7 @@
   const C3 = (a, b, c) => ({ A: { role: a[0], kind: a[1], pers: a[2] }, B: { role: b[0], kind: b[1], pers: b[2] }, C: { role: c[0], kind: c[1], pers: c[2] } });
   function program(tag, title, narrator, cast, scenes) {
     if (/NEWS/.test(tag)) scenes = deskify(scenes);
-    const idx = slot(), m = CINEMA_MOVIES[idx]; m.comedy = !/NEWS|SOCCER/.test(tag); m.ticker = ''; m.title = title; m.tvTag = tag; m.narrator = narrator; m.cast = cast; m.scenes = scenes;
+    const idx = slot(), m = CINEMA_MOVIES[idx]; m.comedy = !/NEWS|SOCCER|FIGHT|SHOW/.test(tag); m.ticker = ''; m.title = title; m.tvTag = tag; m.narrator = narrator; m.cast = cast; m.scenes = scenes;
     try { window.__cinema3d.reset(idx); window.__cinema3d.wire(idx); } catch (e) { } return idx;
   }
 
@@ -166,9 +166,93 @@
     return program('\u26BD SOCCER', 'Explox vs ' + opp, 'Match Commentator', cast, scenes);
   }
   function soccerBlock(n) { const out = []; for (let i = 0; i < n; i++) { out.push(soccerMatch()); if (i < n - 1) out.push('ad2'); } return out; }
+  // ── ⚔️ Fights: any fight you can imagine, from 10 to 1000 fighters a side, with bombs. A cartoon: knocked-out fighters tumble away and go poof, nothing bloody ──
+  const FTEAMS = [['Explox Knights', 0xe53935, 0xf5c89a], ['Rival Robots', 0x90a4ae, 0xb0bec5], ['Dino Herd', 0x43a047, 0x66bb6a], ['Ninja Clan', 0x212121, 0x424242], ['Pirate Crew', 0x6d4c41, 0xf5c89a], ['Alien Fleet', 0x7e57c2, 0x9ccc65], ['Viking Raiders', 0x1e88e5, 0xffe0bd], ['Cowboy Gang', 0xff8f00, 0xd4956a], ['Wizard Guild', 0x8e24aa, 0xf5c89a], ['Chef Brigade', 0xffffff, 0xffe0bd], ['Penguin Platoon', 0x263238, 0xffffff], ['Pizza Pals', 0xf9a825, 0xf5c89a], ['Bunny Battalion', 0xf48fb1, 0xfce4ec], ['Cave Clan', 0x8d6e63, 0xd4956a], ['Jelly Army', 0x00bcd4, 0x80deea], ['Cactus Crew', 0x2e7d32, 0x81c784]];
+  const FWEAP = [['swords', 0xcfd8dc, 1.7, .16, null], ['pies', 0xfff3c4, .6, .5, 'pies'], ['snowballs', 0xffffff, .3, .3, 'snow'], ['pillows', 0xffffff, .9, .8, null], ['water balloons', 0x4fc3f7, .5, .5, 'water'], ['boxing gloves', 0xe53935, .7, .6, null], ['bombs', 0x212121, .8, .5, null], ['big sticks', 0x8d6e3f, 1.6, .14, null], ['rubber hammers', 0xffd54f, 1.1, .35, null]];
+  function fightMatch() {
+    const r = Math.random(), kind = r < .7 ? 'war' : r < .85 ? 'royale' : 'giants', ta = pk(FTEAMS); let tb = pk(FTEAMS); while (tb === ta) tb = pk(FTEAMS);
+    const n = kind === 'royale' ? pk([50, 100, 300, 500, 1000]) : kind === 'giants' ? pk([50, 100, 200]) : pk([10, 30, 50, 100, 200, 300, 500, 750, 1000, 1000]), w = pk(FWEAP), win = rnd(2), nm = kind === 'royale' ? '' : '';
+    const SO = { kind: kind, n1: n, n2: n, name1: ta[0], name2: tb[0], cols: [ta[1], tb[1]], heads: [ta[2], tb[2]], weapon: w[0], wcol: w[1], wlen: w[2], wthick: w[3], proj: w[4], win: win, survivors: Math.max(1, Math.round(n * (n > 200 ? .08 : .2))), bombs: w[0] === 'bombs' ? 6 + rnd(5) : rnd(5), giants: kind === 'giants', seed: 1 + rnd(99999), ground: pk([0x6b8e3a, 0x7a9a4a, 0xa89a6a, 0x5f7d3a]) };
+    if (SO.weapon === 'snowballs') SO.ground = 0xe8f0f8;
+    const winner = kind === 'royale' ? 'the last fighter' : 'the ' + (win ? tb[0] : ta[0]), title = kind === 'royale' ? 'Battle Royale: ' + n + ' Fighters' : kind === 'giants' ? 'Giants Clash: ' + ta[0] + ' vs ' + tb[0] : n + ' vs ' + n + ': ' + ta[0] + ' vs ' + tb[0];
+    const lines = kind === 'royale'
+      ? [['excited', 'Tonight, the ultimate fight! ' + n + ' fighters, all against all, and only one will be left standing!'], ['joy', 'It is a big cartoon battle with ' + w[0] + ', so everybody who is knocked out just tumbles away and goes poof.'], ['excited', 'The fighters rush into the middle!'], ['shocked', 'It is chaos! Fighters are flying in every direction!'], [SO.bombs ? 'excited' : 'surprised', SO.bombs ? 'Here come the bombs! BOOM! A whole group is blasted out of the arena!' : 'Hundreds of fighters have been knocked out already!'], ['worried', 'Half of the fighters are out of the game!'], ['serious', 'Only a few are left now. Who will be the champion?'], ['joy', 'We have a winner! The last fighter standing! What a battle!']]
+      : [['excited', 'Tonight, the biggest fight in Explox history! ' + n + ' ' + ta[0] + ' against ' + n + ' ' + tb[0] + '!'], ['joy', 'They are fighting with ' + w[0] + '. It is a cartoon battle, so everybody who is knocked out just tumbles away and goes poof.'], ['excited', 'Both armies charge!'], ['shocked', 'They crash together in the middle! Fighters are flying everywhere!'], [SO.bombs ? 'excited' : 'surprised', SO.bombs ? 'Here come the bombs! BOOM! A whole group of fighters flies away!' : 'Hundreds of fighters are knocked out already!'], ['worried', 'Half of them are already out of the game!'], ['serious', 'The ' + (win ? tb[0] : ta[0]) + ' are winning!'], ['joy', 'And ' + winner + ' win the battle! What a fight!']];
+    if (kind === 'giants') lines.splice(3, 0, ['shocked', 'Wait! Two giants have joined the fight, and the ground is shaking!']);
+    const sc = S('park', 'day', 'trophy', 'The big battle.', lines.map(l => L('N', l[0], 'battle', l[1]))); sc.script.battle = SO;
+    return program('\u2694\uFE0F FIGHTS', title, 'Battle Commentator', C3(['Commentator', 'hero', 'wise'], ['Referee', 'hero', 'wise'], ['Analyst', 'hero', 'wise']), [sc]);
+  }
+  function fightBlock(n) { const out = []; for (let i = 0; i < n; i++) { out.push(fightMatch()); if (i < n - 1) out.push('ad2'); } return out; }
+  // ── 📺 TV SHOWS: 20 action series, 50 episodes each, every episode a different story, with a title sequence and a theme tune ──
+  const SHOWS = [
+    ['Turbo Heroes', '\uD83C\uDFCE\uFE0F', '#ff5722', 'drive', 'track', 'racer', 'Zippy Zed', 'Nitro Nate', 'racer', ['Baron Rustbucket', 'Captain Smog', 'Dr. Gearshift', 'Lord Slowpoke', 'The Oil Slick'], 'Wheels up!'],
+    ['Dino Rangers', '\uD83E\uDD96', '#43a047', 'run', 'nature', 'dino', 'Ranger Rex', 'Nugget', 'dino', ['Professor Meteor', 'The Egg Thief', 'Mister Asteroid', 'Lady Fossil', 'The Bone Baron'], 'Roar for justice!'],
+    ['Robot Squad', '\uD83E\uDD16', '#90a4ae', 'fly', 'scrapyard', 'robot', 'Beep-Boop', 'Clank', 'robot', ['Dr. Rust', 'General Glitch', 'The Virus Queen', 'Mister Magnet', 'Captain Static'], 'Systems online!'],
+    ['Ninja Academy', '\uD83E\uDD77', '#37474f', 'climb', 'dojo', 'ninja', 'Shadow Sam', 'Flip', 'ninja', ['Master Gloom', 'The Noodle Ninja', 'Lord Lantern', 'Iron Fan', 'Madame Mist'], 'Silent and swift!'],
+    ['Sky Pilots', '\u2708\uFE0F', '#29b6f6', 'fly', 'airport', 'pilot', 'Captain Zip', 'Wingman Walt', 'pilot', ['Baron Cloud', 'The Storm Crow', 'Dr. Turbulence', 'Admiral Fog', 'Lord Lightning'], 'Up, up and away!'],
+    ['Space Patrol', '\uD83D\uDE80', '#7e57c2', 'fly', 'space', 'alien', 'Commander Nova', 'Orbit', 'robot', ['Emperor Void', 'The Comet Bandit', 'Queen Black Hole', 'General Gravity', 'Captain Crater'], 'To infinity!'],
+    ['Pirate Rescue', '\uD83C\uDFF4\u200D\u2620\uFE0F', '#8d6e63', 'fish', 'beach', 'hero', 'Captain Mabel', 'Cookie', 'hero', ['Captain Seagull', 'The Kraken Kid', 'Lady Anchor', 'Mister Mast', 'Blackbeard Jr.'], 'Sail for glory!'],
+    ['Super Chefs', '\uD83D\uDC68\u200D\uD83C\uDF73', '#ffb300', 'cook', 'house', 'grandma', 'Chef Gigi', 'Whisk', 'robot', ['The Burnt Toast', 'Baron Bland', 'Lady Lump', 'Dr. Dough', 'The Salt Shaker'], 'Heat it up!'],
+    ['Monster Busters', '\uD83D\uDC7B', '#8e24aa', 'sneak', 'library', 'ghost', 'Boo-Boo', 'Gus', 'ghost', ['Count Grumble', 'The Slime King', 'Madame Moan', 'Mister Mold', 'Lord Lumpy'], 'Who you gonna call?'],
+    ['Treasure Hunters', '\uD83D\uDDFA\uFE0F', '#fbc02d', 'dig', 'nature', 'pioneer', 'Camper Cleo', 'Whiskers', 'cat', ['Baron Bagsley', 'The Map Thief', 'Captain Coin', 'Lady Loot', 'Doctor Dig'], 'X marks the spot!'],
+    ['Cyber City Cops', '\uD83D\uDE93', '#1e88e5', 'drive', 'city', 'detective', 'Detective Dash', 'Officer Beep', 'robot', ['The Hacker', 'Mister Mayhem', 'Baron Bytes', 'Madame Malware', 'Captain Crash'], 'Serve and protect!'],
+    ['Jungle Explorers', '\uD83C\uDF34', '#2e7d32', 'climb', 'jungle', 'hero', 'Jungle Jo', 'Banana', 'dino', ['The Vine King', 'Lady Leech', 'Doctor Drizzle', 'Mister Mud', 'The Swamp Boss'], 'Into the wild!'],
+    ['Arctic Rescue', '\uD83D\uDC27', '#4dd0e1', 'skate', 'snow', 'hero', 'Flurry', 'Mittens', 'cat', ['The Ice Queen', 'Lord Frostbite', 'Mister Slush', 'Captain Chill', 'Doctor Blizzard'], 'Stay frosty!'],
+    ['Wizard Wars', '\uD83E\uDDD9', '#6a1b9a', 'magic', 'castle', 'wizard', 'Professor Pip', 'Sparkle', 'wizard', ['The Dark Duster', 'Lord Hex', 'Madame Mirage', 'Mister Mix-up', 'The Spell Spoiler'], 'Magic never sleeps!'],
+    ['Kung Fu Kitchen', '\uD83E\uDD4B', '#d84315', 'cook', 'market', 'ninja', 'Master Wok', 'Little Dumpling', 'hero', ['Chef Chaos', 'The Soup Snake', 'Lady Ladle', 'Baron Burnt', 'Iron Spatula'], 'Kick it up!'],
+    ['Hover Racers', '\uD83D\uDEF8', '#00bcd4', 'fly', 'track', 'racer', 'Turbo Tina', 'Zoom', 'robot', ['Lord Lag', 'The Speed Thief', 'Dr. Drag', 'Captain Crawl', 'Madame Mirage'], 'Full throttle!'],
+    ['Giant Robot Defenders', '\uD83E\uDDBE', '#607d8b', 'run', 'city', 'robot', 'Titan', 'Tiny', 'hero', ['Mega Meteor', 'The Rust Beast', 'General Gear', 'Dr. Doom-Doom', 'King Kaboom'], 'Defend the city!'],
+    ['Secret Agents Kids', '\uD83D\uDD76\uFE0F', '#455a64', 'sneak', 'city', 'hero', 'Agent Alex', 'Agent Ace', 'hero', ['Doctor Doodle', 'The Gadget Goblin', 'Madame Mystery', 'Mister Mask', 'Baron Blunder'], 'Mission accepted!'],
+    ['Sea Squad', '\uD83D\uDC2C', '#0288d1', 'fish', 'beach', 'hero', 'Skipper Sam', 'Bubbles', 'cat', ['Captain Clam', 'The Octopus Boss', 'Lady Lagoon', 'Mister Murk', 'Admiral Algae'], 'Dive in!'],
+    ['Thunder Knights', '\uD83D\uDEE1\uFE0F', '#c62828', 'run', 'castle', 'king', 'Sir Bolt', 'Squire Sparks', 'hero', ['The Shadow Baron', 'Dragon Lord Drak', 'Lady Gloom', 'Sir Rotten', 'The Storm Wizard'], 'For the kingdom!'],
+  ];
+  const PLANS = ['steal the Golden Pizza', 'turn the moon into cheese', 'fill the city with bubble gum', 'freeze the sun', 'shrink all the cars', 'make everybody sleepy', 'steal every sock in Explox', 'flood the park with soda', 'build a giant slide over the town', 'turn the river into jelly', 'make it rain spaghetti', 'switch off all the lights', 'steal the town clock', 'paint everything purple', 'take away all the trophies', 'tie every shoelace together', 'blow up a million balloons', 'hide the bank under a pile of hay', 'make all the dogs sing', 'steal the Explox sunshine', 'swap all the signs upside down', 'turn the school bus into a rocket', 'put the whole city on a conveyor belt', 'cover the town in glitter', 'make the wind blow backwards', 'steal all the pizza in the world', 'build a wall around the cinema', 'turn the ocean into soup', 'make the moon fall down', 'stop time for one whole minute'];
+  const GADGETS = ['Turbo Boots', 'Bubble Blaster', 'Mega Magnet', 'Jet Backpack', 'Freeze Ray', 'Rocket Skates', 'Sticky Net', 'Super Shield', 'Echo Whistle', 'Hover Board', 'Grip Gloves', 'Laser Pointer', 'Pizza Cannon', 'Smoke Bombs', 'Spring Shoes', 'Thunder Hammer', 'Mini Drone', 'Glow Stick', 'Slime Launcher', 'Time Watch'];
+  const ADJ = ['Golden', 'Frozen', 'Giant', 'Secret', 'Flying', 'Silent', 'Mighty', 'Crazy', 'Hidden', 'Lost', 'Sneaky', 'Electric', 'Cosmic', 'Stormy', 'Sparkly', 'Wobbly', 'Thunder', 'Midnight', 'Silver', 'Mega', 'Rocket', 'Turbo', 'Super', 'Mystery', 'Shadow'];
+  const NOUN = ['Pizza', 'Moon', 'Robot', 'Bridge', 'Key', 'Storm', 'Treasure', 'Cannon', 'Mask', 'Crown', 'Map', 'Trap', 'Rocket', 'Bell', 'Tower', 'Egg', 'Engine', 'Clock', 'Shield', 'Comet', 'Garden', 'Diamond', 'Drum'];
+  const TWISTS = [['Look! A secret door behind the poster!', 'It leads to the real hideout, and the whole plan was a decoy!'], ['Boss, my gadget is beeping at that crate!', 'The crate is empty. The villain stole nothing, and tricked us into leaving the city!'], ['I found a letter in the villain\'s pocket!', 'It says the villain only wanted to win a prize, and needs a friend!'], ['The villain\'s machine has a big red button.', 'It is not a weapon. It is a giant tickle machine, and everyone is laughing!'], ['A baby dragon is hiding behind the barrels!', 'The villain was only trying to find the lost baby dragon!'], ['The map is upside down!', 'The real treasure was on the other side of the town all along!'], ['Wait, that is not the villain. It is a robot copy!', 'The real villain is stuck in a lift on the top floor!'], ['The countdown clock says three seconds!', 'It is only a birthday party countdown, and the surprise is for us!']];
+  const BRIEF = ['The heroes were relaxing at their secret base when the big alarm started to ring.', 'It was a quiet morning at headquarters, until the giant screen began to flash.', 'The team was eating breakfast when an emergency message popped up.', 'Training was almost over when the red phone started to buzz.'];
+  const CLIFF = ['But in the shadows, a new villain was watching. To be continued.', 'But far away, a strange egg began to glow. To be continued.', 'But the mayor had one more secret mission. To be continued.', 'But a mysterious package had just arrived at the base. To be continued.', 'But somewhere in the dark, a robot opened its eyes. To be continued.'];
+  const hsx = (a, b) => hs(String(a), String(b));
+  function epTitle(si, ep) { return ADJ[(ep * 7 + si * 3) % ADJ.length] + ' ' + NOUN[(ep * 3 + si * 5) % NOUN.length]; }
+  function epProgram(si, ep) {
+    const sh = SHOWS[si], name = sh[0], H = sh[6], SD = sh[7], vil = sh[9], tagl = sh[10], veh = sh[3];
+    const R = (k) => (hsx(si * 1000 + ep, k) % 10000) / 10000, pickS = (a, k) => a[Math.floor(R(k) * a.length) % a.length];
+    const V = pickS(vil, 1), plan = pickS(PLANS, 2), gadget = pickS(GADGETS, 3), tw = pickS(TWISTS, 4), brief = pickS(BRIEF, 5), cliff = pickS(CLIFF, 6), vkind = pickS(['robot', 'king', 'wizard', 'ghost', 'alien', 'dragon', 'ninja', 'detective', 'pizza'], 7);
+    const places = [sh[4], 'city', 'park', 'airport', 'beach', 'market', 'scrapyard', 'arena', 'nature', 'castle'], p1 = sh[4], p2 = pickS(places, 8), p3 = pickS(places, 9), p4 = pickS(places, 10), epT = epTitle(si, ep), bigBattle = R(11) < .25;
+    const cast = C3([H, sh[5], 'hero'], [V, vkind, 'rival'], [SD, sh[8], 'goof']);
+    const sc = (place, prop, say, lines) => S(place, 'day', prop, say, lines.map(l => L(l[0], l[1], l[2], l[3])));
+    const intro = sc(p1, 'trophy', name, [['N', 'excited', 'fight', name + '!'], ['N', 'excited', 'run', 'Episode ' + ep + ': The ' + epT + '.'], ['N', 'determined', veh === 'fish' ? 'fight' : veh, tagl]]);
+    const s1 = sc(p1, 'book', 'The mission.', [['N', 'serious', 'talk', brief], ['C', 'surprised', 'look', pickS(['Look! The big screen!', 'Alert! Alert!', 'Boss, something is happening!'], 12)], ['A', 'serious', 'talk', V + ' is planning to ' + plan + '! We must stop them.'], ['C', 'worried', 'talk', pickS(['That sounds very bad.', 'Oh no. That is my least favorite plan.', 'Is it too late to go back to bed?'], 13)], ['A', 'determined', 'work', 'Grab the ' + gadget + ' and let us go. ' + tagl], ['C', 'excited', 'highfive', pickS(['Ready when you are!', 'Let us go!', 'Adventure time!'], 14)]]);
+    const s2 = sc(p2, 'car', 'The chase.', [['N', 'excited', veh, 'The heroes raced across the ' + p2 + ' toward ' + V + '\'s hideout.'], ['A', 'excited', veh, pickS(['Faster! We have no time to lose!', 'Hold on tight!', 'This is the fast route!'], 15)], ['C', 'scared', 'panic', pickS(['Watch out for that wall!', 'I forgot to buckle up!', 'Is that a cliff?!'], 16)], ['N', 'worried', 'panic', V + '\'s henchbots appeared and blocked the way!'], ['A', 'determined', 'jump', 'Jump over them! Now!'], ['C', 'joy', 'highfive', 'We made it past them!']]);
+    const s3 = sc(p3, 'bolt', 'The big fight.', [['B', 'angry', 'talk', 'Ha ha ha! You are too late, ' + H + '! My plan to ' + plan + ' is almost ready!'], ['A', 'determined', 'fight', 'Not today, ' + V + '!'], ['B', 'angry', 'fight', pickS(['Take this!', 'You cannot stop me!', 'Feel my power!'], 17)], ['C', 'shocked', 'look', 'Boss, watch out behind you!'], ['A', 'determined', 'fight', pickS(['Gadget attack! Go, ' + gadget + '!', 'Super move!', 'Here comes my best kick!'], 18)], ['B', 'shocked', 'panic', 'Impossible! My plan!']]);
+    const s4 = sc(p4, 'lantern', 'The twist.', [['C', 'curious', 'look', tw[0]], ['A', 'surprised', 'talk', tw[1]], ['B', 'worried', 'sneak', pickS(['Oh no, they found out my secret.', 'I can explain everything!', 'Wait, that was not supposed to happen!'], 19)], ['A', 'warm', 'talk', pickS(['Let us talk about this, ' + V + '.', 'We can fix this together.', 'It is not too late to do the right thing.'], 20)], ['B', 'angry', 'talk', 'No! I will never give up! Henchbots, attack!'], ['A', 'determined', 'run', 'Team, here they come!']]);
+    const fin = bigBattle ? sc('arena', 'trophy', 'The final battle.', [['N', 'excited', 'battle', 'And then, ' + V + '\'s whole army charged across the field!'], ['A', 'determined', 'battle', 'Heroes, hold the line!'], ['N', 'shocked', 'battle', 'Bombs began to fall, and fighters flew in every direction!'], ['C', 'excited', 'battle', 'Boss, we are winning!'], ['N', 'joy', 'battle', 'The army was knocked out, and ' + V + ' was left all alone.'], ['B', 'sad', 'talk', 'Fine. You win this time, ' + H + '.']])
+      : sc(pickS(places, 21), 'bolt', 'The final fight.', [['N', 'excited', 'fight', 'In a huge final battle, ' + H + ' faced ' + V + ' one more time!'], ['A', 'determined', 'fight', pickS(['This ends right now!', 'For everybody in Explox!', 'Here comes my ultimate move!'], 22)], ['B', 'angry', 'fight', pickS(['I will never stop!', 'You will lose!', 'Take that!'], 23)], ['C', 'excited', 'jump', 'Go, boss, go!'], ['A', 'joy', 'fight', 'Ultimate ' + gadget + ' blast!'], ['B', 'shocked', 'panic', 'Nooo! My plan to ' + plan + '!']]);
+    const s5 = sc(p1, 'trophy', 'Victory.', [['N', 'joy', 'party', 'And so, ' + V + '\'s plan to ' + plan + ' was stopped, and the city was safe again.'], ['A', 'joy', 'highfive', 'Great teamwork, ' + SD + '!'], ['C', 'joy', 'dance', pickS(['We did it! Pizza for everyone!', 'That was the best mission ever!', 'Can we do it again tomorrow?'], 24)], ['B', 'sad', 'talk', pickS(['Next time, I will win.', 'I only wanted a friend.', 'I will be back.'], 25)], ['A', 'warm', 'talk', 'Join us next time for another adventure.'], ['N', 'serious', 'talk', cliff]]);
+    const idx = program('\uD83C\uDFAC ' + name.toUpperCase() + ' \u2022 EPISODE ' + ep + ' [SHOW]', name + ' \u2022 Episode ' + ep + ': ' + epT, 'The Episode Narrator', cast, [intro, s1, s2, s3, s4, fin, s5]);
+    CINEMA_MOVIES[idx].tvIntro = { name: name, ep: ep, epTitle: epT, col: sh[2], seed: si * 50 + ep, cast: [H + '  (hero)', V + '  (villain)', SD + '  (sidekick)'] };
+    return idx;
+  }
+  const progKey = (si) => 'explox_tvshow_' + user() + '_' + si;
+  const lastEp = (si) => { try { return +localStorage.getItem(progKey(si)) || 0; } catch (e) { return 0; } };
+  const saveEp = (si, ep) => { try { localStorage.setItem(progKey(si), String(ep)); } catch (e) { } };
+  function startEpisode(si, ep) { tv.series = { si: si, ep: ep }; saveEp(si, ep); startTV(['ad1', epProgram(si, ep)], 'series'); }
+  function openShows() {
+    const b = $('tvBox'); let h = head('<div style="text-align:center;margin-bottom:6px"><button class="tvBtn" id="tvBack" style="background:#333;color:#ccc">\u2190 Channels</button></div><div class="tvGrid">');
+    SHOWS.forEach((sh, i) => { const le = lastEp(i); h += '<div class="tvCard" data-i="' + i + '" style="background:linear-gradient(135deg,' + sh[2] + '55,#111)"><div style="font-size:30px">' + sh[1] + '</div><div style="font-weight:bold;font-size:13px;margin:3px 0">' + sh[0] + '</div><div style="color:#bbb;font-size:10px">50 episodes' + (le ? ' \u2022 you are on ' + le : '') + '</div></div>'; });
+    h += '</div>'; b.innerHTML = h; $('tvBack').onclick = openMenu;
+    Array.prototype.forEach.call(b.querySelectorAll('.tvCard'), c => { c.onclick = () => openEpisodes(+c.getAttribute('data-i')); });
+  }
+  function openEpisodes(si) {
+    const sh = SHOWS[si], b = $('tvBox'), le = lastEp(si); let h = head('<div style="text-align:center;margin-bottom:6px"><button class="tvBtn" id="tvBack" style="background:#333;color:#ccc">\u2190 All shows</button> <button class="tvBtn" id="tvNext" style="background:#e94560;color:#fff">\u25B6 ' + (le ? 'Continue: Episode ' + Math.min(50, le + 1) : 'Start: Episode 1') + '</button> <button class="tvBtn" id="tvRand" style="background:#36507f;color:#fff">\uD83C\uDFB2 Random</button></div><div style="text-align:center;font-size:22px;margin:4px 0;color:' + sh[2] + '">' + sh[1] + ' <b>' + sh[0] + '</b></div><div class="tvSub">' + sh[10] + ' \u2022 50 episodes</div><div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">');
+    for (let e = 1; e <= 50; e++) h += '<button class="tvBtn" data-e="' + e + '" title="' + epTitle(si, e) + '" style="background:' + (e <= le ? '#2e5d3a' : '#243557') + ';color:#fff;margin:0;font-size:11px;padding:6px 2px">' + e + '<br><span style="font-weight:normal;font-size:9px">' + epTitle(si, e) + '</span></button>';
+    h += '</div>'; b.innerHTML = h; $('tvBack').onclick = openShows; $('tvNext').onclick = () => startEpisode(si, le ? (le % 50) + 1 : 1); $('tvRand').onclick = () => startEpisode(si, 1 + rnd(50));
+    Array.prototype.forEach.call(b.querySelectorAll('[data-e]'), c => { c.onclick = () => startEpisode(si, +c.getAttribute('data-e')); });
+  }
   function shopBlock() { return ['ad2', 'ad2', 'ad2']; }
   function movieBlock(idx) { return ['ad1', idx, 'ad1']; }
-  function liveBlock() { const m = CINEMA_MOVIES.filter(x => !x.tv); const mi = CINEMA_MOVIES.indexOf(m[Math.floor(Math.random() * m.length)]); const r = Math.random(); return r < .2 ? newsPrograms() : r < .4 ? funBlock(2).concat(['ad2']) : r < .6 ? [soccerMatch(), 'ad2'] : ['ad2', mi]; }
+  function liveBlock() { const m = CINEMA_MOVIES.filter(x => !x.tv); const mi = CINEMA_MOVIES.indexOf(m[Math.floor(Math.random() * m.length)]); const r = Math.random(); return r < .2 ? newsPrograms() : r < .4 ? funBlock(2).concat(['ad2']) : r < .5 ? [soccerMatch(), 'ad2'] : r < .65 ? [fightMatch(), 'ad2'] : ['ad2', mi]; }
 
   // ── the TV: queue, billing, screen ────────────────────────────────────────
   function resolve(it) { if (it === 'ad1') return adBreak(1); if (it === 'ad2') return adBreak(2); return it; }
@@ -185,6 +269,7 @@
   function nextItem() {
     if (!tv.on) return;
     if (!tv.queue.length && tv.mode === 'live') tv.queue = liveBlock();
+    if (!tv.queue.length && tv.mode === 'series' && tv.series) { tv.series.ep = tv.series.ep % 50 + 1; saveEp(tv.series.si, tv.series.ep); tv.queue = ['ad2', epProgram(tv.series.si, tv.series.ep)]; }
     if (!tv.queue.length) { endLikeMovie(); return; }
     const it = tv.queue.shift(); const idx = resolve(it); tv.channel = CINEMA_MOVIES[idx].tv ? (CINEMA_MOVIES[idx].tvTag || 'TV') : CINEMA_MOVIES[idx].title;
     playNow(idx);
@@ -238,11 +323,13 @@
       '<button class="tvCh" id="tvNews">📰 Explox News<small>Fresh news every time, with the real new movies and real shop prices</small></button>' +
       '<button class="tvCh" id="tvFun">😂 Fun Videos<small>Dancing robots, cats, pizza fails, bubbles and more</small></button>' +
       '<button class="tvCh" id="tvSoccer">\u26BD Soccer: Explox vs the World<small>Cool matches against Paris, Tokyo, Rio and more. A brand-new match every time!</small></button>' +
+      '<button class="tvCh" id="tvShows">\uD83D\uDCFA TV Shows<small>20 action series, 50 episodes each, with intros and theme music</small></button>' +
+      '<button class="tvCh" id="tvFights">\u2694\uFE0F Fights<small>Any fight you can imagine, up to 1000 fighters, with bombs. All cartoon!</small></button>' +
       '<button class="tvCh" id="tvShop">🛍️ Shopping Channel<small>Non-stop commercials for real products in Explox</small></button>' +
       '<button class="tvCh" id="tvLive">📺 Explox TV Live<small>A never-ending mix: news, videos, commercials and movies</small></button>' +
       (r ? '' : '<button class="tvCh" id="tvRent" style="border-color:#ffd54f">🔑 Rent this TV for one Explox day – ' + fmt(RENT) + ' S.I.P.<small>Watch everything for free for 30 real minutes (one Explox day)</small></button>') +
       '<div style="text-align:center;margin-top:10px"><button class="tvBtn" id="tvLeave" style="background:#333;color:#ccc">⏻ Turn off</button></div>';
-    $('tvMovies').onclick = openMovies; $('tvNews').onclick = () => startTV(newsPrograms(), ''); $('tvFun').onclick = () => startTV(funBlock(4), ''); $('tvSoccer').onclick = () => startTV(soccerBlock(2), ''); $('tvShop').onclick = () => startTV(shopBlock(), ''); $('tvLive').onclick = () => startTV(liveBlock(), 'live'); $('tvLeave').onclick = closeMenu;
+    $('tvMovies').onclick = openMovies; $('tvNews').onclick = () => startTV(newsPrograms(), ''); $('tvFun').onclick = () => startTV(funBlock(4), ''); $('tvSoccer').onclick = () => startTV(soccerBlock(2), ''); $('tvShows').onclick = openShows; $('tvFights').onclick = () => startTV(fightBlock(3), ''); $('tvShop').onclick = () => startTV(shopBlock(), ''); $('tvLive').onclick = () => startTV(liveBlock(), 'live'); $('tvLeave').onclick = closeMenu;
     if ($('tvRent')) $('tvRent').onclick = rent;
   }
   function rent() {
@@ -258,5 +345,5 @@
     Array.prototype.forEach.call(b.querySelectorAll('.tvCard'), c => { c.onclick = () => startTV(movieBlock(+c.getAttribute('data-i')), ''); });
   }
   window.watchHotelTV = openMenu; window.watchExploxTV = openMenu;
-  window.__exploxTV = { open: openMenu, status: () => ({ on: tv.on, rented: rented(), perMin: PER_MIN, rent: RENT }), news: newsPrograms, soccer: soccerMatch, ads: adBreak };
+  window.__exploxTV = { open: openMenu, status: () => ({ on: tv.on, rented: rented(), perMin: PER_MIN, rent: RENT }), news: newsPrograms, soccer: soccerMatch, fight: fightMatch, ep: epProgram, shows: SHOWS, ads: adBreak };
 })();
