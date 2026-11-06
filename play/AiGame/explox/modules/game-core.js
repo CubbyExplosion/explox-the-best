@@ -1557,7 +1557,7 @@ async function loadLoginScreen() {
         </div>
         <button class="acBackup" title="Save a backup of this account" onclick="event.stopPropagation();backupAccount('${name}')">💾</button>
         <button class="acRestore" title="${hasBackup ? 'Load your last backup' : 'No backup saved yet'}" ${hasBackup ? '' : 'disabled'} onclick="event.stopPropagation();restoreAccount('${name}')">♻️</button>
-        <button class="acDel" onclick="event.stopPropagation();deleteAccount('${name}')">✕</button>
+        ${serverMode === 'online' ? '' : `<button class="acDel" onclick="event.stopPropagation();deleteAccount('${name}')">✕</button>`}
       </div>`;
     }).join('');
   }
@@ -1608,6 +1608,7 @@ async function createAccount() {
 // the same way, so deletion now goes through that instead of confirm().
 let pendingDeleteAccountName = null;
 function deleteAccount(name) {
+  if (serverMode === 'online') { showBigMsg("🔒 Online accounts can't be deleted — they might not be yours!"); return; }
   pendingDeleteAccountName = name;
   document.getElementById('deleteConfirmName').textContent = name;
   document.getElementById('deleteConfirmModal').style.display = 'flex';
@@ -1621,12 +1622,7 @@ function confirmDeleteAccount() {
   document.getElementById('deleteConfirmModal').style.display = 'none';
   pendingDeleteAccountName = null;
   if (!name) return;
-  if(serverMode === 'online') {
-    fetchWithTimeout(EXPLOX_ONLINE_URL + '/api/user/' + encodeURIComponent(name), { method:'DELETE' }, 4000)
-      .catch(()=>{})
-      .finally(() => loadLoginScreen());
-    return;
-  }
+  if(serverMode === 'online') { showBigMsg("🔒 Online accounts can't be deleted — they might not be yours!"); return; }
   const users = getUsers().filter(u => u !== name);
   saveUsers(users);
   localStorage.removeItem('explox_user_' + name);
