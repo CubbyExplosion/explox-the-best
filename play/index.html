@@ -1470,10 +1470,11 @@
 <div id="cinemaModal" style="display:none;position:fixed;inset:0;background:#000;z-index:2000;flex-direction:column;align-items:center;justify-content:center;font-family:Arial,sans-serif;">
 
   <!-- LOBBY: pick a movie -->
-  <div id="cinemaLobby" style="text-align:center;max-width:740px;padding:24px;width:100%;box-sizing:border-box;">
+  <div id="cinemaLobby" style="text-align:center;max-width:740px;padding:24px;width:100%;box-sizing:border-box;max-height:100vh;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;">
     <div style="font-size:44px;margin-bottom:4px;">🎬</div>
     <h2 style="color:#ffcc00;margin:0 0 4px;font-size:26px;letter-spacing:2px;">EXPLOX CINEMAS</h2>
     <p style="color:#888;font-size:12px;margin:0 0 18px;">Choose your movie &nbsp;|&nbsp; S.I.P.: <span id="cinemaSipLobby" style="color:#ffcc00;font-weight:bold;">0</span></p>
+    <div id="movieFilters" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:12px;"></div>
     <div id="movieGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;"></div>
     <button onclick="closeCinema()" style="padding:8px 26px;background:#333;color:#aaa;border:none;border-radius:8px;cursor:pointer;font-size:13px;">← Leave</button>
   </div>
@@ -3111,7 +3112,7 @@ function closeMgPanel(){
 <script src="AiGame/explox/modules/game-alignment.js?v=20261002l"></script>
 <script src="AiGame/explox/modules/game-cinema.js?v=20261002l"></script>
 <script src="AiGame/explox/modules/game-cinema-stories.js?v=20261106a"></script>
-<script src="AiGame/explox/modules/game-cinema3d.js?v=20261106r"></script>
+<script src="AiGame/explox/modules/game-cinema3d.js?v=20261106t"></script>
 <script src="AiGame/explox/modules/game-transit.js?v=20261002l"></script>
 <script src="AiGame/explox/modules/game-social.js?v=20261106a"></script>
 <script src="AiGame/explox/modules/game-shops.js?v=20261002l"></script>

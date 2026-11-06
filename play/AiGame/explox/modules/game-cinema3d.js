@@ -630,7 +630,7 @@
   function limbs(p, a, b, c, d) { p.armL.rotation.x = a; p.armR.rotation.x = b; p.legL.rotation.x = c; p.legR.rotation.x = d; }
   function pose(p) { p.g.rotation.set(0, p.g.rotation.y, 0); p.body.rotation.set(0, 0, 0); p.body.position.set(0, 0, 0); p.head.rotation.set(0, 0, 0); p.head.scale.setScalar(p.costume === 'alien' ? 1.25 : 1); limbs(p, 0, 0, 0, 0); p.armL.rotation.z = 0; p.armR.rotation.z = 0; p.mouth.scale.set(1, 1, 1); p.g.position.y = 0; }
   function walk(p, t, sp, big) { const s = Math.sin(t * sp) * (big || .8); limbs(p, -s, s, s, -s); p.body.position.y = Math.abs(Math.sin(t * sp)) * .12; }
-  let beatOffset = 0, lastSceneKey = '', flashA = 0, zoomPunch = 0;
+  let beatOffset = 0, lastSceneKey = '', flashA = 0, zoomPunch = 0, titleKey = -1, fightKey = '';
   const fxTorus = new THREE.TorusGeometry(1, .08, 6, 28), fxStar = new THREE.OctahedronGeometry(.22), fxMatW = new THREE.MeshBasicMaterial({ color: 0xffffff }), fxMatY = new THREE.MeshBasicMaterial({ color: 0xffe033 });
   function words2d(t0, text, i) { words.push({ t0: t0 + beatOffset, text, i }); }
   let shown = [], curActors = [], curInfoNow = null;
@@ -713,6 +713,7 @@
       const age = tt - IMP, ix = (A.g.position.x + B.g.position.x) / 2, imx = atk.g.position.x + dir * .9;
       if (tt > .3 && tt < .58) for (let k = 0; k < 5; k++) { const l = wMesh(1.8, .05, .05, 0xffffff, atk.g.position.x - dir * (.9 + k * .3), 1.6 + k * .45, (k - 2) * .35); }
       if (age >= 0 && age < .55 && !dodge) {
+        if (age < .08 && fightKey !== cyc + '_' + si + '_' + mi && playing(mi)) { fightKey = cyc + '_' + si + '_' + mi; try { (mvn === 'punch' ? sfx.chop : sfx.clang)(); } catch (e) { } }
         const ring = new THREE.Mesh(fxTorus, fxMatW); ring.userData.shared = true; const rs = age < .25 ? .4 + age * 8 : (.4 + 2) * (1 - (age - .25) / .3); ring.scale.setScalar(Math.max(.01, rs)); ring.position.set(imx, 2.4, .2); ring.lookAt(CAM.position); fxGroup.add(ring);
         if (age < .4) for (let k = 0; k < 9; k++) { const a2 = k * Math.PI * 2 / 9, d = age * 7, st = new THREE.Mesh(fxStar, fxMatY); st.userData.shared = true; st.position.set(imx + Math.cos(a2) * d, 2.4 + Math.sin(a2) * d, .3 * Math.sin(k)); st.scale.setScalar(1.2 - age * 2); fxGroup.add(st); }
         words2d(cyc * CY + IMP, ['POW!', 'WHAM!', 'BAM!', 'BIFF!', 'ZAP!', 'WHACK!', 'KABOOM!'][hash(cyc, si, 9) % 7], 3 + cyc % 3);
@@ -819,6 +820,7 @@
         ctx.save(); ctx.globalAlpha = a; ctx.font = 'bold ' + fs + 'px Arial'; ctx.textAlign = 'left'; const tw = ctx.measureText(nm).width;
         ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(w * .04, h * .12, tw + fs * 1.6, fs * 1.7); ctx.fillStyle = '#7dffb2'; ctx.fillRect(w * .04, h * .12, fs * .25, fs * 1.7); ctx.fillStyle = '#fff'; ctx.fillText(nm, w * .04 + fs * .8, h * .12 + fs * 1.2); ctx.restore();
       }
+      if (si === 0 && t > .1 && t < 1 && titleKey !== mi && playing(mi)) { titleKey = mi; try { sfx.power(); setTimeout(() => { try { sfx.cheer(); } catch (e) { } }, 350); } catch (e) { } }
       if (si === 0 && t < 6.5) {
         const a = t < .6 ? t / .6 : (t > 5.2 ? Math.max(0, (6.5 - t) / 1.3) : 1); ctx.save(); ctx.globalAlpha = a * .92;
         const gg = ctx.createLinearGradient(0, 0, 0, h); gg.addColorStop(0, 'rgba(0,0,0,.85)'); gg.addColorStop(.5, 'rgba(0,0,0,.35)'); gg.addColorStop(1, 'rgba(0,0,0,.85)'); ctx.fillStyle = gg; ctx.fillRect(0, 0, w, h);
@@ -1016,6 +1018,60 @@
     const idx = { A: 0, B: 1, C: 2 }[who] || 0, v = pool[idx % pool.length];
     return { voice: v, rate: { A: .96, B: 1.04, C: 1.1 }[who] || 1, pitch: pool.length >= 3 ? { A: .95, B: 1.05, C: 1.12 }[who] : { A: .82, B: 1.22, C: 1.45 }[who] };
   }
+  // ---------- show feel: a music score under every scene, sound effects for the big moments, audience laughs and cheers ----------
+  const playing = (mi) => typeof cinemaState !== 'undefined' && cinemaState && cinemaState.phase === 'movie' && cinemaState.movieIdx === mi;
+  const SCORES = {
+    action: ['action_zone', 'speed_run', 'champion_run', 'solar_blast', 'rush_hour'], adventure: ['mission_zone', 'arcade_jam', 'beach_cruise', 'robot_dance'],
+    thriller: ['midnight_city', 'late_night', 'night_watch', 'rain_and_jazz'], comedy: ['night_drive', 'alley_cats', 'morning_jog', 'hip_hop_city'],
+    scifi: ['galaxy_drive', 'golden_hour', 'street_life'], drama: ['rainy_day', 'quiet_evening', 'river_walk'],
+  };
+  function scoreFor(mi, mv) {
+    const g = (mv.genre || '').toLowerCase();
+    const k = /action|mecha/.test(g) ? 'action' : /adventure|racing/.test(g) ? 'adventure' : /thriller|mystery|ghost/.test(g) ? 'thriller' : /comedy|family|slice/.test(g) ? 'comedy' : /sci-fi|space/.test(g) ? 'scifi' : 'drama';
+    const list = SCORES[k]; return 'AiGame/explox/music/tracks/' + list[mi % list.length] + '.mp3';
+  }
+  const scoreState = { audio: null, key: '', muted: false };
+  function startScore(mi, mv) {
+    try {
+      const key = mi + ''; if (scoreState.audio && scoreState.key === key) return;
+      if (scoreState.audio) { scoreState.audio.pause(); }
+      if (!scoreState.muted && typeof bgMusic !== 'undefined' && bgMusic.isMuted && !bgMusic.isMuted() && typeof toggleBgMusic === 'function') { toggleBgMusic(); scoreState.muted = true; }
+      const a = new Audio(scoreFor(mi, mv)); a.loop = true; a.volume = .2; a.play().catch(() => { }); scoreState.audio = a; scoreState.key = key;
+    } catch (e) { }
+  }
+  function stopScore(restore) {
+    try {
+      const a = scoreState.audio; if (a) { let v = a.volume; const iv = setInterval(() => { v -= .04; if (v <= 0) { clearInterval(iv); a.pause(); } else a.volume = v; }, 90); }
+      scoreState.audio = null; scoreState.key = '';
+      if (restore && scoreState.muted && typeof toggleBgMusic === 'function') { toggleBgMusic(); scoreState.muted = false; }
+    } catch (e) { }
+  }
+  let actx = null;
+  function laugh() {   // a little audience laugh: a few voices going ha-ha-ha
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)(); const c = actx, now = c.currentTime;
+      for (let v = 0; v < 4; v++) {
+        const base = 190 + Math.random() * 110, n = 5 + Math.floor(Math.random() * 3), t0 = now + Math.random() * .15;
+        for (let i = 0; i < n; i++) {
+          const o = c.createOscillator(), g = c.createGain(), f = c.createBiquadFilter(), tt = t0 + i * (.1 + v * .004);
+          o.type = 'sawtooth'; o.frequency.setValueAtTime(base * (1.15 - i * .03), tt); o.frequency.exponentialRampToValueAtTime(base * (.95 - i * .02), tt + .09);
+          f.type = 'bandpass'; f.frequency.value = 850 + Math.random() * 250; f.Q.value = 1.4;
+          g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(.05 * (1 - i / (n + 2)), tt + .015); g.gain.exponentialRampToValueAtTime(.0008, tt + .09);
+          o.connect(f); f.connect(g); g.connect(c.destination); o.start(tt); o.stop(tt + .1);
+        }
+      }
+    } catch (e) { }
+  }
+  function lineSfx(l, mv) {
+    if (!playing(CINEMA_MOVIES.indexOf(mv))) return;
+    const E = l.emo, delay = Math.max(0, (l.end - l.start) * 1000 - 100);
+    speechTimers.push(setTimeout(() => {
+      try {
+        if (E === 'scared' || E === 'shocked') sfx.tense(); else if (E === 'surprised') sfx.reveal(); else if (E === 'angry') sfx.clang(); else if (E === 'sad') sfx.mystery(); else if (E === 'joy' || E === 'excited') sfx.cheer();
+        if (mv.comedy && ['happy', 'joy', 'excited', 'surprised', 'curious'].indexOf(E) >= 0 && hash((l.start * 10) | 0, l.text.length, 5) % 100 < 50) laugh();
+      } catch (e) { }
+    }, delay));
+  }
   let speechTimers = [];
   function clearSpeechTimers() { speechTimers.forEach(clearTimeout); speechTimers = []; }
   function speakDialogue(mi, si, narratorVoice) {
@@ -1028,7 +1084,7 @@
           u.rate = clamp(cv.rate || 1, .7, 1.3); u.pitch = clamp(cv.pitch || 1, .5, 1.8); u.volume = 1;
           if (l.emo) { const EV = { angry: [1.08, -.05], scared: [1.15, .2], sad: [.85, -.1], joy: [1.1, .1], excited: [1.1, .1], worried: [1.05, .05] }[l.emo]; if (EV) { u.rate = clamp(u.rate * EV[0], .6, 1.4); u.pitch = clamp(u.pitch + EV[1], .4, 1.9); } }
           if (/!/.test(l.text)) { u.rate *= 1.05; u.pitch = clamp(u.pitch + .05, .5, 1.8); }
-          window.speechSynthesis.speak(u);
+          window.speechSynthesis.speak(u); lineSfx(l, mv);
         } catch (e) { }
       }, Math.max(0, (l.start - 0.45) * 1000)));
     });
@@ -1075,6 +1131,7 @@
   window.__cinemaNarrate = function (text, mi, dur) {
     try {
       const mv = CINEMA_MOVIES[mi] || CINEMA_MOVIES[0], synth = window.speechSynthesis; clearSpeechTimers(); synth.cancel(); if (cinemaState.sceneIndex === 0) text = 'Hello. I am ' + narratorPersona(mi, mv) + '. Tonight, ' + mv.title + '. ' + text;
+      startScore(mi, mv);
       const v = pickVoice(mi, mv); const natural = v && /natural|neural|online|google/i.test(v.name);
       narratorName = v ? v.name.replace(/Microsoft\s+/i, '').replace(/\s*(Online)?\s*\(Natural\).*$/i, '').replace(/\s*-\s*English.*$/i, '').replace(/\s+Desktop.*/i, '').replace(/^Google\s+/i, '').trim() : '';
       const serious = /drama|epic|mystery|thriller|action|mecha|sacred|origin|war|frontier|hometown/i.test(mv.genre || '');
@@ -1127,7 +1184,7 @@
   const creditsFn = function () {
     cinemaState.phase = 'credits';
     try { sfx.credits(); } catch (e) { }
-    window.speechSynthesis.cancel();
+    window.speechSynthesis.cancel(); stopScore(false);
     setTimeout(() => { if (cinemaState.phase !== 'credits') return; window.__cinemaNarrate('The end.', cinemaState.movieIdx, 3); }, 800);
     if (cinemaState.animFrame) cancelAnimationFrame(cinemaState.animFrame);
     const cv = document.getElementById('cinemaCanvas'), mv = cinemaState.movie, mi = cinemaState.movieIdx, t0 = performance.now();
@@ -1138,8 +1195,38 @@
   // game-social.js loads after this file and defines its own showCinemaCredits, so take over once everything has loaded
   const installCredits = () => { window.showCinemaCredits = creditsFn; };
   installCredits(); window.addEventListener('load', installCredits);
-  const installClose = () => { if (window.closeCinema && !window.closeCinema.__wrapped) { const oc = window.closeCinema; const nw = function () { clearSpeechTimers(); return oc.apply(this, arguments); }; nw.__wrapped = true; window.closeCinema = nw; } };
+  const installClose = () => { if (window.closeCinema && !window.closeCinema.__wrapped) { const oc = window.closeCinema; const nw = function () { clearSpeechTimers(); stopScore(true); return oc.apply(this, arguments); }; nw.__wrapped = true; window.closeCinema = nw; } };
   installClose(); window.addEventListener('load', installClose);
+
+
+  // ---------- the movie lobby: filter buttons, and the new movies first with a NEW badge ----------
+  const FILTERS = [['All', /./], ['\uD83E\uDDED Adventure', /adventure/i], ['\uD83D\uDD26 Thriller', /thriller|mystery/i], ['\uD83D\uDCA5 Action', /action|mecha|racing/i], ['\uD83D\uDE02 Comedy', /comedy|family/i], ['\uD83D\uDE80 Sci-Fi', /sci-fi|space/i], ['\uD83D\uDCDC History', /drama|epic|origin|founders|frontier|hometown|romance|slice|newcomer|historical|underdog|founding/i]];
+  const OLD_COUNT = 29;
+  window.__movieFilter = 0;
+  function paintLobby() {
+    const bar = document.getElementById('movieFilters');
+    if (bar) {
+      bar.innerHTML = '';
+      FILTERS.forEach((f, i) => {
+        const b = document.createElement('button'), on = i === window.__movieFilter; b.textContent = f[0];
+        b.style.cssText = 'padding:6px 12px;border-radius:999px;border:1px solid ' + (on ? '#ffcc00' : '#444') + ';background:' + (on ? '#ffcc00' : '#222') + ';color:' + (on ? '#000' : '#ccc') + ';font-weight:bold;font-size:12px;cursor:pointer;';
+        b.onclick = () => { window.__movieFilter = i; window.buildMovieGrid(); }; bar.appendChild(b);
+      });
+    }
+    const grid = document.getElementById('movieGrid'); if (!grid) return;
+    const re = FILTERS[window.__movieFilter][1], cards = Array.prototype.slice.call(grid.children);
+    cards.forEach((card, i) => {
+      const m = CINEMA_MOVIES[i]; if (!m) return; card.style.display = re.test(m.genre) ? '' : 'none';
+      if (i >= OLD_COUNT && !card.querySelector('.newbadge')) { const nb = document.createElement('div'); nb.className = 'newbadge'; nb.textContent = '\u2728 NEW'; nb.style.cssText = 'color:#7dffb2;font-weight:bold;font-size:11px;margin-bottom:4px;'; card.insertBefore(nb, card.firstChild); }
+    });
+    for (let i = cards.length - 1; i >= OLD_COUNT; i--) grid.insertBefore(cards[i], grid.firstChild);   // the new movies come first
+  }
+  const installLobby = () => {
+    if (window.buildMovieGrid && !window.buildMovieGrid.__wrapped) {
+      const ob = window.buildMovieGrid, nw = function () { const r = ob.apply(this, arguments); try { paintLobby(); } catch (e) { } return r; }; nw.__wrapped = true; window.buildMovieGrid = nw;
+    }
+  };
+  installLobby(); window.addEventListener('load', installLobby);
 
   CINEMA_MOVIES.forEach((mv, mi) => {
     (mv.scenes || []).forEach((sc, si) => {
