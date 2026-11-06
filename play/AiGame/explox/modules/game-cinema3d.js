@@ -390,12 +390,13 @@
   function limbs(p, a, b, c, d) { p.armL.rotation.x = a; p.armR.rotation.x = b; p.legL.rotation.x = c; p.legR.rotation.x = d; }
   function pose(p) { p.g.rotation.set(0, p.g.rotation.y, 0); p.body.rotation.set(0, 0, 0); p.body.position.set(0, 0, 0); p.head.rotation.set(0, 0, 0); p.head.scale.setScalar(p.costume === 'alien' ? 1.25 : 1); limbs(p, 0, 0, 0, 0); p.armL.rotation.z = 0; p.armR.rotation.z = 0; p.mouth.scale.set(1, 1, 1); p.g.position.y = 0; }
   function walk(p, t, sp, big) { const s = Math.sin(t * sp) * (big || .8); limbs(p, -s, s, s, -s); p.body.position.y = Math.abs(Math.sin(t * sp)) * .12; }
-  function words2d(t0, text, i) { words.push({ t0, text, i }); }
+  let beatOffset = 0, lastSceneKey = '';
+  function words2d(t0, text, i) { words.push({ t0: t0 + beatOffset, text, i }); }
   let shown = [], curActors = [], curInfoNow = null;
 
   // ---------- the director: puts the right characters in the right place doing what the caption says ----------
-  function direct(mi, si, mv, sc, t) {
-    const info = getInfo(mi, si, mv, sc), dur = sc.dur || 5, u = clamp(t / dur, 0, 1);
+  function directBeat(mi, si, mv, sc, t, info, dur, camSeed) {
+    const u = clamp(t / dur, 0, 1);
     shown.forEach(p => { p.g.visible = false; }); shown = []; clearFx(); words = [];
     Object.keys(propCache).forEach(k => { propCache[k].visible = false; });
     const act = actorsFor(mi, mv, info), ex = info.extraN ? extrasFor(mi, info, info.extraN) : [];
@@ -474,7 +475,7 @@
     }
     act.concat(ex).forEach(c => { if (c.costume === 'ghost') c.g.position.y += .6 + Math.sin(t * 3) * .3; if (c.extras.wings) { const f = Math.sin(t * 7) * .5; c.extras.wings[0].rotation.z = f; c.extras.wings[1].rotation.z = -f; } });
     // camera: close enough to see the actors, moving in a different way for each scene
-    const camStyle = ['orbit', 'dolly', 'crane', 'side'][hash(mi, si, 9) % 4], seed = hash(mi, si, 2) % 628 / 100, D = clamp(7 + spread * .9, 9, 17);
+    const camStyle = ['orbit', 'dolly', 'crane', 'side'][hash(mi, si, 9 + camSeed) % 4], seed = hash(mi, si, 2 + camSeed) % 628 / 100, D = clamp(7 + spread * .9, 9, 17);
     if (camStyle === 'orbit') { const a = seed + t * .3; CAM.position.set(look.x + Math.cos(a) * D * .8, 4.2, look.z + Math.sin(a) * D * .8 + D * .4); }
     else if (camStyle === 'dolly') { CAM.position.set(look.x + Math.sin(seed) * 4, 3.2 + u * .8, look.z + D * 1.15 - u * D * .5); }
     else if (camStyle === 'crane') { CAM.position.set(look.x - 6, 1.6 + u * 7, look.z + D * .9 - u * 2); }
@@ -483,12 +484,20 @@
     CAM.lookAt(look); rim.position.set(look.x - 8, 6, look.z + 4);
     return info;
   }
+  // a scene is a sequence of shots; each shot has its own camera, action and dialogue
+  function direct(mi, si, mv, sc, t) {
+    const info = getInfo(mi, si, mv, sc), dl = getDialogue(mi, si, mv, sc), nb = dl.beats ? dl.beats.length : 1;
+    const beat = Math.min(nb - 1, Math.floor(t / BEAT)), b = (dl.beats && dl.beats[beat]) || { style: info.style, present: info.present };
+    beatOffset = beat * BEAT;
+    return directBeat(mi, si, mv, sc, t - beat * BEAT, Object.assign({}, info, { style: b.style, present: b.present }), BEAT, beat);
+  }
 
   // ---------- sets: each of the three is built once and shown or hidden ----------
   const stages = {};
   // ---------- public entry: replaces each scene's 2D drawing ----------
   function draw3D(mi, si, mv, sc, ctx, w, h, t) {
     const rd = renderer(w, h); if (!rd) return false;
+    if (lastSceneKey !== mi + '_' + si) { lastSceneKey = mi + '_' + si; clearSpeechTimers(); }
     try {
       const vis = (typeof _MVIS !== 'undefined' && _MVIS[mi]) ? _MVIS[mi] : null;
       const info = getInfo(mi, si, mv, sc);
@@ -587,18 +596,39 @@
   }
   // Natural spoken lines that fit what is happening in the scene (never the narration read back). Scenes that are only
   // scene-setting or lore are left to the narrator, so nobody says anything that does not fit.
-  const CATS = {
-    fight:  [['Take that!', 'Not today!', 'You will not win!'], ['Ha! Try again!', 'You cannot stop me!', 'We will see about that!']],
-    race:   [['Start your engines!', 'Pedal to the metal!', 'Here we go, racers!'], ['Catch me if you can!', 'I am right behind you!', 'This is going to be close!']],
-    chase:  [['Faster! Faster!', 'Do not let them catch us!', 'Keep running!'], ['Wait for me!', 'I am right behind you!', 'Come back here!']],
-    danger: [['Look out!', 'Watch out!', 'Danger ahead!'], ['Stay close to me!', 'I am ready for them!', 'We can handle this together!']],
-    discover: [['Wait... what is that?', 'Did you see that?', 'I think I found something!'], ['Let us take a closer look.', 'Stay careful. Let us find out.', 'What do you think it is?']],
-    start:  [['Here we go!', 'This is it!', 'Let us get started!'], ['I am ready!', 'Let us do this!', 'Right behind you!']],
-    win:    [['Yes! We did it!', 'Woohoo!', 'Hooray!'], ['We did it together!', 'Best day ever!', 'I knew we could do it!']],
-    trouble: [['Oh no!', 'This is bad!', 'That cannot be!'], ['Do not give up. We can fix this.', 'We will find a way.', 'Stay calm. Think!']],
-    plan:   [['Here is the plan.', 'Listen to me, everyone.', 'We need to work together.'], ['Understood.', 'I am with you.', 'Tell us what to do.']],
-    travel: [['This way. Stay close.', 'Keep your eyes open.', 'We are getting closer.'], ['Right behind you!', 'I see something up ahead.', 'Lead the way!']],
-    build:  [['Hand me that!', 'Almost done!', 'Together we can build anything!'], ['Here you go!', 'Looks great!', 'Nice work!']],
+  // Each scene lasts at least a minute: 8 shots of 8 seconds. Every shot has a kind (notice, move, talk, danger ...) that decides what the
+  // people are doing and what they say, and the order of shots follows the kind of event the caption describes.
+  const BEAT = 8, NBEAT = 8;
+  const POOLS = {
+    notice:  { style: 'look',  A: ['Wait... what is that?', 'Did you see that?', 'Something is happening.', 'Look over there!', 'Stop! Listen.', 'Do you feel that?'], B: ['I do not see anything.', 'Where? Show me!', 'I heard it too.', 'Let me look closer.', 'That is strange.', 'Stay calm.'] },
+    react:   { style: 'talk',  A: ['I cannot believe it!', 'This is unbelievable!', 'Oh my goodness!', 'This changes everything.', 'We were not ready for this.'], B: ['What should we do?', 'Is it really happening?', 'I am a little scared.', 'Stay together!', 'Keep your head up.'] },
+    move:    { style: 'walk',  A: ['This way. Stay close.', 'Keep your eyes open.', 'Follow me!', 'Not far now.', 'Step carefully.'], B: ['Right behind you!', 'Lead the way!', 'I see something ahead.', 'Watch your step!', 'Are we almost there?'] },
+    sneak:   { style: 'sneak', A: ['Shhh. Quiet now.', 'Move slowly...', 'Do not make a sound.', 'Stay low.'], B: ['My heart is pounding.', 'I think someone is there.', 'Did you hear that?', 'I am right behind you.'] },
+    talk:    { style: 'talk',  A: ['Here is the plan.', 'Listen to me, everyone.', 'We need to work together.', 'I have an idea.', 'Let us think about this.'], B: ['Tell us what to do.', 'I am with you.', 'That might just work!', 'Let us do it!', 'What if it goes wrong?'] },
+    danger:  { style: 'panic', A: ['Look out!', 'Watch out!', 'Danger ahead!', 'Get back!', 'Take cover!'], B: ['Stay close to me!', 'I am ready for them!', 'We can handle this together!', 'Behind you!', 'Hold the line!'] },
+    fight:   { style: 'fight', A: ['Take that!', 'Not today!', 'You will not win!', 'Here I come!', 'Is that all you have?'], B: ['Ha! Try again!', 'You cannot stop me!', 'We will see about that!', 'Nice try!', 'Is that your best?'] },
+    chase:   { style: 'run',   A: ['Faster! Faster!', 'Do not let them catch us!', 'Keep running!', 'This way, quick!', 'Jump!'], B: ['Wait for me!', 'I am right behind you!', 'Come back here!', 'I cannot keep up!', 'Almost there!'] },
+    race:    { style: 'run',   A: ['Start your engines!', 'Pedal to the metal!', 'Here we go, racers!', 'Hold on tight!', 'Floor it!'], B: ['Catch me if you can!', 'I am right behind you!', 'This is going to be close!', 'Nobody passes me today!', 'Watch the turn!'] },
+    build:   { style: 'work',  A: ['Hand me that!', 'Almost done!', 'Together we can build anything!', 'Hold it steady!', 'One more piece!'], B: ['Here you go!', 'Looks great!', 'Nice work!', 'Is this right?', 'We are making progress!'] },
+    trouble: { style: 'panic', A: ['Oh no!', 'This is bad!', 'That cannot be!', 'Where did it go?', 'We are in trouble.'], B: ['Do not give up. We can fix this.', 'We will find a way.', 'Stay calm. Think!', 'Let us start from the beginning.', 'There has to be a clue.'] },
+    win:     { style: 'party', A: ['Yes! We did it!', 'Woohoo!', 'Hooray!', 'We are the champions!', 'What a day!'], B: ['We did it together!', 'Best day ever!', 'I knew we could do it!', 'Everybody cheer!', 'Let us celebrate!'] },
+    calm:    { style: 'walk',  A: ['It is finally over.', 'Things are going to be better now.', 'We learned a lot today.', 'That was something.'], B: ['Thank you for staying with me.', 'I will never forget this.', 'What a story!', 'Let us go home.'] },
+    ready:   { style: 'talk',  A: ['Is everyone ready?', 'This is the moment.', 'Check everything one more time.', 'Here we go.'], B: ['Ready when you are!', 'All checks done.', 'Let us begin!', 'I have been waiting for this.'] },
+    story:   { style: 'talk',  A: ['Let me tell you what I saw.', 'Remember this moment.', 'It all started here.', 'Everyone in Explox will talk about this.'], B: ['Tell us more.', 'I am listening.', 'What happened next?', 'I will remember it too.'] },
+  };
+  const SEQ = {
+    discover: ['notice', 'move', 'sneak', 'notice', 'react', 'talk', 'move', 'calm'],
+    danger:   ['notice', 'danger', 'react', 'talk', 'danger', 'fight', 'react', 'calm'],
+    trouble:  ['react', 'trouble', 'talk', 'move', 'notice', 'talk', 'move', 'calm'],
+    win:      ['react', 'win', 'win', 'talk', 'win', 'story', 'win', 'calm'],
+    start:    ['ready', 'move', 'notice', 'ready', 'move', 'react', 'talk', 'calm'],
+    plan:     ['talk', 'notice', 'talk', 'react', 'talk', 'move', 'talk', 'calm'],
+    travel:   ['move', 'notice', 'move', 'sneak', 'move', 'react', 'move', 'calm'],
+    build:    ['talk', 'build', 'build', 'notice', 'build', 'react', 'build', 'win'],
+    fight:    ['danger', 'fight', 'fight', 'react', 'fight', 'fight', 'react', 'calm'],
+    chase:    ['notice', 'chase', 'chase', 'react', 'chase', 'trouble', 'chase', 'calm'],
+    race:     ['talk', 'race', 'race', 'react', 'race', 'race', 'race', 'win'],
+    story:    ['story', 'notice', 'talk', 'move', 'story', 'react', 'talk', 'calm'],
   };
   const CAT_RE = [
     ['danger', /\b(attacks?|attacked|explosion|hit|crash(es)?|danger|monsters?|alarm|warning|traps?|trapped|ambush(es)?|invade[sd]?|threat|enem(y|ies)|surrounded)\b/i],
@@ -614,25 +644,26 @@
     const key = mi + '_' + si; if (dlgCache[key]) return dlgCache[key];
     const info = getInfo(mi, si, mv, sc), roles = castRoles(mi, mv), nameOf = { A: roles[0].role, B: roles[1].role, C: roles[2].role };
     const text = String(sc.text || ''), h = hash(mi, si, 21), res = [];
-    res.total = 0.4 + wc(text) / 2.6 + 0.4; dlgCache[key] = res;
-    if (MATURE.test(text)) return res;
-    const quote = text.match(/["\u201C]([^"\u201D]{3,90})["\u201D]/);
-    let cat = /\b(race|races|racing|raced|racer|racers|grid|slalom|lap|laps)\b/i.test(text) ? 'race' : info.style === 'fight' ? 'fight' : info.style === 'run' ? 'chase' : info.style === 'sneak' ? 'discover' : null;
-    if (!cat) { const f = CAT_RE.find(c => c[1].test(text)); cat = f ? f[0] : null; }
-    const hasB = info.present.indexOf('B') >= 0 || info.present.indexOf('C') >= 0;
-    const lines = [];
-    const who = text.match(/^([A-Z][A-Za-z' -]{2,26}):\s*["\u201C]/); const label = who ? who[1] : null;
-    if (quote) { lines.push(['A', quote[1].replace(/\s+/g, ' ').trim()]); if (hasB && cat) lines.push(['B', CATS[cat][1][h % 3]]); }
-    else if (cat) {
-      let a = CATS[cat][0][h % 3];
-      if (['rocket', 'pizza', 'trophy', 'car', 'portal', 'house'].indexOf(info.prop) >= 0 && (cat === 'start' || cat === 'win') && h % 2 === 0) a = PROP_LINES[info.prop];
-      lines.push(['A', a]); if (hasB) lines.push(['B', CATS[cat][1][(h >>> 2) % 3]]);
+    res.beats = []; res.total = BEAT * NBEAT; dlgCache[key] = res;
+    let cat = 'story';
+    if (!MATURE.test(text)) {
+      cat = /\b(race|races|racing|raced|racer|racers|grid|slalom|lap|laps)\b/i.test(text) ? 'race' : info.style === 'fight' ? 'fight' : info.style === 'run' ? 'chase' : info.style === 'sneak' ? 'discover' : null;
+      if (!cat) { const f = CAT_RE.find(c => c[1].test(text)); cat = f ? f[0] : 'story'; }
     }
-    lines.slice(0, 2).forEach((l, n) => { let w = l[0]; if (info.present.indexOf(w) < 0) w = info.present[0]; if (res.length && res[res.length - 1].who === w) return; res.push({ who: w, text: l[1], role: (n === 0 && label && quote) ? label : nameOf[w] }); });
-    if (!res.length) return res;
-    let tcur = 0.4 + wc(text) / 2.6 + 0.45;
-    res.forEach(l => { l.start = tcur; l.end = tcur + wc(l.text) / 2.6 + 0.3; tcur = l.end + 0.25; });
-    res.total = tcur + 0.5; return res;
+    const seq = SEQ[cat], quote = MATURE.test(text) ? null : text.match(/["\u201C]([^"\u201D]{3,90})["\u201D]/);
+    const who = text.match(/^([A-Z][A-Za-z' -]{2,26}):\s*["\u201C]/), label = who ? who[1] : null;
+    seq.forEach((bt, i) => {
+      const pool = POOLS[bt], present = ['A', 'B'].concat(i % 3 === 2 && !info.comedy ? ['C'] : []);
+      res.beats.push({ style: pool.style, present });
+      let a = pool.A[(h + i * 3) % pool.A.length], b = pool.B[((h >>> 3) + i * 5) % pool.B.length];
+      const s0 = i * BEAT + (i === 0 ? 4.8 : 0.7);
+      let roleA = nameOf.A;
+      if (i === 0 && quote) { a = quote[1].replace(/\s+/g, ' ').trim(); if (label) roleA = label; }
+      const la = { who: 'A', text: a, role: roleA, start: s0, end: s0 + wc(a) / 2.6 + 0.3 };
+      const sb = Math.max(la.end + 0.5, s0 + 3.4), lb = { who: 'B', text: b, role: nameOf.B, start: sb, end: sb + wc(b) / 2.6 + 0.3 };
+      res.push(la, lb);
+    });
+    return res;
   }
   function charVoice(who, narrator) {
     if (!VOICES.length) loadVoices();
@@ -642,14 +673,20 @@
     const idx = { A: 0, B: 1, C: 2 }[who] || 0, v = pool[idx % pool.length];
     return { voice: v, rate: { A: .96, B: 1.04, C: 1.1 }[who] || 1, pitch: pool.length >= 3 ? { A: .95, B: 1.05, C: 1.12 }[who] : { A: .82, B: 1.22, C: 1.45 }[who] };
   }
+  let speechTimers = [];
+  function clearSpeechTimers() { speechTimers.forEach(clearTimeout); speechTimers = []; }
   function speakDialogue(mi, si, narratorVoice) {
     const mv = CINEMA_MOVIES[mi], sc = mv && mv.scenes[si]; if (!sc) return;
     getDialogue(mi, si, mv, sc).forEach(l => {
-      const u = new SpeechSynthesisUtterance(cleanForSpeech(l.text)), cv = charVoice(l.who, narratorVoice);
-      if (cv.voice) { u.voice = cv.voice; u.lang = cv.voice.lang; }
-      u.rate = clamp(cv.rate || 1, .7, 1.3); u.pitch = clamp(cv.pitch || 1, .5, 1.8); u.volume = 1;
-      if (/!/.test(l.text)) { u.rate *= 1.05; u.pitch = clamp(u.pitch + .05, .5, 1.8); }
-      window.speechSynthesis.speak(u);
+      speechTimers.push(setTimeout(() => {
+        try {
+          const u = new SpeechSynthesisUtterance(cleanForSpeech(l.text)), cv = charVoice(l.who, narratorVoice);
+          if (cv.voice) { u.voice = cv.voice; u.lang = cv.voice.lang; }
+          u.rate = clamp(cv.rate || 1, .7, 1.3); u.pitch = clamp(cv.pitch || 1, .5, 1.8); u.volume = 1;
+          if (/!/.test(l.text)) { u.rate *= 1.05; u.pitch = clamp(u.pitch + .05, .5, 1.8); }
+          window.speechSynthesis.speak(u);
+        } catch (e) { }
+      }, Math.max(0, (l.start - 0.45) * 1000)));
     });
   }
   // the characters' lines are shown as movie-style captions at the bottom of the screen, above the narrator's caption
@@ -693,7 +730,7 @@
 
   window.__cinemaNarrate = function (text, mi, dur) {
     try {
-      const mv = CINEMA_MOVIES[mi] || CINEMA_MOVIES[0], synth = window.speechSynthesis; synth.cancel();
+      const mv = CINEMA_MOVIES[mi] || CINEMA_MOVIES[0], synth = window.speechSynthesis; clearSpeechTimers(); synth.cancel();
       const v = pickVoice(mi, mv); const natural = v && /natural|neural|online|google/i.test(v.name);
       narratorName = v ? v.name.replace(/Microsoft\s+/i, '').replace(/\s*(Online)?\s*\(Natural\).*$/i, '').replace(/\s*-\s*English.*$/i, '').replace(/\s+Desktop.*/i, '').replace(/^Google\s+/i, '').trim() : '';
       const serious = /drama|epic|mystery|thriller|action|mecha|sacred|origin|war|frontier|hometown/i.test(mv.genre || '');
@@ -757,13 +794,15 @@
   // game-social.js loads after this file and defines its own showCinemaCredits, so take over once everything has loaded
   const installCredits = () => { window.showCinemaCredits = creditsFn; };
   installCredits(); window.addEventListener('load', installCredits);
+  const installClose = () => { if (window.closeCinema && !window.closeCinema.__wrapped) { const oc = window.closeCinema; const nw = function () { clearSpeechTimers(); return oc.apply(this, arguments); }; nw.__wrapped = true; window.closeCinema = nw; } };
+  installClose(); window.addEventListener('load', installClose);
 
   CINEMA_MOVIES.forEach((mv, mi) => {
     (mv.scenes || []).forEach((sc, si) => {
       if (sc.draw3dWired) return; sc.draw3dWired = true; const d2 = sc.draw;
       sc.draw2d = d2;
       sc.draw = function (ctx, w, h, t) { if (!draw3D(mi, si, mv, sc, ctx, w, h, t)) d2.call(sc, ctx, w, h, t); };
-      try { const dl = getDialogue(mi, si, mv, sc); sc.dur = Math.max(sc.dur || 5, Math.min(11, dl.total || 5)); } catch (e) { }
+      sc.dur = Math.max(BEAT * NBEAT, sc.dur || 5);
     });
   });
   window.__cinema3d = { draw: draw3D, tagsFor, info: getInfo, castList, drawCredits, dialogue: getDialogue, status: () => ({ failed, hasRenderer: !!R }) };
