@@ -1140,7 +1140,7 @@
     if (lastSceneKey !== mi + '_' + si) { lastSceneKey = mi + '_' + si; clearSpeechTimers(); }
     try {
       const vis = (typeof _MVIS !== 'undefined' && _MVIS[mi]) ? _MVIS[mi] : null;
-      const info = getInfo(mi, si, mv, sc);
+      const info = getInfo(mi, si, mv, sc); moodScore(mi, si, mv, sc, t);
       const accent = vis ? hexOf(vis[2]) : 0xff7733, skyTop = vis ? hexOf(vis[0]) : hexOf(mv.bg), skyMid = vis ? hexOf(vis[1]) : hexOf(mv.bg);
       Object.keys(stages).forEach(k => { stages[k].visible = (k === info.kind); });
       if (!stages[info.kind]) { stages[info.kind] = buildAnyStage(info.kind, skyTop, hash(7, info.kind.length, 1)); SC.add(stages[info.kind]); }
@@ -1471,7 +1471,7 @@
     const k = /action|mecha/.test(g) ? 'action' : /adventure|racing/.test(g) ? 'adventure' : /thriller|mystery|ghost/.test(g) ? 'thriller' : /comedy|family|slice/.test(g) ? 'comedy' : /sci-fi|space/.test(g) ? 'scifi' : 'drama';
     const list = SCORES[k]; return 'AiGame/explox/music/tracks/' + list[mi % list.length] + '.mp3';
   }
-  const scoreState = { audio: null, key: '', muted: false };
+  const scoreState = { audio: null, key: '', muted: false, mood: null, since: 0, track: '' };
   function startScore(mi, mv) {
     try {
       const key = mi + ''; if (scoreState.audio && scoreState.key === key) return;
@@ -1483,8 +1483,43 @@
   function stopScore(restore) {
     try {
       const a = scoreState.audio; if (a) { let v = a.volume; const iv = setInterval(() => { v -= .04; if (v <= 0) { clearInterval(iv); a.pause(); } else a.volume = v; }, 90); }
-      scoreState.audio = null; scoreState.key = '';
+      scoreState.audio = null; scoreState.key = ''; scoreState.mood = null;
       if (restore && scoreState.muted && typeof toggleBgMusic === 'function') { toggleBgMusic(); scoreState.muted = false; }
+    } catch (e) { }
+  }
+  // ---------- mood music: 21 moods, and the music changes with the scene (scared, happy, fight, sneaking, party ...) ----------
+  const MOOD_TRACKS = {
+    joy: ['sunrise_ride', 'morning_jog', 'park_walk'], excited: ['arcade_jam', 'robot_dance', 'skate_park'], happy: ['beach_cruise', 'market_day', 'lunch_break'], warm: ['golden_hour', 'sunset_chill', 'quiet_evening'],
+    sad: ['rainy_day', 'rain_and_jazz'], angry: ['storm_chaser', 'solar_blast'], scared: ['night_watch', 'late_night'], shocked: ['cyber_city', 'tower_block'], surprised: ['crystal_city', 'times_square'],
+    worried: ['midnight_city', 'bus_stop'], curious: ['jazz_cafe', 'corner_store', 'study_hall'], determined: ['mission_zone', 'champion_run'], serious: ['office_hours', 'tower_block'], relieved: ['river_walk', 'chill_lounge'],
+    fight: ['action_zone', 'speed_run'], chase: ['speed_run', 'rush_hour', 'sport_mode'], sneak: ['night_drive', 'alley_cats'], party: ['club_night', 'funk_town', 'downtown_groove'],
+    magic: ['penthouse_view', 'neon_lights', 'galaxy_drive'], night: ['neon_district', 'metro_groove'], adventure: ['mission_zone', 'galaxy_drive', 'beach_cruise'],
+  };
+  const MOOD_VOL = { scared: .15, sad: .17, serious: .16, night: .16, worried: .16, sneak: .15, fight: .26, chase: .26, party: .24, angry: .24, excited: .24, joy: .22 };
+  const STYLE_MOOD = { fight: 'fight', run: 'chase', sneak: 'sneak', panic: 'scared', party: 'party', dance: 'party', highfive: 'joy', sing: 'happy', drum: 'excited', magic: 'magic', fly: 'adventure', climb: 'determined', exercise: 'determined', build: 'determined', skate: 'excited', jump: 'excited', play: 'happy', eat: 'happy', cook: 'happy', camp: 'warm', fish: 'relieved', write: 'curious', shop: 'curious', dig: 'curious', photo: 'happy', snowball: 'joy', juggle: 'joy', bubbles: 'joy', tugwar: 'determined' };
+  const TOD_MOOD = { night: 'night', storm: 'angry', dawn: 'joy', dusk: 'warm', day: 'happy' };
+  function moodAt(mi, si, mv, sc, t) {
+    const info = getInfo(mi, si, mv, sc), dl = getDialogue(mi, si, mv, sc), ln = dl.find(l => t >= l.start - .1 && t <= l.end + .6); let bb = null;
+    if (dl.beatStarts) { let b = 0; for (let k = 0; k < dl.beatStarts.length; k++) if (t >= dl.beatStarts[k]) b = k; bb = dl.beats[b]; } else if (dl.beats && dl.beats.length) bb = dl.beats[Math.min(dl.beats.length - 1, Math.floor(t / (dl.beatLen || 4)))];
+    const style = wordsStyle(dl, sc, mi, si, t) || (bb && bb.style) || info.style, emo = (ln && ln.emo) || (bb && bb.emo && bb.emo[0]) || null;
+    if (ln && ln.emo && ['scared', 'shocked', 'angry', 'sad', 'worried'].indexOf(ln.emo) >= 0) return ln.emo;
+    if (STYLE_MOOD[style]) return STYLE_MOOD[style];
+    if (emo && MOOD_TRACKS[emo]) return emo;
+    return TOD_MOOD[info.tod] || 'happy';
+  }
+  let moodClock = 0;
+  function moodScore(mi, si, mv, sc, t) {
+    const now = performance.now(); if (now - moodClock < 300) return; moodClock = now;
+    try {
+      if (!playing(mi) || !scoreState.audio || scoreState.key !== mi + '') return;
+      const m = moodAt(mi, si, mv, sc, t); if (m === scoreState.mood) return;
+      const strong = ['scared', 'fight', 'chase', 'shocked', 'angry', 'sneak'].indexOf(m) >= 0;
+      if (scoreState.mood && now - scoreState.since < (strong ? 3000 : 6500)) return;
+      const list = MOOD_TRACKS[m] || MOOD_TRACKS.happy, name = list[hash(mi, m.length + si, 6) % list.length], vol = MOOD_VOL[m] || .2;
+      const old = scoreState.audio, a = new Audio('AiGame/explox/music/tracks/' + name + '.mp3'); a.loop = true; a.volume = 0; a.play().catch(() => { });
+      let v = 0; const iv = setInterval(() => { v += .02; if (v >= vol) { a.volume = vol; clearInterval(iv); } else a.volume = v; }, 70);
+      let ov = old.volume; const io2 = setInterval(() => { ov -= .02; if (ov <= 0) { clearInterval(io2); old.pause(); } else old.volume = ov; }, 70);
+      scoreState.audio = a; scoreState.mood = m; scoreState.since = now; scoreState.track = name;
     } catch (e) { }
   }
   let actx = null;
@@ -1678,5 +1713,5 @@
       try { sc.dur = getDialogue(mi, si, mv, sc).total; } catch (e) { sc.dur = Math.max(sc.dur || 5, 12); }
     });
   });
-  window.__cinema3d = { draw: draw3D, tagsFor, info: getInfo, castList, drawCredits, dialogue: getDialogue, status: () => ({ failed, hasRenderer: !!R }) };
+  window.__cinema3d = { mood: moodAt, draw: draw3D, tagsFor, info: getInfo, castList, drawCredits, dialogue: getDialogue, status: () => ({ failed, hasRenderer: !!R }) };
 })();
