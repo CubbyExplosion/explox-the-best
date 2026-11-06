@@ -269,6 +269,14 @@
 
   // ---------- settings: the place a scene happens in (picked from the caption, then from the movie itself) ----------
   const SETTING_RE = [
+    ['library', /library|bookshel|\bbook\b|chapter|almanac/],
+    ['hospital', /hospital|clinic|patient|nurse|sickbed|medicine|\bdoctor/],
+    ['police', /police|\bbadge|patrol|arrest|\bstation\b/],
+    ['cityhall', /city hall|\bmayor|\boak\b|election/],
+    ['prison', /prison|\bjail|\bcell\b|warden|chisel|crooked stone/],
+    ['airport', /airport|airplane|\bplane\b|runway|\bgates?\b|take ?off|flight|propeller/],
+    ['suburbs', /suburb|\bporch|lamppost|streetlamp|lamp by lamp|neighbou?rs/],
+    ['park', /\bpark\b|picnic|playground|\bbench|\bpond\b/],
     ['space', /space|planet|galax|rocket|orbit|\bstars?\b|asteroid|mothership|warp|comet|cosmic|universe|alien ship|scanner/],
     ['vault', /\bbank\b|vault|\bsafe\b|fingerprint|treasury|robber/],
     ['track', /\brace\b|\brace day|racing|\btrack\b|\blaps?\b|starting grid|slalom|circuit|finish line|pit stop|drivers?\b/],
@@ -289,15 +297,24 @@
     ['city', /\bcity\b|street|\btown\b|building|alley|\broof|downtown|square|suburb|\bblock\b/],
   ];
   const MOVIE_SETTING = [
+    [/wings over explox/i, 'airport'], [/doctor who stayed/i, 'hospital'], [/badge was made/i, 'police'], [/first mayor/i, 'cityhall'], [/wall that became/i, 'prison'],
+    [/fist war|first war/i, 'suburbs'], [/one who dreamed|almanac/i, 'library'], [/arena's first/i, 'arena'], [/first coin/i, 'vault'],
     [/grand prix/i, 'track'], [/explox games/i, 'arena'], [/ninja academy|ninja grandma/i, 'dojo'], [/time travel/i, 'lab'], [/scrapyard/i, 'scrapyard'], [/market day/i, 'market'],
     [/dragon and the robot|wings over/i, 'nature'], [/robot dinosaurs|grandma in space|space/i, 'space'], [/first war|first wrath|doctor who stayed|wall that became|first house|first mayor|badge was made|arena's first|one who dreamed|newcomer/i, 'desert'],
   ];
+  // the Explox history movies (the last 15) only ever happen in real Explox places
+  const REAL_REMAP = { snow: 'suburbs', jungle: 'park', temple: 'suburbs', dojo: 'arena', lab: 'library', track: 'city', space: 'city', school: 'house', shop: 'market' };
   function pickKind(mi, mv, lc) {
-    for (const [k, re] of SETTING_RE) if (re.test(lc)) return k;
-    for (const [re, k] of MOVIE_SETTING) if (re.test(mv.title)) return k;
-    return kindFor(mv, mi, '');
+    let k = null;
+    for (const [kk, re] of SETTING_RE) if (re.test(lc)) { k = kk; break; }
+    if (!k) for (const [re, kk] of MOVIE_SETTING) if (re.test(mv.title)) { k = kk; break; }
+    if (!k) k = kindFor(mv, mi, '');
+    if (mi >= 14 && REAL_REMAP[k]) k = REAL_REMAP[k];
+    return k;
   }
-  const INDOOR = { vault: 1, shop: 1, dojo: 1, lab: 1, house: 1, school: 1 };
+  const PLACE_NAME = { space: 'Explox Space Dock', city: 'Downtown Explox', vault: 'Explox Bank', track: 'The Grand Prix Track', arena: 'The Fight Arena', dojo: 'The Dojo', temple: 'The Old Chapel', castle: 'The Royal Court', snow: 'The Snowy Hills', beach: 'Explox Beach', desert: 'Old Explox, the Frontier', jungle: 'The Jungle', scrapyard: 'The Scrapyard', market: 'The Mall', lab: 'The Time Lab', school: 'Explox School', house: 'A House in Explox', shop: 'An Explox Shop', nature: 'The Explox Countryside', airport: 'Explox Airport', library: 'The Explox Library', hospital: 'Explox General Hospital', police: 'The Police Station', cityhall: 'City Hall', prison: 'Explox Prison', suburbs: 'The Suburbs', park: 'The Park' };
+  const placeNameFor = (mv, kind) => (kind === 'arena' && /games/i.test(mv.title)) ? 'The Explox Sports Park' : (PLACE_NAME[kind] || 'Explox');
+  const INDOOR = { vault: 1, shop: 1, dojo: 1, lab: 1, house: 1, school: 1, library: 1, hospital: 1, police: 1, prison: 1 };
   function todOf(lc) {
     if (/storm|thunder|lightning|\brain|flood/.test(lc)) return 'storm';
     if (/night|midnight|\bdark|2am|\bmoon|shadow|ghost|haunt|silent|dim\b/.test(lc)) return 'night';
@@ -320,6 +337,40 @@
       for (let i = -2; i <= 2; i++) b(3.4, .5, 3.4, 0xfff1c0, i * 11, h - .3, -8, E(0xffe9a0));
     };
     switch (kind) {
+      case 'airport': {
+        b(170, .6, 120, 0x3b3f45, 0, -.35, -10); for (let i = -12; i <= 12; i++) b(5, .1, .8, 0xffffff, i * 7, .02, 10);
+        b(90, 12, 16, 0xcfd8e3, -10, 6, -52); b(88, 6, .4, 0x7fb6e8, -10, 7, -43.6, E(0x335577)); b(100, 1, 20, 0x5f6b78, -10, 12.5, -52);
+        b(5, 26, 5, 0xe0e5ea, 48, 13, -50); b(10, 4, 10, 0x7fb6e8, 48, 27, -50, E(0x335577)); b(11, 1, 11, 0xd32f2f, 48, 29.4, -50);
+        b(26, 3.2, 3.2, 0xf8f8f8, 14, 3.4, -18); const nose = new THREE.Mesh(new THREE.ConeGeometry(1.7, 5, 12), mat(0xf8f8f8)); nose.rotation.z = -Math.PI / 2; nose.position.set(29.6, 3.4, -18); g.add(nose);
+        b(4, .3, 22, 0xdde3ea, 14, 2.6, -18); b(3, 6, .4, 0xd32f2f, -1.5, 6.4, -18); b(3, .3, 8, 0xdde3ea, -1.5, 5.4, -18); b(26, .5, 3.4, 0x1e88e5, 14, 3.4, -18.2);
+        for (let i = 0; i < 8; i++) b(5, 3, 2.6, [0xe53935, 0x43a047, 0xfdd835, 0x1e88e5][i % 4], -42 + i * 6.2, 1.5, -34); for (let i = 0; i < 8; i++) b(3.6, 1.6, .3, 0xffffff, -34 + i * 11, 10, -43.3, E(0x445566)); break; }
+      case 'library': { room(0x6b4a30, 0x5a3b24, 18);
+        for (let x = -3; x <= 3; x++) { b(7, 14, 2, 0x4a2f1c, x * 9, 7, -24); for (let y = 0; y < 5; y++) for (let k = 0; k < 6; k++) b(.8, 2, 1.4, [0xc62828, 0x1565c0, 0xf9a825, 0x2e7d32, 0x6a1b9a, 0xff7043][(x + k + y + 9) % 6], x * 9 - 2.8 + k * 1.1, 2 + y * 2.7, -22.8); }
+        for (let i = 0; i < 3; i++) { b(8, .4, 3.4, 0x8d6e63, -14 + i * 14, 2.6, -8); b(.4, 2.4, .4, 0x5d4037, -17 + i * 14, 1.2, -8); b(.4, 2.4, .4, 0x5d4037, -11 + i * 14, 1.2, -8); b(.8, 1.4, .8, 0x2e7d32, -14 + i * 14, 3.6, -8, E(0x114411)); }
+        const gl = new THREE.Mesh(new THREE.SphereGeometry(1.8, 14, 10), mat(0x3a7bd5, E(0x112244))); gl.position.set(26, 3.6, -10); g.add(gl); b(.3, 2, .3, 0x8d6e63, 26, 1, -10); break; }
+      case 'hospital': { room(0xf2f6f8, 0xcfe3ea, 14);
+        for (let i = 0; i < 4; i++) { b(4.4, 1.2, 8, 0xffffff, -24 + i * 14, 1.6, -18); b(4.6, 1.3, 5.2, 0x5aa9e6, -24 + i * 14, 2, -16.4); b(4.4, 3, .3, 0xb0bec5, -24 + i * 14, 2.4, -22); b(2.2, 1.6, .2, 0x66ffcc, -22.4 + i * 14, 5, -22.5, E(0x118866)); }
+        b(1.6, 6, .4, 0xd32f2f, 0, 9, -25.2, E(0x660000)); b(6, 1.6, .4, 0xd32f2f, 0, 9, -25.2, E(0x660000)); for (let i = 0; i < 3; i++) b(.4, 7, 7, 0x9ec7e8, -30 + i * 0, 4, -4 + i * 8); break; }
+      case 'police': { room(0x3d4a63, 0x2a2f3a, 14);
+        b(18, 3, 4, 0x5d4037, 0, 1.5, -14); b(4, 1.2, 2, 0x222222, -4, 3.5, -14, E(0x113322)); b(8, 6, .3, 0x8d6e63, -22, 7, -25); b(4, 5, .3, 0xfff8e1, -22, 7, -24.7); for (let i = 0; i < 4; i++) b(3, 1.2, .1, 0x222222, -23.5 + (i % 2) * 3, 6 + Math.floor(i / 2) * 2, -24.5);
+        b(7, 6, 3, 0x37474f, 24, 3, -22); b(6, 4.6, .3, 0x9ad0ff, 24, 3.4, -20.4, E(0x224466)); const bd = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, .3, 6), mat(0xffd54f, E(0xaa7700))); bd.rotation.x = Math.PI / 2; bd.position.set(24, 3.6, -20.2); g.add(bd); b(10, 1.2, .3, 0x1e63c9, 0, 11, -25.3, E(0x112255)); break; }
+      case 'cityhall': {
+        b(150, .6, 110, 0x9b9488, 0, -.35, -10); for (let i = 0; i < 6; i++) b(54 - i * 6, .7, 28 - i * 2.4, 0xb9b3a6, 0, .3 + i * .7, -34);
+        b(40, 20, 16, 0xe6dfd0, 0, 12, -46); for (let i = -4; i <= 4; i++) { const c = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.3, 16, 12), mat(0xf4efe4)); c.position.set(i * 4.4, 8.2, -37.6); g.add(c); } b(44, 2, 6, 0xcfc8b8, 0, 22, -40);
+        b(10, 14, 10, 0xe6dfd0, 0, 29, -46); b(5, 5, .5, 0xffffff, 0, 31, -40.8, E(0x555555)); const cn = new THREE.Mesh(new THREE.ConeGeometry(7, 7, 4), mat(0x3b6ea5)); cn.position.set(0, 39.5, -46); cn.rotation.y = Math.PI / 4; g.add(cn);
+        b(2.4, 12, 2.4, 0x6d4c41, -26, 6, -14); b(14, 9, 14, 0x2e7d32, -26, 15, -14); b(10, 7, 10, 0x388e3c, -26, 21, -14); b(.3, 22, .3, 0xcccccc, 26, 11, -16); b(5, 3, .2, 0xe53935, 28.5, 20.5, -16); break; }
+      case 'prison': { room(0x58534b, 0x3b3833, 14);
+        for (let i = 0; i < 22; i++) b(.3, 11, .3, 0x222222, -26 + i * 2.4, 5.5, -10); b(60, .5, .5, 0x222222, 0, 10.5, -10); b(60, .5, .5, 0x222222, 0, .4, -10); b(5, 1.4, 9, 0x6d6a60, -22, .9, -20); b(5, .6, 9, 0x8d8a80, -22, 1.8, -20);
+        b(5, 6, .6, 0x1a1a1a, 14, 8, -25.4); b(3.6, 4.4, .4, 0xfff3b0, 14, 8, -25.1, E(0xddc04a)); const ray = new THREE.Mesh(new THREE.BoxGeometry(3.4, .2, 16), new THREE.MeshBasicMaterial({ color: 0xfff3b0, transparent: true, opacity: .22 })); ray.position.set(14, 3.4, -17); ray.rotation.x = .38; g.add(ray); break; }
+      case 'suburbs': {
+        b(160, .6, 100, 0x4f7f3b, 0, -.35, -10); b(160, .5, 14, 0x3a3d44, 0, -.2, 8); for (let i = -12; i <= 12; i++) b(3, .1, .6, 0xffee88, i * 6.4, .02, 8);
+        for (let i = -6; i <= 6; i++) { const c = [0xf1d6a8, 0xe6a07a, 0xb7d3e8, 0xd9c2e6, 0xc9e0b0][(i + 6) % 5], x = i * 11; b(7, 5, 6, c, x, 2.5, -20); const r = new THREE.Mesh(new THREE.ConeGeometry(5.6, 3, 4), mat(0x8b3a2f)); r.position.set(x, 6.5, -20); r.rotation.y = Math.PI / 4; g.add(r); b(1.2, 2.4, .2, 0x5d4037, x, 1.2, -16.9); b(1.4, 1.4, .2, 0xffee99, x + 2, 3, -16.9, E(0x998833)); b(1.4, 1.4, .2, 0xffee99, x - 2, 3, -16.9, E(0x998833)); for (let k = -3; k <= 3; k++) b(.3, 1.4, .3, 0xffffff, x + k * 1.0, .7, -12); b(.5, .5, .5, 0xfff1a8, x + 3, 2.4, -16.7, E(0xaa8833)); }
+        for (let i = -4; i <= 4; i++) { b(.3, 7, .3, 0x333333, i * 16, 3.5, 1.4); b(1.2, .9, 1.2, 0xffe9a0, i * 16, 7.3, 1.4, E(0xbb9933)); } break; }
+      case 'park': {
+        const gr = new THREE.Mesh(new THREE.CylinderGeometry(80, 80, .6, 40), mat(0x59a14a)); gr.position.y = -.3; g.add(gr);
+        const pd = new THREE.Mesh(new THREE.CylinderGeometry(11, 11, .2, 28), mat(0x4aa3e0)); pd.position.set(-22, .05, -22); g.add(pd);
+        b(120, .15, 5, 0xd9c6a0, 0, .05, -4); for (let i = 0; i < 5; i++) { b(4, .5, 1.4, 0x8d6e63, -30 + i * 14, 1.2, -9); b(4, 1.2, .3, 0x8d6e63, -30 + i * 14, 2, -9.6); }
+        for (let i = 0; i < 26; i++) { const x = (r() - .5) * 120, z = -26 - r() * 30; b(1, 4, 1, 0x6d4c41, x, 2, z); b(5, 4, 5, 0x2e7d32 + (i % 3) * 0x0a1400, x, 6, z); } for (let i = 0; i < 16; i++) b(.5, 1.8, .5, [0xe53935, 0xfdd835, 0xab47bc][i % 3], (r() - .5) * 60, .9, -10 - r() * 10); break; }
       case 'vault': { room(0x59636e, 0x2a3036, 16);
         const d = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 1.2, 28), mat(0x9aa7b3, E(0x111820))); d.rotation.x = Math.PI / 2; d.position.set(0, 7, -25); g.add(d);
         const w = new THREE.Mesh(new THREE.TorusGeometry(4.2, .4, 8, 24), mat(0xffd54f, E(0x886600))); w.position.set(0, 7, -24.2); g.add(w); b(.8, 6, .8, 0xffd54f, 0, 7, -24, E(0x886600)); b(6, .8, .8, 0xffd54f, 0, 7, -24, E(0x886600));
@@ -714,6 +765,11 @@
         if (t >= 0.3 && t <= nEnd) { const fs = Math.max(14, Math.round(h * .034)), nm = narratorPersona(mi, mv); ctx.save(); ctx.textAlign = 'center'; ctx.font = 'bold ' + fs + 'px Arial';
           const txt = '\uD83C\uDF99\uFE0F  NARRATOR  \u2022  ' + nm, tw = ctx.measureText(txt).width; ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(w / 2 - tw / 2 - fs, h * .8 - fs * 1.05, tw + fs * 2, fs * 1.5);
           ctx.fillStyle = '#ffd54f'; ctx.fillText(txt, w / 2, h * .8); ctx.restore(); } }
+      if (t < 3.6) {
+        const a = t < .5 ? t / .5 : (t > 2.9 ? Math.max(0, (3.6 - t) / .7) : 1), fs = Math.max(14, Math.round(h * .036)), nm = '\uD83D\uDCCD  ' + placeNameFor(mv, info.kind).toUpperCase();
+        ctx.save(); ctx.globalAlpha = a; ctx.font = 'bold ' + fs + 'px Arial'; ctx.textAlign = 'left'; const tw = ctx.measureText(nm).width;
+        ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(w * .04, h * .12, tw + fs * 1.6, fs * 1.7); ctx.fillStyle = '#7dffb2'; ctx.fillRect(w * .04, h * .12, fs * .25, fs * 1.7); ctx.fillStyle = '#fff'; ctx.fillText(nm, w * .04 + fs * .8, h * .12 + fs * 1.2); ctx.restore();
+      }
       if (si === 0 && t < 6.5) {
         const a = t < .6 ? t / .6 : (t > 5.2 ? Math.max(0, (6.5 - t) / 1.3) : 1); ctx.save(); ctx.globalAlpha = a * .92;
         const gg = ctx.createLinearGradient(0, 0, 0, h); gg.addColorStop(0, 'rgba(0,0,0,.85)'); gg.addColorStop(.5, 'rgba(0,0,0,.35)'); gg.addColorStop(1, 'rgba(0,0,0,.85)'); ctx.fillStyle = gg; ctx.fillRect(0, 0, w, h);
@@ -839,7 +895,7 @@
   };
   const PROPLINE = { danger: 'Get behind the {thing}, {B}!', start: 'To the {thing}, {B}!', win: 'Look at the {thing}, {B}! We did it!', travel: 'We must reach the {thing}, {B}.', discover: '{B}, look at that {thing}!' };
   const THING = { rocket: 'rocket', pizza: 'pizza', coins: 'S.I.P.', house: 'house', wall: 'wall', portal: 'portal', trophy: 'trophy', car: 'car', book: 'book', shield: 'shield', fire: 'fire', tree: 'old tree', lantern: 'light', moon: 'moon', sun: 'sun', heart: 'heart', bolt: 'lightning' };
-  const PLACE = { vault: 'the vault', track: 'the track', arena: 'the arena', dojo: 'the dojo', temple: 'the temple', castle: 'the castle', snow: 'the snow', beach: 'the beach', desert: 'the frontier', jungle: 'the jungle', scrapyard: 'the scrapyard', market: 'the market', lab: 'the lab', school: 'the school', house: 'the house', shop: 'the shop', nature: 'the countryside', city: 'the city', space: 'space' };
+  const PLACE = { airport: 'the airport', library: 'the library', hospital: 'the hospital', police: 'the police station', cityhall: 'City Hall', prison: 'the prison', suburbs: 'the suburbs', park: 'the park', vault: 'the vault', track: 'the track', arena: 'the arena', dojo: 'the dojo', temple: 'the temple', castle: 'the castle', snow: 'the snow', beach: 'the beach', desert: 'the frontier', jungle: 'the jungle', scrapyard: 'the scrapyard', market: 'the market', lab: 'the lab', school: 'the school', house: 'the house', shop: 'the shop', nature: 'the countryside', city: 'the city', space: 'space' };
   const MOOD = { night: 'It is so quiet tonight, {B}.', storm: 'That storm is getting closer, {B}.', dawn: 'A new day begins, {B}.', dusk: 'The light is fading, {B}.', day: 'Something feels different today, {B}.' };
   const MOODB = ['I feel it too, {A}.', 'Stay alert, {A}.', 'Let us see what happens, {A}.'];
   const EMOCAT = { danger: ['scared', 'determined'], discover: ['surprised', 'curious'], trouble: ['sad', 'worried'], win: ['joy', 'joy'], start: ['determined', 'excited'], plan: ['serious', 'happy'], travel: ['determined', 'happy'], build: ['determined', 'happy'], fight: ['angry', 'angry'], chase: ['scared', 'excited'], race: ['excited', 'determined'], mood: ['curious', 'happy'] };
