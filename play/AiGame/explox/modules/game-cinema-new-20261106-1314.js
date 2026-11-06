@@ -1,0 +1,128 @@
+// ─── NEW MOVIE (made automatically): The Great Explox Bake-Off — a comedy about a grandma, a measuring robot and a very grumpy baron.
+(function () {
+  if (typeof CINEMA_MOVIES === 'undefined') return;
+  const M = [];
+  const L = (w, e, a, t) => [w, e, a, t];
+  const S = (place, tod, prop, say, lines, extra) => ({
+    text: say, dur: 62,
+    draw: function (ctx, w, h) { ctx.fillStyle = '#10131f'; ctx.fillRect(0, 0, w, h); ctx.fillStyle = '#fff'; ctx.font = 'bold ' + Math.round(h * .05) + 'px Arial'; ctx.textAlign = 'center'; ctx.fillText(say, w / 2, h / 2); },
+    script: Object.assign({ place: place, tod: tod, prop: prop, lines: lines }, extra || {}),
+  });
+M.push({
+  title: "The Great Explox Bake-Off", genre: "🎂 Comedy", price: 30, bg: "#3a1f2e", icons: "🎂🧁🥄", comedy: true,
+  cast: { A: { role: "Chef Gigi", kind: "grandma", pers: "sweet", move: "ROLLING PIN SMASH", mtype: "punch", fav: "A pinch of love fixes everything!", say: "I could not say no to a second slice. I never can." }, B: { role: "Beep-Boop", kind: "robot", pers: "goof", move: "WHISK TORNADO", mtype: "spin", fav: "Exactly three point one four cups!", say: "Sorry, I measured the flour twice. And then once more." }, C: { role: "Baron Crumbly", kind: "king", pers: "rival", move: "SPRINKLE KICK", mtype: "kick", fav: "My cake is the grandest cake!", say: "Fine, I cannot bake. I never learned how." } },
+  trailer: [{ text: "🎂 One golden whisk...", dur: 2200 }, { text: "🤖 One robot who measures everything...", dur: 2200 }, { text: "👑 And one baron with a secret!", dur: 2400 }, { text: "THE GREAT EXPLOX BAKE-OFF", dur: 3000 }],
+  scenes: [
+    S("cityhall", "day", "trophy", "At Explox City Hall, a big sign goes up: the Great Explox Bake-Off, with a golden whisk for the winner.", [
+      L("A", "excited", "look", "Beep-Boop, look at that sign! A baking contest!"),
+      L("B", "curious", "walk", "Is that the contest where cake is the main character?"),
+      L("A", "joy", "highfive", "It is! And the winner gets the golden whisk. Let us enter!"),
+      L("B", "happy", "talk", "I can measure anything. I once measured a sneeze. It was point four seconds."),
+      L("A", "warm", "write", "Then sign us up, dear. Team Gigi and Beep!"),
+      L("C", "serious", "talk", "Ha! Baron Crumbly has entered too. The golden whisk will be mine."),
+      L("A", "determined", "talk", "May the best cake win, Baron. Do you want to practice together?"),
+      L("C", "angry", "talk", "Never! A baron practices alone. In secret. With the door locked."),
+    ]),
+    S("market", "dawn", "pizza", "Early in the morning, Gigi and Beep-Boop hurry to the market for ingredients.", [
+      L("A", "happy", "shop", "Fresh eggs, please, a bag of flour and some butter."),
+      L("B", "curious", "shop", "How many eggs? Exactly twelve? Or twelve point zero zero one?"),
+      L("A", "warm", "talk", "Twelve is fine, dear. Eggs do not like decimals."),
+      L("B", "surprised", "juggle", "Whoa! Look, I can juggle them. One, two, three, four!"),
+      L("A", "worried", "panic", "Beep-Boop, careful! Do not drop the eggs!"),
+      L("B", "joy", "juggle", "I am a professional egg juggler now. Hee hee!"),
+      L("A", "relieved", "talk", "All twelve are safe. Please put them in the basket, slowly."),
+      L("N", "warm", "walk", "And so, with a full basket and a happy robot, they went home to bake."),
+    ]),
+    S("house", "day", "lantern", "In Gigi's kitchen, the big practice cake begins.", [
+      L("A", "determined", "cook", "First we stir the batter. Round and round, like a happy little tornado."),
+      L("B", "excited", "cook", "I can stir at two hundred spins a minute! Watch this!"),
+      L("A", "scared", "panic", "Slow down! The batter is flying all over the walls!"),
+      L("B", "worried", "talk", "Oops. The kitchen is now a little bit yellow."),
+      L("A", "joy", "dance", "Ha ha! Never mind. A messy kitchen means a happy cook."),
+      L("B", "curious", "build", "Now we stack the cake layers. One, two, three, four, five!"),
+      L("A", "happy", "build", "What a tall, wobbly tower. It looks like it is dancing."),
+      L("B", "happy", "talk", "A pinch of love fixes everything, right, Chef Gigi?"),
+    ]),
+    S("house", "night", "lantern", "That night, a shadow tiptoes into the kitchen window.", [
+      L("N", "serious", "sneak", "Everyone was asleep. Everyone, except one very sneaky baron."),
+      L("C", "determined", "sneak", "Shh. I will just borrow their special recipe book for a peek."),
+      L("C", "worried", "sneak", "Oh no, a creaky floorboard. Be quiet, floor!"),
+      L("B", "surprised", "look", "Wait. Who is that behind the flour sacks? Chef Gigi, wake up!"),
+      L("A", "surprised", "look", "Baron Crumbly? What are you doing in my kitchen at midnight?"),
+      L("C", "scared", "panic", "Nothing! I was just, um, looking for a snack! Goodbye!"),
+      L("A", "curious", "talk", "He ran off so fast he left his hat behind. And look, it is full of flour."),
+      L("B", "curious", "talk", "Strange. Why would a baron want our recipe? He has a castle full of cooks."),
+    ]),
+    S("cityhall", "day", "trophy", "The big day arrives. The whole town fills City Hall for the Great Explox Bake-Off.", [
+      L("N", "excited", "party", "Drums rolled, balloons floated, and the whole town cheered for the bakers."),
+      L("A", "excited", "drum", "Beep-Boop, can you hear the band? It makes my knees dance!"),
+      L("B", "joy", "dance", "My circuits are dancing too. Boop, boop, boop!"),
+      L("C", "serious", "talk", "Enjoy the music while you can. My cake is the grandest cake!"),
+      L("A", "warm", "talk", "Good luck, Baron. May your cake rise."),
+      L("N", "serious", "talk", "The judges took their seats. The oven bells rang. The baking began."),
+      L("B", "determined", "cook", "Timer set. Flour measured. Oven at exactly three hundred and fifty."),
+      L("A", "happy", "cook", "Let us make it the best cake in Explox."),
+    ]),
+    S("house", "day", "fire", "Trouble! Halfway through the contest, something goes wrong with the oven.", [
+      L("B", "surprised", "look", "Chef Gigi, the oven is making a funny noise. Bloop. Bloop. Bloop."),
+      L("A", "worried", "look", "That is not a normal bloop. That is a big, bubbly bloop!"),
+      L("B", "scared", "panic", "The cake is growing! It is rising out of the oven like a volcano!"),
+      L("A", "shocked", "panic", "Everyone, step back! It is a cake volcano!"),
+      L("N", "surprised", "run", "With a giant POP, the cake exploded into a thousand sweet crumbs."),
+      L("B", "worried", "talk", "Oh no. We lost the whole cake. The judges are walking this way."),
+      L("A", "sad", "talk", "I am so sorry, dear. We did our best."),
+      L("B", "serious", "look", "Wait. Look at the crumbs. They are glowing with chocolate and sparkles."),
+    ]),
+    S("market", "day", "pizza", "Now comes the twist. The judges taste the sparkly crumbs, and they cannot stop smiling.", [
+      L("N", "curious", "eat", "The first judge took a crumb. Her eyes went wide."),
+      L("A", "surprised", "eat", "Is it terrible? Please tell me it is not terrible."),
+      L("B", "joy", "eat", "It is delicious! It tastes like a birthday party in my mouth!"),
+      L("A", "relieved", "eat", "Ha! A cake that explodes into party crumbs. Who would have guessed?"),
+      L("B", "excited", "dance", "We invented Volcano Crumb Cake! Beep boop, that is a new recipe!"),
+      L("A", "joy", "highfive", "Give me a high five, Beep-Boop. We did it by accident!"),
+      L("C", "angry", "talk", "No fair! Everyone loves the crumbs. And my cake, well, my cake is a little bit raw."),
+      L("A", "worried", "look", "Baron? Your cake looks wobbly. Are you all right?"),
+    ]),
+    S("cityhall", "dusk", "trophy", "The baron finally tells the truth in front of everyone.", [
+      L("C", "sad", "talk", "Fine, I cannot bake. I never learned how. Everyone expects the best cake from a baron."),
+      L("A", "warm", "talk", "Oh, Baron. Is that why you snuck into my kitchen?"),
+      L("C", "sad", "talk", "Yes. I wanted to learn your secret. I only needed a little help."),
+      L("B", "happy", "talk", "You could have just asked. Gigi loves teaching."),
+      L("A", "joy", "build", "Come on, Baron. Let us bake a cake together. Right here. Right now."),
+      L("C", "surprised", "cook", "You would do that? After I tiptoed into your kitchen?"),
+      L("A", "warm", "cook", "Of course. Everyone gets a second chance. Even a baron."),
+      L("B", "excited", "cook", "I will measure! Exactly one baron-sized cup of sugar!"),
+    ]),
+    S("cityhall", "dusk", "trophy", "Together, the three of them bake one last, giant cake for the whole town.", [
+      L("A", "determined", "cook", "Stir it gently, Baron. Like you are saying hello to the cake."),
+      L("C", "happy", "cook", "Hello, cake. I am Baron Crumbly. I am very sorry about the raw one."),
+      L("B", "joy", "juggle", "I will juggle the sprinkles while it bakes. Tada!"),
+      L("A", "excited", "build", "Now the tower. Layer by layer, a little higher each time."),
+      L("C", "surprised", "build", "It is tall! It is taller than my crown!"),
+      L("B", "curious", "photo", "Everyone, stand close. I will take a picture of the cake. Say cheese, no, say cake!"),
+      L("A", "happy", "photo", "Cake! Look at us. Three friends and one giant cake."),
+      L("N", "warm", "talk", "The judges tasted it. Then the whole town tasted it. Nobody could stop smiling."),
+    ]),
+    S("cityhall", "dusk", "trophy", "At last, the judges stand up with the golden whisk.", [
+      L("N", "excited", "talk", "The room went quiet. The drum rolled. The judges held up the golden whisk."),
+      L("A", "worried", "talk", "Whoever wins, I am proud of us. And I am proud of you, Baron."),
+      L("C", "determined", "talk", "Thank you, Gigi. Today, I am proud of me too."),
+      L("N", "joy", "party", "And the winners of the Great Explox Bake-Off are, all three of them, together!"),
+      L("B", "joy", "dance", "We won! We won! Boop boop boop boop!"),
+      L("C", "joy", "highfive", "A baron who wins with friends. What a grand idea!"),
+      L("A", "joy", "party", "Come, everybody! There is plenty of cake for the whole town!"),
+    ]),
+    S("park", "dusk", "sun", "The next evening, the town holds a picnic with the leftover cake.", [
+      L("N", "warm", "party", "The sun set over Explox Park, and the whole town came to eat cake together."),
+      L("B", "happy", "eat", "Chef Gigi, this is the best cake I have ever measured."),
+      L("C", "happy", "eat", "I want to bake every Sunday. Will you teach me again?"),
+      L("A", "warm", "sing", "Of course, dear. Every Sunday, at my house. Bring your hat."),
+      L("B", "joy", "dance", "And I will bring the sprinkles. All of them. In exactly the right cup."),
+      L("C", "joy", "party", "Hooray for friends, flour and fluffy cake!"),
+      L("N", "warm", "talk", "And that is how a grandma, a robot and a baron became the best baking team in Explox. The end."),
+    ]),
+  ],
+});
+
+  M.forEach(m => CINEMA_MOVIES.push(m));
+})();
