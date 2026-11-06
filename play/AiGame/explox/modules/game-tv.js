@@ -136,7 +136,7 @@
     const mins = [8, 19, 31, 52, 67, 81].map(x => x + rnd(5)); let a = 0, b = 0;
     const cast = C3([ex3[0], 'racer', 'hero'], [star + ' of ' + city[0], 'athlete', 'rival'], [ex3[1], 'athlete', 'goof']);
     const oppName = city[0].toUpperCase();
-    const mk = (type, att, before, after, min, say, lines) => { const sc = S('arena', 'day', 'trophy', say, lines.map(l => L(l[0], l[1], 'soccer', l[2]))); sc.script.soccer = { type: type, att: att, opp: oppName, col: city[2], before: before.slice(), after: after.slice(), min: min }; return sc; };
+    const mk = (type, att, before, after, min, say, lines) => { const sc = S('park', 'day', 'trophy', say, lines.map(l => L(l[0], l[1], 'soccer', l[2]))); sc.script.soccer = { type: type, att: att, opp: oppName, col: city[2], before: before.slice(), after: after.slice(), min: min }; return sc; };
     const scenes = [mk('kickoff', 'ex', [0, 0], [0, 0], 1, 'Welcome to Explox Stadium: Explox against the ' + opp + '.', [
       ['N', 'excited', 'Welcome to Explox Stadium! Today, it is Explox against the ' + opp + '!'],
       ['N', 'joy', 'The crowd is on its feet, the sun is shining, and the ball is round.'],
