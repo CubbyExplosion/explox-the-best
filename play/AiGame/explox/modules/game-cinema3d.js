@@ -943,6 +943,56 @@
     for (const [re, k] of SIGHT_PROP) if (re.test(t)) return { prop: k };
     return null;
   }
+  // ---------- sound effects for everything: footsteps, boings, splashes, crunches, shutter clicks, drums ... plus the sound of the place itself ----------
+  let cA = null, nbuf = null;
+  function CA() { cA = cA || new (window.AudioContext || window.webkitAudioContext)(); if (cA.state === 'suspended') cA.resume(); return cA; }
+  function NB() { const c = CA(); if (!nbuf) { nbuf = c.createBuffer(1, c.sampleRate, c.sampleRate); const d = nbuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } return nbuf; }
+  function tn(f, type, v, d, del, fe) { const c = CA(), o = c.createOscillator(), g = c.createGain(), t0 = c.currentTime + (del || 0); o.type = type; o.frequency.setValueAtTime(f, t0); if (fe) o.frequency.exponentialRampToValueAtTime(fe, t0 + d); g.gain.setValueAtTime(v, t0); g.gain.exponentialRampToValueAtTime(.0008, t0 + d); o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + d + .02); }
+  function nz(v, d, del, ft, f, q, fe) { const c = CA(), s2 = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain(), t0 = c.currentTime + (del || 0); s2.buffer = NB(); fl.type = ft; fl.frequency.setValueAtTime(f, t0); if (fe) fl.frequency.exponentialRampToValueAtTime(fe, t0 + d); fl.Q.value = q || 1; g.gain.setValueAtTime(v, t0); g.gain.exponentialRampToValueAtTime(.0008, t0 + d); s2.connect(fl); fl.connect(g); g.connect(c.destination); s2.start(t0, Math.random() * .5); s2.stop(t0 + d + .02); }
+  const CSFX = {
+    step() { nz(.1, .07, 0, 'lowpass', 520); tn(95, 'sine', .08, .06); }, tiptoe() { nz(.04, .08, 0, 'lowpass', 320); }, run() { nz(.12, .06, 0, 'lowpass', 650); tn(110, 'sine', .09, .05); },
+    boing() { tn(220, 'sine', .14, .3, 0, 640); tn(640, 'sine', .08, .25, .05, 260); }, pop() { tn(900, 'sine', .12, .07, 0, 200); }, splash() { nz(.13, .35, 0, 'bandpass', 1400, .6, 300); },
+    crunch() { for (let i = 0; i < 3; i++) nz(.1, .04, i * .05, 'highpass', 1800 + i * 300); }, scribble() { nz(.05, .13, 0, 'bandpass', 3500, 2); }, scoop() { nz(.11, .16, 0, 'lowpass', 900, .7, 300); tn(80, 'sine', .1, .1, .12); },
+    clink() { tn(2400, 'sine', .08, .12); tn(3100, 'sine', .05, .1, .02); }, ching() { tn(1318, 'sine', .1, .25); tn(1760, 'sine', .08, .3, .07); }, shutter() { nz(.15, .03, 0, 'highpass', 2000); nz(.12, .03, .07, 'highpass', 1500); },
+    sizzle() { nz(.08, .45, 0, 'highpass', 4500); }, crackle() { for (let i = 0; i < 3; i++) nz(.09, .02, Math.random() * .25, 'highpass', 2500); }, thump() { tn(120, 'sine', .22, .15, 0, 50); },
+    slap() { nz(.2, .05, 0, 'bandpass', 2000, 1); tn(300, 'square', .08, .04); }, sparkle() { [1568, 2093, 2637, 3136].forEach((f, i) => tn(f, 'sine', .06, .14, i * .05)); }, snore() { tn(115, 'sawtooth', .05, .55, 0, 75); },
+    drum() { tn(150, 'sine', .22, .15, 0, 55); nz(.07, .05, 0, 'highpass', 3000); }, creak() { tn(190, 'sawtooth', .04, .35, 0, 130); }, whump() { nz(.16, .16, 0, 'lowpass', 420); }, toss() { tn(500, 'sine', .06, .06, 0, 850); },
+    hammer() { tn(900, 'square', .09, .04); nz(.1, .04, 0, 'bandpass', 1500); }, squeak() { tn(1400, 'sine', .07, .13, 0, 1950); }, ding() { tn(1568, 'sine', .1, .35); tn(2349, 'sine', .06, .3, .05); },
+    grunt() { tn(125, 'sawtooth', .09, .16, 0, 80); }, swish() { nz(.06, .22, 0, 'bandpass', 900, .5, 1800); }, bird() { tn(2600, 'sine', .05, .09, 0, 3500); tn(3000, 'sine', .04, .08, .11, 2400); },
+    cheer2() { for (let i = 0; i < 5; i++) tn(300 + Math.random() * 300, 'sawtooth', .03, .25, Math.random() * .2, 500); }, clap2() { for (let i = 0; i < 3; i++) nz(.1, .04, i * .09, 'bandpass', 1800, 1); }, boom2() { tn(60, 'sawtooth', .3, .5, 0, 30); nz(.25, .45, 0, 'lowpass', 700, .5, 120); },
+  };
+  const CS_STYLE = { walk: [2.9, 'step'], run: [4.4, 'run'], sneak: [1.7, 'tiptoe'], jump: [.9, 'boing'], dance: [2.2, 'clap2'], play: [.75, 'thump'], eat: [2.6, 'crunch'], write: [2.2, 'scribble'], dig: [1.6, 'scoop'], climb: [1.4, 'clink'], exercise: [1.6, 'grunt'], shop: [.55, 'ching'], sing: [1.1, 'sparkle'],
+    highfive: [.34, 'slap'], party: [1.2, 'pop'], fish: [.28, 'splash'], camp: [3.5, 'crackle'], magic: [.6, 'sparkle'], bubbles: [3.2, 'pop'], photo: [.38, 'shutter'], skate: [2.6, 'swish'], snowball: [.85, 'whump'], juggle: [4.2, 'toss'], tugwar: [1.1, 'creak'], cook: [2.4, 'sizzle'], drum: [4.6, 'drum'], build: [1.15, 'thump'], work: [2.6, 'hammer'], panic: [1.5, 'squeak'], look: [.0, null], talk: [.0, null] };
+  const csState = { style: '', idx: -1, once: {}, eng: null, amb: null, ambKey: '', ambTimer: 0 };
+  function csFlow(style, t, mi) {
+    try {
+      if (!playing(mi)) return;
+      const d = CS_STYLE[style]; if (csState.style !== style) { csState.style = style; csState.idx = d && d[0] ? Math.floor(t * d[0]) : -1; }
+      if (d && d[0]) { const idx = Math.floor(t * d[0]); if (idx !== csState.idx) { csState.idx = idx; CSFX[d[1]](); } }
+      if (style === 'fly') csEngine(true); else csEngine(false);
+    } catch (e) { }
+  }
+  function csOnce(key, name) { try { if (csState.once[key]) return; csState.once[key] = 1; CSFX[name](); } catch (e) { } }
+  function csEngine(on) {
+    try {
+      if (on && !csState.eng) { const c = CA(), o = c.createOscillator(), o2 = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain(), l = c.createOscillator(), lg = c.createGain(); o.type = 'sawtooth'; o.frequency.value = 62; o2.type = 'square'; o2.frequency.value = 94; f.type = 'lowpass'; f.frequency.value = 420; g.gain.value = .05; l.frequency.value = 17; lg.gain.value = .02; l.connect(lg); lg.connect(g.gain); o.connect(f); o2.connect(f); f.connect(g); g.connect(c.destination); o.start(); o2.start(); l.start(); csState.eng = { stop() { try { g.gain.setTargetAtTime(0, c.currentTime, .15); setTimeout(() => { o.stop(); o2.stop(); l.stop(); }, 600); } catch (e) { } } }; }
+      else if (!on && csState.eng) { csState.eng.stop(); csState.eng = null; }
+    } catch (e) { }
+  }
+  function csAmbience(mi, info) {   // the sound of the place: waves, wind, city hum, space hum, crickets, birds, thunder
+    try {
+      if (!playing(mi)) { csStop(); return; }
+      const key = info.kind + '|' + info.tod; const now = performance.now();
+      if (csState.ambKey !== key) {
+        if (csState.amb) csState.amb.stop(); csState.ambKey = key; csState.amb = null; const c = CA(), k = info.kind, nz2 = (ft, f, q, v, lfo) => { const s2 = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain(); s2.buffer = NB(); s2.loop = true; fl.type = ft; fl.frequency.value = f; fl.Q.value = q; g.gain.value = v; s2.connect(fl); fl.connect(g); g.connect(c.destination); s2.start(); let l = null; if (lfo) { l = c.createOscillator(); const lg = c.createGain(); l.frequency.value = lfo[0]; lg.gain.value = lfo[1]; l.connect(lg); lg.connect(g.gain); l.start(); } return { stop() { try { g.gain.setTargetAtTime(0, c.currentTime, .3); setTimeout(() => { s2.stop(); if (l) l.stop(); }, 1200); } catch (e) { } } }; };
+        if (k === 'beach') csState.amb = nz2('lowpass', 700, .5, .05, [.13, .04]); else if (k === 'snow' || k === 'desert' || info.tod === 'storm') csState.amb = nz2('bandpass', 420, .6, .035, [.17, .015]); else if (k === 'city' || k === 'market' || k === 'track') csState.amb = nz2('lowpass', 230, .5, .03);
+        else if (k === 'space') { const o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.value = 55; g.gain.value = .03; o.connect(g); g.connect(c.destination); o.start(); csState.amb = { stop() { try { g.gain.setTargetAtTime(0, c.currentTime, .3); setTimeout(() => o.stop(), 1200); } catch (e) { } } }; }
+        else if (info.tod === 'night') { const o = c.createOscillator(), g = c.createGain(), l = c.createOscillator(), lg = c.createGain(); o.type = 'sine'; o.frequency.value = 4300; g.gain.value = .008; l.type = 'square'; l.frequency.value = 11; lg.gain.value = .008; l.connect(lg); lg.connect(g.gain); o.connect(g); g.connect(c.destination); o.start(); l.start(); csState.amb = { stop() { try { g.gain.setTargetAtTime(0, c.currentTime, .3); setTimeout(() => { o.stop(); l.stop(); }, 1200); } catch (e) { } } }; }
+      }
+      if (now - csState.ambTimer > 2800 + Math.random() * 3000) { csState.ambTimer = now; if (['park', 'nature', 'jungle', 'suburbs'].indexOf(info.kind) >= 0 && info.tod !== 'night') CSFX.bird(); if (info.tod === 'storm' && Math.random() < .5) { try { sfx.thunder(); } catch (e) { } } }
+    } catch (e) { }
+  }
+  function csStop() { try { if (csState.amb) csState.amb.stop(); csState.amb = null; csState.ambKey = ''; csEngine(false); csState.style = ''; csState.once = {}; } catch (e) { } }
   // ---------- the director: puts the right characters in the right place doing what the caption says ----------
   function directBeat(mi, si, mv, sc, t, info, dur, camSeed) {
     const u = clamp(t / dur, 0, 1); flashA = 0; zoomPunch = 0;
@@ -1078,6 +1128,7 @@
       if (info.comedy && info.surprise && u > .55 && u < .8 && a1) { a1.head.scale.setScalar(1.7); words2d(.55 * dur, 'WHAT?!', 6); }
       look.set(0, 2.4, 0); spread = 4.5;
     }
+    csFlow(style, t, mi);
     const emo = info.emo || [], xe = style === 'party' ? 'joy' : (emo[1] || emo[0] || 'neutral');
     act.forEach((pp, ii) => emote(pp, emo[ii] || emo[0] || 'neutral', t, true)); ex.forEach(pp => emote(pp, xe, t, false));
     { const tS = t + beatOffset, dlg = getDialogue(mi, si, mv, sc), ln = dlg.find(l => l.who !== 'N' && tS >= l.start - .15 && tS <= l.end + .5);
@@ -1090,13 +1141,14 @@
         if (sg.prop) { const o = makeProp(sg.prop); if (prop && prop !== o) prop.visible = false; o.visible = true; o.rotation.set(0, 0, 0); o.scale.setScalar(1); o.position.copy(P); if (o.userData.spin === 'y') o.rotation.y = t * 1.2; if (o.userData.spin === 'z') o.rotation.z = t * .8; if (o.userData.float) o.position.y = Math.sin(t * 2) * .5 + 1; if (o.userData.flicker) o.scale.setScalar(.95 + Math.abs(Math.sin(t * 17)) * .15); }
         else { const def = npcPool()[hash(mi, si, 6) % npcPool().length], cp = personFor('sight_' + sg.being, def, sg.being, null); pose(cp); cp.g.visible = true; cp.g.scale.setScalar(2.1); cp.g.position.set(P.x, 0, P.z); cp.g.rotation.y = Math.atan2(-P.x, -P.z); limbs(cp, 2.6 + Math.sin(t * 6) * .4, 0, Math.sin(t * 4) * .3, -Math.sin(t * 4) * .3); shown.push(cp); }
         if (style === 'talk' || style === 'look' || style === 'work') act.concat(ex).forEach(pp => { pp.g.rotation.y = Math.atan2(P.x - pp.g.position.x, P.z - pp.g.position.z); pp.head.rotation.y = 0; });
+        if (playing(mi)) csOnce(mi + '_' + si + '_' + ln.start + 's', 'ding');
         sightCam = { sp: act[Math.max(0, info.present.indexOf(ln.who))] || act[0], P, k: eas(clamp((tS - ln.start + .1) / .35, 0, 1)) };
       } }
     { const tS = t + beatOffset, dlg = getDialogue(mi, si, mv, sc), ln = dlg.find(l => tS >= l.start - .1 && tS <= l.end + 1.4), first = dlg.length ? dlg[0].start : 0;
       const txt = ln ? ln.text : (tS < first ? sc.text : ''), lt = String(txt || '').toLowerCase(), t0 = ln ? ln.start : 0, age = tS - t0, who = ln && ln.who !== 'N' ? Math.max(0, info.present.indexOf(ln.who)) : hash(mi, si, 8) % Math.max(1, act.length);
-      if (/\b(explo\w*|boom|crash\w*|bang|blast\w*|kaboom|thunder\w*)\b/.test(lt) && age >= 0 && age < 1.2) { if (age < .35) { flashA = Math.max(flashA, (1 - age / .35) * .9); shake = Math.max(shake, .6 * (1 - age / .35)); } words2d(t0 - beatOffset + .05, 'BOOM!', 3); }
-      if (/\b(fall|falls|fell|falling|trip|trips|tripped|slip|slips|slipped|tumble\w*)\b/.test(lt) && age >= 0 && age < 1.8) { const v = act[who % act.length], lie = eas(Math.min(age / .4, 1)) * (1 - eas(clamp((age - 1.3) / .4, 0, 1))); v.g.rotation.x = -1.4 * lie; v.g.position.y += .5 * lie; v.mouth.scale.set(1, 3, 1); if (lie > .5) { spr('\u{1F4AB}', v.g.position.x, 5.2, v.g.position.z, 1.1); words2d(t0 - beatOffset + .2, 'OOF!', 2); } }
-      if (/\b(sleep|sleeps|asleep|sleeping|nap|naps|snore\w*|yawn\w*|dream\w*)\b/.test(lt) && age >= 0 && age < 6) { const v = act[who % act.length]; v.head.rotation.x = .55; v.body.rotation.x = .25; v.armL.rotation.x = v.armR.rotation.x = .2; v.mouth.scale.set(1, .5, 1); for (let k = 0; k < 3; k++) { const ag = (t * .5 + k / 3) % 1; spr('\u{1F4A4}', v.g.position.x + .8 + ag * .8, 5 + ag * 1.8, v.g.position.z, 1 - ag * .5); } }
+      if (/\b(explo\w*|boom|crash\w*|bang|blast\w*|kaboom|thunder\w*)\b/.test(lt) && age >= 0 && age < 1.2) { if (playing(mi)) csOnce(mi + '_' + si + '_' + t0 + 'b', 'boom2'); if (age < .35) { flashA = Math.max(flashA, (1 - age / .35) * .9); shake = Math.max(shake, .6 * (1 - age / .35)); } words2d(t0 - beatOffset + .05, 'BOOM!', 3); }
+      if (/\b(fall|falls|fell|falling|trip|trips|tripped|slip|slips|slipped|tumble\w*)\b/.test(lt) && age >= 0 && age < 1.8) { if (playing(mi)) csOnce(mi + '_' + si + '_' + t0 + 'f', 'thump'); const v = act[who % act.length], lie = eas(Math.min(age / .4, 1)) * (1 - eas(clamp((age - 1.3) / .4, 0, 1))); v.g.rotation.x = -1.4 * lie; v.g.position.y += .5 * lie; v.mouth.scale.set(1, 3, 1); if (lie > .5) { spr('\u{1F4AB}', v.g.position.x, 5.2, v.g.position.z, 1.1); words2d(t0 - beatOffset + .2, 'OOF!', 2); } }
+      if (/\b(sleep|sleeps|asleep|sleeping|nap|naps|snore\w*|yawn\w*|dream\w*)\b/.test(lt) && age >= 0 && age < 6) { if (playing(mi) && Math.floor(age / 2.4) !== csState.snoreIdx) { csState.snoreIdx = Math.floor(age / 2.4); try { CSFX.snore(); } catch (e) { } } const v = act[who % act.length]; v.head.rotation.x = .55; v.body.rotation.x = .25; v.armL.rotation.x = v.armR.rotation.x = .2; v.mouth.scale.set(1, .5, 1); for (let k = 0; k < 3; k++) { const ag = (t * .5 + k / 3) % 1; spr('\u{1F4A4}', v.g.position.x + .8 + ag * .8, 5 + ag * 1.8, v.g.position.z, 1 - ag * .5); } }
     }
     act.concat(ex).forEach(c => { if (c.costume === 'ghost') c.g.position.y += .6 + Math.sin(t * 3) * .3; if (c.extras.wings) { const f = Math.sin(t * 7) * .5; c.extras.wings[0].rotation.z = f; c.extras.wings[1].rotation.z = -f; } });
     // camera: close enough to see the actors, moving in a different way for each scene
@@ -1140,7 +1192,7 @@
     if (lastSceneKey !== mi + '_' + si) { lastSceneKey = mi + '_' + si; clearSpeechTimers(); }
     try {
       const vis = (typeof _MVIS !== 'undefined' && _MVIS[mi]) ? _MVIS[mi] : null;
-      const info = getInfo(mi, si, mv, sc); moodScore(mi, si, mv, sc, t);
+      const info = getInfo(mi, si, mv, sc); moodScore(mi, si, mv, sc, t); csAmbience(mi, info);
       const accent = vis ? hexOf(vis[2]) : 0xff7733, skyTop = vis ? hexOf(vis[0]) : hexOf(mv.bg), skyMid = vis ? hexOf(vis[1]) : hexOf(mv.bg);
       Object.keys(stages).forEach(k => { stages[k].visible = (k === info.kind); });
       if (!stages[info.kind]) { stages[info.kind] = buildAnyStage(info.kind, skyTop, hash(7, info.kind.length, 1)); SC.add(stages[info.kind]); }
@@ -1481,6 +1533,7 @@
     } catch (e) { }
   }
   function stopScore(restore) {
+    try { csStop(); } catch (e) { }
     try {
       const a = scoreState.audio; if (a) { let v = a.volume; const iv = setInterval(() => { v -= .04; if (v <= 0) { clearInterval(iv); a.pause(); } else a.volume = v; }, 90); }
       scoreState.audio = null; scoreState.key = ''; scoreState.mood = null;
@@ -1713,5 +1766,5 @@
       try { sc.dur = getDialogue(mi, si, mv, sc).total; } catch (e) { sc.dur = Math.max(sc.dur || 5, 12); }
     });
   });
-  window.__cinema3d = { mood: moodAt, draw: draw3D, tagsFor, info: getInfo, castList, drawCredits, dialogue: getDialogue, status: () => ({ failed, hasRenderer: !!R }) };
+  window.__cinema3d = { sfx: CSFX, mood: moodAt, draw: draw3D, tagsFor, info: getInfo, castList, drawCredits, dialogue: getDialogue, status: () => ({ failed, hasRenderer: !!R }) };
 })();
