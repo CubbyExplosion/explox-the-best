@@ -1235,7 +1235,6 @@
       if (info.comedy && info.surprise && u > .55 && u < .8 && a1) { a1.head.scale.setScalar(1.7); words2d(.55 * dur, 'WHAT?!', 6); }
       look.set(0, 2.4, 0); spread = 4.5;
     }
-    weirdFx(mi, si, mv, t, u, style, act, ex, camSeed);
     csFlow(style, t, mi);
     const emo = info.emo || [], xe = style === 'party' ? 'joy' : (emo[1] || emo[0] || 'neutral');
     act.forEach((pp, ii) => emote(pp, emo[ii] || emo[0] || 'neutral', t, true)); ex.forEach(pp => emote(pp, xe, t, false));
