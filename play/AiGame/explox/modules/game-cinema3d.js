@@ -267,6 +267,53 @@
     emoSprite(p, showEmoji ? name : null);
   }
 
+  // ---------- emotes: while someone speaks they act it out with the same emotes the game has (wave, laugh, cry, cheer, bow, shrug ...) ----------
+  const EMOTE_EMOJI = { wave: '\u{1F44B}', dance: '\u{1F483}', laugh: '\u{1F602}', salute: '\u{1FAE1}', facepalm: '\u{1F926}', cry: '\u{1F622}', bow: '\u{1F647}', point: '\u{1F449}', clap: '\u{1F44F}', spin: '\u{1F300}', flex: '\u{1F4AA}', shrug: '\u{1F937}', cheer: '\u{1F64C}', gasp: '\u{1F62E}', shiver: '\u{1F976}', sigh: '\u{1F62E}\u200D\u{1F4A8}' };
+  const EMOTE_MAP = { joy: ['laugh', 'cheer', 'clap', 'dance'], excited: ['cheer', 'spin', 'clap'], happy: ['wave', 'clap', 'laugh'], warm: ['bow', 'wave'], sad: ['cry'], angry: ['point', 'flex'], scared: ['shiver'], shocked: ['gasp'], surprised: ['gasp'], worried: ['facepalm', 'shrug'], curious: ['shrug', 'point'], determined: ['flex', 'salute'], serious: ['point'], relieved: ['sigh', 'bow'] };
+  function pickEmote(ln) {
+    const t = String(ln.text || '').toLowerCase(), e = ln.emo || 'neutral';
+    if (/^(hello|hi|hey|morning|good morning|welcome)\b/.test(t)) return 'wave';
+    if (/thank|sorry|apolog/.test(t)) return 'bow';
+    if (/we did it|we won|champion|hooray|woohoo|yes!|best (day|moment)/.test(t)) return 'cheer';
+    if (/\bha\b|hee hee|funny|joke|laugh/.test(t)) return 'laugh';
+    if (/oh no|this is bad|terrible/.test(t)) return 'facepalm';
+    if (/\bready\b|on it|yes sir|at your service/.test(t)) return 'salute';
+    if (/look at|over here|this way|look out/.test(t) && e !== 'sad') return 'point';
+    if (/\?\s*$/.test(t)) return 'shrug';
+    const opts = EMOTE_MAP[e]; return opts ? opts[hash(t.length, (ln.start * 10) | 0, 2) % opts.length] : null;
+  }
+  const emoteMat = {};
+  function emojiMat(em) {
+    if (emoteMat[em]) return emoteMat[em];
+    const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); x.font = '92px Arial'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(em, 64, 68);
+    return (emoteMat[em] = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false }));
+  }
+  function applyEmote(p, kind, age) {
+    const sn = Math.sin, t = age; const AL = p.armL, AR = p.armR;
+    switch (kind) {
+      case 'wave': AR.rotation.x = 2.6; AR.rotation.z = sn(t * 10) * .5; p.head.rotation.z = sn(t * 3) * .08; break;
+      case 'laugh': p.body.rotation.x = .25 + sn(t * 18) * .12; p.head.rotation.x = -.4; AL.rotation.x = AR.rotation.x = -.9; p.mouth.scale.set(1.3, 3, 1); break;
+      case 'cheer': AL.rotation.x = 2.6 + sn(t * 10) * .4; AR.rotation.x = 2.6 - sn(t * 10) * .4; p.g.position.y += Math.abs(sn(t * 7)) * .5; break;
+      case 'clap': AL.rotation.x = AR.rotation.x = -1.3; AL.rotation.z = -(.35 + .35 * sn(t * 14)); AR.rotation.z = .35 + .35 * sn(t * 14); break;
+      case 'cry': p.head.rotation.x = .5; AL.rotation.x = AR.rotation.x = 2.0; AL.rotation.z = .5; AR.rotation.z = -.5; p.body.rotation.z = sn(t * 20) * .05; break;
+      case 'facepalm': AR.rotation.x = 2.4; AR.rotation.z = -.3; p.head.rotation.x = .35; break;
+      case 'bow': p.body.rotation.x = .85 * (.5 + .5 * sn(t * 2.2 - 1)); AL.rotation.x = AR.rotation.x = .3; break;
+      case 'point': AR.rotation.x = -1.5; p.body.rotation.x = .1; p.body.rotation.y = -.15; break;
+      case 'spin': p.g.rotation.y += t * 9; break;
+      case 'flex': AL.rotation.z = -1.3; AR.rotation.z = 1.3; AL.rotation.x = AR.rotation.x = 1.0; p.body.position.y += sn(t * 8) * .04; break;
+      case 'shrug': AL.rotation.z = -.9; AR.rotation.z = .9; AL.rotation.x = AR.rotation.x = -.3; p.head.rotation.z = .2; p.body.position.y += Math.abs(sn(t * 5)) * .08; break;
+      case 'salute': AR.rotation.x = 2.3; AR.rotation.z = -.5; p.body.rotation.x = -.05; break;
+      case 'dance': p.body.rotation.z = sn(t * 7) * .15; AL.rotation.x = 1.5 + sn(t * 7) * 1.2; AR.rotation.x = 1.5 - sn(t * 7) * 1.2; p.legL.rotation.x = sn(t * 7) * .6; p.legR.rotation.x = -sn(t * 7) * .6; p.g.position.y += Math.abs(sn(t * 7)) * .3; break;
+      case 'gasp': AL.rotation.x = AR.rotation.x = 2.2; AL.rotation.z = .5; AR.rotation.z = -.5; p.body.rotation.x = -.15; break;
+      case 'shiver': AL.rotation.x = AR.rotation.x = -.9; AL.rotation.z = .8; AR.rotation.z = -.8; p.g.position.x += sn(t * 50) * .04; break;
+      case 'sigh': AR.rotation.x = -.6; AR.rotation.z = -.5; p.head.rotation.x = -.3; p.body.rotation.x = -.08 + sn(t * 2) * .05; break;
+    }
+    const em = EMOTE_EMOJI[kind]; if (!em) return;
+    for (let k = 0; k < 3; k++) {   // little emojis float up from their head
+      const ag = (t * .9 + k * .33) % 1.4, sp = new THREE.Sprite(emojiMat(em)); sp.userData.shared = true;
+      sp.position.set(p.g.position.x + Math.cos(k * 2.1 + t) * .9, p.g.position.y + 5.6 + ag * 1.2, p.g.position.z + Math.sin(k * 2.1 + t) * .5); sp.scale.setScalar(Math.max(.01, 1.0 * (1 - ag / 1.4))); fxGroup.add(sp);
+    }
+  }
   // ---------- settings: the place a scene happens in (picked from the caption, then from the movie itself) ----------
   const SETTING_RE = [
     ['library', /library|bookshel|\bbook\b|chapter|almanac/],
@@ -677,7 +724,8 @@
       const A = a0, B = a1 || ex[0]; if (B && !a1) B.g.visible = true;
       const CY = 1.8, cyc = Math.floor(t / CY), tt = t - cyc * CY, atkA = cyc % 2 === 0;
       const atk = atkA ? A : B, def = atkA ? B : A, dir = atkA ? 1 : -1;
-      const mvn = ['punch', 'kick', 'jumpkick', 'spin', 'punch', 'kick'][hash(cyc, mi + si, 3) % 6], dodge = hash(cyc, si + 5, 7) % 10 < 3;
+      const prof = profileOf(mi, mv, atkA ? 0 : 1), sig = hash(cyc, si + 2, 11) % 10 < 6, mvn = sig ? prof.mtype : ['punch', 'kick', 'jumpkick', 'spin', 'punch', 'kick'][hash(cyc, mi + si, 3) % 6], dodge = hash(cyc, si + 5, 7) % 10 < 3;
+      if (sig && tt >= .3 && tt < 1.1) words2d(cyc * CY + .3, prof.move + '!', 6 + cyc % 2);
       const ease = (x) => x * x * (3 - 2 * x), cl = (x) => clamp(x, 0, 1), lerp = (a, b, k) => a + (b - a) * k;
       const IMP = .55, wind = cl(tt / .35), strike = cl((tt - .35) / .2), rec = cl((tt - IMP) / .5);
       face(A, Math.PI / 2); face(B, -Math.PI / 2);
@@ -756,6 +804,8 @@
     }
     const emo = info.emo || [], xe = style === 'party' ? 'joy' : (emo[1] || emo[0] || 'neutral');
     act.forEach((pp, ii) => emote(pp, emo[ii] || emo[0] || 'neutral', t, true)); ex.forEach(pp => emote(pp, xe, t, false));
+    { const tS = t + beatOffset, dlg = getDialogue(mi, si, mv, sc), ln = dlg.find(l => l.who !== 'N' && tS >= l.start - .15 && tS <= l.end + .5);
+      if (ln) { const pi = info.present.indexOf(ln.who), sp = pi >= 0 ? act[pi] : null, ek = pickEmote(ln); if (sp && ek) { applyEmote(sp, ek, Math.max(0, tS - ln.start + .15)); if (sp.emoS) sp.emoS.visible = false; } } }
     act.concat(ex).forEach(c => { if (c.costume === 'ghost') c.g.position.y += .6 + Math.sin(t * 3) * .3; if (c.extras.wings) { const f = Math.sin(t * 7) * .5; c.extras.wings[0].rotation.z = f; c.extras.wings[1].rotation.z = -f; } });
     // camera: close enough to see the actors, moving in a different way for each scene
     const camStyle = ['orbit', 'dolly', 'crane', 'side'][hash(mi, si, 9 + camSeed) % 4], seed = hash(mi, si, 2 + camSeed) % 628 / 100, D = clamp(7 + spread * .9, 9, 17) * (camSeed > 0 ? .78 : 1) * (1 - zoomPunch * .22);
@@ -832,7 +882,7 @@
       words.forEach(wd => {
         const age = t - wd.t0, a = clamp(1 - age * .6, 0, 1); if (age < 0 || a <= 0) return;
         ctx.save(); ctx.translate(w * (.28 + (wd.i * .13) % .5), h * (.3 + (wd.i * .09) % .18)); ctx.rotate(((wd.i % 3) - 1) * .18); ctx.scale(1 + Math.min(age, .25) * 2, 1 + Math.min(age, .25) * 2);
-        ctx.globalAlpha = a; ctx.font = `900 ${Math.round(h * .085)}px Arial Black, Arial`; ctx.textAlign = 'center'; ctx.lineWidth = h * .014; ctx.strokeStyle = '#220022'; ctx.fillStyle = ['#ffee33', '#ff5588', '#44e0ff', '#7dff6a'][wd.i % 4];
+        ctx.globalAlpha = a; ctx.font = `900 ${Math.round(h * .085)}px Arial Black, Arial`; { const fw = ctx.measureText(wd.text).width; if (fw > w * .8) ctx.font = `900 ${Math.floor(h * .085 * w * .8 / fw)}px Arial Black, Arial`; } ctx.textAlign = 'center'; ctx.lineWidth = h * .014; ctx.strokeStyle = '#220022'; ctx.fillStyle = ['#ffee33', '#ff5588', '#44e0ff', '#7dff6a'][wd.i % 4];
         ctx.strokeText(wd.text, 0, 0); ctx.fillText(wd.text, 0, 0); ctx.restore();
       });
       const dl = getDialogue(mi, si, mv, sc).find(l => t >= l.start && t <= l.end);
@@ -931,7 +981,7 @@
     const S = sc.script, res = []; res.beats = []; res.beatStarts = []; res.beatEnds = []; dlgCache[key] = res;
     const roles = castRoles(mi, mv), nameOf = { A: roles[0].role, B: roles[1].role, C: roles[2].role, N: 'NARRATOR \u2022 ' + narratorPersona(mi, mv) };
     let tcur = 0.4 + wc(sc.text) / 2.6 + 0.9 + (si === 0 ? (wc(mv.title) + 17) / 2.6 + 1.0 : 0);
-    const lines = S.lines.map(l => { const o = { who: l[0], emo: l[1], act: l[2], text: l[3], role: nameOf[l[0]], pers: l[0] === 'N' ? null : persFor(mi, mv, 'ABC'.indexOf(l[0])), start: tcur }; o.end = o.start + wc(o.text) / 2.4 + 0.5; tcur = o.end + 1.5; res.push(o); return o; });
+    const base = scriptLines(mi, si, mv, sc), lines = base.map(l => { const o = { who: l[0], emo: l[1], act: l[2], text: l[3], role: nameOf[l[0]], pers: l[0] === 'N' ? null : persFor(mi, mv, 'ABC'.indexOf(l[0])), start: tcur }; o.end = o.start + wc(o.text) / 2.4 + 0.5; tcur = o.end + 1.5; res.push(o); return o; });
     for (let i = 0; i < lines.length; i += 2) {
       const grp = lines.slice(i, i + 2), first = grp[0], who = {};
       grp.forEach(l => { if (l.who !== 'N') who[l.who] = l; });
@@ -1001,13 +1051,35 @@
     for (let k = 0; k < 24; k++) {
       const core = bank[(h + k * 5) % bank.length], ck = side + '|' + core; if ((cu[ck] || 0) >= 3) continue;
       let op = P.open[((h >>> 2) + k * 3) % P.open.length]; const cl = P.close[((h >>> 5) + k * 7) % P.close.length];
-      if (k === 0 && h % 7 === 0 && !used.has(P.catch + '|' + mi)) { op = P.catch; used.add(P.catch + '|' + mi); }
-      if (cl === P.catch || (op && cl && op === cl) || (cl && core.indexOf(cl) >= 0) || (op && core.indexOf(op) >= 0)) continue;
+      const fk = 'fav|' + side; if (k === 0 && h % 5 === 0 && (cu[fk] || 0) < 3) { op = vars.fav || P.catch; cu[fk] = (cu[fk] || 0) + 1; }
+      if (cl === (vars.fav || P.catch) || (op && cl && op === cl) || (cl && core.indexOf(cl) >= 0) || (op && core.indexOf(op) >= 0)) continue;
       let t = [op, core, cl].filter(Boolean).join(' ').replace(/\{o\}/g, vars.o).replace(/\{place\}/g, vars.place).replace(/\{thing\}/g, vars.thing || 'thing');
       t = t.replace(/(^|[.!?]\s+)([a-z])/g, (m, pre, c) => pre + c.toUpperCase());
       if (used.has(t)) continue; used.add(t); cu[ck] = (cu[ck] || 0) + 1; return t;
     }
     return null;
+  }
+  // ---------- character profiles: a signature fighting move, a favorite sentence and a biggest problem ----------
+  const MOVE_BY_KIND = { robot: ['LASER PUNCH', 'punch'], dino: ['TAIL WHIP', 'spin'], ninja: ['SHADOW FLIP KICK', 'jumpkick'], grandma: ['ROLLING PIN SMASH', 'punch'], cat: ['CLAW FLURRY', 'kick'], pizza: ['CHEESE SPIN', 'spin'], detective: ['MAGNIFYING FLASH', 'kick'], ghost: ['SPOOKY SPIN', 'spin'], alien: ['UFO FLYING KICK', 'jumpkick'], dragon: ['FIRE-BREATH PUNCH', 'punch'], racer: ['TURBO DRIFT KICK', 'kick'], athlete: ['SLAM DUNK PUNCH', 'jumpkick'], king: ['ROYAL SMACK', 'punch'], doctor: ['BANDAGE SPIN', 'spin'], pioneer: ['LASSO SPIN', 'spin'], pilot: ['PROPELLER SPIN', 'spin'], wizard: ['SPARKLE BLAST KICK', 'kick'], hero: ['HERO PUNCH', 'punch'] };
+  const PROB = {
+    hero: ['I know, I should ask for help. I just hate asking.', 'I always say I can do it alone. I cannot.', 'Being proud is my biggest problem. Do not tell anyone.'],
+    goof: ['Sorry, I got hungry again.', 'I cannot help it. Snacks are my weakness.', 'My biggest problem? I forgot what we were doing.'],
+    nervous: ['I am scared, okay? I am scared of everything.', 'My knees will not stop shaking.', 'Worrying is my full-time job.'],
+    rival: ['I cannot stand losing. You know that.', 'Fine, I hate when someone else is better.', 'My pride is my biggest problem.'],
+    wise: ['Sorry. I am talking too much again.', 'Wise people also get lost sometimes.', 'I think too long before I act. It is a flaw.'],
+    sweet: ['I could not say no. I never can.', 'I want everyone to be happy. It is exhausting.', 'My biggest problem is trusting too fast.'],
+  };
+  function profileOf(mi, mv, i) {
+    const c = mv.cast && mv.cast['ABC'[i]], pers = persFor(mi, mv, i), kind = castRoles(mi, mv)[i].kind, mk = MOVE_BY_KIND[kind] || MOVE_BY_KIND.hero;
+    return { pers, move: (c && c.move) || mk[0], mtype: (c && c.mtype) || mk[1], fav: (c && c.fav) || (PERS[pers] || PERS.hero).catch, say: (c && c.say) || null };
+  }
+  // scripted scenes also get the favorite sentence and the confession about the biggest problem now and then
+  function scriptLines(mi, si, mv, sc) {
+    const base = sc.script.lines.slice(), prA = profileOf(mi, mv, 0), prB = profileOf(mi, mv, 1);
+    if (si > 0 && si % 3 === 1 && prA.fav) base.push(['A', 'determined', 'talk', prA.fav]);
+    if (si % 3 === 2 && prB.fav) base.push(['B', 'happy', 'talk', prB.fav]);
+    if (si > 0 && si % 4 === 3) { const who = si % 8 === 3 ? 'B' : 'A', pr = who === 'A' ? prA : prB; if (pr.say) base.push([who, 'worried', 'talk', pr.say]); }
+    return base;
   }
   function introCast(mi, mv) { const r = castRoles(mi, mv); return r[0].role + ', ' + PERS[persFor(mi, mv, 0)].tag + ', and ' + r[1].role + ', ' + PERS[persFor(mi, mv, 1)].tag; }
   // Every caption is one story moment of about 11 seconds, shown as three shots (wide, talking, reaction) with fades between them.
@@ -1063,11 +1135,13 @@
     const quote = mature ? null : text.match(/["\u201C]([^"\u201D]{3,90})["\u201D]/), who = text.match(/^([A-Z][A-Za-z' -]{2,26}):\s*["\u201C]/), label = who ? who[1] : null;
     const lines = [], persA = persFor(mi, mv, 0), persB = persFor(mi, mv, 1);
     const bankA = mood ? (CORE_MOOD[info.dark && info.tod === 'day' ? 'dark' : info.tod] || CORE_MOOD.day) : CORE_A[cat], bankB = mood ? CORE_B.mood : CORE_B[cat];
-    const tA = compose(mi, persA, bankA, 'A', { o: b, place, thing }, h), tB = compose(mi, persB, bankB, 'B', { o: a, place, thing }, hash(h, 3, 9));
+    const prA = profileOf(mi, mv, 0), prB = profileOf(mi, mv, 1);
+    const tA = compose(mi, persA, bankA, 'A', { o: b, place, thing, fav: prA.fav }, h); let tB = compose(mi, persB, bankB, 'B', { o: a, place, thing, fav: prB.fav }, hash(h, 3, 9));
+    if (si > 1 && si % 5 === 2) { const pl = PROB[persB][((si / 5) | 0) % 3], us = usedLines[mi] || (usedLines[mi] = new Set()); if (!us.has(pl)) { us.add(pl); tB = pl; } }
     if (quote) { lines.push(['A', quote[1].replace(/\s+/g, ' ').trim(), label]); if (tB) lines.push(['B', tB]); }
     else { if (tA) lines.push(['A', tA]); if (tB) lines.push(['B', tB]); }
     let tcur = 0.4 + wc(text) / 2.6 + 0.5 + (si === 0 ? (wc(mv.title) + 17) / 2.6 + 1.0 : 0);
-    lines.forEach(l => { const o = { who: l[0], text: l[1], role: l[2] || nameOf[l[0]], pers: l[0] === 'A' ? persA : persB, start: tcur }; o.end = o.start + wc(o.text) / 2.6 + 0.3; tcur = o.end + 0.45; res.push(o); });
+    lines.forEach(l => { const o = { who: l[0], text: l[1], role: l[2] || nameOf[l[0]], pers: l[0] === 'A' ? persA : persB, emo: (EMOCAT[cat] || ['neutral', 'neutral'])[l[0] === 'A' ? 0 : 1], start: tcur }; o.end = o.start + wc(o.text) / 2.6 + 0.3; tcur = o.end + 0.45; res.push(o); });
     const dur = clamp(Math.max(11.4, tcur + 1.0), 11.4, 20); res.total = dur; res.beatLen = dur / BEATS;
     const e0 = EMOCAT[cat] || ['neutral', 'neutral'], e2 = REACT_EMO[cat] || (cat === 'win' ? ['joy', 'joy'] : e0);
     res.beats.push({ style: info.style, present: ['A', 'B'], emo: e0 }, { style: 'talk', present: ['A', 'B'].concat(info.present.indexOf('C') >= 0 ? ['C'] : []), emo: e0.concat(['neutral']) }, { style: REACT_STYLE[cat] || 'talk', present: ['A', 'B'], emo: e2 });
@@ -1145,7 +1219,7 @@
           const u = new SpeechSynthesisUtterance(cleanForSpeech(l.text)), cv = l.who === 'N' ? { voice: narratorVoice, rate: .95, pitch: 1 } : charVoice(l.who, narratorVoice);
           if (cv.voice) { u.voice = cv.voice; u.lang = cv.voice.lang; }
           u.rate = clamp(cv.rate || 1, .7, 1.3); u.pitch = clamp(cv.pitch || 1, .5, 1.8); u.volume = 1;
-          if (l.emo) { const EV = { angry: [1.08, -.05], scared: [1.15, .2], sad: [.85, -.1], joy: [1.1, .1], excited: [1.1, .1], worried: [1.05, .05] }[l.emo]; if (EV) { u.rate = clamp(u.rate * EV[0], .6, 1.4); u.pitch = clamp(u.pitch + EV[1], .4, 1.9); } }
+          if (l.emo) { const EV = { angry: [1.1, -.08], scared: [1.2, .25], sad: [.82, -.12], joy: [1.12, .14], excited: [1.15, .14], worried: [1.1, .12], surprised: [1.1, .2], shocked: [1.15, .22], curious: [1.0, .12], determined: [.92, -.06], serious: [.9, -.1], relieved: [.88, -.04], warm: [.95, .04], happy: [1.05, .08] }[l.emo]; if (l.emo === 'sad') u.volume = .8; if (l.emo === 'worried') u.volume = .9; if (EV) { u.rate = clamp(u.rate * EV[0], .6, 1.4); u.pitch = clamp(u.pitch + EV[1], .4, 1.9); } }
           { const PP = PERS[l.pers]; if (PP) { u.rate = clamp(u.rate * PP.rate, .6, 1.4); u.pitch = clamp(u.pitch + PP.dp, .4, 1.9); } }
           if (/!/.test(l.text)) { u.rate *= 1.05; u.pitch = clamp(u.pitch + .05, .5, 1.8); }
           window.speechSynthesis.speak(u); lineSfx(l, mv);
