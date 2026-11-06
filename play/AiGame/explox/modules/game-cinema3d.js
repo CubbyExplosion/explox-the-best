@@ -927,6 +927,14 @@
     act.concat(ex).forEach((p, i) => { const T = 3.3, c = Math.floor((tt + i * .73) / T), q = ((tt + i * .73) % T) / T / .28; if (q < 1 && hash(c, i + vr.fl, 4) % 3 !== 0 && !(style === 'dance' || style === 'highfive')) flourish(p, FLOURISH[hash(c, i + vr.fl, 9) % 8], q); });
     return sp;
   }
+  // ---------- what they see, you see: when a line talks about something, it appears in the scene, everyone turns to look at it, and the camera cuts to over their shoulder ----------
+  const SIGHT_PROP = [[/rocket|spaceship|mothership/i, 'rocket'], [/pizza/i, 'pizza'], [/treasure|\bcoins?\b|\bgold\b|money/i, 'coins'], [/\bcars?\b|truck|\bbus\b/i, 'car'], [/\bhouse\b|cabin/i, 'house'], [/\btree\b|forest/i, 'tree'], [/portal|time machine/i, 'portal'], [/\bmoon\b/i, 'moon'], [/\bsun\b|sunrise/i, 'sun'], [/trophy|medal|\bcup\b/i, 'trophy'], [/\bbook\b|\bmap\b|letter/i, 'book'], [/\bfire\b|flames?\b|torch|campfire/i, 'fire'], [/lantern|flashlight|\blamp\b/i, 'lantern'], [/lightning|thunder|storm/i, 'bolt'], [/shield|badge/i, 'shield']];
+  const SIGHT_BEING = [[/dragon/i, 'dragon'], [/\bdino(saurs?)?\b/i, 'dino'], [/\brobots?\b|android/i, 'robot'], [/ghost/i, 'ghost'], [/\baliens?\b|martian/i, 'alien'], [/ninjas?\b/i, 'ninja'], [/\bcats?\b|kitty/i, 'cat'], [/wizard/i, 'wizard'], [/\bkings?\b|queen/i, 'king'], [/detective/i, 'detective'], [/grandma|granny/i, 'grandma'], [/doctor/i, 'doctor']];
+  function sightFor(text) {
+    const t = String(text || ''); for (const [re, k] of SIGHT_BEING) if (re.test(t)) return { being: k };
+    for (const [re, k] of SIGHT_PROP) if (re.test(t)) return { prop: k };
+    return null;
+  }
   // ---------- the director: puts the right characters in the right place doing what the caption says ----------
   function directBeat(mi, si, mv, sc, t, info, dur, camSeed) {
     const u = clamp(t / dur, 0, 1); flashA = 0; zoomPunch = 0;
@@ -1067,6 +1075,15 @@
     { const tS = t + beatOffset, dlg = getDialogue(mi, si, mv, sc), ln = dlg.find(l => l.who !== 'N' && tS >= l.start - .15 && tS <= l.end + .5);
       if (ln && ACT_SET.has(style)) { const pi = info.present.indexOf(ln.who), sp = pi >= 0 ? act[pi] : null; if (sp) sp.mouth.scale.set(1, 1.4 + Math.abs(Math.sin(t * 12)) * 2.4, 1); }
       else if (ln) { const pi = info.present.indexOf(ln.who), sp = pi >= 0 ? act[pi] : null, ek = pickEmote(ln); if (sp && ek) { applyEmote(sp, ek, Math.max(0, tS - ln.start + .15)); if (sp.emoS) sp.emoS.visible = false; } } }
+    let sightCam = null;
+    { const tS = t + beatOffset, dlg = getDialogue(mi, si, mv, sc), ln = dlg.find(l => tS >= l.start - .1 && tS <= l.end + .6), sg = ln && sightFor(ln.text);
+      if (sg) {
+        const side = hash(mi + si, (ln.start * 10) | 0, 2) % 2 ? 1 : -1, P = new THREE.Vector3(side * 8.2, 0, -4.6);
+        if (sg.prop) { const o = makeProp(sg.prop); if (prop && prop !== o) prop.visible = false; o.visible = true; o.rotation.set(0, 0, 0); o.scale.setScalar(1); o.position.copy(P); if (o.userData.spin === 'y') o.rotation.y = t * 1.2; if (o.userData.spin === 'z') o.rotation.z = t * .8; if (o.userData.float) o.position.y = Math.sin(t * 2) * .5 + 1; if (o.userData.flicker) o.scale.setScalar(.95 + Math.abs(Math.sin(t * 17)) * .15); }
+        else { const def = npcPool()[hash(mi, si, 6) % npcPool().length], cp = personFor('sight_' + sg.being, def, sg.being, null); pose(cp); cp.g.visible = true; cp.g.scale.setScalar(2.1); cp.g.position.set(P.x, 0, P.z); cp.g.rotation.y = Math.atan2(-P.x, -P.z); limbs(cp, 2.6 + Math.sin(t * 6) * .4, 0, Math.sin(t * 4) * .3, -Math.sin(t * 4) * .3); shown.push(cp); }
+        if (style === 'talk' || style === 'look' || style === 'work') act.concat(ex).forEach(pp => { pp.g.rotation.y = Math.atan2(P.x - pp.g.position.x, P.z - pp.g.position.z); pp.head.rotation.y = 0; });
+        sightCam = { sp: act[Math.max(0, info.present.indexOf(ln.who))] || act[0], P, k: eas(clamp((tS - ln.start + .1) / .35, 0, 1)) };
+      } }
     act.concat(ex).forEach(c => { if (c.costume === 'ghost') c.g.position.y += .6 + Math.sin(t * 3) * .3; if (c.extras.wings) { const f = Math.sin(t * 7) * .5; c.extras.wings[0].rotation.z = f; c.extras.wings[1].rotation.z = -f; } });
     // camera: close enough to see the actors, moving in a different way for each scene
     const camStyle = ['orbit', 'dolly', 'crane', 'side'][hash(mi, si, 9 + camSeed) % 4], seed = hash(mi, si, 2 + camSeed) % 628 / 100, D = clamp(7 + spread * .9, 9, 17) * (camSeed > 0 ? .78 : 1) * (1 - zoomPunch * .22);
@@ -1074,6 +1091,10 @@
     else if (camStyle === 'dolly') { CAM.position.set(look.x + Math.sin(seed) * 4, 3.2 + u * .8, look.z + D * 1.15 - u * D * .5); }
     else if (camStyle === 'crane') { CAM.position.set(look.x - 6, 1.6 + u * 7, look.z + D * .9 - u * 2); }
     else { CAM.position.set(look.x + 2, 3.4, look.z + D); }
+    if (sightCam) {   // over the shoulder of whoever is looking: you see exactly what they see
+      const S = sightCam.sp.g.position, P = sightCam.P, dx = P.x - S.x, dz = P.z - S.z, L = Math.hypot(dx, dz) || 1, nx = dx / L, nz = dz / L;
+      CAM.position.lerp(new THREE.Vector3(S.x - nx * 7.5 - nz * 3.2, 4.6, S.z - nz * 7.5 + nx * 3.2), sightCam.k); look.lerp(new THREE.Vector3(P.x * .8, 2.6, P.z * .8), sightCam.k);
+    }
     if (shake) CAM.position.add(new THREE.Vector3((Math.random() - .5) * shake, (Math.random() - .5) * shake, 0));
     CAM.lookAt(look); rim.position.set(look.x - 8, 6, look.z + 4);
     return info;
