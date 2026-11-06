@@ -712,11 +712,11 @@
   let shown = [], curActors = [], curInfoNow = null;
 
   // ---------- things to DO: jump, dance, play ball, eat, paint, dig, climb, work out, shop, sing, high-five ----------
-  const ACT_STYLES = ['jump', 'dance', 'play', 'eat', 'write', 'dig', 'climb', 'exercise', 'shop', 'sing', 'highfive', 'fish', 'camp', 'magic', 'bubbles', 'photo', 'skate', 'snowball', 'juggle', 'tugwar', 'cook', 'drum', 'build', 'drive', 'spinning'], ACT_SET = new Set(ACT_STYLES);
+  const ACT_STYLES = ['jump', 'dance', 'play', 'eat', 'write', 'dig', 'climb', 'exercise', 'shop', 'sing', 'highfive', 'fish', 'camp', 'magic', 'bubbles', 'photo', 'skate', 'snowball', 'juggle', 'tugwar', 'cook', 'drum', 'build', 'drive', 'spinning', 'desk'], ACT_SET = new Set(ACT_STYLES);
   function chatActivity(mi, si, k, info, txt) {   // what are they doing while they talk?
     const vs = verbStyle(String(txt || '').toLowerCase(), mi, si); if (ACT_SET.has(vs)) return vs;
     if (info && info.dark) return null;
-    const pool = info && info.comedy ? ACT_STYLES : ['write', 'exercise', 'play', 'jump', 'dig', 'shop', 'eat', 'climb', 'fish', 'camp', 'photo', 'build', 'cook', 'drum', 'skate', 'magic'];
+    const pool = info && info.comedy ? ACT_STYLES.filter(x => x !== 'desk') : ['write', 'exercise', 'play', 'jump', 'dig', 'shop', 'eat', 'climb', 'fish', 'camp', 'photo', 'build', 'cook', 'drum', 'skate', 'magic'];
     return hash(mi, si + k, 31) % 100 < 70 ? pool[hash(mi, si * 3 + k, 17) % pool.length] : null;
   }
   const ballGeo = new THREE.SphereGeometry(.45, 14, 10), ballMat = new THREE.MeshBasicMaterial({ color: 0xff5533 });
@@ -930,6 +930,15 @@
       words2d(Math.floor(t / 4) * 4 + .2, 'WHEEE!', 2); if ((t % 4) > 3) words2d(Math.floor(t / 4) * 4 + 3.1, 'WOW, DIZZY!', 4);
       look.set(0, 2.3, 0); return 8;
     }
+    if (style === 'desk') {   // one serious person sits behind a counter, perfectly still, while nothing at all happens
+      wmT(7.5, 1.5, 2.2, 0x8a6a4a, 0, .75, .4); wmT(7.8, .18, 2.5, 0xb08a5e, 0, 1.6, .4); wmT(1.8, .45, .1, 0xffffff, 0, 1.2, 1.55); wmT(1, .35, .8, 0xffffff, -2.6, 1.85, .4); wmT(.9, .3, .7, 0xfff9c4, -2.4, 2.1, .3);
+      wmT(.6, 1.4, .6, 0x2e7d32, 3.3, 2.1, -.2); wmT(1.3, 1.3, .12, 0xffffff, 3.6, 5.4, -4.2); const hand = wmT(.12, .55, .1, 0x111111, 3.6, 5.6, -4.1); hand.rotation.z = -t * .05;
+      if (A) { A.g.position.set(0, -.45, -1.5); A.g.rotation.y = 0; A.legL.rotation.x = A.legR.rotation.x = -1.4; A.armL.rotation.x = A.armR.rotation.x = -1.25; A.armL.rotation.z = -.15; A.armR.rotation.z = .15; A.head.rotation.y = sn(t * .35) * .08; A.head.rotation.x = .04; A.mouth.scale.set(1, .5, 1); }
+      if (B) { B.g.position.set(-4.6, 0, -.4); B.g.rotation.y = .5; B.armL.rotation.x = B.armR.rotation.x = .2; B.head.rotation.x = .15; B.body.position.y = sn(t * .5) * .03; }
+      if (act[2]) { act[2].g.position.set(4.4, -.45, -.8); act[2].g.rotation.y = -.5; act[2].legL.rotation.x = act[2].legR.rotation.x = -1.4; act[2].head.rotation.x = .3 + sn(t * .4) * .1; act[2].armL.rotation.x = act[2].armR.rotation.x = -.5; }
+      ex.forEach((p, i) => { p.g.position.set((i - (ex.length - 1) / 2) * 2.2, -.45, -5); p.g.rotation.y = 0; p.legL.rotation.x = p.legR.rotation.x = -1.4; p.head.rotation.x = .35 + sn(t * .3 + i) * .08; p.armL.rotation.x = p.armR.rotation.x = -.4; });
+      look.set(0, 2.5, -1); return 10;
+    }
     return 5;
   }
   // every scene gets its own tempo, colour theme and signature flourishes, so there are thousands of different looks
@@ -953,7 +962,7 @@
   function activity(style, act, ex, t, u, look, mi, si, beatNo) {
     const h = hash(mi * 7 + si, beatNo || 0, 3), vr = { tempo: TEMPO[h % 5], hue: HUES[hash(h, 5, 2) % 12], fl: hash(h, 7, 5) };
     HUE = vr.hue; const tt = t * vr.tempo, sp = activityBase(style, act, ex, tt, u, look, mi, si); HUE = 0;
-    act.concat(ex).forEach((p, i) => { const T = 3.3, c = Math.floor((tt + i * .73) / T), q = ((tt + i * .73) % T) / T / .28; if (q < 1 && hash(c, i + vr.fl, 4) % 3 !== 0 && !(style === 'dance' || style === 'highfive' || style === 'drive' || style === 'spinning')) flourish(p, FLOURISH[hash(c, i + vr.fl, 9) % 8], q); });
+    act.concat(ex).forEach((p, i) => { const T = 3.3, c = Math.floor((tt + i * .73) / T), q = ((tt + i * .73) % T) / T / .28; if (q < 1 && hash(c, i + vr.fl, 4) % 3 !== 0 && !(style === 'dance' || style === 'highfive' || style === 'drive' || style === 'spinning' || style === 'desk')) flourish(p, FLOURISH[hash(c, i + vr.fl, 9) % 8], q); });
     return sp;
   }
   // ---------- what they see, you see: when a line talks about something, it appears in the scene, everyone turns to look at it, and the camera cuts to over their shoulder ----------
@@ -1011,7 +1020,7 @@
     [/\b(magic|spell|sparkle|wand)\b/, 'sparkle'], [/\b(scream|screams|yell|shout|shouts)\b/, 'scream'], [/\b(whistle|whistles)\b/, 'whistle'], [/\b(applause|clap|claps|cheer|cheers|hooray)\b/, 'applause'], [/\b(sneeze|achoo)\b/, 'sneeze'], [/\b(coin|coins|money|gold|treasure)\b/, 'ching'],
     [/\b(page|book|map|letter)\b/, 'pageflip'], [/\b(fire|flame|flames|torch)\b/, 'flame'], [/\b(lightning|zap|electric)\b/, 'zap'], [/\b(roar|roars|dragon|dinosaur)\b/, 'roar'], [/\b(ghost|spooky|haunted)\b/, 'woo'], [/\b(cat|kitty|meow)\b/, 'meow'], [/\b(robot|beep|boop)\b/, 'beepbeep'], [/\b(heart|love)\b/, 'heartbeat']];
   const CS_STYLE = { walk: [2.9, 'step'], run: [4.4, 'run'], sneak: [1.7, 'tiptoe'], jump: [.9, 'boing'], dance: [2.2, 'clap2'], play: [.75, 'thump'], eat: [2.6, 'crunch'], write: [2.2, 'scribble'], dig: [1.6, 'scoop'], climb: [1.4, 'clink'], exercise: [1.6, 'grunt'], shop: [.55, 'ching'], sing: [1.1, 'sparkle'],
-    highfive: [.34, 'slap'], party: [1.2, 'pop'], fish: [.28, 'splash'], camp: [3.5, 'crackle'], magic: [.6, 'sparkle'], bubbles: [3.2, 'pop'], photo: [.38, 'shutter'], skate: [2.6, 'swish'], snowball: [.85, 'whump'], juggle: [4.2, 'toss'], tugwar: [1.1, 'creak'], cook: [2.4, 'sizzle'], drum: [4.6, 'drum'], build: [1.15, 'thump'], work: [2.6, 'hammer'], drive: [.5, 'honk2'], spinning: [1.6, 'swish'], panic: [1.5, 'squeak'], look: [.0, null], talk: [.0, null] };
+    highfive: [.34, 'slap'], party: [1.2, 'pop'], fish: [.28, 'splash'], camp: [3.5, 'crackle'], magic: [.6, 'sparkle'], bubbles: [3.2, 'pop'], photo: [.38, 'shutter'], skate: [2.6, 'swish'], snowball: [.85, 'whump'], juggle: [4.2, 'toss'], tugwar: [1.1, 'creak'], cook: [2.4, 'sizzle'], drum: [4.6, 'drum'], build: [1.15, 'thump'], work: [2.6, 'hammer'], drive: [.5, 'honk2'], spinning: [1.6, 'swish'], desk: [.5, 'tick'], panic: [1.5, 'squeak'], look: [.0, null], talk: [.0, null] };
   const csState = { style: '', idx: -1, once: {}, eng: null, amb: null, ambKey: '', ambTimer: 0 };
   function csFlow(style, t, mi) {
     try {
@@ -1276,6 +1285,7 @@
   }
   // what is being SAID right now (the narrator's caption at the start, then every line) decides what is being DONE
   function wordsStyle(dl, sc, mi, si, t) {
+    if (/BORING/.test((CINEMA_MOVIES[mi] && CINEMA_MOVIES[mi].tvTag) || '')) return null;   // the Boring Channel never does anything exciting, whatever the words say
     const first = dl.length ? dl[0].start : 0, ln = dl.find(l => t >= l.start - .1 && t <= l.end + .4);
     const txt = ln ? ln.text : (t < first - .1 ? sc.text : null); if (!txt) return null;
     const v = verbStyle(String(txt).toLowerCase(), mi, si, true); return v && v !== 'talk' && v !== 'look' ? v : null;
@@ -1680,7 +1690,7 @@
     magic: ['penthouse_view', 'neon_lights', 'galaxy_drive'], night: ['neon_district', 'metro_groove'], adventure: ['mission_zone', 'galaxy_drive', 'beach_cruise'],
   };
   const MOOD_VOL = { scared: .15, sad: .17, serious: .16, night: .16, worried: .16, sneak: .15, fight: .26, chase: .26, party: .24, angry: .24, excited: .24, joy: .22 };
-  const STYLE_MOOD = { fight: 'fight', run: 'chase', sneak: 'sneak', panic: 'scared', party: 'party', dance: 'party', highfive: 'joy', sing: 'happy', drum: 'excited', magic: 'magic', fly: 'adventure', climb: 'determined', exercise: 'determined', build: 'determined', skate: 'excited', jump: 'excited', play: 'happy', eat: 'happy', cook: 'happy', camp: 'warm', fish: 'relieved', write: 'curious', shop: 'curious', dig: 'curious', photo: 'happy', snowball: 'joy', juggle: 'joy', bubbles: 'joy', tugwar: 'determined', drive: 'adventure', spinning: 'joy' };
+  const STYLE_MOOD = { fight: 'fight', run: 'chase', sneak: 'sneak', panic: 'scared', party: 'party', dance: 'party', highfive: 'joy', sing: 'happy', drum: 'excited', magic: 'magic', fly: 'adventure', climb: 'determined', exercise: 'determined', build: 'determined', skate: 'excited', jump: 'excited', play: 'happy', eat: 'happy', cook: 'happy', camp: 'warm', fish: 'relieved', write: 'curious', shop: 'curious', dig: 'curious', photo: 'happy', snowball: 'joy', juggle: 'joy', bubbles: 'joy', tugwar: 'determined', drive: 'adventure', spinning: 'joy', desk: 'serious' };
   const TOD_MOOD = { night: 'night', storm: 'angry', dawn: 'joy', dusk: 'warm', day: 'happy' };
   function moodAt(mi, si, mv, sc, t) {
     const info = getInfo(mi, si, mv, sc), dl = getDialogue(mi, si, mv, sc), ln = dl.find(l => t >= l.start - .1 && t <= l.end + .6); let bb = null;
