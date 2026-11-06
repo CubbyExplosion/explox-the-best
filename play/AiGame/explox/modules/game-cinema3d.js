@@ -565,7 +565,7 @@
 
   // ---------- reading a scene's caption ----------
   const sceneInfoCache = {};
-  function verbStyle(t, mi, si) {
+  function verbStyle(t, mi, si, strict) {
     if (/fight|battle|attack|punch|kick|strike|clash|duel|defend|brawl|war\b|fist/.test(t)) return 'fight';
     if (/\b(run|runs|running|ran|race|races|racing|chase|chases|chasing|escape|escapes|rush|rushes|flee|flees|fleeing|sprint|sprints|speed|speeds)\b/.test(t)) return 'run';
     if (/\b(launch|launches|launched|fly|flies|flying|flight|soar|soars|wings|take off|takes off|orbit|orbits|warp|cruise|cruising)\b/.test(t)) return 'fly';
@@ -599,7 +599,7 @@
     if (/build|hammer|raise|rises|construct|work|craft|cook|bake|fix|repair/.test(t)) return 'work';
     if (/walk|march|travel|journey|arrive|head to|heads to|steps|stroll|enter|leav|return|wander/.test(t)) return 'walk';
     if (/meet|talk|say|says|ask|speak|tell|warn|call|plan|council|decid|learn|teach|train|whisper|shout|speech|announce|promise|\"/.test(t)) return 'talk';
-    return ['talk', 'look', 'walk'][hash(mi, si, 4) % 3];
+    return strict ? null : ['talk', 'look', 'walk'][hash(mi, si, 4) % 3];
   }
   function getInfo(mi, si, mv, sc) {
     const key = mi + '_' + si; if (sceneInfoCache[key]) return sceneInfoCache[key];
@@ -1084,6 +1084,12 @@
         if (style === 'talk' || style === 'look' || style === 'work') act.concat(ex).forEach(pp => { pp.g.rotation.y = Math.atan2(P.x - pp.g.position.x, P.z - pp.g.position.z); pp.head.rotation.y = 0; });
         sightCam = { sp: act[Math.max(0, info.present.indexOf(ln.who))] || act[0], P, k: eas(clamp((tS - ln.start + .1) / .35, 0, 1)) };
       } }
+    { const tS = t + beatOffset, dlg = getDialogue(mi, si, mv, sc), ln = dlg.find(l => tS >= l.start - .1 && tS <= l.end + 1.4), first = dlg.length ? dlg[0].start : 0;
+      const txt = ln ? ln.text : (tS < first ? sc.text : ''), lt = String(txt || '').toLowerCase(), t0 = ln ? ln.start : 0, age = tS - t0, who = ln && ln.who !== 'N' ? Math.max(0, info.present.indexOf(ln.who)) : hash(mi, si, 8) % Math.max(1, act.length);
+      if (/\b(explo\w*|boom|crash\w*|bang|blast\w*|kaboom|thunder\w*)\b/.test(lt) && age >= 0 && age < 1.2) { if (age < .35) { flashA = Math.max(flashA, (1 - age / .35) * .9); shake = Math.max(shake, .6 * (1 - age / .35)); } words2d(t0 - beatOffset + .05, 'BOOM!', 3); }
+      if (/\b(fall|falls|fell|falling|trip|trips|tripped|slip|slips|slipped|tumble\w*)\b/.test(lt) && age >= 0 && age < 1.8) { const v = act[who % act.length], lie = eas(Math.min(age / .4, 1)) * (1 - eas(clamp((age - 1.3) / .4, 0, 1))); v.g.rotation.x = -1.4 * lie; v.g.position.y += .5 * lie; v.mouth.scale.set(1, 3, 1); if (lie > .5) { spr('\u{1F4AB}', v.g.position.x, 5.2, v.g.position.z, 1.1); words2d(t0 - beatOffset + .2, 'OOF!', 2); } }
+      if (/\b(sleep|sleeps|asleep|sleeping|nap|naps|snore\w*|yawn\w*|dream\w*)\b/.test(lt) && age >= 0 && age < 6) { const v = act[who % act.length]; v.head.rotation.x = .55; v.body.rotation.x = .25; v.armL.rotation.x = v.armR.rotation.x = .2; v.mouth.scale.set(1, .5, 1); for (let k = 0; k < 3; k++) { const ag = (t * .5 + k / 3) % 1; spr('\u{1F4A4}', v.g.position.x + .8 + ag * .8, 5 + ag * 1.8, v.g.position.z, 1 - ag * .5); } }
+    }
     act.concat(ex).forEach(c => { if (c.costume === 'ghost') c.g.position.y += .6 + Math.sin(t * 3) * .3; if (c.extras.wings) { const f = Math.sin(t * 7) * .5; c.extras.wings[0].rotation.z = f; c.extras.wings[1].rotation.z = -f; } });
     // camera: close enough to see the actors, moving in a different way for each scene
     const camStyle = ['orbit', 'dolly', 'crane', 'side'][hash(mi, si, 9 + camSeed) % 4], seed = hash(mi, si, 2 + camSeed) % 628 / 100, D = clamp(7 + spread * .9, 9, 17) * (camSeed > 0 ? .78 : 1) * (1 - zoomPunch * .22);
@@ -1099,17 +1105,23 @@
     CAM.lookAt(look); rim.position.set(look.x - 8, 6, look.z + 4);
     return info;
   }
+  // what is being SAID right now (the narrator's caption at the start, then every line) decides what is being DONE
+  function wordsStyle(dl, sc, mi, si, t) {
+    const first = dl.length ? dl[0].start : 0, ln = dl.find(l => t >= l.start - .1 && t <= l.end + .4);
+    const txt = ln ? ln.text : (t < first - .1 ? sc.text : null); if (!txt) return null;
+    const v = verbStyle(String(txt).toLowerCase(), mi, si, true); return v && v !== 'talk' && v !== 'look' ? v : null;
+  }
   // a scene is a sequence of shots; each shot has its own camera, action and dialogue
   function direct(mi, si, mv, sc, t) {
     const info = getInfo(mi, si, mv, sc), dl = getDialogue(mi, si, mv, sc), nb = dl.beats ? dl.beats.length : 1;
     if (dl.beatStarts) {
       let bt = 0; for (let k = 0; k < dl.beatStarts.length; k++) if (t >= dl.beatStarts[k]) bt = k;
       const bs = dl.beatStarts[bt], be = dl.beatEnds[bt], bb = dl.beats[bt]; beatOffset = bs;
-      return directBeat(mi, si, mv, sc, t - bs, Object.assign({}, info, { style: bb.style, present: bb.present, emo: bb.emo }), Math.max(2, be - bs), bt);
+      return directBeat(mi, si, mv, sc, t - bs, Object.assign({}, info, { style: wordsStyle(dl, sc, mi, si, t) || bb.style, present: bb.present, emo: bb.emo }), Math.max(2, be - bs), bt);
     }
     const BL = dl.beatLen || 4, beat = Math.min(nb - 1, Math.floor(t / BL)), b = (dl.beats && dl.beats[beat]) || { style: info.style, present: info.present };
     beatOffset = beat * BL;
-    return directBeat(mi, si, mv, sc, t - beat * BL, Object.assign({}, info, { style: b.style, present: b.present, emo: b.emo }), BL, beat);
+    return directBeat(mi, si, mv, sc, t - beat * BL, Object.assign({}, info, { style: wordsStyle(dl, sc, mi, si, t) || b.style, present: b.present, emo: b.emo }), BL, beat);
   }
 
   // ---------- sets: each of the three is built once and shown or hidden ----------
