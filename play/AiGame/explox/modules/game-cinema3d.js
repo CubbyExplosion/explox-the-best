@@ -960,7 +960,7 @@
         else if (f < .34) { const k = (f - .2) / .14; bp = { x: lrp(W0.x + dir * .9, W1.x, k), y: .35 + sn(Math.PI * k) * .7, z: lrp(W0.z, W1.z, k) }; }
         else if (f < .48) { const k = (f - .34) / .14; bp = { x: lrp(W1.x, W2.x, k), y: .35 + sn(Math.PI * k) * .8, z: lrp(W1.z, W2.z, k) }; }
         else if (f < .58) bp = { x: W2.x + dir * .8, y: .3, z: W2.z };
-        else if (kind0 === 'foul') bp = { x: W2.x + dir * .8, y: .3, z: W2.z };
+        else if (kind0 === 'foul' || kind0 === 'brawl' || kind0 === 'scuffle') bp = { x: W2.x + dir * .8, y: .3, z: W2.z };
         else if (kind0 === 'tackle') { const k = cl((f - .58) / .3); bp = { x: lrp(W2.x + dir * .8, -dir * 4, k), y: .3 + Math.abs(sn(k * 9)) * .25, z: lrp(W2.z, 2.5, k) }; }
         else if (f < .7) { const k = (f - .58) / .12; bp = { x: lrp(W2.x + dir * .8, tgt.x, k), y: lrp(.4, tgt.y, k) + sn(Math.PI * k) * .7, z: lrp(W2.z, tgt.z, k) }; }
         else if (res === 'post') { const k = cl((f - .7) / .14); bp = { x: lrp(tgt.x, dir * 9.5, k), y: Math.abs(sn(k * 6)) * .7 + .3, z: lrp(tgt.z, 4, k) }; }
@@ -984,11 +984,32 @@
         const pm = (pp, q) => { pp.g.position.set(q.x * K, 0, q.z * K); toward(pp, bw.x, bw.z); walk(pp, t * 1.7 + q.x, 14, .95); pp.body.rotation.x = .14; };
         if (!isPen) { pm(a1, pa1); pm(a2, pa2); } pm(a3, pa3);
         if (!isPen) { kick(a1, .2); kick(a2, .34); } kick(a3, .58);
-        if ((kind0 === 'tackle' || kind0 === 'foul') && defT[1] && f > .46 && f < .75) { const d0 = defT[1], k = cl((f - .46) / .2); d0.g.position.set(lrp(W2.x + dir * 3, W2.x + dir * .6, ease2(k)) * K, .2, W2.z * K); d0.g.rotation.y = dir > 0 ? -Math.PI / 2 : Math.PI / 2; d0.g.rotation.z = (dir > 0 ? -1 : 1) * 1.3 * sn(Math.PI * Math.min(k * 1.2, 1) * .8); if (f > .5 && playing(mi)) csOnce(key('tackle'), 'smack'); }
-        if (kind0 === 'foul' && f > .53) { const lie = ease2(cl((f - .53) / .08)) * (1 - ease2(cl((f - .88) / .1))); a3.g.rotation.z = (dir > 0 ? 1 : -1) * 1.45 * lie; a3.g.position.y = .25 * lie; a3.mouth.scale.set(.6, 3, 1);
-          if (f > .56) { ref.armR.rotation.x = f > .66 ? 2.8 : 1.6; if (f > .66) spr(SO.red ? '\u{1F7E5}' : '\u{1F7E8}', ref.g.position.x, 5.2, ref.g.position.z, 1.1); if (playing(mi)) csOnce(key('whistle'), 'whistle'); } }
+        if ((kind0 === 'tackle' || kind0 === 'foul' || kind0 === 'brawl' || kind0 === 'scuffle') && defT[1] && f > .46 && f < .75) { const d0 = defT[1], k = cl((f - .46) / .2); d0.g.position.set(lrp(W2.x + dir * 3, W2.x + dir * .6, ease2(k)) * K, .2, W2.z * K); d0.g.rotation.y = dir > 0 ? -Math.PI / 2 : Math.PI / 2; d0.g.rotation.z = (dir > 0 ? -1 : 1) * 1.3 * sn(Math.PI * Math.min(k * 1.2, 1) * .8); if (f > .5 && playing(mi)) csOnce(key('tackle'), 'smack'); }
+        if ((kind0 === 'foul' || kind0 === 'brawl' || kind0 === 'scuffle') && f > .53) { const lie = ease2(cl((f - .53) / .08)) * (1 - ease2(cl((f - (kind0 === 'foul' ? .88 : .66)) / .1))); a3.g.rotation.z = (dir > 0 ? 1 : -1) * 1.45 * lie; a3.g.position.y = .25 * lie; a3.mouth.scale.set(.6, 3, 1);
+          if (f > .56) { ref.armR.rotation.x = f > .66 ? 2.8 : 1.6; if (f > .66 && kind0 === 'foul') spr(SO.red ? '\u{1F7E5}' : '\u{1F7E8}', ref.g.position.x, 5.2, ref.g.position.z, 1.1); if (playing(mi)) csOnce(key('whistle'), 'whistle'); } }
         if (isPen && f > .45 && f < .6 && playing(mi)) csOnce(key('whistle'), 'whistle');
         if (kind0 === 'trick' && f > .5 && f < .66) { const k = cl((f - .5) / .14); a3.g.position.y = sn(Math.PI * k) * 2.4; a3.body.rotation.x = dir * -Math.PI * 2 * k; a3.legR.rotation.x = -1.4; a3.armL.rotation.z = -1.3; a3.armR.rotation.z = 1.3; }
+        if (kind0 === 'brawl' || kind0 === 'scuffle') {   // a cartoon fight on the pitch: the players run in and trade punches, kicks and shoves, then the referee breaks it up with red cards
+          const big = kind0 === 'brawl', k0 = cl((f - .58) / .08), kk = ease2(k0) * (1 - ease2(cl((f - .9) / .08))), pairs = big ? 10 : 2;
+          if (f > .56) for (let i = 0; i < pairs; i++) {
+            const ang = i * Math.PI * 2 / pairs + .4, rad = big ? 1.1 + (i % 3) * 1.0 : .15, cx = W2.x + Math.cos(ang) * rad * 1.3, cz = W2.z + Math.sin(ang) * rad, sep = .55 + sn(t * 5 + i) * .12;
+            const e = exT[i], o = opT[i], qe = P(cx - sep * .7, cz), qo = P(cx + sep * .7, cz), ph = t * 6 + i * 1.3;
+            [[e, qe, qo, 0], [o, qo, qe, 1]].forEach(([pp, q, opp, j]) => {
+              pp.g.position.set(lrp(pp.g.position.x / K, q.x, kk) * K, 0, lrp(pp.g.position.z / K, q.z, kk) * K); toward(pp, opp.x * K, opp.z * K);
+              if (kk > .4) { const v = sn(ph + j * Math.PI), kickMove = (i + j) % 3 === 0;
+                if (v > .5) { if (kickMove) { pp.legR.rotation.x = -1.6; pp.body.rotation.x = -.25; pp.armL.rotation.x = -.8; pp.armR.rotation.x = .9; } else { pp.armR.rotation.x = -1.9; pp.body.rotation.y = .5 * (j ? -1 : 1); pp.armL.rotation.x = 1.0; } } else { pp.armL.rotation.x = -1.0; pp.armR.rotation.x = -1.0 + sn(ph * 2) * .3; pp.body.rotation.x = .15; }
+                pp.mouth.scale.set(1.2, 2.2, 1);
+                if (i % 3 === 0 && j === 1 && ((t * .3 + i * .37) % 1) > .78 && ((t * .3 + i * .37) % 1) < .95) { pp.g.rotation.z = 1.3 * (dir > 0 ? -1 : 1); pp.g.position.y = .2; pp.armL.rotation.x = pp.armR.rotation.x = 2.2; }
+              } });
+            if (kk > .4 && sn(ph) > .85) { for (let k = 0; k < 6; k++) { const a2 = k * Math.PI * 2 / 6 + t * 4, st = new THREE.Mesh(fxStar, fxMatY); st.userData.shared = true; st.position.set(cx * K + Math.cos(a2) * 1.2, 2.6 + Math.sin(a2) * 1.0, cz * K); st.scale.setScalar(.9); fxGroup.add(st); } }
+            if (big && kk > .4 && i % 2 === 0) { const ag = (t * 1.3 + i * .21) % 1; wMesh(1.4 + ag, 1.0 + ag, 1.4 + ag, 0xe9e4d8, cx * K, .8 + ag * 1.4, cz * K); }
+          }
+          if (f > .64 && playing(mi)) csOnce(key('whistle'), 'whistle'); if (f > .6 && f < .9 && playing(mi)) csOnce(key('b' + Math.floor(t * 3)), 'bam');
+          if (f > .68) { place(ref, P(W2.x - dir * 1.5, W2.z + 2.5)); ref.armR.rotation.x = 2.8; spr('\u{1F7E5}', ref.g.position.x, 5.4, ref.g.position.z, 1.2); }
+          if (f > .78) { [exT[0], opT[0]].forEach(pp => spr('\u{1F7E5}', pp.g.position.x, 5.2, pp.g.position.z, 1.1)); }
+          Wd(.62, big ? 'BRAWL!' : 'SCUFFLE!', 3); if (f > .78) Wd(.8, 'RED CARDS!', 2);
+          if (f > .56 && f < .66) { zoomPunch = Math.max(zoomPunch, .4); }
+        }
         const kx = dir * 12.6, kz = (f > .6 && f < .86) ? (res === 'save' ? clamp(tgt.z, -2.2, 2.2) * cl((f - .6) / .1) : goalish ? -Math.sign(tgt.z) * 2.2 * cl((f - .6) / .1) : 0) : clamp(bp.z * .4, -1.8, 1.8);
         keeperD.g.position.set(kx * K, 0, kz * K); toward(keeperD, 0, bp.z * K); keeperD.armL.rotation.x = keeperD.armR.rotation.x = 1.4; keeperD.legL.rotation.x = sn(t * 6) * .25; keeperD.legR.rotation.x = -sn(t * 6) * .25;
         if (f > .62 && f < .8 && (res === 'save' || goalish)) { const k = cl((f - .62) / .1); keeperD.g.rotation.z = (kz >= 0 ? -1 : 1) * (dir > 0 ? 1 : -1) * 1.2 * k; keeperD.g.position.y = sn(Math.PI * k) * .8 + .3; keeperD.armL.rotation.x = keeperD.armR.rotation.x = 2.8; }
@@ -1006,8 +1027,8 @@
       crowdUpdate(t, celeb ? 1 : (kind0 === 'final' ? .8 : (res === 'save' && f > .7) ? .5 : .2), opK);
       const ball = new THREE.Mesh(ballGeo, soccerMat); ball.userData.shared = true; ball.scale.setScalar(.9); ball.position.set(bw.x, bp.y * .8 + .3, bw.z); ball.rotation.set(t * 11, 0, t * 7); fxGroup.add(ball);
       const done = goalish && f > .72; soccerHud = { a: SO.opp, sa: done ? SO.after[0] : SO.before[0], sb: done ? SO.after[1] : SO.before[1], min: SO.min, col: SO.col }; if (SO.type === 'final') soccerHud.min = 90;
-      const wide = new THREE.Vector3(clamp(bw.x * .45, -22, 22), 15, 31), wlook = new THREE.Vector3(clamp(bw.x * .7, -26, 26), .5, 0), cin = play ? eas(cl((f - .45) / .1)) * (1 - eas(cl((f - .8) / .12))) : 0;
-      const near = new THREE.Vector3(bw.x * .75 + dir * 6, 6.5, bw.z + 17), nlook = new THREE.Vector3(bw.x, 1.4, bw.z), cpos = wide.clone().lerp(near, cin), clk = wlook.clone().lerp(nlook, cin);
+      const wide = new THREE.Vector3(clamp(bw.x * .45, -22, 22), 15, 31), wlook = new THREE.Vector3(clamp(bw.x * .7, -26, 26), .5, 0), brw = kind0 === 'brawl' || kind0 === 'scuffle', cin = play ? (brw ? eas(cl((f - .5) / .08)) * (1 - eas(cl((f - .93) / .05))) : eas(cl((f - .45) / .1)) * (1 - eas(cl((f - .8) / .12)))) : 0;
+      const near = brw ? new THREE.Vector3(bw.x + 2, 7, bw.z + 13) : new THREE.Vector3(bw.x * .75 + dir * 6, 6.5, bw.z + 17), nlook = new THREE.Vector3(bw.x, 1.4, bw.z), cpos = wide.clone().lerp(near, cin), clk = wlook.clone().lerp(nlook, cin);
       fightCam = { pos: cpos, look: clk, k: 1 };
       look.set(clamp(bw.x * .7, -26, 26), 1, 0); return 22;
     }
