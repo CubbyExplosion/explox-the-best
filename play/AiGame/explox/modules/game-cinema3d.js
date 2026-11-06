@@ -702,7 +702,8 @@
     }
   }
   function limbs(p, a, b, c, d) { p.armL.rotation.x = a; p.armR.rotation.x = b; p.legL.rotation.x = c; p.legR.rotation.x = d; }
-  function pose(p) { p.g.rotation.set(0, p.g.rotation.y, 0); p.body.rotation.set(0, 0, 0); p.body.position.set(0, 0, 0); p.head.rotation.set(0, 0, 0); p.head.scale.setScalar(p.costume === 'alien' ? 1.25 : 1); limbs(p, 0, 0, 0, 0); p.armL.rotation.z = 0; p.armR.rotation.z = 0; p.mouth.scale.set(1, 1, 1); p.g.position.y = 0; }
+  function pose(p) { if (p.weirdScaled) { p.g.scale.setScalar(1.45); p.weirdScaled = false; } p.head.scale.setScalar(1);
+ p.g.rotation.set(0, p.g.rotation.y, 0); p.body.rotation.set(0, 0, 0); p.body.position.set(0, 0, 0); p.head.rotation.set(0, 0, 0); p.head.scale.setScalar(p.costume === 'alien' ? 1.25 : 1); limbs(p, 0, 0, 0, 0); p.armL.rotation.z = 0; p.armR.rotation.z = 0; p.mouth.scale.set(1, 1, 1); p.g.position.y = 0; }
   function walk(p, t, sp, big) { const s = Math.sin(t * sp) * (big || .8); limbs(p, -s, s, s, -s); p.body.position.y = Math.abs(Math.sin(t * sp)) * .12; }
   let beatOffset = 0, lastSceneKey = '', flashA = 0, zoomPunch = 0, titleKey = -1, fightKey = '', fightHud = null, fightCam = null; const fightT0 = {}, fightLast = {};
   const auraMat = { A: new THREE.MeshBasicMaterial({ color: 0xffd54a, transparent: true, opacity: .33 }), B: new THREE.MeshBasicMaterial({ color: 0x40c4ff, transparent: true, opacity: .33 }) }, dustMat = new THREE.MeshBasicMaterial({ color: 0xc8b28a });
@@ -1042,9 +1043,28 @@
     } catch (e) { }
   }
   function csStop() { try { if (csState.amb) csState.amb.stop(); csState.amb = null; csState.ambKey = ''; csEngine(false); csState.style = ''; csState.once = {}; } catch (e) { } }
+  // ---------- weird stuff: pizza rain, floating cows, no gravity, a giant duck, big heads, tiny people, fish in the sky, an upside-down world, a sun in sunglasses ----------
+  const WEIRD = ['pizzaRain', 'cows', 'gravity', 'duck', 'bigHead', 'tiny', 'fishSky', 'upsideDown', 'coolSun', 'donutRain'];
+  let weirdFlip = false;
+  Object.assign(CSFX, { quack() { tn(520, 'sawtooth', .1, .14, 0, 360); tn(470, 'sawtooth', .09, .16, .2, 330); }, moo() { tn(150, 'sawtooth', .12, .9, 0, 105); } });
+  function weirdFx(mi, si, mv, t, u, style, act, ex, beatNo) {
+    const always = mv.tv && /WEIRD/.test(mv.tvTag || ''), roll = hash(mi, si, 41) % 100;
+    if (!always && !(roll < 60 && beatNo === hash(mi, si, 43) % 3)) return; if (u < .1 || u > .9) return;
+    const type = always ? WEIRD[hash(mi + si, beatNo, 47) % WEIRD.length] : WEIRD[hash(mi, si, 47) % WEIRD.length], all = act.concat(ex), calm = ['fight', 'fly', 'drive', 'spinning'].indexOf(style) < 0, sn = Math.sin, key = mi + '_' + si + '_' + beatNo + '_w';
+    const say = (txt, snd) => { words2d(.8, txt, 5); if (playing(mi)) csOnce(key, snd || 'warp'); };
+    if (type === 'pizzaRain' || type === 'donutRain') { const em = type === 'pizzaRain' ? ['\u{1F355}', '\u{1F354}', '\u{1F32D}'] : ['\u{1F369}', '\u{1F36A}', '\u{1F382}']; for (let k = 0; k < 20; k++) { const ag = (t * .45 + k * .137) % 1; spr(em[k % 3], (k * 2.7 % 20) - 10, 11 - ag * 11, -3 + (k * 1.9 % 7), 1.5); } say(type === 'pizzaRain' ? 'IT IS RAINING PIZZA?!' : 'DONUTS FROM THE SKY?!', 'pop'); }
+    else if (type === 'cows') { for (let k = 0; k < 3; k++) spr('\u{1F404}', -9 + ((t * .8 + k * 6) % 22), 7 + k * 1.6 + sn(t * 2 + k) * .6, -9, 4); say('MOO?!', 'moo'); }
+    else if (type === 'gravity' && calm) { all.forEach((p, i) => { p.g.position.y += 2.6 + sn(t * 1.5 + i) * 1.6; p.armL.rotation.z = -1.2 + sn(t * 3 + i) * .5; p.armR.rotation.z = 1.2 - sn(t * 3 + i) * .5; p.g.rotation.x = sn(t + i) * .4; }); say('NO GRAVITY!', 'warp'); }
+    else if (type === 'duck') { const x = -16 + ((t * 2.6) % 32), dk = [[3.6, 3, 3.6, 0xffd93b, 0, 2, 0], [2.2, 2.2, 2.2, 0xffd93b, 1.6, 4.1, 0], [1.1, .6, 1.4, 0xff8a1f, 3, 4, 0]]; dk.forEach(d => { const m = wMesh(d[0], d[1], d[2], d[3], x + d[4], d[5] + Math.abs(sn(t * 5)) * .3, -8.5); m.rotation.z = sn(t * 5) * .08; }); wMesh(.5, .5, .5, 0x222222, x + 2.2, 4.8, -8.2); say('QUACK!', 'quack'); }
+    else if (type === 'bigHead' && calm) { all.forEach(p => { p.head.scale.setScalar(2.3); }); say('BIG HEAD MODE!', 'boing'); }
+    else if (type === 'tiny' && calm) { all.forEach(p => { p.g.scale.setScalar(.7); p.weirdScaled = true; }); say('EVERYONE IS TINY!', 'boing'); }
+    else if (type === 'fishSky') { for (let k = 0; k < 6; k++) spr(k % 2 ? '\u{1F41F}' : '\u{1F420}', -10 + ((t * 1.5 + k * 4) % 22), 4 + k * 1.1 + sn(t * 3 + k) * .8, -6, 2.2); say('FISH IN THE SKY?!', 'splash'); }
+    else if (type === 'upsideDown') { weirdFlip = true; say('UPSIDE DOWN DAY!', 'warp'); }
+    else if (type === 'coolSun') { spr('\u{1F31E}', 9, 11, -14, 9); spr('\u{1F60E}', 9, 11.2, -13.5, 4.4); say('THE SUN GOT SUNGLASSES!', 'chime'); }
+  }
   // ---------- the director: puts the right characters in the right place doing what the caption says ----------
   function directBeat(mi, si, mv, sc, t, info, dur, camSeed) {
-    const u = clamp(t / dur, 0, 1); flashA = 0; zoomPunch = 0; fightHud = null; fightCam = null;
+    const u = clamp(t / dur, 0, 1); flashA = 0; zoomPunch = 0; fightHud = null; fightCam = null; weirdFlip = false;
     shown.forEach(p => { p.g.visible = false; }); shown = []; clearFx(); words = [];
     Object.keys(propCache).forEach(k => { propCache[k].visible = false; });
     const act = actorsFor(mi, mv, info), ex = info.extraN ? extrasFor(mi, info, info.extraN) : [];
@@ -1215,6 +1235,7 @@
       if (info.comedy && info.surprise && u > .55 && u < .8 && a1) { a1.head.scale.setScalar(1.7); words2d(.55 * dur, 'WHAT?!', 6); }
       look.set(0, 2.4, 0); spread = 4.5;
     }
+    weirdFx(mi, si, mv, t, u, style, act, ex, camSeed);
     csFlow(style, t, mi);
     const emo = info.emo || [], xe = style === 'party' ? 'joy' : (emo[1] || emo[0] || 'neutral');
     act.forEach((pp, ii) => emote(pp, emo[ii] || emo[0] || 'neutral', t, true)); ex.forEach(pp => emote(pp, xe, t, false));
@@ -1251,7 +1272,7 @@
       CAM.position.lerp(new THREE.Vector3(S.x - nx * 6.5 - nz * 5.2, 5.4, S.z - nz * 6.5 + nx * 5.2), sightCam.k); look.lerp(new THREE.Vector3(P.x * .75, 2.4, P.z * .8), sightCam.k);
     }
     if (shake) CAM.position.add(new THREE.Vector3((Math.random() - .5) * shake, (Math.random() - .5) * shake, 0));
-    CAM.lookAt(look); rim.position.set(look.x - 8, 6, look.z + 4);
+    CAM.up.set(0, weirdFlip ? -1 : 1, 0); CAM.lookAt(look); rim.position.set(look.x - 8, 6, look.z + 4);
     return info;
   }
   // what is being SAID right now (the narrator's caption at the start, then every line) decides what is being DONE
