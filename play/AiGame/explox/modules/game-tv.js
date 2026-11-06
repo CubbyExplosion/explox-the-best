@@ -281,9 +281,9 @@
     CINEMA_MOVIES[idx].tvIntro = { name: name, ep: ep, label: 'SEASON ' + seasonOf(ep) + '  \u2022  EPISODE ' + epIn(ep), epTitle: epT, col: sh[2], seed: si * 50 + ep, cast: [H + '  (hero)', V + '  (villain)', SD + '  (sidekick)'] };
     return idx;
   }
-  // 3 seasons (150 episodes) are out already, and every show gets one brand-new episode every real day
-  const SHOW_LAUNCH = new Date(2026, 10, 6).getTime(), released = () => 150 + Math.max(0, Math.floor((Date.now() - SHOW_LAUNCH) / 86400000));
-  const seasonOf = (ep) => Math.floor((ep - 1) / 50) + 1, epIn = (ep) => ((ep - 1) % 50) + 1, seLabel = (ep) => 'Season ' + seasonOf(ep) + ', Episode ' + epIn(ep);
+  // 3 seasons of 20 episodes (60 episodes) are out already, and every show gets one brand-new episode every real day
+  const SHOW_LAUNCH = new Date(2026, 10, 6).getTime(), released = () => 60 + Math.max(0, Math.floor((Date.now() - SHOW_LAUNCH) / 86400000));
+  const seasonOf = (ep) => Math.floor((ep - 1) / 20) + 1, epIn = (ep) => ((ep - 1) % 20) + 1, seLabel = (ep) => 'Season ' + seasonOf(ep) + ', Episode ' + epIn(ep);
   const progKey = (si) => 'explox_tvshow_' + user() + '_' + si;
   const lastEp = (si) => { try { return +localStorage.getItem(progKey(si)) || 0; } catch (e) { return 0; } };
   const saveEp = (si, ep) => { try { localStorage.setItem(progKey(si), String(ep)); } catch (e) { } };
@@ -300,7 +300,7 @@
     let h = head('<div style="text-align:center;margin-bottom:6px"><button class="tvBtn" id="tvBack" style="background:#333;color:#ccc">\u2190 All shows</button> <button class="tvBtn" id="tvNext" style="background:#e94560;color:#fff">\u25B6 ' + (le ? 'Continue: ' + seLabel(Math.min(rel, le + 1)) : 'Start: Season 1, Episode 1') + '</button> <button class="tvBtn" id="tvNew" style="background:#2e7d32;color:#fff">\u2B50 Newest episode</button> <button class="tvBtn" id="tvRand" style="background:#36507f;color:#fff">\uD83C\uDFB2 Random</button></div><div style="text-align:center;font-size:22px;margin:4px 0;color:' + sh[2] + '">' + sh[1] + ' <b>' + sh[0] + '</b></div><div class="tvSub">' + sh[10] + ' \u2022 ' + seasons + ' seasons \u2022 ' + rel + ' episodes \u2022 a new one every day</div><div style="text-align:center;margin:6px 0">');
     for (let s = 1; s <= seasons; s++) h += '<button class="tvBtn" data-s="' + s + '" style="background:' + (s === sn ? '#e94560' : '#243557') + ';color:#fff">Season ' + s + '</button>';
     h += '</div><div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">';
-    for (let e = 1; e <= 50; e++) { const g = (sn - 1) * 50 + e; if (g > rel) break; h += '<button class="tvBtn" data-e="' + g + '" title="' + epTitle(si, g) + '" style="background:' + (g <= le ? '#2e5d3a' : '#243557') + ';color:#fff;margin:0;font-size:11px;padding:6px 2px">' + e + (g === rel ? ' \u2B50' : '') + '<br><span style="font-weight:normal;font-size:9px">' + epTitle(si, g) + '</span></button>'; }
+    for (let e = 1; e <= 20; e++) { const g = (sn - 1) * 20 + e; if (g > rel) break; h += '<button class="tvBtn" data-e="' + g + '" title="' + epTitle(si, g) + '" style="background:' + (g <= le ? '#2e5d3a' : '#243557') + ';color:#fff;margin:0;font-size:11px;padding:6px 2px">' + e + (g === rel ? ' \u2B50' : '') + '<br><span style="font-weight:normal;font-size:9px">' + epTitle(si, g) + '</span></button>'; }
     h += '</div>'; b.innerHTML = h; $('tvBack').onclick = openShows; $('tvNext').onclick = () => startEpisode(si, le ? (le % rel) + 1 : 1); $('tvNew').onclick = () => startEpisode(si, rel); $('tvRand').onclick = () => startEpisode(si, 1 + rnd(rel));
     Array.prototype.forEach.call(b.querySelectorAll('[data-e]'), c => { c.onclick = () => startEpisode(si, +c.getAttribute('data-e')); });
     Array.prototype.forEach.call(b.querySelectorAll('[data-s]'), c => { c.onclick = () => openEpisodes(si, +c.getAttribute('data-s')); });
