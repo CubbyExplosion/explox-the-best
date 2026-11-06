@@ -1328,6 +1328,15 @@
         ctx.globalAlpha = a; ctx.font = `900 ${Math.round(h * .085)}px Arial Black, Arial`; { const fw = ctx.measureText(wd.text).width; if (fw > w * .8) ctx.font = `900 ${Math.floor(h * .085 * w * .8 / fw)}px Arial Black, Arial`; } ctx.textAlign = 'center'; ctx.lineWidth = h * .014; ctx.strokeStyle = '#220022'; ctx.fillStyle = ['#ffee33', '#ff5588', '#44e0ff', '#7dff6a'][wd.i % 4];
         ctx.strokeText(wd.text, 0, 0); ctx.fillText(wd.text, 0, 0); ctx.restore();
       });
+      {   // it looks like a real show: film vignette and grain, widescreen bars, a channel logo, scene counter, cast introductions
+        const vg = ctx.createRadialGradient(w / 2, h / 2, h * .35, w / 2, h / 2, h * .95); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.38)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = 'rgba(255,255,255,.07)'; for (let q = 0; q < 70; q++) ctx.fillRect(Math.random() * w, Math.random() * h, 1.5, 1.5);
+        ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h * .045); ctx.fillRect(0, h * .955, w, h * .045);
+        const fs0 = Math.max(11, Math.round(h * .026)); ctx.save(); ctx.font = '900 ' + fs0 + 'px Arial Black, Arial'; ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(0,0,0,.55)'; const bt = 'EXPLOX TV  \u2022  HD', btw = ctx.measureText(bt).width; ctx.fillRect(w * .965 - btw - fs0, h * .052, btw + fs0 * 1.6, fs0 * 1.7); ctx.fillStyle = '#ff4d6d'; ctx.beginPath(); ctx.arc(w * .965 - btw - fs0 * .35, h * .052 + fs0 * .85, fs0 * .28, 0, 7); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillText(bt, w * .965 + fs0 * .2, h * .052 + fs0 * 1.25); ctx.restore();
+        if (t < 3.6) { ctx.save(); ctx.font = 'bold ' + Math.round(fs0 * .95) + 'px Arial'; ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.globalAlpha = t < .5 ? t / .5 : (t > 2.9 ? Math.max(0, (3.6 - t) / .7) : 1); ctx.fillText('SCENE ' + (si + 1) + ' OF ' + mv.scenes.length + '  \u2022  ' + String(info.tod || 'day').toUpperCase(), w * .04 + fs0 * .8, h * .12 + fs0 * 3.4); ctx.restore(); }
+        if (si === 0 && t > 6.8 && t < 13.2) { const cl3 = castList(mi, mv), k = Math.min(2, Math.floor((t - 6.8) / 2.1)), q = (t - 6.8) - k * 2.1, c3 = cl3[k], a3 = q < .35 ? q / .35 : (q > 1.75 ? Math.max(0, (2.1 - q) / .35) : 1), fs3 = Math.max(14, Math.round(h * .042));
+          if (c3) { ctx.save(); ctx.globalAlpha = a3; ctx.translate((1 - a3) * -w * .1, 0); const bx = w * .04, by = h * .6, bw3 = w * .46, bh3 = fs3 * 3.4; ctx.fillStyle = 'rgba(0,0,0,.62)'; ctx.fillRect(bx, by, bw3, bh3); ctx.fillStyle = ['#ffd54f', '#4fc3f7', '#ff8ab3'][k]; ctx.fillRect(bx, by, fs3 * .3, bh3); ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.font = '900 ' + fs3 + 'px Arial Black, Arial'; ctx.fillText(String(c3.role).toUpperCase(), bx + fs3 * .8, by + fs3 * 1.15); ctx.font = 'bold ' + Math.round(fs3 * .62) + 'px Arial'; ctx.fillStyle = '#9fe3ff'; ctx.fillText('played by \u2605 ' + c3.actor, bx + fs3 * .8, by + fs3 * 2.05); ctx.fillStyle = '#ffd54f'; ctx.font = 'italic ' + Math.round(fs3 * .6) + 'px Arial'; ctx.fillText(c3.tag || '', bx + fs3 * .8, by + fs3 * 2.8); ctx.restore(); } }
+      }
       if (fightHud) {   // fighting-game health bars, a combo counter and the SUPER MOVE banner
         const f = fightHud, bw = w * .36, bh = h * .034, y = h * .075, col = (v) => v > 50 ? '#5dff6a' : v > 25 ? '#ffd23f' : '#ff4040';
         ctx.save(); ctx.font = '900 ' + Math.round(h * .03) + 'px Arial Black, Arial'; ctx.lineJoin = 'round';
@@ -1794,7 +1803,9 @@
     cl.forEach(c => { lines.push(['actor', '\u2605 ' + c.actor]); lines.push(['role', 'as  ' + c.role + (c.tag ? '  \u2022  ' + c.tag : '')]); lines.push(['gap', '']); });
     lines.push(['head', 'ALSO STARRING']); lines.push(['actor', 'Cubby  \u2022  Hubby  \u2022  Gernaldst']); lines.push(['role', 'and the people of Explox']); lines.push(['gap', '']);
     lines.push(['head', 'NARRATED BY']); lines.push(['actor', narratorPersona(mi, mv)]); lines.push(['gap', '']);
-    lines.push(['head', 'DIRECTED BY']); lines.push(['actor', 'Explox Cinemas']); lines.push(['gap', '']); lines.push(['gap', '']);
+    lines.push(['head', 'DIRECTED BY']); lines.push(['actor', 'Explox Cinemas']); lines.push(['gap', '']);
+    [['PRODUCED BY', 'The Explox Movie Club'], ['MUSIC', 'The Explox Studio Orchestra'], ['SOUND EFFECTS', 'The Boing and Splash Department'], ['STUNTS', 'The Brave Explox Stunt Team'], ['SPECIAL EFFECTS', 'Sparkles, Dust and Confetti Inc.'], ['CAMERA AND LIGHTING', 'The Sunny Side Crew'], ['CATERING', 'Pizza Palace, always on time']].forEach(r => { lines.push(['head', r[0]]); lines.push(['actor', r[1]]); lines.push(['gap', '']); });
+    lines.push(['small', 'NO ROBOTS WERE HARMED IN THE MAKING OF THIS MOVIE']); lines.push(['gap', '']); lines.push(['gap', '']);
     lines.push(['end', '\u2726  THE END  \u2726']);
     const lh = Math.max(34, h * .075), total = lines.length * lh;
     const speed = lh * 1.15, y0 = h + 20 - elapsed * speed, stop = h / 2 - total + h * .1;   // scroll up, then the last lines rest in the middle
