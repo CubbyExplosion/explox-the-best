@@ -13,7 +13,7 @@
 // ===================== ADVENTURE 1: The Treasure of the First S.I.P. =====================
 M.push({
   title: "The Treasure of the First S.I.P.", genre: "🧭 Adventure", price: 30, bg: "#0f2a1a", icons: "🗺️🪙🧜", comedy: true,
-  cast: { A: { role: "Captain Mabel", kind: "pioneer" }, B: { role: "Gernaldo", kind: "hero" }, C: { role: "Baron Bagsley", kind: "king" } },
+  cast: { A: { role: "Captain Mabel", kind: "pioneer" , pers: "hero" }, B: { role: "Gernaldo", kind: "hero" , pers: "goof" }, C: { role: "Baron Bagsley", kind: "king" , pers: "rival" } },
   trailer: [{ text: "🗺️ One old map...", dur: 2200 }, { text: "🪙 Seven secret clues...", dur: 2200 }, { text: "😅 And one very hungry sidekick!", dur: 2400 }, { text: "THE TREASURE OF THE FIRST S.I.P.", dur: 3000 }],
   scenes: [
     S("library", "day", "book", "At the Explox Library, a very old book drops a very old secret.", [
@@ -142,7 +142,7 @@ M.push({
 // ===================== ADVENTURE 2: The Great Explox Balloon Race =====================
 M.push({
   title: "The Great Explox Balloon Race", genre: "🎈 Adventure", price: 25, bg: "#10213f", icons: "🎈🏁☁️", comedy: true,
-  cast: { A: { role: "Zippy", kind: "pilot" }, B: { role: "Moxie", kind: "hero" }, C: { role: "Lord Loftus", kind: "king" } },
+  cast: { A: { role: "Zippy", kind: "pilot" , pers: "hero" }, B: { role: "Moxie", kind: "hero" , pers: "goof" }, C: { role: "Lord Loftus", kind: "king" , pers: "rival" } },
   trailer: [{ text: "🎈 One patched balloon...", dur: 2200 }, { text: "☁️ One big race across Explox...", dur: 2200 }, { text: "😱 And one very sneaky rival!", dur: 2400 }, { text: "THE GREAT EXPLOX BALLOON RACE", dur: 3000 }],
   scenes: [
     S("airport", "dawn", "sun", "At dawn, the whole city gathers at Explox Airport for the big balloon race.", [
@@ -271,7 +271,7 @@ M.push({
 // ===================== THRILLER 1: Night Shift at the Library =====================
 M.push({
   title: "Night Shift at the Library", genre: "🔦 Thriller", price: 30, bg: "#0a0a14", icons: "📚🔦👻",
-  cast: { A: { role: "Nora the Librarian", kind: "detective" }, B: { role: "Teo", kind: "hero" }, C: { role: "The Whisperer", kind: "ghost" } },
+  cast: { A: { role: "Nora the Librarian", kind: "detective" , pers: "wise" }, B: { role: "Teo", kind: "hero" , pers: "nervous" }, C: { role: "The Whisperer", kind: "ghost" , pers: "nervous" } },
   trailer: [{ text: "📚 Every night, the books move...", dur: 2400 }, { text: "🔦 Something whispers in the dark...", dur: 2400 }, { text: "😱 Who is in the library?", dur: 2400 }, { text: "NIGHT SHIFT AT THE LIBRARY", dur: 3000 }],
   scenes: [
     S("house", "night", "moon", "Late at night, Nora finds a strange note under her door.", [
@@ -400,7 +400,7 @@ M.push({
 // ===================== THRILLER 2: The Case of the Silent Alarm =====================
 M.push({
   title: "The Case of the Silent Alarm", genre: "🕵️ Thriller", price: 30, bg: "#0d1020", icons: "🚨🏦🕵️",
-  cast: { A: { role: "Detective Rowe", kind: "detective" }, B: { role: "Rookie Pip", kind: "hero" }, C: { role: "The Shadow", kind: "ninja" } },
+  cast: { A: { role: "Detective Rowe", kind: "detective" , pers: "wise" }, B: { role: "Rookie Pip", kind: "hero" , pers: "goof" }, C: { role: "The Shadow", kind: "ninja" , pers: "sweet" } },
   trailer: [{ text: "🚨 Every night at 2 a.m...", dur: 2400 }, { text: "🏦 The bank alarm rings...", dur: 2400 }, { text: "😱 But there is nobody there!", dur: 2400 }, { text: "THE CASE OF THE SILENT ALARM", dur: 3000 }],
   scenes: [
     S("police", "night", "lantern", "At the Police Station, a strange phone call comes in at midnight.", [
@@ -529,7 +529,7 @@ M.push({
 // ===================== ACTION 1: Turbo Heroes =====================
 M.push({
   title: "Turbo Heroes: Runaway Truck", genre: "💥 Action", price: 35, bg: "#1a0f0f", icons: "🏎️💥🚛",
-  cast: { A: { role: "Turbo Tina", kind: "racer" }, B: { role: "Wrench", kind: "robot" }, C: { role: "Crash Carter", kind: "athlete" } },
+  cast: { A: { role: "Turbo Tina", kind: "racer" , pers: "hero" }, B: { role: "Wrench", kind: "robot" , pers: "goof" }, C: { role: "Crash Carter", kind: "athlete" , pers: "rival" } },
   trailer: [{ text: "🚛 One runaway truck...", dur: 2200 }, { text: "🏎️ One super-fast car...", dur: 2200 }, { text: "💥 And one big chase across Explox!", dur: 2400 }, { text: "TURBO HEROES: RUNAWAY TRUCK", dur: 3000 }],
   scenes: [
     S("scrapyard", "day", "car", "At the Scrapyard, Tina and Wrench are putting the final touches on their turbo car.", [
@@ -658,7 +658,7 @@ M.push({
 // ===================== ACTION 2: Dino Rangers =====================
 M.push({
   title: "Dino Rangers", genre: "🦖 Action", price: 35, bg: "#0f1f12", icons: "🦖🥚💥",
-  cast: { A: { role: "Ranger Rex", kind: "athlete" }, B: { role: "Pebbles", kind: "hero" }, C: { role: "Big Crunch", kind: "dino" } },
+  cast: { A: { role: "Ranger Rex", kind: "athlete" , pers: "hero" }, B: { role: "Pebbles", kind: "hero" , pers: "sweet" }, C: { role: "Big Crunch", kind: "dino" , pers: "wise" } },
   trailer: [{ text: "🥚 Three glowing eggs...", dur: 2200 }, { text: "🦖 One enormous surprise...", dur: 2200 }, { text: "💥 The Dino Rangers are on the job!", dur: 2400 }, { text: "DINO RANGERS", dur: 3000 }],
   scenes: [
     S("park", "day", "sun", "At the Explox Park, the annual Egg Festival begins with three glowing eggs.", [

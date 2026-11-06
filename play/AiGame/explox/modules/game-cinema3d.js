@@ -596,7 +596,7 @@
   }
   function castList(mi, mv) {
     const roles = castRoles(mi, mv), stars = (typeof NPC_DEFS !== 'undefined' ? NPC_DEFS : []).filter(d => d && d.role === 'Celebrity');
-    return roles.map((r, i) => ({ actor: stars.length ? stars[(i + mi) % stars.length].name : 'Explox Star', role: r.role, kind: r.kind }));
+    return roles.map((r, i) => ({ actor: stars.length ? stars[(i + mi) % stars.length].name : 'Explox Star', role: r.role, kind: r.kind, tag: PERS[persFor(mi, mv, i)].tag }));
   }
   function actorsFor(mi, mv, info) {
     const stars = (typeof NPC_DEFS !== 'undefined' ? NPC_DEFS : []).filter(d => d && d.role === 'Celebrity');
@@ -811,7 +811,7 @@
       { const dlx = getDialogue(mi, si, mv, sc); let BL, bi, pos; if (dlx.beatStarts) { bi = 0; for (let k = 0; k < dlx.beatStarts.length; k++) if (t >= dlx.beatStarts[k]) bi = k; BL = dlx.beatEnds[bi] - dlx.beatStarts[bi]; pos = t - dlx.beatStarts[bi]; } else { BL = dlx.beatLen || 4; bi = Math.min(2, Math.floor(t / BL)); pos = t - bi * BL; }
         let fade = bi === 0 ? Math.max(0, 1 - t / 0.45) : Math.max(0, 1 - pos / 0.22); if (pos > BL - 0.18) fade = Math.max(fade, (pos - (BL - 0.18)) / 0.18);
         if (fade > 0) { ctx.fillStyle = 'rgba(0,0,0,' + Math.min(1, fade) + ')'; ctx.fillRect(0, 0, w, h); } }
-      { const nEnd = 0.4 + wc(sc.text) / 2.6 + (si === 0 ? (wc(mv.title) + 7) / 2.6 + 1.0 : 0) + 0.3;
+      { const nEnd = 0.4 + wc(sc.text) / 2.6 + (si === 0 ? (wc(mv.title) + 17) / 2.6 + 1.0 : 0) + 0.3;
         if (t >= 0.3 && t <= nEnd) { const fs = Math.max(14, Math.round(h * .034)), nm = narratorPersona(mi, mv); ctx.save(); ctx.textAlign = 'center'; ctx.font = 'bold ' + fs + 'px Arial';
           const txt = '\uD83C\uDF99\uFE0F  NARRATOR  \u2022  ' + nm, tw = ctx.measureText(txt).width; ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(w / 2 - tw / 2 - fs, h * .8 - fs * 1.05, tw + fs * 2, fs * 1.5);
           ctx.fillStyle = '#ffd54f'; ctx.fillText(txt, w / 2, h * .8); ctx.restore(); } }
@@ -930,8 +930,8 @@
   function scriptDialogue(mi, si, mv, sc, key) {
     const S = sc.script, res = []; res.beats = []; res.beatStarts = []; res.beatEnds = []; dlgCache[key] = res;
     const roles = castRoles(mi, mv), nameOf = { A: roles[0].role, B: roles[1].role, C: roles[2].role, N: 'NARRATOR \u2022 ' + narratorPersona(mi, mv) };
-    let tcur = 0.4 + wc(sc.text) / 2.6 + 0.9 + (si === 0 ? (wc(mv.title) + 7) / 2.6 + 1.0 : 0);
-    const lines = S.lines.map(l => { const o = { who: l[0], emo: l[1], act: l[2], text: l[3], role: nameOf[l[0]], start: tcur }; o.end = o.start + wc(o.text) / 2.4 + 0.5; tcur = o.end + 1.5; res.push(o); return o; });
+    let tcur = 0.4 + wc(sc.text) / 2.6 + 0.9 + (si === 0 ? (wc(mv.title) + 17) / 2.6 + 1.0 : 0);
+    const lines = S.lines.map(l => { const o = { who: l[0], emo: l[1], act: l[2], text: l[3], role: nameOf[l[0]], pers: l[0] === 'N' ? null : persFor(mi, mv, 'ABC'.indexOf(l[0])), start: tcur }; o.end = o.start + wc(o.text) / 2.4 + 0.5; tcur = o.end + 1.5; res.push(o); return o; });
     for (let i = 0; i < lines.length; i += 2) {
       const grp = lines.slice(i, i + 2), first = grp[0], who = {};
       grp.forEach(l => { if (l.who !== 'N') who[l.who] = l; });
@@ -944,6 +944,72 @@
     res.total = Math.max(60, tcur + 0.8); res.beatEnds[res.beatEnds.length - 1] = res.total;
     return res;
   }
+  // ---------- personalities: every character talks in their own way (brave, funny, nervous, boastful, wise or kind) ----------
+  const PERS = {
+    hero:    { tag: 'the brave one', rate: 1.0, dp: -.05, open: ['Alright.', 'Okay.', 'Right.', 'Listen.', '', '', ''], close: ['Stay sharp.', 'I have got this.', 'Together.', 'Eyes up.', '', '', ''], catch: "Let's roll!" },
+    goof:    { tag: 'the funny one', rate: 1.12, dp: .18, open: ['Whoa!', 'Uh oh!', 'Hee hee!', 'Ooh!', 'Hey hey!', '', ''], close: ['Is there a snack involved?', 'My tummy says hi.', 'Wow, wow, wow!', 'I need a nap after this.', 'Hee hee!', '', ''], catch: 'Is there a snack involved?' },
+    nervous: { tag: 'the worrier', rate: 1.15, dp: .25, open: ['Oh no, oh no.', 'Um...', 'Okay, okay, okay.', 'I knew it.', 'Eep!', '', ''], close: ['Please be okay!', 'I am shaking!', 'Can we go home?', 'My knees are knocking.', '', '', ''], catch: 'I have a bad feeling about this.' },
+    rival:   { tag: 'the rival', rate: .94, dp: -.18, open: ['Pfft.', 'Please.', 'Watch and learn.', 'Ha.', 'Amateurs.', '', ''], close: ['Try to keep up.', 'You are welcome.', 'Obviously.', 'How adorable.', '', '', ''], catch: 'Too easy.' },
+    wise:    { tag: 'the wise one', rate: .9, dp: -.12, open: ['Hmm.', 'Patience.', 'Remember this.', 'Slowly now.', '', '', ''], close: ['Think before you leap.', 'Every storm passes.', 'Listen with your heart.', 'Take your time.', '', '', ''], catch: 'Patience, my friend.' },
+    sweet:   { tag: 'the kind one', rate: 1.03, dp: .1, open: ['Hey.', 'It is okay.', 'Aww.', 'Easy now.', '', '', ''], close: ["You're doing great.", 'We are a team.', 'I believe in you.', 'I am right here.', '', '', ''], catch: 'We are a team.' },
+  };
+  function persFor(mi, mv, i) {
+    const c = mv.cast && mv.cast['ABC'[i]]; if (c && c.pers) return c.pers;
+    const hist = mi >= 14 && mi < 29, A = hist ? ['wise', 'hero', 'sweet', 'hero'] : ['hero', 'hero', 'wise', 'sweet'], B = hist ? ['sweet', 'nervous', 'wise', 'sweet'] : ['goof', 'nervous', 'goof', 'sweet', 'goof'];
+    const a0 = A[mi % A.length]; let b0 = B[mi % B.length]; if (b0 === a0) b0 = B[(mi + 1) % B.length] === a0 ? (a0 === 'sweet' ? 'goof' : 'sweet') : B[(mi + 1) % B.length];
+    return i === 0 ? a0 : i === 1 ? b0 : 'rival';
+  }
+  const CORE_A = {
+    danger: ['Look out, {o}!', 'Watch out, {o}!', 'Behind you, {o}!', 'Get back, {o}!', 'Danger, {o}!', 'Duck, {o}!'],
+    discover: ['{o}, look at this!', '{o}, did you see that?', 'Wait. What is that?', 'I think I found something!', '{o}, over here!', 'Hold on. There is something there.'],
+    trouble: ['Oh no!', 'This is bad, {o}.', 'Something is wrong.', 'We have a problem, {o}.', 'That cannot be right.', 'It is gone!'],
+    win: ['We did it, {o}!', 'Yes!', 'We won!', 'Look at that, {o}!', 'It worked!', 'Best moment ever!'],
+    start: ['Are you ready, {o}?', 'This is it.', 'Here we go.', 'Time to begin, {o}.', 'Everyone in position.', 'Let us start.'],
+    plan: ['Listen, {o}.', 'I have a plan.', 'Here is the idea.', 'We stay together, {o}.', 'First, we need to think.', 'Let us split the work.'],
+    travel: ['This way, {o}.', 'Keep up, {o}.', 'We are getting close.', 'Eyes open, {o}.', 'We are almost at {place}.', 'Follow me.'],
+    build: ['Hand me that, {o}.', 'One more piece.', 'Hold it steady, {o}.', 'Almost done.', 'Let us build this.', 'Pass me the tools.'],
+    fight: ['Take that, {o}!', 'Not today!', 'Here I come!', 'This ends now!', 'You cannot win, {o}!', 'Come on, then!'],
+    chase: ['Faster, {o}!', 'Keep running!', 'This way, quick!', 'Do not stop!', 'Jump, {o}!', 'They are right behind us!'],
+    race: ['Start your engines!', 'Catch me if you can!', 'Floor it, {o}!', 'Here we go!', 'Hold on tight!', 'Nobody passes me today!'],
+  };
+  const CORE_B = {
+    danger: ['I see it!', 'I am on it!', 'Stay behind me!', 'We can handle this!', 'Cover me!', 'Not on my watch!'],
+    discover: ['What is it?', 'Let me see.', 'Careful, {o}.', 'Show me!', 'I see it too.', 'Is it safe?'],
+    trouble: ['Do not panic.', 'We will fix it.', 'Think, think.', 'Let us start over.', 'There must be a way.', 'Stay calm, {o}.'],
+    win: ['I knew we could!', 'Together we never lose.', 'Let us celebrate!', 'What a team!', 'Unbelievable!', 'High five, {o}!'],
+    start: ['Ready!', 'Let us do this.', 'I am right behind you.', 'Lead the way.', 'Say the word.', 'Born ready.'],
+    plan: ['I am listening.', 'That might work.', 'Tell me what to do.', 'Okay, go on.', 'I will follow your lead.', 'What if it goes wrong?'],
+    travel: ['Right behind you.', 'Lead on.', 'I see {place}.', 'How much farther?', 'Watch your step.', 'On my way.'],
+    build: ['Here you go.', 'Looks great.', 'Nice work.', 'Is this right?', 'Almost there.', 'Got it.'],
+    fight: ['Try again!', 'You cannot stop me!', 'Nice try!', 'We will see!', 'Is that all?', 'Bring it!'],
+    chase: ['Wait for me!', 'I am right behind you!', 'Almost there!', 'I cannot keep up!', 'Go go go!', 'Do not look back!'],
+    race: ['Not a chance!', 'Right behind you!', 'This is going to be close!', 'Watch the turn!', 'I see the finish!', 'Eat my dust!'],
+    mood: ['I feel it too, {o}.', 'Stay alert.', 'Hmm.', 'Let us see what happens.', 'Me too.', 'Keep going.', 'Good point.', 'I was thinking the same thing.', 'Lead the way, {o}.', 'You said it.'],
+  };
+  const CORE_MOOD = {
+    night: ['It is so quiet tonight, {o}.', 'The dark feels different.', 'I can hear our footsteps.', 'Look at those stars, {o}.', 'Even the crickets are whispering.', 'Do you ever wonder who else is awake?'],
+    storm: ['That storm is getting closer, {o}.', 'Hear that thunder?', 'The wind is picking up.', 'Hold on to your hat, {o}.', 'The sky looks angry today.', 'Let us find shelter soon.'],
+    dawn: ['A new day begins, {o}.', 'Look at that sunrise.', 'Everything is so still this early.', 'Morning, {o}.', 'The whole sky is turning gold.', 'Fresh start, {o}.'],
+    dusk: ['The light is fading, {o}.', 'What a sunset.', 'The lamps are coming on.', 'Evening already.', 'Look how long our shadows are.', 'The day went by fast.'],
+    day: ['Something feels different today, {o}.', 'What a day, {o}.', 'Everything looks so bright.', 'I have a good feeling.', 'Take a deep breath, {o}.', 'Look around, {o}. Really look.', 'I could stay here all day.', 'Funny how quiet it is.', 'Today is going to be interesting.', 'Do you hear that, {o}?'],
+    dark: ['Something feels wrong here, {o}.', 'Too quiet, {o}.', 'I do not like this.', 'Stay close.', 'Did you feel that chill?', 'Keep your voice down.'],
+  };
+
+  const usedLines = {}, coreUse = {};
+  function compose(mi, pers, bank, side, vars, h) {
+    const P = PERS[pers] || PERS.hero, used = usedLines[mi] || (usedLines[mi] = new Set()), cu = coreUse[mi] || (coreUse[mi] = {});
+    for (let k = 0; k < 24; k++) {
+      const core = bank[(h + k * 5) % bank.length], ck = side + '|' + core; if ((cu[ck] || 0) >= 3) continue;
+      let op = P.open[((h >>> 2) + k * 3) % P.open.length]; const cl = P.close[((h >>> 5) + k * 7) % P.close.length];
+      if (k === 0 && h % 7 === 0 && !used.has(P.catch + '|' + mi)) { op = P.catch; used.add(P.catch + '|' + mi); }
+      if (cl === P.catch || (op && cl && op === cl) || (cl && core.indexOf(cl) >= 0) || (op && core.indexOf(op) >= 0)) continue;
+      let t = [op, core, cl].filter(Boolean).join(' ').replace(/\{o\}/g, vars.o).replace(/\{place\}/g, vars.place).replace(/\{thing\}/g, vars.thing || 'thing');
+      t = t.replace(/(^|[.!?]\s+)([a-z])/g, (m, pre, c) => pre + c.toUpperCase());
+      if (used.has(t)) continue; used.add(t); cu[ck] = (cu[ck] || 0) + 1; return t;
+    }
+    return null;
+  }
+  function introCast(mi, mv) { const r = castRoles(mi, mv); return r[0].role + ', ' + PERS[persFor(mi, mv, 0)].tag + ', and ' + r[1].role + ', ' + PERS[persFor(mi, mv, 1)].tag; }
   // Every caption is one story moment of about 11 seconds, shown as three shots (wide, talking, reaction) with fades between them.
   // The two characters talk to each other by name about what is happening, where they are and what is in the scene.
   const BEATS = 3;
@@ -995,16 +1061,13 @@
     const a = addr(nameOf.A), b = addr(nameOf.B), place = PLACE[info.kind] || 'there', thing = THING[info.prop] || '';
     const fill = (x) => x.replace(/\{A\}/g, a).replace(/\{B\}/g, b).replace(/\{place\}/g, place).replace(/\{thing\}/g, thing);
     const quote = mature ? null : text.match(/["\u201C]([^"\u201D]{3,90})["\u201D]/), who = text.match(/^([A-Z][A-Za-z' -]{2,26}):\s*["\u201C]/), label = who ? who[1] : null;
-    const lines = [];
-    if (quote) { lines.push(['A', quote[1].replace(/\s+/g, ' ').trim(), label]); lines.push(['B', mood ? fill(MOODB[h % 3]) : fill(LINES[cat][1][(h >>> 3) % 3])]); }
-    else if (mood) {
-      lines.push(['A', fill(info.dark && info.tod === 'day' ? 'Something feels wrong here, {B}.' : (MOOD[info.tod] || MOOD.day))]); lines.push(['B', fill(MOODB[(h >>> 2) % 3])]);
-    } else {
-      let la = LINES[cat][0][h % 3]; if (thing && PROPLINE[cat] && (h & 1)) la = PROPLINE[cat];
-      lines.push(['A', fill(la)]); lines.push(['B', fill(LINES[cat][1][(h >>> 3) % 3])]);
-    }
-    let tcur = 0.4 + wc(text) / 2.6 + 0.5 + (si === 0 ? (wc(mv.title) + 7) / 2.6 + 1.0 : 0);
-    lines.forEach(l => { const o = { who: l[0], text: l[1], role: l[2] || nameOf[l[0]], start: tcur }; o.end = o.start + wc(o.text) / 2.6 + 0.3; tcur = o.end + 0.45; res.push(o); });
+    const lines = [], persA = persFor(mi, mv, 0), persB = persFor(mi, mv, 1);
+    const bankA = mood ? (CORE_MOOD[info.dark && info.tod === 'day' ? 'dark' : info.tod] || CORE_MOOD.day) : CORE_A[cat], bankB = mood ? CORE_B.mood : CORE_B[cat];
+    const tA = compose(mi, persA, bankA, 'A', { o: b, place, thing }, h), tB = compose(mi, persB, bankB, 'B', { o: a, place, thing }, hash(h, 3, 9));
+    if (quote) { lines.push(['A', quote[1].replace(/\s+/g, ' ').trim(), label]); if (tB) lines.push(['B', tB]); }
+    else { if (tA) lines.push(['A', tA]); if (tB) lines.push(['B', tB]); }
+    let tcur = 0.4 + wc(text) / 2.6 + 0.5 + (si === 0 ? (wc(mv.title) + 17) / 2.6 + 1.0 : 0);
+    lines.forEach(l => { const o = { who: l[0], text: l[1], role: l[2] || nameOf[l[0]], pers: l[0] === 'A' ? persA : persB, start: tcur }; o.end = o.start + wc(o.text) / 2.6 + 0.3; tcur = o.end + 0.45; res.push(o); });
     const dur = clamp(Math.max(11.4, tcur + 1.0), 11.4, 20); res.total = dur; res.beatLen = dur / BEATS;
     const e0 = EMOCAT[cat] || ['neutral', 'neutral'], e2 = REACT_EMO[cat] || (cat === 'win' ? ['joy', 'joy'] : e0);
     res.beats.push({ style: info.style, present: ['A', 'B'], emo: e0 }, { style: 'talk', present: ['A', 'B'].concat(info.present.indexOf('C') >= 0 ? ['C'] : []), emo: e0.concat(['neutral']) }, { style: REACT_STYLE[cat] || 'talk', present: ['A', 'B'], emo: e2 });
@@ -1083,6 +1146,7 @@
           if (cv.voice) { u.voice = cv.voice; u.lang = cv.voice.lang; }
           u.rate = clamp(cv.rate || 1, .7, 1.3); u.pitch = clamp(cv.pitch || 1, .5, 1.8); u.volume = 1;
           if (l.emo) { const EV = { angry: [1.08, -.05], scared: [1.15, .2], sad: [.85, -.1], joy: [1.1, .1], excited: [1.1, .1], worried: [1.05, .05] }[l.emo]; if (EV) { u.rate = clamp(u.rate * EV[0], .6, 1.4); u.pitch = clamp(u.pitch + EV[1], .4, 1.9); } }
+          { const PP = PERS[l.pers]; if (PP) { u.rate = clamp(u.rate * PP.rate, .6, 1.4); u.pitch = clamp(u.pitch + PP.dp, .4, 1.9); } }
           if (/!/.test(l.text)) { u.rate *= 1.05; u.pitch = clamp(u.pitch + .05, .5, 1.8); }
           window.speechSynthesis.speak(u); lineSfx(l, mv);
         } catch (e) { }
@@ -1130,7 +1194,7 @@
 
   window.__cinemaNarrate = function (text, mi, dur) {
     try {
-      const mv = CINEMA_MOVIES[mi] || CINEMA_MOVIES[0], synth = window.speechSynthesis; clearSpeechTimers(); synth.cancel(); if (cinemaState.sceneIndex === 0) text = 'Hello. I am ' + narratorPersona(mi, mv) + '. Tonight, ' + mv.title + '. ' + text;
+      const mv = CINEMA_MOVIES[mi] || CINEMA_MOVIES[0], synth = window.speechSynthesis; clearSpeechTimers(); synth.cancel(); if (cinemaState.sceneIndex === 0) text = 'Hello. I am ' + narratorPersona(mi, mv) + '. Tonight, ' + mv.title + '. Meet ' + introCast(mi, mv) + '. ' + text;
       startScore(mi, mv);
       const v = pickVoice(mi, mv); const natural = v && /natural|neural|online|google/i.test(v.name);
       narratorName = v ? v.name.replace(/Microsoft\s+/i, '').replace(/\s*(Online)?\s*\(Natural\).*$/i, '').replace(/\s*-\s*English.*$/i, '').replace(/\s+Desktop.*/i, '').replace(/^Google\s+/i, '').trim() : '';
@@ -1159,7 +1223,7 @@
     const cl = castList(mi, mv), lines = [];
     lines.push(['title', mv.title.toUpperCase()]); lines.push(['small', 'AN EXPLOX CINEMAS PRODUCTION']); lines.push(['gap', '']);
     lines.push(['head', 'STARRING']);
-    cl.forEach(c => { lines.push(['actor', '\u2605 ' + c.actor]); lines.push(['role', 'as  ' + c.role]); lines.push(['gap', '']); });
+    cl.forEach(c => { lines.push(['actor', '\u2605 ' + c.actor]); lines.push(['role', 'as  ' + c.role + (c.tag ? '  \u2022  ' + c.tag : '')]); lines.push(['gap', '']); });
     lines.push(['head', 'ALSO STARRING']); lines.push(['actor', 'Cubby  \u2022  Hubby  \u2022  Gernaldst']); lines.push(['role', 'and the people of Explox']); lines.push(['gap', '']);
     lines.push(['head', 'NARRATED BY']); lines.push(['actor', narratorPersona(mi, mv)]); lines.push(['gap', '']);
     lines.push(['head', 'DIRECTED BY']); lines.push(['actor', 'Explox Cinemas']); lines.push(['gap', '']); lines.push(['gap', '']);
