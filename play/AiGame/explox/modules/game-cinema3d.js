@@ -61,9 +61,13 @@
     const head = new THREE.Group(); head.position.set(0, 2.75, 0); body.add(head);
     box(head, 0.9, 0.9, 0.9, skin, 0, 0, 0);
     // face: big funny eyes + smile
-    box(head, 0.24, 0.26, 0.05, 0xffffff, -0.2, 0.08, 0.46); box(head, 0.24, 0.26, 0.05, 0xffffff, 0.2, 0.08, 0.46);
+    const eyeL = box(head, 0.24, 0.26, 0.05, 0xffffff, -0.2, 0.08, 0.46), eyeR = box(head, 0.24, 0.26, 0.05, 0xffffff, 0.2, 0.08, 0.46);
     box(head, 0.1, 0.12, 0.06, 0x111111, -0.18, 0.06, 0.49); box(head, 0.1, 0.12, 0.06, 0x111111, 0.22, 0.06, 0.49);
-    const mouth = box(head, 0.4, 0.09, 0.05, 0x7a2a1a, 0, -0.22, 0.47);
+    const mouth = box(head, 0.3, 0.09, 0.05, 0x7a2a1a, 0, -0.22, 0.47);
+    const browL = box(head, .3, .07, .05, 0x2a1a0a, -.2, .3, .47), browR = box(head, .3, .07, .05, 0x2a1a0a, .2, .3, .47);
+    const mouthL = box(head, .15, .08, .05, 0x7a2a1a, -.22, -.22, .47), mouthR = box(head, .15, .08, .05, 0x7a2a1a, .22, -.22, .47);
+    const tearL = box(head, .07, .2, .04, 0x66ccff, -.28, -.05, .49, { emissive: 0x2266aa }), tearR = box(head, .07, .2, .04, 0x66ccff, .28, -.05, .49, { emissive: 0x2266aa });
+    const sweat = box(head, .12, .2, .08, 0x66ccff, .5, .4, .3, { emissive: 0x2266aa }); tearL.visible = tearR.visible = sweat.visible = false;
     const hc = def.hairColor != null ? def.hairColor : 0x2a1a0a, hy = 0.6;
     const H = (w, h, d, c, x, y, z) => box(head, w, h, d, c, x, y, z);
     switch (def.hair) {
@@ -91,7 +95,7 @@
     else if (hat === 'duck') { H(1.0, .34, 1.0, 0xffee58, 0, .62, 0); H(.7, .5, .7, 0xffee58, .1, .98, 0); H(.5, .16, .3, 0xfb8c00, .1, .95, .5); H(.14, .14, .08, 0x222222, .3, 1.05, .36); }
     if (def.role === 'Celebrity') { H(.82, .22, .1, 0x0a0a0a, 0, .1, .5); }
     const tag = o.noTag ? null : tagSprite(o.name || def.name, o.role); if (tag) g.add(tag);
-    return { g, body, head, torso, armL, armR, legL, legR, mouth, def, tag, baseY: 0, extras: {} };
+    return { g, body, head, torso, armL, armR, legL, legR, mouth, def, tag, baseY: 0, extras: {}, face: { eyeL, eyeR, browL, browR, mouthL, mouthR, tearL, tearR, sweat } };
   }
 
   // ---------- costumes (everybody is still an Explox person, just dressed up) ----------
@@ -223,6 +227,188 @@
     return 'city';
   }
 
+  // ---------- emotions: faces and bodies that show how a character feels ----------
+  const EMODEF = {
+    neutral: { bL: 0, bR: 0, by: 0, mL: 0, mR: 0, mw: 1, mh: 1, eye: 1 },
+    happy: { bL: .1, bR: -.1, by: .04, mL: -.5, mR: .5, mw: 1.15, mh: 1.1, eye: 1 },
+    joy: { bL: .15, bR: -.15, by: .08, mL: -.6, mR: .6, mw: 1.3, mh: 2.4, eye: .55, open: true, bounce: true },
+    relieved: { bL: .25, bR: -.25, by: .02, mL: -.35, mR: .35, mw: 1.1, mh: 1, eye: .6 },
+    sad: { bL: .45, bR: -.45, by: -.02, mL: .55, mR: -.55, mw: .9, mh: .8, eye: .85, tear: true, head: .35 },
+    angry: { bL: -.55, bR: .55, by: -.03, mL: .3, mR: -.3, mw: 1.2, mh: 1.4, eye: .9, lean: .2 },
+    scared: { bL: .4, bR: -.4, by: .1, mL: .25, mR: -.25, mw: .7, mh: 2.8, eye: 1.45, sweat: true, open: true, shake: true, lean: -.15 },
+    surprised: { bL: .1, bR: -.1, by: .12, mL: 0, mR: 0, mw: .6, mh: 2.8, eye: 1.5, open: true },
+    worried: { bL: .4, bR: -.4, by: .05, mL: .3, mR: -.3, mw: .9, mh: .9, eye: 1.1 },
+    determined: { bL: -.35, bR: .35, by: -.02, mL: -.05, mR: .05, mw: 1, mh: .8, eye: .9, lean: .12 },
+    curious: { bL: .1, bR: -.45, by: .06, mL: -.15, mR: .15, mw: .9, mh: 1, eye: 1.1, tilt: .25 },
+    serious: { bL: -.15, bR: .15, by: 0, mL: 0, mR: 0, mw: .9, mh: .8, eye: 1 },
+  };
+  EMODEF.excited = EMODEF.joy; EMODEF.warm = EMODEF.happy; EMODEF.shocked = EMODEF.surprised;
+  const EMOJI = { scared: '\u{1F631}', surprised: '\u{1F62E}', shocked: '\u{1F632}', angry: '\u{1F620}', sad: '\u{1F622}', joy: '\u{1F604}', excited: '\u{1F929}', worried: '\u{1F61F}', determined: '\u{1F4AA}', happy: '\u{1F60A}', warm: '\u{1F970}', relieved: '\u{1F60C}', curious: '\u{1F914}' };
+  const emoTex = {};
+  function emoSprite(p, name) {
+    const em = EMOJI[name];
+    if (!em) { if (p.emoS) p.emoS.visible = false; return; }
+    if (!p.emoS) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: false })); s.scale.set(1.5, 1.5, 1); s.position.y = 5.9; p.g.add(s); p.emoS = s; }
+    if (!emoTex[name]) { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); x.font = '96px Arial'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(em, 64, 68); emoTex[name] = new THREE.CanvasTexture(c); }
+    if (p.emoS.material.map !== emoTex[name]) { p.emoS.material.map = emoTex[name]; p.emoS.material.needsUpdate = true; }
+    p.emoS.visible = true;
+  }
+  function emote(p, name, t, showEmoji) {
+    const e = EMODEF[name] || EMODEF.neutral, f = p.face; if (!f) return;
+    f.browL.rotation.z = e.bL; f.browR.rotation.z = e.bR; f.browL.position.y = f.browR.position.y = .3 + e.by;
+    f.mouthL.rotation.z = e.mL; f.mouthR.rotation.z = e.mR; f.mouthL.visible = f.mouthR.visible = !e.open;
+    f.mouthL.position.y = f.mouthR.position.y = -.22 + (e.mL < 0 ? .03 : e.mL > 0 ? -.02 : 0);
+    p.mouth.scale.x *= e.mw; p.mouth.scale.y *= e.mh;
+    f.eyeL.scale.set(e.eye > 1 ? e.eye : 1, e.eye, 1); f.eyeR.scale.set(e.eye > 1 ? e.eye : 1, e.eye, 1);
+    f.tearL.visible = f.tearR.visible = !!e.tear; if (e.tear) { const k = (t * 1.6) % 1; f.tearL.position.y = f.tearR.position.y = -.05 - k * .4; f.tearL.scale.y = f.tearR.scale.y = .4 + k * .6; }
+    f.sweat.visible = !!e.sweat; if (e.sweat) f.sweat.position.y = .45 - ((t * 1.2) % 1) * .3;
+    if (e.head) p.head.rotation.x += e.head; if (e.lean) p.body.rotation.x += e.lean; if (e.tilt) p.head.rotation.z += e.tilt;
+    if (e.shake) p.g.position.x += Math.sin(t * 45) * .04; if (e.bounce) p.g.position.y += Math.abs(Math.sin(t * 6 + p.g.id)) * .25;
+    emoSprite(p, showEmoji ? name : null);
+  }
+
+  // ---------- settings: the place a scene happens in (picked from the caption, then from the movie itself) ----------
+  const SETTING_RE = [
+    ['space', /space|planet|galax|rocket|orbit|\bstars?\b|asteroid|mothership|warp|comet|cosmic|universe|alien ship|scanner/],
+    ['vault', /\bbank\b|vault|\bsafe\b|fingerprint|treasury|robber/],
+    ['track', /\brace\b|\brace day|racing|\btrack\b|\blaps?\b|starting grid|slalom|circuit|finish line|pit stop|drivers?\b/],
+    ['arena', /games\b|arena|stadium|tournament|scoreboard|medal|contestants|\bevent \d|finals?\b|champion/],
+    ['dojo', /dojo|ninja training|training montage|sensei|martial|tea shop|\bclan\b|ninja academy|thunder kick/],
+    ['temple', /temple|ancient|altar|shrine|church|chapel|candle|sacred|before explox|\bthe light\b/],
+    ['castle', /castle|\bking\b|throne|palace|royal|\bcourt\b|kingdom/],
+    ['snow', /\bsnow|winter|\bice\b|frozen|blizzard|freezing/],
+    ['beach', /beach|ocean|\bsea\b|\bisland\b|harbor|\bpier\b|\bboat\b|waves?\b|sailing/],
+    ['desert', /desert|frontier|canyon|saloon|outlaw|\bsand\b|sheriff|prairie|dusty|wild west|bounty|the sky starts/],
+    ['jungle', /jungle|swamp|vines|rainforest/],
+    ['scrapyard', /scrapyard|\bjunk\b|salvage|\bscrap\b|garage|workshop|robot battle|washing machine|toaster/],
+    ['market', /market|\bstalls?\b|baker|baguette|bread|vendor|bazaar|merchant|fruit|carrots?/],
+    ['lab', /\blab\b|laborator|time machine|experiment|portal|invent|machine/],
+    ['school', /school|academy|classroom|student|lesson/],
+    ['house', /\bhouse\b|\bhome\b|kitchen|\broom\b|\bbed\b|cabin|hospital|clinic|doorstep|inside|hideout|\bcafe\b|restaurant|curtain/],
+    ['nature', /forest|woods|\bfield|farm|mountain|river|\blake\b|valley|garden|meadow|\bsky\b|cloud|wings|village|\boak\b|\btree\b/],
+    ['city', /\bcity\b|street|\btown\b|building|alley|\broof|downtown|square|suburb|\bblock\b/],
+  ];
+  const MOVIE_SETTING = [
+    [/grand prix/i, 'track'], [/explox games/i, 'arena'], [/ninja academy|ninja grandma/i, 'dojo'], [/time travel/i, 'lab'], [/scrapyard/i, 'scrapyard'], [/market day/i, 'market'],
+    [/dragon and the robot|wings over/i, 'nature'], [/robot dinosaurs|grandma in space|space/i, 'space'], [/first war|first wrath|doctor who stayed|wall that became|first house|first mayor|badge was made|arena's first|one who dreamed|newcomer/i, 'desert'],
+  ];
+  function pickKind(mi, mv, lc) {
+    for (const [k, re] of SETTING_RE) if (re.test(lc)) return k;
+    for (const [re, k] of MOVIE_SETTING) if (re.test(mv.title)) return k;
+    return kindFor(mv, mi, '');
+  }
+  const INDOOR = { vault: 1, shop: 1, dojo: 1, lab: 1, house: 1, school: 1 };
+  function todOf(lc) {
+    if (/storm|thunder|lightning|\brain|flood/.test(lc)) return 'storm';
+    if (/night|midnight|\bdark|2am|\bmoon|shadow|ghost|haunt|silent|dim\b/.test(lc)) return 'night';
+    if (/dawn|sunrise|morning/.test(lc)) return 'dawn';
+    if (/dusk|evening|sunset|twilight|lamp by lamp|lantern/.test(lc)) return 'dusk';
+    return 'day';
+  }
+  function weatherOf(lc, kind, tod) {
+    if (/\brain|storm|thunder|flood|\bwet\b/.test(lc)) return 'rain';
+    if (kind === 'snow' || /\bsnow|blizzard|winter/.test(lc)) return 'snow';
+    if (/\bfire\b|flame|burn|torch|candle|ember/.test(lc)) return 'embers';
+    if (kind === 'desert') return 'dust';
+    if (tod === 'night' && (kind === 'nature' || kind === 'jungle' || kind === 'beach')) return 'fireflies';
+    return null;
+  }
+  function buildExtraStage(kind, seed) {
+    const g = new THREE.Group(), r = rnd(seed), b = (w, h, d, c, x, y, z, o) => box(g, w, h, d, c, x, y, z, o), E = (c) => ({ emissive: c });
+    const room = (wallC, floorC, h) => {
+      b(70, .6, 60, floorC, 0, -.3, -4); b(70, h, 1, wallC, 0, h / 2, -26); b(1, h, 60, wallC, -35, h / 2, -4); b(1, h, 60, wallC, 35, h / 2, -4); b(70, 1, 60, 0x3a3028, 0, h + .5, -4);
+      for (let i = -2; i <= 2; i++) b(3.4, .5, 3.4, 0xfff1c0, i * 11, h - .3, -8, E(0xffe9a0));
+    };
+    switch (kind) {
+      case 'vault': { room(0x59636e, 0x2a3036, 16);
+        const d = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 1.2, 28), mat(0x9aa7b3, E(0x111820))); d.rotation.x = Math.PI / 2; d.position.set(0, 7, -25); g.add(d);
+        const w = new THREE.Mesh(new THREE.TorusGeometry(4.2, .4, 8, 24), mat(0xffd54f, E(0x886600))); w.position.set(0, 7, -24.2); g.add(w); b(.8, 6, .8, 0xffd54f, 0, 7, -24, E(0x886600)); b(6, .8, .8, 0xffd54f, 0, 7, -24, E(0x886600));
+        for (let i = 0; i < 18; i++) b(2.2, 1, 1.2, 0xffd54f, -26 + (i % 6) * 2.6, .5 + Math.floor(i / 6) * 1.05, -21 + (i % 2), E(0x886600));
+        for (let x = -3; x <= 3; x++) for (let y = 0; y < 3; y++) { b(2.4, 1.6, .3, 0x7a8794, 26 + x * 0.0, 2 + y * 1.8, -25.4); }
+        break; }
+      case 'dojo': { room(0xe8dcc0, 0x9a6b3b, 14);
+        for (let i = -2; i <= 2; i++) { b(8, .15, 8, 0xd7c28a, i * 9, .1, -2); b(.5, 3, .5, 0xcc2222, i * 12, 8, -25, E(0x661111)); }
+        b(10, 5, .4, 0x8d1b1b, 0, 8, -25.3); for (let i = 0; i < 4; i++) { b(.15, 5, .15, 0x6d4c41, -28 + i * .8, 3, -22); b(.5, .5, .5, 0xcccccc, -28 + i * .8, 5.6, -22); } break; }
+      case 'lab': { room(0x394455, 0x1f2730, 16);
+        for (let i = -3; i <= 3; i++) { b(5, 2.2, 3, 0x56667d, i * 9, 1.1, -22); b(4, 2, .3, 0x66ffcc, i * 9, 3.4, -21, E(0x118866)); }
+        for (let i = 0; i < 5; i++) { const t = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 8, 14), mat(0x66ddff, { emissive: 0x2288aa, transparent: true, opacity: .55 })); t.position.set(-24 + i * 4, 4, -16); g.add(t); }
+        const c = new THREE.Mesh(new THREE.TorusGeometry(3, .35, 8, 28), mat(0xffffff, E(0x445566))); c.position.set(26, 9, -25); g.add(c); b(.2, 2.2, .2, 0x222222, 26, 9.6, -24.8); b(1.6, .2, .2, 0x222222, 26.6, 9, -24.8); break; }
+      case 'house': { room(0xd7b98e, 0x8a6a4a, 14);
+        b(10, 3.4, 4, 0x7b4a3a, -22, 1.7, -20); b(10, 1, 3.6, 0xf2e8d8, -22, 3.6, -20); b(8, .5, 5, 0x6d4c41, 18, 2.6, -20); [-1, 1].forEach(x => b(.5, 2.6, .5, 0x6d4c41, 18 + x * 3.4, 1.3, -20));
+        b(7, 5, 1, 0x6d4c41, 0, 2.5, -25); b(4.2, 2.8, .4, 0xff7a2a, 0, 1.5, -24.4, E(0xaa3300)); b(8, 5, .3, 0x88ccff, 22, 8, -25.4, E(0x223344)); break; }
+      case 'school': { room(0xe8e1c8, 0x8f7a5a, 14);
+        b(22, 7, .3, 0x1d3a2b, 0, 8, -25.3); for (let rz = 0; rz < 3; rz++) for (let cx = -3; cx <= 3; cx++) { b(3, .2, 2, 0xb2824a, cx * 7, 2.2, -12 + rz * 6); b(.3, 2.1, .3, 0x555555, cx * 7, 1, -12 + rz * 6); } break; }
+      case 'shop': { room(0x8a5a3a, 0x6b4a30, 14);
+        for (let i = 0; i < 4; i++) { b(8, 8, 1.6, 0x5a3b24, -26 + i * 17, 4, -24); for (let k = 0; k < 4; k++) b(1.4, 1.2, 1, [0xe53935, 0x43a047, 0xfdd835, 0x1e88e5][(i + k) % 4], -29 + i * 17 + k * 2, 2 + k * 1.8 % 4, -22.8); }
+        b(16, 3, 3, 0x4a2f1c, 0, 1.5, -12); break; }
+      case 'track': {
+        b(160, .6, 70, 0x3f7f3a, 0, -.35, -10); b(160, .5, 20, 0x2e3035, 0, -.2, 2);
+        for (let i = -16; i <= 16; i++) { b(4, .6, .7, i % 2 ? 0xe53935 : 0xffffff, i * 4.8, 0, 12.4); b(4, .6, .7, i % 2 ? 0xe53935 : 0xffffff, i * 4.8, 0, -8.4); }
+        for (let i = 0; i < 10; i++) b(1.6, .1, 20, 0xffffff, -34 + i * 0 + (i % 2) * 1.6, .06, 2); for (let k = 0; k < 14; k++) b(1.6, .1, 1.6, k % 2 ? 0x111111 : 0xffffff, -36 + (k % 2) * 1.6, .07, -7 + k * 1.4);
+        for (let s = 0; s < 6; s++) for (let row = 0; row < 5; row++) b(24, 1.1, 2.4, [0xc62828, 0x1565c0, 0xf9a825, 0x2e7d32][(s + row) % 4], -60 + s * 24, .55 + row * 1.2, -18 - row * 2.4);
+        for (let i = 0; i < 80; i++) b(.8, .8, .8, [0xff8a65, 0xffcc80, 0x80deea, 0xce93d8][i % 4], -62 + r() * 124, 1.5 + Math.floor(r() * 5) * 1.2, -18 - Math.floor(r() * 5) * 2.4);
+        for (let i = -6; i <= 6; i++) { b(.4, 4, .4, 0x888888, i * 12, 2, 16); b(8, 1.6, .2, [0xe53935, 0x1e88e5, 0xfdd835][(i + 6) % 3], i * 12, 5, 16); } break; }
+      case 'arena': {
+        const fl = new THREE.Mesh(new THREE.CylinderGeometry(26, 26, .6, 40), mat(0x4f9a3f)); fl.position.y = -.3; g.add(fl); const ring = new THREE.Mesh(new THREE.TorusGeometry(15, .25, 6, 44), mat(0xffffff)); ring.rotation.x = Math.PI / 2; ring.position.y = .05; g.add(ring);
+        for (let k = 0; k < 6; k++) { const c = new THREE.Mesh(new THREE.CylinderGeometry(28 + k * 2.6, 28 + k * 2.6, 1.3, 40, 1, true), new THREE.MeshLambertMaterial({ color: [0xb71c1c, 0x1565c0, 0xf9a825, 0x2e7d32, 0x6a1b9a, 0xff7043][k], side: THREE.DoubleSide })); c.position.y = .65 + k * 1.3; g.add(c); }
+        for (let i = 0; i < 4; i++) { const a = i * 1.57 + .78; b(.8, 18, .8, 0x777777, Math.cos(a) * 34, 9, Math.sin(a) * 34); b(3.4, 1.4, 1.4, 0xffffee, Math.cos(a) * 34, 18.4, Math.sin(a) * 34, E(0xffeeaa)); }
+        for (let i = 0; i < 160; i++) { const a = r() * 6.283, rr = 29 + r() * 14; b(.7, .7, .7, [0xff8a65, 0xffcc80, 0x80deea, 0xce93d8, 0xffffff][i % 5], Math.cos(a) * rr, 1.7 + Math.floor((rr - 28) / 2.6) * 1.3, Math.sin(a) * rr); } break; }
+      case 'desert': {
+        const gr = new THREE.Mesh(new THREE.CylinderGeometry(80, 80, .6, 40), mat(0xe0c27a)); gr.position.y = -.3; g.add(gr);
+        for (let i = 0; i < 8; i++) { const d = new THREE.Mesh(new THREE.SphereGeometry(10 + r() * 8, 14, 10), mat(0xd9b562)); d.scale.y = .35; d.position.set(-60 + i * 17, -1, -48 - r() * 14); g.add(d); }
+        for (let i = 0; i < 12; i++) { const x = (r() - .5) * 80, z = -34 - r() * 22; b(.8, 3.4, .8, 0x2e7d32, x, 1.7, z); b(.5, 1.4, .5, 0x2e7d32, x + .9, 2.4, z); b(.5, 1.2, .5, 0x2e7d32, x - .9, 2.6, z); }
+        for (let i = 0; i < 4; i++) { const x = -36 + i * 24; b(14, 7, 8, 0x9c6b3a, x, 3.5, -40); b(15, .6, 9, 0x6d4c41, x, 7.3, -40); b(4, 5, .3, 0x4e342e, x, 2.5, -35.8); }
+        for (let i = 0; i < 14; i++) b(2 + r() * 3, 1.6 + r() * 2.4, 2 + r() * 3, 0x8d7b68, (r() - .5) * 110, .9, -26 - r() * 40); break; }
+      case 'snow': {
+        const gr = new THREE.Mesh(new THREE.CylinderGeometry(80, 80, .6, 40), mat(0xf4f8ff)); gr.position.y = -.3; g.add(gr);
+        for (let i = 0; i < 7; i++) { const h = new THREE.Mesh(new THREE.SphereGeometry(12 + r() * 8, 14, 10), mat(0xe8f0fa)); h.scale.y = .6; h.position.set(-54 + i * 18, -2, -46 - r() * 10); g.add(h); }
+        for (let i = 0; i < 34; i++) { const x = (r() - .5) * 100, z = -26 - r() * 34, h = 5 + r() * 5; b(.8, 2, .8, 0x6d4c41, x, 1, z); const c = new THREE.Mesh(new THREE.ConeGeometry(2.4, h, 8), mat(0x1f6b45)); c.position.set(x, 2 + h / 2, z); g.add(c); const sn = new THREE.Mesh(new THREE.ConeGeometry(1.3, 1.6, 8), mat(0xffffff)); sn.position.set(x, 2 + h - .4, z); g.add(sn); } break; }
+      case 'beach': {
+        b(120, .6, 60, 0xf0d9a0, 0, -.3, 6); const w = new THREE.Mesh(new THREE.BoxGeometry(220, .5, 90), new THREE.MeshLambertMaterial({ color: 0x2f9de3, transparent: true, opacity: .85 })); w.position.set(0, -.2, -60); g.add(w);
+        for (let i = 0; i < 12; i++) { const x = (r() - .5) * 90, z = -10 - r() * 18, h = 7 + r() * 4; b(.7, h, .7, 0x8d6e63, x, h / 2, z); for (let k = 0; k < 5; k++) b(.4, .3, 4, 0x2e9a3a, x, h + .2, z).rotation.y = k * 1.26; }
+        const sn = new THREE.Mesh(new THREE.SphereGeometry(4, 14, 10), mat(0xffee66, E(0xaa8800))); sn.position.set(26, 24, -70); g.add(sn); break; }
+      case 'jungle': {
+        const gr = new THREE.Mesh(new THREE.CylinderGeometry(80, 80, .6, 40), mat(0x1f5a2a)); gr.position.y = -.3; g.add(gr);
+        for (let i = 0; i < 40; i++) { const x = (r() - .5) * 110, z = -24 - r() * 40, h = 10 + r() * 10; b(1.2, h, 1.2, 0x5b3d26, x, h / 2, z); b(7, 3, 7, 0x1e6b2c, x, h + 1, z); b(5, 2, 5, 0x2a8a3a, x + 1, h + 3, z); }
+        for (let i = 0; i < 24; i++) b(.15, 8 + r() * 6, .15, 0x2c7a38, (r() - .5) * 80, 10, -20 - r() * 30); for (let i = 0; i < 20; i++) { const l = b(5, .15, 2.4, 0x3aa84a, (r() - .5) * 60, 1 + r() * 3, -12 - r() * 16); l.rotation.set(.3, r() * 3, .2); } break; }
+      case 'scrapyard': {
+        const gr = new THREE.Mesh(new THREE.CylinderGeometry(80, 80, .6, 40), mat(0x6e5a44)); gr.position.y = -.3; g.add(gr);
+        for (let i = 0; i < 30; i++) b(2 + r() * 5, 1.5 + r() * 5, 2 + r() * 5, [0x8d6e63, 0x607d8b, 0xb0463a, 0x78909c, 0xc9a227][i % 5], (r() - .5) * 90, 1, -16 - r() * 36);
+        for (let i = 0; i < 16; i++) { const t = new THREE.Mesh(new THREE.TorusGeometry(1.1, .5, 8, 16), mat(0x222222)); t.position.set((r() - .5) * 60, 1.2 + Math.floor(r() * 3) * 1, -8 - r() * 24); t.rotation.set(r(), r(), r()); g.add(t); }
+        b(1.2, 22, 1.2, 0xd9a21b, 30, 11, -30); b(22, 1, 1, 0xd9a21b, 20, 22, -30); b(.2, 12, .2, 0x333333, 10, 16, -30); b(2.6, 2, 2.6, 0x777777, 10, 9, -30); break; }
+      case 'market': {
+        const gr = new THREE.Mesh(new THREE.BoxGeometry(120, .6, 90), mat(0x8a8176)); gr.position.set(0, -.3, -8); g.add(gr);
+        for (let i = 0; i < 7; i++) { const x = -42 + i * 14; b(8, 1, 4, 0x8d6e63, x, 2.2, -24); [-1, 1].forEach(s2 => b(.4, 5, .4, 0x6d4c41, x + s2 * 3.8, 2.5, -22.2)); b(9, .5, 6, [0xe53935, 0x43a047, 0xfdd835, 0x1e88e5, 0xab47bc, 0xff7043, 0x26c6da][i], x, 5.4, -23.4);
+          for (let k = 0; k < 6; k++) { const f = new THREE.Mesh(new THREE.SphereGeometry(.5, 8, 6), mat([0xe53935, 0xfb8c00, 0x7cb342, 0xfdd835][(i + k) % 4])); f.position.set(x - 3 + k * 1.2, 3.2, -24); g.add(f); } }
+        for (let i = 0; i < 16; i++) b(2, 1.6, 2, 0x9b7a4c, (r() - .5) * 90, .8, -30 - r() * 16);
+        for (let i = -7; i <= 7; i++) b(.5, .5, .5, 0xffee99, i * 6, 8 + Math.sin(i) * .6, -18, E(0xaa8833)); break; }
+      case 'castle': {
+        b(110, .6, 90, 0x8b8b8b, 0, -.3, -8); b(100, 12, 3, 0x8d8a85, 0, 6, -40); for (let i = -16; i <= 16; i++) b(2, 2, 3, 0x8d8a85, i * 3, 13, -40);
+        [-50, 50].forEach(x => { const t = new THREE.Mesh(new THREE.CylinderGeometry(6, 6.5, 26, 14), mat(0x9a9791)); t.position.set(x, 13, -36); g.add(t); const c = new THREE.Mesh(new THREE.ConeGeometry(7.5, 8, 14), mat(0xb23b2e)); c.position.set(x, 30, -36); g.add(c); });
+        b(14, 16, 3, 0x7a756f, 0, 8, -39); b(7, 9, 1, 0x3e2a1a, 0, 4.5, -37.3); for (let i = 0; i < 5; i++) { b(.4, 7, .4, 0x555555, -24 + i * 12, 3.5, -34); b(3, 5, .2, [0xc62828, 0x1565c0, 0xfdd835][i % 3], -24 + i * 12, 8, -34); b(.6, .6, .6, 0xffaa33, -24 + i * 12, 1.6, -32, E(0xaa5500)); } break; }
+      case 'temple': {
+        b(70, .6, 60, 0x8f8a80, 0, -.3, -6); for (let i = 0; i < 5; i++) b(46 - i * 6, .6, 30 - i * 4, 0xa59f93, 0, .3 + i * .6, -30); for (let i = -4; i <= 4; i++) { const c = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.3, 16, 12), mat(0xcfc8b8)); c.position.set(i * 9, 8, -36); g.add(c); } b(80, 2, 6, 0xb5ae9e, 0, 17, -36);
+        b(4, 3.4, 4, 0x6d6a60, 0, 3.2, -26); b(2, .6, 2, 0xffd54f, 0, 5.2, -26, E(0xaa7700)); for (let i = 0; i < 6; i++) { b(1.2, 3, 1.2, 0x555555, -24 + i * 9.6, 1.5, -20); b(1.6, 1, 1.6, 0xff9a33, -24 + i * 9.6, 3.4, -20, E(0xaa4400)); } break; }
+    }
+    return g;
+  }
+  function buildAnyStage(kind, skyTop, seed) {
+    if (kind === 'space' || kind === 'city' || kind === 'nature') return buildStage(kind, 0xff7733, skyTop, seed);
+    return buildExtraStage(kind, seed);
+  }
+  // weather and floating bits
+  const wGeo = new THREE.BoxGeometry(1, 1, 1), wMat = {};
+  const wM = (c) => wMat[c] || (wMat[c] = new THREE.MeshBasicMaterial({ color: c }));
+  function wMesh(sx, sy, sz, c, x, y, z) { const m = new THREE.Mesh(wGeo, wM(c)); m.scale.set(sx, sy, sz); m.position.set(x, y, z); m.userData.shared = true; fxGroup.add(m); return m; }
+  function weatherFx(t, info) {
+    const w = info.weather; if (!w) return;
+    if (w === 'rain') for (let i = 0; i < 150; i++) wMesh(.04, .9, .04, 0xbcd4ff, ((i * 7.31) % 40) - 20, 14 - ((t * 17 + i * 1.7) % 15), ((i * 3.7) % 26) - 14).rotation.z = .15;
+    else if (w === 'snow') for (let i = 0; i < 130; i++) wMesh(.13, .13, .13, 0xffffff, ((i * 5.13) % 36) - 18 + Math.sin(t + i) * .6, 12 - ((t * 2.2 + i * .37) % 13), ((i * 2.9) % 24) - 12);
+    else if (w === 'fireflies') for (let i = 0; i < 34; i++) wMesh(.12, .12, .12, 0xeaff66, ((i * 6.1) % 30) - 15 + Math.sin(t * .8 + i) * 1.4, 1.2 + (i % 5) * .9 + Math.sin(t * 1.3 + i) * .4, ((i * 3.3) % 20) - 12);
+    else if (w === 'dust') for (let i = 0; i < 50; i++) wMesh(.12, .12, .12, 0xd7b878, ((t * 3 + i * 2.3) % 44) - 22, 1 + (i % 6) * .7, ((i * 3.1) % 22) - 12);
+    else if (w === 'embers') for (let i = 0; i < 44; i++) wMesh(.1, .1, .1, i % 2 ? 0xff8a1f : 0xffd54f, ((i * 1.7) % 8) - 4 + Math.sin(t * 2 + i) * .5, ((t * 2.2 + i * .61) % 8), ((i * 2.3) % 6) - 3);
+  }
+
   // ---------- props: the 3D things a scene's caption talks about ----------
   const propCache = {};
   function makeProp(kind) {
@@ -310,9 +496,9 @@
     const extraKind = mentionB ? kb : ka;
     const comedy = /comedy|family|slice|friendship/i.test(mv.genre) || /pizza|grandma|cat|alien/i.test(mv.title);
     const spaceRe = /space|planet|galaxy|rocket|orbit|star\b|stars\b|asteroid|moon base|mothership|warp/, natureRe = /forest|woods|field|farm|mountain|river|lake|valley|garden|island|ocean|sea\b|beach|sky\b|cloud|cabin|meadow|wings/, cityRe = /city|street|town|market|shop|store|bank|building|house|school|academy|stadium|road|track|alley|roof/;
-    let kind = spaceRe.test(lc) ? 'space' : natureRe.test(lc) ? 'nature' : cityRe.test(lc) ? 'city' : kindFor(mv, mi, '');
+    let kind = pickKind(mi, mv, lc);
     const dark = /night|dark|shadow|ghost|mystery|midnight|2am|secret|cave|storm|villain|fear|silent|empty|nobody|lost|missing|danger|trap|alone|war\b/.test(lc);
-    const info = { text, style, present, extraN: g ? (big ? 6 : 4) : 0, extraKind, kinds: { A: ka, B: kb, C: kc }, prop: propFor(lc), kind, dark, comedy, surprise: /[!?]/.test(text) };
+    const info = { text, style, present, extraN: g ? (big ? 6 : 4) : 0, extraKind, kinds: { A: ka, B: kb, C: kc }, prop: propFor(lc), kind, dark, comedy, surprise: /[!?]/.test(text), tod: todOf(lc), weather: weatherOf(lc, kind, todOf(lc)) };
     sceneInfoCache[key] = info; return info;
   }
 
@@ -376,7 +562,7 @@
   }
 
   // ---------- animation helpers ----------
-  function clearFx() { while (fxGroup.children.length) { const c = fxGroup.children.pop(); if (c.geometry) c.geometry.dispose(); } }
+  function clearFx() { while (fxGroup.children.length) { const c = fxGroup.children.pop(); if (c.geometry && !c.userData.shared) c.geometry.dispose(); } }
   function stars(y, t, n, at) {
     for (let i = 0; i < n; i++) { const a = t * 6 + i * 6.283 / n; const s = new THREE.Mesh(new THREE.OctahedronGeometry(.2), new THREE.MeshBasicMaterial({ color: 0xffee33 })); s.position.set(at.x + Math.cos(a) * 1.0, y, at.z + Math.sin(a) * 1.0); fxGroup.add(s); }
   }
@@ -473,9 +659,11 @@
       if (info.comedy && info.surprise && u > .55 && u < .8 && a1) { a1.head.scale.setScalar(1.7); words2d(.55 * dur, 'WHAT?!', 6); }
       look.set(0, 2.4, 0); spread = 4.5;
     }
+    const emo = info.emo || [], xe = style === 'party' ? 'joy' : (emo[1] || emo[0] || 'neutral');
+    act.forEach((pp, ii) => emote(pp, emo[ii] || emo[0] || 'neutral', t, true)); ex.forEach(pp => emote(pp, xe, t, false));
     act.concat(ex).forEach(c => { if (c.costume === 'ghost') c.g.position.y += .6 + Math.sin(t * 3) * .3; if (c.extras.wings) { const f = Math.sin(t * 7) * .5; c.extras.wings[0].rotation.z = f; c.extras.wings[1].rotation.z = -f; } });
     // camera: close enough to see the actors, moving in a different way for each scene
-    const camStyle = ['orbit', 'dolly', 'crane', 'side'][hash(mi, si, 9 + camSeed) % 4], seed = hash(mi, si, 2 + camSeed) % 628 / 100, D = clamp(7 + spread * .9, 9, 17);
+    const camStyle = ['orbit', 'dolly', 'crane', 'side'][hash(mi, si, 9 + camSeed) % 4], seed = hash(mi, si, 2 + camSeed) % 628 / 100, D = clamp(7 + spread * .9, 9, 17) * (camSeed > 0 ? .78 : 1);
     if (camStyle === 'orbit') { const a = seed + t * .3; CAM.position.set(look.x + Math.cos(a) * D * .8, 4.2, look.z + Math.sin(a) * D * .8 + D * .4); }
     else if (camStyle === 'dolly') { CAM.position.set(look.x + Math.sin(seed) * 4, 3.2 + u * .8, look.z + D * 1.15 - u * D * .5); }
     else if (camStyle === 'crane') { CAM.position.set(look.x - 6, 1.6 + u * 7, look.z + D * .9 - u * 2); }
@@ -487,9 +675,9 @@
   // a scene is a sequence of shots; each shot has its own camera, action and dialogue
   function direct(mi, si, mv, sc, t) {
     const info = getInfo(mi, si, mv, sc), dl = getDialogue(mi, si, mv, sc), nb = dl.beats ? dl.beats.length : 1;
-    const beat = Math.min(nb - 1, Math.floor(t / BEAT)), b = (dl.beats && dl.beats[beat]) || { style: info.style, present: info.present };
-    beatOffset = beat * BEAT;
-    return directBeat(mi, si, mv, sc, t - beat * BEAT, Object.assign({}, info, { style: b.style, present: b.present }), BEAT, beat);
+    const BL = dl.beatLen || 4, beat = Math.min(nb - 1, Math.floor(t / BL)), b = (dl.beats && dl.beats[beat]) || { style: info.style, present: info.present };
+    beatOffset = beat * BL;
+    return directBeat(mi, si, mv, sc, t - beat * BL, Object.assign({}, info, { style: b.style, present: b.present, emo: b.emo }), BL, beat);
   }
 
   // ---------- sets: each of the three is built once and shown or hidden ----------
@@ -503,17 +691,37 @@
       const info = getInfo(mi, si, mv, sc);
       const accent = vis ? hexOf(vis[2]) : 0xff7733, skyTop = vis ? hexOf(vis[0]) : hexOf(mv.bg), skyMid = vis ? hexOf(vis[1]) : hexOf(mv.bg);
       Object.keys(stages).forEach(k => { stages[k].visible = (k === info.kind); });
-      if (!stages[info.kind]) { stages[info.kind] = buildStage(info.kind, 0xff7733, skyTop, hash(7, info.kind.length, 1)); SC.add(stages[info.kind]); }
+      if (!stages[info.kind]) { stages[info.kind] = buildAnyStage(info.kind, skyTop, hash(7, info.kind.length, 1)); SC.add(stages[info.kind]); }
       stage = stages[info.kind]; stage.visible = true; if (info.style !== 'fly') stage.position.z = 0;
-      const dark = info.dark || info.kind === 'space';
-      const bg = info.kind === 'space' ? 0x05071a : info.dark ? (info.kind === 'nature' ? 0x16253a : 0x0e1424) : info.kind === 'nature' ? 0x7ec8ff : 0x1f2a44;
-      SC.background = new THREE.Color(bg); SC.fog = new THREE.Fog(bg, 38, 120);
-      hemi.color.setHex(dark ? 0x7788bb : 0xffffff); hemi.groundColor.setHex(skyMid); hemi.intensity = dark ? .55 : 1.0;
-      sun.color.setHex(dark ? 0x99aaff : 0xfff2cc); sun.intensity = dark ? .6 : 1.0; rim.color.setHex(accent); rim.intensity = info.dark ? 1.5 : 1.0;
+      const indoor = !!INDOOR[info.kind], tod = info.tod, space = info.kind === 'space';
+      const SKY = { day: 0x7ec8ff, night: 0x0e1424, dawn: 0xffb88a, dusk: 0x7a5aa0, storm: 0x4a5566 };
+      const bg = space ? 0x05071a : indoor ? (tod === 'night' ? 0x1a1612 : 0x2a2622) : (info.kind === 'city' && tod === 'day' ? 0x6fa8dc : SKY[tod]);
+      SC.background = new THREE.Color(bg); SC.fog = new THREE.Fog(bg, indoor ? 70 : 38, indoor ? 140 : 120);
+      const dim = (tod === 'night' || tod === 'storm') && !space;
+      hemi.color.setHex(indoor ? 0xfff1d0 : space ? 0x7788bb : tod === 'dawn' ? 0xffd9b0 : tod === 'dusk' ? 0xc9a8ff : dim ? 0x7788bb : 0xffffff); hemi.groundColor.setHex(skyMid);
+      hemi.intensity = indoor ? (tod === 'night' ? .75 : .95) : space ? .6 : dim ? .5 : tod === 'dusk' ? .75 : 1.0;
+      sun.color.setHex(tod === 'dawn' ? 0xffc27a : tod === 'dusk' ? 0xb890ff : dim || space ? 0x99aaff : 0xfff2cc); sun.intensity = indoor ? .5 : dim ? .5 : 1.0; rim.color.setHex(accent); rim.intensity = (info.dark || tod === 'night') ? 1.5 : 1.0;
       stage.children.forEach(c => { if (c.userData && c.userData.spin) { c.rotation.x = t * c.userData.spin; c.rotation.y = t * c.userData.spin * .7; } });
       direct(mi, si, mv, sc, t);
+      weatherFx(t, info);
+      if (info.tod === 'storm' && ((t * .43 + si * .21) % 1) < .07) { hemi.intensity = 2.6; SC.background = new THREE.Color(0xdde6ff); }
       rd.render(SC, CAM);
       ctx.drawImage(rd.domElement, 0, 0, w, h);
+      { const dlx = getDialogue(mi, si, mv, sc), BL = dlx.beatLen || 4, bi = Math.min(2, Math.floor(t / BL)), pos = t - bi * BL;
+        let fade = bi === 0 ? Math.max(0, 1 - t / 0.45) : Math.max(0, 1 - pos / 0.22); if (pos > BL - 0.18) fade = Math.max(fade, (pos - (BL - 0.18)) / 0.18);
+        if (fade > 0) { ctx.fillStyle = 'rgba(0,0,0,' + Math.min(1, fade) + ')'; ctx.fillRect(0, 0, w, h); } }
+      { const nEnd = 0.4 + wc(sc.text) / 2.6 + (si === 0 ? (wc(mv.title) + 7) / 2.6 + 1.0 : 0) + 0.3;
+        if (t >= 0.3 && t <= nEnd) { const fs = Math.max(14, Math.round(h * .034)), nm = narratorPersona(mi, mv); ctx.save(); ctx.textAlign = 'center'; ctx.font = 'bold ' + fs + 'px Arial';
+          const txt = '\uD83C\uDF99\uFE0F  NARRATOR  \u2022  ' + nm, tw = ctx.measureText(txt).width; ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(w / 2 - tw / 2 - fs, h * .8 - fs * 1.05, tw + fs * 2, fs * 1.5);
+          ctx.fillStyle = '#ffd54f'; ctx.fillText(txt, w / 2, h * .8); ctx.restore(); } }
+      if (si === 0 && t < 6.5) {
+        const a = t < .6 ? t / .6 : (t > 5.2 ? Math.max(0, (6.5 - t) / 1.3) : 1); ctx.save(); ctx.globalAlpha = a * .92;
+        const gg = ctx.createLinearGradient(0, 0, 0, h); gg.addColorStop(0, 'rgba(0,0,0,.85)'); gg.addColorStop(.5, 'rgba(0,0,0,.35)'); gg.addColorStop(1, 'rgba(0,0,0,.85)'); ctx.fillStyle = gg; ctx.fillRect(0, 0, w, h);
+        ctx.globalAlpha = a; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,213,79,.9)'; ctx.font = 'bold ' + Math.round(h * .032) + 'px Arial'; ctx.fillText('EXPLOX CINEMAS PRESENTS', w / 2, h * .36);
+        let fs = Math.round(h * .1); ctx.font = '900 ' + fs + 'px Arial Black, Arial'; const tw = ctx.measureText(mv.title).width; if (tw > w * .9) { fs = Math.floor(fs * w * .9 / tw); ctx.font = '900 ' + fs + 'px Arial Black, Arial'; }
+        ctx.lineJoin = 'round'; ctx.lineWidth = h * .012; ctx.strokeStyle = '#220033'; ctx.strokeText(mv.title, w / 2, h * .5); ctx.fillStyle = '#ffffff'; ctx.fillText(mv.title, w / 2, h * .5);
+        ctx.font = 'bold ' + Math.round(h * .04) + 'px Arial'; ctx.fillStyle = '#9fe3ff'; ctx.fillText(mv.genre || '', w / 2, h * .6); ctx.restore();
+      }
       words.forEach(wd => {
         const age = t - wd.t0, a = clamp(1 - age * .6, 0, 1); if (age < 0 || a <= 0) return;
         ctx.save(); ctx.translate(w * (.28 + (wd.i * .13) % .5), h * (.3 + (wd.i * .09) % .18)); ctx.rotate(((wd.i % 3) - 1) * .18); ctx.scale(1 + Math.min(age, .25) * 2, 1 + Math.min(age, .25) * 2);
@@ -554,6 +762,13 @@
       .replace(/\b([A-Z]{2,})\b/g, (m) => m.charAt(0) + m.slice(1).toLowerCase()).replace(/\s+/g, ' ').trim();
   }
   let narratorName = '';
+  const NARRATORS = [
+    [/comedy|family|slice|sports/i, ['Captain Chuckles', 'Giggles the Narrator', 'Uncle Laughs']],
+    [/mystery|thriller/i, ['Inspector Whisper', 'Mister Midnight']],
+    [/sci-fi|space|mecha/i, ['Commander Orbit', 'Star Captain Nova']],
+    [/epic|origin|founders|historical|drama|frontier|hometown|newcomer|founding|romance|underdog/i, ['The Old Storyteller', 'Grandpa Tales', 'Sage Explox']],
+  ];
+  function narratorPersona(mi, mv) { const g = (mv && mv.genre) || ''; for (const [re, names] of NARRATORS) if (re.test(g)) return names[mi % names.length]; return 'The Explox Storyteller'; }
 
   // ---------- dialogue: the characters talk (speech bubbles + their own voices) ----------
   const STYLE_LINES = {
@@ -596,40 +811,9 @@
   }
   // Natural spoken lines that fit what is happening in the scene (never the narration read back). Scenes that are only
   // scene-setting or lore are left to the narrator, so nobody says anything that does not fit.
-  // Each scene lasts at least a minute: 8 shots of 8 seconds. Every shot has a kind (notice, move, talk, danger ...) that decides what the
-  // people are doing and what they say, and the order of shots follows the kind of event the caption describes.
-  const BEAT = 8, NBEAT = 8;
-  const POOLS = {
-    notice:  { style: 'look',  A: ['Wait... what is that?', 'Did you see that?', 'Something is happening.', 'Look over there!', 'Stop! Listen.', 'Do you feel that?'], B: ['I do not see anything.', 'Where? Show me!', 'I heard it too.', 'Let me look closer.', 'That is strange.', 'Stay calm.'] },
-    react:   { style: 'talk',  A: ['I cannot believe it!', 'This is unbelievable!', 'Oh my goodness!', 'This changes everything.', 'We were not ready for this.'], B: ['What should we do?', 'Is it really happening?', 'I am a little scared.', 'Stay together!', 'Keep your head up.'] },
-    move:    { style: 'walk',  A: ['This way. Stay close.', 'Keep your eyes open.', 'Follow me!', 'Not far now.', 'Step carefully.'], B: ['Right behind you!', 'Lead the way!', 'I see something ahead.', 'Watch your step!', 'Are we almost there?'] },
-    sneak:   { style: 'sneak', A: ['Shhh. Quiet now.', 'Move slowly...', 'Do not make a sound.', 'Stay low.'], B: ['My heart is pounding.', 'I think someone is there.', 'Did you hear that?', 'I am right behind you.'] },
-    talk:    { style: 'talk',  A: ['Here is the plan.', 'Listen to me, everyone.', 'We need to work together.', 'I have an idea.', 'Let us think about this.'], B: ['Tell us what to do.', 'I am with you.', 'That might just work!', 'Let us do it!', 'What if it goes wrong?'] },
-    danger:  { style: 'panic', A: ['Look out!', 'Watch out!', 'Danger ahead!', 'Get back!', 'Take cover!'], B: ['Stay close to me!', 'I am ready for them!', 'We can handle this together!', 'Behind you!', 'Hold the line!'] },
-    fight:   { style: 'fight', A: ['Take that!', 'Not today!', 'You will not win!', 'Here I come!', 'Is that all you have?'], B: ['Ha! Try again!', 'You cannot stop me!', 'We will see about that!', 'Nice try!', 'Is that your best?'] },
-    chase:   { style: 'run',   A: ['Faster! Faster!', 'Do not let them catch us!', 'Keep running!', 'This way, quick!', 'Jump!'], B: ['Wait for me!', 'I am right behind you!', 'Come back here!', 'I cannot keep up!', 'Almost there!'] },
-    race:    { style: 'run',   A: ['Start your engines!', 'Pedal to the metal!', 'Here we go, racers!', 'Hold on tight!', 'Floor it!'], B: ['Catch me if you can!', 'I am right behind you!', 'This is going to be close!', 'Nobody passes me today!', 'Watch the turn!'] },
-    build:   { style: 'work',  A: ['Hand me that!', 'Almost done!', 'Together we can build anything!', 'Hold it steady!', 'One more piece!'], B: ['Here you go!', 'Looks great!', 'Nice work!', 'Is this right?', 'We are making progress!'] },
-    trouble: { style: 'panic', A: ['Oh no!', 'This is bad!', 'That cannot be!', 'Where did it go?', 'We are in trouble.'], B: ['Do not give up. We can fix this.', 'We will find a way.', 'Stay calm. Think!', 'Let us start from the beginning.', 'There has to be a clue.'] },
-    win:     { style: 'party', A: ['Yes! We did it!', 'Woohoo!', 'Hooray!', 'We are the champions!', 'What a day!'], B: ['We did it together!', 'Best day ever!', 'I knew we could do it!', 'Everybody cheer!', 'Let us celebrate!'] },
-    calm:    { style: 'walk',  A: ['It is finally over.', 'Things are going to be better now.', 'We learned a lot today.', 'That was something.'], B: ['Thank you for staying with me.', 'I will never forget this.', 'What a story!', 'Let us go home.'] },
-    ready:   { style: 'talk',  A: ['Is everyone ready?', 'This is the moment.', 'Check everything one more time.', 'Here we go.'], B: ['Ready when you are!', 'All checks done.', 'Let us begin!', 'I have been waiting for this.'] },
-    story:   { style: 'talk',  A: ['Let me tell you what I saw.', 'Remember this moment.', 'It all started here.', 'Everyone in Explox will talk about this.'], B: ['Tell us more.', 'I am listening.', 'What happened next?', 'I will remember it too.'] },
-  };
-  const SEQ = {
-    discover: ['notice', 'move', 'sneak', 'notice', 'react', 'talk', 'move', 'calm'],
-    danger:   ['notice', 'danger', 'react', 'talk', 'danger', 'fight', 'react', 'calm'],
-    trouble:  ['react', 'trouble', 'talk', 'move', 'notice', 'talk', 'move', 'calm'],
-    win:      ['react', 'win', 'win', 'talk', 'win', 'story', 'win', 'calm'],
-    start:    ['ready', 'move', 'notice', 'ready', 'move', 'react', 'talk', 'calm'],
-    plan:     ['talk', 'notice', 'talk', 'react', 'talk', 'move', 'talk', 'calm'],
-    travel:   ['move', 'notice', 'move', 'sneak', 'move', 'react', 'move', 'calm'],
-    build:    ['talk', 'build', 'build', 'notice', 'build', 'react', 'build', 'win'],
-    fight:    ['danger', 'fight', 'fight', 'react', 'fight', 'fight', 'react', 'calm'],
-    chase:    ['notice', 'chase', 'chase', 'react', 'chase', 'trouble', 'chase', 'calm'],
-    race:     ['talk', 'race', 'race', 'react', 'race', 'race', 'race', 'win'],
-    story:    ['story', 'notice', 'talk', 'move', 'story', 'react', 'talk', 'calm'],
-  };
+  // Every caption is one story moment of about 11 seconds, shown as three shots (wide, talking, reaction) with fades between them.
+  // The two characters talk to each other by name about what is happening, where they are and what is in the scene.
+  const BEATS = 3;
   const CAT_RE = [
     ['danger', /\b(attacks?|attacked|explosion|hit|crash(es)?|danger|monsters?|alarm|warning|traps?|trapped|ambush(es)?|invade[sd]?|threat|enem(y|ies)|surrounded)\b/i],
     ['discover', /\b(discover(s|ed)?|found|finds?|notices?|noticed|spots?|spotted|clue|scanner|strange|temple|hidden|secret)\b/i],
@@ -640,29 +824,56 @@
     ['travel', /\b(walks?|walked|journey|travels?|traveled|wanders?|follows?|followed|returns?|returned|leaves?|explores?|explored|examin(e|es|ing)|surveys?|investigat(e|es|ing))\b/i],
     ['build', /\b(builds?|building|built|fix(es|ed)?|repairs?|repaired|cooks?|cooked|bakes?|baked|crafts?|crafted|raises?|raised|hammers?|invents?|invented|paints?|painted)\b/i],
   ];
+  const LINES = {
+    danger:   [['Look out, {B}!', 'Watch out, {B}! Behind you!', 'Danger! Get back, {B}!'], ['I see it, {A}! Stay behind me!', 'We can handle this together, {A}!', 'Do not worry, {A}. I am ready!']],
+    discover: [['{B}, come and look at this!', '{B}, did you see that?', 'I think I found something, {B}!'], ['What is it, {A}? Be careful!', 'Let me see, {A}.', 'Stay careful, {A}. We do not know what it is.']],
+    trouble:  [['Oh no, {B}!', '{B}, this is bad. Really bad.', 'We have a big problem, {B}.'], ['Do not panic, {A}. We will find a way.', 'Stay calm, {A}. Think!', 'We can fix this, {A}. Together.']],
+    win:      [['We did it, {B}!', 'Yes! Best day ever, {B}!', '{B}, we are champions!'], ['I knew we could, {A}!', 'Together we never lose!', 'Let us celebrate, {A}!']],
+    start:    [['Are you ready, {B}?', 'This is the moment, {B}.', 'Here we go, {B}!'], ['Ready when you are, {A}!', 'Let us do this, {A}!', 'I am right behind you, {A}.']],
+    plan:     [['Listen, {B}. Here is my plan.', '{B}, I have an idea.', 'We need to stay together, {B}.'], ['I am listening, {A}.', 'That might just work, {A}!', 'Tell me what to do, {A}.']],
+    travel:   [['Follow me to {place}, {B}.', '{place} is not far now, {B}.', 'Keep your eyes open, {B}.'], ['Right behind you, {A}!', 'Lead the way, {A}.', 'I can see {place} ahead, {A}!']],
+    build:    [['Hand me that, {B}.', 'Together we can build this, {B}!', 'One more piece, {B}.'], ['Here you go, {A}!', 'Looks great, {A}!', 'We are almost done, {A}.']],
+    fight:    [['Take that, {B}!', 'Not today, {B}!', 'This ends now, {B}!'], ['Ha! Try again, {A}!', 'You cannot stop me, {A}!', 'We will see about that, {A}!']],
+    chase:    [['Faster, {B}! Faster!', 'Do not let them catch us, {B}!', 'This way, {B}! Quick!'], ['Wait for me, {A}!', 'I am right behind you, {A}!', 'Keep running, {A}!']],
+    race:     [['Start your engines, {B}!', 'Catch me if you can, {B}!', 'Here we go, {B}!'], ['Not a chance, {A}!', 'I am right behind you, {A}!', 'This is going to be close, {A}!']],
+  };
+  const PROPLINE = { danger: 'Get behind the {thing}, {B}!', start: 'To the {thing}, {B}!', win: 'Look at the {thing}, {B}! We did it!', travel: 'We must reach the {thing}, {B}.', discover: '{B}, look at that {thing}!' };
+  const THING = { rocket: 'rocket', pizza: 'pizza', coins: 'S.I.P.', house: 'house', wall: 'wall', portal: 'portal', trophy: 'trophy', car: 'car', book: 'book', shield: 'shield', fire: 'fire', tree: 'old tree', lantern: 'light', moon: 'moon', sun: 'sun', heart: 'heart', bolt: 'lightning' };
+  const PLACE = { vault: 'the vault', track: 'the track', arena: 'the arena', dojo: 'the dojo', temple: 'the temple', castle: 'the castle', snow: 'the snow', beach: 'the beach', desert: 'the frontier', jungle: 'the jungle', scrapyard: 'the scrapyard', market: 'the market', lab: 'the lab', school: 'the school', house: 'the house', shop: 'the shop', nature: 'the countryside', city: 'the city', space: 'space' };
+  const MOOD = { night: 'It is so quiet tonight, {B}.', storm: 'That storm is getting closer, {B}.', dawn: 'A new day begins, {B}.', dusk: 'The light is fading, {B}.', day: 'Something feels different today, {B}.' };
+  const MOODB = ['I feel it too, {A}.', 'Stay alert, {A}.', 'Let us see what happens, {A}.'];
+  const EMOCAT = { danger: ['scared', 'determined'], discover: ['surprised', 'curious'], trouble: ['sad', 'worried'], win: ['joy', 'joy'], start: ['determined', 'excited'], plan: ['serious', 'happy'], travel: ['determined', 'happy'], build: ['determined', 'happy'], fight: ['angry', 'angry'], chase: ['scared', 'excited'], race: ['excited', 'determined'], mood: ['curious', 'happy'] };
+  const REACT_EMO = { danger: ['determined', 'worried'], trouble: ['worried', 'worried'], discover: ['surprised', 'surprised'], fight: ['determined', 'scared'], chase: ['excited', 'scared'] };
+  const REACT_STYLE = { danger: 'panic', trouble: 'panic', win: 'party', fight: 'fight', chase: 'run', race: 'run', discover: 'look', mood: 'look' };
+  const addr = (n) => String(n || '').replace(/^The\s+/i, '');
   function getDialogue(mi, si, mv, sc) {
     const key = mi + '_' + si; if (dlgCache[key]) return dlgCache[key];
     const info = getInfo(mi, si, mv, sc), roles = castRoles(mi, mv), nameOf = { A: roles[0].role, B: roles[1].role, C: roles[2].role };
     const text = String(sc.text || ''), h = hash(mi, si, 21), res = [];
-    res.beats = []; res.total = BEAT * NBEAT; dlgCache[key] = res;
-    let cat = 'story';
-    if (!MATURE.test(text)) {
+    res.beats = []; res.beatLen = 4; res.total = 12; dlgCache[key] = res;
+    const mature = MATURE.test(text);
+    let cat = null;
+    if (!mature) {
       cat = /\b(race|races|racing|raced|racer|racers|grid|slalom|lap|laps)\b/i.test(text) ? 'race' : info.style === 'fight' ? 'fight' : info.style === 'run' ? 'chase' : info.style === 'sneak' ? 'discover' : null;
-      if (!cat) { const f = CAT_RE.find(c => c[1].test(text)); cat = f ? f[0] : 'story'; }
+      if (!cat) { const f = CAT_RE.find(c => c[1].test(text)); cat = f ? f[0] : null; }
     }
-    const seq = SEQ[cat], quote = MATURE.test(text) ? null : text.match(/["\u201C]([^"\u201D]{3,90})["\u201D]/);
-    const who = text.match(/^([A-Z][A-Za-z' -]{2,26}):\s*["\u201C]/), label = who ? who[1] : null;
-    seq.forEach((bt, i) => {
-      const pool = POOLS[bt], present = ['A', 'B'].concat(i % 3 === 2 && !info.comedy ? ['C'] : []);
-      res.beats.push({ style: pool.style, present });
-      let a = pool.A[(h + i * 3) % pool.A.length], b = pool.B[((h >>> 3) + i * 5) % pool.B.length];
-      const s0 = i * BEAT + (i === 0 ? 4.8 : 0.7);
-      let roleA = nameOf.A;
-      if (i === 0 && quote) { a = quote[1].replace(/\s+/g, ' ').trim(); if (label) roleA = label; }
-      const la = { who: 'A', text: a, role: roleA, start: s0, end: s0 + wc(a) / 2.6 + 0.3 };
-      const sb = Math.max(la.end + 0.5, s0 + 3.4), lb = { who: 'B', text: b, role: nameOf.B, start: sb, end: sb + wc(b) / 2.6 + 0.3 };
-      res.push(la, lb);
-    });
+    const mood = !cat; if (mood) cat = 'mood';
+    const a = addr(nameOf.A), b = addr(nameOf.B), place = PLACE[info.kind] || 'there', thing = THING[info.prop] || '';
+    const fill = (x) => x.replace(/\{A\}/g, a).replace(/\{B\}/g, b).replace(/\{place\}/g, place).replace(/\{thing\}/g, thing);
+    const quote = mature ? null : text.match(/["\u201C]([^"\u201D]{3,90})["\u201D]/), who = text.match(/^([A-Z][A-Za-z' -]{2,26}):\s*["\u201C]/), label = who ? who[1] : null;
+    const lines = [];
+    if (quote) { lines.push(['A', quote[1].replace(/\s+/g, ' ').trim(), label]); lines.push(['B', mood ? fill(MOODB[h % 3]) : fill(LINES[cat][1][(h >>> 3) % 3])]); }
+    else if (mood) {
+      lines.push(['A', fill(info.dark && info.tod === 'day' ? 'Something feels wrong here, {B}.' : (MOOD[info.tod] || MOOD.day))]); lines.push(['B', fill(MOODB[(h >>> 2) % 3])]);
+    } else {
+      let la = LINES[cat][0][h % 3]; if (thing && PROPLINE[cat] && (h & 1)) la = PROPLINE[cat];
+      lines.push(['A', fill(la)]); lines.push(['B', fill(LINES[cat][1][(h >>> 3) % 3])]);
+    }
+    let tcur = 0.4 + wc(text) / 2.6 + 0.5 + (si === 0 ? (wc(mv.title) + 7) / 2.6 + 1.0 : 0);
+    lines.forEach(l => { const o = { who: l[0], text: l[1], role: l[2] || nameOf[l[0]], start: tcur }; o.end = o.start + wc(o.text) / 2.6 + 0.3; tcur = o.end + 0.45; res.push(o); });
+    const dur = clamp(Math.max(11.4, tcur + 1.0), 11.4, 20); res.total = dur; res.beatLen = dur / BEATS;
+    const e0 = EMOCAT[cat] || ['neutral', 'neutral'], e2 = REACT_EMO[cat] || (cat === 'win' ? ['joy', 'joy'] : e0);
+    res.beats.push({ style: info.style, present: ['A', 'B'], emo: e0 }, { style: 'talk', present: ['A', 'B'].concat(info.present.indexOf('C') >= 0 ? ['C'] : []), emo: e0.concat(['neutral']) }, { style: REACT_STYLE[cat] || 'talk', present: ['A', 'B'], emo: e2 });
     return res;
   }
   function charVoice(who, narrator) {
@@ -730,7 +941,7 @@
 
   window.__cinemaNarrate = function (text, mi, dur) {
     try {
-      const mv = CINEMA_MOVIES[mi] || CINEMA_MOVIES[0], synth = window.speechSynthesis; clearSpeechTimers(); synth.cancel();
+      const mv = CINEMA_MOVIES[mi] || CINEMA_MOVIES[0], synth = window.speechSynthesis; clearSpeechTimers(); synth.cancel(); if (cinemaState.sceneIndex === 0) text = 'Hello. I am ' + narratorPersona(mi, mv) + '. Tonight, ' + mv.title + '. ' + text;
       const v = pickVoice(mi, mv); const natural = v && /natural|neural|online|google/i.test(v.name);
       narratorName = v ? v.name.replace(/Microsoft\s+/i, '').replace(/\s*(Online)?\s*\(Natural\).*$/i, '').replace(/\s*-\s*English.*$/i, '').replace(/\s+Desktop.*/i, '').replace(/^Google\s+/i, '').trim() : '';
       const serious = /drama|epic|mystery|thriller|action|mecha|sacred|origin|war|frontier|hometown/i.test(mv.genre || '');
@@ -760,7 +971,7 @@
     lines.push(['head', 'STARRING']);
     cl.forEach(c => { lines.push(['actor', '\u2605 ' + c.actor]); lines.push(['role', 'as  ' + c.role]); lines.push(['gap', '']); });
     lines.push(['head', 'ALSO STARRING']); lines.push(['actor', 'Cubby  \u2022  Hubby  \u2022  Gernaldst']); lines.push(['role', 'and the people of Explox']); lines.push(['gap', '']);
-    lines.push(['head', 'NARRATED BY']); lines.push(['actor', narratorName ? narratorName + ' (the Explox Cinemas voice)' : 'The Explox Cinemas Voice']); lines.push(['gap', '']);
+    lines.push(['head', 'NARRATED BY']); lines.push(['actor', narratorPersona(mi, mv)]); lines.push(['gap', '']);
     lines.push(['head', 'DIRECTED BY']); lines.push(['actor', 'Explox Cinemas']); lines.push(['gap', '']); lines.push(['gap', '']);
     lines.push(['end', '\u2726  THE END  \u2726']);
     const lh = Math.max(34, h * .075), total = lines.length * lh;
@@ -802,7 +1013,7 @@
       if (sc.draw3dWired) return; sc.draw3dWired = true; const d2 = sc.draw;
       sc.draw2d = d2;
       sc.draw = function (ctx, w, h, t) { if (!draw3D(mi, si, mv, sc, ctx, w, h, t)) d2.call(sc, ctx, w, h, t); };
-      sc.dur = Math.max(BEAT * NBEAT, sc.dur || 5);
+      try { sc.dur = getDialogue(mi, si, mv, sc).total; } catch (e) { sc.dur = Math.max(sc.dur || 5, 12); }
     });
   });
   window.__cinema3d = { draw: draw3D, tagsFor, info: getInfo, castList, drawCredits, dialogue: getDialogue, status: () => ({ failed, hasRenderer: !!R }) };
