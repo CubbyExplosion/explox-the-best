@@ -575,6 +575,18 @@
     if (/dance|party|celebrat|cheer|victory|win\b|wins\b|festival|hooray|finally|parade|laugh|joke/.test(t)) return 'party';
     if (/sneak|creep|tiptoe|secret|hid\b|hide|hiding|silent|quiet|search|investigat|follow/.test(t)) return 'sneak';
     if (/scream|panic|afraid|scared|terrified|horror|run for|trembl/.test(t)) return 'panic';
+    if (/\b(fish|fishes|fishing|pond|angler)\b/.test(t)) return 'fish';
+    if (/\b(camp|camping|campfire|marshmallow|marshmallows|bonfire)\b/.test(t)) return 'camp';
+    if (/\b(magic|magician|wand|spell|spells|abracadabra|trick|tricks)\b/.test(t)) return 'magic';
+    if (/\b(bubble|bubbles|soap)\b/.test(t)) return 'bubbles';
+    if (/\b(photo|photos|picture|pictures|camera|selfie|smile)\b/.test(t)) return 'photo';
+    if (/\b(skate|skates|skateboard|scooter|surf|surfs|skating)\b/.test(t)) return 'skate';
+    if (/\b(snow|snowball|snowballs|snowman|snowy)\b/.test(t)) return 'snowball';
+    if (/\b(juggle|juggles|juggling|circus|clown)\b/.test(t)) return 'juggle';
+    if (/\b(tug|pull|pulls|pulling|tug-of-war)\b/.test(t)) return 'tugwar';
+    if (/\b(cook|cooks|cooking|bake|bakes|baking|kitchen|chef|stir|stirs|oven)\b/.test(t)) return 'cook';
+    if (/\b(drum|drums|drummer|band|guitar|rock|bass)\b/.test(t)) return 'drum';
+    if (/\b(block|blocks|stack|stacks|tower|towers|brick|bricks|lego)\b/.test(t)) return 'build';
     if (/\b(jump|jumps|jumped|leap|leaps|leapt|hop|hops|vault|vaults|parkour|hurdle|hurdles|bounce|bounces)\b/.test(t)) return 'jump';
     if (/\b(climb|climbs|climbed|climbing|ladder|ladders|scale|scales|cliff|cliffs|rope|ropes|ascend|ascends)\b/.test(t)) return 'climb';
     if (/\b(dig|digs|dug|digging|shovel|plant|plants|planted|garden|gardens|bury|buried|treasure|farm|farms|seed|seeds)\b/.test(t)) return 'dig';
@@ -694,11 +706,11 @@
   let shown = [], curActors = [], curInfoNow = null;
 
   // ---------- things to DO: jump, dance, play ball, eat, paint, dig, climb, work out, shop, sing, high-five ----------
-  const ACT_STYLES = ['jump', 'dance', 'play', 'eat', 'write', 'dig', 'climb', 'exercise', 'shop', 'sing', 'highfive'], ACT_SET = new Set(ACT_STYLES);
+  const ACT_STYLES = ['jump', 'dance', 'play', 'eat', 'write', 'dig', 'climb', 'exercise', 'shop', 'sing', 'highfive', 'fish', 'camp', 'magic', 'bubbles', 'photo', 'skate', 'snowball', 'juggle', 'tugwar', 'cook', 'drum', 'build'], ACT_SET = new Set(ACT_STYLES);
   function chatActivity(mi, si, k, info, txt) {   // what are they doing while they talk?
     const vs = verbStyle(String(txt || '').toLowerCase(), mi, si); if (ACT_SET.has(vs)) return vs;
     if (info && info.dark) return null;
-    const pool = info && info.comedy ? ['play', 'dance', 'eat', 'jump', 'exercise', 'highfive', 'sing', 'write', 'shop', 'dig'] : ['write', 'exercise', 'play', 'jump', 'dig', 'shop', 'eat', 'climb'];
+    const pool = info && info.comedy ? ACT_STYLES : ['write', 'exercise', 'play', 'jump', 'dig', 'shop', 'eat', 'climb', 'fish', 'camp', 'photo', 'build', 'cook', 'drum', 'skate', 'magic'];
     return hash(mi, si + k, 31) % 100 < 70 ? pool[hash(mi, si * 3 + k, 17) % pool.length] : null;
   }
   const ballGeo = new THREE.SphereGeometry(.45, 14, 10), ballMat = new THREE.MeshBasicMaterial({ color: 0xff5533 });
@@ -706,11 +718,11 @@
   function notes(t, cx, cz, n) { for (let k = 0; k < n; k++) { const ag = (t * .6 + k / n) % 1; spr(k % 2 ? '\u{1F3B5}' : '\u{1F3B6}', cx + Math.sin(k * 2.3 + t) * 2.8, 3.4 + ag * 3.4, cz + Math.cos(k * 1.7) * 1.2, 1.2 * (1 - ag * .5)); } }
   function toward(p, x, z) { p.g.rotation.y = Math.atan2(x - p.g.position.x, z - p.g.position.z); }
   const lrp = (a, b, k) => a + (b - a) * k, eas = (x) => x * x * (3 - 2 * x);
-  function activity(style, act, ex, t, u, look, mi, si) {
+  function activityBase(style, act, ex, t, u, look, mi, si) {
     const all = act.concat(ex), n = all.length, A = act[0], B = act[1] || ex[0], sn = Math.sin; let spread = 5;
     const crowd = (z, face0) => ex.forEach((p, i) => { p.g.position.set((i - (ex.length - 1) / 2) * 2.4, Math.abs(sn(t * 6 + i)) * .4, z); p.g.rotation.y = face0; limbs(p, 2.7 + sn(t * 8 + i) * .5, 2.7 - sn(t * 8 + i) * .5, 0, 0); });
     if (style === 'jump') {   // parkour: run up, leap the hurdle, flips for some
-      wMesh(.4, 1.3, 4.4, 0xcc6633, 0, .65, 0); wMesh(.5, .22, 4.6, 0xffffff, 0, 1.4, 0);
+      wmT(.4, 1.3, 4.4, 0xcc6633, 0, .65, 0); wmT(.5, .22, 4.6, 0xffffff, 0, 1.4, 0);
       all.forEach((p, i) => { const ph = (t * .5 + i * .31) % 1, lane = (i - (n - 1) / 2) * 1.5; p.g.position.set(-7 + ph * 14, 0, lane); p.g.rotation.y = Math.PI / 2; walk(p, t * 1.3 + i, 12, 1); p.body.rotation.x = .2;
         const j = clamp((ph - .4) / .22, 0, 1); if (j > 0 && j < 1) { p.g.position.y = sn(Math.PI * j) * 2.8; limbs(p, 2.7, 2.7, -1.2, -1.2); p.body.rotation.x = i % 2 ? -6.283 * j : .3; p.mouth.scale.set(1.2, 2.2, 1); } });
       look.set(0, 2.2, 0); return 10;
@@ -735,8 +747,8 @@
       look.set(0, 2.6, 0); return 9;
     }
     if (style === 'eat') {   // a table with food: fork up to the mouth, chewing, happy faces
-      wMesh(7, .22, 2.4, 0x8d5a2b, 0, 1.55, 0); [-3, 3].forEach(x => [-.9, .9].forEach(z => wMesh(.25, 1.5, .25, 0x6d4220, x, .75, z)));
-      all.slice(0, 3).forEach((p, i) => { const x = (i - (Math.min(n, 3) - 1) / 2) * 2.6; wMesh(1.2, .1, 1.2, 0xffffff, x, 1.7, 0); wMesh(.7, .3, .7, [0xe53935, 0xffb300, 0x7cb342][i % 3], x, 1.9, 0);
+      wmT(7, .22, 2.4, 0x8d5a2b, 0, 1.55, 0); [-3, 3].forEach(x => [-.9, .9].forEach(z => wmT(.25, 1.5, .25, 0x6d4220, x, .75, z)));
+      all.slice(0, 3).forEach((p, i) => { const x = (i - (Math.min(n, 3) - 1) / 2) * 2.6; wmT(1.2, .1, 1.2, 0xffffff, x, 1.7, 0); wmT(.7, .3, .7, [0xe53935, 0xffb300, 0x7cb342][i % 3], x, 1.9, 0);
         p.g.position.set(x, 0, -1.7); p.g.rotation.y = 0; const sv = sn(t * 3 + i * 1.3), k = (sv + 1) / 2;
         p.armR.rotation.x = lrp(-1.1, 2.1, k); p.armL.rotation.x = -.6; p.head.rotation.x = .1 + k * .1; p.mouth.scale.set(1, 1 + Math.abs(sn(t * 9 + i)) * 1.8, 1); p.body.position.y = -.05; p.legL.rotation.x = p.legR.rotation.x = -1.4; p.g.position.y = -.45; });
       ex.forEach((p, i) => { p.g.position.set((i - (ex.length - 1) / 2) * 2.6, 0, -4.2); p.g.rotation.y = 0; p.armR.rotation.x = lrp(-1, 2, (sn(t * 3 + i) + 1) / 2); });
@@ -744,17 +756,17 @@
       look.set(0, 2.2, 0); return 8;
     }
     if (style === 'write') {   // painting on a big canvas: the picture fills up as the scene goes on
-      const cx = 0, cz = -2.6; wMesh(.18, 4.2, .18, 0x6d4220, -2, 2.1, cz); wMesh(.18, 4.2, .18, 0x6d4220, 2, 2.1, cz); wMesh(4.6, 3.2, .16, 0xfffdf5, 0, 3.4, cz);
-      const nstr = Math.min(18, Math.floor(t * 1.6 + 1)); for (let k = 0; k < nstr; k++) wMesh(.5 + (k % 3) * .25, .35 + (k % 2) * .2, .1, [0xe53935, 0x1e88e5, 0xfdd835, 0x43a047, 0x8e24aa][k % 5], -1.6 + (k * 0.9) % 3.4, 2.4 + ((k * 0.55) % 2), cz + .12);
+      const cx = 0, cz = -2.6; wmT(.18, 4.2, .18, 0x6d4220, -2, 2.1, cz); wmT(.18, 4.2, .18, 0x6d4220, 2, 2.1, cz); wmT(4.6, 3.2, .16, 0xfffdf5, 0, 3.4, cz);
+      const nstr = Math.min(18, Math.floor(t * 1.6 + 1)); for (let k = 0; k < nstr; k++) wmT(.5 + (k % 3) * .25, .35 + (k % 2) * .2, .1, [0xe53935, 0x1e88e5, 0xfdd835, 0x43a047, 0x8e24aa][k % 5], -1.6 + (k * 0.9) % 3.4, 2.4 + ((k * 0.55) % 2), cz + .12);
       if (A) { A.g.position.set(-3.6, 0, -1); toward(A, cx, cz); A.armR.rotation.x = -1.4 + sn(t * 6) * .5; A.armR.rotation.z = sn(t * 3) * .4; A.body.rotation.x = .1; }
       if (B) { B.g.position.set(3.6, 0, -.6); toward(B, cx, cz); B.armR.rotation.x = 2.0; B.head.rotation.z = .2 + sn(t * 1.5) * .1; B.head.rotation.y = -.2; }
       ex.forEach((p, i) => { p.g.position.set((i - (ex.length - 1) / 2) * 2.4, 0, -5); p.g.rotation.y = 0; });
       look.set(0, 2.6, -1); return 8;
     }
     if (style === 'dig') {   // dig a hole together, dirt flies, and at the end they find a treasure chest
-      const found = u > .68; wMesh(2.6, .06, 2.6, 0x2a1a0e, 0, .04, 0); const pile = .35 + Math.min(u / .68, 1) * .65; wMesh(2.2 * pile, 1.0 * pile, 1.6 * pile, 0x6d4c2e, 0, .45 * pile, -2.2);
-      for (let k = 0; k < 5; k++) { const ph = (t * 1.5 + k * .2) % 1; wMesh(.28, .28, .28, 0x6d4c2e, lrp(-0.6, 0.7, ph) * (k % 2 ? 1 : -1) * 1.5, .6 + sn(Math.PI * ph) * 2.2, .4); }
-      if (found) { wMesh(1.5, .9, 1, 0x8a5a1c, 0, .5, 0); wMesh(1.5, .25, 1, 0xffd54a, 0, 1.05, 0); for (let k = 0; k < 4; k++) spr('\u2728', sn(t * 3 + k * 1.7) * 1.6, 2 + Math.abs(sn(t * 2 + k)) * 1.2, .8, .9); }
+      const found = u > .68; wmT(2.6, .06, 2.6, 0x2a1a0e, 0, .04, 0); const pile = .35 + Math.min(u / .68, 1) * .65; wmT(2.2 * pile, 1.0 * pile, 1.6 * pile, 0x6d4c2e, 0, .45 * pile, -2.2);
+      for (let k = 0; k < 5; k++) { const ph = (t * 1.5 + k * .2) % 1; wmT(.28, .28, .28, 0x6d4c2e, lrp(-0.6, 0.7, ph) * (k % 2 ? 1 : -1) * 1.5, .6 + sn(Math.PI * ph) * 2.2, .4); }
+      if (found) { wmT(1.5, .9, 1, 0x8a5a1c, 0, .5, 0); wmT(1.5, .25, 1, 0xffd54a, 0, 1.05, 0); for (let k = 0; k < 4; k++) spr('\u2728', sn(t * 3 + k * 1.7) * 1.6, 2 + Math.abs(sn(t * 2 + k)) * 1.2, .8, .9); }
       [A, B].forEach((pp, k) => { if (!pp) return; pp.g.position.set(k ? 2.6 : -2.6, 0, 0); pp.g.rotation.y = k ? -Math.PI / 2 : Math.PI / 2;
         if (found) { limbs(pp, 2.8, 2.8, 0, 0); pp.g.position.y = Math.abs(sn(t * 7 + k)) * .8; pp.mouth.scale.set(1.2, 2.4, 1); }
         else { const d = sn(t * 5 + k * 2); pp.body.rotation.x = .55; pp.armL.rotation.x = pp.armR.rotation.x = -1.0 + d * .9; } });
@@ -762,7 +774,7 @@
       look.set(0, 1.8, 0); return 9;
     }
     if (style === 'climb') {   // up a rocky wall with a rope, the other one cheers from the ground
-      wMesh(.8, 11, 8, 0x8a8aa0, 4.9, 5.5, 0); for (let j = 0; j < 9; j++) wMesh(.4, .35, .9, [0xff7043, 0xffee58, 0x66bb6a][j % 3], 4.4, .8 + j * 1.15, (j % 2 ? 1 : -1) * 1.2); wMesh(.12, 11, .12, 0xd2a24c, 4.2, 5.5, .2);
+      wmT(.8, 11, 8, 0x8a8aa0, 4.9, 5.5, 0); for (let j = 0; j < 9; j++) wmT(.4, .35, .9, [0xff7043, 0xffee58, 0x66bb6a][j % 3], 4.4, .8 + j * 1.15, (j % 2 ? 1 : -1) * 1.2); wmT(.12, 11, .12, 0xd2a24c, 4.2, 5.5, .2);
       if (A) { const y = 3 + 2.7 * sn(t * .55); A.g.position.set(3.6, y, 0); A.g.rotation.y = Math.PI / 2; const c = sn(t * 4); A.armL.rotation.x = 2.6 + c * .3; A.armR.rotation.x = 2.6 - c * .3; A.legL.rotation.x = c * .6; A.legR.rotation.x = -c * .6; A.body.rotation.x = -.1; A.head.rotation.x = -.5; }
       if (B) { B.g.position.set(1.4, 0, .6); B.g.rotation.y = Math.PI / 2; B.head.rotation.x = -.7; B.armR.rotation.x = 2.8 + sn(t * 6) * .3; B.armL.rotation.x = 2.5; B.mouth.scale.set(1.2, 2.4, 1); }
       ex.forEach((p, i) => { p.g.position.set(-2.4 - i * 2.2, Math.abs(sn(t * 6 + i)) * .4, (i % 2) * 2 - 1); p.g.rotation.y = Math.PI / 2; limbs(p, 2.7 + sn(t * 8 + i) * .5, 2.7 - sn(t * 8 + i) * .5, 0, 0); });
@@ -772,12 +784,12 @@
       all.forEach((p, i) => { const m = i % 3, k = (sn(t * 6 + (i > 2 ? .6 : 0)) + 1) / 2; p.g.position.set((i - (n - 1) / 2) * 2.5, 0, (i % 2) * -1); p.g.rotation.y = 0;
         if (m === 0) { p.armL.rotation.z = -k * 2.8; p.armR.rotation.z = k * 2.8; p.legL.rotation.z = -k * .5; p.legR.rotation.z = k * .5; p.g.position.y = k * .55; }
         else if (m === 1) { p.g.position.y = -.5 * k; p.legL.rotation.x = p.legR.rotation.x = -k * 1.0; p.body.rotation.x = .3 * k; p.armL.rotation.x = p.armR.rotation.x = -1.4; }
-        else { p.armL.rotation.x = p.armR.rotation.x = 2.6; const by = 3.4 + k * 1.3; wMesh(2.4, .16, .16, 0x333333, p.g.position.x, by, p.g.position.z); wMesh(.5, .7, .5, 0x222222, p.g.position.x - 1.2, by, p.g.position.z); wMesh(.5, .7, .5, 0x222222, p.g.position.x + 1.2, by, p.g.position.z); p.mouth.scale.set(1.1, 2, 1); }
+        else { p.armL.rotation.x = p.armR.rotation.x = 2.6; const by = 3.4 + k * 1.3; wmT(2.4, .16, .16, 0x333333, p.g.position.x, by, p.g.position.z); wmT(.5, .7, .5, 0x222222, p.g.position.x - 1.2, by, p.g.position.z); wmT(.5, .7, .5, 0x222222, p.g.position.x + 1.2, by, p.g.position.z); p.mouth.scale.set(1.1, 2, 1); }
         if (k > .8) spr('\u{1F4A6}', p.g.position.x + .9, 4.4 + p.g.position.y, p.g.position.z, .8); });
       look.set(0, 2.4, 0); return 9;
     }
     if (style === 'shop') {   // a shop counter: coins go one way, the goods come back
-      wMesh(6, 1.6, 1.2, 0xa66a32, 0, .8, -1.6); wMesh(7.5, .2, 1.5, 0xe0b070, 0, 1.7, -1.6); for (let j = 0; j < 5; j++) wMesh(1, 1, .8, [0xe53935, 0x1e88e5, 0xfdd835, 0x43a047, 0xab47bc][j], -3.6 + j * 1.8, 3.4 + (j % 2) * .9, -3.6); wMesh(8.5, .18, 1, 0x6d4220, 0, 2.9, -3.6);
+      wmT(6, 1.6, 1.2, 0xa66a32, 0, .8, -1.6); wmT(7.5, .2, 1.5, 0xe0b070, 0, 1.7, -1.6); for (let j = 0; j < 5; j++) wmT(1, 1, .8, [0xe53935, 0x1e88e5, 0xfdd835, 0x43a047, 0xab47bc][j], -3.6 + j * 1.8, 3.4 + (j % 2) * .9, -3.6); wmT(8.5, .18, 1, 0x6d4220, 0, 2.9, -3.6);
       if (B) { B.g.position.set(0, 0, -2.6); B.g.rotation.y = 0; B.armR.rotation.x = 2.3 * (sn(t * 2) > .6 ? 1 : 0); B.head.rotation.z = sn(t * 2) * .12; B.p = 1; }
       if (A) { A.g.position.set(-3.4, 0, -.6); toward(A, 0, -1.6); }
       const c = (t * .5) % 1; if (A) { if (c < .5) { const q = c / .5; spr('\u{1FA99}', lrp(-3.2, 0, q), 2.8 + sn(Math.PI * q) * 1.4, -1, 1); A.armR.rotation.x = -1.3 * sn(Math.PI * Math.min(q * 1.4, 1)); } else { const q = (c - .5) / .5; spr('\u{1F381}', lrp(0, -3.2, q), 2.8 + sn(Math.PI * q) * 1.4, -1, 1.2); A.armL.rotation.x = A.armR.rotation.x = -1.2; A.g.position.y = q > .9 ? .3 : 0; } }
@@ -785,7 +797,7 @@
       look.set(-1, 2.4, -1); return 9;
     }
     if (style === 'sing') {   // a little stage with a singer, backup dancers and music notes
-      wMesh(9, .4, 4.2, 0x7b1fa2, 0, .2, -1.4); wMesh(.1, 2.6, .1, 0x333333, 1.2, 1.7, -.6); wMesh(.3, .3, .3, 0x333333, 1.2, 3, -.6);
+      wmT(9, .4, 4.2, 0x7b1fa2, 0, .2, -1.4); wmT(.1, 2.6, .1, 0x333333, 1.2, 1.7, -.6); wmT(.3, .3, .3, 0x333333, 1.2, 3, -.6);
       if (A) { A.g.position.set(0, .4, -1.2); A.g.rotation.y = 0; A.armR.rotation.x = 2.1; A.armL.rotation.x = 2.8 * (sn(t * 3) > 0 ? 1 : .2); A.head.rotation.x = -.35; A.mouth.scale.set(1.2, 1.8 + Math.abs(sn(t * 9)) * 2.2, 1); A.body.rotation.z = sn(t * 3) * .08; }
       if (B) { B.g.position.set(-3, .4, -1.4); B.g.rotation.y = .3; limbs(B, 2.6 + sn(t * 5) * .5, 2.6 - sn(t * 5) * .5, 0, 0); B.body.rotation.z = sn(t * 5) * .15; B.mouth.scale.set(1.1, 1.8, 1); }
       if (act[2]) { act[2].g.position.set(3, .4, -1.4); act[2].g.rotation.y = -.3; limbs(act[2], 2.6 - sn(t * 5) * .5, 2.6 + sn(t * 5) * .5, 0, 0); act[2].body.rotation.z = -sn(t * 5) * .15; act[2].mouth.scale.set(1.1, 1.8, 1); }
@@ -803,7 +815,117 @@
       ex.forEach((p, i) => { const left = i % 2 === 0; p.g.position.set((left ? -1 : 1) * (6 + Math.floor(i / 2) * 2), Math.abs(sn(t * 6 + i)) * .4, -1.5); p.g.rotation.y = left ? Math.PI / 2 : -Math.PI / 2; limbs(p, 2.7 + sn(t * 8 + i) * .5, 2.7 - sn(t * 8 + i) * .5, 0, 0); });
       look.set(0, 2.6, 0); return 9;
     }
+    if (style === 'fish') {   // fishing at a pond: the bobber dips, a fish jumps out
+      wmT(10, .1, 6.5, 0x2e9fd6, 0, .06, -1.8); wmT(11, .3, 1.4, 0x8d6e3f, 0, .12, 2.1);
+      [A, B].forEach((pp, k) => { if (!pp) return; const sg = k ? 1 : -1, off = k * 1.7, ph = ((t + off) % 4.2) / 4.2, bite = ph > .8; pp.g.position.set(sg * 3.4, 0, 1.2); toward(pp, sg * .8, -1.2);
+        const hx = pp.g.position.x - sg * -.5, hy = 2.0, tipx = sg * 1.2, tipy = 4.4; for (let q = 0; q <= 6; q++) wmT(.1, .1, .1, 0x6d4220, lrp(hx, tipx, q / 6), lrp(hy, tipy, q / 6), .4);
+        const by = .25 + (bite ? Math.abs(sn(t * 16)) * .5 : sn(t * 2 + k) * .06); for (let q = 1; q < 6; q++) wmT(.04, .04, .04, 0xffffff, lrp(tipx, sg * .9, q / 6), lrp(tipy, by, q / 6), lrp(.4, -1.2, q / 6)); wmT(.35, .35, .35, 0xe53935, sg * .9, by, -1.2);
+        pp.armL.rotation.x = pp.armR.rotation.x = bite ? 2.4 : -1.1; pp.body.rotation.x = bite ? -.35 : .05; if (ph > .9) spr('\u{1F41F}', lrp(sg * .9, pp.g.position.x - sg * .6, (ph - .9) / .1), 1 + sn(Math.PI * (ph - .9) / .1) * 3, lrp(-1.2, .5, (ph - .9) / .1), 1.1); });
+      ex.forEach((p, i) => { p.g.position.set((i % 2 ? 1 : -1) * (6.4 + Math.floor(i / 2) * 2), 0, 1.2); toward(p, 0, -1); p.armR.rotation.x = -1.1; });
+      look.set(0, 2.2, 0); return 10;
+    }
+    if (style === 'camp') {   // around a campfire, roasting marshmallows
+      wmT(1.8, .3, .35, 0x5d4037, 0, .2, .3); wmT(1.8, .3, .35, 0x5d4037, 0, .2, -.3); for (let q = 0; q < 4; q++) wmT(.6, .9 + Math.abs(sn(t * 9 + q * 2)) * .8, .6, [0xff7a18, 0xffb300, 0xff5722, 0xffee58][q], (q % 2 ? .2 : -.2), .6, (q < 2 ? -.15 : .15)); for (let q = 0; q < 6; q++) { const ag = (t * .9 + q * .17) % 1; wmT(.12, .12, .12, 0xffee58, sn(q * 3 + t) * .7, 1.2 + ag * 3.2, sn(q * 5) * .5); }
+      all.forEach((p, i) => { const a = i * Math.PI * 2 / n + .5, r = i < act.length ? 3.2 : 5.2; p.g.position.set(Math.cos(a) * r, -.45, Math.sin(a) * r * .8); toward(p, 0, 0); p.legL.rotation.x = p.legR.rotation.x = -1.4; if (i < act.length) { p.armR.rotation.x = -1.2 + sn(t * 2 + i) * .1; p.armL.rotation.x = -.5; const hx = p.g.position.x * .6, hz = p.g.position.z * .6; wmT(.1, .1, 1.8, 0x8d6e3f, hx, 1.5, hz); wmT(.3, .3, .3, 0xfff8e1, p.g.position.x * .3, 1.5, p.g.position.z * .3); p.mouth.scale.set(1, 1 + Math.abs(sn(t * 3 + i)) * .8, 1); } else { p.armR.rotation.x = -.8; } });
+      look.set(0, 1.6, 0); return 9;
+    }
+    if (style === 'magic') {   // a wizard waves a wand, sparkles, a rabbit pops out of a hat
+      const ph = (t % 4.4) / 4.4; wmT(1.1, .9, 1.1, 0x222222, 2.8, .45, -.4); wmT(1.5, .12, 1.5, 0x222222, 2.8, .92, -.4); wmT(.6, .2, .6, 0x7b1fa2, 2.8, .98, -.4);
+      if (A) { A.g.position.set(-1.2, 0, 0); A.g.rotation.y = .5; A.armR.rotation.x = 2.2 + sn(t * 7) * .5; A.armR.rotation.z = -.3 + sn(t * 5) * .3; const wx = -1.2 + .8, wy = 4 + sn(t * 7) * .5; wmT(.12, 1.1, .12, 0x222222, wx, wy, .5); for (let q = 0; q < 5; q++) spr('\u2728', wx + sn(t * 4 + q * 1.3) * 1.3, wy + .3 + Math.abs(sn(t * 3 + q)) * 1.4, .6, .8); }
+      if (ph > .45 && ph < .95) { const q = (ph - .45) / .5; spr('\u{1F407}', 2.8, 1.2 + eas(Math.min(q * 1.6, 1)) * 1.7 + (q > .8 ? sn((q - .8) * 30) * .3 : 0), -.4, 1.4); }
+      if (B) { B.g.position.set(1.0, 0, 1.4); B.g.rotation.y = -.4; if (ph > .45) { B.armL.rotation.x = B.armR.rotation.x = 2.2; B.armL.rotation.z = .5; B.armR.rotation.z = -.5; B.mouth.scale.set(1.2, 2.6, 1); } else B.armR.rotation.x = 2.0; }
+      ex.forEach((p, i) => { p.g.position.set((i - (ex.length - 1) / 2) * 2.4, 0, -4); p.g.rotation.y = 0; if (ph > .45) limbs(p, 2.7, 2.7, 0, 0); });
+      look.set(.6, 2.6, 0); return 8;
+    }
+    if (style === 'bubbles') {   // bubble blasters!
+      const bg = new THREE.SphereGeometry(.5, 10, 8), bm = new THREE.MeshBasicMaterial({ color: 0xbfefff, transparent: true, opacity: .45 });
+      all.forEach((p, i) => { const sg = i % 2 ? 1 : -1; p.g.position.set((i - (n - 1) / 2) * 2.7, 0, (i % 2) * -1.4); p.g.rotation.y = sg * Math.PI / 3; p.armR.rotation.x = -1.2 + sn(t * 5 + i) * .15; p.armL.rotation.x = -.6; wmT(.9, .35, .35, [0xff4081, 0x40c4ff, 0xffd740][i % 3], p.g.position.x + sg * .9, 2.2, p.g.position.z);
+        for (let q = 0; q < 5; q++) { const ag = (t * .45 + i * .21 + q * .2) % 1, b = new THREE.Mesh(bg, bm); b.userData.shared = true; b.position.set(p.g.position.x + sg * (1.3 + ag * 4.2) + sn(q + t) * .5, 2.3 + ag * 3.2 + sn(q * 2 + t * 2) * .3, p.g.position.z + sn(q * 4) * .6); b.scale.setScalar(.45 + (q % 3) * .35); fxGroup.add(b); } });
+      look.set(0, 3, 0); return 9;
+    }
+    if (style === 'photo') {   // a photo shoot: poses, a camera and flashes
+      const ph = (t % 2.6) / 2.6, snap = Math.floor(t / 2.6);
+      if (A) { A.g.position.set(-3.8, 0, 2.2); toward(A, 0, 0); A.armL.rotation.x = A.armR.rotation.x = -1.4; wmT(.8, .55, .5, 0x222222, -3.0, 2.5, 1.8); wmT(.3, .3, .3, 0x90caf9, -2.7, 2.5, 1.6); }
+      const sub = all.slice(1); sub.forEach((p, i) => { p.g.position.set((i - (sub.length - 1) / 2) * 2.2, 0, -1 + (i % 2) * -.8); p.g.rotation.y = 0; const pz = (i + snap) % 4; if (pz === 0) { p.armR.rotation.x = 2.8; p.armL.rotation.x = 2.8; } else if (pz === 1) { p.armL.rotation.z = -.9; p.armR.rotation.z = .9; p.body.rotation.z = .1; } else if (pz === 2) { p.armR.rotation.x = 2.6; p.armR.rotation.z = -.4; p.head.rotation.z = .2; } else { p.armL.rotation.z = -1.3; p.armR.rotation.z = 1.3; p.armL.rotation.x = p.armR.rotation.x = 1.0; } p.mouth.scale.set(1.3, 1.6, 1); });
+      if (ph < .08) { flashA = (1 - ph / .08) * .9; spr('\u{1F4F8}', -2.4, 3.6, 1.8, 1); }
+      look.set(0, 2.4, 0); return 9;
+    }
+    if (style === 'skate') {   // skateboards: gliding, leaning and ollie tricks
+      wmT(10, .25, 5, 0x8e8e9a, 0, .12, 0);
+      all.forEach((p, i) => { const sp = .8 + (i % 3) * .15, x = sn(t * sp + i * 1.1) * 5.4, vx = Math.cos(t * sp + i * 1.1), z = (i - (n - 1) / 2) * 1.4, k = (t * .5 + i * .3) % 1, oll = k > .8 ? sn(Math.PI * (k - .8) / .2) * 1.8 : 0;
+        p.g.position.set(x, .3 + oll, z); p.g.rotation.y = vx > 0 ? Math.PI / 2 : -Math.PI / 2; p.armL.rotation.z = -1.0; p.armR.rotation.z = 1.0; p.legL.rotation.x = .3; p.legR.rotation.x = -.3; p.body.rotation.z = vx * .25; if (oll) { p.body.rotation.y = 6.283 * ((k - .8) / .2); p.mouth.scale.set(1.2, 2.2, 1); } const bd = wmT(1.7, .15, .6, [0xe53935, 0x1e88e5, 0xfdd835][i % 3], x, .22 + oll * .9, z); bd.rotation.y = p.g.rotation.y === Math.PI / 2 ? 0 : 0; });
+      look.set(0, 1.8, 0); return 10;
+    }
+    if (style === 'snowball') {   // snowball fight!
+      const sm = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      wmT(30, .08, 20, 0xf4f8ff, 0, .04, 0); wmT(2.2, 1.2, 1.4, 0xffffff, -6.2, .6, 0); wmT(2.2, 1.2, 1.4, 0xffffff, 6.2, .6, 0);
+      [A, B].forEach((pp, k) => { if (!pp) return; const sg = k ? 1 : -1, ph = ((t * .85 + k * .5) % 1); pp.g.position.set(sg * 4.2, 0, 0); pp.g.rotation.y = k ? -Math.PI / 2 : Math.PI / 2; const oth = k ? A : B;
+        pp.armR.rotation.x = lrp(1.6, -1.9, eas(clamp(ph / .22, 0, 1))); if (!(ph < .22)) { const q = (ph - .22) / .78, b = new THREE.Mesh(ballGeo, sm); b.userData.shared = true; b.position.set(lrp(pp.g.position.x, -sg * 4.2, q), 2.4 + sn(Math.PI * q) * 2.4, 0); b.scale.setScalar(.75); fxGroup.add(b); if (q > .85) { oth.body.rotation.x = .6; oth.head.rotation.x = -.5; oth.mouth.scale.set(.7, 3, 1); } }
+        const th = [A, B][1 - k]; });
+      ex.forEach((p, i) => { const left = i % 2 === 0; p.g.position.set((left ? -1 : 1) * (7.2 + Math.floor(i / 2) * 2), Math.abs(sn(t * 6 + i)) * .3, 2 * (i % 3 - 1)); p.g.rotation.y = left ? Math.PI / 2 : -Math.PI / 2; p.armR.rotation.x = sn(t * 5 + i) > 0 ? 2.4 : -1.2; });
+      look.set(0, 2.2, 0); return 10;
+    }
+    if (style === 'juggle') {   // a juggling show with a clapping audience
+      if (A) { A.g.position.set(0, 0, 0); A.g.rotation.y = 0; A.armL.rotation.x = 2.2 + sn(t * 5) * .4; A.armR.rotation.x = 2.2 - sn(t * 5) * .4; A.mouth.scale.set(1.3, 1.6, 1); A.head.rotation.z = sn(t * 2) * .1;
+        for (let q = 0; q < 4; q++) { const ang = t * 5 + q * Math.PI / 2, b = new THREE.Mesh(ballGeo, new THREE.MeshBasicMaterial({ color: [0xe53935, 0x1e88e5, 0xfdd835, 0x43a047][q] })); b.userData.shared = true; b.position.set(Math.sin(ang) * 1.3, 4 + Math.cos(ang) * .9, .4); b.scale.setScalar(.6); fxGroup.add(b); } }
+      all.slice(1).forEach((p, i) => { p.g.position.set((i % 2 ? 1 : -1) * (3.4 + Math.floor(i / 2) * 2.2), 0, 1.4 + (i % 3) * -1); p.g.rotation.y = 0; p.armL.rotation.x = p.armR.rotation.x = -1.3; p.armL.rotation.z = -(.35 + .35 * sn(t * 12 + i)); p.armR.rotation.z = .35 + .35 * sn(t * 12 + i); p.mouth.scale.set(1.2, 2, 1); });
+      look.set(0, 3, 0); return 9;
+    }
+    if (style === 'tugwar') {   // tug of war: the flag swings between the two teams
+      const off = sn(t * .8) * 1.5; wmT(11, .14, .14, 0xd2a24c, 0, 1.8, 0); wmT(.4, .8, .1, 0xe53935, off, 2.5, 0); wmT(.1, 1.2, .1, 0x333333, off, 2.2, 0);
+      const teamL = [A].concat(ex.filter((_, i) => i % 2 === 0)), teamR = [B].concat(ex.filter((_, i) => i % 2 === 1));
+      [teamL, teamR].forEach((team, k) => team.forEach((p, i) => { if (!p) return; const sg = k ? 1 : -1; p.g.position.set(sg * (2.4 + i * 1.9) + off, 0, 0); p.g.rotation.y = k ? -Math.PI / 2 : Math.PI / 2; p.body.rotation.x = -.5; p.armL.rotation.x = p.armR.rotation.x = -1.3; p.legL.rotation.x = .4 + sn(t * 8 + i) * .2; p.legR.rotation.x = -.4; p.mouth.scale.set(1.1, 2, 1); }));
+      if (act[2]) { act[2].g.position.set(0, 0, -2.4); act[2].g.rotation.y = 0; act[2].armR.rotation.x = 2.8 + sn(t * 8) * .3; }
+      look.set(0, 2.2, 0); return 11;
+    }
+    if (style === 'cook') {   // a kitchen: stirring a pot, steam, and a taste test
+      wmT(3.4, 1.4, 1.6, 0x666666, 0, .7, -1.6); wmT(1.3, .9, 1.3, 0x9e9e9e, 0, 1.85, -1.6); wmT(1.0, .12, 1.0, 0xe53935, 0, 2.35, -1.6); for (let q = 0; q < 5; q++) { const ag = (t * .8 + q * .2) % 1; wmT(.4 + ag * .5, .4 + ag * .5, .4 + ag * .5, 0xffffff, sn(q * 2 + t) * .5, 2.7 + ag * 2.4, -1.6); }
+      if (A) { A.g.position.set(0, 0, -2.9); A.g.rotation.y = 0; A.armR.rotation.x = -1.2 + sn(t * 5) * .3; A.armR.rotation.z = Math.cos(t * 5) * .3; A.armL.rotation.x = -.5; A.mouth.scale.set(1, 1.3, 1); }
+      if (B) { const ph = (t % 3.4) / 3.4; B.g.position.set(3.2, 0, -.6); toward(B, 0, -1.6); B.armR.rotation.x = ph < .5 ? lrp(-1, 2.1, ph / .5) : 2.1; if (ph > .6) { B.armR.rotation.x = 2.8; B.armR.rotation.z = -.4; B.mouth.scale.set(1.2, 2.2, 1); spr('\u{1F44D}', 3.2, 4.4, -.6, 1); } }
+      ex.forEach((p, i) => { p.g.position.set(-3.4 - i * 2.2, 0, -.6 - (i % 2)); toward(p, 0, -1.6); p.armR.rotation.x = 2.1; });
+      look.set(.6, 2.4, -1); return 8;
+    }
+    if (style === 'drum') {   // a rock band: drums, guitar and tambourine
+      const hit = Math.abs(sn(t * 9)); wmT(1.8, 1.8, 1.2, 0xc62828, 0, .9, -1.8); wmT(1.2, .9, 1.2, 0x1565c0, -1.5, 1.4, -1.4); wmT(1.2, .9, 1.2, 0x1565c0, 1.5, 1.4, -1.4); wmT(1.5, .06, 1.5, 0xffd54a, -2.6, 3.3 + hit * .1, -1.6); wmT(1.5, .06, 1.5, 0xffd54a, 2.6, 3.3 + (1 - hit) * .1, -1.6);
+      if (A) { A.g.position.set(0, -.4, -2.8); A.g.rotation.y = 0; A.legL.rotation.x = A.legR.rotation.x = -1.4; A.armL.rotation.x = -1.6 + sn(t * 9) * .8; A.armR.rotation.x = -1.6 - sn(t * 9) * .8; A.head.rotation.z = sn(t * 4.5) * .15; A.mouth.scale.set(1.1, 1.6, 1); }
+      if (B) { B.g.position.set(-3.6, 0, -.4); B.g.rotation.y = .4; B.armL.rotation.x = -.9; B.armR.rotation.x = -1.2 + sn(t * 12) * .4; B.body.rotation.z = sn(t * 4) * .15; wmT(1.8, .35, .2, 0x8d6e3f, -3.2, 1.8, .2); }
+      if (act[2]) { act[2].g.position.set(3.6, 0, -.4); act[2].g.rotation.y = -.4; act[2].armR.rotation.x = 2.6 + sn(t * 14) * .5; act[2].body.rotation.z = -sn(t * 4) * .15; }
+      ex.forEach((p, i) => { p.g.position.set((i % 2 ? 1 : -1) * (6.4 + Math.floor(i / 2) * 2), Math.abs(sn(t * 5 + i)) * .4, 0); p.g.rotation.y = i % 2 ? -Math.PI / 2 : Math.PI / 2; p.armL.rotation.x = p.armR.rotation.x = 2.8; });
+      notes(t, 0, -1, 7); look.set(0, 2.4, -1); return 10;
+    }
+    if (style === 'build') {   // stacking blocks into a pyramid, together
+      const nb = Math.min(15, Math.floor(t * 1.1)), cols = [0xe53935, 0x1e88e5, 0xfdd835, 0x43a047, 0xab47bc]; let q = 0;
+      for (let r = 0; r < 5; r++) for (let c = 0; c < 5 - r; c++) { if (q >= nb) break; wmT(1, 1, 1, cols[q % 5], (c - (4 - r) / 2) * 1.05, .5 + r * 1.02, -1); q++; }
+      const done = nb >= 15; [A, B].forEach((pp, k) => { if (!pp) return; const sg = k ? 1 : -1, ph = (t * .9 + k * .5) % 1; pp.g.position.set(sg * 4.4, 0, 0); pp.g.rotation.y = k ? -Math.PI / 2 : Math.PI / 2;
+        if (done) { limbs(pp, 2.8, 2.8, 0, 0); pp.g.position.y = Math.abs(sn(t * 7 + k)) * .8; pp.mouth.scale.set(1.2, 2.4, 1); } else { pp.armL.rotation.x = pp.armR.rotation.x = -1.2; pp.body.rotation.x = .15; wmT(.9, .9, .9, cols[(k + 2) % 5], lrp(pp.g.position.x - sg * .9, -sg * 1.4, ph) , 2 + sn(Math.PI * ph) * 1.2, 0); } });
+      ex.forEach((p, i) => { p.g.position.set((i - (ex.length - 1) / 2) * 2.4, 0, -4); p.g.rotation.y = 0; if (done) limbs(p, 2.7 + sn(t * 8 + i) * .5, 2.7 - sn(t * 8 + i) * .5, 0, 0); });
+      look.set(0, 2.2, 0); return 10;
+    }
     return 5;
+  }
+  // every scene gets its own tempo, colour theme and signature flourishes, so there are thousands of different looks
+  const FLOURISH = ['spin', 'flip', 'hop', 'wave', 'bow', 'clap', 'cheer', 'cartwheel'], HUES = [0, 0, 0, .08, .17, .25, .33, .5, .58, .67, .75, .9], TEMPO = [.75, .9, 1, 1.15, 1.35];
+  let HUE = 0; const tintCache = {};
+  function tintC(c) { if (!HUE) return c; const k = c + '_' + HUE; return tintCache[k] || (tintCache[k] = new THREE.Color(c).offsetHSL(HUE, 0, 0).getHex()); }
+  function wmT(sx, sy, sz, c, x, y, z) { return wMesh(sx, sy, sz, tintC(c), x, y, z); }
+  function flourish(p, k, q) {
+    const sn = Math.sin;
+    switch (k) {
+      case 'spin': p.body.rotation.y += 6.283 * eas(q); break;
+      case 'flip': p.body.rotation.x = -6.283 * eas(q); p.g.position.y += sn(Math.PI * q) * 1.8; break;
+      case 'hop': p.g.position.y += sn(Math.PI * q) * 1.1; p.armL.rotation.x = p.armR.rotation.x = 2.6; break;
+      case 'wave': p.armR.rotation.x = 2.6; p.armR.rotation.z = sn(q * 40) * .5; break;
+      case 'bow': p.body.rotation.x = .9 * sn(Math.PI * q); p.armL.rotation.x = p.armR.rotation.x = .3; break;
+      case 'clap': p.armL.rotation.x = p.armR.rotation.x = -1.3; p.armL.rotation.z = -(.35 + .35 * sn(q * 60)); p.armR.rotation.z = .35 + .35 * sn(q * 60); break;
+      case 'cheer': p.armL.rotation.x = p.armR.rotation.x = 2.7; p.mouth.scale.set(1.3, 2.4, 1); p.g.position.y += Math.abs(sn(q * 12)) * .5; break;
+      case 'cartwheel': p.g.rotation.z = 6.283 * eas(q); p.g.position.y += sn(Math.PI * q) * 1.2; break;
+    }
+  }
+  function activity(style, act, ex, t, u, look, mi, si, beatNo) {
+    const h = hash(mi * 7 + si, beatNo || 0, 3), vr = { tempo: TEMPO[h % 5], hue: HUES[hash(h, 5, 2) % 12], fl: hash(h, 7, 5) };
+    HUE = vr.hue; const tt = t * vr.tempo, sp = activityBase(style, act, ex, tt, u, look, mi, si); HUE = 0;
+    act.concat(ex).forEach((p, i) => { const T = 3.3, c = Math.floor((tt + i * .73) / T), q = ((tt + i * .73) % T) / T / .28; if (q < 1 && hash(c, i + vr.fl, 4) % 3 !== 0 && !(style === 'dance' || style === 'highfive')) flourish(p, FLOURISH[hash(c, i + vr.fl, 9) % 8], q); });
+    return sp;
   }
   // ---------- the director: puts the right characters in the right place doing what the caption says ----------
   function directBeat(mi, si, mv, sc, t, info, dur, camSeed) {
@@ -832,6 +954,7 @@
       if (prop.userData.flicker) prop.scale.setScalar(.95 + Math.abs(Math.sin(t * 17)) * .15);
       if (prop.userData.float) prop.position.y = Math.sin(t * 2) * .5 + 1;
     }
+    if (prop && (ACT_SET.has(style) || style === 'fly')) prop.visible = false;   // the activity brings its own props
     if (style === 'walk') {
       const x0 = -11 + t * 2.7;
       act.forEach((p, i) => { p.g.position.set(x0 + i * 3 - 1.5, 0, (i - (act.length - 1) / 2) * 1.8); face(p, Math.PI / 2); walk(p, t + i, 7); });
@@ -897,9 +1020,21 @@
       const all = act.concat(ex); all.forEach((p, i) => { const a = i * 6.283 / all.length + t * .5; p.g.position.set(Math.cos(a) * 4.4, Math.abs(Math.sin(t * 5 + i)) * 1.1, Math.sin(a) * 3.6); face(p, -a + Math.PI); limbs(p, 2.8 + Math.sin(t * 9 + i) * .6, 2.8 - Math.sin(t * 9 + i) * .6, Math.sin(t * 9 + i) * .6, -Math.sin(t * 9 + i) * .6); p.body.rotation.y = Math.sin(t * 4 + i) * .5; p.mouth.scale.set(1.2, 2.2, 1); });
       confetti(t, 90); look.set(0, 2.2, 0); spread = 6;
     } else if (style === 'fly') {
-      const all = act.concat(ex); all.forEach((p, i) => { p.g.position.set((i - (all.length - 1) / 2) * 2.6 + Math.sin(t + i) * .5, 5 + Math.sin(t * 2 + i) * .5, -(i % 2) * 2); face(p, 0); p.g.rotation.x = -1.35; limbs(p, 2.9, 2.9, .1, -.1); });
+      // they ride in a real little airplane: cockpit seats, wings, a spinning propeller, wing-walkers and clouds rushing past
+      const yaw = -.9, cy = Math.cos(yaw), sy = Math.sin(yaw), bob = Math.sin(t * 2) * .25, bank = Math.sin(t * .9) * .12, face0 = Math.atan2(cy, -sy);
+      const pg = new THREE.Group(); pg.userData.shared = true; pg.rotation.set(0, yaw, bank); pg.position.y = bob;
+      const pm = (sx, sy2, sz, c, x, y, z) => { const m = new THREE.Mesh(wGeo, wM(c)); m.scale.set(sx, sy2, sz); m.position.set(x, y, z); pg.add(m); return m; };
+      pm(9, 1.5, 1.9, 0xe53935, 0, 4.2, 0); pm(1.5, 1.2, 1.6, 0xffffff, 5.2, 4.2, 0); pm(2.8, .25, 13, 0xffffff, .5, 4.35, 0); pm(2.8, .27, 1.1, 0xe53935, .5, 4.35, 6); pm(2.8, .27, 1.1, 0xe53935, .5, 4.35, -6);
+      pm(1.6, 2.3, .25, 0xe53935, -4.4, 5.6, 0); pm(1.5, .2, 4.2, 0xffffff, -4.3, 4.7, 0); pm(.15, 1.0, 1.9, 0x90caf9, 2.1, 5.3, 0); pm(.9, .9, .3, 0x222222, 1.6, 3.2, 1.2); pm(.9, .9, .3, 0x222222, 1.6, 3.2, -1.2); pm(.15, 1, .15, 0x555555, 1.6, 3.7, 1.2); pm(.15, 1, .15, 0x555555, 1.6, 3.7, -1.2);
+      const prop2 = pm(.3, 3.4, .4, 0x333333, 6.05, 4.2, 0); prop2.rotation.x = t * 40; pm(.4, .5, .5, 0xffd54a, 6.0, 4.2, 0);
+      fxGroup.add(pg);
+      const place = (lx, lz, ly) => ({ x: lx * cy + lz * sy, z: -lx * sy + lz * cy, y: ly + bob });
+      act.forEach((p, i) => { const q = place(1.2 - i * 1.9, 0, 3.55); p.g.position.set(q.x, q.y, q.z); p.g.rotation.y = face0; p.legL.rotation.x = p.legR.rotation.x = -1.4; p.mouth.scale.set(1.2, 1.8, 1);
+        if (i === 0) { p.armL.rotation.x = p.armR.rotation.x = -1.1; p.head.rotation.y = Math.sin(t * .8) * .2; } else if (i === 1) { p.armR.rotation.x = 2.6; p.armR.rotation.z = Math.sin(t * 9) * .5; p.head.rotation.y = .5; } else { p.armL.rotation.x = p.armR.rotation.x = 2.8 + Math.sin(t * 8) * .3; } });
+      ex.forEach((p, i) => { if (i >= 4) { p.g.visible = false; return; } const side = i % 2 ? 1 : -1, q = place(1.5 - Math.floor(i / 2) * 1.8, side * (4 + (i > 1 ? .5 : 0)), 4.6); p.g.position.set(q.x, q.y, q.z); p.g.rotation.y = face0; p.armL.rotation.z = -1.2; p.armR.rotation.z = 1.2; p.body.rotation.x = .25; p.mouth.scale.set(1.3, 2.2, 1); });
+      for (let k = 0; k < 9; k++) { const z = ((t * 34 + k * 9) % 70) - 30; wMesh(4 + (k % 3) * 2, 1.2, 2 + (k % 2), 0xffffff, (k % 2 ? 1 : -1) * (7 + (k * 3) % 11), 1 + (k % 4) * 2.4, z); }
       if (stage) stage.position.z = (t * 26) % 40;
-      look.set(0, 5, 0); spread = 7;
+      look.set(0, 4.3, 0); spread = 15;
     } else if (style === 'sneak') {
       act.forEach((p, i) => { p.g.position.set(-8 + ((t * 1.1 + i * 2.6) % 18), 0, -1 + Math.sin(i + t) * 1.2); face(p, Math.PI / 2); walk(p, t * .7 + i, 5, .5); p.body.rotation.x = .35; p.head.rotation.y = Math.sin(t * 2 + i) * .8; p.mouth.scale.set(.4, .6, 1); });
       ex.forEach((p, i) => { p.g.position.set(-12 + ((t * 1.1 + i * 2.2) % 22), 0, 2.6 - (i % 2) * 5); face(p, Math.PI / 2); walk(p, t * .7 + i, 5, .5); p.body.rotation.x = .35; });
@@ -916,7 +1051,7 @@
       ex.forEach((p, i) => { p.g.position.set(-5 + i * 2.4, 0, -2.6); face(p, 0); p.armR.rotation.x = -1.4 + Math.sin(t * 8 + i) * 1.2; });
       look.set(0, 2.4, 0); spread = 5;
     } else if (ACT_SET.has(style)) {
-      spread = activity(style, act, ex, t, u, look, mi, si);
+      spread = activity(style, act, ex, t, u, look, mi, si, camSeed);
     } else {  // talk
       act.forEach((p, i) => {
         const side = act.length === 1 ? 0 : (i === 0 ? -1 : 1) * 2.2 + (i === 2 ? 2.4 : 0); p.g.position.set(side, 0, i === 2 ? 1.5 : 0); face(p, act.length === 1 ? .35 : (i === 1 ? -Math.PI / 2 + .5 : Math.PI / 2 - .5));
