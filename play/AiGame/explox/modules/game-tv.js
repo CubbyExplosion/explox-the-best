@@ -27,9 +27,12 @@
     if (!tv.slots.length) for (let i = 0; i < 14; i++) { CINEMA_MOVIES.push({ title: 'Explox TV', genre: '📺 TV', price: 0, bg: '#101828', icons: '📺', comedy: true, tv: true, tvTag: 'TV', narrator: 'TV Voice', cast: {}, trailer: [], scenes: [] }); tv.slots.push(CINEMA_MOVIES.length - 1); }
     const i = tv.slots[tv.slotI++ % tv.slots.length]; return i;
   }
+  // every news scene happens at the anchor's counter; the anchor is dead serious and the reporter reports from beside it
+  function deskify(scenes) { scenes.forEach(sc => { sc.script.place = 'cityhall'; sc.script.lines = sc.script.lines.map(l => [l[0], l[0] === 'A' ? 'serious' : l[1], 'desk', l[3]]); }); return scenes; }
   const C3 = (a, b, c) => ({ A: { role: a[0], kind: a[1], pers: a[2] }, B: { role: b[0], kind: b[1], pers: b[2] }, C: { role: c[0], kind: c[1], pers: c[2] } });
   function program(tag, title, narrator, cast, scenes) {
-    const idx = slot(), m = CINEMA_MOVIES[idx]; m.comedy = !/BORING/.test(tag); m.title = title; m.tvTag = tag; m.narrator = narrator; m.cast = cast; m.scenes = scenes;
+    if (/NEWS/.test(tag)) scenes = deskify(scenes);
+    const idx = slot(), m = CINEMA_MOVIES[idx]; m.comedy = !/NEWS/.test(tag); m.ticker = ''; m.title = title; m.tvTag = tag; m.narrator = narrator; m.cast = cast; m.scenes = scenes;
     try { window.__cinema3d.reset(idx); window.__cinema3d.wire(idx); } catch (e) { } return idx;
   }
 
@@ -73,6 +76,11 @@
     { place: 'library', prop: 'book', head: 'the library found a very sleepy visitor', lines: [['B', 'curious', 'sneak', 'Ava, I am in the library, and I can hear snoring behind the shelves.'], ['A', 'surprised', 'talk', 'Snoring? In a library?'], ['B', 'surprised', 'look', 'It is a sleepwalking ghost named Wisp. She loves to nap on soft books.'], ['A', 'warm', 'talk', 'How cute. Is she in trouble?'], ['B', 'happy', 'talk', 'Not at all. The librarian gave her a blanket and a quiet corner.'], ['A', 'warm', 'party', 'Sweet dreams, Wisp. Now back to the studio.']] },
   ];
   const WEATHER = [['sunny', 'Blue skies and sunshine all day, perfect for the park and the beach.', 'play'], ['cloudy', 'A few fluffy clouds, but no rain. Bring a sweater for the evening.', 'walk'], ['rainy', 'A gentle shower this afternoon. Puddle jumping is allowed!', 'jump'], ['starry', 'A clear night with lots of stars. Great for camping and wishing.', 'camp']];
+  const WAR = [
+    [['A', 'serious', 'desk', 'Now, an update on the really boring war.'], ['A', 'serious', 'desk', 'Today, the Left Sock Army moved one step to the left. The Right Sock Army moved one step to the right. Neither army noticed.'], ['B', 'worried', 'desk', 'I am live in the field, sir. It is still a field. Nothing is happening behind me.'], ['A', 'serious', 'desk', 'Thank you, Ian. Please keep standing there.'], ['C', 'warm', 'desk', 'Experts say the war may be over by Thursday. Or possibly Friday. Or never.'], ['A', 'serious', 'desk', 'We will bring you more nothing as it happens.']],
+    [['A', 'serious', 'desk', 'In the really boring war, both armies agreed to a ceasefire for lunch.'], ['A', 'serious', 'desk', 'Lunch lasted eleven minutes. Each army had one sandwich. It was a cheese sandwich.'], ['B', 'curious', 'desk', 'Sir, I can report that the sandwiches were also very boring.'], ['A', 'serious', 'desk', 'Thank you, Ian. That is exactly what our viewers expect.'], ['C', 'warm', 'desk', 'I would like to add that nobody cried, nobody cheered, and nobody even yawned.'], ['A', 'serious', 'desk', 'A calm day in the boring war. Back to the desk.']],
+    [['A', 'serious', 'desk', 'Breaking, but not very breaking: news from the really boring war.'], ['A', 'serious', 'desk', 'General Left Sock has written a letter to General Right Sock. The letter says: hello.'], ['B', 'curious', 'desk', 'Sir, the reply has arrived. It says: hello.'], ['A', 'serious', 'desk', 'Thank you, Ian. Both generals say they are very pleased with the exchange.'], ['C', 'warm', 'desk', 'A third letter is expected next week. Possibly it will say: how are you.'], ['A', 'serious', 'desk', 'We will remain at this desk until further notice.']],
+  ];
   function newsPrograms() {
     const day = (typeof playTimeSeconds !== 'undefined' ? Math.floor(playTimeSeconds / (DAYMS / 1000)) + 1 : 1), real = CINEMA_MOVIES.filter(m => !m.tv), latest = real[real.length - 1], ps = products(), prod = ps[Math.floor(Math.random() * ps.length)];
     const cast = C3(['Anchor Ava', 'hero', 'wise'], ['Reporter Rex', 'detective', 'goof'], ['Weather Wendy', 'wizard', 'sweet']);
@@ -91,8 +99,11 @@
     ]);
     const part3 = program('📰 EXPLOX NEWS', 'Explox News Tonight', 'News Desk', cast, [
       S(s3.place, 'day', s3.prop, 'One more story: ' + s3.head + '.', s3.lines.map(l => L(l[0], l[1], l[2], l[3]))),
+      S('cityhall', 'day', 'book', 'The really boring war.', WAR[Math.floor(Math.random() * WAR.length)].map(l => L(l[0], l[1], l[2], l[3]))),
       S('cityhall', 'dusk', 'trophy', 'That is all for tonight.', [L('A', 'warm', 'talk', 'That is all for tonight on Explox News.'), L('B', 'happy', 'talk', 'Stay curious, Explox, and be kind to your neighbors.'), L('C', 'joy', 'magic', 'Sweet dreams, everyone!'), L('A', 'joy', 'party', 'Good night, Explox!')]),
     ]);
+    const tick = 'EXPLOX NEWS  \u2022  ' + s1.head + '  \u2022  ' + s2.head + '  \u2022  ' + s3.head + '  \u2022  the really boring war continues, but nothing is happening  \u2022  ' + prod.name + ' only ' + fmt(prod.price) + ' S.I.P. at ' + prod.store + '  \u2022  ';
+    [part1, part2, part3].forEach(i => { CINEMA_MOVIES[i].ticker = tick; });
     return [part1, 'ad2', part2, 'ad2', part3];
   }
 
@@ -111,20 +122,6 @@
     return program(v.tag, v.title, 'Fun Voice', v.cast, [S(v.place, 'day', v.prop, v.title + '.', v.lines.map(l => L(l[0], l[1], l[2], l[3]))), S(v.place, 'day', v.prop, 'And that is the end of the video.', [L('A', 'joy', 'highfive', 'Thank you for watching, Explox!'), L('B', 'joy', 'party', 'Like, share and have a great day!')])]);
   }
   function funBlock(n) { const out = [], pool = FUN.slice().sort(() => Math.random() - .5); for (let i = 0; i < n; i++) { out.push(funProgram(pool[i % pool.length])); if (i % 2 === 1 && i < n - 1) out.push('ad2'); } return out; }
-  // ── the Boring Channel: one very serious person at a counter, and nothing ever happens ──
-  const BC = C3(['Mr. Serious', 'hero', 'wise'], ['Intern Ian', 'hero', 'nervous'], ['Mrs. Yawn', 'grandma', 'sweet']);
-  const BORING = [
-    { title: 'The Very Boring War', lines: [['N', 'serious', 'desk', 'Good evening. This is the Boring Channel. Tonight, the very boring war.'], ['A', 'serious', 'desk', 'On Monday, the Left Sock Army looked at the Right Sock Army. Nothing happened.'], ['A', 'serious', 'desk', 'On Tuesday, the Right Sock Army looked back at the Left Sock Army. Still nothing.'], ['B', 'worried', 'desk', 'I am standing in the middle of the field, sir. It is a normal field. Nobody is here.'], ['A', 'serious', 'desk', 'Thank you, Ian. Please stand there some more.'], ['A', 'serious', 'desk', 'On Wednesday, both armies agreed to sit down. They have been sitting ever since.'], ['C', 'warm', 'desk', 'I brought snacks, but it seems nobody is hungry. Or interested.'], ['A', 'serious', 'desk', 'Experts say the boring war will end next year. Or maybe the year after. Good night.']] },
-    { title: 'Watching Paint Dry: Live', lines: [['N', 'serious', 'desk', 'Welcome to the Boring Channel. Tonight, we watch paint dry, live.'], ['A', 'serious', 'desk', 'The wall is white. The paint is also white. It is wet, and it is about to be dry.'], ['B', 'curious', 'desk', 'Sir, I think I saw it move. No, wait. It was a fly.'], ['A', 'serious', 'desk', 'Thank you, Ian. We will stay with the wall for another six hours.'], ['C', 'warm', 'desk', 'I would like to report that the paint is eleven percent drier.'], ['A', 'serious', 'desk', 'Excellent news. Please stay tuned for more wall.']] },
-    { title: 'The Counter Report', lines: [['N', 'serious', 'desk', 'This is the Counter Report. A very serious report about a counter.'], ['A', 'serious', 'desk', 'The counter is made of wood. It is long. It has a top side and a bottom side.'], ['A', 'serious', 'desk', 'On top of the counter, there are some papers. Under the counter, there is some more counter.'], ['B', 'worried', 'desk', 'Sir, should I put a plant on the counter to make it more exciting?'], ['A', 'serious', 'desk', 'No, Ian. The counter is exciting enough just as it is.'], ['C', 'happy', 'desk', 'I can count to ten on the counter. One, two, three, four.'], ['A', 'serious', 'desk', 'Thank you, Mrs. Yawn. That concludes tonight\'s report. Nothing happened.']] },
-    { title: 'Lamp Review', lines: [['N', 'serious', 'desk', 'Tonight on the Boring Channel, a review of a lamp.'], ['A', 'serious', 'desk', 'This is a lamp. It has a bulb. When you flip the switch, it turns on. Sometimes.'], ['B', 'curious', 'desk', 'Sir, what color is the lampshade? Is it yellow? Or maybe a little bit beige?'], ['A', 'serious', 'desk', 'It is beige, Ian. A good, solid beige. I give this lamp three out of five.'], ['C', 'warm', 'desk', 'I give it four out of five. It lights up my knitting.'], ['A', 'serious', 'desk', 'We will agree on three and a half. Thank you for watching.']] },
-    { title: 'The Waiting Room: Live', lines: [['N', 'serious', 'desk', 'Welcome to the Waiting Room, live. Today, 14 people are waiting.'], ['A', 'serious', 'desk', 'The first person has been waiting since nine o\'clock. The second since nine fifteen.'], ['B', 'worried', 'desk', 'Sir, the numbers on the screen have not changed in two hours.'], ['A', 'serious', 'desk', 'That is normal, Ian. We call that a quiet day.'], ['C', 'happy', 'desk', 'I have been waiting for ages. I brought my own chair and a very long book.'], ['A', 'serious', 'desk', 'The next number is called in about forty minutes. Please remain seated.']] },
-    { title: 'Weather: Still Weather', lines: [['N', 'serious', 'desk', 'Now the weather, with no changes whatsoever.'], ['A', 'serious', 'desk', 'Today it is weather. Tomorrow it will also be weather. Possibly a little bit of air.'], ['B', 'curious', 'desk', 'Sir, will there be clouds? Or a sun? Or something exciting like fog?'], ['A', 'serious', 'desk', 'There will be some of each, in small, ordinary amounts.'], ['C', 'warm', 'desk', 'I packed an umbrella, just in case. And a second umbrella, for the first umbrella.'], ['A', 'serious', 'desk', 'That is the forecast. Thank you, and please stay tuned for the next forecast, which will be the same.']] },
-  ];
-  function boringProgram(v) {
-    return program('\uD83D\uDE10 BORING CHANNEL', v.title, 'Mr. Serious', BC, [S('police', 'day', 'book', v.title + '.', v.lines.map(l => L(l[0], l[1], l[2], l[3]))), S('police', 'day', 'book', 'And now, more nothing.', [L('A', 'serious', 'desk', 'That is all for tonight on the Boring Channel.'), L('A', 'serious', 'desk', 'Please check back tomorrow, when nothing will happen again.')])]);
-  }
-  function boringBlock(n) { const out = [], pool = BORING.slice().sort(() => Math.random() - .5); for (let i = 0; i < n; i++) out.push(boringProgram(pool[i % pool.length])); return out; }
   function shopBlock() { return ['ad2', 'ad2', 'ad2']; }
   function movieBlock(idx) { return ['ad1', idx, 'ad1']; }
   function liveBlock() { const m = CINEMA_MOVIES.filter(x => !x.tv); const mi = CINEMA_MOVIES.indexOf(m[Math.floor(Math.random() * m.length)]); const r = Math.random(); return r < .25 ? newsPrograms() : r < .45 ? funBlock(2).concat(['ad2']) : ['ad2', mi]; }
@@ -196,12 +193,11 @@
       '<button class="tvCh" id="tvMovies">🎬 All Movies<small>Every Explox Cinemas movie, with commercials before and after</small></button>' +
       '<button class="tvCh" id="tvNews">📰 Explox News<small>Fresh news every time, with the real new movies and real shop prices</small></button>' +
       '<button class="tvCh" id="tvFun">😂 Fun Videos<small>Dancing robots, cats, pizza fails, bubbles and more</small></button>' +
-      '<button class="tvCh" id="tvBoring">\uD83D\uDE10 Boring Channel<small>One very serious person at a counter. A really boring war. And more nothing.</small></button>' +
       '<button class="tvCh" id="tvShop">🛍️ Shopping Channel<small>Non-stop commercials for real products in Explox</small></button>' +
       '<button class="tvCh" id="tvLive">📺 Explox TV Live<small>A never-ending mix: news, videos, commercials and movies</small></button>' +
       (r ? '' : '<button class="tvCh" id="tvRent" style="border-color:#ffd54f">🔑 Rent this TV for one Explox day – ' + fmt(RENT) + ' S.I.P.<small>Watch everything for free for 30 real minutes (one Explox day)</small></button>') +
       '<div style="text-align:center;margin-top:10px"><button class="tvBtn" id="tvLeave" style="background:#333;color:#ccc">⏻ Turn off</button></div>';
-    $('tvMovies').onclick = openMovies; $('tvNews').onclick = () => startTV(newsPrograms(), ''); $('tvFun').onclick = () => startTV(funBlock(4), ''); $('tvBoring').onclick = () => startTV(boringBlock(3), ''); $('tvShop').onclick = () => startTV(shopBlock(), ''); $('tvLive').onclick = () => startTV(liveBlock(), 'live'); $('tvLeave').onclick = closeMenu;
+    $('tvMovies').onclick = openMovies; $('tvNews').onclick = () => startTV(newsPrograms(), ''); $('tvFun').onclick = () => startTV(funBlock(4), ''); $('tvShop').onclick = () => startTV(shopBlock(), ''); $('tvLive').onclick = () => startTV(liveBlock(), 'live'); $('tvLeave').onclick = closeMenu;
     if ($('tvRent')) $('tvRent').onclick = rent;
   }
   function rent() {
