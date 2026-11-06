@@ -541,7 +541,7 @@
     return top[mi % top.length];
   }
   function cleanForSpeech(txt) {
-    return String(txt || '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/S\.I\.P\.?/g, 'sip')
+    return String(txt || '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/\bS\.I\.P\b/g, ' S I P ').replace(/\bSIP\b/g, ' S I P ')
       .replace(/\b([A-Z]{2,})\b/g, (m) => m.charAt(0) + m.slice(1).toLowerCase()).replace(/\s+/g, ' ').trim();
   }
   let narratorName = '';
