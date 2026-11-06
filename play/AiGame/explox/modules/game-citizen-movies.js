@@ -9,6 +9,8 @@
   const real = () => (typeof CINEMA_MOVIES !== 'undefined' ? CINEMA_MOVIES.filter(m => m && !m.tv && m.title) : []);
   // the movies made since the first 35 (newest first), so citizens always know the latest ones
   const newest = () => { const r = real(); return r.length > 35 ? r.slice(35) : r.slice(-3).reverse(); };
+  const latest10 = () => newest().slice(0, 10);
+  const ord = (n) => ['newest', '2nd newest', '3rd newest', '4th newest', '5th newest', '6th newest', '7th newest', '8th newest', '9th newest', '10th newest'][n] || 'new';
   function chart() {
     const all = real(), byTitle = {}; all.forEach(m => { byTitle[m.title] = m; });
     const out = COOL.map(t => byTitle[t]).filter(Boolean);
@@ -32,7 +34,7 @@
   // a citizen's line: what they say depends on who they are, and they remember their own favourite
   function line(name, salt) {
     const ch = chart(); if (!ch.length) return 'Have you been to Explox Cinemas? The movies are so cool!';
-    const h = hs(name + '|' + (salt || 0)), fav = ch[hs(name) % ch.length], other = ch[(hs(name) + 3 + (h % 5)) % ch.length], news = newest()[0] || fav, k = h % 10;
+    const h = hs(name + '|' + (salt || 0)), fav = ch[hs(name) % ch.length], other = ch[(hs(name) + 3 + (h % 5)) % ch.length], news = newest()[0] || fav, L10 = latest10(), pickL = (o) => L10[(hs(name) + o + (h % 7)) % Math.max(1, L10.length)] || fav, k = h % 15;
     const T = (m) => '“' + m.title + '”';
     switch (k) {
       case 0: return T(fav) + ' is the COOLEST movie in Explox! ' + em(fav);
@@ -44,7 +46,12 @@
       case 6: return 'The top 3 coolest movies: ' + (ch[0] ? T(ch[0]) : '') + ', ' + (ch[1] ? T(ch[1]) : '') + ' and ' + (ch[2] ? T(ch[2]) : '') + '.';
       case 7: return 'You can watch every movie on the TV at home too! Or rent the TV for a whole day.';
       case 8: return 'The ' + hook(fav) + ' in ' + T(fav) + ' made me jump out of my seat! ' + em(fav);
-      default: return 'There is a brand-new movie every 30 minutes at Explox Cinemas. Go and see the cool ones!';
+      case 9: return 'There is a brand-new movie every 30 minutes at Explox Cinemas. Go and see the cool ones!';
+      case 10: return 'Have you seen the latest ones? ' + T(pickL(0)) + ' and ' + T(pickL(1)) + ' just came out!';
+      case 11: return 'The latest 10 movies are all so cool! My favorite of them is ' + T(pickL(2)) + '.';
+      case 12: { const m = pickL(3); return 'I just watched ' + T(m) + ', one of the 10 latest movies. I love the ' + hook(m) + '! ' + em(m); }
+      case 13: { const a = (h % 5), b = a + 1 + (h % 4), ma = L10[a] || fav, mb = L10[b] || other; return 'The ' + ord(a) + ' movie, ' + T(ma) + ', is better than the ' + ord(b) + ' one, ' + T(mb) + '!'; }
+      default: return 'The newest movie, ' + T(news) + ', has the coolest ' + hook(news) + ' of the 10 latest movies! ' + em(news);
     }
   }
   // 1. floating speech bubbles from people near you
@@ -71,10 +78,12 @@
         const box = document.createElement('div'); box.id = 'neighborMovieChat'; box.style.cssText = 'margin:8px 0;padding:8px 10px;background:rgba(255,213,79,.1);border:1px solid #665500;border-radius:8px;font-size:12px;color:#ffe082;text-align:left;';
         let n = 0; const say = () => { box.innerHTML = '🎬 <b>' + name + ':</b> “' + line(name, n++).replace(/</g, '&lt;') + '” <button style="margin-left:6px;padding:2px 8px;border-radius:6px;border:0;cursor:pointer;background:#e94560;color:#fff;font-size:11px;">Ask again</button>'; box.querySelector('button').onclick = say; };
         say(); body.insertBefore(box, body.firstChild);
+        const lat = document.createElement('details'); lat.style.cssText = 'margin:0 0 8px;padding:6px 10px;background:rgba(255,255,255,.05);border-radius:8px;font-size:12px;color:#fff;text-align:left;';
+        lat.innerHTML = '<summary style="cursor:pointer;color:#7ee0ff">\uD83C\uDD95 The latest 10 movies</summary><ol style="margin:6px 0 0 18px;padding:0">' + latest10().map(m => '<li>' + String(m.title).replace(/</g, '&lt;') + '</li>').join('') + '</ol>'; body.insertBefore(lat, box.nextSibling);
       } catch (e) { }
       return r;
     };
   }
   setInterval(hook2, 1000); hook2();
-  window.__citizenMovies = { line: line, chart: () => chart().map(m => m.title) };
+  window.__citizenMovies = { line: line, chart: () => chart().map(m => m.title), latest10: () => latest10().map(m => m.title) };
 })();
