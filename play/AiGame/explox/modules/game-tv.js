@@ -122,49 +122,40 @@
     return program(v.tag, v.title, 'Fun Voice', v.cast, [S(v.place, 'day', v.prop, v.title + '.', v.lines.map(l => L(l[0], l[1], l[2], l[3]))), S(v.place, 'day', v.prop, 'And that is the end of the video.', [L('A', 'joy', 'highfive', 'Thank you for watching, Explox!'), L('B', 'joy', 'party', 'Like, share and have a great day!')])]);
   }
   function funBlock(n) { const out = [], pool = FUN.slice().sort(() => Math.random() - .5); for (let i = 0; i < n; i++) { out.push(funProgram(pool[i % pool.length])); if (i % 2 === 1 && i < n - 1) out.push('ad2'); } return out; }
-  // ── ⚽ Soccer: Explox against the cities of the world — every match is different ──
+  // ── ⚽ Soccer: Explox FC against teams from cities around the world. Real human players, fouls, penalties; every match is different and Explox does not always win ──
   const CITIES = [['Paris', 'Poodles', 0x1e88e5], ['Tokyo', 'Tigers', 0xff7043], ['Rio', 'Rockets', 0xfdd835], ['London', 'Lions', 0x8e24aa], ['Cairo', 'Cobras', 0x43a047], ['Sydney', 'Seagulls', 0x26c6da], ['Berlin', 'Bears', 0x6d4c41], ['Madrid', 'Mustangs', 0xd81b60], ['Rome', 'Roosters', 0xef6c00], ['Moscow', 'Moose', 0x546e7a], ['Delhi', 'Dragons', 0xc62828], ['Lima', 'Llamas', 0x7cb342], ['Oslo', 'Otters', 0x00acc1], ['Toronto', 'Turtles', 0x2e7d32], ['Seoul', 'Sharks', 0x3949ab], ['Dubai', 'Dolphins', 0x00897b], ['Lagos', 'Leopards', 0xf9a825], ['Athens', 'Owls', 0x5e35b1], ['Lisbon', 'Lynx', 0xe64a19], ['Vienna', 'Vikings', 0x78909c], ['Mexico City', 'Monkeys', 0xad1457], ['Nairobi', 'Nightingales', 0x558b2f], ['Bangkok', 'Butterflies', 0xec407a], ['Havana', 'Hummingbirds', 0x039be5]];
-  const STARS = ['Pablo Pepper', 'Mika Moon', 'Hugo Hops', 'Lola Lightning', 'Ravi Rocket', 'Tina Turbo', 'Oscar Orbit', 'Nina Nimble', 'Leo Lasso', 'Zara Zoom', 'Benny Boot', 'Cleo Curve'];
+  const FIRST = ['Marco', 'Luca', 'Ben', 'Sam', 'Noah', 'Leo', 'Omar', 'Kai', 'Ravi', 'Tom', 'Eli', 'Jon', 'Max', 'Aiden', 'Hugo', 'Yuki', 'Ali', 'Pablo', 'Dan', 'Ivan', 'Theo', 'Jonas', 'Felix', 'Nico', 'Andre', 'Sven', 'Tariq', 'Mateo'], LAST = ['Ruiz', 'Stone', 'Park', 'Silva', 'Khan', 'Brooks', 'Rossi', 'Novak', 'Tanaka', 'Costa', 'Meyer', 'Dubois', 'Cole', 'Berg', 'Moreno', 'Lund', 'Okoye', 'Reyes', 'Hart', 'Vega', 'Frost', 'Ward', 'Diaz', 'Hale'];
   const rnd = (n) => Math.floor(Math.random() * n), pk = (a) => a[rnd(a.length)];
-  const wpick = (a) => a[rnd(a.length)];
+  function names11() { const out = []; while (out.length < 11) { const n = pk(FIRST) + ' ' + pk(LAST); if (out.indexOf(n) < 0) out.push(n); } return out; }
   function soccerMatch() {
-    const city = pk(CITIES), opp = city[0] + ' ' + city[1], names = STARS.slice().sort(() => Math.random() - .5), star = names[0], mates = [names[1], names[2]], ex3 = ['Zippy Zed', 'Champion Chuck', 'Nugget the Dino'];
-    let eg = wpick([0, 1, 1, 2, 2, 2, 3, 3, 4]), og = wpick([0, 0, 1, 1, 1, 2, 3]); while (eg + og > 6) og--;
-    const plays = []; for (let i = 0; i < eg; i++) plays.push({ att: 'ex', type: Math.random() < .35 ? 'trick' : 'goal' }); for (let i = 0; i < og; i++) plays.push({ att: 'opp', type: Math.random() < .3 ? 'trick' : 'goal' });
-    while (plays.length < 6) plays.push({ att: Math.random() < .6 ? 'ex' : 'opp', type: pk(['save', 'miss', 'post', 'tackle', 'save', 'miss']) });
+    const city = pk(CITIES), opp = city[0] + ' ' + city[1], exN = names11(), opN = names11(), oppName = city[0].toUpperCase();
+    let eg = pk([0, 1, 1, 1, 2, 2, 3, 4]), og = pk([0, 1, 1, 1, 2, 2, 3, 4]); while (eg + og > 6) { if (eg > og) eg--; else og--; }
+    const plays = [], goalPlay = (att) => { const r = Math.random(); return r < .25 ? { att: att, type: 'penalty', result: 'goal' } : r < .5 ? { att: att, type: 'trick' } : { att: att, type: 'goal' }; };
+    for (let i = 0; i < eg; i++) plays.push(goalPlay('ex')); for (let i = 0; i < og; i++) plays.push(goalPlay('opp'));
+    while (plays.length < 6) { const att = Math.random() < .5 ? 'ex' : 'opp', ty = pk(['save', 'miss', 'post', 'tackle', 'foul', 'foul', 'penalty', 'save', 'miss']); plays.push(ty === 'penalty' ? { att: att, type: 'penalty', result: pk(['save', 'save', 'miss', 'post']) } : { att: att, type: ty, red: ty === 'foul' && Math.random() < .2 }); }
     plays.sort(() => Math.random() - .5);
     const mins = [8, 19, 31, 52, 67, 81].map(x => x + rnd(5)); let a = 0, b = 0;
-    const cast = C3([ex3[0], 'racer', 'hero'], [star + ' of ' + city[0], 'athlete', 'rival'], [ex3[1], 'athlete', 'goof']);
-    const oppName = city[0].toUpperCase();
-    const mk = (type, att, before, after, min, say, lines) => { const sc = S('park', 'day', 'trophy', say, lines.map(l => L(l[0], l[1], 'soccer', l[2]))); sc.script.soccer = { type: type, att: att, opp: oppName, col: city[2], before: before.slice(), after: after.slice(), min: min }; return sc; };
-    const scenes = [mk('kickoff', 'ex', [0, 0], [0, 0], 1, 'Welcome to Explox Stadium: Explox against the ' + opp + '.', [
-      ['N', 'excited', 'Welcome to Explox Stadium! Today, it is Explox against the ' + opp + '!'],
-      ['N', 'joy', 'The crowd is on its feet, the sun is shining, and the ball is round.'],
-      ['A', 'excited', 'Let us play, team! Wheels up, everybody!'],
-      ['B', 'determined', 'Good luck, Explox. The ' + city[1] + ' came here to win.'],
-      ['C', 'joy', 'Friendly game, friends. May the best team win!'],
-      ['N', 'excited', 'The referee blows the whistle, and the match begins!']])];
+    const cast = C3(['Commentator', 'hero', 'wise'], ['Referee', 'hero', 'wise'], ['Analyst', 'hero', 'wise']);
+    const mk = (type, att, before, after, min, say, lines, cue, extra) => { const sc = S('park', 'day', 'trophy', say, lines.map(l => L('N', l[0], 'soccer', l[1]))); sc.script.soccer = Object.assign({ type: type, att: att, opp: oppName, col: city[2], before: before.slice(), after: after.slice(), min: min, cue: cue }, extra || {}); return sc; };
+    const scenes = [mk('kickoff', 'ex', [0, 0], [0, 0], 1, 'Welcome to Explox Stadium.', [
+      ['excited', 'Welcome to Explox Stadium! Today, Explox FC plays the ' + opp + '.'],
+      ['joy', 'The stands are packed, the weather is perfect, and the players are walking out.'],
+      ['excited', 'The referee blows the whistle, and the match begins!']], 2)];
     plays.forEach((pl, i) => {
-      const before = [a, b], goal = pl.type === 'goal' || pl.type === 'trick'; if (goal) { if (pl.att === 'ex') a++; else b++; } const after = [a, b], min = mins[i];
-      const team = pl.att === 'ex' ? 'Explox' : 'the ' + opp, names3 = pl.att === 'ex' ? ex3 : [star, mates[0], mates[1]], stars = pl.att === 'ex' ? ['A', 'C'] : ['B', 'B'], who = stars[rnd(2)], scorer = names3[2] || names3[0], keeper = pl.att === 'ex' ? star : 'Champion Chuck';
-      const L0 = ['N', 'excited', 'The ' + min + 'th minute. ' + team + ' are pushing forward!'], L1 = [who, 'determined', pk(['Pass it here!', 'I am open!', 'Over here, over here!', 'Give me the ball!', 'Send it through!'])], L2 = ['N', 'excited', names3[0] + ' passes to ' + names3[1] + ', and now to ' + names3[2] + '!'];
-      const score = 'Explox ' + a + ', ' + city[1] + ' ' + b;
-      let tail;
-      if (pl.type === 'goal') tail = [['N', 'shocked', 'He shoots... he SCORES! Goal for ' + team + '! What a strike by ' + scorer + '!'], [who, 'joy', pk(['Yes! Did you see that?', 'Goal! Goal! Goal!', 'I told you I would score!'])], ['N', 'joy', score + '. The crowd is going wild!']];
-      else if (pl.type === 'trick') tail = [['N', 'shocked', scorer + ' leaps up, turns upside down, and it is a bicycle kick! Incredible!'], ['N', 'shocked', 'It is in! A goal for ' + team + ' that nobody will forget!'], [who, 'joy', pk(['Did you see my flip?', 'I flew like a bird!', 'That was my best trick ever!'])], ['N', 'joy', score + '. What a goal!']];
-      else if (pl.type === 'save') tail = [['N', 'excited', scorer + ' takes a powerful shot...'], ['N', 'shocked', 'But ' + keeper + ' dives and makes a fantastic save!'], [pl.att === 'ex' ? 'B' : 'C', 'joy', pk(['Not today!', 'Caught it!', 'Nice try, but I am ready!'])], ['N', 'relieved', 'The score stays ' + score + '. What a save!']];
-      else if (pl.type === 'post') tail = [['N', 'excited', scorer + ' fires a shot at the corner...'], ['N', 'shocked', 'It hits the post! So close! The crowd gasps!'], [who, 'worried', 'Oh no! So close!'], ['N', 'worried', 'Still ' + score + '. What a near miss!']];
-      else if (pl.type === 'miss') tail = [['N', 'excited', scorer + ' winds up and kicks it as hard as he can...'], ['N', 'surprised', 'It sails over the bar and into the clouds! Somebody get that ball!'], [who, 'worried', 'Oops! I kicked it to the moon!'], ['N', 'curious', 'Still ' + score + '. The ball is on its way to space.']];
-      else tail = [['N', 'surprised', 'A big sliding tackle steals the ball!'], [pl.att === 'ex' ? 'B' : 'C', 'determined', 'Mine now! Thank you very much!'], ['N', 'excited', 'And off goes the counter-attack! What a play!'], ['N', 'curious', 'Still ' + score + '. Exciting stuff!']];
-      scenes.push(mk(pl.type, pl.att, before, after, min, 'Minute ' + min + ': ' + (goal ? 'goal chance' : pl.type) + '.', [L0, L1, L2].concat(tail)));
+      const before = [a, b], resType = pl.type === 'penalty' ? pl.result : pl.type, goal = resType === 'goal' || resType === 'trick'; if (goal) { if (pl.att === 'ex') a++; else b++; } const after = [a, b], min = mins[i];
+      const atkN = pl.att === 'ex' ? exN : opN, defN = pl.att === 'ex' ? opN : exN, team = pl.att === 'ex' ? 'Explox' : 'the ' + opp, p1 = atkN[0], p2 = atkN[1], p3 = atkN[2], keeper = defN[10], defName = defN[1], score = 'Explox ' + a + ', ' + city[1] + ' ' + b + '.';
+      let lines;
+      if (pl.type === 'penalty') lines = [['serious', 'Penalty! The referee points to the spot.'], ['worried', p3 + ' steps up. The whole stadium holds its breath.'], ['excited', 'He shoots!'], [resType === 'goal' ? 'joy' : 'shocked', resType === 'goal' ? 'Goal! ' + p3 + ' scores from the spot!' : resType === 'save' ? keeper + ' saves the penalty!' : resType === 'post' ? 'It hits the post!' : 'Over the bar!'], ['warm', score]];
+      else if (pl.type === 'foul') lines = [['excited', 'The ' + min + 'th minute. ' + team + ' on the attack.'], ['excited', p1 + ' to ' + p2 + ', and ' + p3 + ' runs forward.'], ['shocked', 'Oh! ' + defName + ' brings him down!'], ['serious', 'The referee blows the whistle. ' + (pl.red ? 'Red' : 'Yellow') + ' card for ' + defName + '.'], ['warm', score]];
+      else if (pl.type === 'tackle') lines = [['excited', 'The ' + min + 'th minute. ' + team + ' on the attack.'], ['excited', p1 + ' to ' + p2 + ', and ' + p3 + ' has the ball.'], ['surprised', defName + ' slides in...'], ['excited', 'Great tackle! ' + defName + ' wins the ball!'], ['warm', score]];
+      else lines = [['excited', 'The ' + min + 'th minute. ' + team + ' on the attack.'], ['excited', p1 + ' to ' + p2 + ', and now to ' + p3 + '!'], [pl.type === 'trick' ? 'excited' : 'excited', pl.type === 'trick' ? p3 + ' goes for a bicycle kick!' : p3 + ' shoots!'], [goal ? 'joy' : 'shocked', pl.type === 'trick' ? 'What a goal! Unbelievable!' : resType === 'goal' ? 'Goal! ' + p3 + ' scores for ' + team + '!' : resType === 'save' ? keeper + ' makes the save!' : resType === 'post' ? 'It hits the post!' : 'Over the bar!'], ['warm', score]];
+      scenes.push(mk(pl.type, pl.att, before, after, min, 'Minute ' + min + '.', lines, 2, { result: pl.result, red: pl.red }));
     });
-    const res = a > b ? 'Explox wins! What a day for our city!' : a === b ? 'It is a draw, and a great game for everybody!' : 'The ' + city[1] + ' win this time, but Explox played with heart.';
-    scenes.push(mk('final', 'ex', [a, b], [a, b], 90, 'Full time: Explox ' + a + ', ' + opp + ' ' + b + '.', [
-      ['N', 'excited', 'The final whistle! The final score: Explox ' + a + ', the ' + opp + ' ' + b + '!'],
-      ['N', a > b ? 'joy' : 'warm', res],
-      ['A', a >= b ? 'joy' : 'warm', a >= b ? 'What a match! Thank you, Explox, for cheering!' : 'We will get them next time. Good game, everyone!'],
-      ['B', 'warm', 'Great game, Explox. See you at the next match!'],
-      ['C', 'happy', 'Good sport, good game, good friends. Now, who wants pizza?']]));
+    const res = a > b ? 'Explox wins!' : a === b ? 'It ends in a draw.' : 'The ' + city[1] + ' win this time.';
+    scenes.push(mk('final', 'ex', [a, b], [a, b], 90, 'Full time.', [
+      ['excited', 'The final whistle! The final score: Explox ' + a + ', the ' + opp + ' ' + b + '.'],
+      [a > b ? 'joy' : a === b ? 'warm' : 'sad', res],
+      ['warm', 'The players shake hands. What a match!']], 2));
     return program('\u26BD SOCCER', 'Explox vs ' + opp, 'Match Commentator', cast, scenes);
   }
   function soccerBlock(n) { const out = []; for (let i = 0; i < n; i++) { out.push(soccerMatch()); if (i < n - 1) out.push('ad2'); } return out; }
