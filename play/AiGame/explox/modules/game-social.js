@@ -628,7 +628,8 @@ function animateCinemaScene() {
 
   // Scene number dots
   ctx.fillStyle='rgba(255,255,255,0.2)';
-  scenes.forEach((_,i)=>{
+  const seamless = !!(cinemaState.movie && cinemaState.movie.seamless);
+  if(!seamless) scenes.forEach((_,i)=>{
     ctx.beginPath();
     ctx.arc(w/2 + (i-(scenes.length-1)/2)*18, h*0.91, cinemaState.sceneIndex===i?5:3, 0,Math.PI*2);
     ctx.fillStyle = cinemaState.sceneIndex===i ? '#ffcc00':'rgba(255,255,255,0.4)';
@@ -640,10 +641,10 @@ function animateCinemaScene() {
   ctx.fillStyle=`rgba(255,255,255,${alpha})`; ctx.textAlign='center';
   ctx.font=`bold ${Math.max(15,w/45)}px Arial`;
   ctx.strokeStyle=`rgba(0,0,0,${alpha*0.9})`; ctx.lineWidth=3;
-  ctx.strokeText(scene.text, w/2, h*0.86); ctx.fillText(scene.text, w/2, h*0.86);
+  if(!seamless) { ctx.strokeText(scene.text, w/2, h*0.86); ctx.fillText(scene.text, w/2, h*0.86); }
 
   if(t >= scene.dur) {
-    sfx.scene();
+    if(!seamless) sfx.scene();
     cinemaState.sceneIndex++;
     cinemaState.sceneStart = performance.now();
     cinemaState.playedSounds = new Set();
