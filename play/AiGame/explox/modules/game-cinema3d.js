@@ -1313,8 +1313,8 @@
         ctx.save(); ctx.globalAlpha = a; ctx.font = 'bold ' + fs + 'px Arial'; ctx.textAlign = 'left'; const tw = ctx.measureText(nm).width;
         ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(w * .04, h * .12, tw + fs * 1.6, fs * 1.7); ctx.fillStyle = '#7dffb2'; ctx.fillRect(w * .04, h * .12, fs * .25, fs * 1.7); ctx.fillStyle = '#fff'; ctx.fillText(nm, w * .04 + fs * .8, h * .12 + fs * 1.2); ctx.restore();
       }
-      if (si === 0 && t > .1 && t < 1 && titleKey !== mi && playing(mi)) { titleKey = mi; try { sfx.power(); setTimeout(() => { try { sfx.cheer(); } catch (e) { } }, 350); } catch (e) { } }
-      if (si === 0 && t < 6.5) {
+      if (si === 0 && !mv.tv && t > .1 && t < 1 && titleKey !== mi && playing(mi)) { titleKey = mi; try { sfx.power(); setTimeout(() => { try { sfx.cheer(); } catch (e) { } }, 350); } catch (e) { } }
+      if (si === 0 && !mv.tv && t < 6.5) {
         const a = t < .6 ? t / .6 : (t > 5.2 ? Math.max(0, (6.5 - t) / 1.3) : 1); ctx.save(); ctx.globalAlpha = a * .92;
         const gg = ctx.createLinearGradient(0, 0, 0, h); gg.addColorStop(0, 'rgba(0,0,0,.85)'); gg.addColorStop(.5, 'rgba(0,0,0,.35)'); gg.addColorStop(1, 'rgba(0,0,0,.85)'); ctx.fillStyle = gg; ctx.fillRect(0, 0, w, h);
         ctx.globalAlpha = a; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,213,79,.9)'; ctx.font = 'bold ' + Math.round(h * .032) + 'px Arial'; ctx.fillText('EXPLOX CINEMAS PRESENTS', w / 2, h * .36);
@@ -1333,8 +1333,8 @@
         ctx.fillStyle = 'rgba(255,255,255,.07)'; for (let q = 0; q < 70; q++) ctx.fillRect(Math.random() * w, Math.random() * h, 1.5, 1.5);
         ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h * .045); ctx.fillRect(0, h * .955, w, h * .045);
         const fs0 = Math.max(11, Math.round(h * .026)); ctx.save(); ctx.font = '900 ' + fs0 + 'px Arial Black, Arial'; ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(0,0,0,.55)'; const bt = 'EXPLOX TV  \u2022  HD', btw = ctx.measureText(bt).width; ctx.fillRect(w * .965 - btw - fs0, h * .052, btw + fs0 * 1.6, fs0 * 1.7); ctx.fillStyle = '#ff4d6d'; ctx.beginPath(); ctx.arc(w * .965 - btw - fs0 * .35, h * .052 + fs0 * .85, fs0 * .28, 0, 7); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillText(bt, w * .965 + fs0 * .2, h * .052 + fs0 * 1.25); ctx.restore();
-        if (t < 3.6) { ctx.save(); ctx.font = 'bold ' + Math.round(fs0 * .95) + 'px Arial'; ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.globalAlpha = t < .5 ? t / .5 : (t > 2.9 ? Math.max(0, (3.6 - t) / .7) : 1); ctx.fillText('SCENE ' + (si + 1) + ' OF ' + mv.scenes.length + '  \u2022  ' + String(info.tod || 'day').toUpperCase(), w * .04 + fs0 * .8, h * .12 + fs0 * 3.4); ctx.restore(); }
-        if (si === 0 && t > 6.8 && t < 13.2) { const cl3 = castList(mi, mv), k = Math.min(2, Math.floor((t - 6.8) / 2.1)), q = (t - 6.8) - k * 2.1, c3 = cl3[k], a3 = q < .35 ? q / .35 : (q > 1.75 ? Math.max(0, (2.1 - q) / .35) : 1), fs3 = Math.max(14, Math.round(h * .042));
+        if (t < 3.6) { ctx.save(); ctx.font = 'bold ' + Math.round(fs0 * .95) + 'px Arial'; ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.globalAlpha = t < .5 ? t / .5 : (t > 2.9 ? Math.max(0, (3.6 - t) / .7) : 1); ctx.fillText(mv.tv ? String(mv.tvTag || 'TV') : 'SCENE ' + (si + 1) + ' OF ' + mv.scenes.length + '  \u2022  ' + String(info.tod || 'day').toUpperCase(), w * .04 + fs0 * .8, h * .12 + fs0 * 3.4); ctx.restore(); }
+        if (si === 0 && !mv.tv && t > 6.8 && t < 13.2) { const cl3 = castList(mi, mv), k = Math.min(2, Math.floor((t - 6.8) / 2.1)), q = (t - 6.8) - k * 2.1, c3 = cl3[k], a3 = q < .35 ? q / .35 : (q > 1.75 ? Math.max(0, (2.1 - q) / .35) : 1), fs3 = Math.max(14, Math.round(h * .042));
           if (c3) { ctx.save(); ctx.globalAlpha = a3; ctx.translate((1 - a3) * -w * .1, 0); const bx = w * .04, by = h * .6, bw3 = w * .46, bh3 = fs3 * 3.4; ctx.fillStyle = 'rgba(0,0,0,.62)'; ctx.fillRect(bx, by, bw3, bh3); ctx.fillStyle = ['#ffd54f', '#4fc3f7', '#ff8ab3'][k]; ctx.fillRect(bx, by, fs3 * .3, bh3); ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.font = '900 ' + fs3 + 'px Arial Black, Arial'; ctx.fillText(String(c3.role).toUpperCase(), bx + fs3 * .8, by + fs3 * 1.15); ctx.font = 'bold ' + Math.round(fs3 * .62) + 'px Arial'; ctx.fillStyle = '#9fe3ff'; ctx.fillText('played by \u2605 ' + c3.actor, bx + fs3 * .8, by + fs3 * 2.05); ctx.fillStyle = '#ffd54f'; ctx.font = 'italic ' + Math.round(fs3 * .6) + 'px Arial'; ctx.fillText(c3.tag || '', bx + fs3 * .8, by + fs3 * 2.8); ctx.restore(); } }
       }
       if (fightHud) {   // fighting-game health bars, a combo counter and the SUPER MOVE banner
@@ -1390,7 +1390,7 @@
     [/sci-fi|space|mecha/i, ['Commander Orbit', 'Star Captain Nova']],
     [/epic|origin|founders|historical|drama|frontier|hometown|newcomer|founding|romance|underdog/i, ['The Old Storyteller', 'Grandpa Tales', 'Sage Explox']],
   ];
-  function narratorPersona(mi, mv) { const g = (mv && mv.genre) || ''; for (const [re, names] of NARRATORS) if (re.test(g)) return names[mi % names.length]; return 'The Explox Storyteller'; }
+  function narratorPersona(mi, mv) { if (mv && mv.narrator) return mv.narrator; const g = (mv && mv.genre) || ''; for (const [re, names] of NARRATORS) if (re.test(g)) return names[mi % names.length]; return 'The Explox Storyteller'; }
 
   // ---------- dialogue: the characters talk (speech bubbles + their own voices) ----------
   const STYLE_LINES = {
@@ -1444,8 +1444,8 @@
   function listenerEmo(e) { return ({ angry: 'scared', scared: 'worried', joy: 'joy', excited: 'happy', sad: 'worried', surprised: 'surprised', shocked: 'surprised', determined: 'determined', curious: 'curious', worried: 'worried', happy: 'happy', serious: 'serious', warm: 'happy', relieved: 'happy' })[e] || 'neutral'; }
   function scriptDialogue(mi, si, mv, sc, key) {
     const S = sc.script, res = []; res.beats = []; res.beatStarts = []; res.beatEnds = []; dlgCache[key] = res;
-    const roles = castRoles(mi, mv), nameOf = { A: roles[0].role, B: roles[1].role, C: roles[2].role, N: 'NARRATOR \u2022 ' + narratorPersona(mi, mv) };
-    let tcur = 0.4 + wc(sc.text) / 2.6 + 0.9 + (si === 0 ? (wc(mv.title) + 17) / 2.6 + 1.0 : 0);
+    const roles = castRoles(mi, mv), nameOf = { A: roles[0].role, B: roles[1].role, C: roles[2].role, N: (mv.tv ? '' : 'NARRATOR \u2022 ') + narratorPersona(mi, mv) };
+    let tcur = 0.4 + wc(sc.text) / 2.6 + 0.9 + (si === 0 && !mv.tv ? (wc(mv.title) + 17) / 2.6 + 1.0 : 0);
     const base = scriptLines(mi, si, mv, sc), lines = base.map(l => { const o = { who: l[0], emo: l[1], act: l[2], text: l[3], role: nameOf[l[0]], pers: l[0] === 'N' ? null : persFor(mi, mv, 'ABC'.indexOf(l[0])), start: tcur }; o.end = o.start + wc(o.text) / 2.4 + 0.5; tcur = o.end + 1.5; res.push(o); return o; });
     for (let i = 0; i < lines.length; i += 2) {
       const grp = lines.slice(i, i + 2), first = grp[0], who = {};
@@ -1456,7 +1456,7 @@
       res.beatStarts.push(i === 0 ? 0 : Math.max(0.5, first.start - 0.6));
     }
     for (let k = 0; k < res.beatStarts.length; k++) res.beatEnds.push(k + 1 < res.beatStarts.length ? res.beatStarts[k + 1] : 0);
-    res.total = Math.max(60, tcur + 0.8); res.beatEnds[res.beatEnds.length - 1] = res.total;
+    res.total = Math.max(mv.tv ? 6 : 60, tcur + 0.8); res.beatEnds[res.beatEnds.length - 1] = res.total;
     return res;
   }
   // ---------- personalities: every character talks in their own way (brave, funny, nervous, boastful, wise or kind) ----------
@@ -1771,7 +1771,7 @@
 
   window.__cinemaNarrate = function (text, mi, dur) {
     try {
-      const mv = CINEMA_MOVIES[mi] || CINEMA_MOVIES[0], synth = window.speechSynthesis; clearSpeechTimers(); synth.cancel(); if (cinemaState.sceneIndex === 0) text = 'Hello. I am ' + narratorPersona(mi, mv) + '. Tonight, ' + mv.title + '. Meet ' + introCast(mi, mv) + '. ' + text;
+      const mv = CINEMA_MOVIES[mi] || CINEMA_MOVIES[0], synth = window.speechSynthesis; clearSpeechTimers(); synth.cancel(); if (cinemaState.sceneIndex === 0 && !mv.tv) text = 'Hello. I am ' + narratorPersona(mi, mv) + '. Tonight, ' + mv.title + '. Meet ' + introCast(mi, mv) + '. ' + text;
       startScore(mi, mv);
       const v = pickVoice(mi, mv); const natural = v && /natural|neural|online|google/i.test(v.name);
       narratorName = v ? v.name.replace(/Microsoft\s+/i, '').replace(/\s*(Online)?\s*\(Natural\).*$/i, '').replace(/\s*-\s*English.*$/i, '').replace(/\s+Desktop.*/i, '').replace(/^Google\s+/i, '').trim() : '';
@@ -1859,7 +1859,7 @@
     const grid = document.getElementById('movieGrid'); if (!grid) return;
     const re = FILTERS[window.__movieFilter][1], cards = Array.prototype.slice.call(grid.children);
     cards.forEach((card, i) => {
-      const m = CINEMA_MOVIES[i]; if (!m) return; card.style.display = re.test(m.genre) ? '' : 'none';
+      const m = CINEMA_MOVIES[i]; if (!m) return; card.style.display = (m.tv || !re.test(m.genre)) ? 'none' : '';
       if (i >= OLD_COUNT && !card.querySelector('.newbadge')) { const nb = document.createElement('div'); nb.className = 'newbadge'; nb.textContent = '\u2728 NEW'; nb.style.cssText = 'color:#7dffb2;font-weight:bold;font-size:11px;margin-bottom:4px;'; card.insertBefore(nb, card.firstChild); }
     });
     for (let i = cards.length - 1; i >= OLD_COUNT; i--) grid.insertBefore(cards[i], grid.firstChild);   // the new movies come first
@@ -1879,5 +1879,5 @@
       try { sc.dur = getDialogue(mi, si, mv, sc).total; } catch (e) { sc.dur = Math.max(sc.dur || 5, 12); }
     });
   });
-  window.__cinema3d = { sfx: CSFX, mood: moodAt, draw: draw3D, tagsFor, info: getInfo, castList, drawCredits, dialogue: getDialogue, status: () => ({ failed, hasRenderer: !!R }) };
+  window.__cinema3d = { wire: function (mi) { const mv = CINEMA_MOVIES[mi]; (mv.scenes || []).forEach((sc, si) => { if (sc.draw3dWired) return; sc.draw3dWired = true; const d2 = sc.draw; sc.draw2d = d2; sc.draw = function (ctx, w, h, t) { if (!draw3D(mi, si, mv, sc, ctx, w, h, t)) d2.call(sc, ctx, w, h, t); }; try { sc.dur = getDialogue(mi, si, mv, sc).total; } catch (e) { sc.dur = Math.max(sc.dur || 5, 12); } }); }, reset: function (mi) { const pre = mi + '_'; [sceneInfoCache, dlgCache].forEach(o => Object.keys(o).forEach(k => { if (k.indexOf(pre) === 0) delete o[k]; })); delete castCache[mi]; delete usedLines[mi]; Object.keys(people).forEach(k => { if (k === 'm' + mi + 'A' || k === 'm' + mi + 'B' || k === 'm' + mi + 'C') { try { SC.remove(people[k].g); } catch (e) { } delete people[k]; } }); Object.keys(fightT0).forEach(k => { if (k.indexOf(pre) === 0) delete fightT0[k]; }); }, sfx: CSFX, mood: moodAt, draw: draw3D, tagsFor, info: getInfo, castList, drawCredits, dialogue: getDialogue, status: () => ({ failed, hasRenderer: !!R }) };
 })();
