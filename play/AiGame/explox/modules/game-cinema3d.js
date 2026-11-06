@@ -567,7 +567,11 @@
   const sceneInfoCache = {};
   function verbStyle(t, mi, si, strict) {
     if (/fight|battle|attack|punch|kick|strike|clash|duel|defend|brawl|war\b|fist/.test(t)) return 'fight';
+    if (/for a spin|\b(drive|drives|drove|driving|driver)\b/.test(t)) return 'drive';
+    if (/\b(spin|spins|spun|spinning|twirl|twirls|twirling|whirl|whirls|whirling|pirouette)\b/.test(t)) return 'spinning';
     if (/\b(run|runs|running|ran|race|races|racing|chase|chases|chasing|escape|escapes|rush|rushes|flee|flees|fleeing|sprint|sprints|speed|speeds)\b/.test(t)) return 'run';
+    if (/for a spin|\b(drive|drives|drove|driving|driver)\b/.test(t)) return 'drive';
+    if (/\b(spin|spins|spun|spinning|twirl|twirls|twirling|whirl|whirls|whirling|pirouette)\b/.test(t)) return 'spinning';
     if (/\b(launch|launches|launched|fly|flies|flying|flight|soar|soars|wings|take off|takes off|orbit|orbits|warp|cruise|cruising)\b/.test(t)) return 'fly';
     if (/\b(dance|dances|danced|dancing|disco|twirl|twirls|groove|boogie)\b/.test(t)) return 'dance';
     if (/high.?five|\b(hug|hugs|hugged|reunite|reunited|reunion|congratulat\w*)\b/.test(t)) return 'highfive';
@@ -707,7 +711,7 @@
   let shown = [], curActors = [], curInfoNow = null;
 
   // ---------- things to DO: jump, dance, play ball, eat, paint, dig, climb, work out, shop, sing, high-five ----------
-  const ACT_STYLES = ['jump', 'dance', 'play', 'eat', 'write', 'dig', 'climb', 'exercise', 'shop', 'sing', 'highfive', 'fish', 'camp', 'magic', 'bubbles', 'photo', 'skate', 'snowball', 'juggle', 'tugwar', 'cook', 'drum', 'build'], ACT_SET = new Set(ACT_STYLES);
+  const ACT_STYLES = ['jump', 'dance', 'play', 'eat', 'write', 'dig', 'climb', 'exercise', 'shop', 'sing', 'highfive', 'fish', 'camp', 'magic', 'bubbles', 'photo', 'skate', 'snowball', 'juggle', 'tugwar', 'cook', 'drum', 'build', 'drive', 'spinning'], ACT_SET = new Set(ACT_STYLES);
   function chatActivity(mi, si, k, info, txt) {   // what are they doing while they talk?
     const vs = verbStyle(String(txt || '').toLowerCase(), mi, si); if (ACT_SET.has(vs)) return vs;
     if (info && info.dark) return null;
@@ -902,6 +906,29 @@
       ex.forEach((p, i) => { p.g.position.set((i - (ex.length - 1) / 2) * 2.4, 0, -4); p.g.rotation.y = 0; if (done) limbs(p, 2.7 + sn(t * 8 + i) * .5, 2.7 - sn(t * 8 + i) * .5, 0, 0); });
       look.set(0, 2.2, 0); return 10;
     }
+    if (style === 'drive') {   // take the car for a spin: round and round in donuts, skid marks, smoke, everyone hanging on
+      const R = 3.8, a = t * 1.5, th = -(a + Math.PI / 2), cy = Math.cos(th), sy = Math.sin(th), face0 = -a, cxp = Math.cos(a) * R, czp = Math.sin(a) * R * .55 - 1.5;
+      const pg = new THREE.Group(); pg.userData.shared = true; pg.position.set(cxp, 0, czp); pg.rotation.set(0, th, Math.sin(t * 6) * .04);
+      const pm = (sx, sy2, sz, c, x, y, z) => { const m = new THREE.Mesh(wGeo, wM(tintC(c))); m.scale.set(sx, sy2, sz); m.position.set(x, y, z); pg.add(m); return m; };
+      pm(4.6, .9, 2.2, 0xe53935, 0, .9, 0); pm(2.4, .8, 2.0, 0xe53935, -.3, 1.7, 0); pm(.12, .7, 1.9, 0x88ccee, .95, 1.75, 0); pm(.12, .6, 1.8, 0xffffff, 2.3, 1.0, 0); pm(.2, .4, .5, 0xfff59d, 2.35, 1.0, .7); pm(.2, .4, .5, 0xfff59d, 2.35, 1.0, -.7);
+      [[1.5, 1.15], [-1.5, 1.15], [1.5, -1.15], [-1.5, -1.15]].forEach(([wx, wz]) => { const w1 = pm(.9, .9, .35, 0x222222, wx, .45, wz); w1.rotation.z = -t * 14; pm(.5, .12, .38, 0xcccccc, wx, .45, wz).rotation.z = -t * 14; });
+      fxGroup.add(pg);
+      const place = (lx, lz, ly) => ({ x: cxp + lx * cy + lz * sy, z: czp - lx * sy + lz * cy, y: ly });
+      act.forEach((p, i) => { const q = place(i === 0 ? .55 : -.5, i === 2 ? 0 : (i === 0 ? .5 : -.5), 1.15); p.g.position.set(q.x, q.y, q.z); p.g.rotation.y = face0; p.legL.rotation.x = p.legR.rotation.x = -1.4; p.mouth.scale.set(1.3, 2.2, 1);
+        if (i === 0) { p.armL.rotation.x = p.armR.rotation.x = -1.2; p.body.rotation.z = Math.sin(t * 3) * .12; } else if (i === 1) { p.armL.rotation.x = p.armR.rotation.x = 2.8; p.armL.rotation.z = -.5; p.armR.rotation.z = .5; p.body.rotation.z = -Math.sin(t * 3) * .15; } else { p.armR.rotation.x = 2.6; p.armR.rotation.z = Math.sin(t * 9) * .5; } });
+      for (let k = 1; k < 26; k++) { const ak = a - k * .1; wMesh(.4, .03, 1.0, 0x1a1a1a, Math.cos(ak) * R + Math.sin(ak) * 0, .02, Math.sin(ak) * R * .8).rotation.y = -(ak + Math.PI / 2) + Math.PI / 2 * 0; }
+      for (let k = 0; k < 8; k++) { const ag = (t * 1.6 + k * .125) % 1, ak = a - .12 - ag * .5; wMesh(.7 + ag * 1.2, .5 + ag * 1.0, .7 + ag * 1.2, 0xeeeeee, Math.cos(ak) * R, .6 + ag * 1.6, Math.sin(ak) * R * .8); }
+      ex.forEach((p, i) => { const ae = i * Math.PI * 2 / Math.max(1, ex.length) + .4; p.g.position.set(Math.cos(ae) * 11, Math.abs(sn(t * 6 + i)) * .4, -3 - Math.abs(Math.sin(ae)) * 6); toward(p, 0, 0); limbs(p, 2.7 + sn(t * 8 + i) * .5, 2.7 - sn(t * 8 + i) * .5, 0, 0); });
+      look.set(0, 1.6, -1.5); return 16;
+    }
+    if (style === 'spinning') {   // they really spin, faster and faster, with a dizzy ending
+      const all2 = all, k = clamp((t % 4) / 3, 0, 1);
+      all2.forEach((p, i) => { const sp = 6 + i * 1.7 + k * 14; p.g.position.set((i - (n - 1) / 2) * 2.8, 0, (i % 2) * -1.5); p.g.rotation.y = t * sp * .5; p.armL.rotation.z = -1.5; p.armR.rotation.z = 1.5; p.legL.rotation.z = -.2; p.legR.rotation.z = .2; p.g.position.y = Math.abs(sn(t * 3 + i)) * .3; p.mouth.scale.set(1.3, 2.4, 1); p.head.rotation.z = sn(t * 8 + i) * .12;
+        for (let q = 0; q < 3; q++) { const rg = new THREE.Mesh(fxTorus, fxMatW); rg.userData.shared = true; rg.rotation.x = -Math.PI / 2; rg.scale.setScalar(Math.max(.01, .9 + q * .45)); rg.position.set(p.g.position.x, .1 + q * .9 + (t * 2 % 1) * .3, p.g.position.z); fxGroup.add(rg); }
+        if ((t % 4) > 3) for (let q = 0; q < 3; q++) spr('\u{1F4AB}', p.g.position.x + Math.cos(t * 5 + q * 2.1) * .9, 4.2, p.g.position.z + Math.sin(t * 5 + q * 2.1) * .5, .8); });
+      words2d(Math.floor(t / 4) * 4 + .2, 'WHEEE!', 2); if ((t % 4) > 3) words2d(Math.floor(t / 4) * 4 + 3.1, 'WOW, DIZZY!', 4);
+      look.set(0, 2.3, 0); return 8;
+    }
     return 5;
   }
   // every scene gets its own tempo, colour theme and signature flourishes, so there are thousands of different looks
@@ -925,7 +952,7 @@
   function activity(style, act, ex, t, u, look, mi, si, beatNo) {
     const h = hash(mi * 7 + si, beatNo || 0, 3), vr = { tempo: TEMPO[h % 5], hue: HUES[hash(h, 5, 2) % 12], fl: hash(h, 7, 5) };
     HUE = vr.hue; const tt = t * vr.tempo, sp = activityBase(style, act, ex, tt, u, look, mi, si); HUE = 0;
-    act.concat(ex).forEach((p, i) => { const T = 3.3, c = Math.floor((tt + i * .73) / T), q = ((tt + i * .73) % T) / T / .28; if (q < 1 && hash(c, i + vr.fl, 4) % 3 !== 0 && !(style === 'dance' || style === 'highfive')) flourish(p, FLOURISH[hash(c, i + vr.fl, 9) % 8], q); });
+    act.concat(ex).forEach((p, i) => { const T = 3.3, c = Math.floor((tt + i * .73) / T), q = ((tt + i * .73) % T) / T / .28; if (q < 1 && hash(c, i + vr.fl, 4) % 3 !== 0 && !(style === 'dance' || style === 'highfive' || style === 'drive' || style === 'spinning')) flourish(p, FLOURISH[hash(c, i + vr.fl, 9) % 8], q); });
     return sp;
   }
   // ---------- what they see, you see: when a line talks about something, it appears in the scene, everyone turns to look at it, and the camera cuts to over their shoulder ----------
@@ -970,7 +997,7 @@
     meow() { tn(700, 'triangle', .1, .4, 0, 1100); tn(1100, 'triangle', .08, .3, .15, 600); }, trumpet() { tn(392, 'sawtooth', .07, .2); tn(523, 'sawtooth', .07, .4, .2); }, chuckle() { for (let i = 0; i < 4; i++) tn(320 + i * 20, 'triangle', .06, .09, i * .14, 260); },
     sob() { tn(420, 'sine', .07, .35, 0, 300); tn(400, 'sine', .07, .35, .4, 280); }, gasp() { nz(.1, .25, 0, 'bandpass', 1500, 1, 3000); }, chatter() { for (let i = 0; i < 6; i++) tn(1500, 'square', .03, .03, i * .05); }, sigh() { nz(.07, .7, 0, 'bandpass', 1200, .5, 400); },
     hmm() { tn(180, 'sine', .08, .5, 0, 230); }, smack() { nz(.2, .05, 0, 'bandpass', 1800, 1); tn(250, 'square', .06, .05); }, knock() { for (let i = 0; i < 3; i++) tn(200, 'sine', .2, .08, i * .2, 150); }, bell() { tn(880, 'sine', .12, .9); tn(1760, 'sine', .05, .7); },
-    tick() { tn(1800, 'square', .05, .03); tn(1500, 'square', .05, .03, .5); }, jingle() { [2093, 2637, 3136, 2349].forEach((f, i) => tn(f, 'sine', .05, .15, i * .06)); }, wind() { nz(.07, 1.2, 0, 'bandpass', 500, .6, 900); }, crack() { nz(.2, .08, 0, 'highpass', 3500); tn(2500, 'sine', .06, .05); },
+    screech() { tn(900, 'sawtooth', .05, .8, 0, 1250); nz(.08, .8, 0, 'highpass', 3500); }, tick() { tn(1800, 'square', .05, .03); tn(1500, 'square', .05, .03, .5); }, jingle() { [2093, 2637, 3136, 2349].forEach((f, i) => tn(f, 'sine', .05, .15, i * .06)); }, wind() { nz(.07, 1.2, 0, 'bandpass', 500, .6, 900); }, crack() { nz(.2, .08, 0, 'highpass', 3500); tn(2500, 'sine', .06, .05); },
     scream() { tn(900, 'sawtooth', .05, .6, 0, 1700); }, whistle() { tn(1800, 'sine', .07, .5, 0, 2400); }, applause() { for (let i = 0; i < 10; i++) nz(.08, .04, i * .07, 'bandpass', 1800 + Math.random() * 600, 1); }, sneeze() { nz(.1, .15, 0, 'bandpass', 2500); tn(500, 'sine', .08, .2, .15, 200); },
     honk2() { tn(220, 'sawtooth', .12, .3, 0, 180); tn(280, 'sawtooth', .1, .3, .02, 230); }, ring() { for (let i = 0; i < 4; i++) tn(900, 'square', .035, .1, i * .16); }, splash2() { nz(.13, .35, 0, 'bandpass', 1400, .6, 300); },
   };
@@ -983,14 +1010,15 @@
     [/\b(magic|spell|sparkle|wand)\b/, 'sparkle'], [/\b(scream|screams|yell|shout|shouts)\b/, 'scream'], [/\b(whistle|whistles)\b/, 'whistle'], [/\b(applause|clap|claps|cheer|cheers|hooray)\b/, 'applause'], [/\b(sneeze|achoo)\b/, 'sneeze'], [/\b(coin|coins|money|gold|treasure)\b/, 'ching'],
     [/\b(page|book|map|letter)\b/, 'pageflip'], [/\b(fire|flame|flames|torch)\b/, 'flame'], [/\b(lightning|zap|electric)\b/, 'zap'], [/\b(roar|roars|dragon|dinosaur)\b/, 'roar'], [/\b(ghost|spooky|haunted)\b/, 'woo'], [/\b(cat|kitty|meow)\b/, 'meow'], [/\b(robot|beep|boop)\b/, 'beepbeep'], [/\b(heart|love)\b/, 'heartbeat']];
   const CS_STYLE = { walk: [2.9, 'step'], run: [4.4, 'run'], sneak: [1.7, 'tiptoe'], jump: [.9, 'boing'], dance: [2.2, 'clap2'], play: [.75, 'thump'], eat: [2.6, 'crunch'], write: [2.2, 'scribble'], dig: [1.6, 'scoop'], climb: [1.4, 'clink'], exercise: [1.6, 'grunt'], shop: [.55, 'ching'], sing: [1.1, 'sparkle'],
-    highfive: [.34, 'slap'], party: [1.2, 'pop'], fish: [.28, 'splash'], camp: [3.5, 'crackle'], magic: [.6, 'sparkle'], bubbles: [3.2, 'pop'], photo: [.38, 'shutter'], skate: [2.6, 'swish'], snowball: [.85, 'whump'], juggle: [4.2, 'toss'], tugwar: [1.1, 'creak'], cook: [2.4, 'sizzle'], drum: [4.6, 'drum'], build: [1.15, 'thump'], work: [2.6, 'hammer'], panic: [1.5, 'squeak'], look: [.0, null], talk: [.0, null] };
+    highfive: [.34, 'slap'], party: [1.2, 'pop'], fish: [.28, 'splash'], camp: [3.5, 'crackle'], magic: [.6, 'sparkle'], bubbles: [3.2, 'pop'], photo: [.38, 'shutter'], skate: [2.6, 'swish'], snowball: [.85, 'whump'], juggle: [4.2, 'toss'], tugwar: [1.1, 'creak'], cook: [2.4, 'sizzle'], drum: [4.6, 'drum'], build: [1.15, 'thump'], work: [2.6, 'hammer'], drive: [.5, 'honk2'], spinning: [1.6, 'swish'], panic: [1.5, 'squeak'], look: [.0, null], talk: [.0, null] };
   const csState = { style: '', idx: -1, once: {}, eng: null, amb: null, ambKey: '', ambTimer: 0 };
   function csFlow(style, t, mi) {
     try {
       if (!playing(mi)) return;
       const d = CS_STYLE[style]; if (csState.style !== style) { csState.style = style; csState.idx = d && d[0] ? Math.floor(t * d[0]) : -1; }
       if (d && d[0]) { const idx = Math.floor(t * d[0]); if (idx !== csState.idx) { csState.idx = idx; CSFX[d[1]](); } }
-      if (style === 'fly') csEngine(true); else csEngine(false);
+      if (style === 'fly' || style === 'drive') csEngine(true); else csEngine(false);
+      if (style === 'drive' && Math.floor(t * .9) !== csState.scr) { csState.scr = Math.floor(t * .9); CSFX.screech(); }
     } catch (e) { }
   }
   function csOnce(key, name) { try { if (csState.once[key]) return; csState.once[key] = 1; CSFX[name](); } catch (e) { } }
@@ -1623,7 +1651,7 @@
     magic: ['penthouse_view', 'neon_lights', 'galaxy_drive'], night: ['neon_district', 'metro_groove'], adventure: ['mission_zone', 'galaxy_drive', 'beach_cruise'],
   };
   const MOOD_VOL = { scared: .15, sad: .17, serious: .16, night: .16, worried: .16, sneak: .15, fight: .26, chase: .26, party: .24, angry: .24, excited: .24, joy: .22 };
-  const STYLE_MOOD = { fight: 'fight', run: 'chase', sneak: 'sneak', panic: 'scared', party: 'party', dance: 'party', highfive: 'joy', sing: 'happy', drum: 'excited', magic: 'magic', fly: 'adventure', climb: 'determined', exercise: 'determined', build: 'determined', skate: 'excited', jump: 'excited', play: 'happy', eat: 'happy', cook: 'happy', camp: 'warm', fish: 'relieved', write: 'curious', shop: 'curious', dig: 'curious', photo: 'happy', snowball: 'joy', juggle: 'joy', bubbles: 'joy', tugwar: 'determined' };
+  const STYLE_MOOD = { fight: 'fight', run: 'chase', sneak: 'sneak', panic: 'scared', party: 'party', dance: 'party', highfive: 'joy', sing: 'happy', drum: 'excited', magic: 'magic', fly: 'adventure', climb: 'determined', exercise: 'determined', build: 'determined', skate: 'excited', jump: 'excited', play: 'happy', eat: 'happy', cook: 'happy', camp: 'warm', fish: 'relieved', write: 'curious', shop: 'curious', dig: 'curious', photo: 'happy', snowball: 'joy', juggle: 'joy', bubbles: 'joy', tugwar: 'determined', drive: 'adventure', spinning: 'joy' };
   const TOD_MOOD = { night: 'night', storm: 'angry', dawn: 'joy', dusk: 'warm', day: 'happy' };
   function moodAt(mi, si, mv, sc, t) {
     const info = getInfo(mi, si, mv, sc), dl = getDialogue(mi, si, mv, sc), ln = dl.find(l => t >= l.start - .1 && t <= l.end + .6); let bb = null;
