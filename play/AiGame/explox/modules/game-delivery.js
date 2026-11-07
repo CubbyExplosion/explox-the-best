@@ -80,7 +80,7 @@
       if (o.end <= now) {
         d.boxes = d.boxes || []; const pos = dropSpot();
         d.boxes.push({ bid: 'b' + now + '_' + d.boxes.length, id: o.id, name: o.name, emoji: o.emoji, country: o.country, at: now, x: pos.x, z: pos.z });
-        note('📦 A box from ' + o.country + ' just arrived! Walk up to it and open it (press O).'); try { sfx.coin(); } catch (e) { }
+        note('📦 A box from ' + o.country + ' just arrived! Walk up to it and open it (press O).'); try { playTheme(true); } catch (e) { }
       } else keep.push(o);
     });
     if (keep.length !== d.orders.length) { d.orders = keep; save(d); if ($('edModal') && $('edModal').style.display === 'flex') render(); }
@@ -129,6 +129,56 @@
   document.addEventListener('keydown', (e) => { if ((e.key === 'o' || e.key === 'O') && !/INPUT|TEXTAREA|SELECT/.test((e.target || {}).tagName || '') && !e.ctrlKey && !e.metaKey) { const b = nearestBox(); if (b) { e.preventDefault(); openBox(b.bid); } } });
   setInterval(() => { try { syncMeshes(); promptBox(); } catch (e) { } }, 400);
 
+  // ─── intro + theme song (made with Web Audio, no files) ───────────────────────────────
+  let AC = null, themeStop = null;
+  function ac() { try { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); } catch (e) { AC = null; } return AC; }
+  const NOTE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  const hz = (n, oct) => 440 * Math.pow(2, (NOTE[n] + (oct - 4) * 12 - 9) / 12);
+  function tone(c, t, f, d, type, vol, out) {
+    const o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .02); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g); g.connect(out); o.start(t); o.stop(t + d + .05);
+  }
+  function hat(c, t, out) {
+    const len = c.sampleRate * .05, buf = c.createBuffer(1, len, c.sampleRate), dd = buf.getChannelData(0); for (let i = 0; i < len; i++) dd[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = c.createBufferSource(), g = c.createGain(), f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 7000; g.gain.value = .12; src.buffer = buf; src.connect(f); f.connect(g); g.connect(out); src.start(t);
+  }
+  // the E.D theme: a bouncy 8-bar tune, 120 bpm. Returns the length in seconds.
+  const TUNE = [['E', 5, 1], ['E', 5, 1], ['G', 5, 2], ['E', 5, 1], ['E', 5, 1], ['C', 5, 2], ['D', 5, 1], ['E', 5, 1], ['F', 5, 1], ['E', 5, 1], ['D', 5, 4],
+    ['E', 5, 1], ['E', 5, 1], ['G', 5, 2], ['A', 5, 1], ['G', 5, 1], ['E', 5, 2], ['D', 5, 1], ['E', 5, 1], ['D', 5, 1], ['C', 5, 1], ['C', 5, 4]];
+  const BASS = ['C', 'C', 'F', 'G', 'C', 'C', 'F', 'G'];
+  function playTheme(short) {
+    const c = ac(); if (!c) return 0; const out = c.createGain(); out.gain.value = .5; out.connect(c.destination);
+    const beat = .25, t0 = c.currentTime + .1; let t = t0;
+    const notes = short ? [['E', 5, 1], ['G', 5, 1], ['C', 6, 2]] : TUNE;
+    notes.forEach(n => { const d = n[2] * beat; tone(c, t, hz(n[0], n[1]), d * .9, 'square', .09, out); tone(c, t, hz(n[0], n[1] - 1), d * .9, 'triangle', .1, out); t += d; });
+    const total = t - t0;
+    if (!short) { for (let i = 0; i < total / (beat * 2); i++) { const bt = t0 + i * beat * 2, nm = BASS[Math.floor(i / 2) % BASS.length]; tone(c, bt, hz(nm, 2), beat * 1.6, 'sawtooth', .07, out); hat(c, bt, out); hat(c, bt + beat, out); } }
+    const stop = () => { try { out.gain.setTargetAtTime(0, c.currentTime, .05); } catch (e) { } };
+    themeStop = stop; return total;
+  }
+  const LYRICS = [[0, 'E-D! E-D!'], [1.4, 'Explox Delivery!'], [3.3, 'Anything, anywhere,'], [5.2, 'right to your door!'], [7.2, 'A box for you, a box for me,'], [9.5, 'E-D! E-D!'], [11, 'Hooray! \u{1F389}']];
+  let introOn = false;
+  function intro(done) {
+    if (introOn) return; introOn = true; css();
+    const ov = document.createElement('div'); ov.id = 'edIntro'; ov.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:linear-gradient(#0d1b3d,#ff8f00);overflow:hidden;font-family:Arial,sans-serif;color:#fff;text-align:center;cursor:pointer';
+    ov.innerHTML = '<style>@keyframes edDrive{from{left:-25%}to{left:110%}}@keyframes edPop{0%{transform:scale(.2);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}@keyframes edBob{50%{transform:translateY(-8px)}}</style>' +
+      '<div style="position:absolute;top:10%;left:0;right:0;font-size:min(14vw,90px);font-weight:900;letter-spacing:4px;text-shadow:0 4px 0 #b45309;animation:edPop .8s both">E.D</div>' +
+      '<div style="position:absolute;top:30%;left:0;right:0;font-size:min(6vw,34px);font-weight:bold;animation:edPop .8s .5s both">EXPLOX DELIVERY</div>' +
+      '<div style="position:absolute;bottom:26%;left:0;right:0;height:6px;background:#333"></div>' +
+      '<div style="position:absolute;bottom:26%;font-size:min(16vw,100px);animation:edDrive 6s linear infinite"><span style="display:inline-block;animation:edBob .4s infinite">\u{1F69A}</span></div>' +
+      '<div style="position:absolute;bottom:34%;left:0;right:0;font-size:min(10vw,64px);opacity:.9">\u{1F4E6} \u{1F381} \u{1F30D} \u2708\uFE0F</div>' +
+      '<div id="edLyric" style="position:absolute;bottom:10%;left:0;right:0;font-size:min(6vw,32px);font-weight:bold;text-shadow:0 2px 6px #000"></div>' +
+      '<div style="position:absolute;bottom:2%;left:0;right:0;font-size:12px;opacity:.7">tap to skip</div>';
+    document.body.appendChild(ov);
+    const len = playTheme(false), timers = [];
+    LYRICS.forEach(l => timers.push(setTimeout(() => { const e = $('edLyric'); if (e) { e.textContent = l[1]; e.style.animation = 'none'; void e.offsetWidth; e.style.animation = 'edPop .4s both'; } }, l[0] * 1000)));
+    const finish = () => { timers.forEach(clearTimeout); if (themeStop) themeStop(); ov.remove(); introOn = false; if (done) done(); };
+    timers.push(setTimeout(finish, Math.max(7000, (len || 7) * 1000 + 600)));
+    ov.onclick = finish;
+  }
+  let introSeen = false;
+
   // ─── window ──────────────────────────────────────────────────────────────────────────
   let tab = 'shop';
   function css() {
@@ -144,11 +194,11 @@
     if (!m) { m = document.createElement('div'); m.id = 'edModal'; m.innerHTML = '<div id="edBox"></div>'; m.addEventListener('mousedown', e => { if (e.target === m) close(); }); document.body.appendChild(m); }
     return m;
   }
-  function open() { try { if (document.pointerLockElement) document.exitPointerLock(); isPointerLocked = false; } catch (e) { } box().style.display = 'flex'; render(); }
+  function open() { try { if (document.pointerLockElement) document.exitPointerLock(); isPointerLocked = false; } catch (e) { } const go = () => { box().style.display = 'flex'; render(); }; if (!introSeen) { introSeen = true; intro(go); } else go(); }
   function close() { const m = $('edModal'); if (m) m.style.display = 'none'; }
   function head() {
     const d = load();
-    return '<div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:22px;font-weight:bold">📦 E.D – Explox Delivery</div><div style="font-size:12px;color:#ffcc80">Anything from the whole world! Shipping: 5 S.I.P. per 100 metres. Explox things arrive in up to 1 minute, far-away things in up to 5 minutes.</div></div><button class="edB" id="edX" style="background:#555">✖</button></div>' +
+    return '<div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:22px;font-weight:bold">📦 E.D – Explox Delivery</div><div style="font-size:12px;color:#ffcc80">Anything from the whole world! Shipping: 5 S.I.P. per 100 metres. Explox things arrive in up to 1 minute, far-away things in up to 5 minutes.</div></div><span><button class="edB" id="edTheme" style="background:#ff8f00">🎵 Theme</button><button class="edB" id="edX" style="background:#555">✖</button></span></div>' +
       '<div style="margin:6px 0">💰 You have <b style="color:#ffd54f">' + sip() + '</b> S.I.P.</div>' +
       '<div class="edTabs"><button data-t="shop" style="' + (tab === 'shop' ? 'background:#ff8f00' : '') + '">🛍️ Catalog</button><button data-t="any" style="' + (tab === 'any' ? 'background:#ff8f00' : '') + '">🌍 Order Anything</button><button data-t="boxes" style="' + (tab === 'boxes' ? 'background:#ff8f00' : '') + '">📦 Boxes (' + (d.boxes || []).length + ')</button><button data-t="track" style="' + (tab === 'track' ? 'background:#ff8f00' : '') + '">🚚 On the way (' + d.orders.length + ')</button></div>';
   }
@@ -167,7 +217,7 @@
       h += d.orders.length ? d.orders.map(o => '<div class="edCard" style="margin-top:8px;text-align:left"><b>' + o.emoji + ' ' + esc(o.name) + '</b> <span style="color:#aaa">from ' + esc(o.country) + '</span><div class="edBar"><i data-o="' + o.id + '|' + o.start + '" style="width:' + Math.min(100, (now - o.start) / (o.end - o.start) * 100) + '%"></i></div><div style="font-size:11px;color:#ffcc80" data-t2="' + o.end + '">' + (o.country === 'Explox' ? '🛵' : '✈️') + ' arrives in ' + fmtT(o.end - now) + '</div></div>').join('') : '<div style="margin-top:12px;color:#aaa">Nothing on the way. Order something!</div>';
       if (d.done.length) h += '<div style="margin-top:12px;font-size:12px;color:#7dff9a">✅ Delivered: ' + d.done.map(x => x.emoji + ' ' + esc(x.name)).join(', ') + '</div>';
     }
-    b.innerHTML = h; $('edX').onclick = close;
+    b.innerHTML = h; $('edX').onclick = close; $('edTheme').onclick = () => { if (themeStop) themeStop(); b.parentNode.style.display = 'none'; intro(() => { b.parentNode.style.display = 'flex'; }); };
     Array.prototype.forEach.call(b.querySelectorAll('.edTabs button'), x => { x.onclick = () => { tab = x.getAttribute('data-t'); render(); }; });
     Array.prototype.forEach.call(b.querySelectorAll('[data-b]'), x => { x.onclick = () => { const c = CAT[+x.getAttribute('data-b')]; order(c[0], c[1], c[2], c[3]); }; });
     Array.prototype.forEach.call(b.querySelectorAll('[data-open]'), x => { x.onclick = () => openBox(x.getAttribute('data-open')); });
@@ -206,5 +256,5 @@
   }
   setInterval(tick, 1000);
   window.openExploxDelivery = open;
-  window.__exploxED = { open: open, catalog: CAT, load: load, order: order, deliverDue: deliverDue, openBox: openBox, nearestBox: nearestBox, blocked: (s) => BLOCK.test(s) || BAD_PERSONAL.test(s) };
+  window.__exploxED = { open: open, catalog: CAT, load: load, order: order, deliverDue: deliverDue, intro: intro, theme: () => playTheme(false), openBox: openBox, nearestBox: nearestBox, blocked: (s) => BLOCK.test(s) || BAD_PERSONAL.test(s) };
 })();
