@@ -208,7 +208,7 @@
     [['C', 5, 1], ['E', 5, 1], ['G', 5, 1], ['E', 5, 1], ['A', 5, 2], ['G', 5, 2], ['E', 5, 1], ['D', 5, 1], ['C', 5, 4]].forEach(n => { const d = n[2] * .2; tone(c, t, hz(n[0], n[1]), d * .9, 'triangle', .14, out); t += d; });
   }
   function useItem(id, how) {
-    const it = playerInventory[id]; if (!it) return; const k = kindOf(it.name, it.emoji);
+    const it = playerInventory[id]; if (!it) return; const k = it.food ? 'food' : kindOf(it.name, it.emoji);
     if (how === 'eat' && k === 'food') {
       if (!takeOne(id)) return; try { restoreHunger(35); } catch (e) { } try { playerHealth = Math.min(playerMaxHealth, playerHealth + 10); updateHealthBar(); } catch (e) { }
       floatEmoji(it.emoji, 'Yum! ' + it.name + ' tastes great! +hunger +health'); try { sfx.coin(); } catch (e) { }
@@ -255,8 +255,8 @@
         '<div style="margin-top:8px"><input id="edName" maxlength="30" placeholder="What do you want? e.g. Giant Rubber Duck" style="width:62%;padding:8px;border-radius:8px;border:0;font-size:14px"> <select id="edFrom" style="padding:8px;border-radius:8px;border:0"><option value="">🌍 Anywhere</option>' + COUNTRIES.map(c => '<option>' + c + '</option>').join('') + '</select></div>' +
         '<div id="edMsg" style="margin:8px 0;color:#ffcc80;font-size:12px"></div><button class="edB" id="edFind" style="background:#ff8f00">🔎 Find it</button><div id="edFound"></div>';
     } else if (tab === 'stuff') {
-      const mine = Object.keys(playerInventory).filter(id => /^ed_/.test(id) && playerInventory[id] && playerInventory[id].qty > 0);
-      h += mine.length ? '<div style="margin-top:8px;font-size:12px;color:#ffcc80">Things from your E.D boxes. Eat the food, hug the plush, play the music!</div><div class="edGrid">' + mine.map(id => { const it = playerInventory[id], k = kindOf(it.name, it.emoji), act = k === 'food' ? ['eat', '🍴 Eat'] : k === 'plush' ? ['hug', '🤗 Hug'] : k === 'music' ? ['play', '🎵 Play'] : null;
+      const mine = Object.keys(playerInventory).filter(id => /^(ed_|sm_)/.test(id) && playerInventory[id] && playerInventory[id].qty > 0);
+      h += mine.length ? '<div style="margin-top:8px;font-size:12px;color:#ffcc80">Things from your E.D boxes. Eat the food, hug the plush, play the music!</div><div class="edGrid">' + mine.map(id => { const it = playerInventory[id], k = it.food ? 'food' : kindOf(it.name, it.emoji), act = k === 'food' ? ['eat', '🍴 Eat'] : k === 'plush' ? ['hug', '🤗 Hug'] : k === 'music' ? ['play', '🎵 Play'] : null;
         return '<div class="edCard"><div class="e">' + it.emoji + '</div><b>' + esc(it.name) + '</b><div style="color:#aaa">x' + it.qty + '</div>' + (act ? '<button class="edB" data-use="' + id + '|' + act[0] + '" style="background:#2e7d32">' + act[1] + '</button>' : '') + '<button class="edB" data-use="' + id + '|show">✨ Show</button></div>'; }).join('') + '</div>' : '<div style="margin-top:12px;color:#aaa">You have nothing from E.D yet. Order something!</div>';
     } else if (tab === 'boxes') {
       h += (d.boxes || []).length ? '<div style="margin-top:8px;font-size:12px;color:#ffcc80">Your boxes wait in the world where they arrived. Walk up to one and press O, or open it from here:</div>' + d.boxes.map(x => '<div class="edCard" style="margin-top:8px;text-align:left">📦 Box from <b>' + esc(x.country) + '</b> <button class="edB" data-open="' + x.bid + '" style="background:#2e7d32;float:right">Open</button></div>').join('') : '<div style="margin-top:12px;color:#aaa">No boxes waiting.</div>';
