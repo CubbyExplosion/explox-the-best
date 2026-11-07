@@ -113,18 +113,18 @@
   function openBox(bid) {
     const d = load(), i = (d.boxes || []).findIndex(b => b.bid === bid); if (i < 0) return; const b = d.boxes[i];
     const m = meshes[bid]; if (m && m.userData.flap) { let t = 0; const iv = setInterval(() => { t += .1; m.userData.flap.rotation.x = -Math.min(2.4, t * 3); if (t > 1) clearInterval(iv); }, 30); }
-    try { addToInventory(b.id, b.name, b.emoji); saveCurrentUser(); } catch (e) { return; }
+    try { addToInventory(b.id, b.name, b.emoji); addToInventory(BONUS.id, BONUS.name, BONUS.emoji); saveCurrentUser(); } catch (e) { return; }
     d.boxes.splice(i, 1); d.done.unshift({ name: b.name, emoji: b.emoji, country: b.country, at: Date.now() }); d.done = d.done.slice(0, 12); save(d);
     try { sfx.coin(); } catch (e) { }
-    const pop = document.createElement('div'); pop.style.cssText = 'position:fixed;left:50%;top:38%;transform:translate(-50%,-50%) scale(.3);z-index:2147483000;background:#1b1f33;color:#fff;border:3px solid #ff8f00;border-radius:18px;padding:18px 26px;text-align:center;font-family:Arial,sans-serif;transition:transform .45s cubic-bezier(.2,1.6,.4,1);pointer-events:none';
-    pop.innerHTML = '<div style="font-size:64px">' + b.emoji + '</div><div style="font-size:20px;font-weight:bold">You opened the box!</div><div style="font-size:16px">' + esc(b.name) + '</div><div style="font-size:12px;color:#ffcc80">from ' + esc(b.country) + ' \u2022 added to your inventory</div>';
+    const pop = document.createElement('div'); pop.style.cssText = 'max-width:300px;position:fixed;left:50%;top:38%;transform:translate(-50%,-50%) scale(.3);z-index:2147483000;background:#1b1f33;color:#fff;border:3px solid #ff8f00;border-radius:18px;padding:18px 26px;text-align:center;font-family:Arial,sans-serif;transition:transform .45s cubic-bezier(.2,1.6,.4,1);pointer-events:none';
+    pop.innerHTML = '<div style="font-size:20px;font-weight:bold">You opened the box!</div><div style="font-size:12px;color:#ffcc80;margin-bottom:6px">Inside the box:</div><div style="font-size:64px">' + b.emoji + '</div><div style="font-size:16px">' + esc(b.name) + '</div><div style="margin-top:6px;font-size:14px">+ ' + BONUS.emoji + ' a free ' + BONUS.name + '</div><div style="margin-top:6px;font-size:11px;color:#ffcc80">📝 Note: "Thanks for ordering from E.D! Use your stuff in the 🎒 My Stuff tab."</div><div style="font-size:11px;color:#aaa">from ' + esc(b.country) + '</div>';
     document.body.appendChild(pop); requestAnimationFrame(() => { pop.style.transform = 'translate(-50%,-50%) scale(1)'; });
-    setTimeout(() => { pop.style.transition = 'opacity .5s'; pop.style.opacity = '0'; setTimeout(() => pop.remove(), 600); }, 2600);
+    setTimeout(() => { pop.style.transition = 'opacity .5s'; pop.style.opacity = '0'; setTimeout(() => pop.remove(), 600); }, 4200);
     setTimeout(() => syncMeshes(), 1200); if ($('edModal') && $('edModal').style.display === 'flex') render();
   }
   function promptBox() {
     let p = $('edPrompt'); if (!p) { p = document.createElement('div'); p.id = 'edPrompt'; p.style.cssText = 'position:fixed;left:50%;bottom:22%;transform:translateX(-50%);z-index:1600;background:#ff8f00;color:#fff;border:2px solid #fff;border-radius:20px;padding:9px 18px;font:bold 15px Arial;cursor:pointer;display:none;box-shadow:0 2px 10px #0008'; p.onclick = () => { const b = nearestBox(); if (b) openBox(b.bid); }; document.body.appendChild(p); }
-    const b = nearestBox(); if (b) { p.textContent = '\U0001F4E6 Open the box from ' + b.country + ' (press O or tap)'; p.style.display = 'block'; } else p.style.display = 'none';
+    const b = nearestBox(); if (b) { p.textContent = '📦 Open the box from ' + b.country + ' (press O or tap)'; p.style.display = 'block'; } else p.style.display = 'none';
   }
   document.addEventListener('keydown', (e) => { if ((e.key === 'o' || e.key === 'O') && !/INPUT|TEXTAREA|SELECT/.test((e.target || {}).tagName || '') && !e.ctrlKey && !e.metaKey) { const b = nearestBox(); if (b) { e.preventDefault(); openBox(b.bid); } } });
   setInterval(() => { try { syncMeshes(); promptBox(); } catch (e) { } }, 400);
@@ -179,6 +179,50 @@
   }
   let introSeen = false;
 
+  // ─── real stuff: what is inside the box can really be used ──────────────────────────
+  const FOOD_EMO = '🍕🍰🍪🍎🍌🍔🍨🥐🍣🍜🍝🌮🍍🍫🍁🫒🥨🍋🎂🍭🍟🌭🥞';
+  function kindOf(name, emoji) {
+    const l = String(name).toLowerCase();
+    if (/plush|teddy|bear\b|doll/.test(l)) return 'plush';
+    if (/drum|guitar|ukulele|maracas|trumpet|piano|samba|violin|flute|xylophone/.test(l)) return 'music';
+    if (/pizza|croissant|sushi|ramen|pasta|gelato|taco|fruit|spice|chocolate|syrup|olive|pretzel|snack|lemonade|cake|cookie|pie\b|bread|burger|sandwich|candy|juice|soup|noodle|apple|banana|ice cream/.test(l) || String(FOOD_EMO).indexOf(emoji) >= 0 && emoji) return 'food';
+    return 'thing';
+  }
+  function takeOne(id) { const it = playerInventory[id]; if (!it) return false; it.qty--; if (it.qty <= 0) delete playerInventory[id]; try { saveCurrentUser(); } catch (e) { } return true; }
+  function floatEmoji(emoji, text) {
+    const pop = document.createElement('div'); pop.style.cssText = 'position:fixed;left:50%;top:45%;transform:translate(-50%,-50%);z-index:2147483000;text-align:center;font-family:Arial,sans-serif;color:#fff;text-shadow:0 2px 6px #000;pointer-events:none;transition:all 1.6s ease-out';
+    pop.innerHTML = '<div style="font-size:72px">' + emoji + '</div><div style="font-size:20px;font-weight:bold">' + esc(text) + '</div>'; document.body.appendChild(pop);
+    requestAnimationFrame(() => { pop.style.top = '25%'; pop.style.opacity = '0'; }); setTimeout(() => pop.remove(), 1800);
+  }
+  function showInWorld(emoji) {
+    try {
+      if (typeof scene === 'undefined' || !scene || typeof THREE === 'undefined') return;
+      const cv = document.createElement('canvas'); cv.width = cv.height = 128; const x = cv.getContext('2d'); x.font = '96px Arial'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(emoji, 64, 70);
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent: true })); sp.scale.set(1.6, 1.6, 1);
+      const dir = new THREE.Vector3(); camera.getWorldDirection(dir); dir.y = 0; dir.normalize(); const bx = playerGroup.position.x + dir.x * 2.6, bz = playerGroup.position.z + dir.z * 2.6, t0 = performance.now();
+      scene.add(sp); const iv = setInterval(() => { const t = (performance.now() - t0) / 1000; sp.position.set(bx, 1.9 + Math.sin(t * 3) * .15, bz); sp.material.rotation = Math.sin(t * 2) * .15; if (t > 8) { clearInterval(iv); scene.remove(sp); } }, 40);
+    } catch (e) { }
+  }
+  function playMusic() {
+    const c = ac(); if (!c) return; const out = c.createGain(); out.gain.value = .5; out.connect(c.destination); let t = c.currentTime + .05;
+    [['C', 5, 1], ['E', 5, 1], ['G', 5, 1], ['E', 5, 1], ['A', 5, 2], ['G', 5, 2], ['E', 5, 1], ['D', 5, 1], ['C', 5, 4]].forEach(n => { const d = n[2] * .2; tone(c, t, hz(n[0], n[1]), d * .9, 'triangle', .14, out); t += d; });
+  }
+  function useItem(id, how) {
+    const it = playerInventory[id]; if (!it) return; const k = kindOf(it.name, it.emoji);
+    if (how === 'eat' && k === 'food') {
+      if (!takeOne(id)) return; try { restoreHunger(35); } catch (e) { } try { playerHealth = Math.min(playerMaxHealth, playerHealth + 10); updateHealthBar(); } catch (e) { }
+      floatEmoji(it.emoji, 'Yum! ' + it.name + ' tastes great! +hunger +health'); try { sfx.coin(); } catch (e) { }
+    } else if (how === 'hug' && k === 'plush') {
+      try { playerHealth = Math.min(playerMaxHealth, playerHealth + 5); updateHealthBar(); } catch (e) { } floatEmoji('💖', 'You hug your ' + it.name + '. So soft!'); showInWorld(it.emoji);
+    } else if (how === 'play' && k === 'music') {
+      playMusic(); floatEmoji('🎶', 'You play the ' + it.name + '!'); showInWorld(it.emoji);
+    } else if (how === 'show') {
+      showInWorld(it.emoji); floatEmoji(it.emoji, 'You hold up your ' + it.name + '!');
+    }
+    if ($('edModal') && $('edModal').style.display === 'flex') render();
+  }
+  const BONUS = { id: 'ed_free_cookie', name: 'E.D Cookie', emoji: '🍪' };
+
   // ─── window ──────────────────────────────────────────────────────────────────────────
   let tab = 'shop';
   function css() {
@@ -200,7 +244,7 @@
     const d = load();
     return '<div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:22px;font-weight:bold">📦 E.D – Explox Delivery</div><div style="font-size:12px;color:#ffcc80">Anything from the whole world! Shipping: 5 S.I.P. per 100 metres. Explox things arrive in up to 1 minute, far-away things in up to 5 minutes.</div></div><span><button class="edB" id="edTheme" style="background:#ff8f00">🎵 Theme</button><button class="edB" id="edX" style="background:#555">✖</button></span></div>' +
       '<div style="margin:6px 0">💰 You have <b style="color:#ffd54f">' + sip() + '</b> S.I.P.</div>' +
-      '<div class="edTabs"><button data-t="shop" style="' + (tab === 'shop' ? 'background:#ff8f00' : '') + '">🛍️ Catalog</button><button data-t="any" style="' + (tab === 'any' ? 'background:#ff8f00' : '') + '">🌍 Order Anything</button><button data-t="boxes" style="' + (tab === 'boxes' ? 'background:#ff8f00' : '') + '">📦 Boxes (' + (d.boxes || []).length + ')</button><button data-t="track" style="' + (tab === 'track' ? 'background:#ff8f00' : '') + '">🚚 On the way (' + d.orders.length + ')</button></div>';
+      '<div class="edTabs"><button data-t="shop" style="' + (tab === 'shop' ? 'background:#ff8f00' : '') + '">🛍️ Catalog</button><button data-t="any" style="' + (tab === 'any' ? 'background:#ff8f00' : '') + '">🌍 Order Anything</button><button data-t="stuff" style="' + (tab === 'stuff' ? 'background:#ff8f00' : '') + '">🎒 My Stuff</button><button data-t="boxes" style="' + (tab === 'boxes' ? 'background:#ff8f00' : '') + '">📦 Boxes (' + (d.boxes || []).length + ')</button><button data-t="track" style="' + (tab === 'track' ? 'background:#ff8f00' : '') + '">🚚 On the way (' + d.orders.length + ')</button></div>';
   }
   function render() {
     const m = $('edModal'); if (!m || m.style.display !== 'flex') return; const b = $('edBox'), d = load(); let h = head();
@@ -210,6 +254,10 @@
       h += '<div style="margin-top:10px;font-size:13px">Type anything you want from anywhere in the world (a toy, a snack, an animal plush, a game, a musical instrument...). E.D will find it!</div>' +
         '<div style="margin-top:8px"><input id="edName" maxlength="30" placeholder="What do you want? e.g. Giant Rubber Duck" style="width:62%;padding:8px;border-radius:8px;border:0;font-size:14px"> <select id="edFrom" style="padding:8px;border-radius:8px;border:0"><option value="">🌍 Anywhere</option>' + COUNTRIES.map(c => '<option>' + c + '</option>').join('') + '</select></div>' +
         '<div id="edMsg" style="margin:8px 0;color:#ffcc80;font-size:12px"></div><button class="edB" id="edFind" style="background:#ff8f00">🔎 Find it</button><div id="edFound"></div>';
+    } else if (tab === 'stuff') {
+      const mine = Object.keys(playerInventory).filter(id => /^ed_/.test(id) && playerInventory[id] && playerInventory[id].qty > 0);
+      h += mine.length ? '<div style="margin-top:8px;font-size:12px;color:#ffcc80">Things from your E.D boxes. Eat the food, hug the plush, play the music!</div><div class="edGrid">' + mine.map(id => { const it = playerInventory[id], k = kindOf(it.name, it.emoji), act = k === 'food' ? ['eat', '🍴 Eat'] : k === 'plush' ? ['hug', '🤗 Hug'] : k === 'music' ? ['play', '🎵 Play'] : null;
+        return '<div class="edCard"><div class="e">' + it.emoji + '</div><b>' + esc(it.name) + '</b><div style="color:#aaa">x' + it.qty + '</div>' + (act ? '<button class="edB" data-use="' + id + '|' + act[0] + '" style="background:#2e7d32">' + act[1] + '</button>' : '') + '<button class="edB" data-use="' + id + '|show">✨ Show</button></div>'; }).join('') + '</div>' : '<div style="margin-top:12px;color:#aaa">You have nothing from E.D yet. Order something!</div>';
     } else if (tab === 'boxes') {
       h += (d.boxes || []).length ? '<div style="margin-top:8px;font-size:12px;color:#ffcc80">Your boxes wait in the world where they arrived. Walk up to one and press O, or open it from here:</div>' + d.boxes.map(x => '<div class="edCard" style="margin-top:8px;text-align:left">📦 Box from <b>' + esc(x.country) + '</b> <button class="edB" data-open="' + x.bid + '" style="background:#2e7d32;float:right">Open</button></div>').join('') : '<div style="margin-top:12px;color:#aaa">No boxes waiting.</div>';
     } else {
@@ -221,6 +269,7 @@
     Array.prototype.forEach.call(b.querySelectorAll('.edTabs button'), x => { x.onclick = () => { tab = x.getAttribute('data-t'); render(); }; });
     Array.prototype.forEach.call(b.querySelectorAll('[data-b]'), x => { x.onclick = () => { const c = CAT[+x.getAttribute('data-b')]; order(c[0], c[1], c[2], c[3]); }; });
     Array.prototype.forEach.call(b.querySelectorAll('[data-open]'), x => { x.onclick = () => openBox(x.getAttribute('data-open')); });
+    Array.prototype.forEach.call(b.querySelectorAll('[data-use]'), x => { x.onclick = () => { const p = x.getAttribute('data-use').split('|'); useItem(p[0], p[1]); }; });
     if ($('edFind')) $('edFind').onclick = find;
     if ($('edName')) $('edName').onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Enter') find(); };
   }
@@ -256,5 +305,5 @@
   }
   setInterval(tick, 1000);
   window.openExploxDelivery = open;
-  window.__exploxED = { open: open, catalog: CAT, load: load, order: order, deliverDue: deliverDue, intro: intro, theme: () => playTheme(false), openBox: openBox, nearestBox: nearestBox, blocked: (s) => BLOCK.test(s) || BAD_PERSONAL.test(s) };
+  window.__exploxED = { open: open, catalog: CAT, load: load, order: order, deliverDue: deliverDue, useItem: useItem, kindOf: kindOf, intro: intro, theme: () => playTheme(false), openBox: openBox, nearestBox: nearestBox, blocked: (s) => BLOCK.test(s) || BAD_PERSONAL.test(s) };
 })();
