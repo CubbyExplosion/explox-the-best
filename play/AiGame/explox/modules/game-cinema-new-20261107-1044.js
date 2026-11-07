@@ -1,0 +1,120 @@
+// ─── NEW MOVIE (made automatically): The Giant Pumpkin Contest — a garden comedy with a wise farmer, a hungry dino and a proud rival.
+(function () {
+  if (typeof CINEMA_MOVIES === 'undefined') return;
+  const M = [];
+  const L = (w, e, a, t) => [w, e, a, t];
+  const S = (place, tod, prop, say, lines, extra) => ({
+    text: say, dur: 62,
+    draw: function (ctx, w, h) { ctx.fillStyle = '#10131f'; ctx.fillRect(0, 0, w, h); ctx.fillStyle = '#fff'; ctx.font = 'bold ' + Math.round(h * .05) + 'px Arial'; ctx.textAlign = 'center'; ctx.fillText(say, w / 2, h / 2); },
+    script: Object.assign({ place: place, tod: tod, prop: prop, lines: lines }, extra || {}),
+  });
+M.push({
+  title: "The Giant Pumpkin Contest", genre: "🎃 Garden Comedy", price: 30, bg: "#3d2a0f", icons: "🎃🌱🏆", comedy: true,
+  cast: { A: { role: "Farmer Fern", kind: "pioneer", pers: "wise", move: "GARDEN HOE SPIN", mtype: "spin", fav: "Good things grow slowly.", say: "Sorry. I am talking too much again." }, B: { role: "Chomp the Dino", kind: "dino", pers: "goof", move: "TAIL WHIP", mtype: "spin", fav: "Is there a snack involved?", say: "Sorry, I sneezed and made a mess." }, C: { role: "Polly Prize", kind: "hero", pers: "rival", move: "RIBBON SLAM", mtype: "punch", fav: "I always come in first.", say: "I know, I should be nicer. I never am." } },
+  trailer: [{ text: "🌱 One tiny seed...", dur: 2200 }, { text: "🎃 One enormous pumpkin...", dur: 2200 }, { text: "🏆 And one very hungry dinosaur!", dur: 2400 }, { text: "THE GIANT PUMPKIN CONTEST", dur: 3000 }],
+  scenes: [
+    S("nature", "dawn", "tree", "On a sunny morning, Farmer Fern and Chomp plant one special seed for the town contest.", [
+      L("N", "warm", "walk", "It was early morning on Farmer Fern's little farm, and the dew sparkled on the grass."),
+      L("A", "happy", "dig", "Today, we plant a very special seed, Chomp. It is for the Giant Pumpkin Contest."),
+      L("B", "excited", "dig", "Dig, dig, dig! I am the best digging dinosaur on the whole farm!"),
+      L("A", "warm", "talk", "Gently, Chomp. A seed likes a soft little bed, not a giant crater."),
+      L("B", "joy", "work", "Oops. Sorry, Fern. I made a hole big enough for a bathtub."),
+      L("N", "warm", "work", "Together, they placed the tiny seed in the soil, and covered it with fresh, cool earth."),
+      L("A", "warm", "talk", "Good things grow slowly. We water it every day, and we wait."),
+      L("B", "happy", "talk", "I will water it every single day! And sing to it. Plants love singing."),
+    ]),
+    S("nature", "day", "sun", "The pumpkin starts to grow, and a rival shows up with a big mouth.", [
+      L("N", "joy", "walk", "Days turned into weeks, and the little seed became a green sprout, and then a leafy vine."),
+      L("B", "joy", "sing", "La la la, grow, pumpkin, grow! You are the roundest pumpkin I know!"),
+      L("N", "curious", "look", "Just then, a girl with a gold ribbon on her jacket marched up to the fence."),
+      L("C", "serious", "talk", "Hello, Fern. I am Polly Prize. I have won the pumpkin contest three years in a row."),
+      L("A", "warm", "talk", "Hello, Polly. What a nice garden you have, too."),
+      L("C", "angry", "talk", "My pumpkin will be the biggest again. Yours looks like a very small, wobbly cabbage."),
+      L("B", "angry", "talk", "Hey! That is not a cabbage! That is a baby pumpkin! Take it back!"),
+      L("A", "serious", "talk", "Chomp, calm down. Let the pumpkin do the talking. It will grow, and so will we."),
+    ]),
+    S("nature", "day", "sun", "Chomp takes extra care of the pumpkin, in his own silly way.", [
+      L("N", "joy", "walk", "Every morning, Chomp checked the pumpkin, and every evening, he tucked it in with a tiny blanket."),
+      L("B", "joy", "dance", "Good morning, pumpkin! Time for your sunshine bath and your morning song!"),
+      L("N", "joy", "bubbles", "He blew bubbles over the vine, because he read that plants love a little extra water."),
+      L("A", "curious", "talk", "Chomp, why are there bubbles all over my garden?"),
+      L("B", "joy", "talk", "Pumpkin spa day! A relaxing bubble bath for a relaxing, round pumpkin!"),
+      L("A", "joy", "talk", "Well, I have never seen anything like it. But the pumpkin is growing so fast!"),
+      L("N", "surprised", "look", "And it was true. The pumpkin grew bigger every day, until it was as big as a wheelbarrow."),
+      L("B", "excited", "jump", "Look, Fern! It is huge! We are going to win! I just know it!"),
+    ]),
+    S("suburbs", "night", "moon", "On the night before the contest, something goes wrong in the garden.", [
+      L("N", "warm", "walk", "The night before the contest, the moon shone over the farm, and the giant pumpkin glowed orange."),
+      L("A", "warm", "talk", "Tomorrow is the big day. Get a good night's sleep, Chomp."),
+      L("B", "joy", "talk", "I am too excited to sleep! I will just sit here and guard the pumpkin."),
+      L("N", "curious", "sneak", "But after a while, Chomp's eyes got heavy, and he began to snore, zzz, zzz, zzz."),
+      L("N", "surprised", "look", "In the dark, a little shadow tiptoed toward the pumpkin, carrying a small shiny knife."),
+      L("N", "worried", "look", "The shadow looked at the pumpkin for a long moment, and then, the shadow sneezed."),
+      L("C", "worried", "sneak", "Achoo! Oh no, I hope nobody heard that."),
+      L("B", "surprised", "look", "Huh? What? Who is there? Is it a pumpkin burglar?"),
+    ]),
+    S("suburbs", "night", "moon", "Chomp finds out it is Polly, and the truth comes out.", [
+      L("B", "angry", "run", "Stop right there! What are you doing with that knife, Polly Prize?"),
+      L("C", "scared", "panic", "Wait, wait, I can explain! I was not going to hurt the pumpkin!"),
+      L("N", "curious", "talk", "Polly held up the little knife, and a small carving kit, and a bag of colorful paint."),
+      L("C", "sad", "talk", "I wanted to paint a pretty face on your pumpkin, as a surprise gift. I was too shy to ask."),
+      L("B", "surprised", "look", "A gift? But you said our pumpkin looked like a wobbly cabbage."),
+      L("C", "sad", "talk", "I know. I said mean things, because I was worried yours would be bigger than mine."),
+      L("A", "warm", "talk", "Polly, it is all right. Everyone worries sometimes. Thank you for telling the truth."),
+      L("C", "relieved", "talk", "I am sorry, Chomp. I should not have said those things. Can we start again?"),
+    ]),
+    S("suburbs", "night", "lantern", "The three of them decorate the pumpkin together.", [
+      L("B", "joy", "highfive", "Apology accepted! And you know what? We can decorate it together, all of us!"),
+      L("A", "happy", "talk", "A pumpkin with a friendly face, painted by friends. That sounds wonderful."),
+      L("N", "joy", "work", "They worked all night, by lantern light, carving a big smile and painting two sparkly eyes."),
+      L("C", "joy", "write", "I will paint the stars on the cheeks. Stars always make a pumpkin look special."),
+      L("B", "joy", "juggle", "And I will add the curly green leaves on top! Whee, leaves everywhere!"),
+      L("A", "warm", "talk", "Look how it shines. It is the happiest pumpkin in the whole world."),
+      L("N", "warm", "photo", "By sunrise, the giant pumpkin had a big grin, bright blue eyes and a tiny star-shaped hat."),
+      L("C", "happy", "talk", "I think it is beautiful. And I think I just made two new friends."),
+    ]),
+    S("market", "day", "trophy", "At the contest, the crowd gathers, and the pumpkin has to be carried.", [
+      L("N", "excited", "party", "On contest day, the whole town square was full of balloons, music and enormous pumpkins."),
+      L("A", "serious", "look", "Now, how do we get our giant pumpkin to the judges' table? It weighs as much as a piano."),
+      L("B", "determined", "tugwar", "Easy! I will pull, and you will push! Tug of pumpkin! One, two, three!"),
+      L("N", "excited", "tugwar", "Chomp pulled with his strong tail, Fern pushed with her shoulders, and Polly pulled on the vine."),
+      L("C", "determined", "tugwar", "Heave! Heave! It is moving! Keep going, everybody!"),
+      L("N", "surprised", "look", "But halfway across the square, the pumpkin began to roll, faster and faster, down a little hill."),
+      L("A", "shocked", "run", "Oh no! Runaway pumpkin! Everybody, get out of the way!"),
+      L("B", "scared", "panic", "It is rolling toward the pie stand! Somebody do something!"),
+    ]),
+    S("market", "day", "trophy", "Chomp stops the pumpkin in a very funny way.", [
+      L("N", "excited", "run", "Chomp raced after the pumpkin, and zoomed right in front of it, with his arms stretched wide."),
+      L("B", "determined", "jump", "Stop, pumpkin! I will save the pies! I am a pumpkin-stopping dinosaur!"),
+      L("N", "shocked", "look", "The pumpkin bumped into Chomp, and bounced up, and spun around, and landed gently on his big, round tummy."),
+      L("B", "surprised", "look", "I caught it! I really caught it! My tummy is a very good pumpkin cushion."),
+      L("N", "joy", "party", "The whole crowd burst out laughing, and then they began to cheer and clap."),
+      L("C", "joy", "highfive", "That was the best save I have ever seen! Chomp the Pumpkin Catcher!"),
+      L("A", "relieved", "talk", "Nobody got hurt, and not one pie got squashed. What a lucky day."),
+      L("N", "joy", "walk", "Together, the three friends rolled the giant pumpkin the rest of the way to the judges' table."),
+    ]),
+    S("market", "day", "trophy", "The judges announce the winners with a surprise.", [
+      L("N", "serious", "talk", "The judges measured the pumpkins, one by one, with a very long measuring tape."),
+      L("N", "excited", "talk", "In third place, a lovely orange pumpkin from the school garden club!"),
+      L("N", "excited", "talk", "In second place, Polly Prize's pumpkin, which weighs two hundred and ten kilos!"),
+      L("C", "relieved", "talk", "Second place is wonderful. I am happy for the winner, whoever it is."),
+      L("N", "excited", "talk", "And in first place, with the biggest, smiliest, most beautiful pumpkin, Farmer Fern, Chomp and Polly!"),
+      L("C", "shocked", "look", "Me? But it is not my pumpkin. I only painted the stars."),
+      L("A", "warm", "talk", "A pumpkin grown by friends and decorated by friends belongs to all of us."),
+      L("N", "joy", "party", "The three friends lifted the golden trophy together, and the whole square cheered."),
+    ]),
+    S("nature", "dusk", "sun", "At sunset, the friends share pumpkin pie and a promise.", [
+      L("N", "warm", "walk", "That evening, the sun set over the farm, and the smell of fresh pumpkin pie floated on the breeze."),
+      L("A", "warm", "cook", "I made pumpkin pie from the leftover pumpkin pieces. Sweet and warm, just the way it should be."),
+      L("B", "joy", "eat", "Pie! My favorite part of any contest! I will take seven slices, please."),
+      L("C", "happy", "talk", "Fern, Chomp, thank you for forgiving me. Next year, can we grow a pumpkin together again?"),
+      L("A", "warm", "talk", "We would love that. Good things grow slowly, and good friends grow even better."),
+      L("B", "joy", "dance", "Next year, a pumpkin as big as a house! A bathtub-sized hole is already dug!"),
+      L("N", "joy", "photo", "The three friends sat on the farm fence, eating pie under the pink evening sky."),
+      L("N", "warm", "talk", "And that is the story of the giant pumpkin contest, and the rival who became a friend. The end."),
+    ]),
+  ],
+});
+
+  M.forEach(m => CINEMA_MOVIES.push(m));
+})();
