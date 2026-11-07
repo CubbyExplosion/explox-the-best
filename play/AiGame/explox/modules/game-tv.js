@@ -341,6 +341,8 @@
   }
   function tick() {
     if (!tv.on) return; tv.secs++;
+    // safety net: if a program ended on its credits screen and nothing started the next one, start it (movies and shows must never get stuck on an ad)
+    try { if (cinemaState && cinemaState.phase === 'credits' && cinemaState.tv && (!tv.credSince || Date.now() - tv.credSince > 4000) && (tv.credSince = tv.credSince || Date.now(), Date.now() - tv.credSince >= 2500)) { tv.credSince = 0; nextItem(); } else if (!cinemaState || cinemaState.phase !== 'credits') tv.credSince = 0; } catch (e) { }
     if (rented()) { hud(); return; }
     if (tv.secs % 60 === 0) { if (sip() < PER_MIN) { off('💸 Out of S.I.P.! Explox TV switched off.'); return; } pay(PER_MIN); note('📺 -' + PER_MIN + ' S.I.P. for the next minute of TV.'); }
     hud();
