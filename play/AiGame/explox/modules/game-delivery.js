@@ -56,9 +56,11 @@
     const base = far === undefined ? .45 : far;
     return Math.round((1 + 4 * Math.min(1, base * .75 + r * .25)) * MIN1);
   }
-  // shipping fee: Explox 5 S.I.P., the rest of the world 10 to 50 S.I.P. (farther = more)
+  // shipping fee: 5 S.I.P. for every 100 metres (distances are Explox-map metres, so the world fits in a game)
   const FAR = { Moon: 1, Mars: 1, Antarctica: .85, Australia: .8, 'New Zealand': .8, Japan: .7, China: .7, Chile: .7, Brazil: .65, Kenya: .6, Ghana: .6, India: .65 };
-  const shipFee = (country) => country === 'Explox' ? 5 : 10 + Math.round((FAR[country] === undefined ? .45 : FAR[country]) * 40);
+  const METRES = { Explox: 200, Moon: 2000, Mars: 2400, Antarctica: 1700, Australia: 1600, 'New Zealand': 1700, Japan: 1400, China: 1300, Chile: 1400, Brazil: 1300, Kenya: 1200, Ghana: 1100, India: 1200, Egypt: 900, Greece: 800, Hawaii: 1500, Mexico: 700, Canada: 600 };
+  const metres = (country) => METRES[country] || (500 + (hs(country) % 5) * 100);
+  const shipFee = (country) => Math.ceil(metres(country) / 100) * 5;
   function fmtT(ms) { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
 
   function order(name, emoji, price, country) {
@@ -103,14 +105,14 @@
   function close() { const m = $('edModal'); if (m) m.style.display = 'none'; }
   function head() {
     const d = load();
-    return '<div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:22px;font-weight:bold">📦 E.D – Explox Delivery</div><div style="font-size:12px;color:#ffcc80">Anything from the whole world! Shipping fee on every order. Explox things arrive in up to 1 minute, far-away things in up to 5 minutes.</div></div><button class="edB" id="edX" style="background:#555">✖</button></div>' +
+    return '<div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:22px;font-weight:bold">📦 E.D – Explox Delivery</div><div style="font-size:12px;color:#ffcc80">Anything from the whole world! Shipping: 5 S.I.P. per 100 metres. Explox things arrive in up to 1 minute, far-away things in up to 5 minutes.</div></div><button class="edB" id="edX" style="background:#555">✖</button></div>' +
       '<div style="margin:6px 0">💰 You have <b style="color:#ffd54f">' + sip() + '</b> S.I.P.</div>' +
       '<div class="edTabs"><button data-t="shop" style="' + (tab === 'shop' ? 'background:#ff8f00' : '') + '">🛍️ Catalog</button><button data-t="any" style="' + (tab === 'any' ? 'background:#ff8f00' : '') + '">🌍 Order Anything</button><button data-t="track" style="' + (tab === 'track' ? 'background:#ff8f00' : '') + '">🚚 On the way (' + d.orders.length + ')</button></div>';
   }
   function render() {
     const m = $('edModal'); if (!m || m.style.display !== 'flex') return; const b = $('edBox'), d = load(); let h = head();
     if (tab === 'shop') {
-      h += '<div class="edGrid">' + CAT.map((c, i) => '<div class="edCard"><div class="e">' + c[1] + '</div><b>' + esc(c[0]) + '</b><div style="color:#aaa">from ' + esc(c[3]) + '</div><div>' + (c[3] === 'Explox' ? '⚡ up to 1 min' : '✈️ up to 5 min') + '</div><div style="color:#ffcc80">🚚 shipping ' + shipFee(c[3]) + '</div><button class="edB" data-b="' + i + '" style="background:#2e7d32">Buy ' + (c[2] + shipFee(c[3])) + ' S.I.P.</button></div>').join('') + '</div>';
+      h += '<div class="edGrid">' + CAT.map((c, i) => '<div class="edCard"><div class="e">' + c[1] + '</div><b>' + esc(c[0]) + '</b><div style="color:#aaa">from ' + esc(c[3]) + '</div><div>' + (c[3] === 'Explox' ? '⚡ up to 1 min' : '✈️ up to 5 min') + '</div><div style="color:#ffcc80">🚚 ' + metres(c[3]) + ' m • shipping ' + shipFee(c[3]) + '</div><button class="edB" data-b="' + i + '" style="background:#2e7d32">Buy ' + (c[2] + shipFee(c[3])) + ' S.I.P.</button></div>').join('') + '</div>';
     } else if (tab === 'any') {
       h += '<div style="margin-top:10px;font-size:13px">Type anything you want from anywhere in the world (a toy, a snack, an animal plush, a game, a musical instrument...). E.D will find it!</div>' +
         '<div style="margin-top:8px"><input id="edName" maxlength="30" placeholder="What do you want? e.g. Giant Rubber Duck" style="width:62%;padding:8px;border-radius:8px;border:0;font-size:14px"> <select id="edFrom" style="padding:8px;border-radius:8px;border:0"><option value="">🌍 Anywhere</option>' + COUNTRIES.map(c => '<option>' + c + '</option>').join('') + '</select></div>' +
@@ -133,7 +135,7 @@
     const name = titleCase(raw), from0 = $('edFrom').value, h = hs(name.toLowerCase());
     const from = from0 || COUNTRIES[h % COUNTRIES.length], price = 15 + (h % 180), em = emojiFor(name);
     msg.textContent = '';
-    out.innerHTML = '<div class="edCard" style="margin-top:10px;text-align:left"><div style="font-size:34px">' + em + '</div><b>' + esc(name) + '</b><div style="color:#aaa">Found in ' + esc(from) + ' • ✈️ up to 5 min</div><div style="color:#ffcc80">Item ' + price + ' + 🚚 shipping ' + shipFee(from) + '</div><button class="edB" id="edBuyAny" style="background:#2e7d32">Buy ' + (price + shipFee(from)) + ' S.I.P.</button></div>';
+    out.innerHTML = '<div class="edCard" style="margin-top:10px;text-align:left"><div style="font-size:34px">' + em + '</div><b>' + esc(name) + '</b><div style="color:#aaa">Found in ' + esc(from) + ' • ✈️ up to 5 min</div><div style="color:#ffcc80">Item ' + price + ' + 🚚 shipping ' + shipFee(from) + ' (' + metres(from) + ' m, 5 per 100 m)</div><button class="edB" id="edBuyAny" style="background:#2e7d32">Buy ' + (price + shipFee(from)) + ' S.I.P.</button></div>';
     $('edBuyAny').onclick = () => { if (order(name, em, price, from)) { tab = 'track'; render(); } };
   }
 
