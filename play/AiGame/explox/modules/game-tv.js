@@ -358,7 +358,7 @@
   let showCinemaCredits_orig = null, closeCinema_orig = null;
   let hookedCred = false, hookedClose = false;
   function hook() {
-    if (!hookedCred && window.showCinemaCredits) { const orig = window.showCinemaCredits; showCinemaCredits_orig = orig; window.showCinemaCredits = function () { if (tv.on) { nextItem(); return; } return orig.apply(this, arguments); }; hookedCred = true; }
+    if (window.showCinemaCredits && !window.showCinemaCredits.__tv) { const orig = window.showCinemaCredits; showCinemaCredits_orig = orig; const w = function () { if (tv.on) { nextItem(); return; } return orig.apply(this, arguments); }; w.__tv = true; window.showCinemaCredits = w; hookedCred = true; }   // re-hooks if the 3D cinema installs its credits after us
     if (!hookedClose && window.closeCinema) { const orig = window.closeCinema; closeCinema_orig = orig; window.closeCinema = function () { const was = tv.on || (cinemaState && cinemaState.tv); stopBilling(); const r = orig.apply(this, arguments); if (was) { hudHide(); openMenu(); } return r; }; hookedClose = true; }
   }
   setInterval(hook, 800); hook();
