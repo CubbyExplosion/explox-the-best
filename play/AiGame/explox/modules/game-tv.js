@@ -287,7 +287,7 @@
     return idx;
   }
   // 3 seasons of 20 episodes (60 episodes) are out already, and every show gets one brand-new episode every real day
-  const SHOW_LAUNCH = new Date(2026, 10, 6).getTime(), released = () => 60 + Math.max(0, Math.floor((Date.now() - SHOW_LAUNCH) / 86400000));
+  const SHOW_LAUNCH = new Date(2026, 10, 6).getTime(), released = () => Math.min(100, 60 + Math.max(0, Math.floor((Date.now() - SHOW_LAUNCH) / 86400000)));  // up to 5 seasons (100 episodes)
   const seasonOf = (ep) => Math.floor((ep - 1) / 20) + 1, epIn = (ep) => ((ep - 1) % 20) + 1, seLabel = (ep) => 'Season ' + seasonOf(ep) + ', Episode ' + epIn(ep);
   const progKey = (si) => 'explox_tvshow_' + user() + '_' + si;
   const lastEp = (si) => { try { return +localStorage.getItem(progKey(si)) || 0; } catch (e) { return 0; } };
@@ -383,7 +383,7 @@
       '<button class="tvCh" id="tvNews">📰 Explox News<small>Fresh news every time, with the real new movies and real shop prices</small></button>' +
       '<button class="tvCh" id="tvFun">😂 Fun Videos<small>Dancing robots, cats, pizza fails, bubbles and more</small></button>' +
       '<button class="tvCh" id="tvSoccer">\u26BD Soccer: Explox vs the World<small>Cool matches against Paris, Tokyo, Rio and more. A brand-new match every time!</small></button>' +
-      '<button class="tvCh" id="tvShows">\uD83D\uDCFA TV Shows<small>20 action series, 3+ seasons each, a brand-new episode every day, with intros and theme music</small></button>' +
+      '<button class="tvCh" id="tvShows">\uD83D\uDCFA TV Shows<small>20 action series, up to 5 seasons each, a brand-new episode every day, with intros and theme music</small></button>' +
       '<button class="tvCh" id="tvFights">\u2694\uFE0F Fights<small>Any fight you can imagine, up to 1000 fighters, with bombs. All cartoon!</small></button>' +
       '<button class="tvCh" id="tvShop">🛍️ Shopping Channel<small>Non-stop commercials for real products in Explox</small></button>' +
       '<button class="tvCh" id="tvLive">📺 Explox TV Live<small>A never-ending mix: news, videos, commercials and movies</small></button>' +
