@@ -61,7 +61,7 @@
   }
   function adBreak(n) {
     const ps = products(), chosen = []; for (let i = 0; i < n; i++) chosen.push(ps[Math.floor(Math.random() * ps.length)]);
-    return program('📢 COMMERCIAL BREAK', 'Commercial Break', 'Ad Voice', C3(['Shopper Sam', 'hero', 'goof'], ['Happy Hana', 'hero', 'sweet'], ['Mr. Deal', 'king', 'rival']), chosen.map(adScene));
+    return program('📢 COMMERCIAL BREAK', 'Commercial Break', 'Ad Voice', C3(['Shopper Sam', 'hero', 'goof'], ['Happy Hana', 'hero', 'sweet'], ['Mr. Deal', 'king', 'rival']), chosen.map(pp => { const sc = adScene(pp); sc.product = pp; return sc; }));
   }
 
   // ── Explox News (made fresh every time) ───────────────────────────────────
@@ -347,6 +347,16 @@
     if (tv.secs % 60 === 0) { if (sip() < PER_MIN) { off('💸 Out of S.I.P.! Explox TV switched off.'); return; } pay(PER_MIN); note('📺 -' + PER_MIN + ' S.I.P. for the next minute of TV.'); }
     hud();
   }
+  // BUY NOW: while a commercial is on, a button sends you to E.D (Explox Delivery) to buy that exact product
+  function curProduct() { try { if (!tv.on || !cinemaState || cinemaState.phase !== 'movie') return null; const sc = cinemaState.movie.scenes[cinemaState.sceneIndex]; return (sc && sc.product) || null; } catch (e) { return null; } }
+  setInterval(() => {
+    try {
+      const p = curProduct(); let b = $('tvBuyNow');
+      if (!p) { if (b) b.style.display = 'none'; return; }
+      if (!b) { b = document.createElement('button'); b.id = 'tvBuyNow'; b.style.cssText = 'position:fixed;left:50%;bottom:9%;transform:translateX(-50%);z-index:2147483050;background:#ff8f00;color:#fff;border:3px solid #fff;border-radius:26px;padding:12px 22px;font:900 17px Arial;cursor:pointer;box-shadow:0 4px 16px #000a;animation:tvBuyPulse 1s infinite alternate'; document.body.appendChild(b); const st = document.createElement('style'); st.textContent = '@keyframes tvBuyPulse{from{transform:translateX(-50%) scale(1)}to{transform:translateX(-50%) scale(1.07)}}'; document.head.appendChild(st); b.onclick = () => { const q = curProduct(); if (q && window.exploxBuyNow) window.exploxBuyNow(q); else note('E.D is not ready yet. Try again in a second!'); }; }
+      b.textContent = '\uD83D\uDED2 BUY NOW \u2022 ' + p.emoji + ' ' + String(p.name).replace(/^a ticket to /, 'Ticket: ') + ' \u2022 ' + fmt(p.price) + ' S.I.P. \u2192 E.D'; b.style.display = 'block';
+    } catch (e) { }
+  }, 400);
   function stopBilling() { tv.on = false; if (tv.timer) { clearInterval(tv.timer); tv.timer = null; } }
   function off(msg) { stopBilling(); try { closeCinema_orig(); } catch (e) { } hudHide(); if (msg) note(msg); openMenu(); }
   function hud() {

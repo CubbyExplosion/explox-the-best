@@ -284,6 +284,19 @@
     $('edBuyAny').onclick = () => { if (order(name, em, price, from)) { tab = 'track'; render(); } };
   }
 
+  // ─── BUY NOW from a TV commercial: a quick E.D checkout card ────────────────────────────
+  function buyNow(prod) {
+    try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) { }
+    const old = $('edCheckout'); if (old) old.remove();
+    const name = titleCase(String(prod.name).replace(/^a ticket to /i, 'Ticket to ')), price = Math.max(1, Math.round(prod.price || 10)), em = prod.emoji || '\uD83D\uDCE6', fee = shipFee('Explox');
+    css(); const w = document.createElement('div'); w.id = 'edCheckout'; w.style.cssText = 'position:fixed;inset:0;z-index:2147483100;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;font-family:Arial,sans-serif';
+    w.innerHTML = '<div style="background:#1b1f33;color:#fff;border:3px solid #ff8f00;border-radius:16px;padding:18px 22px;width:min(380px,92vw);text-align:center"><div style="font-size:18px;font-weight:bold">\uD83D\uDCE6 E.D \u2013 Explox Delivery</div><div style="font-size:12px;color:#ffcc80">Seen on TV. Delivered to you in up to 1 minute!</div><div style="font-size:60px;margin:6px 0">' + em + '</div><div style="font-size:16px;font-weight:bold">' + esc(name) + '</div><div style="font-size:12px;color:#aaa">from ' + esc(prod.store || 'Explox') + '</div><div style="margin:8px 0;font-size:14px">Item ' + price + ' + \uD83D\uDE9A shipping ' + fee + ' = <b style="color:#ffd54f">' + (price + fee) + ' S.I.P.</b></div><div style="font-size:12px;margin-bottom:10px">\uD83D\uDCB0 You have ' + sip() + ' S.I.P.</div><button class="edB" id="edCoYes" style="background:#2e7d32;font-size:15px;padding:9px 18px">\u2705 Buy now</button> <button class="edB" id="edCoNo" style="background:#555;font-size:15px;padding:9px 18px">Not now</button></div>';
+    document.body.appendChild(w);
+    $('edCoNo').onclick = () => w.remove();
+    $('edCoYes').onclick = () => { if (order(name, em, price, 'Explox')) { $('edCoYes').parentNode.innerHTML = '<div style="font-size:50px">\uD83D\uDE9A\uD83D\uDCE6</div><div style="font-size:16px;font-weight:bold;margin:6px 0">Ordered! E.D is on the way.</div><div style="font-size:12px;color:#ffcc80">A box will appear near you. Open it with O.</div><button class="edB" id="edCoOk" style="background:#ff8f00;margin-top:10px">OK</button>'; $('edCoOk').onclick = () => w.remove(); } else { w.remove(); } };
+  }
+  window.exploxBuyNow = buyNow;
+
   // ─── button + ticking ────────────────────────────────────────────────────────────────
   function tick() {
     try {
