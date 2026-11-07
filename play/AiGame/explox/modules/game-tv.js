@@ -283,7 +283,7 @@
     while (total < 960 && k < 12) { const sc = make(EXTRA[(k + si + ep) % EXTRA.length], n++); scenes.splice(scenes.length - 3 - (k % 3), 0, sc); total += estScene(sc); k++; }
     const epi = S(sh[4], 'day', 'trophy', 'Next time.', [['N', 'serious', 'talk', cliff]]); scenes.push(epi);
     const idx = program('\uD83C\uDFAC ' + name.toUpperCase() + ' \u2022 S' + seasonOf(ep) + ' E' + epIn(ep) + ' [SHOW]', name + ' \u2022 S' + seasonOf(ep) + ' E' + epIn(ep) + ': ' + epT, 'The Episode Narrator', cast, scenes.map(sc => { sc.text = ''; sc.script.lines = sc.script.lines.map(l => [l[0], l[1], l[2], l[3]]); return sc; }));
-    CINEMA_MOVIES[idx].tvIntro = { name: name, ep: ep, label: 'SEASON ' + seasonOf(ep) + '  \u2022  EPISODE ' + epIn(ep), epTitle: epT, col: sh[2], seed: si * 50 + ep, cast: [H + '  (hero)', V + '  (villain)', SD + '  (sidekick)'] };
+    CINEMA_MOVIES[idx].tvIntro = { emoji: sh[1], tag: sh[10], themeSeed: si * 7 + 1, name: name, ep: ep, label: 'SEASON ' + seasonOf(ep) + '  \u2022  EPISODE ' + epIn(ep), epTitle: epT, col: sh[2], seed: si * 50 + ep, cast: [H + '  (hero)', V + '  (villain)', SD + '  (sidekick)'] };
     return idx;
   }
   // 3 seasons of 20 episodes (60 episodes) are out already, and every show gets one brand-new episode every real day

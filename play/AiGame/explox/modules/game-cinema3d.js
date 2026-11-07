@@ -1329,7 +1329,20 @@
       note(midi(root + 12), 'sawtooth', .1, 1.4, 28 * st); note(midi(root + 19), 'sawtooth', .08, 1.4, 28 * st); note(55, 'sine', .3, 1.2, 28 * st);
     } catch (e) { }
   }
-  CSFX.introNow = function () { introTheme(window.__introSeed || 1); };
+  function introTheme2(seed) {
+    try {
+      const c = CA(), now = c.currentTime + .05, midi = (m) => 440 * Math.pow(2, (m - 69) / 12), minor = seed % 3 !== 0, sc = minor ? [0, 2, 3, 5, 7, 8, 10, 12] : [0, 2, 4, 5, 7, 9, 11, 12], root = [45, 47, 48, 50, 52][seed % 5], bpm = 128 + (seed % 5) * 6, st = 60 / bpm / 2;
+      const note = (f, type, v, d, at, vib) => { const o = c.createOscillator(), g = c.createGain(), lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3200; o.type = type; o.frequency.setValueAtTime(f, now + at); if (vib) { const l = c.createOscillator(), lg = c.createGain(); l.frequency.value = 6; lg.gain.value = f * .012; l.connect(lg); lg.connect(o.frequency); l.start(now + at); l.stop(now + at + d + .05); } g.gain.setValueAtTime(.0008, now + at); g.gain.exponentialRampToValueAtTime(v, now + at + .03); g.gain.exponentialRampToValueAtTime(.0008, now + at + d); o.connect(lp); lp.connect(g); g.connect(c.destination); o.start(now + at); o.stop(now + at + d + .05); };
+      const noise = (v, d, at, hp) => { const s2 = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain(); s2.buffer = NB(); fl.type = 'highpass'; fl.frequency.value = hp; g.gain.setValueAtTime(v, now + at); g.gain.exponentialRampToValueAtTime(.0008, now + at + d); s2.connect(fl); fl.connect(g); g.connect(c.destination); s2.start(now + at); };
+      const hook = []; for (let i = 0; i < 8; i++) hook.push(sc[(seed * (i + 3) + i * i + (i > 4 ? 2 : 0)) % 8]);
+      const len = [1, 1, 2, 1, 1, 2, 1, 3];
+      [8, 16, 24].forEach((start, ph) => { let at = start * st; for (let i = 0; i < 8; i++) { const d = len[i] * st; note(midi(root + 24 + hook[i] + (ph === 2 ? 5 : 0)), ph === 1 ? 'square' : 'sawtooth', .075, d * .95, at, true); at += d; } });
+      for (let i = 0; i < 32; i += 2) { const at = i * st; const o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(150, now + at); o.frequency.exponentialRampToValueAtTime(45, now + at + .16); g.gain.setValueAtTime(.3, now + at); g.gain.exponentialRampToValueAtTime(.001, now + at + .2); o.connect(g); g.connect(c.destination); o.start(now + at); o.stop(now + at + .22); if (i % 8 === 4) noise(.14, .16, at, 1800); }
+      noise(.22, 1.2, 0, 5500); noise(.26, 1.6, 28 * st, 5000);
+      for (let k = 0; k < 4; k++) noise(.1, .1, (24 + k) * st, 2500);
+    } catch (e) { }
+  }
+  CSFX.introNow = function () { introTheme(window.__introSeed || 1); introTheme2(window.__introSeed || 1); };
   // how long each feeling lingers after the line is said (seconds)
   const EMO_HOLD = { sad: 3.4, joy: 2.6, scared: 2.6, warm: 2.6, relieved: 2.6, angry: 2.2, shocked: 2.2, worried: 2.6, excited: 1.8, surprised: 1.8, happy: 2.0, determined: 1.6, serious: 1.6, curious: 1.4 };
   // ---------- the director: puts the right characters in the right place doing what the caption says ----------
@@ -1632,7 +1645,7 @@
       }
         if (mv.tv && mv.tvIntro && si === 0 && t < 10.5) {   // the title sequence
           const I = mv.tvIntro, k = clamp(t / 1.2, 0, 1), e = k * k * (3 - 2 * k), sc2 = 2.4 - 1.4 * e, fade = t < 9 ? 1 : Math.max(0, (10.5 - t) / 1.5), hx = '#' + String(I.col || '#ff5722').replace('#', '');
-          if (playing(mi)) { window.__introSeed = I.seed; csOnce('intro_' + mi + '_' + I.seed + '_' + I.ep, 'introNow'); }
+          if (playing(mi)) { window.__introSeed = I.themeSeed || I.seed; csOnce('intro_' + mi + '_' + I.seed + '_' + I.ep, 'introNow'); }
           ctx.save(); ctx.globalAlpha = fade; ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, 0, w, h);
           for (let q = 0; q < 9; q++) { const ang = q * .7 + t * .6; ctx.fillStyle = 'rgba(255,255,255,' + (.05 + .04 * Math.sin(t * 3 + q)) + ')'; ctx.beginPath(); ctx.moveTo(w / 2, h * .46); ctx.lineTo(w / 2 + Math.cos(ang) * w, h * .46 + Math.sin(ang) * w); ctx.lineTo(w / 2 + Math.cos(ang + .12) * w, h * .46 + Math.sin(ang + .12) * w); ctx.closePath(); ctx.fill(); }
           ctx.textAlign = 'center'; ctx.lineJoin = 'round'; let fsz = Math.round(h * .15 * sc2); ctx.font = '900 ' + fsz + 'px Arial Black, Arial'; const tw3 = ctx.measureText(I.name.toUpperCase()).width; if (tw3 > w * .92) { fsz = Math.floor(fsz * w * .92 / tw3); ctx.font = '900 ' + fsz + 'px Arial Black, Arial'; }
@@ -1640,6 +1653,8 @@
           ctx.font = 'bold ' + Math.round(h * .04) + 'px Arial'; ctx.fillStyle = '#ffd54f'; if (t > .8) ctx.fillText('\u2605  EXPLOX TV ORIGINAL SERIES  \u2605', w / 2, h * .3);
           if (t > 2) { ctx.globalAlpha = fade * Math.min(1, (t - 2) / .6); ctx.font = '900 ' + Math.round(h * .05) + 'px Arial Black, Arial'; ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = h * .01; const et = (I.label || ('EPISODE ' + I.ep)) + ': ' + I.epTitle.toUpperCase(); ctx.strokeText(et, w / 2, h * .56); ctx.fillText(et, w / 2, h * .56); }
           (I.cast || []).forEach((cr, qi) => { const t0 = 3.8 + qi * .9; if (t > t0) { ctx.globalAlpha = fade * Math.min(1, (t - t0) / .4); ctx.textAlign = 'left'; ctx.font = '900 ' + Math.round(h * .04) + 'px Arial Black, Arial'; ctx.fillStyle = ['#ffd54f', '#ff8a80', '#80d8ff'][qi]; ctx.strokeStyle = '#000'; ctx.lineWidth = h * .008; const x0 = w * .06 + (1 - Math.min(1, (t - t0) / .4)) * -w * .1; ctx.strokeText(cr, x0, h * (.68 + qi * .06)); ctx.fillText(cr, x0, h * (.68 + qi * .06)); } });
+          if (I.emoji) { ctx.textAlign = 'center'; ctx.font = Math.round(h * .12) + 'px Arial'; for (let q = 0; q < 5; q++) { const px = ((t * w * .22 + q * w * .24) % (w * 1.2)) - w * .1, py = h * .86 + Math.sin(t * 6 + q * 1.7) * h * .018; ctx.globalAlpha = fade * .9; ctx.fillText(I.emoji, px, py); } }
+          { const LY = [[.4, I.name.toUpperCase() + '!'], [2.6, I.tag || 'Here we go!'], [4.7, 'Only on Explox TV!'], [6.8, I.name.toUpperCase() + '!'], [8.7, 'Hold on tight!']]; let cur = null; LY.forEach(l => { if (t >= l[0]) cur = l; }); if (cur) { const kk = Math.min(1, (t - cur[0]) / .25), bounce = 1 + .12 * Math.max(0, 1 - (t - cur[0]) * 3); ctx.save(); ctx.globalAlpha = fade * kk; ctx.translate(w * .64, h * .66); ctx.scale(bounce, bounce); ctx.textAlign = 'center'; ctx.font = '900 ' + Math.round(h * .05) + 'px Arial Black, Arial'; ctx.lineWidth = h * .012; ctx.strokeStyle = '#000'; ctx.strokeText('\u266A ' + cur[1] + ' \u266A', 0, 0); ctx.fillStyle = '#fff'; ctx.fillText('\u266A ' + cur[1] + ' \u266A', 0, 0); ctx.restore(); } }
           ctx.restore();
         }
       if (battleHud) {   // how many fighters are left on each side
