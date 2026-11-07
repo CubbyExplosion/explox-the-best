@@ -43,7 +43,7 @@
   const BLOCK = /(\bgun|rifle|pistol|firearm|ammo|bullet|grenade|explosive|\bknife|\bsword\b|weapon|drug|\bweed\b|cocaine|marijuana|alcohol|\bbeer\b|\bwine\b|vodka|whisk|liquor|cigar|tobacco|vape|\bsex|porn|nude|naked|\bbra\b|lingerie|casino|gambl|lottery|poker|\bbet\b|\bkill|blood|murder|suicide|\bhate|\bnazi|terror|\bperson\b|\bhuman\b|\bpeople\b|\bkid\b|\bchild|\bgirlfriend|\bboyfriend|passport|password|credit ?card|phone number|address)/i;
   const BAD_PERSONAL = /(@|\d{5,})/;
 
-  function load() { try { const v = JSON.parse(localStorage.getItem(KEY()) || 'null'); if (v && Array.isArray(v.orders)) return v; } catch (e) { } return { orders: [], done: [] }; }
+  function load() { try { const v = JSON.parse(localStorage.getItem(KEY()) || 'null'); if (v && Array.isArray(v.orders)) return v; } catch (e) { } return { orders: [], done: [], boxes: [] }; }
   function save(d) { try { localStorage.setItem(KEY(), JSON.stringify(d)); } catch (e) { } }
   const slug = (s) => 'ed_' + String(s).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 40);
   const emojiFor = (name) => { const l = name.toLowerCase(); for (const [r, e] of EMO) if (r.test(l)) return e; return '📦'; };
@@ -78,13 +78,56 @@
     const keep = [];
     d.orders.forEach(o => {
       if (o.end <= now) {
-        try { addToInventory(o.id, o.name, o.emoji); saveCurrentUser(); } catch (e) { keep.push(o); return; }
-        d.done.unshift({ name: o.name, emoji: o.emoji, country: o.country, at: now }); d.done = d.done.slice(0, 12);
-        note('📦 E.D delivered: ' + o.emoji + ' ' + o.name + ' (from ' + o.country + ')! Check your inventory.'); try { sfx.coin(); } catch (e) { }
+        d.boxes = d.boxes || []; const pos = dropSpot();
+        d.boxes.push({ bid: 'b' + now + '_' + d.boxes.length, id: o.id, name: o.name, emoji: o.emoji, country: o.country, at: now, x: pos.x, z: pos.z });
+        note('📦 A box from ' + o.country + ' just arrived! Walk up to it and open it (press O).'); try { sfx.coin(); } catch (e) { }
       } else keep.push(o);
     });
     if (keep.length !== d.orders.length) { d.orders = keep; save(d); if ($('edModal') && $('edModal').style.display === 'flex') render(); }
   }
+
+  // ─── real boxes in the world ─────────────────────────────────────────────────────────
+  function dropSpot() {
+    try { const dir = new THREE.Vector3(); camera.getWorldDirection(dir); dir.y = 0; if (dir.lengthSq() < .01) dir.set(0, 0, 1); dir.normalize(); const k = 4 + Math.random() * 1.5, side = (Math.random() - .5) * 2.5; return { x: playerGroup.position.x + dir.x * k - dir.z * side, z: playerGroup.position.z + dir.z * k + dir.x * side }; } catch (e) { return { x: 0, z: 0 }; }
+  }
+  const meshes = {};
+  function makeBox() {
+    const g = new THREE.Group(), card = new THREE.MeshLambertMaterial({ color: 0xc89358 }), tape = new THREE.MeshLambertMaterial({ color: 0xf3e2b3 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.3, .9, 1.3), card); body.position.y = .45; g.add(body);
+    const t1 = new THREE.Mesh(new THREE.BoxGeometry(.28, .02, 1.34), tape); t1.position.y = .91; g.add(t1);
+    const t2 = new THREE.Mesh(new THREE.BoxGeometry(.3, .92, 1.34), tape); t2.position.y = .45; g.add(t2);
+    const lbl = new THREE.Mesh(new THREE.PlaneGeometry(.5, .35), new THREE.MeshBasicMaterial({ color: 0xffffff })); lbl.position.set(.3, .5, .66); g.add(lbl);
+    const flap = new THREE.Group(); flap.position.set(0, .9, -.65); const fl = new THREE.Mesh(new THREE.BoxGeometry(1.3, .03, .65), card); fl.position.z = .325; flap.add(fl); g.add(flap); g.userData.flap = flap;
+    return g;
+  }
+  function syncMeshes() {
+    if (typeof scene === 'undefined' || !scene || typeof THREE === 'undefined') return;
+    const d = load(), ids = {};
+    (d.boxes || []).forEach(b => { ids[b.bid] = 1; if (!meshes[b.bid]) { const m = makeBox(); let y = 0; try { y = groundHeightAt(b.x, b.z) || 0; } catch (e) { } m.position.set(b.x, y, b.z); m.rotation.y = (hs(b.bid) % 628) / 100; scene.add(m); meshes[b.bid] = m; } });
+    Object.keys(meshes).forEach(k => { if (!ids[k]) { scene.remove(meshes[k]); delete meshes[k]; } });
+  }
+  function nearestBox() {
+    if (typeof playerGroup === 'undefined' || !playerGroup) return null; const d = load(); let best = null, bd = 4.5;
+    (d.boxes || []).forEach(b => { const q = Math.hypot(playerGroup.position.x - b.x, playerGroup.position.z - b.z); if (q < bd) { bd = q; best = b; } }); return best;
+  }
+  function openBox(bid) {
+    const d = load(), i = (d.boxes || []).findIndex(b => b.bid === bid); if (i < 0) return; const b = d.boxes[i];
+    const m = meshes[bid]; if (m && m.userData.flap) { let t = 0; const iv = setInterval(() => { t += .1; m.userData.flap.rotation.x = -Math.min(2.4, t * 3); if (t > 1) clearInterval(iv); }, 30); }
+    try { addToInventory(b.id, b.name, b.emoji); saveCurrentUser(); } catch (e) { return; }
+    d.boxes.splice(i, 1); d.done.unshift({ name: b.name, emoji: b.emoji, country: b.country, at: Date.now() }); d.done = d.done.slice(0, 12); save(d);
+    try { sfx.coin(); } catch (e) { }
+    const pop = document.createElement('div'); pop.style.cssText = 'position:fixed;left:50%;top:38%;transform:translate(-50%,-50%) scale(.3);z-index:2147483000;background:#1b1f33;color:#fff;border:3px solid #ff8f00;border-radius:18px;padding:18px 26px;text-align:center;font-family:Arial,sans-serif;transition:transform .45s cubic-bezier(.2,1.6,.4,1);pointer-events:none';
+    pop.innerHTML = '<div style="font-size:64px">' + b.emoji + '</div><div style="font-size:20px;font-weight:bold">You opened the box!</div><div style="font-size:16px">' + esc(b.name) + '</div><div style="font-size:12px;color:#ffcc80">from ' + esc(b.country) + ' \u2022 added to your inventory</div>';
+    document.body.appendChild(pop); requestAnimationFrame(() => { pop.style.transform = 'translate(-50%,-50%) scale(1)'; });
+    setTimeout(() => { pop.style.transition = 'opacity .5s'; pop.style.opacity = '0'; setTimeout(() => pop.remove(), 600); }, 2600);
+    setTimeout(() => syncMeshes(), 1200); if ($('edModal') && $('edModal').style.display === 'flex') render();
+  }
+  function promptBox() {
+    let p = $('edPrompt'); if (!p) { p = document.createElement('div'); p.id = 'edPrompt'; p.style.cssText = 'position:fixed;left:50%;bottom:22%;transform:translateX(-50%);z-index:1600;background:#ff8f00;color:#fff;border:2px solid #fff;border-radius:20px;padding:9px 18px;font:bold 15px Arial;cursor:pointer;display:none;box-shadow:0 2px 10px #0008'; p.onclick = () => { const b = nearestBox(); if (b) openBox(b.bid); }; document.body.appendChild(p); }
+    const b = nearestBox(); if (b) { p.textContent = '\U0001F4E6 Open the box from ' + b.country + ' (press O or tap)'; p.style.display = 'block'; } else p.style.display = 'none';
+  }
+  document.addEventListener('keydown', (e) => { if ((e.key === 'o' || e.key === 'O') && !/INPUT|TEXTAREA|SELECT/.test((e.target || {}).tagName || '') && !e.ctrlKey && !e.metaKey) { const b = nearestBox(); if (b) { e.preventDefault(); openBox(b.bid); } } });
+  setInterval(() => { try { syncMeshes(); promptBox(); } catch (e) { } }, 400);
 
   // ─── window ──────────────────────────────────────────────────────────────────────────
   let tab = 'shop';
@@ -107,7 +150,7 @@
     const d = load();
     return '<div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:22px;font-weight:bold">📦 E.D – Explox Delivery</div><div style="font-size:12px;color:#ffcc80">Anything from the whole world! Shipping: 5 S.I.P. per 100 metres. Explox things arrive in up to 1 minute, far-away things in up to 5 minutes.</div></div><button class="edB" id="edX" style="background:#555">✖</button></div>' +
       '<div style="margin:6px 0">💰 You have <b style="color:#ffd54f">' + sip() + '</b> S.I.P.</div>' +
-      '<div class="edTabs"><button data-t="shop" style="' + (tab === 'shop' ? 'background:#ff8f00' : '') + '">🛍️ Catalog</button><button data-t="any" style="' + (tab === 'any' ? 'background:#ff8f00' : '') + '">🌍 Order Anything</button><button data-t="track" style="' + (tab === 'track' ? 'background:#ff8f00' : '') + '">🚚 On the way (' + d.orders.length + ')</button></div>';
+      '<div class="edTabs"><button data-t="shop" style="' + (tab === 'shop' ? 'background:#ff8f00' : '') + '">🛍️ Catalog</button><button data-t="any" style="' + (tab === 'any' ? 'background:#ff8f00' : '') + '">🌍 Order Anything</button><button data-t="boxes" style="' + (tab === 'boxes' ? 'background:#ff8f00' : '') + '">📦 Boxes (' + (d.boxes || []).length + ')</button><button data-t="track" style="' + (tab === 'track' ? 'background:#ff8f00' : '') + '">🚚 On the way (' + d.orders.length + ')</button></div>';
   }
   function render() {
     const m = $('edModal'); if (!m || m.style.display !== 'flex') return; const b = $('edBox'), d = load(); let h = head();
@@ -117,6 +160,8 @@
       h += '<div style="margin-top:10px;font-size:13px">Type anything you want from anywhere in the world (a toy, a snack, an animal plush, a game, a musical instrument...). E.D will find it!</div>' +
         '<div style="margin-top:8px"><input id="edName" maxlength="30" placeholder="What do you want? e.g. Giant Rubber Duck" style="width:62%;padding:8px;border-radius:8px;border:0;font-size:14px"> <select id="edFrom" style="padding:8px;border-radius:8px;border:0"><option value="">🌍 Anywhere</option>' + COUNTRIES.map(c => '<option>' + c + '</option>').join('') + '</select></div>' +
         '<div id="edMsg" style="margin:8px 0;color:#ffcc80;font-size:12px"></div><button class="edB" id="edFind" style="background:#ff8f00">🔎 Find it</button><div id="edFound"></div>';
+    } else if (tab === 'boxes') {
+      h += (d.boxes || []).length ? '<div style="margin-top:8px;font-size:12px;color:#ffcc80">Your boxes wait in the world where they arrived. Walk up to one and press O, or open it from here:</div>' + d.boxes.map(x => '<div class="edCard" style="margin-top:8px;text-align:left">📦 Box from <b>' + esc(x.country) + '</b> <button class="edB" data-open="' + x.bid + '" style="background:#2e7d32;float:right">Open</button></div>').join('') : '<div style="margin-top:12px;color:#aaa">No boxes waiting.</div>';
     } else {
       const now = Date.now();
       h += d.orders.length ? d.orders.map(o => '<div class="edCard" style="margin-top:8px;text-align:left"><b>' + o.emoji + ' ' + esc(o.name) + '</b> <span style="color:#aaa">from ' + esc(o.country) + '</span><div class="edBar"><i data-o="' + o.id + '|' + o.start + '" style="width:' + Math.min(100, (now - o.start) / (o.end - o.start) * 100) + '%"></i></div><div style="font-size:11px;color:#ffcc80" data-t2="' + o.end + '">' + (o.country === 'Explox' ? '🛵' : '✈️') + ' arrives in ' + fmtT(o.end - now) + '</div></div>').join('') : '<div style="margin-top:12px;color:#aaa">Nothing on the way. Order something!</div>';
@@ -125,6 +170,7 @@
     b.innerHTML = h; $('edX').onclick = close;
     Array.prototype.forEach.call(b.querySelectorAll('.edTabs button'), x => { x.onclick = () => { tab = x.getAttribute('data-t'); render(); }; });
     Array.prototype.forEach.call(b.querySelectorAll('[data-b]'), x => { x.onclick = () => { const c = CAT[+x.getAttribute('data-b')]; order(c[0], c[1], c[2], c[3]); }; });
+    Array.prototype.forEach.call(b.querySelectorAll('[data-open]'), x => { x.onclick = () => openBox(x.getAttribute('data-open')); });
     if ($('edFind')) $('edFind').onclick = find;
     if ($('edName')) $('edName').onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Enter') find(); };
   }
@@ -146,7 +192,7 @@
       let btn = $('edBtn');
       if (!btn) { css(); btn = document.createElement('button'); btn.id = 'edBtn'; btn.textContent = '📦 E.D Delivery'; btn.onclick = open; document.body.appendChild(btn); }
       const modalOpen = [...document.querySelectorAll('[id$="Modal"]')].some(x => x !== $('edModal') && getComputedStyle(x).display !== 'none' && getComputedStyle(x).position === 'fixed');
-      const n = gameOn ? load().orders.length : 0;
+      const dd = load(), n = gameOn ? dd.orders.length + (dd.boxes || []).length : 0;
       btn.style.display = (gameOn && !modalOpen) ? 'block' : 'none';
       btn.innerHTML = '📦 E.D Delivery' + (n ? '<small>' + n + '</small>' : '');
       deliverDue();
@@ -160,5 +206,5 @@
   }
   setInterval(tick, 1000);
   window.openExploxDelivery = open;
-  window.__exploxED = { open: open, catalog: CAT, load: load, order: order, deliverDue: deliverDue, blocked: (s) => BLOCK.test(s) || BAD_PERSONAL.test(s) };
+  window.__exploxED = { open: open, catalog: CAT, load: load, order: order, deliverDue: deliverDue, openBox: openBox, nearestBox: nearestBox, blocked: (s) => BLOCK.test(s) || BAD_PERSONAL.test(s) };
 })();
