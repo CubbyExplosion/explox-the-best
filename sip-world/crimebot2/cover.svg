@@ -136,9 +136,9 @@
 <g stroke="#111" stroke-width="3"><rect x="-30" y="455" width="40" height="30" fill="#ff9a2e"/><rect x="32" y="455" width="40" height="30" fill="#ffd34e"/><rect x="94" y="455" width="40" height="30" fill="#ffd34e"/><rect x="156" y="455" width="40" height="30" fill="#ff9a2e"/><rect x="218" y="455" width="40" height="30" fill="#ffd34e"/><rect x="280" y="455" width="40" height="30" fill="#ffd34e"/><rect x="342" y="455" width="40" height="30" fill="#ff9a2e"/><rect x="404" y="455" width="40" height="30" fill="#ffd34e"/><rect x="466" y="455" width="40" height="30" fill="#ffd34e"/><rect x="528" y="455" width="40" height="30" fill="#ff9a2e"/><rect x="590" y="455" width="40" height="30" fill="#ffd34e"/></g>
 <rect x="-50" y="520" width="700" height="26" fill="#555a70" stroke="#111" stroke-width="4"/>
 <g fill="#222"><rect x="-40" y="526" width="14" height="14"/><rect x="-14" y="526" width="14" height="14"/><rect x="12" y="526" width="14" height="14"/><rect x="38" y="526" width="14" height="14"/><rect x="64" y="526" width="14" height="14"/><rect x="90" y="526" width="14" height="14"/><rect x="116" y="526" width="14" height="14"/><rect x="142" y="526" width="14" height="14"/><rect x="168" y="526" width="14" height="14"/><rect x="194" y="526" width="14" height="14"/><rect x="220" y="526" width="14" height="14"/><rect x="246" y="526" width="14" height="14"/><rect x="272" y="526" width="14" height="14"/><rect x="298" y="526" width="14" height="14"/><rect x="324" y="526" width="14" height="14"/><rect x="350" y="526" width="14" height="14"/><rect x="376" y="526" width="14" height="14"/><rect x="402" y="526" width="14" height="14"/><rect x="428" y="526" width="14" height="14"/><rect x="454" y="526" width="14" height="14"/><rect x="480" y="526" width="14" height="14"/><rect x="506" y="526" width="14" height="14"/><rect x="532" y="526" width="14" height="14"/><rect x="558" y="526" width="14" height="14"/><rect x="584" y="526" width="14" height="14"/><rect x="610" y="526" width="14" height="14"/><rect x="636" y="526" width="14" height="14"/></g>
-<rect x="-30" y="300" width="330" height="90" fill="#1c1e30" stroke="#ffd34e" stroke-width="5"/>
+<g transform="translate(0,0)"><rect x="-30" y="300" width="330" height="90" fill="#1c1e30" stroke="#ffd34e" stroke-width="5"/>
 <text x="135" y="341" text-anchor="middle" font-family="Impact,'Arial Black',sans-serif" font-size="25" fill="#ffd34e" letter-spacing="3">S.I.P. ROBOT FACTORY</text>
-<text x="135" y="374" text-anchor="middle" font-family="Impact,'Arial Black',sans-serif" font-size="17" fill="#ff6a3d" letter-spacing="2">NEW ROBOTS EVERY MINUTE</text>
+<text x="135" y="374" text-anchor="middle" font-family="Impact,'Arial Black',sans-serif" font-size="17" fill="#ff6a3d" letter-spacing="2">NEW ROBOTS EVERY MINUTE</text></g>
 <g transform="translate(300,-200)"><circle r="46" fill="#8a95a1" stroke="#111" stroke-width="5"/><circle r="18" fill="#2d2f45" stroke="#111" stroke-width="4"/><rect x="-8" y="-62" width="16" height="22" fill="#8a95a1" stroke="#111" stroke-width="3" transform="rotate(0)"/><rect x="-8" y="-62" width="16" height="22" fill="#8a95a1" stroke="#111" stroke-width="3" transform="rotate(45)"/><rect x="-8" y="-62" width="16" height="22" fill="#8a95a1" stroke="#111" stroke-width="3" transform="rotate(90)"/><rect x="-8" y="-62" width="16" height="22" fill="#8a95a1" stroke="#111" stroke-width="3" transform="rotate(135)"/><rect x="-8" y="-62" width="16" height="22" fill="#8a95a1" stroke="#111" stroke-width="3" transform="rotate(180)"/><rect x="-8" y="-62" width="16" height="22" fill="#8a95a1" stroke="#111" stroke-width="3" transform="rotate(225)"/><rect x="-8" y="-62" width="16" height="22" fill="#8a95a1" stroke="#111" stroke-width="3" transform="rotate(270)"/><rect x="-8" y="-62" width="16" height="22" fill="#8a95a1" stroke="#111" stroke-width="3" transform="rotate(315)"/></g>
 </g>
 <!-- the army of tiny robots marching out -->
@@ -151,7 +151,7 @@
   <g fill="#d9c9a0" opacity="0.7"><rect x="230" y="722" width="14" height="14"/><rect x="290" y="726" width="10" height="10"/><rect x="420" y="724" width="12" height="12"/></g>
 
   <!-- CRIME BOT (center): old fashioned clock robot, all squares, running -->
-  <g transform="translate(300,740) rotate(7)">
+  <g transform="translate(250,780) rotate(-5) scale(1.12)">
     <!-- cape -->
     <path d="M-62,-205 L-170,-150 L-190,-20 L-155,60 L-110,88 L-65,52 L-20,88 L20,52 L65,88 L110,52 L155,60 L190,-20 L170,-150 L62,-205 Z" fill="url(#cape)" stroke="#111" stroke-width="4" stroke-linejoin="miter"/>
     <!-- legs -->
@@ -188,14 +188,14 @@
     <rect x="-62" y="-312" width="124" height="84" fill="url(#metal)" stroke="#222" stroke-width="4"/>
     <rect x="-52" y="-302" width="104" height="46" fill="#101018"/>
     <!-- two glowing eyes -->
-    <rect x="-42" y="-292" width="30" height="28" fill="#ff2020" opacity="0.35"/>
-    <rect x="12" y="-292" width="30" height="28" fill="#ff2020" opacity="0.35"/>
-    <rect x="-37" y="-287" width="20" height="18" fill="#ff3b3b" stroke="#fff" stroke-width="2"/>
-    <rect x="17" y="-287" width="20" height="18" fill="#ff3b3b" stroke="#fff" stroke-width="2"/>
-    <rect x="-33" y="-284" width="5" height="5" fill="#fff"/><rect x="21" y="-284" width="5" height="5" fill="#fff"/>
-    <polygon points="-44,-300 -8,-290 -8,-295 -44,-306" fill="#101018" stroke="#101018" stroke-width="2"/>
-    <polygon points="44,-300 8,-290 8,-295 44,-306" fill="#101018" stroke="#101018" stroke-width="2"/>
-    <path d="M-36,-244 L-26,-236 L-16,-244 L-6,-236 L4,-244 L14,-236 L24,-244 L34,-236" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="miter"/>
+    <rect x="-50" y="-292" width="22" height="28" fill="#ff2020" opacity="0.35"/>
+    <rect x="-22" y="-292" width="22" height="28" fill="#ff2020" opacity="0.35"/>
+    <rect x="-46" y="-287" width="14" height="18" fill="#ff3b3b" stroke="#fff" stroke-width="2"/>
+    <rect x="-16" y="-287" width="14" height="18" fill="#ff3b3b" stroke="#fff" stroke-width="2"/>
+    <rect x="-43" y="-284" width="4" height="5" fill="#fff"/><rect x="-13" y="-284" width="4" height="5" fill="#fff"/>
+    <polygon points="-50,-300 -26,-290 -26,-295 -50,-306" fill="#101018" stroke="#101018" stroke-width="2"/>
+    <polygon points="-4,-300 -20,-290 -20,-295 -4,-306" fill="#101018" stroke="#101018" stroke-width="2"/>
+    <path transform="translate(-14,0)" d="M-36,-244 L-26,-236 L-16,-244 L-6,-236 L4,-244 L14,-236 L24,-244 L34,-236" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="miter"/>
 
     <!-- left arm with old fashioned brass SHOTGUN (blunderbuss) -->
     <line x1="-66" y1="-190" x2="-108" y2="-120" stroke="#222" stroke-width="26" stroke-linecap="butt"/>
@@ -222,7 +222,7 @@
   </g>
 
   <!-- AMAZING BOT (left, two knife heads) -->
-  <g transform="translate(88,740) rotate(7) scale(0.85)">
+  <g transform="translate(55,735) rotate(4) scale(0.6)">
     <rect x="-30" y="-55" width="22" height="55" fill="#5c6670" stroke="#222" stroke-width="3"/>
     <rect x="8" y="-55" width="22" height="55" fill="#5c6670" stroke="#222" stroke-width="3"/>
     <rect x="-38" y="-16" width="34" height="16" fill="#222"/>
@@ -243,17 +243,17 @@
     <rect x="-25" y="-275" width="14" height="14" fill="#ffd34e" stroke="#222" stroke-width="2"/>
     <line x1="8" y1="-238" x2="18" y2="-266" stroke="#222" stroke-width="4"/>
     <rect x="11" y="-275" width="14" height="14" fill="#ffd34e" stroke="#222" stroke-width="2"/>
-    <rect x="-32" y="-218" width="26" height="26" fill="#fff" stroke="#222" stroke-width="3"/>
-    <rect x="6" y="-218" width="26" height="26" fill="#fff" stroke="#222" stroke-width="3"/>
-    <rect x="-22" y="-210" width="12" height="12" fill="#111"/><rect x="16" y="-210" width="12" height="12" fill="#111"/>
-    <rect x="-20" y="-212" width="4" height="4" fill="#fff"/><rect x="18" y="-212" width="4" height="4" fill="#fff"/>
+    <rect x="-42" y="-218" width="22" height="26" fill="#fff" stroke="#222" stroke-width="3"/>
+    <rect x="-12" y="-218" width="22" height="26" fill="#fff" stroke="#222" stroke-width="3"/>
+    <rect x="-40" y="-210" width="10" height="12" fill="#111"/><rect x="-10" y="-210" width="10" height="12" fill="#111"/>
+    <rect x="-38" y="-212" width="4" height="4" fill="#fff"/><rect x="-8" y="-212" width="4" height="4" fill="#fff"/>
     <rect x="-44" y="-196" width="12" height="10" fill="#ff8aa8" opacity="0.8"/><rect x="32" y="-196" width="12" height="10" fill="#ff8aa8" opacity="0.8"/>
-    <polygon points="-28,-180 28,-180 20,-164 -20,-164" fill="#fff" stroke="#222" stroke-width="3" stroke-linejoin="miter"/>
+    <polygon transform="translate(-12,0)" points="-28,-180 28,-180 20,-164 -20,-164" fill="#fff" stroke="#222" stroke-width="3" stroke-linejoin="miter"/>
     <polygon points="62,-262 66,-252 76,-248 66,-244 62,-234 58,-244 48,-248 58,-252" fill="#fff"/>
   </g>
 
   <!-- MAD BOT (right, no weapons, just rage) -->
-  <g transform="translate(505,740) rotate(7)">
+  <g transform="translate(500,780) rotate(-9) scale(0.95)">
     <rect x="-34" y="-16" width="26" height="16" fill="#1c1c22"/>
     <rect x="8" y="-16" width="26" height="16" fill="#1c1c22"/>
     <path d="M-60,-70 L-84,-112" stroke="#1c1c22" stroke-width="22" stroke-linecap="butt"/>
@@ -265,13 +265,13 @@
     <rect x="-64" y="-142" width="128" height="128" fill="url(#metal)" stroke="#1c1c22" stroke-width="5"/>
     <line x1="-52" y1="-142" x2="-52" y2="-170" stroke="#1c1c22" stroke-width="4"/>
     <rect x="-59" y="-179" width="14" height="14" fill="#ffd34e" stroke="#1c1c22" stroke-width="2"/>
-    <rect x="-40" y="-112" width="30" height="26" fill="#fff" stroke="#1c1c22" stroke-width="3"/>
-    <rect x="10" y="-112" width="30" height="26" fill="#fff" stroke="#1c1c22" stroke-width="3"/>
-    <rect x="-28" y="-104" width="12" height="12" fill="#111"/><rect x="16" y="-104" width="12" height="12" fill="#111"/>
-    <line x1="-46" y1="-128" x2="-6" y2="-110" stroke="#111" stroke-width="8"/>
-    <line x1="46" y1="-128" x2="6" y2="-110" stroke="#111" stroke-width="8"/>
-    <rect x="-32" y="-72" width="64" height="36" fill="#2a0508" stroke="#111" stroke-width="3"/>
-    <rect x="-24" y="-72" width="48" height="9" fill="#fff"/>
+    <rect x="-54" y="-112" width="24" height="26" fill="#fff" stroke="#1c1c22" stroke-width="3"/>
+    <rect x="-24" y="-112" width="24" height="26" fill="#fff" stroke="#1c1c22" stroke-width="3"/>
+    <rect x="-52" y="-104" width="11" height="12" fill="#111"/><rect x="-22" y="-104" width="11" height="12" fill="#111"/>
+    <line x1="-56" y1="-126" x2="-28" y2="-112" stroke="#111" stroke-width="8"/>
+    <line x1="-4" y1="-126" x2="-24" y2="-112" stroke="#111" stroke-width="8"/>
+    <rect x="-44" y="-72" width="56" height="36" fill="#2a0508" stroke="#111" stroke-width="3"/>
+    <rect x="-36" y="-72" width="40" height="9" fill="#fff"/>
     <g fill="#fff" opacity="0.9">
       <rect x="-86" y="-160" width="22" height="22"/><rect x="-98" y="-186" width="16" height="16"/><rect x="-82" y="-204" width="12" height="12"/>
       <rect x="64" y="-160" width="22" height="22"/><rect x="82" y="-186" width="16" height="16"/><rect x="70" y="-204" width="12" height="12"/>
@@ -289,7 +289,7 @@
     <g stroke="#fff" stroke-width="2" opacity="0.7"><line x1="-150" y1="-122" x2="-168" y2="-124"/><line x1="-188" y1="-148" x2="-204" y2="-152"/></g>
     </g>
   <!-- TIME BOT (floating top right, walking time machine, teleporting) -->
-  <g transform="translate(505,330)">
+  <g transform="translate(430,400) scale(1.25)">
     <g opacity="0.3" transform="translate(-52,24)">
       <rect x="-42" y="-30" width="84" height="80" fill="url(#metal)"/>
       <rect x="-32" y="-62" width="64" height="32" fill="url(#metal)"/>
@@ -313,9 +313,9 @@
     <rect x="-29" y="-92" width="12" height="12" fill="#7fe0ff" stroke="#222" stroke-width="2"/>
     <line x1="18" y1="-62" x2="22" y2="-84" stroke="#222" stroke-width="4"/>
     <rect x="17" y="-92" width="12" height="12" fill="#7fe0ff" stroke="#222" stroke-width="2"/>
-    <rect x="-24" y="-54" width="16" height="16" fill="#e9fcff" stroke="#222" stroke-width="3"/>
-    <rect x="8" y="-54" width="16" height="16" fill="#e9fcff" stroke="#222" stroke-width="3"/>
-    <rect x="-19" y="-49" width="7" height="7" fill="#0a8fd0"/><rect x="13" y="-49" width="7" height="7" fill="#0a8fd0"/>
+    <rect x="-30" y="-54" width="14" height="16" fill="#e9fcff" stroke="#222" stroke-width="3"/>
+    <rect x="-10" y="-54" width="14" height="16" fill="#e9fcff" stroke="#222" stroke-width="3"/>
+    <rect x="-28" y="-49" width="6" height="7" fill="#0a8fd0"/><rect x="-8" y="-49" width="6" height="7" fill="#0a8fd0"/>
     <rect x="-28" y="-16" width="56" height="56" fill="#fff" stroke="#222" stroke-width="4"/>
     <g fill="#222">
       <rect x="-2" y="-12" width="4" height="8"/><rect x="-2" y="28" width="4" height="8"/>
