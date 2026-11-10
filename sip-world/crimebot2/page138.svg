@@ -1,0 +1,536 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 800 1410" width="800" height="1410">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#120a35"/><stop offset="0.7" stop-color="#4b1a6b"/><stop offset="1" stop-color="#ff6a3d"/></linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8edf2"/><stop offset="0.5" stop-color="#9aa5b1"/><stop offset="1" stop-color="#5c6670"/></linearGradient>
+    <linearGradient id="cape" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a525c"/><stop offset="1" stop-color="#1c1c22"/></linearGradient>
+    <linearGradient id="silver" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#8d98a5"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff2a0"/><stop offset="0.5" stop-color="#ffc928"/><stop offset="1" stop-color="#c98a00"/></linearGradient>
+    <linearGradient id="navy" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4f78c8"/><stop offset="1" stop-color="#1a2f66"/></linearGradient>
+    <linearGradient id="olive" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8aa264"/><stop offset="1" stop-color="#3a4a26"/></linearGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fe0ff" stop-opacity="0"/><stop offset="1" stop-color="#bff4ff" stop-opacity="0.7"/></linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
+    <filter id="cyan"><feColorMatrix type="matrix" values="0 0 0 0 0.35  0 0 0 0 0.92  0 0 0 0 1  0 0 0 1 0"/></filter>
+
+    <!-- CRIME BOT: grey metal, two antennas, two eyes, two mini clocks, shotgun hand + blade hand -->
+    <g id="crime">
+      <path d="M-62,-205 L-170,-150 L-190,-20 L-155,60 L-110,88 L-65,52 L-20,88 L20,52 L65,88 L110,52 L155,60 L190,-20 L170,-150 L62,-205 Z" fill="url(#cape)" stroke="#111" stroke-width="4"/>
+      <rect x="-46" y="-72" width="32" height="72" fill="url(#metal)" stroke="#222" stroke-width="3"/><rect x="14" y="-72" width="32" height="72" fill="url(#metal)" stroke="#222" stroke-width="3"/>
+      <rect x="-56" y="-20" width="48" height="20" fill="#3a3f48" stroke="#222" stroke-width="3"/><rect x="8" y="-20" width="48" height="20" fill="#3a3f48" stroke="#222" stroke-width="3"/>
+      <rect x="-68" y="-215" width="136" height="150" fill="url(#metal)" stroke="#222" stroke-width="4"/>
+      <rect x="-68" y="-100" width="136" height="14" fill="#2a2a32"/><rect x="-12" y="-104" width="24" height="22" fill="url(#metal)" stroke="#222" stroke-width="2"/>
+      <circle cx="-34" cy="-170" r="25" fill="url(#metal)" stroke="#222" stroke-width="3"/><circle cx="-34" cy="-170" r="19" fill="#f5e6b8" stroke="#222" stroke-width="2"/>
+      <line x1="-34" y1="-170" x2="-34" y2="-184" stroke="#111" stroke-width="2.5"/><line x1="-34" y1="-170" x2="-23" y2="-163" stroke="#c4122f" stroke-width="2.5"/>
+      <circle cx="34" cy="-120" r="19" fill="url(#metal)" stroke="#222" stroke-width="3"/><circle cx="34" cy="-120" r="14" fill="#f5e6b8" stroke="#222" stroke-width="2"/>
+      <line x1="34" y1="-120" x2="34" y2="-130" stroke="#111" stroke-width="2.5"/><line x1="34" y1="-120" x2="42" y2="-115" stroke="#c4122f" stroke-width="2.5"/>
+      <rect x="-86" y="-224" width="32" height="32" fill="url(#metal)" stroke="#222" stroke-width="3"/><rect x="54" y="-224" width="32" height="32" fill="url(#metal)" stroke="#222" stroke-width="3"/>
+      <rect x="-14" y="-234" width="28" height="22" fill="#3a3f48"/>
+      <line x1="-32" y1="-312" x2="-32" y2="-342" stroke="#222" stroke-width="5"/><rect x="-40" y="-352" width="16" height="16" fill="#ff3b3b" stroke="#222" stroke-width="2"/>
+      <line x1="32" y1="-312" x2="32" y2="-342" stroke="#222" stroke-width="5"/><rect x="24" y="-352" width="16" height="16" fill="#ff3b3b" stroke="#222" stroke-width="2"/>
+      <rect x="-62" y="-312" width="124" height="84" fill="url(#metal)" stroke="#222" stroke-width="4"/><rect x="-52" y="-302" width="104" height="46" fill="#101018"/>
+      <rect x="-37" y="-287" width="20" height="18" fill="#ff3b3b" stroke="#fff" stroke-width="2"/><rect x="17" y="-287" width="20" height="18" fill="#ff3b3b" stroke="#fff" stroke-width="2"/>
+      <polygon points="-44,-300 -8,-290 -8,-295 -44,-306" fill="#101018" stroke="#101018" stroke-width="2"/><polygon points="44,-300 8,-290 8,-295 44,-306" fill="#101018" stroke="#101018" stroke-width="2"/>
+      <path d="M-36,-244 L-26,-236 L-16,-244 L-6,-236 L4,-244 L14,-236 L24,-244 L34,-236" fill="none" stroke="#fff" stroke-width="3"/>
+      <line x1="-66" y1="-190" x2="-108" y2="-120" stroke="#222" stroke-width="26"/><line x1="-66" y1="-190" x2="-108" y2="-120" stroke="url(#metal)" stroke-width="20"/>
+      <g transform="translate(-108,-120) rotate(-125)">
+        <rect x="-14" y="-14" width="50" height="28" fill="#3a3f48" stroke="#111" stroke-width="3"/><rect x="36" y="-9" width="70" height="18" fill="url(#metal)" stroke="#222" stroke-width="3"/>
+        <polygon points="106,-9 142,-20 142,20 106,9" fill="url(#metal)" stroke="#222" stroke-width="3"/><rect x="130" y="-12" width="12" height="24" fill="#0c0806"/>
+        <rect x="52" y="-13" width="8" height="26" fill="#4a525c"/><rect x="86" y="-13" width="8" height="26" fill="#4a525c"/>
+      </g>
+      <line x1="66" y1="-190" x2="108" y2="-120" stroke="#222" stroke-width="26"/><line x1="66" y1="-190" x2="108" y2="-120" stroke="url(#metal)" stroke-width="20"/>
+      <g transform="translate(108,-120) rotate(-65)">
+        <rect x="-10" y="-14" width="28" height="28" fill="#3a3f48" stroke="#111" stroke-width="3"/><rect x="18" y="-16" width="8" height="32" fill="url(#metal)" stroke="#222" stroke-width="2"/>
+        <polygon points="26,-11 150,-11 176,11 26,11" fill="url(#silver)" stroke="#2a2f36" stroke-width="3"/><rect x="36" y="-4" width="106" height="3" fill="#fff" opacity="0.8"/>
+      </g>
+    </g>
+
+    <!-- AMAZING BOT: cheerful, two knife heads -->
+    <g id="amazing">
+      <rect x="-30" y="-55" width="22" height="55" fill="#5c6670" stroke="#222" stroke-width="3"/><rect x="8" y="-55" width="22" height="55" fill="#5c6670" stroke="#222" stroke-width="3"/>
+      <rect x="-38" y="-16" width="34" height="16" fill="#222"/><rect x="4" y="-16" width="34" height="16" fill="#222"/>
+      <path d="M-45,-140 L-78,-100 L-50,-72" fill="none" stroke="#222" stroke-width="22"/><path d="M-45,-140 L-78,-100 L-50,-72" fill="none" stroke="url(#metal)" stroke-width="16"/>
+      <path d="M45,-140 L78,-100 L50,-72" fill="none" stroke="#222" stroke-width="22"/><path d="M45,-140 L78,-100 L50,-72" fill="none" stroke="url(#metal)" stroke-width="16"/>
+      <rect x="-46" y="-152" width="92" height="102" fill="url(#metal)" stroke="#222" stroke-width="4"/>
+      <polygon points="0,-130 8,-110 28,-108 12,-95 18,-75 0,-87 -18,-75 -12,-95 -28,-108 -8,-110" fill="#e0301e" stroke="#222" stroke-width="3"/>
+      <polygon points="-42,-232 -70,-312 -14,-232" fill="url(#silver)" stroke="#2a2f36" stroke-width="3"/><polygon points="42,-232 70,-312 14,-232" fill="url(#silver)" stroke="#2a2f36" stroke-width="3"/>
+      <rect x="-50" y="-238" width="100" height="84" fill="url(#metal)" stroke="#222" stroke-width="4"/>
+      <line x1="-8" y1="-238" x2="-18" y2="-266" stroke="#222" stroke-width="4"/><rect x="-25" y="-275" width="14" height="14" fill="#ffd34e" stroke="#222" stroke-width="2"/>
+      <line x1="8" y1="-238" x2="18" y2="-266" stroke="#222" stroke-width="4"/><rect x="11" y="-275" width="14" height="14" fill="#ffd34e" stroke="#222" stroke-width="2"/>
+      <rect x="-44" y="-196" width="12" height="10" fill="#ff8aa8"/><rect x="32" y="-196" width="12" height="10" fill="#ff8aa8"/>
+      <rect x="-32" y="-218" width="26" height="26" fill="#fff" stroke="#222" stroke-width="3"/><rect x="6" y="-218" width="26" height="26" fill="#fff" stroke="#222" stroke-width="3"/>
+      <rect x="-22" y="-210" width="12" height="12" fill="#111"/><rect x="16" y="-210" width="12" height="12" fill="#111"/>
+      <polygon points="-30,-182 30,-182 22,-162 -22,-162" fill="#fff" stroke="#222" stroke-width="3"/>
+    </g>
+
+    <!-- MAD BOT: aggressive, one antenna on the left, no weapons -->
+    <g id="mad">
+      <rect x="-34" y="-16" width="26" height="16" fill="#1c1c22"/><rect x="8" y="-16" width="26" height="16" fill="#1c1c22"/>
+      <path d="M-60,-70 L-84,-112" stroke="#1c1c22" stroke-width="22"/><path d="M-60,-70 L-84,-112" stroke="#8a95a1" stroke-width="16"/>
+      <rect x="-106" y="-140" width="40" height="40" fill="#8a95a1" stroke="#1c1c22" stroke-width="4"/>
+      <path d="M60,-70 L84,-112" stroke="#1c1c22" stroke-width="22"/><path d="M60,-70 L84,-112" stroke="#8a95a1" stroke-width="16"/>
+      <rect x="66" y="-140" width="40" height="40" fill="#8a95a1" stroke="#1c1c22" stroke-width="4"/>
+      <polygon points="-64,-142 -46,-166 -28,-142" fill="url(#metal)" stroke="#111" stroke-width="3"/><polygon points="28,-142 46,-166 64,-142" fill="url(#metal)" stroke="#111" stroke-width="3"/>
+      <line x1="-52" y1="-142" x2="-52" y2="-175" stroke="#1c1c22" stroke-width="4"/><rect x="-59" y="-184" width="14" height="14" fill="#ffd34e" stroke="#1c1c22" stroke-width="2"/>
+      <rect x="-64" y="-142" width="128" height="128" fill="url(#metal)" stroke="#1c1c22" stroke-width="5"/>
+      <rect x="-40" y="-112" width="30" height="26" fill="#fff" stroke="#1c1c22" stroke-width="3"/><rect x="10" y="-112" width="30" height="26" fill="#fff" stroke="#1c1c22" stroke-width="3"/>
+      <rect x="-28" y="-104" width="12" height="12" fill="#ff2020"/><rect x="16" y="-104" width="12" height="12" fill="#ff2020"/>
+      <line x1="-46" y1="-128" x2="-6" y2="-110" stroke="#111" stroke-width="8"/><line x1="46" y1="-128" x2="6" y2="-110" stroke="#111" stroke-width="8"/>
+      <rect x="-32" y="-72" width="64" height="36" fill="#2a0508" stroke="#111" stroke-width="3"/><rect x="-24" y="-72" width="48" height="9" fill="#fff"/>
+    </g>
+
+    <!-- TIME BOT: really a robot (feet at 0) -->
+    <g id="time">
+      <g transform="translate(0,-74)">
+        <rect x="-26" y="48" width="18" height="26" fill="#4a525c" stroke="#222" stroke-width="3"/><rect x="8" y="48" width="18" height="26" fill="#4a525c" stroke="#222" stroke-width="3"/>
+        <rect x="-22" y="74" width="26" height="8" fill="#111"/><rect x="6" y="74" width="26" height="8" fill="#111"/>
+        <rect x="-72" y="-26" width="40" height="40" fill="#c9d3dd" stroke="#2a2f36" stroke-width="3"/><rect x="-72" y="-26" width="40" height="40" fill="#c9d3dd" stroke="#2a2f36" stroke-width="3" transform="rotate(45 -52 -6)"/><rect x="-60" y="-14" width="16" height="16" fill="#2a2f36"/>
+        <line x1="-42" y1="-14" x2="-62" y2="14" stroke="#4a525c" stroke-width="10"/><line x1="42" y1="-14" x2="64" y2="-26" stroke="#4a525c" stroke-width="10"/>
+        <rect x="-42" y="-30" width="84" height="80" fill="url(#metal)" stroke="#222" stroke-width="4"/>
+        <rect x="-32" y="-62" width="64" height="32" fill="url(#metal)" stroke="#222" stroke-width="4"/>
+        <line x1="-18" y1="-62" x2="-22" y2="-84" stroke="#222" stroke-width="4"/><rect x="-29" y="-92" width="12" height="12" fill="#7fe0ff" stroke="#222" stroke-width="2"/>
+        <line x1="18" y1="-62" x2="22" y2="-84" stroke="#222" stroke-width="4"/><rect x="17" y="-92" width="12" height="12" fill="#7fe0ff" stroke="#222" stroke-width="2"/>
+        <rect x="-24" y="-54" width="16" height="16" fill="#e9fcff" stroke="#222" stroke-width="3"/><rect x="8" y="-54" width="16" height="16" fill="#e9fcff" stroke="#222" stroke-width="3"/>
+        <rect x="-19" y="-49" width="7" height="7" fill="#0a8fd0"/><rect x="13" y="-49" width="7" height="7" fill="#0a8fd0"/>
+        <rect x="-28" y="-16" width="56" height="56" fill="#fff" stroke="#222" stroke-width="4"/>
+        <line x1="0" y1="12" x2="0" y2="-6" stroke="#c4122f" stroke-width="4"/><line x1="0" y1="12" x2="12" y2="12" stroke="#222" stroke-width="4"/>
+        <rect x="-24" y="-24" width="48" height="6" fill="#111"/><rect x="-22" y="-23" width="14" height="4" fill="#7fe0ff"/>
+        <g fill="#c9d3dd" stroke="#222"><rect x="-38" y="-26" width="5" height="5"/><rect x="33" y="-26" width="5" height="5"/><rect x="-38" y="43" width="5" height="5"/><rect x="33" y="43" width="5" height="5"/></g>
+        <g stroke="#222" stroke-width="3"><line x1="-38" y1="-2" x2="-30" y2="-2"/><line x1="-38" y1="6" x2="-30" y2="6"/><line x1="30" y1="-2" x2="38" y2="-2"/><line x1="30" y1="6" x2="38" y2="6"/></g>
+      </g>
+    </g>
+
+    <!-- CHIEF BRIGHTBADGE: a human police chief (not a robot) -->
+    <g id="chief">
+      <rect x="-28" y="-70" width="24" height="70" fill="#1a2f66" stroke="#111" stroke-width="3"/><rect x="4" y="-70" width="24" height="70" fill="#1a2f66" stroke="#111" stroke-width="3"/>
+      <rect x="-36" y="-14" width="34" height="14" fill="#111"/><rect x="2" y="-14" width="34" height="14" fill="#111"/>
+      <rect x="-46" y="-175" width="92" height="110" fill="url(#navy)" stroke="#111" stroke-width="4"/>
+      <polygon points="0,-160 7,-142 26,-140 12,-128 16,-110 0,-120 -16,-110 -12,-128 -26,-140 -7,-142" fill="url(#gold)" stroke="#7a4a00" stroke-width="2"/>
+      <rect x="-46" y="-100" width="92" height="10" fill="#111"/><rect x="-8" y="-103" width="16" height="16" fill="url(#gold)" stroke="#7a4a00" stroke-width="2"/>
+      <line x1="-46" y1="-155" x2="-84" y2="-110" stroke="#111" stroke-width="22"/><line x1="-46" y1="-155" x2="-84" y2="-110" stroke="#1a2f66" stroke-width="16"/>
+      <rect x="-96" y="-122" width="20" height="20" fill="#f1c27d" stroke="#111" stroke-width="3"/>
+      <line x1="46" y1="-155" x2="84" y2="-190" stroke="#111" stroke-width="22"/><line x1="46" y1="-155" x2="84" y2="-190" stroke="#1a2f66" stroke-width="16"/>
+      <g transform="translate(84,-190) rotate(-50)"><rect x="-6" y="-8" width="60" height="16" fill="#222" stroke="#000" stroke-width="2"/><rect x="54" y="-10" width="70" height="20" fill="#fff6a8" stroke="#ffd34e" stroke-width="3"/><rect x="-10" y="-10" width="16" height="20" fill="#f1c27d" stroke="#111" stroke-width="2"/></g>
+      <rect x="-12" y="-186" width="24" height="14" fill="#f1c27d" stroke="#111" stroke-width="2"/>
+      <rect x="-38" y="-250" width="76" height="68" fill="#f1c27d" stroke="#111" stroke-width="4"/>
+      <rect x="-44" y="-232" width="8" height="22" fill="#f1c27d" stroke="#111" stroke-width="3"/><rect x="36" y="-232" width="8" height="22" fill="#f1c27d" stroke="#111" stroke-width="3"/>
+      <rect x="-52" y="-272" width="104" height="26" fill="#1a2f66" stroke="#111" stroke-width="3"/><rect x="-60" y="-250" width="120" height="8" fill="#111"/><rect x="-14" y="-266" width="28" height="16" fill="url(#gold)" stroke="#7a4a00" stroke-width="2"/>
+      <rect x="-26" y="-228" width="14" height="12" fill="#fff" stroke="#111" stroke-width="2"/><rect x="12" y="-228" width="14" height="12" fill="#fff" stroke="#111" stroke-width="2"/>
+      <rect x="-22" y="-225" width="7" height="8" fill="#1a1a1a"/><rect x="15" y="-225" width="7" height="8" fill="#1a1a1a"/>
+      <rect x="-28" y="-238" width="20" height="5" fill="#6b4a1e"/><rect x="8" y="-238" width="20" height="5" fill="#6b4a1e"/>
+      <rect x="-20" y="-206" width="40" height="7" fill="#6b4a1e"/>
+      <rect x="-12" y="-194" width="24" height="5" fill="#8a2a2a"/>
+    </g>
+
+    <!-- GENERAL IRONWALL: a human military head (not a robot) -->
+    <g id="general">
+      <rect x="-38" y="-70" width="30" height="70" fill="#3a4a26" stroke="#111" stroke-width="3"/><rect x="8" y="-70" width="30" height="70" fill="#3a4a26" stroke="#111" stroke-width="3"/>
+      <rect x="-44" y="-18" width="40" height="18" fill="#111"/><rect x="4" y="-18" width="40" height="18" fill="#111"/>
+      <rect x="-62" y="-200" width="124" height="136" fill="url(#olive)" stroke="#111" stroke-width="4"/>
+      <rect x="-80" y="-212" width="34" height="26" fill="#2c3a22" stroke="#111" stroke-width="3"/><rect x="46" y="-212" width="34" height="26" fill="#2c3a22" stroke="#111" stroke-width="3"/>
+      <g fill="url(#gold)" stroke="#7a4a00" stroke-width="1"><rect x="-44" y="-170" width="14" height="14"/><rect x="-24" y="-170" width="14" height="14"/><rect x="-4" y="-170" width="14" height="14"/><rect x="16" y="-170" width="14" height="14"/><rect x="-44" y="-148" width="14" height="14"/><rect x="-24" y="-148" width="14" height="14"/></g>
+      <rect x="-62" y="-100" width="124" height="12" fill="#111"/><rect x="-10" y="-103" width="20" height="18" fill="url(#gold)" stroke="#7a4a00" stroke-width="2"/>
+      <line x1="-62" y1="-170" x2="-96" y2="-120" stroke="#111" stroke-width="24"/><line x1="-62" y1="-170" x2="-96" y2="-120" stroke="#4b6238" stroke-width="18"/>
+      <rect x="-108" y="-134" width="22" height="22" fill="#c68642" stroke="#111" stroke-width="3"/>
+      <line x1="62" y1="-170" x2="96" y2="-125" stroke="#111" stroke-width="24"/><line x1="62" y1="-170" x2="96" y2="-125" stroke="#4b6238" stroke-width="18"/>
+      <rect x="86" y="-136" width="22" height="22" fill="#c68642" stroke="#111" stroke-width="3"/>
+      <!-- the Big Net -->
+      <g transform="translate(96,-125)"><rect x="-4" y="-90" width="70" height="90" fill="none" stroke="#e8e0b0" stroke-width="3"/>
+        <g stroke="#e8e0b0" stroke-width="2"><line x1="14" y1="-90" x2="14" y2="0"/><line x1="32" y1="-90" x2="32" y2="0"/><line x1="50" y1="-90" x2="50" y2="0"/><line x1="-4" y1="-68" x2="66" y2="-68"/><line x1="-4" y1="-46" x2="66" y2="-46"/><line x1="-4" y1="-24" x2="66" y2="-24"/></g></g>
+      <rect x="-14" y="-212" width="28" height="14" fill="#c68642" stroke="#111" stroke-width="2"/>
+      <rect x="-44" y="-264" width="88" height="62" fill="#c68642" stroke="#111" stroke-width="4"/>
+      <rect x="-50" y="-246" width="8" height="22" fill="#c68642" stroke="#111" stroke-width="3"/><rect x="42" y="-246" width="8" height="22" fill="#c68642" stroke="#111" stroke-width="3"/>
+      <rect x="-52" y="-290" width="104" height="34" fill="#4b6238" stroke="#111" stroke-width="3"/><rect x="-52" y="-262" width="104" height="8" fill="#2c3a22"/>
+      <rect x="-8" y="-282" width="16" height="16" fill="url(#gold)" stroke="#7a4a00" stroke-width="2"/>
+      <rect x="-30" y="-240" width="18" height="12" fill="#fff" stroke="#111" stroke-width="2"/><rect x="12" y="-240" width="18" height="12" fill="#fff" stroke="#111" stroke-width="2"/>
+      <rect x="-24" y="-238" width="8" height="9" fill="#1a1a1a"/><rect x="16" y="-238" width="8" height="9" fill="#1a1a1a"/>
+      <polygon points="-34,-250 -8,-244 -8,-248 -34,-256" fill="#222"/><polygon points="34,-250 8,-244 8,-248 34,-256" fill="#222"/>
+      <rect x="-22" y="-214" width="44" height="6" fill="#222"/>
+    </g>
+  
+    
+    <linearGradient id="beam2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6c8" stop-opacity="0.0"/><stop offset="1" stop-color="#fff6c8" stop-opacity="0.5"/></linearGradient>
+    <filter id="glow2" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5"/></filter>
+
+    <!-- CIM: the giant bot, only for BIG EVENTS (feet at 0, about 350 tall) -->
+    <g id="cim">
+      <rect x="-70" y="-90" width="44" height="90" fill="url(#metal)" stroke="#111" stroke-width="4"/><rect x="26" y="-90" width="44" height="90" fill="url(#metal)" stroke="#111" stroke-width="4"/>
+      <rect x="-84" y="-24" width="62" height="24" fill="#3a3f48" stroke="#111" stroke-width="3"/><rect x="22" y="-24" width="62" height="24" fill="#3a3f48" stroke="#111" stroke-width="3"/>
+      <rect x="-165" y="-215" width="46" height="130" fill="url(#metal)" stroke="#111" stroke-width="4"/><rect x="119" y="-215" width="46" height="130" fill="url(#metal)" stroke="#111" stroke-width="4"/>
+      <rect x="-172" y="-88" width="60" height="56" fill="#4a525c" stroke="#111" stroke-width="4"/><rect x="112" y="-88" width="60" height="56" fill="#4a525c" stroke="#111" stroke-width="4"/>
+      <rect x="-110" y="-236" width="220" height="156" fill="url(#metal)" stroke="#111" stroke-width="5"/>
+      <rect x="-180" y="-256" width="62" height="48" fill="#4a525c" stroke="#111" stroke-width="4"/><rect x="118" y="-256" width="62" height="48" fill="#4a525c" stroke="#111" stroke-width="4"/>
+      <rect x="-40" y="-212" width="80" height="66" fill="#ffd34e" stroke="#111" stroke-width="4"/><rect x="-30" y="-204" width="60" height="50" fill="#fff6c8"/>
+      <rect x="-110" y="-110" width="220" height="14" fill="#2a2a32"/>
+      <g fill="#c9d3dd" stroke="#111"><rect x="-96" y="-224" width="8" height="8"/><rect x="88" y="-224" width="8" height="8"/><rect x="-96" y="-92" width="8" height="8"/><rect x="88" y="-92" width="8" height="8"/></g>
+      <rect x="-24" y="-248" width="48" height="14" fill="#3a3f48"/>
+      <line x1="-44" y1="-318" x2="-50" y2="-352" stroke="#111" stroke-width="6"/><rect x="-60" y="-364" width="20" height="18" fill="#ff3b3b" stroke="#111" stroke-width="3"/>
+      <line x1="44" y1="-318" x2="50" y2="-352" stroke="#111" stroke-width="6"/><rect x="40" y="-364" width="20" height="18" fill="#ff3b3b" stroke="#111" stroke-width="3"/>
+      <rect x="-76" y="-322" width="152" height="84" fill="url(#metal)" stroke="#111" stroke-width="5"/>
+      <rect x="-64" y="-294" width="128" height="44" fill="#101018"/>
+      <rect x="-56" y="-288" width="42" height="32" fill="#ff3b3b" stroke="#fff" stroke-width="2"/><rect x="14" y="-288" width="42" height="32" fill="#ff3b3b" stroke="#fff" stroke-width="2"/>
+      <rect x="-30" y="-316" width="60" height="16" fill="#c4122f" stroke="#111" stroke-width="2"/>
+      <text x="0" y="-303" text-anchor="middle" font-family="Impact,'Arial Black',sans-serif" font-size="14" fill="#fff" letter-spacing="3">CIM</text>
+      <path d="M-30,-246 h60" stroke="#9aa5b1" stroke-width="3"/><path d="M-20,-252 v12 M-10,-252 v12 M0,-252 v12 M10,-252 v12 M20,-252 v12" stroke="#9aa5b1" stroke-width="2"/>
+    </g>
+
+    <!-- army tank (all squares), facing right, feet at 0 -->
+    
+
+    <!-- army man (a person, not a bot), feet at 0 -->
+    
+
+    <!-- ===== REAL-LOOKING ARMY (people and vehicles, all sharp squares) ===== -->
+    <!-- soldier: feet at 0, about 118 tall -->
+    <g id="soldier">
+      <rect x="-18" y="-6" width="16" height="6" fill="#111"/><rect x="2" y="-6" width="16" height="6" fill="#111"/>
+      <rect x="-14" y="-36" width="12" height="30" fill="#4b6238" stroke="#101808" stroke-width="2"/><rect x="2" y="-36" width="12" height="30" fill="#4b6238" stroke="#101808" stroke-width="2"/>
+      <rect x="-12" y="-28" width="8" height="8" fill="#2c3a22"/><rect x="4" y="-22" width="8" height="8" fill="#6b7e48"/>
+      <rect x="-20" y="-76" width="40" height="42" fill="#4b6238" stroke="#101808" stroke-width="3"/>
+      <rect x="-14" y="-72" width="12" height="9" fill="#2c3a22"/><rect x="2" y="-72" width="12" height="9" fill="#2c3a22"/>
+      <rect x="-16" y="-56" width="10" height="10" fill="#6b7e48"/><rect x="6" y="-52" width="10" height="10" fill="#2c3a22"/>
+      <rect x="-20" y="-40" width="40" height="5" fill="#1a1a1a"/><rect x="-4" y="-41" width="8" height="7" fill="#d9b24c"/>
+      <rect x="-30" y="-74" width="10" height="30" fill="#4b6238" stroke="#101808" stroke-width="2"/><rect x="20" y="-74" width="10" height="30" fill="#4b6238" stroke="#101808" stroke-width="2"/>
+      <rect x="-30" y="-44" width="10" height="9" fill="#e0b070" stroke="#101808" stroke-width="1.5"/><rect x="20" y="-44" width="10" height="9" fill="#e0b070" stroke="#101808" stroke-width="1.5"/>
+      <rect x="-30" y="-69" width="10" height="3" fill="#ffd34e"/><rect x="-30" y="-64" width="10" height="3" fill="#ffd34e"/>
+      <rect x="24" y="-108" width="5" height="64" fill="#2a2a2a" stroke="#000" stroke-width="1.5"/><rect x="22" y="-52" width="9" height="16" fill="#5a3414" stroke="#2a1608" stroke-width="1.5"/>
+      <rect x="-16" y="-104" width="32" height="30" fill="#e0b070" stroke="#101808" stroke-width="3"/>
+      <rect x="-10" y="-92" width="6" height="6" fill="#111"/><rect x="4" y="-92" width="6" height="6" fill="#111"/><rect x="-6" y="-80" width="12" height="3" fill="#7a3a2a"/>
+      <rect x="-23" y="-102" width="46" height="5" fill="#2c3a22" stroke="#101808" stroke-width="2"/>
+      <rect x="-20" y="-120" width="40" height="20" fill="#4b6238" stroke="#101808" stroke-width="3"/><rect x="-14" y="-118" width="14" height="8" fill="#2c3a22"/><rect x="4" y="-112" width="12" height="8" fill="#6b7e48"/>
+      <rect x="-17" y="-100" width="4" height="14" fill="#2c3a22"/><rect x="13" y="-100" width="4" height="14" fill="#2c3a22"/>
+    </g>
+
+    <!-- tank facing right: tracks, wheels, camo hull, turret, hatch, antenna, star -->
+    <g id="tank">
+      <rect x="0" y="-30" width="152" height="30" fill="#1c2616" stroke="#101808" stroke-width="3"/>
+      <g fill="#3a4a2a" stroke="#101808" stroke-width="2"><rect x="6" y="-26" width="18" height="20"/><rect x="30" y="-26" width="18" height="20"/><rect x="54" y="-26" width="18" height="20"/><rect x="78" y="-26" width="18" height="20"/><rect x="102" y="-26" width="18" height="20"/><rect x="126" y="-26" width="18" height="20"/></g>
+      <g fill="#101808"><rect x="12" y="-20" width="6" height="8"/><rect x="36" y="-20" width="6" height="8"/><rect x="60" y="-20" width="6" height="8"/><rect x="84" y="-20" width="6" height="8"/><rect x="108" y="-20" width="6" height="8"/><rect x="132" y="-20" width="6" height="8"/></g>
+      <rect x="-2" y="-40" width="156" height="14" fill="#2c3a22" stroke="#101808" stroke-width="3"/>
+      <rect x="8" y="-50" width="136" height="14" fill="#4b6238" stroke="#101808" stroke-width="3"/>
+      <rect x="20" y="-48" width="34" height="9" fill="#2c3a22"/><rect x="84" y="-46" width="30" height="8" fill="#6b7e48"/><rect x="120" y="-48" width="20" height="9" fill="#2c3a22"/>
+      <polygon points="30,-50 106,-50 98,-80 42,-80" fill="#4b6238" stroke="#101808" stroke-width="3"/>
+      <polygon points="40,-76 72,-76 70,-62 38,-62" fill="#2c3a22"/><rect x="78" y="-70" width="18" height="8" fill="#6b7e48"/>
+      <rect x="56" y="-90" width="24" height="12" fill="#2c3a22" stroke="#101808" stroke-width="2"/><rect x="62" y="-94" width="12" height="5" fill="#101808"/>
+      <rect x="96" y="-72" width="62" height="10" fill="#3a4c2a" stroke="#101808" stroke-width="2"/><rect x="130" y="-75" width="10" height="16" fill="#2c3a22" stroke="#101808" stroke-width="2"/><rect x="156" y="-76" width="14" height="18" fill="#101808"/>
+      <line x1="46" y1="-80" x2="40" y2="-118" stroke="#222" stroke-width="3"/>
+      <polygon points="70,-66 73,-60 79,-58 73,-56 70,-50 67,-56 61,-58 67,-60" fill="#fff"/>
+    </g>
+
+    <!-- jeep facing right -->
+    <g id="jeep">
+      <rect x="4" y="-16" width="22" height="16" fill="#111"/><rect x="62" y="-16" width="22" height="16" fill="#111"/><rect x="10" y="-10" width="10" height="10" fill="#555"/><rect x="68" y="-10" width="10" height="10" fill="#555"/>
+      <rect x="0" y="-34" width="90" height="20" fill="#4b6238" stroke="#101808" stroke-width="3"/>
+      <rect x="64" y="-42" width="26" height="12" fill="#4b6238" stroke="#101808" stroke-width="3"/>
+      <polygon points="38,-34 46,-60 58,-60 56,-34" fill="#cfe8ff" stroke="#101808" stroke-width="2"/>
+      <rect x="6" y="-44" width="26" height="12" fill="#2c3a22" stroke="#101808" stroke-width="2"/>
+      <rect x="14" y="-62" width="14" height="14" fill="#e0b070" stroke="#101808" stroke-width="2"/><rect x="11" y="-70" width="20" height="9" fill="#4b6238" stroke="#101808" stroke-width="2"/>
+      <line x1="2" y1="-44" x2="-4" y2="-84" stroke="#222" stroke-width="2"/>
+      <polygon points="26,-28 29,-23 34,-22 29,-20 26,-15 23,-20 18,-22 23,-23" fill="#fff"/>
+    </g>
+
+    <!-- supply truck facing right -->
+    <g id="truck">
+      <rect x="8" y="-16" width="22" height="16" fill="#111"/><rect x="44" y="-16" width="22" height="16" fill="#111"/><rect x="96" y="-16" width="22" height="16" fill="#111"/>
+      <rect x="0" y="-26" width="132" height="12" fill="#2c3a22" stroke="#101808" stroke-width="3"/>
+      <rect x="0" y="-66" width="94" height="42" fill="#6b7a4a" stroke="#101808" stroke-width="3"/>
+      <g stroke="#3a4a2a" stroke-width="3"><line x1="24" y1="-66" x2="24" y2="-24"/><line x1="48" y1="-66" x2="48" y2="-24"/><line x1="72" y1="-66" x2="72" y2="-24"/></g>
+      <rect x="94" y="-50" width="38" height="26" fill="#4b6238" stroke="#101808" stroke-width="3"/>
+      <polygon points="108,-50 114,-66 132,-66 132,-50" fill="#4b6238" stroke="#101808" stroke-width="3"/><rect x="116" y="-62" width="14" height="10" fill="#cfe8ff" stroke="#101808" stroke-width="2"/>
+      <polygon points="38,-52 41,-46 47,-45 41,-42 38,-36 35,-42 29,-45 35,-46" fill="#fff"/>
+    </g>
+
+    <!-- army helicopter, centered -->
+    <g id="heli">
+      <rect x="-40" y="-16" width="80" height="32" fill="#4b6238" stroke="#101808" stroke-width="3"/>
+      <rect x="-30" y="-12" width="22" height="9" fill="#2c3a22"/><rect x="8" y="-6" width="22" height="9" fill="#6b7e48"/>
+      <polygon points="-40,-10 -58,-4 -58,10 -40,12" fill="#cfe8ff" stroke="#101808" stroke-width="3"/>
+      <rect x="40" y="-8" width="62" height="10" fill="#3a4c2a" stroke="#101808" stroke-width="2"/><polygon points="94,-8 106,-28 110,-8" fill="#3a4c2a" stroke="#101808" stroke-width="2"/><rect x="104" y="-22" width="4" height="22" fill="#222"/>
+      <rect x="-4" y="-28" width="8" height="12" fill="#101808"/><rect x="-80" y="-34" width="160" height="6" fill="#222"/><rect x="-54" y="-36" width="108" height="2" fill="#555"/>
+      <rect x="-22" y="16" width="44" height="9" fill="#2c3a22" stroke="#101808" stroke-width="2"/>
+      <rect x="-46" y="26" width="92" height="5" fill="#222"/><rect x="-30" y="16" width="5" height="10" fill="#222"/><rect x="26" y="16" width="5" height="10" fill="#222"/>
+      <polygon points="0,-8 3,-2 9,0 3,2 0,8 -3,2 -9,0 -3,-2" fill="#fff"/>
+    </g>
+    <g id="crime_q"><g transform="scale(0.95,1)">
+      <path d="M-62,-205 L-170,-150 L-190,-20 L-155,60 L-110,88 L-65,52 L-20,88 L20,52 L65,88 L110,52 L155,60 L190,-20 L170,-150 L62,-205 Z" fill="url(#cape)" stroke="#111" stroke-width="4"/>
+      <rect x="-46" y="-72" width="32" height="72" fill="url(#metal)" stroke="#222" stroke-width="3"/><rect x="14" y="-72" width="32" height="72" fill="url(#metal)" stroke="#222" stroke-width="3"/>
+      <rect x="-56" y="-20" width="48" height="20" fill="#3a3f48" stroke="#222" stroke-width="3"/><rect x="8" y="-20" width="48" height="20" fill="#3a3f48" stroke="#222" stroke-width="3"/>
+      <rect x="-68" y="-215" width="136" height="150" fill="url(#metal)" stroke="#222" stroke-width="4"/>
+      <rect x="-68" y="-100" width="136" height="14" fill="#2a2a32"/><rect x="-12" y="-104" width="24" height="22" fill="url(#metal)" stroke="#222" stroke-width="2"/>
+      <circle cx="-34" cy="-170" r="25" fill="url(#metal)" stroke="#222" stroke-width="3"/><circle cx="-34" cy="-170" r="19" fill="#f5e6b8" stroke="#222" stroke-width="2"/>
+      <line x1="-34" y1="-170" x2="-34" y2="-184" stroke="#111" stroke-width="2.5"/><line x1="-34" y1="-170" x2="-23" y2="-163" stroke="#c4122f" stroke-width="2.5"/>
+      <circle cx="34" cy="-120" r="19" fill="url(#metal)" stroke="#222" stroke-width="3"/><circle cx="34" cy="-120" r="14" fill="#f5e6b8" stroke="#222" stroke-width="2"/>
+      <line x1="34" y1="-120" x2="34" y2="-130" stroke="#111" stroke-width="2.5"/><line x1="34" y1="-120" x2="42" y2="-115" stroke="#c4122f" stroke-width="2.5"/>
+      <rect x="-86" y="-224" width="32" height="32" fill="url(#metal)" stroke="#222" stroke-width="3"/><rect x="54" y="-224" width="32" height="32" fill="url(#metal)" stroke="#222" stroke-width="3"/>
+      <rect x="-14" y="-234" width="28" height="22" fill="#3a3f48"/>
+      <line x1="-32" y1="-312" x2="-32" y2="-342" stroke="#222" stroke-width="5"/><rect x="-40" y="-352" width="16" height="16" fill="#ff3b3b" stroke="#222" stroke-width="2"/>
+      <line x1="32" y1="-312" x2="32" y2="-342" stroke="#222" stroke-width="5"/><rect x="24" y="-352" width="16" height="16" fill="#ff3b3b" stroke="#222" stroke-width="2"/>
+      <rect x="-62" y="-312" width="124" height="84" fill="url(#metal)" stroke="#222" stroke-width="4"/><rect x="-52" y="-302" width="104" height="46" fill="#101018"/>
+      <g transform="translate(8,0)"><rect x="-34" y="-287" width="15" height="18" fill="#ff3b3b" stroke="#fff" stroke-width="2"/><rect x="17" y="-287" width="20" height="18" fill="#ff3b3b" stroke="#fff" stroke-width="2"/>
+      <polygon points="-44,-300 -8,-290 -8,-295 -44,-306" fill="#101018" stroke="#101018" stroke-width="2"/><polygon points="44,-300 8,-290 8,-295 44,-306" fill="#101018" stroke="#101018" stroke-width="2"/>
+      <path d="M-36,-244 L-26,-236 L-16,-244 L-6,-236 L4,-244 L14,-236 L24,-244 L34,-236" fill="none" stroke="#fff" stroke-width="3"/></g>
+      <line x1="-66" y1="-190" x2="-108" y2="-120" stroke="#222" stroke-width="26"/><line x1="-66" y1="-190" x2="-108" y2="-120" stroke="url(#metal)" stroke-width="20"/>
+      <g transform="translate(-108,-120) rotate(-125)">
+        <rect x="-14" y="-14" width="50" height="28" fill="#3a3f48" stroke="#111" stroke-width="3"/><rect x="36" y="-9" width="70" height="18" fill="url(#metal)" stroke="#222" stroke-width="3"/>
+        <polygon points="106,-9 142,-20 142,20 106,9" fill="url(#metal)" stroke="#222" stroke-width="3"/><rect x="130" y="-12" width="12" height="24" fill="#0c0806"/>
+        <rect x="52" y="-13" width="8" height="26" fill="#4a525c"/><rect x="86" y="-13" width="8" height="26" fill="#4a525c"/>
+      </g>
+      <line x1="66" y1="-190" x2="108" y2="-120" stroke="#222" stroke-width="26"/><line x1="66" y1="-190" x2="108" y2="-120" stroke="url(#metal)" stroke-width="20"/>
+      <g transform="translate(108,-120) rotate(-65)">
+        <rect x="-10" y="-14" width="28" height="28" fill="#3a3f48" stroke="#111" stroke-width="3"/><rect x="18" y="-16" width="8" height="32" fill="url(#metal)" stroke="#222" stroke-width="2"/>
+        <polygon points="26,-11 150,-11 176,11 26,11" fill="url(#silver)" stroke="#2a2f36" stroke-width="3"/><rect x="36" y="-4" width="106" height="3" fill="#fff" opacity="0.8"/>
+      </g></g></g>
+    <g id="amazing_q"><g transform="scale(0.95,1)">
+      <rect x="-30" y="-55" width="22" height="55" fill="#5c6670" stroke="#222" stroke-width="3"/><rect x="8" y="-55" width="22" height="55" fill="#5c6670" stroke="#222" stroke-width="3"/>
+      <rect x="-38" y="-16" width="34" height="16" fill="#222"/><rect x="4" y="-16" width="34" height="16" fill="#222"/>
+      <path d="M-45,-140 L-78,-100 L-50,-72" fill="none" stroke="#222" stroke-width="22"/><path d="M-45,-140 L-78,-100 L-50,-72" fill="none" stroke="url(#metal)" stroke-width="16"/>
+      <path d="M45,-140 L78,-100 L50,-72" fill="none" stroke="#222" stroke-width="22"/><path d="M45,-140 L78,-100 L50,-72" fill="none" stroke="url(#metal)" stroke-width="16"/>
+      <rect x="-46" y="-152" width="92" height="102" fill="url(#metal)" stroke="#222" stroke-width="4"/>
+      <polygon points="0,-130 8,-110 28,-108 12,-95 18,-75 0,-87 -18,-75 -12,-95 -28,-108 -8,-110" fill="#e0301e" stroke="#222" stroke-width="3"/>
+      <polygon points="-42,-232 -70,-312 -14,-232" fill="url(#silver)" stroke="#2a2f36" stroke-width="3"/><polygon points="42,-232 70,-312 14,-232" fill="url(#silver)" stroke="#2a2f36" stroke-width="3"/>
+      <rect x="-50" y="-238" width="100" height="84" fill="url(#metal)" stroke="#222" stroke-width="4"/>
+      <line x1="-8" y1="-238" x2="-18" y2="-266" stroke="#222" stroke-width="4"/><rect x="-25" y="-275" width="14" height="14" fill="#ffd34e" stroke="#222" stroke-width="2"/>
+      <line x1="8" y1="-238" x2="18" y2="-266" stroke="#222" stroke-width="4"/><rect x="11" y="-275" width="14" height="14" fill="#ffd34e" stroke="#222" stroke-width="2"/>
+      <g transform="translate(7,0)"><rect x="-44" y="-196" width="12" height="10" fill="#ff8aa8"/><rect x="32" y="-196" width="12" height="10" fill="#ff8aa8"/>
+      <rect x="-28" y="-218" width="20" height="26" fill="#fff" stroke="#222" stroke-width="3"/><rect x="6" y="-218" width="26" height="26" fill="#fff" stroke="#222" stroke-width="3"/>
+      <rect x="-20" y="-210" width="9" height="12" fill="#111"/><rect x="16" y="-210" width="12" height="12" fill="#111"/>
+      <polygon points="-30,-182 30,-182 22,-162 -22,-162" fill="#fff" stroke="#222" stroke-width="3"/></g></g></g>
+    <g id="mad_q"><g transform="scale(0.95,1)">
+      <rect x="-34" y="-16" width="26" height="16" fill="#1c1c22"/><rect x="8" y="-16" width="26" height="16" fill="#1c1c22"/>
+      <path d="M-60,-70 L-84,-112" stroke="#1c1c22" stroke-width="22"/><path d="M-60,-70 L-84,-112" stroke="#8a95a1" stroke-width="16"/>
+      <rect x="-106" y="-140" width="40" height="40" fill="#8a95a1" stroke="#1c1c22" stroke-width="4"/>
+      <path d="M60,-70 L84,-112" stroke="#1c1c22" stroke-width="22"/><path d="M60,-70 L84,-112" stroke="#8a95a1" stroke-width="16"/>
+      <rect x="66" y="-140" width="40" height="40" fill="#8a95a1" stroke="#1c1c22" stroke-width="4"/>
+      <polygon points="-64,-142 -46,-166 -28,-142" fill="url(#metal)" stroke="#111" stroke-width="3"/><polygon points="28,-142 46,-166 64,-142" fill="url(#metal)" stroke="#111" stroke-width="3"/>
+      <line x1="-52" y1="-142" x2="-52" y2="-175" stroke="#1c1c22" stroke-width="4"/><rect x="-59" y="-184" width="14" height="14" fill="#ffd34e" stroke="#1c1c22" stroke-width="2"/>
+      <rect x="-64" y="-142" width="128" height="128" fill="url(#metal)" stroke="#1c1c22" stroke-width="5"/>
+      <g transform="translate(8,0)"><rect x="-36" y="-112" width="22" height="26" fill="#fff" stroke="#1c1c22" stroke-width="3"/><rect x="10" y="-112" width="30" height="26" fill="#fff" stroke="#1c1c22" stroke-width="3"/>
+      <rect x="-26" y="-104" width="9" height="12" fill="#ff2020"/><rect x="16" y="-104" width="12" height="12" fill="#ff2020"/>
+      <line x1="-40" y1="-124" x2="-6" y2="-110" stroke="#111" stroke-width="8"/><line x1="46" y1="-128" x2="6" y2="-110" stroke="#111" stroke-width="8"/>
+      <rect x="-32" y="-72" width="64" height="36" fill="#2a0508" stroke="#111" stroke-width="3"/><rect x="-24" y="-72" width="48" height="9" fill="#fff"/></g></g></g>
+    <g id="time_q"><g transform="scale(0.95,1)">
+      <g transform="translate(0,-74)">
+        <rect x="-26" y="48" width="18" height="26" fill="#4a525c" stroke="#222" stroke-width="3"/><rect x="8" y="48" width="18" height="26" fill="#4a525c" stroke="#222" stroke-width="3"/>
+        <rect x="-22" y="74" width="26" height="8" fill="#111"/><rect x="6" y="74" width="26" height="8" fill="#111"/>
+        <rect x="-72" y="-26" width="40" height="40" fill="#c9d3dd" stroke="#2a2f36" stroke-width="3"/><rect x="-72" y="-26" width="40" height="40" fill="#c9d3dd" stroke="#2a2f36" stroke-width="3" transform="rotate(45 -52 -6)"/><rect x="-60" y="-14" width="16" height="16" fill="#2a2f36"/>
+        <line x1="-42" y1="-14" x2="-62" y2="14" stroke="#4a525c" stroke-width="10"/><line x1="42" y1="-14" x2="64" y2="-26" stroke="#4a525c" stroke-width="10"/>
+        <rect x="-42" y="-30" width="84" height="80" fill="url(#metal)" stroke="#222" stroke-width="4"/>
+        <rect x="-32" y="-62" width="64" height="32" fill="url(#metal)" stroke="#222" stroke-width="4"/>
+        <line x1="-18" y1="-62" x2="-22" y2="-84" stroke="#222" stroke-width="4"/><rect x="-29" y="-92" width="12" height="12" fill="#7fe0ff" stroke="#222" stroke-width="2"/>
+        <line x1="18" y1="-62" x2="22" y2="-84" stroke="#222" stroke-width="4"/><rect x="17" y="-92" width="12" height="12" fill="#7fe0ff" stroke="#222" stroke-width="2"/>
+        <g transform="translate(5,0)"><rect x="-20" y="-54" width="12" height="16" fill="#e9fcff" stroke="#222" stroke-width="3"/><rect x="8" y="-54" width="16" height="16" fill="#e9fcff" stroke="#222" stroke-width="3"/>
+        <rect x="-17" y="-49" width="5" height="7" fill="#0a8fd0"/><rect x="13" y="-49" width="7" height="7" fill="#0a8fd0"/></g>
+        <rect x="-28" y="-16" width="56" height="56" fill="#fff" stroke="#222" stroke-width="4"/>
+        <line x1="0" y1="12" x2="0" y2="-6" stroke="#c4122f" stroke-width="4"/><line x1="0" y1="12" x2="12" y2="12" stroke="#222" stroke-width="4"/>
+        <rect x="-24" y="-24" width="48" height="6" fill="#111"/><rect x="-22" y="-23" width="14" height="4" fill="#7fe0ff"/>
+        <g fill="#c9d3dd" stroke="#222"><rect x="-38" y="-26" width="5" height="5"/><rect x="33" y="-26" width="5" height="5"/><rect x="-38" y="43" width="5" height="5"/><rect x="33" y="43" width="5" height="5"/></g>
+        <g stroke="#222" stroke-width="3"><line x1="-38" y1="-2" x2="-30" y2="-2"/><line x1="-38" y1="6" x2="-30" y2="6"/><line x1="30" y1="-2" x2="38" y2="-2"/><line x1="30" y1="6" x2="38" y2="6"/></g>
+      </g></g></g>
+    <g id="cim_q"><g transform="scale(0.95,1)">
+      <rect x="-70" y="-90" width="44" height="90" fill="url(#metal)" stroke="#111" stroke-width="4"/><rect x="26" y="-90" width="44" height="90" fill="url(#metal)" stroke="#111" stroke-width="4"/>
+      <rect x="-84" y="-24" width="62" height="24" fill="#3a3f48" stroke="#111" stroke-width="3"/><rect x="22" y="-24" width="62" height="24" fill="#3a3f48" stroke="#111" stroke-width="3"/>
+      <rect x="-165" y="-215" width="46" height="130" fill="url(#metal)" stroke="#111" stroke-width="4"/><rect x="119" y="-215" width="46" height="130" fill="url(#metal)" stroke="#111" stroke-width="4"/>
+      <rect x="-172" y="-88" width="60" height="56" fill="#4a525c" stroke="#111" stroke-width="4"/><rect x="112" y="-88" width="60" height="56" fill="#4a525c" stroke="#111" stroke-width="4"/>
+      <rect x="-110" y="-236" width="220" height="156" fill="url(#metal)" stroke="#111" stroke-width="5"/>
+      <rect x="-180" y="-256" width="62" height="48" fill="#4a525c" stroke="#111" stroke-width="4"/><rect x="118" y="-256" width="62" height="48" fill="#4a525c" stroke="#111" stroke-width="4"/>
+      <rect x="-40" y="-212" width="80" height="66" fill="#ffd34e" stroke="#111" stroke-width="4"/><rect x="-30" y="-204" width="60" height="50" fill="#fff6c8"/>
+      <rect x="-110" y="-110" width="220" height="14" fill="#2a2a32"/>
+      <g fill="#c9d3dd" stroke="#111"><rect x="-96" y="-224" width="8" height="8"/><rect x="88" y="-224" width="8" height="8"/><rect x="-96" y="-92" width="8" height="8"/><rect x="88" y="-92" width="8" height="8"/></g>
+      <rect x="-24" y="-248" width="48" height="14" fill="#3a3f48"/>
+      <line x1="-44" y1="-318" x2="-50" y2="-352" stroke="#111" stroke-width="6"/><rect x="-60" y="-364" width="20" height="18" fill="#ff3b3b" stroke="#111" stroke-width="3"/>
+      <line x1="44" y1="-318" x2="50" y2="-352" stroke="#111" stroke-width="6"/><rect x="40" y="-364" width="20" height="18" fill="#ff3b3b" stroke="#111" stroke-width="3"/>
+      <rect x="-76" y="-322" width="152" height="84" fill="url(#metal)" stroke="#111" stroke-width="5"/>
+      <rect x="-64" y="-294" width="128" height="44" fill="#101018"/>
+      <g transform="translate(8,0)"><rect x="-50" y="-288" width="32" height="32" fill="#ff3b3b" stroke="#fff" stroke-width="2"/><rect x="14" y="-288" width="42" height="32" fill="#ff3b3b" stroke="#fff" stroke-width="2"/></g>
+      <rect x="-30" y="-316" width="60" height="16" fill="#c4122f" stroke="#111" stroke-width="2"/>
+      <text x="0" y="-303" text-anchor="middle" font-family="Impact,'Arial Black',sans-serif" font-size="14" fill="#fff" letter-spacing="3">CIM</text>
+      <path d="M-30,-246 h60" stroke="#9aa5b1" stroke-width="3"/><path d="M-20,-252 v12 M-10,-252 v12 M0,-252 v12 M10,-252 v12 M20,-252 v12" stroke="#9aa5b1" stroke-width="2"/></g></g>
+    <g id="soldier_q"><rect x="-14" y="-36" width="12" height="30" fill="#4b6238" stroke="#111" stroke-width="2"/><rect x="2" y="-36" width="12" height="30" fill="#4b6238" stroke="#111" stroke-width="2"/><rect x="-16" y="-6" width="20" height="6" fill="#111"/><rect x="0" y="-6" width="22" height="6" fill="#111"/><rect x="-19" y="-76" width="37" height="42" fill="#4b6238" stroke="#111" stroke-width="3"/><rect x="-19" y="-40" width="37" height="5" fill="#1a1a1a"/><rect x="-28" y="-72" width="10" height="28" fill="#4b6238" stroke="#111" stroke-width="2"/><rect x="-28" y="-46" width="10" height="9" fill="#e0b070" stroke="#111" stroke-width="1.5"/><rect x="6" y="-74" width="12" height="28" fill="#4b6238" stroke="#111" stroke-width="2"/><rect x="6" y="-48" width="14" height="10" fill="#e0b070" stroke="#111" stroke-width="1.5"/><rect x="20" y="-108" width="5" height="62" fill="#2a2a2a" stroke="#000" stroke-width="1.5"/><rect x="18" y="-52" width="9" height="16" fill="#5a3414" stroke="#2a1608" stroke-width="1.5"/><rect x="-17" y="-104" width="33" height="30" fill="#e0b070" stroke="#111" stroke-width="3"/><rect x="16" y="-92" width="5" height="8" fill="#e0b070" stroke="#111" stroke-width="2"/><rect x="-6" y="-95" width="5" height="6" fill="#111"/><rect x="5" y="-94" width="6" height="6" fill="#111"/><rect x="0" y="-80" width="13" height="3" fill="#7a3a2a"/><rect x="-18" y="-122" width="34" height="22" fill="#4b6238" stroke="#101808" stroke-width="3"/><rect x="-16" y="-120" width="12" height="8" fill="#2c3a22"/><rect x="-16" y="-102" width="6" height="14" fill="#2c3a22"/></g>
+    <g id="guard_q"><rect x="-14" y="-36" width="12" height="30" fill="#1a1a20" stroke="#111" stroke-width="2"/><rect x="2" y="-36" width="12" height="30" fill="#1a1a20" stroke="#111" stroke-width="2"/><rect x="-16" y="-6" width="20" height="6" fill="#111"/><rect x="0" y="-6" width="22" height="6" fill="#111"/><rect x="-19" y="-76" width="37" height="42" fill="#2a2a30" stroke="#111" stroke-width="3"/><rect x="-19" y="-40" width="37" height="5" fill="#1a1a1a"/><rect x="-28" y="-72" width="10" height="28" fill="#2a2a30" stroke="#111" stroke-width="2"/><rect x="-28" y="-46" width="10" height="9" fill="#f1c27d" stroke="#111" stroke-width="1.5"/><rect x="6" y="-74" width="12" height="28" fill="#2a2a30" stroke="#111" stroke-width="2"/><rect x="6" y="-48" width="14" height="10" fill="#f1c27d" stroke="#111" stroke-width="1.5"/><rect x="-17" y="-104" width="33" height="30" fill="#f1c27d" stroke="#111" stroke-width="3"/><rect x="16" y="-92" width="5" height="8" fill="#f1c27d" stroke="#111" stroke-width="2"/><rect x="-6" y="-95" width="5" height="6" fill="#111"/><rect x="5" y="-94" width="6" height="6" fill="#111"/><rect x="0" y="-80" width="13" height="3" fill="#7a3a2a"/><rect x="-18" y="-118" width="34" height="14" fill="#1a2f66" stroke="#111" stroke-width="2.5"/><rect x="10" y="-108" width="16" height="5" fill="#111"/><rect x="-6" y="-114" width="10" height="7" fill="#ffd34e"/></g>
+    <g id="cop_q"><rect x="-14" y="-36" width="12" height="30" fill="#1a2f66" stroke="#111" stroke-width="2"/><rect x="2" y="-36" width="12" height="30" fill="#1a2f66" stroke="#111" stroke-width="2"/><rect x="-16" y="-6" width="20" height="6" fill="#111"/><rect x="0" y="-6" width="22" height="6" fill="#111"/><rect x="-19" y="-76" width="37" height="42" fill="#2f5aa8" stroke="#111" stroke-width="3"/><rect x="-19" y="-40" width="37" height="5" fill="#1a1a1a"/><rect x="-28" y="-72" width="10" height="28" fill="#2f5aa8" stroke="#111" stroke-width="2"/><rect x="-28" y="-46" width="10" height="9" fill="#f1c27d" stroke="#111" stroke-width="1.5"/><rect x="6" y="-74" width="12" height="28" fill="#2f5aa8" stroke="#111" stroke-width="2"/><rect x="6" y="-48" width="14" height="10" fill="#f1c27d" stroke="#111" stroke-width="1.5"/><rect x="-17" y="-104" width="33" height="30" fill="#f1c27d" stroke="#111" stroke-width="3"/><rect x="16" y="-92" width="5" height="8" fill="#f1c27d" stroke="#111" stroke-width="2"/><rect x="-6" y="-95" width="5" height="6" fill="#111"/><rect x="5" y="-94" width="6" height="6" fill="#111"/><rect x="0" y="-80" width="13" height="3" fill="#7a3a2a"/><rect x="-18" y="-118" width="34" height="14" fill="#1a2f66" stroke="#111" stroke-width="2.5"/><rect x="10" y="-108" width="16" height="5" fill="#111"/><rect x="-6" y="-114" width="10" height="7" fill="#ffd34e"/></g>
+    <g id="citA_q"><rect x="-14" y="-36" width="12" height="30" fill="#3a3a4a" stroke="#111" stroke-width="2"/><rect x="2" y="-36" width="12" height="30" fill="#3a3a4a" stroke="#111" stroke-width="2"/><rect x="-16" y="-6" width="20" height="6" fill="#111"/><rect x="0" y="-6" width="22" height="6" fill="#111"/><rect x="-19" y="-76" width="37" height="42" fill="currentColor" stroke="#111" stroke-width="3"/><rect x="-19" y="-40" width="37" height="5" fill="#1a1a1a"/><rect x="-28" y="-72" width="10" height="28" fill="currentColor" stroke="#111" stroke-width="2"/><rect x="-28" y="-46" width="10" height="9" fill="#f1c27d" stroke="#111" stroke-width="1.5"/><rect x="6" y="-74" width="12" height="28" fill="currentColor" stroke="#111" stroke-width="2"/><rect x="6" y="-48" width="14" height="10" fill="#f1c27d" stroke="#111" stroke-width="1.5"/><rect x="-17" y="-104" width="33" height="30" fill="#f1c27d" stroke="#111" stroke-width="3"/><rect x="16" y="-92" width="5" height="8" fill="#f1c27d" stroke="#111" stroke-width="2"/><rect x="-6" y="-95" width="5" height="6" fill="#111"/><rect x="5" y="-94" width="6" height="6" fill="#111"/><rect x="0" y="-80" width="13" height="3" fill="#7a3a2a"/><rect x="-18" y="-114" width="34" height="12" fill="#5a3a1a" stroke="#111" stroke-width="2"/></g>
+    <g id="citB_q"><rect x="-14" y="-36" width="12" height="30" fill="#f1c27d" stroke="#111" stroke-width="2"/><rect x="2" y="-36" width="12" height="30" fill="#f1c27d" stroke="#111" stroke-width="2"/><rect x="-16" y="-6" width="20" height="6" fill="#111"/><rect x="0" y="-6" width="22" height="6" fill="#111"/><rect x="-19" y="-76" width="37" height="42" fill="currentColor" stroke="#111" stroke-width="3"/><rect x="-19" y="-40" width="37" height="5" fill="#1a1a1a"/><rect x="-28" y="-72" width="10" height="28" fill="currentColor" stroke="#111" stroke-width="2"/><rect x="-28" y="-46" width="10" height="9" fill="#f1c27d" stroke="#111" stroke-width="1.5"/><rect x="6" y="-74" width="12" height="28" fill="currentColor" stroke="#111" stroke-width="2"/><rect x="6" y="-48" width="14" height="10" fill="#f1c27d" stroke="#111" stroke-width="1.5"/><rect x="-17" y="-104" width="33" height="30" fill="#f1c27d" stroke="#111" stroke-width="3"/><rect x="16" y="-92" width="5" height="8" fill="#f1c27d" stroke="#111" stroke-width="2"/><rect x="-6" y="-95" width="5" height="6" fill="#111"/><rect x="5" y="-94" width="6" height="6" fill="#111"/><rect x="0" y="-80" width="13" height="3" fill="#7a3a2a"/><rect x="-20" y="-112" width="16" height="42" fill="#7a3a1a" stroke="#111" stroke-width="2"/><rect x="-18" y="-114" width="34" height="12" fill="#7a3a1a" stroke="#111" stroke-width="2"/></g>
+    <g id="baker_q"><rect x="-14" y="-36" width="12" height="30" fill="#3a3a4a" stroke="#111" stroke-width="2"/><rect x="2" y="-36" width="12" height="30" fill="#3a3a4a" stroke="#111" stroke-width="2"/><rect x="-16" y="-6" width="20" height="6" fill="#111"/><rect x="0" y="-6" width="22" height="6" fill="#111"/><rect x="-19" y="-76" width="37" height="42" fill="currentColor" stroke="#111" stroke-width="3"/><rect x="-12" y="-70" width="24" height="36" fill="#fff" stroke="#111" stroke-width="2"/><rect x="-19" y="-40" width="37" height="5" fill="#1a1a1a"/><rect x="-28" y="-72" width="10" height="28" fill="currentColor" stroke="#111" stroke-width="2"/><rect x="-28" y="-46" width="10" height="9" fill="#f1c27d" stroke="#111" stroke-width="1.5"/><rect x="6" y="-74" width="12" height="28" fill="currentColor" stroke="#111" stroke-width="2"/><rect x="6" y="-48" width="14" height="10" fill="#f1c27d" stroke="#111" stroke-width="1.5"/><rect x="-17" y="-104" width="33" height="30" fill="#f1c27d" stroke="#111" stroke-width="3"/><rect x="16" y="-92" width="5" height="8" fill="#f1c27d" stroke="#111" stroke-width="2"/><rect x="-6" y="-95" width="5" height="6" fill="#111"/><rect x="5" y="-94" width="6" height="6" fill="#111"/><rect x="0" y="-80" width="13" height="3" fill="#7a3a2a"/><rect x="-16" y="-136" width="30" height="32" fill="#fff" stroke="#111" stroke-width="2.5"/><rect x="-18" y="-108" width="34" height="8" fill="#f4f1e8" stroke="#111" stroke-width="2"/></g>
+    <g id="chief_q"><g transform="scale(2.2666666666666666)"><rect x="-14" y="-36" width="12" height="30" fill="#1a2f66" stroke="#111" stroke-width="2"/><rect x="2" y="-36" width="12" height="30" fill="#1a2f66" stroke="#111" stroke-width="2"/><rect x="-16" y="-6" width="20" height="6" fill="#111"/><rect x="0" y="-6" width="22" height="6" fill="#111"/><rect x="-19" y="-76" width="37" height="42" fill="#2f5aa8" stroke="#111" stroke-width="3"/><rect x="-19" y="-40" width="37" height="5" fill="#1a1a1a"/><rect x="-28" y="-72" width="10" height="28" fill="#2f5aa8" stroke="#111" stroke-width="2"/><rect x="-28" y="-46" width="10" height="9" fill="#f1c27d" stroke="#111" stroke-width="1.5"/><rect x="6" y="-74" width="12" height="28" fill="#2f5aa8" stroke="#111" stroke-width="2"/><rect x="6" y="-48" width="14" height="10" fill="#f1c27d" stroke="#111" stroke-width="1.5"/><rect x="-4" y="-66" width="10" height="10" fill="#ffd34e" stroke="#7a4a00" stroke-width="1.5"/><rect x="-17" y="-104" width="33" height="30" fill="#f1c27d" stroke="#111" stroke-width="3"/><rect x="16" y="-92" width="5" height="8" fill="#f1c27d" stroke="#111" stroke-width="2"/><rect x="-6" y="-95" width="5" height="6" fill="#111"/><rect x="5" y="-94" width="6" height="6" fill="#111"/><rect x="0" y="-80" width="13" height="3" fill="#7a3a2a"/><rect x="-18" y="-118" width="34" height="14" fill="#1a2f66" stroke="#111" stroke-width="2.5"/><rect x="10" y="-108" width="16" height="5" fill="#111"/><rect x="-6" y="-114" width="10" height="7" fill="#ffd34e"/></g></g>
+    <g id="general_q"><g transform="scale(2.338709677419355)"><rect x="-14" y="-36" width="12" height="30" fill="#3a4a26" stroke="#111" stroke-width="2"/><rect x="2" y="-36" width="12" height="30" fill="#3a4a26" stroke="#111" stroke-width="2"/><rect x="-16" y="-6" width="20" height="6" fill="#111"/><rect x="0" y="-6" width="22" height="6" fill="#111"/><rect x="-19" y="-76" width="37" height="42" fill="#4b6238" stroke="#111" stroke-width="3"/><rect x="-19" y="-40" width="37" height="5" fill="#1a1a1a"/><rect x="-28" y="-72" width="10" height="28" fill="#4b6238" stroke="#111" stroke-width="2"/><rect x="-28" y="-46" width="10" height="9" fill="#c68642" stroke="#111" stroke-width="1.5"/><rect x="6" y="-74" width="12" height="28" fill="#4b6238" stroke="#111" stroke-width="2"/><rect x="6" y="-48" width="14" height="10" fill="#c68642" stroke="#111" stroke-width="1.5"/><rect x="-10" y="-70" width="6" height="6" fill="#ffd34e"/><rect x="0" y="-70" width="6" height="6" fill="#ffd34e"/><rect x="-10" y="-60" width="6" height="6" fill="#ffd34e"/><rect x="-17" y="-104" width="33" height="30" fill="#c68642" stroke="#111" stroke-width="3"/><rect x="16" y="-92" width="5" height="8" fill="#c68642" stroke="#111" stroke-width="2"/><rect x="-6" y="-95" width="5" height="6" fill="#111"/><rect x="5" y="-94" width="6" height="6" fill="#111"/><rect x="0" y="-80" width="13" height="3" fill="#7a3a2a"/><rect x="-18" y="-124" width="34" height="22" fill="#4b6238" stroke="#101808" stroke-width="3"/><rect x="-18" y="-104" width="38" height="5" fill="#2c3a22"/><rect x="-4" y="-118" width="8" height="8" fill="#ffd34e"/></g></g>
+    <g id="prof_q"><g transform="scale(2.2033898305084745)"><rect x="-14" y="-36" width="12" height="30" fill="#4a3a2a" stroke="#111" stroke-width="2"/><rect x="2" y="-36" width="12" height="30" fill="#4a3a2a" stroke="#111" stroke-width="2"/><rect x="-16" y="-6" width="20" height="6" fill="#111"/><rect x="0" y="-6" width="22" height="6" fill="#111"/><rect x="-19" y="-76" width="37" height="42" fill="#f4f1e8" stroke="#111" stroke-width="3"/><rect x="-19" y="-40" width="37" height="5" fill="#1a1a1a"/><rect x="-28" y="-72" width="10" height="28" fill="#f4f1e8" stroke="#111" stroke-width="2"/><rect x="-28" y="-46" width="10" height="9" fill="#f1c27d" stroke="#111" stroke-width="1.5"/><rect x="6" y="-74" width="12" height="28" fill="#f4f1e8" stroke="#111" stroke-width="2"/><rect x="6" y="-48" width="14" height="10" fill="#f1c27d" stroke="#111" stroke-width="1.5"/><rect x="-4" y="-76" width="8" height="12" fill="#b03030"/><rect x="-17" y="-104" width="33" height="30" fill="#f1c27d" stroke="#111" stroke-width="3"/><rect x="16" y="-92" width="5" height="8" fill="#f1c27d" stroke="#111" stroke-width="2"/><rect x="-6" y="-95" width="5" height="6" fill="#111"/><rect x="5" y="-94" width="6" height="6" fill="#111"/><rect x="0" y="-80" width="13" height="3" fill="#7a3a2a"/><rect x="-18" y="-116" width="34" height="14" fill="#e8e8e8" stroke="#111" stroke-width="2.5"/><rect x="-18" y="-104" width="10" height="22" fill="#e8e8e8"/></g></g>
+      <g id="worker_q"><rect x="-14" y="-36" width="12" height="30" fill="#3a3a4a" stroke="#111" stroke-width="2"/><rect x="2" y="-36" width="12" height="30" fill="#3a3a4a" stroke="#111" stroke-width="2"/><rect x="-16" y="-6" width="20" height="6" fill="#111"/><rect x="0" y="-6" width="22" height="6" fill="#111"/><rect x="-19" y="-76" width="37" height="42" fill="currentColor" stroke="#111" stroke-width="3"/><rect x="-19" y="-40" width="37" height="5" fill="#1a1a1a"/><rect x="-28" y="-72" width="10" height="28" fill="currentColor" stroke="#111" stroke-width="2"/><rect x="-28" y="-46" width="10" height="9" fill="#f1c27d" stroke="#111" stroke-width="1.5"/><rect x="6" y="-74" width="12" height="28" fill="currentColor" stroke="#111" stroke-width="2"/><rect x="6" y="-48" width="14" height="10" fill="#f1c27d" stroke="#111" stroke-width="1.5"/><rect x="-17" y="-104" width="33" height="30" fill="#f1c27d" stroke="#111" stroke-width="3"/><rect x="16" y="-92" width="5" height="8" fill="#f1c27d" stroke="#111" stroke-width="2"/><rect x="-6" y="-95" width="5" height="6" fill="#111"/><rect x="5" y="-94" width="6" height="6" fill="#111"/><rect x="0" y="-80" width="13" height="3" fill="#7a3a2a"/><rect x="-19" y="-120" width="36" height="16" fill="#ffd34e" stroke="#7a4a00" stroke-width="2.5"/><rect x="-22" y="-106" width="44" height="5" fill="#ffd34e" stroke="#7a4a00" stroke-width="2"/></g>
+  <g id="emo_anger"><g fill="none" stroke-linecap="round"><g stroke="#111" stroke-width="8"><path d="M-11,-3 Q-4,-3 -4,-11"/><path d="M11,-3 Q4,-3 4,-11"/><path d="M-11,3 Q-4,3 -4,11"/><path d="M11,3 Q4,3 4,11"/></g><g stroke="#e01e1e" stroke-width="4.5"><path d="M-11,-3 Q-4,-3 -4,-11"/><path d="M11,-3 Q4,-3 4,-11"/><path d="M-11,3 Q-4,3 -4,11"/><path d="M11,3 Q4,3 4,11"/></g></g></g>
+<g id="emo_sweat"><path d="M0,-12 Q9,2 0,10 Q-9,2 0,-12 Z" fill="#7fd4ff" stroke="#111" stroke-width="3"/><path d="M-2,-2 Q0,3 -3,5" fill="none" stroke="#fff" stroke-width="2"/></g>
+<g id="emo_tear"><path d="M0,-10 Q8,2 0,10 Q-8,2 0,-10 Z" fill="#4aa8ff" stroke="#111" stroke-width="3"/><path d="M0,10 L0,18" stroke="#4aa8ff" stroke-width="3"/></g>
+<g id="emo_spark"><polygon points="0,-12 3,-3 12,0 3,3 0,12 -3,3 -12,0 -3,-3" fill="#ffe94a" stroke="#111" stroke-width="2.5"/></g>
+
+    <filter id="sepia"><feColorMatrix type="matrix" values="0.55 0.45 0.1 0 0.05  0.4 0.4 0.1 0 0.02  0.25 0.3 0.1 0 0  0 0 0 1 0"/></filter>
+    <filter id="frozen"><feColorMatrix type="matrix" values="0.35 0.3 0.1 0 0  0.4 0.5 0.2 0 0.05  0.55 0.7 0.95 0 0.12  0 0 0 1 0"/></filter>
+    <!-- PROFESSOR TOCK: an old human inventor (not a robot) -->
+    <g id="prof">
+      <rect x="-28" y="-70" width="24" height="70" fill="#4a3a2a" stroke="#111" stroke-width="3"/><rect x="4" y="-70" width="24" height="70" fill="#4a3a2a" stroke="#111" stroke-width="3"/>
+      <rect x="-36" y="-14" width="34" height="14" fill="#2a1a0a"/><rect x="2" y="-14" width="34" height="14" fill="#2a1a0a"/>
+      <rect x="-50" y="-172" width="100" height="118" fill="#f4f1e8" stroke="#111" stroke-width="4"/>
+      <rect x="-50" y="-100" width="100" height="6" fill="#d8d4c4"/><rect x="22" y="-146" width="20" height="18" fill="#e8e4d4" stroke="#111" stroke-width="2"/>
+      <rect x="-8" y="-172" width="16" height="30" fill="#b03030" stroke="#111" stroke-width="2"/>
+      <line x1="-50" y1="-150" x2="-86" y2="-112" stroke="#111" stroke-width="22"/><line x1="-50" y1="-150" x2="-86" y2="-112" stroke="#f4f1e8" stroke-width="16"/>
+      <rect x="-98" y="-124" width="20" height="20" fill="#f1c27d" stroke="#111" stroke-width="3"/>
+      <line x1="50" y1="-150" x2="88" y2="-186" stroke="#111" stroke-width="22"/><line x1="50" y1="-150" x2="88" y2="-186" stroke="#f4f1e8" stroke-width="16"/>
+      <rect x="78" y="-208" width="20" height="20" fill="#f1c27d" stroke="#111" stroke-width="3"/>
+      <rect x="-12" y="-186" width="24" height="14" fill="#f1c27d" stroke="#111" stroke-width="2"/>
+      <rect x="-36" y="-250" width="72" height="66" fill="#f1c27d" stroke="#111" stroke-width="4"/>
+      <rect x="-44" y="-258" width="88" height="22" fill="#e8e8e8" stroke="#111" stroke-width="3"/><rect x="-52" y="-246" width="14" height="40" fill="#e8e8e8" stroke="#111" stroke-width="3"/><rect x="38" y="-246" width="14" height="40" fill="#e8e8e8" stroke="#111" stroke-width="3"/>
+      <rect x="-30" y="-232" width="24" height="20" fill="#fff" stroke="#111" stroke-width="3"/><rect x="6" y="-232" width="24" height="20" fill="#fff" stroke="#111" stroke-width="3"/>
+      <rect x="-22" y="-226" width="9" height="9" fill="#1a1a1a"/><rect x="14" y="-226" width="9" height="9" fill="#1a1a1a"/><rect x="-6" y="-226" width="12" height="3" fill="#111"/>
+      <rect x="-26" y="-204" width="52" height="8" fill="#e8e8e8"/><rect x="-10" y="-194" width="20" height="4" fill="#8a3a2a"/>
+    </g>
+
+    <!-- CITIZENS (regular people, shirt colour set with style="color:#...") -->
+    <g id="citA">
+      <rect x="-14" y="-36" width="12" height="30" fill="#3a3a4a" stroke="#111" stroke-width="2"/><rect x="2" y="-36" width="12" height="30" fill="#3a3a4a" stroke="#111" stroke-width="2"/>
+      <rect x="-18" y="-6" width="16" height="6" fill="#222"/><rect x="2" y="-6" width="16" height="6" fill="#222"/>
+      <rect x="-20" y="-76" width="40" height="42" fill="currentColor" stroke="#111" stroke-width="3"/>
+      <rect x="-30" y="-74" width="10" height="30" fill="currentColor" stroke="#111" stroke-width="2"/><rect x="20" y="-74" width="10" height="30" fill="currentColor" stroke="#111" stroke-width="2"/>
+      <rect x="-30" y="-44" width="10" height="9" fill="#f1c27d" stroke="#111" stroke-width="1.5"/><rect x="20" y="-44" width="10" height="9" fill="#f1c27d" stroke="#111" stroke-width="1.5"/>
+      <rect x="-16" y="-104" width="32" height="30" fill="#f1c27d" stroke="#111" stroke-width="3"/>
+      <rect x="-18" y="-112" width="36" height="12" fill="#5a3a1a" stroke="#111" stroke-width="2"/>
+      <rect x="-10" y="-92" width="6" height="6" fill="#111"/><rect x="4" y="-92" width="6" height="6" fill="#111"/><rect x="-6" y="-82" width="12" height="3" fill="#7a3a2a"/>
+    </g>
+    <g id="citB">
+      <rect x="-10" y="-30" width="8" height="24" fill="#f1c27d" stroke="#111" stroke-width="2"/><rect x="2" y="-30" width="8" height="24" fill="#f1c27d" stroke="#111" stroke-width="2"/>
+      <rect x="-14" y="-6" width="12" height="6" fill="#222"/><rect x="2" y="-6" width="12" height="6" fill="#222"/>
+      <polygon points="-18,-76 18,-76 26,-30 -26,-30" fill="currentColor" stroke="#111" stroke-width="3"/>
+      <rect x="-28" y="-74" width="10" height="28" fill="currentColor" stroke="#111" stroke-width="2"/><rect x="18" y="-74" width="10" height="28" fill="currentColor" stroke="#111" stroke-width="2"/>
+      <rect x="-28" y="-46" width="10" height="9" fill="#f1c27d" stroke="#111" stroke-width="1.5"/><rect x="18" y="-46" width="10" height="9" fill="#f1c27d" stroke="#111" stroke-width="1.5"/>
+      <rect x="-20" y="-112" width="40" height="40" fill="#7a3a1a" stroke="#111" stroke-width="2"/>
+      <rect x="-16" y="-104" width="32" height="30" fill="#f1c27d" stroke="#111" stroke-width="3"/>
+      <rect x="-14" y="-108" width="28" height="8" fill="#7a3a1a"/><rect x="8" y="-116" width="12" height="10" fill="#d83a6a" stroke="#111" stroke-width="2"/>
+      <rect x="-10" y="-92" width="6" height="6" fill="#111"/><rect x="4" y="-92" width="6" height="6" fill="#111"/><rect x="-6" y="-82" width="12" height="3" fill="#b03a4a"/>
+    </g>
+    <g id="baker">
+      <rect x="-14" y="-36" width="12" height="30" fill="#3a3a4a" stroke="#111" stroke-width="2"/><rect x="2" y="-36" width="12" height="30" fill="#3a3a4a" stroke="#111" stroke-width="2"/>
+      <rect x="-18" y="-6" width="16" height="6" fill="#222"/><rect x="2" y="-6" width="16" height="6" fill="#222"/>
+      <rect x="-20" y="-76" width="40" height="42" fill="currentColor" stroke="#111" stroke-width="3"/><rect x="-14" y="-70" width="28" height="36" fill="#fff" stroke="#111" stroke-width="2"/>
+      <rect x="-30" y="-74" width="10" height="30" fill="currentColor" stroke="#111" stroke-width="2"/><rect x="20" y="-74" width="10" height="30" fill="currentColor" stroke="#111" stroke-width="2"/>
+      <rect x="-30" y="-44" width="10" height="9" fill="#f1c27d" stroke="#111" stroke-width="1.5"/><rect x="20" y="-44" width="10" height="9" fill="#f1c27d" stroke="#111" stroke-width="1.5"/>
+      <rect x="-16" y="-104" width="32" height="30" fill="#f1c27d" stroke="#111" stroke-width="3"/>
+      <rect x="-18" y="-134" width="36" height="32" fill="#fff" stroke="#111" stroke-width="3"/><rect x="-22" y="-112" width="44" height="10" fill="#f4f1e8" stroke="#111" stroke-width="2"/>
+      <rect x="-10" y="-92" width="6" height="6" fill="#111"/><rect x="4" y="-92" width="6" height="6" fill="#111"/><rect x="-12" y="-84" width="24" height="5" fill="#4a2a0a"/>
+    </g>
+    <g id="loot"><rect x="-22" y="-44" width="44" height="44" fill="#8a6a3a" stroke="#3a2410" stroke-width="3"/><rect x="-22" y="-52" width="44" height="12" fill="#6a4a22" stroke="#3a2410" stroke-width="3"/><text x="0" y="-14" text-anchor="middle" font-family="Impact,'Arial Black',sans-serif" font-size="14" fill="#ffe94a">LOOT</text></g>
+
+    <!-- MEGA TANK: much bigger than Cim's knees, built from the normal tank -->
+    <g id="megatank">
+      <g transform="scale(2.1)"><use href="#tank"/></g>
+      <rect x="150" y="-250" width="120" height="50" fill="#4b6238" stroke="#101808" stroke-width="5"/>
+      <rect x="270" y="-236" width="110" height="16" fill="#3a4c2a" stroke="#101808" stroke-width="4"/><rect x="374" y="-242" width="22" height="28" fill="#101808"/>
+      <rect x="40" y="-200" width="70" height="30" fill="#2c3a22" stroke="#101808" stroke-width="4"/>
+      <polygon points="212,-150 220,-132 240,-130 224,-118 230,-98 212,-108 194,-98 200,-118 184,-130 204,-132" fill="#c4122f"/>
+    </g>
+    <g id="cart"><rect x="0" y="-34" width="46" height="26" fill="none" stroke="#c9d3dd" stroke-width="3"/><g stroke="#c9d3dd" stroke-width="2"><line x1="12" y1="-34" x2="12" y2="-8"/><line x1="24" y1="-34" x2="24" y2="-8"/><line x1="36" y1="-34" x2="36" y2="-8"/></g><line x1="46" y1="-34" x2="56" y2="-44" stroke="#c9d3dd" stroke-width="3"/><rect x="6" y="-6" width="8" height="6" fill="#222"/><rect x="34" y="-6" width="8" height="6" fill="#222"/></g>
+
+    <!-- FIGHTER JET facing right (sharp squares and wedges) -->
+    <g id="jet">
+      <polygon points="-70,-8 -96,0 -70,8" fill="#ff9a3a"/><polygon points="-70,-4 -84,0 -70,4" fill="#ffe94a"/>
+      <polygon points="-62,-8 -78,-34 -48,-8" fill="#4a525c" stroke="#111" stroke-width="2.5"/>
+      <polygon points="-14,8 -52,34 -26,34 24,8" fill="#4a525c" stroke="#111" stroke-width="2.5"/>
+      <rect x="-64" y="-9" width="118" height="18" fill="#6a737e" stroke="#111" stroke-width="3"/>
+      <polygon points="54,-9 84,0 54,9" fill="#9aa5b1" stroke="#111" stroke-width="3"/>
+      <rect x="18" y="-17" width="26" height="9" fill="#7fe0ff" stroke="#111" stroke-width="2.5"/>
+      <rect x="-40" y="-9" width="18" height="18" fill="#4b6238"/><rect x="-10" y="-9" width="14" height="18" fill="#3a4c2a"/>
+      <polygon points="-24,0 -21,6 -15,8 -21,10 -24,16 -27,10 -33,8 -27,6" fill="#fff" transform="translate(0,-8) scale(0.8)"/>
+      <rect x="-6" y="10" width="26" height="5" fill="#2c3a22" stroke="#111" stroke-width="1.5"/><polygon points="20,10 30,12.5 20,15" fill="#c4122f"/>
+    </g>
+
+    <g id="guard">
+      <rect x="-14" y="-36" width="12" height="30" fill="#1a1a20" stroke="#111" stroke-width="2"/><rect x="2" y="-36" width="12" height="30" fill="#1a1a20" stroke="#111" stroke-width="2"/>
+      <rect x="-18" y="-6" width="16" height="6" fill="#111"/><rect x="2" y="-6" width="16" height="6" fill="#111"/>
+      <rect x="-20" y="-72" width="40" height="40" fill="#2a2a30" stroke="#111" stroke-width="3"/><rect x="-20" y="-40" width="40" height="5" fill="#111"/><rect x="-6" y="-66" width="12" height="9" fill="#c9d3dd" stroke="#111" stroke-width="1.5"/>
+      <rect x="-30" y="-70" width="10" height="26" fill="#2a2a30" stroke="#111" stroke-width="2"/><rect x="20" y="-70" width="10" height="26" fill="#2a2a30" stroke="#111" stroke-width="2"/>
+      <rect x="-30" y="-44" width="10" height="9" fill="#f1c27d" stroke="#111" stroke-width="1.5"/><rect x="20" y="-44" width="10" height="9" fill="#f1c27d" stroke="#111" stroke-width="1.5"/>
+      <rect x="-16" y="-104" width="32" height="30" fill="#f1c27d" stroke="#111" stroke-width="3"/>
+      <rect x="-22" y="-116" width="44" height="16" fill="#3a3a44" stroke="#111" stroke-width="3"/><rect x="-26" y="-102" width="52" height="5" fill="#111"/>
+      <rect x="-10" y="-92" width="6" height="6" fill="#111"/><rect x="4" y="-92" width="6" height="6" fill="#111"/><rect x="-6" y="-80" width="12" height="3" fill="#7a3a2a"/>
+    </g>
+
+    <g id="worker">
+      <rect x="-14" y="-36" width="12" height="30" fill="#3a3a4a" stroke="#111" stroke-width="2"/><rect x="2" y="-36" width="12" height="30" fill="#3a3a4a" stroke="#111" stroke-width="2"/>
+      <rect x="-18" y="-6" width="16" height="6" fill="#5a3a1a"/><rect x="2" y="-6" width="16" height="6" fill="#5a3a1a"/>
+      <rect x="-20" y="-76" width="40" height="42" fill="currentColor" stroke="#111" stroke-width="3"/><rect x="-20" y="-60" width="40" height="5" fill="#fff6a8"/><rect x="-20" y="-46" width="40" height="5" fill="#fff6a8"/>
+      <rect x="-30" y="-74" width="10" height="30" fill="currentColor" stroke="#111" stroke-width="2"/><rect x="20" y="-74" width="10" height="30" fill="currentColor" stroke="#111" stroke-width="2"/>
+      <rect x="-30" y="-44" width="10" height="9" fill="#f1c27d" stroke="#111" stroke-width="1.5"/><rect x="20" y="-44" width="10" height="9" fill="#f1c27d" stroke="#111" stroke-width="1.5"/>
+      <rect x="-16" y="-104" width="32" height="30" fill="#f1c27d" stroke="#111" stroke-width="3"/>
+      <rect x="-19" y="-120" width="38" height="16" fill="#ffd34e" stroke="#7a4a00" stroke-width="2.5"/><rect x="-23" y="-106" width="46" height="5" fill="#ffd34e" stroke="#7a4a00" stroke-width="2"/>
+      <rect x="-10" y="-92" width="6" height="6" fill="#111"/><rect x="4" y="-92" width="6" height="6" fill="#111"/><rect x="-6" y="-82" width="12" height="3" fill="#7a3a2a"/>
+    </g>
+
+    <g id="rocket">
+      <polygon points="-34,-60 -70,10 -34,-10" fill="#c4122f" stroke="#111" stroke-width="3"/><polygon points="34,-60 70,10 34,-10" fill="#c4122f" stroke="#111" stroke-width="3"/>
+      <rect x="-34" y="-320" width="68" height="300" fill="#f4f4f8" stroke="#111" stroke-width="4"/>
+      <rect x="-34" y="-250" width="68" height="14" fill="#c4122f"/><rect x="-34" y="-110" width="68" height="14" fill="#c4122f"/>
+      <polygon points="-34,-320 0,-390 34,-320" fill="#c4122f" stroke="#111" stroke-width="4"/>
+      <rect x="-14" y="-300" width="28" height="28" fill="#7fe0ff" stroke="#111" stroke-width="4"/><rect x="-14" y="-200" width="28" height="28" fill="#7fe0ff" stroke="#111" stroke-width="4"/>
+      <text x="0" y="-150" text-anchor="middle" font-family="Impact,'Arial Black',sans-serif" font-size="16" fill="#111">ORION</text>
+      <rect x="-24" y="-20" width="48" height="20" fill="#5c6670" stroke="#111" stroke-width="3"/>
+    </g>
+
+    <g id="timepup">
+      <rect x="-30" y="-18" width="16" height="18" fill="#2a1a3a" stroke="#6a0a1c" stroke-width="3"/><rect x="14" y="-18" width="16" height="18" fill="#2a1a3a" stroke="#6a0a1c" stroke-width="3"/>
+      <rect x="-48" y="-124" width="96" height="108" fill="#14102a" stroke="#c4122f" stroke-width="5"/>
+      <rect x="-38" y="-114" width="76" height="88" fill="#241a4a" stroke="#6a0a1c" stroke-width="3"/>
+      <rect x="-3" y="-108" width="6" height="26" fill="#ff2a2a"/><rect x="-3" y="-86" width="22" height="6" fill="#ff2a2a"/><rect x="-6" y="-89" width="12" height="12" fill="#fff"/>
+      <rect x="-26" y="-60" width="16" height="16" fill="#ff3b3b" stroke="#fff" stroke-width="2"/><rect x="10" y="-60" width="16" height="16" fill="#ff3b3b" stroke="#fff" stroke-width="2"/>
+      <rect x="-14" y="-38" width="28" height="8" fill="#fff"/>
+      <rect x="-42" y="-136" width="14" height="14" fill="#c4122f" stroke="#6a0a1c" stroke-width="2"/><rect x="28" y="-136" width="14" height="14" fill="#c4122f" stroke="#6a0a1c" stroke-width="2"/>
+    </g>
+
+    <g id="cop">
+      <rect x="-14" y="-34" width="12" height="34" fill="#1a2f66" stroke="#111" stroke-width="2"/><rect x="2" y="-34" width="12" height="34" fill="#1a2f66" stroke="#111" stroke-width="2"/>
+      <rect x="-18" y="-6" width="16" height="6" fill="#111"/><rect x="2" y="-6" width="16" height="6" fill="#111"/>
+      <rect x="-20" y="-72" width="40" height="40" fill="#2f5aa8" stroke="#111" stroke-width="3"/>
+      <rect x="-30" y="-70" width="10" height="26" fill="#2f5aa8" stroke="#111" stroke-width="2"/><rect x="20" y="-70" width="10" height="26" fill="#2f5aa8" stroke="#111" stroke-width="2"/>
+      <rect x="-16" y="-104" width="32" height="30" fill="#f1c27d" stroke="#111" stroke-width="3"/>
+      <rect x="-22" y="-116" width="44" height="16" fill="#1a2f66" stroke="#111" stroke-width="3"/>
+      <rect x="-10" y="-92" width="6" height="6" fill="#111"/><rect x="4" y="-92" width="6" height="6" fill="#111"/>
+    </g>
+    
+<clipPath id="g1"><rect x="20" y="20" width="490" height="240"/></clipPath><clipPath id="g2"><rect x="530" y="20" width="250" height="240"/></clipPath><clipPath id="g3"><rect x="20" y="280" width="250" height="240"/></clipPath><clipPath id="g4"><rect x="290" y="280" width="490" height="240"/></clipPath><clipPath id="g5"><rect x="20" y="540" width="760" height="220"/></clipPath><clipPath id="g6"><rect x="20" y="780" width="370" height="230"/></clipPath><clipPath id="g7"><rect x="410" y="780" width="370" height="230"/></clipPath><clipPath id="g8"><rect x="20" y="1030" width="760" height="350"/></clipPath></defs>
+  <rect width="800" height="1410" fill="#faf3dc"/>
+  <!-- PANEL 1 -->
+  <g clip-path="url(#g1)"><rect x="20" y="20" width="490" height="240" fill="#2a2230"/><rect x="20" y="212.0" width="490" height="48.0" fill="#3a2e3e"/><rect x="49.4" y="39.2" width="24" height="172.79999999999998" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="61" cy="80" r="12" fill="#ff7a1e"/></g><circle cx="61" cy="80" r="5" fill="#ffe94a"/><rect x="157.20000000000002" y="39.2" width="24" height="172.79999999999998" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="169" cy="80" r="12" fill="#ff7a1e"/></g><circle cx="169" cy="80" r="5" fill="#ffe94a"/><rect x="265.0" y="39.2" width="24" height="172.79999999999998" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="277" cy="80" r="12" fill="#ff7a1e"/></g><circle cx="277" cy="80" r="5" fill="#ffe94a"/><rect x="372.8" y="39.2" width="24" height="172.79999999999998" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="385" cy="80" r="12" fill="#ff7a1e"/></g><circle cx="385" cy="80" r="5" fill="#ffe94a"/><rect x="480.59999999999997" y="39.2" width="24" height="172.79999999999998" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="493" cy="80" r="12" fill="#ff7a1e"/></g><circle cx="493" cy="80" r="5" fill="#ffe94a"/><circle cx="103" cy="188" r="19" fill="#111" stroke="#ffd34e" stroke-width="2.3"/><circle cx="103" cy="188" r="15" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="103" y="194" text-anchor="middle" font-family="Impact,sans-serif" font-size="18" fill="#ffd34e">SIP</text><circle cx="211" cy="188" r="19" fill="#111" stroke="#ffd34e" stroke-width="2.3"/><circle cx="211" cy="188" r="15" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="211" y="194" text-anchor="middle" font-family="Impact,sans-serif" font-size="18" fill="#ffd34e">SIP</text><circle cx="319" cy="188" r="19" fill="#111" stroke="#ffd34e" stroke-width="2.3"/><circle cx="319" cy="188" r="15" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="319" y="194" text-anchor="middle" font-family="Impact,sans-serif" font-size="18" fill="#ffd34e">SIP</text><circle cx="427" cy="188" r="19" fill="#111" stroke="#ffd34e" stroke-width="2.3"/><circle cx="427" cy="188" r="15" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="427" y="194" text-anchor="middle" font-family="Impact,sans-serif" font-size="18" fill="#ffd34e">SIP</text><rect x="20" y="226.4" width="490" height="6" fill="#c4122f"/><use href="#general_q" transform="translate(167,254) scale(0.414,0.414)"/><use href="#chief" transform="translate(363,254) scale(0.441)"/></g>
+  <rect x="20" y="20" width="490" height="240" fill="none" stroke="#111" stroke-width="5"/>
+  <g clip-path="url(#g1)"><g><polygon points="156.0,135.0 178.0,135.0 167,150" fill="#fff" stroke="#111" stroke-width="3" stroke-linejoin="round"/><rect x="86" y="84" width="161.1" height="52" rx="16" fill="#fff" stroke="#111" stroke-width="3"/><rect x="158.5" y="132.0" width="17" height="7" fill="#fff"/><text text-anchor="middle" font-family="'Comic Sans MS','Segoe Print','Segoe UI',sans-serif" font-size="13" font-weight="bold" fill="#111"><tspan x="166.6" y="106.0">The throne room!</tspan><tspan x="166.6" y="124.0">There they are!</tspan></text></g><rect x="26" y="26" width="144.7" height="26.0" fill="#ffe94a" stroke="#111" stroke-width="3"/><text font-family="'Comic Sans MS','Segoe Print','Segoe UI',sans-serif" font-size="11" font-weight="bold" font-style="italic" fill="#111"><tspan x="35" y="44.0">The throne room...</tspan></text></g>
+  <!-- PANEL 2 -->
+  <g clip-path="url(#g2)"><rect x="530" y="20" width="250" height="240" fill="#2a2230"/><rect x="530" y="212.0" width="250" height="48.0" fill="#3a2e3e"/><rect x="545.0" y="39.2" width="24" height="172.79999999999998" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="557" cy="80" r="12" fill="#ff7a1e"/></g><circle cx="557" cy="80" r="5" fill="#ffe94a"/><rect x="600.0" y="39.2" width="24" height="172.79999999999998" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="612" cy="80" r="12" fill="#ff7a1e"/></g><circle cx="612" cy="80" r="5" fill="#ffe94a"/><rect x="655.0" y="39.2" width="24" height="172.79999999999998" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="667" cy="80" r="12" fill="#ff7a1e"/></g><circle cx="667" cy="80" r="5" fill="#ffe94a"/><rect x="710.0" y="39.2" width="24" height="172.79999999999998" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="722" cy="80" r="12" fill="#ff7a1e"/></g><circle cx="722" cy="80" r="5" fill="#ffe94a"/><rect x="765.0" y="39.2" width="24" height="172.79999999999998" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="777" cy="80" r="12" fill="#ff7a1e"/></g><circle cx="777" cy="80" r="5" fill="#ffe94a"/><circle cx="572" cy="188" r="19" fill="#111" stroke="#ffd34e" stroke-width="2.3"/><circle cx="572" cy="188" r="15" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="572" y="194" text-anchor="middle" font-family="Impact,sans-serif" font-size="18" fill="#ffd34e">SIP</text><circle cx="628" cy="188" r="19" fill="#111" stroke="#ffd34e" stroke-width="2.3"/><circle cx="628" cy="188" r="15" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="628" y="194" text-anchor="middle" font-family="Impact,sans-serif" font-size="18" fill="#ffd34e">SIP</text><circle cx="682" cy="188" r="19" fill="#111" stroke="#ffd34e" stroke-width="2.3"/><circle cx="682" cy="188" r="15" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="682" y="194" text-anchor="middle" font-family="Impact,sans-serif" font-size="18" fill="#ffd34e">SIP</text><circle cx="738" cy="188" r="19" fill="#111" stroke="#ffd34e" stroke-width="2.3"/><circle cx="738" cy="188" r="15" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="738" y="194" text-anchor="middle" font-family="Impact,sans-serif" font-size="18" fill="#ffd34e">SIP</text><rect x="530" y="226.4" width="250" height="6" fill="#c4122f"/><use href="#crime_q" transform="translate(605.0,254) scale(-0.363,0.363)"/></g>
+  <rect x="530" y="20" width="250" height="240" fill="none" stroke="#111" stroke-width="5"/>
+  <g clip-path="url(#g2)"><g><polygon points="594.0,77.0 616.0,77.0 605,145" fill="#fff" stroke="#111" stroke-width="3" stroke-linejoin="round"/><rect x="536" y="26" width="161.1" height="52" rx="16" fill="#fff" stroke="#111" stroke-width="3"/><rect x="596.5" y="74.0" width="17" height="7" fill="#fff"/><text text-anchor="middle" font-family="'Comic Sans MS','Segoe Print','Segoe UI',sans-serif" font-size="13" font-weight="bold" fill="#111"><tspan x="616.6" y="48.0">General. Chief.</tspan><tspan x="616.6" y="66.0">You win. Almost.</tspan></text></g></g>
+  <!-- PANEL 3 -->
+  <g clip-path="url(#g3)"><rect x="20" y="280" width="250" height="240" fill="#2a2230"/><rect x="20" y="472.0" width="250" height="48.0" fill="#3a2e3e"/><rect x="35.0" y="299.2" width="24" height="172.79999999999998" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="47" cy="340" r="12" fill="#ff7a1e"/></g><circle cx="47" cy="340" r="5" fill="#ffe94a"/><rect x="90.0" y="299.2" width="24" height="172.79999999999998" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="102" cy="340" r="12" fill="#ff7a1e"/></g><circle cx="102" cy="340" r="5" fill="#ffe94a"/><rect x="145.0" y="299.2" width="24" height="172.79999999999998" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="157" cy="340" r="12" fill="#ff7a1e"/></g><circle cx="157" cy="340" r="5" fill="#ffe94a"/><rect x="200.0" y="299.2" width="24" height="172.79999999999998" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="212" cy="340" r="12" fill="#ff7a1e"/></g><circle cx="212" cy="340" r="5" fill="#ffe94a"/><rect x="255.0" y="299.2" width="24" height="172.79999999999998" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="267" cy="340" r="12" fill="#ff7a1e"/></g><circle cx="267" cy="340" r="5" fill="#ffe94a"/><circle cx="62" cy="448" r="19" fill="#111" stroke="#ffd34e" stroke-width="2.3"/><circle cx="62" cy="448" r="15" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="62" y="454" text-anchor="middle" font-family="Impact,sans-serif" font-size="18" fill="#ffd34e">SIP</text><circle cx="118" cy="448" r="19" fill="#111" stroke="#ffd34e" stroke-width="2.3"/><circle cx="118" cy="448" r="15" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="118" y="454" text-anchor="middle" font-family="Impact,sans-serif" font-size="18" fill="#ffd34e">SIP</text><circle cx="172" cy="448" r="19" fill="#111" stroke="#ffd34e" stroke-width="2.3"/><circle cx="172" cy="448" r="15" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="172" y="454" text-anchor="middle" font-family="Impact,sans-serif" font-size="18" fill="#ffd34e">SIP</text><circle cx="228" cy="448" r="19" fill="#111" stroke="#ffd34e" stroke-width="2.3"/><circle cx="228" cy="448" r="15" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="228" y="454" text-anchor="middle" font-family="Impact,sans-serif" font-size="18" fill="#ffd34e">SIP</text><rect x="20" y="486.4" width="250" height="6" fill="#c4122f"/><use href="#general_q" transform="translate(145,514) scale(0.414,0.414)"/></g>
+  <rect x="20" y="280" width="250" height="240" fill="none" stroke="#111" stroke-width="5"/>
+  <g clip-path="url(#g3)"><g><polygon points="134.0,337.0 156.0,337.0 145,410" fill="#fff" stroke="#111" stroke-width="3" stroke-linejoin="round"/><rect x="77" y="286" width="136.2" height="52" rx="16" fill="#fff" stroke="#111" stroke-width="3"/><rect x="136.5" y="334.0" width="17" height="7" fill="#fff"/><text text-anchor="middle" font-family="'Comic Sans MS','Segoe Print','Segoe UI',sans-serif" font-size="13" font-weight="bold" fill="#111"><tspan x="145.1" y="308.0">Your fortress</tspan><tspan x="145.1" y="326.0">has fallen.</tspan></text></g></g>
+  <!-- PANEL 4 -->
+  <g clip-path="url(#g4)"><rect x="290" y="280" width="490" height="240" fill="#2a2230"/><rect x="290" y="472.0" width="490" height="48.0" fill="#3a2e3e"/><rect x="319.4" y="299.2" width="24" height="172.79999999999998" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="331" cy="340" r="12" fill="#ff7a1e"/></g><circle cx="331" cy="340" r="5" fill="#ffe94a"/><rect x="427.20000000000005" y="299.2" width="24" height="172.79999999999998" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="439" cy="340" r="12" fill="#ff7a1e"/></g><circle cx="439" cy="340" r="5" fill="#ffe94a"/><rect x="535.0" y="299.2" width="24" height="172.79999999999998" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="547" cy="340" r="12" fill="#ff7a1e"/></g><circle cx="547" cy="340" r="5" fill="#ffe94a"/><rect x="642.8" y="299.2" width="24" height="172.79999999999998" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="655" cy="340" r="12" fill="#ff7a1e"/></g><circle cx="655" cy="340" r="5" fill="#ffe94a"/><rect x="750.5999999999999" y="299.2" width="24" height="172.79999999999998" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="763" cy="340" r="12" fill="#ff7a1e"/></g><circle cx="763" cy="340" r="5" fill="#ffe94a"/><circle cx="373" cy="448" r="19" fill="#111" stroke="#ffd34e" stroke-width="2.3"/><circle cx="373" cy="448" r="15" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="373" y="454" text-anchor="middle" font-family="Impact,sans-serif" font-size="18" fill="#ffd34e">SIP</text><circle cx="481" cy="448" r="19" fill="#111" stroke="#ffd34e" stroke-width="2.3"/><circle cx="481" cy="448" r="15" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="481" y="454" text-anchor="middle" font-family="Impact,sans-serif" font-size="18" fill="#ffd34e">SIP</text><circle cx="589" cy="448" r="19" fill="#111" stroke="#ffd34e" stroke-width="2.3"/><circle cx="589" cy="448" r="15" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="589" y="454" text-anchor="middle" font-family="Impact,sans-serif" font-size="18" fill="#ffd34e">SIP</text><circle cx="697" cy="448" r="19" fill="#111" stroke="#ffd34e" stroke-width="2.3"/><circle cx="697" cy="448" r="15" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="697" y="454" text-anchor="middle" font-family="Impact,sans-serif" font-size="18" fill="#ffd34e">SIP</text><rect x="290" y="486.4" width="490" height="6" fill="#c4122f"/><use href="#crime_q" transform="translate(437.0,514) scale(-0.363,0.363)"/></g>
+  <rect x="290" y="280" width="490" height="240" fill="none" stroke="#111" stroke-width="5"/>
+  <g clip-path="url(#g4)"><g><polygon points="426.0,319.0 448.0,319.0 437,405" fill="#fff" stroke="#111" stroke-width="3" stroke-linejoin="round"/><rect x="352" y="286" width="169.4" height="34" rx="16" fill="#fff" stroke="#111" stroke-width="3"/><rect x="428.5" y="316.0" width="17" height="7" fill="#fff"/><text text-anchor="middle" font-family="'Comic Sans MS','Segoe Print','Segoe UI',sans-serif" font-size="13" font-weight="bold" fill="#111"><tspan x="436.7" y="308.0">Has it? Enjoy it.</tspan></text></g></g>
+  <!-- PANEL 5 -->
+  <g clip-path="url(#g5)"><rect x="20" y="540" width="760" height="220" fill="#2a2230"/><rect x="20" y="716.0" width="760" height="44.0" fill="#3a2e3e"/><rect x="65.6" y="557.6" width="24" height="158.4" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="78" cy="595" r="12" fill="#ff7a1e"/></g><circle cx="78" cy="595" r="5" fill="#ffe94a"/><rect x="232.8" y="557.6" width="24" height="158.4" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="245" cy="595" r="12" fill="#ff7a1e"/></g><circle cx="245" cy="595" r="5" fill="#ffe94a"/><rect x="400.0" y="557.6" width="24" height="158.4" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="412" cy="595" r="12" fill="#ff7a1e"/></g><circle cx="412" cy="595" r="5" fill="#ffe94a"/><rect x="567.1999999999999" y="557.6" width="24" height="158.4" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="579" cy="595" r="12" fill="#ff7a1e"/></g><circle cx="579" cy="595" r="5" fill="#ffe94a"/><rect x="734.4" y="557.6" width="24" height="158.4" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="746" cy="595" r="12" fill="#ff7a1e"/></g><circle cx="746" cy="595" r="5" fill="#ffe94a"/><circle cx="149" cy="694" r="18" fill="#111" stroke="#ffd34e" stroke-width="2.1"/><circle cx="149" cy="694" r="14" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="149" y="699" text-anchor="middle" font-family="Impact,sans-serif" font-size="17" fill="#ffd34e">SIP</text><circle cx="316" cy="694" r="18" fill="#111" stroke="#ffd34e" stroke-width="2.1"/><circle cx="316" cy="694" r="14" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="316" y="699" text-anchor="middle" font-family="Impact,sans-serif" font-size="17" fill="#ffd34e">SIP</text><circle cx="484" cy="694" r="18" fill="#111" stroke="#ffd34e" stroke-width="2.1"/><circle cx="484" cy="694" r="14" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="484" y="699" text-anchor="middle" font-family="Impact,sans-serif" font-size="17" fill="#ffd34e">SIP</text><circle cx="651" cy="694" r="18" fill="#111" stroke="#ffd34e" stroke-width="2.1"/><circle cx="651" cy="694" r="14" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="651" y="699" text-anchor="middle" font-family="Impact,sans-serif" font-size="17" fill="#ffd34e">SIP</text><rect x="20" y="729.2" width="760" height="6" fill="#c4122f"/><g transform="translate(400,738) scale(2.0)"><rect x="-40" y="-30" width="80" height="30" fill="#4a4250" stroke="#111" stroke-width="4"/><circle cx="0" cy="-38" r="26" fill="#c4122f" stroke="#111" stroke-width="4"/><circle cx="-8" cy="-46" r="8" fill="#ff7a7a"/><rect x="-30" y="-66" width="60" height="6" fill="#ffd34e" stroke="#111" stroke-width="2"/></g></g>
+  <rect x="20" y="540" width="760" height="220" fill="none" stroke="#111" stroke-width="5"/>
+  <g clip-path="url(#g5)"><text x="400" y="735" text-anchor="middle" font-family="Impact,'Arial Black',sans-serif" font-size="44" fill="#ffe94a" stroke="#7a1010" stroke-width="8" paint-order="stroke" stroke-linejoin="miter" transform="rotate(-3 400 735)">A SECRET BUTTON</text><rect x="26" y="546" width="348.9" height="26.0" fill="#ffe94a" stroke="#111" stroke-width="3"/><text font-family="'Comic Sans MS','Segoe Print','Segoe UI',sans-serif" font-size="11" font-weight="bold" font-style="italic" fill="#111"><tspan x="35" y="564.0">Behind his cape, where the heroes cannot see...</tspan></text></g>
+  <!-- PANEL 6 -->
+  <g clip-path="url(#g6)"><rect x="20" y="780" width="370" height="230" fill="#2a2230"/><rect x="20" y="964.0" width="370" height="46.0" fill="#3a2e3e"/><rect x="42.2" y="798.4" width="24" height="165.6" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="54" cy="838" r="12" fill="#ff7a1e"/></g><circle cx="54" cy="838" r="5" fill="#ffe94a"/><rect x="123.60000000000001" y="798.4" width="24" height="165.6" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="136" cy="838" r="12" fill="#ff7a1e"/></g><circle cx="136" cy="838" r="5" fill="#ffe94a"/><rect x="205.0" y="798.4" width="24" height="165.6" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="217" cy="838" r="12" fill="#ff7a1e"/></g><circle cx="217" cy="838" r="5" fill="#ffe94a"/><rect x="286.4" y="798.4" width="24" height="165.6" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="298" cy="838" r="12" fill="#ff7a1e"/></g><circle cx="298" cy="838" r="5" fill="#ffe94a"/><rect x="367.79999999999995" y="798.4" width="24" height="165.6" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="380" cy="838" r="12" fill="#ff7a1e"/></g><circle cx="380" cy="838" r="5" fill="#ffe94a"/><circle cx="83" cy="941" r="18" fill="#111" stroke="#ffd34e" stroke-width="2.2"/><circle cx="83" cy="941" r="14" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="83" y="947" text-anchor="middle" font-family="Impact,sans-serif" font-size="17" fill="#ffd34e">SIP</text><circle cx="164" cy="941" r="18" fill="#111" stroke="#ffd34e" stroke-width="2.2"/><circle cx="164" cy="941" r="14" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="164" y="947" text-anchor="middle" font-family="Impact,sans-serif" font-size="17" fill="#ffd34e">SIP</text><circle cx="246" cy="941" r="18" fill="#111" stroke="#ffd34e" stroke-width="2.2"/><circle cx="246" cy="941" r="14" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="246" y="947" text-anchor="middle" font-family="Impact,sans-serif" font-size="17" fill="#ffd34e">SIP</text><circle cx="327" cy="941" r="18" fill="#111" stroke="#ffd34e" stroke-width="2.2"/><circle cx="327" cy="941" r="14" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="327" y="947" text-anchor="middle" font-family="Impact,sans-serif" font-size="17" fill="#ffd34e">SIP</text><rect x="20" y="977.8" width="370" height="6" fill="#c4122f"/><use href="#time_q" transform="translate(131.0,1004) scale(0.623,0.623)"/><g transform="translate(298,998) scale(1.10)"><rect x="-44" y="-100" width="88" height="100" rx="40" fill="#bff4ff" fill-opacity="0.35" stroke="#2a8ab8" stroke-width="5"/><rect x="-30" y="-86" width="10" height="60" fill="#fff" opacity="0.5"/><rect x="-50" y="-6" width="100" height="14" fill="#5c6670" stroke="#111" stroke-width="3"/><rect x="-50" y="-112" width="100" height="14" fill="#5c6670" stroke="#111" stroke-width="3"/></g></g>
+  <rect x="20" y="780" width="370" height="230" fill="none" stroke="#111" stroke-width="5"/>
+  <g clip-path="url(#g6)"><g><polygon points="120.0,837.0 142.0,837.0 131,923" fill="#fff" stroke="#111" stroke-width="3" stroke-linejoin="round"/><rect x="59" y="786" width="144.5" height="52" rx="16" fill="#fff" stroke="#111" stroke-width="3"/><rect x="122.5" y="834.0" width="17" height="7" fill="#fff"/><text text-anchor="middle" font-family="'Comic Sans MS','Segoe Print','Segoe UI',sans-serif" font-size="13" font-weight="bold" fill="#111"><tspan x="131.2" y="808.0">The capsule is</tspan><tspan x="131.2" y="826.0">ready, Boss.</tspan></text></g></g>
+  <!-- PANEL 7 -->
+  <g clip-path="url(#g7)"><rect x="410" y="780" width="370" height="230" fill="#2a2230"/><rect x="410" y="964.0" width="370" height="46.0" fill="#3a2e3e"/><rect x="432.2" y="798.4" width="24" height="165.6" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="444" cy="838" r="12" fill="#ff7a1e"/></g><circle cx="444" cy="838" r="5" fill="#ffe94a"/><rect x="513.6" y="798.4" width="24" height="165.6" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="526" cy="838" r="12" fill="#ff7a1e"/></g><circle cx="526" cy="838" r="5" fill="#ffe94a"/><rect x="595.0" y="798.4" width="24" height="165.6" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="607" cy="838" r="12" fill="#ff7a1e"/></g><circle cx="607" cy="838" r="5" fill="#ffe94a"/><rect x="676.4" y="798.4" width="24" height="165.6" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="688" cy="838" r="12" fill="#ff7a1e"/></g><circle cx="688" cy="838" r="5" fill="#ffe94a"/><rect x="757.8" y="798.4" width="24" height="165.6" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="770" cy="838" r="12" fill="#ff7a1e"/></g><circle cx="770" cy="838" r="5" fill="#ffe94a"/><circle cx="473" cy="941" r="18" fill="#111" stroke="#ffd34e" stroke-width="2.2"/><circle cx="473" cy="941" r="14" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="473" y="947" text-anchor="middle" font-family="Impact,sans-serif" font-size="17" fill="#ffd34e">SIP</text><circle cx="554" cy="941" r="18" fill="#111" stroke="#ffd34e" stroke-width="2.2"/><circle cx="554" cy="941" r="14" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="554" y="947" text-anchor="middle" font-family="Impact,sans-serif" font-size="17" fill="#ffd34e">SIP</text><circle cx="636" cy="941" r="18" fill="#111" stroke="#ffd34e" stroke-width="2.2"/><circle cx="636" cy="941" r="14" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="636" y="947" text-anchor="middle" font-family="Impact,sans-serif" font-size="17" fill="#ffd34e">SIP</text><circle cx="717" cy="941" r="18" fill="#111" stroke="#ffd34e" stroke-width="2.2"/><circle cx="717" cy="941" r="14" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="717" y="947" text-anchor="middle" font-family="Impact,sans-serif" font-size="17" fill="#ffd34e">SIP</text><rect x="410" y="977.8" width="370" height="6" fill="#c4122f"/><use href="#crime_q" transform="translate(521.0,1004) scale(-0.348,0.348)"/></g>
+  <rect x="410" y="780" width="370" height="230" fill="none" stroke="#111" stroke-width="5"/>
+  <g clip-path="url(#g7)"><g><polygon points="510.0,837.0 532.0,837.0 521,899" fill="#fff" stroke="#111" stroke-width="3" stroke-linejoin="round"/><rect x="449" y="786" width="144.5" height="52" rx="16" fill="#fff" stroke="#111" stroke-width="3"/><rect x="512.5" y="834.0" width="17" height="7" fill="#fff"/><text text-anchor="middle" font-family="'Comic Sans MS','Segoe Print','Segoe UI',sans-serif" font-size="13" font-weight="bold" fill="#111"><tspan x="521.2" y="808.0">Leave them the</tspan><tspan x="521.2" y="826.0">throne.</tspan></text></g></g>
+  <!-- PANEL 8 -->
+  <g clip-path="url(#g8)"><rect x="20" y="1030" width="760" height="350" fill="#2a2230"/><rect x="20" y="1310.0" width="760" height="70.0" fill="#3a2e3e"/><rect x="65.6" y="1058.0" width="24" height="252.0" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="78" cy="1118" r="12" fill="#ff7a1e"/></g><circle cx="78" cy="1118" r="5" fill="#ffe94a"/><rect x="232.8" y="1058.0" width="24" height="252.0" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="245" cy="1118" r="12" fill="#ff7a1e"/></g><circle cx="245" cy="1118" r="5" fill="#ffe94a"/><rect x="400.0" y="1058.0" width="24" height="252.0" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="412" cy="1118" r="12" fill="#ff7a1e"/></g><circle cx="412" cy="1118" r="5" fill="#ffe94a"/><rect x="567.1999999999999" y="1058.0" width="24" height="252.0" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="579" cy="1118" r="12" fill="#ff7a1e"/></g><circle cx="579" cy="1118" r="5" fill="#ffe94a"/><rect x="734.4" y="1058.0" width="24" height="252.0" fill="#4a3a52" stroke="#111" stroke-width="3"/><g filter="url(#glow2)" opacity="0.8"><circle cx="746" cy="1118" r="12" fill="#ff7a1e"/></g><circle cx="746" cy="1118" r="5" fill="#ffe94a"/><circle cx="149" cy="1275" r="28" fill="#111" stroke="#ffd34e" stroke-width="3.4"/><circle cx="149" cy="1275" r="22" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="149" y="1283" text-anchor="middle" font-family="Impact,sans-serif" font-size="27" fill="#ffd34e">SIP</text><circle cx="316" cy="1275" r="28" fill="#111" stroke="#ffd34e" stroke-width="3.4"/><circle cx="316" cy="1275" r="22" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="316" y="1283" text-anchor="middle" font-family="Impact,sans-serif" font-size="27" fill="#ffd34e">SIP</text><circle cx="484" cy="1275" r="28" fill="#111" stroke="#ffd34e" stroke-width="3.4"/><circle cx="484" cy="1275" r="22" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="484" y="1283" text-anchor="middle" font-family="Impact,sans-serif" font-size="27" fill="#ffd34e">SIP</text><circle cx="651" cy="1275" r="28" fill="#111" stroke="#ffd34e" stroke-width="3.4"/><circle cx="651" cy="1275" r="22" fill="none" stroke="#b8862b" stroke-width="1.5"/><text x="651" y="1283" text-anchor="middle" font-family="Impact,sans-serif" font-size="27" fill="#ffd34e">SIP</text><rect x="20" y="1331.0" width="760" height="6" fill="#c4122f"/><use href="#crime" transform="translate(111.2,1374)  scale(0.4807692307692308)"/><use href="#mad" transform="translate(210.0,1374)  scale(0.5894736842105263)"/><use href="#amazing_q" transform="translate(308.8,1374) scale(0.404,0.404)"/><use href="#time_q" transform="translate(415.2,1374) scale(-0.633,0.633)"/><g transform="translate(689,1362) scale(0.90)"><rect x="-44" y="-100" width="88" height="100" rx="40" fill="#bff4ff" fill-opacity="0.35" stroke="#2a8ab8" stroke-width="5"/><rect x="-30" y="-86" width="10" height="60" fill="#fff" opacity="0.5"/><rect x="-50" y="-6" width="100" height="14" fill="#5c6670" stroke="#111" stroke-width="3"/><rect x="-50" y="-112" width="100" height="14" fill="#5c6670" stroke="#111" stroke-width="3"/></g></g>
+  <rect x="20" y="1030" width="760" height="350" fill="none" stroke="#111" stroke-width="5"/>
+  <g clip-path="url(#g8)"><text x="400" y="1098" text-anchor="middle" font-family="Impact,'Arial Black',sans-serif" font-size="44" fill="#ffe94a" stroke="#7a1010" stroke-width="8" paint-order="stroke" stroke-linejoin="miter" transform="rotate(-3 400 1098)">THE BOTS LEAVE</text></g>
+  <!-- scene numbers -->
+  <g><rect x="480" y="230" width="26" height="26" fill="#111" stroke="#ffe94a" stroke-width="2.5"/><text x="493" y="251" text-anchor="middle" font-family="Impact,'Arial Black',sans-serif" font-size="21" fill="#ffe94a">1</text></g>
+  <g><rect x="750" y="230" width="26" height="26" fill="#111" stroke="#ffe94a" stroke-width="2.5"/><text x="763" y="251" text-anchor="middle" font-family="Impact,'Arial Black',sans-serif" font-size="21" fill="#ffe94a">2</text></g>
+  <g><rect x="240" y="490" width="26" height="26" fill="#111" stroke="#ffe94a" stroke-width="2.5"/><text x="253" y="511" text-anchor="middle" font-family="Impact,'Arial Black',sans-serif" font-size="21" fill="#ffe94a">3</text></g>
+  <g><rect x="750" y="490" width="26" height="26" fill="#111" stroke="#ffe94a" stroke-width="2.5"/><text x="763" y="511" text-anchor="middle" font-family="Impact,'Arial Black',sans-serif" font-size="21" fill="#ffe94a">4</text></g>
+  <g><rect x="750" y="730" width="26" height="26" fill="#111" stroke="#ffe94a" stroke-width="2.5"/><text x="763" y="751" text-anchor="middle" font-family="Impact,'Arial Black',sans-serif" font-size="21" fill="#ffe94a">5</text></g>
+  <g><rect x="360" y="980" width="26" height="26" fill="#111" stroke="#ffe94a" stroke-width="2.5"/><text x="373" y="1001" text-anchor="middle" font-family="Impact,'Arial Black',sans-serif" font-size="21" fill="#ffe94a">6</text></g>
+  <g><rect x="750" y="980" width="26" height="26" fill="#111" stroke="#ffe94a" stroke-width="2.5"/><text x="763" y="1001" text-anchor="middle" font-family="Impact,'Arial Black',sans-serif" font-size="21" fill="#ffe94a">7</text></g>
+  <g><rect x="750" y="1350" width="26" height="26" fill="#111" stroke="#ffe94a" stroke-width="2.5"/><text x="763" y="1371" text-anchor="middle" font-family="Impact,'Arial Black',sans-serif" font-size="21" fill="#ffe94a">8</text></g>
+  <!-- /scene numbers -->
+  <text x="400" y="1400" text-anchor="middle" font-family="Impact,'Arial Black',sans-serif" font-size="11" fill="#555" letter-spacing="2">CRIMEBOT 2: THE ROBOT ARMY  •  CHAPTER 4: THE CRUEL FORTRESS OF DOOM  •  PAGE 37  •  BY THE S.I.P.  •  SINCE 2024</text>
+</svg>

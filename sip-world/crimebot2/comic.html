@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crimebot 2: The Robot Army</title>
+<style>
+  :root { --bg:#0f1224; --text:#f4f6ff; --accent:#ffd34e; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:radial-gradient(1000px 500px at 50% -10%, #2a2f66, var(--bg)); color:var(--text); font-family:"Segoe UI",system-ui,sans-serif; min-height:100vh; }
+  #bar { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:12px; padding:10px 14px; background:rgba(15,18,36,.94); border-bottom:2px solid #3a4390; }
+  #bar label { font-weight:700; color:var(--accent); }
+  #num { width:72px; font-size:20px; font-weight:800; text-align:center; padding:6px 8px; border-radius:10px; border:2px solid #3a4390; background:#1b2145; color:var(--text); -moz-appearance:textfield; }
+  #num:focus { outline:none; border-color:var(--accent); }
+  #num::-webkit-outer-spin-button, #num::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  #slider { flex:1; min-width:80px; accent-color:var(--accent); height:28px; cursor:pointer; }
+  #total { color:#a9b0d6; font-weight:700; white-space:nowrap; }
+  #name { color:#a9b0d6; min-width:54px; font-weight:700; }
+  main { max-width:820px; margin:0 auto; padding:18px 12px 60px; }
+  section { margin:0 0 22px; scroll-margin-top:70px; }
+  img { width:100%; height:auto; display:block; border-radius:6px; box-shadow:0 6px 24px rgba(0,0,0,.5); background:#faf3dc; min-height:120px; }
+  .end { text-align:center; color:#a9b0d6; padding:10px 0 0; font-weight:700; letter-spacing:2px; }
+  .live { position:fixed; right:10px; bottom:10px; background:rgba(15,18,36,.9); border:2px solid #3a4390; border-radius:999px; padding:6px 12px; font-size:13px; color:#a9b0d6; }
+  .live b { color:#6be28f; }
+  @media (max-width:520px) { #name, .live { display:none; } }
+</style>
+</head>
+<body>
+<div id="bar">
+  <label for="num">Page</label>
+  <input id="num" type="number" min="0" max="0" value="0" inputmode="numeric" title="Type a page number and press Enter (0 = cover)">
+  <input id="slider" type="range" min="0" max="0" value="0" step="1" title="Drag to move through the comic">
+  <span id="total">of 0</span>
+  <span id="name">Cover</span>
+</div>
+<main id="main"></main>
+<div class="live"><b>●</b> Live: updates by itself</div>
+
+<script src="manifest.js"></script>
+<script>
+/* Fast live comic reader.
+   - The whole list of pages is built at once, so the slider and the number box work right away.
+   - A page's picture is only downloaded when you get near it (lazy loading).
+   - Only the pictures on screen are re-checked for changes (every few seconds), not all of them.
+   - New files pageN.svg are noticed by themselves. Number box: type a page (0 = cover) and press Enter. */
+var REFRESH_MS = 5000;
+var COUNT = (typeof COMIC_PAGES === "number" ? COMIC_PAGES : 0);   // pages after the cover
+var pages = [];                                                    // [{id, file, img, sec}]
+var main = document.getElementById("main");
+var num = document.getElementById("num");
+var slider = document.getElementById("slider");
+var total = document.getElementById("total");
+var nameEl = document.getElementById("name");
+var endNote = document.createElement("div");
+endNote.className = "end";
+endNote.textContent = "BY THE S.I.P.  •  SINCE 2024";
+main.appendChild(endNote);
+
+function stamp(file) { return file + "?t=" + Date.now(); }
+function setLimits() {
+  var last = Math.max(0, pages.length - 1);
+  num.max = last; slider.max = last;
+  total.textContent = "of " + last;
+}
+function show(n) {
+  if (document.activeElement !== num) num.value = n;
+  slider.value = n;
+  nameEl.textContent = n === 0 ? "Cover" : "";
+}
+function jump(n, smooth) {
+  n = Math.round(Number(n));
+  if (isNaN(n) || !pages.length) return;
+  n = Math.min(Math.max(n, 0), pages.length - 1);
+  pages[n].sec.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+  show(n);
+}
+function current() {
+  var mid = window.innerHeight * 0.35, best = 0;
+  for (var i = 0; i < pages.length; i++) {
+    if (pages[i].sec.getBoundingClientRect().top <= mid) best = i; else break;
+  }
+  return best;
+}
+
+function addPage(n) {
+  var file = n === 0 ? "cover.svg" : "page" + n + ".svg";
+  var sec = document.createElement("section");
+  sec.id = n === 0 ? "cover" : "page" + n;
+  var img = document.createElement("img");
+  img.alt = n === 0 ? "Cover" : "Page " + n;
+  img.loading = "lazy"; img.decoding = "async";
+  img.style.aspectRatio = n === 0 ? "700 / 920" : "800 / 1410";     // reserves the space, so nothing jumps
+  img.src = file;
+  sec.appendChild(img);
+  main.insertBefore(sec, endNote);
+  pages.push({ id: sec.id, file: file, img: img, sec: sec });
+}
+for (var i = 0; i <= COUNT; i++) addPage(i);
+setLimits();
+
+/* look for brand new pages, one small check at a time */
+var probing = false;
+function findNew() {
+  if (probing) return;
+  probing = true;
+  var n = pages.length, t = new Image();
+  t.onload = function () { addPage(n); setLimits(); probing = false; findNew(); };
+  t.onerror = function () { probing = false; };
+  t.src = stamp("page" + n + ".svg");
+}
+/* re-load only the pictures near the screen */
+function refreshVisible() {
+  var h = window.innerHeight;
+  pages.forEach(function (p) {
+    var r = p.sec.getBoundingClientRect();
+    if (r.bottom < -h * 0.5 || r.top > h * 1.5) return;
+    var t = new Image();
+    t.onload = function () { p.img.src = t.src; };
+    t.src = stamp(p.file);
+  });
+}
+
+slider.addEventListener("input", function () { jump(slider.value, false); });
+num.addEventListener("keydown", function (e) { if (e.key === "Enter") { jump(num.value, false); num.blur(); } });
+num.addEventListener("change", function () { jump(num.value, false); });
+num.addEventListener("focus", function () { num.select(); });
+var ticking = false;
+window.addEventListener("scroll", function () {
+  if (ticking) return;
+  ticking = true;
+  requestAnimationFrame(function () { ticking = false; show(current()); });
+});
+document.addEventListener("visibilitychange", function () { if (!document.hidden) refreshVisible(); });
+
+findNew();
+setInterval(function () { if (!document.hidden) { refreshVisible(); findNew(); } }, REFRESH_MS);
+</script>
+</body>
+</html>

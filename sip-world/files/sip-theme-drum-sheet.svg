@@ -1,0 +1,838 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1232 1570" width="1232" height="1570" font-family="Trebuchet MS, Arial, sans-serif">
+<rect width="1232" height="1570" fill="#fffdf6"/>
+<text x="616.0" y="58" font-size="44" font-weight="900" text-anchor="middle" fill="#222">The S.I.P. Team Theme</text>
+<text x="616.0" y="92" font-size="24" font-weight="800" text-anchor="middle" fill="#c62828">DRUMS</text>
+<text x="616.0" y="120" font-size="17" text-anchor="middle" fill="#555">32 bars • 4/4 • ♩ = 150 • play along with sip-theme-soundtrack.mp3</text>
+<rect x="30" y="134" width="1172" height="96" rx="14" fill="#fff8e1" stroke="#ddd"/>
+<text x="48" y="158" font-size="16" font-weight="900" fill="#222">What is what:</text>
+<ellipse cx="60" cy="192" rx="9.5" ry="7.5" transform="rotate(-20 60 192)" fill="#e53935"/>
+<text x="80" y="197" font-size="14" font-weight="800" fill="#222">Kick (foot)</text>
+<ellipse cx="208" cy="192" rx="9.5" ry="7.5" transform="rotate(-20 208 192)" fill="#1e88e5"/>
+<text x="228" y="197" font-size="14" font-weight="800" fill="#222">Snare</text>
+<ellipse cx="356" cy="192" rx="9.5" ry="7.5" transform="rotate(-20 356 192)" fill="#8e24aa"/>
+<text x="376" y="197" font-size="14" font-weight="800" fill="#222">Tom</text>
+<ellipse cx="504" cy="192" rx="9.5" ry="7.5" transform="rotate(-20 504 192)" fill="#6a1b9a"/>
+<text x="524" y="197" font-size="14" font-weight="800" fill="#222">Floor tom</text>
+<g stroke="#f9a825" stroke-width="3.5" stroke-linecap="round"><line x1="645" y1="185" x2="659" y2="199"/><line x1="659" y1="185" x2="645" y2="199"/></g>
+<text x="672" y="197" font-size="14" font-weight="800" fill="#222">Hi-hat (closed)</text>
+<g stroke="#f9a825" stroke-width="3.5" stroke-linecap="round"><line x1="793" y1="185" x2="807" y2="199"/><line x1="807" y1="185" x2="793" y2="199"/></g>
+<circle cx="800" cy="175" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="820" y="197" font-size="14" font-weight="800" fill="#222">Open hi-hat (o)</text>
+<g stroke="#ef6c00" stroke-width="3.5" stroke-linecap="round"><line x1="943" y1="185" x2="957" y2="199"/><line x1="957" y1="185" x2="943" y2="199"/></g>
+<circle cx="950" cy="192" r="13" fill="none" stroke="#ef6c00" stroke-width="2.5"/>
+<text x="970" y="197" font-size="14" font-weight="800" fill="#222">Crash</text>
+<text x="48" y="222" font-size="13" fill="#666">X = cymbals (hi-hat and crash). Round dots = drums. Numbers under each bar are the counts: 1 &amp; 2 &amp; 3 &amp; 4 &amp;.</text>
+<line x1="40" y1="340" x2="1202" y2="340" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="328" x2="1202" y2="328" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="316" x2="1202" y2="316" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="304" x2="1202" y2="304" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="292" x2="1202" y2="292" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="292" x2="40" y2="340" stroke="#222" stroke-width="3"/>
+<rect x="58" y="304" width="6" height="24" fill="#222"/><rect x="70" y="304" width="6" height="24" fill="#222"/>
+<text x="100" y="313" font-size="26" font-weight="900" text-anchor="middle" fill="#222">4</text>
+<text x="100" y="343" font-size="26" font-weight="900" text-anchor="middle" fill="#222">4</text>
+<line x1="382" y1="340" x2="382" y2="292" stroke="#222" stroke-width="2"/>
+<text x="118" y="258" font-size="13" fill="#999">1</text>
+<rect x="136" y="226" width="122" height="26" rx="6" fill="#ff7043"/>
+<text x="144" y="245" font-size="15" font-weight="900" fill="#fff">A  Rock beat</text>
+<g stroke="#ef6c00" stroke-width="4.5" stroke-linecap="round"><line x1="127.0" y1="261" x2="145.0" y2="279"/><line x1="145.0" y1="261" x2="127.0" y2="279"/></g>
+<circle cx="136.0" cy="270" r="15" fill="none" stroke="#ef6c00" stroke-width="3"/>
+<ellipse cx="136.0" cy="334" rx="9.5" ry="7.5" transform="rotate(-20 136.0 334)" fill="#e53935"/>
+<text x="136.0" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="157.5" y1="275" x2="173.5" y2="291"/><line x1="173.5" y1="275" x2="157.5" y2="291"/></g>
+<text x="165.5" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="187.0" y1="275" x2="203.0" y2="291"/><line x1="203.0" y1="275" x2="187.0" y2="291"/></g>
+<ellipse cx="195.0" cy="322" rx="9.5" ry="7.5" transform="rotate(-20 195.0 322)" fill="#1e88e5"/>
+<text x="195.0" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="216.5" y1="275" x2="232.5" y2="291"/><line x1="232.5" y1="275" x2="216.5" y2="291"/></g>
+<text x="224.5" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="246.0" y1="275" x2="262.0" y2="291"/><line x1="262.0" y1="275" x2="246.0" y2="291"/></g>
+<ellipse cx="254.0" cy="334" rx="9.5" ry="7.5" transform="rotate(-20 254.0 334)" fill="#e53935"/>
+<text x="254.0" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="275.5" y1="275" x2="291.5" y2="291"/><line x1="291.5" y1="275" x2="275.5" y2="291"/></g>
+<text x="283.5" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="305.0" y1="275" x2="321.0" y2="291"/><line x1="321.0" y1="275" x2="305.0" y2="291"/></g>
+<ellipse cx="313.0" cy="322" rx="9.5" ry="7.5" transform="rotate(-20 313.0 322)" fill="#1e88e5"/>
+<text x="313.0" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="334.5" y1="275" x2="350.5" y2="291"/><line x1="350.5" y1="275" x2="334.5" y2="291"/></g>
+<text x="342.5" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="652" y1="340" x2="652" y2="292" stroke="#222" stroke-width="2"/>
+<text x="388" y="258" font-size="13" fill="#999">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="398.0" y1="275" x2="414.0" y2="291"/><line x1="414.0" y1="275" x2="398.0" y2="291"/></g>
+<ellipse cx="406.0" cy="334" rx="9.5" ry="7.5" transform="rotate(-20 406.0 334)" fill="#e53935"/>
+<text x="406.0" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="427.5" y1="275" x2="443.5" y2="291"/><line x1="443.5" y1="275" x2="427.5" y2="291"/></g>
+<text x="435.5" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="457.0" y1="275" x2="473.0" y2="291"/><line x1="473.0" y1="275" x2="457.0" y2="291"/></g>
+<ellipse cx="465.0" cy="322" rx="9.5" ry="7.5" transform="rotate(-20 465.0 322)" fill="#1e88e5"/>
+<text x="465.0" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="486.5" y1="275" x2="502.5" y2="291"/><line x1="502.5" y1="275" x2="486.5" y2="291"/></g>
+<text x="494.5" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="516.0" y1="275" x2="532.0" y2="291"/><line x1="532.0" y1="275" x2="516.0" y2="291"/></g>
+<ellipse cx="524.0" cy="334" rx="9.5" ry="7.5" transform="rotate(-20 524.0 334)" fill="#e53935"/>
+<text x="524.0" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="545.5" y1="275" x2="561.5" y2="291"/><line x1="561.5" y1="275" x2="545.5" y2="291"/></g>
+<text x="553.5" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="575.0" y1="275" x2="591.0" y2="291"/><line x1="591.0" y1="275" x2="575.0" y2="291"/></g>
+<ellipse cx="583.0" cy="322" rx="9.5" ry="7.5" transform="rotate(-20 583.0 322)" fill="#1e88e5"/>
+<text x="583.0" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="604.5" y1="275" x2="620.5" y2="291"/><line x1="620.5" y1="275" x2="604.5" y2="291"/></g>
+<text x="612.5" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="922" y1="340" x2="922" y2="292" stroke="#222" stroke-width="2"/>
+<text x="658" y="258" font-size="13" fill="#999">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="668.0" y1="275" x2="684.0" y2="291"/><line x1="684.0" y1="275" x2="668.0" y2="291"/></g>
+<ellipse cx="676.0" cy="334" rx="9.5" ry="7.5" transform="rotate(-20 676.0 334)" fill="#e53935"/>
+<text x="676.0" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="697.5" y1="275" x2="713.5" y2="291"/><line x1="713.5" y1="275" x2="697.5" y2="291"/></g>
+<text x="705.5" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="727.0" y1="275" x2="743.0" y2="291"/><line x1="743.0" y1="275" x2="727.0" y2="291"/></g>
+<ellipse cx="735.0" cy="322" rx="9.5" ry="7.5" transform="rotate(-20 735.0 322)" fill="#1e88e5"/>
+<text x="735.0" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="756.5" y1="275" x2="772.5" y2="291"/><line x1="772.5" y1="275" x2="756.5" y2="291"/></g>
+<text x="764.5" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="786.0" y1="275" x2="802.0" y2="291"/><line x1="802.0" y1="275" x2="786.0" y2="291"/></g>
+<ellipse cx="794.0" cy="334" rx="9.5" ry="7.5" transform="rotate(-20 794.0 334)" fill="#e53935"/>
+<text x="794.0" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="815.5" y1="275" x2="831.5" y2="291"/><line x1="831.5" y1="275" x2="815.5" y2="291"/></g>
+<text x="823.5" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="845.0" y1="275" x2="861.0" y2="291"/><line x1="861.0" y1="275" x2="845.0" y2="291"/></g>
+<ellipse cx="853.0" cy="322" rx="9.5" ry="7.5" transform="rotate(-20 853.0 322)" fill="#1e88e5"/>
+<text x="853.0" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="874.5" y1="275" x2="890.5" y2="291"/><line x1="890.5" y1="275" x2="874.5" y2="291"/></g>
+<text x="882.5" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="1192" y1="340" x2="1192" y2="292" stroke="#222" stroke-width="2"/>
+<text x="928" y="258" font-size="13" fill="#999">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="938.0" y1="275" x2="954.0" y2="291"/><line x1="954.0" y1="275" x2="938.0" y2="291"/></g>
+<ellipse cx="946.0" cy="334" rx="9.5" ry="7.5" transform="rotate(-20 946.0 334)" fill="#e53935"/>
+<text x="946.0" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="967.5" y1="275" x2="983.5" y2="291"/><line x1="983.5" y1="275" x2="967.5" y2="291"/></g>
+<text x="975.5" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="997.0" y1="275" x2="1013.0" y2="291"/><line x1="1013.0" y1="275" x2="997.0" y2="291"/></g>
+<ellipse cx="1005.0" cy="322" rx="9.5" ry="7.5" transform="rotate(-20 1005.0 322)" fill="#1e88e5"/>
+<text x="1005.0" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1026.5" y1="275" x2="1042.5" y2="291"/><line x1="1042.5" y1="275" x2="1026.5" y2="291"/></g>
+<text x="1034.5" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1056.0" y1="275" x2="1072.0" y2="291"/><line x1="1072.0" y1="275" x2="1056.0" y2="291"/></g>
+<ellipse cx="1064.0" cy="334" rx="9.5" ry="7.5" transform="rotate(-20 1064.0 334)" fill="#e53935"/>
+<text x="1064.0" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1085.5" y1="275" x2="1101.5" y2="291"/><line x1="1101.5" y1="275" x2="1085.5" y2="291"/></g>
+<text x="1093.5" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1115.0" y1="275" x2="1131.0" y2="291"/><line x1="1131.0" y1="275" x2="1115.0" y2="291"/></g>
+<ellipse cx="1123.0" cy="322" rx="9.5" ry="7.5" transform="rotate(-20 1123.0 322)" fill="#1e88e5"/>
+<text x="1123.0" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1144.5" y1="275" x2="1160.5" y2="291"/><line x1="1160.5" y1="275" x2="1144.5" y2="291"/></g>
+<text x="1152.5" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="40" y1="500" x2="1202" y2="500" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="488" x2="1202" y2="488" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="476" x2="1202" y2="476" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="464" x2="1202" y2="464" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="452" x2="1202" y2="452" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="452" x2="40" y2="500" stroke="#222" stroke-width="3"/>
+<rect x="58" y="464" width="6" height="24" fill="#222"/><rect x="70" y="464" width="6" height="24" fill="#222"/>
+<line x1="382" y1="500" x2="382" y2="452" stroke="#222" stroke-width="2"/>
+<text x="118" y="418" font-size="13" fill="#999">5</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="128.0" y1="435" x2="144.0" y2="451"/><line x1="144.0" y1="435" x2="128.0" y2="451"/></g>
+<ellipse cx="136.0" cy="494" rx="9.5" ry="7.5" transform="rotate(-20 136.0 494)" fill="#e53935"/>
+<text x="136.0" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="157.5" y1="435" x2="173.5" y2="451"/><line x1="173.5" y1="435" x2="157.5" y2="451"/></g>
+<text x="165.5" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="187.0" y1="435" x2="203.0" y2="451"/><line x1="203.0" y1="435" x2="187.0" y2="451"/></g>
+<ellipse cx="195.0" cy="482" rx="9.5" ry="7.5" transform="rotate(-20 195.0 482)" fill="#1e88e5"/>
+<text x="195.0" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="216.5" y1="435" x2="232.5" y2="451"/><line x1="232.5" y1="435" x2="216.5" y2="451"/></g>
+<text x="224.5" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="246.0" y1="435" x2="262.0" y2="451"/><line x1="262.0" y1="435" x2="246.0" y2="451"/></g>
+<ellipse cx="254.0" cy="494" rx="9.5" ry="7.5" transform="rotate(-20 254.0 494)" fill="#e53935"/>
+<text x="254.0" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="275.5" y1="435" x2="291.5" y2="451"/><line x1="291.5" y1="435" x2="275.5" y2="451"/></g>
+<text x="283.5" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="305.0" y1="435" x2="321.0" y2="451"/><line x1="321.0" y1="435" x2="305.0" y2="451"/></g>
+<ellipse cx="313.0" cy="482" rx="9.5" ry="7.5" transform="rotate(-20 313.0 482)" fill="#1e88e5"/>
+<text x="313.0" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="334.5" y1="435" x2="350.5" y2="451"/><line x1="350.5" y1="435" x2="334.5" y2="451"/></g>
+<text x="342.5" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="652" y1="500" x2="652" y2="452" stroke="#222" stroke-width="2"/>
+<text x="388" y="418" font-size="13" fill="#999">6</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="398.0" y1="435" x2="414.0" y2="451"/><line x1="414.0" y1="435" x2="398.0" y2="451"/></g>
+<ellipse cx="406.0" cy="494" rx="9.5" ry="7.5" transform="rotate(-20 406.0 494)" fill="#e53935"/>
+<text x="406.0" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="427.5" y1="435" x2="443.5" y2="451"/><line x1="443.5" y1="435" x2="427.5" y2="451"/></g>
+<text x="435.5" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="457.0" y1="435" x2="473.0" y2="451"/><line x1="473.0" y1="435" x2="457.0" y2="451"/></g>
+<ellipse cx="465.0" cy="482" rx="9.5" ry="7.5" transform="rotate(-20 465.0 482)" fill="#1e88e5"/>
+<text x="465.0" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="486.5" y1="435" x2="502.5" y2="451"/><line x1="502.5" y1="435" x2="486.5" y2="451"/></g>
+<text x="494.5" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="516.0" y1="435" x2="532.0" y2="451"/><line x1="532.0" y1="435" x2="516.0" y2="451"/></g>
+<ellipse cx="524.0" cy="494" rx="9.5" ry="7.5" transform="rotate(-20 524.0 494)" fill="#e53935"/>
+<text x="524.0" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="545.5" y1="435" x2="561.5" y2="451"/><line x1="561.5" y1="435" x2="545.5" y2="451"/></g>
+<text x="553.5" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="575.0" y1="435" x2="591.0" y2="451"/><line x1="591.0" y1="435" x2="575.0" y2="451"/></g>
+<ellipse cx="583.0" cy="482" rx="9.5" ry="7.5" transform="rotate(-20 583.0 482)" fill="#1e88e5"/>
+<text x="583.0" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="604.5" y1="435" x2="620.5" y2="451"/><line x1="620.5" y1="435" x2="604.5" y2="451"/></g>
+<text x="612.5" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="922" y1="500" x2="922" y2="452" stroke="#222" stroke-width="2"/>
+<text x="658" y="418" font-size="13" fill="#999">7</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="668.0" y1="435" x2="684.0" y2="451"/><line x1="684.0" y1="435" x2="668.0" y2="451"/></g>
+<ellipse cx="676.0" cy="494" rx="9.5" ry="7.5" transform="rotate(-20 676.0 494)" fill="#e53935"/>
+<text x="676.0" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="697.5" y1="435" x2="713.5" y2="451"/><line x1="713.5" y1="435" x2="697.5" y2="451"/></g>
+<text x="705.5" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="727.0" y1="435" x2="743.0" y2="451"/><line x1="743.0" y1="435" x2="727.0" y2="451"/></g>
+<ellipse cx="735.0" cy="482" rx="9.5" ry="7.5" transform="rotate(-20 735.0 482)" fill="#1e88e5"/>
+<text x="735.0" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="756.5" y1="435" x2="772.5" y2="451"/><line x1="772.5" y1="435" x2="756.5" y2="451"/></g>
+<text x="764.5" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="786.0" y1="435" x2="802.0" y2="451"/><line x1="802.0" y1="435" x2="786.0" y2="451"/></g>
+<ellipse cx="794.0" cy="494" rx="9.5" ry="7.5" transform="rotate(-20 794.0 494)" fill="#e53935"/>
+<text x="794.0" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="815.5" y1="435" x2="831.5" y2="451"/><line x1="831.5" y1="435" x2="815.5" y2="451"/></g>
+<text x="823.5" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="845.0" y1="435" x2="861.0" y2="451"/><line x1="861.0" y1="435" x2="845.0" y2="451"/></g>
+<ellipse cx="853.0" cy="482" rx="9.5" ry="7.5" transform="rotate(-20 853.0 482)" fill="#1e88e5"/>
+<text x="853.0" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="874.5" y1="435" x2="890.5" y2="451"/><line x1="890.5" y1="435" x2="874.5" y2="451"/></g>
+<text x="882.5" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="1192" y1="500" x2="1192" y2="452" stroke="#222" stroke-width="2"/>
+<text x="928" y="418" font-size="13" fill="#999">8</text>
+<text x="1178" y="418" text-anchor="end" font-size="15" font-weight="900" fill="#6a1b9a">FILL!</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="938.0" y1="435" x2="954.0" y2="451"/><line x1="954.0" y1="435" x2="938.0" y2="451"/></g>
+<ellipse cx="946.0" cy="494" rx="9.5" ry="7.5" transform="rotate(-20 946.0 494)" fill="#e53935"/>
+<text x="946.0" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="967.5" y1="435" x2="983.5" y2="451"/><line x1="983.5" y1="435" x2="967.5" y2="451"/></g>
+<text x="975.5" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="997.0" y1="435" x2="1013.0" y2="451"/><line x1="1013.0" y1="435" x2="997.0" y2="451"/></g>
+<ellipse cx="1005.0" cy="482" rx="9.5" ry="7.5" transform="rotate(-20 1005.0 482)" fill="#1e88e5"/>
+<text x="1005.0" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1026.5" y1="435" x2="1042.5" y2="451"/><line x1="1042.5" y1="435" x2="1026.5" y2="451"/></g>
+<text x="1034.5" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<ellipse cx="1064.0" cy="482" rx="9.5" ry="7.5" transform="rotate(-20 1064.0 482)" fill="#1e88e5"/>
+<text x="1064.0" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<ellipse cx="1093.5" cy="482" rx="9.5" ry="7.5" transform="rotate(-20 1093.5 482)" fill="#1e88e5"/>
+<text x="1093.5" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<ellipse cx="1123.0" cy="458" rx="9.5" ry="7.5" transform="rotate(-20 1123.0 458)" fill="#8e24aa"/>
+<text x="1123.0" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<ellipse cx="1152.5" cy="470" rx="9.5" ry="7.5" transform="rotate(-20 1152.5 470)" fill="#6a1b9a"/>
+<text x="1152.5" y="526" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="40" y1="660" x2="1202" y2="660" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="648" x2="1202" y2="648" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="636" x2="1202" y2="636" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="624" x2="1202" y2="624" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="612" x2="1202" y2="612" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="612" x2="40" y2="660" stroke="#222" stroke-width="3"/>
+<rect x="58" y="624" width="6" height="24" fill="#222"/><rect x="70" y="624" width="6" height="24" fill="#222"/>
+<line x1="382" y1="660" x2="382" y2="612" stroke="#222" stroke-width="2"/>
+<text x="118" y="578" font-size="13" fill="#999">9</text>
+<rect x="136" y="546" width="257" height="26" rx="6" fill="#ff7043"/>
+<text x="144" y="565" font-size="15" font-weight="900" fill="#fff">B  Bounce beat (extra kick)</text>
+<g stroke="#ef6c00" stroke-width="4.5" stroke-linecap="round"><line x1="127.0" y1="581" x2="145.0" y2="599"/><line x1="145.0" y1="581" x2="127.0" y2="599"/></g>
+<circle cx="136.0" cy="590" r="15" fill="none" stroke="#ef6c00" stroke-width="3"/>
+<ellipse cx="136.0" cy="654" rx="9.5" ry="7.5" transform="rotate(-20 136.0 654)" fill="#e53935"/>
+<text x="136.0" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="157.5" y1="595" x2="173.5" y2="611"/><line x1="173.5" y1="595" x2="157.5" y2="611"/></g>
+<text x="165.5" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="187.0" y1="595" x2="203.0" y2="611"/><line x1="203.0" y1="595" x2="187.0" y2="611"/></g>
+<ellipse cx="195.0" cy="642" rx="9.5" ry="7.5" transform="rotate(-20 195.0 642)" fill="#1e88e5"/>
+<text x="195.0" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="216.5" y1="595" x2="232.5" y2="611"/><line x1="232.5" y1="595" x2="216.5" y2="611"/></g>
+<ellipse cx="224.5" cy="654" rx="9.5" ry="7.5" transform="rotate(-20 224.5 654)" fill="#e53935"/>
+<text x="224.5" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="246.0" y1="595" x2="262.0" y2="611"/><line x1="262.0" y1="595" x2="246.0" y2="611"/></g>
+<ellipse cx="254.0" cy="654" rx="9.5" ry="7.5" transform="rotate(-20 254.0 654)" fill="#e53935"/>
+<text x="254.0" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="275.5" y1="595" x2="291.5" y2="611"/><line x1="291.5" y1="595" x2="275.5" y2="611"/></g>
+<text x="283.5" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="305.0" y1="595" x2="321.0" y2="611"/><line x1="321.0" y1="595" x2="305.0" y2="611"/></g>
+<ellipse cx="313.0" cy="642" rx="9.5" ry="7.5" transform="rotate(-20 313.0 642)" fill="#1e88e5"/>
+<text x="313.0" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="334.5" y1="595" x2="350.5" y2="611"/><line x1="350.5" y1="595" x2="334.5" y2="611"/></g>
+<text x="342.5" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="652" y1="660" x2="652" y2="612" stroke="#222" stroke-width="2"/>
+<text x="388" y="578" font-size="13" fill="#999">10</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="398.0" y1="595" x2="414.0" y2="611"/><line x1="414.0" y1="595" x2="398.0" y2="611"/></g>
+<ellipse cx="406.0" cy="654" rx="9.5" ry="7.5" transform="rotate(-20 406.0 654)" fill="#e53935"/>
+<text x="406.0" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="427.5" y1="595" x2="443.5" y2="611"/><line x1="443.5" y1="595" x2="427.5" y2="611"/></g>
+<text x="435.5" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="457.0" y1="595" x2="473.0" y2="611"/><line x1="473.0" y1="595" x2="457.0" y2="611"/></g>
+<ellipse cx="465.0" cy="642" rx="9.5" ry="7.5" transform="rotate(-20 465.0 642)" fill="#1e88e5"/>
+<text x="465.0" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="486.5" y1="595" x2="502.5" y2="611"/><line x1="502.5" y1="595" x2="486.5" y2="611"/></g>
+<ellipse cx="494.5" cy="654" rx="9.5" ry="7.5" transform="rotate(-20 494.5 654)" fill="#e53935"/>
+<text x="494.5" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="516.0" y1="595" x2="532.0" y2="611"/><line x1="532.0" y1="595" x2="516.0" y2="611"/></g>
+<ellipse cx="524.0" cy="654" rx="9.5" ry="7.5" transform="rotate(-20 524.0 654)" fill="#e53935"/>
+<text x="524.0" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="545.5" y1="595" x2="561.5" y2="611"/><line x1="561.5" y1="595" x2="545.5" y2="611"/></g>
+<text x="553.5" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="575.0" y1="595" x2="591.0" y2="611"/><line x1="591.0" y1="595" x2="575.0" y2="611"/></g>
+<ellipse cx="583.0" cy="642" rx="9.5" ry="7.5" transform="rotate(-20 583.0 642)" fill="#1e88e5"/>
+<text x="583.0" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="604.5" y1="595" x2="620.5" y2="611"/><line x1="620.5" y1="595" x2="604.5" y2="611"/></g>
+<text x="612.5" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="922" y1="660" x2="922" y2="612" stroke="#222" stroke-width="2"/>
+<text x="658" y="578" font-size="13" fill="#999">11</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="668.0" y1="595" x2="684.0" y2="611"/><line x1="684.0" y1="595" x2="668.0" y2="611"/></g>
+<ellipse cx="676.0" cy="654" rx="9.5" ry="7.5" transform="rotate(-20 676.0 654)" fill="#e53935"/>
+<text x="676.0" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="697.5" y1="595" x2="713.5" y2="611"/><line x1="713.5" y1="595" x2="697.5" y2="611"/></g>
+<text x="705.5" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="727.0" y1="595" x2="743.0" y2="611"/><line x1="743.0" y1="595" x2="727.0" y2="611"/></g>
+<ellipse cx="735.0" cy="642" rx="9.5" ry="7.5" transform="rotate(-20 735.0 642)" fill="#1e88e5"/>
+<text x="735.0" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="756.5" y1="595" x2="772.5" y2="611"/><line x1="772.5" y1="595" x2="756.5" y2="611"/></g>
+<ellipse cx="764.5" cy="654" rx="9.5" ry="7.5" transform="rotate(-20 764.5 654)" fill="#e53935"/>
+<text x="764.5" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="786.0" y1="595" x2="802.0" y2="611"/><line x1="802.0" y1="595" x2="786.0" y2="611"/></g>
+<ellipse cx="794.0" cy="654" rx="9.5" ry="7.5" transform="rotate(-20 794.0 654)" fill="#e53935"/>
+<text x="794.0" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="815.5" y1="595" x2="831.5" y2="611"/><line x1="831.5" y1="595" x2="815.5" y2="611"/></g>
+<text x="823.5" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="845.0" y1="595" x2="861.0" y2="611"/><line x1="861.0" y1="595" x2="845.0" y2="611"/></g>
+<ellipse cx="853.0" cy="642" rx="9.5" ry="7.5" transform="rotate(-20 853.0 642)" fill="#1e88e5"/>
+<text x="853.0" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="874.5" y1="595" x2="890.5" y2="611"/><line x1="890.5" y1="595" x2="874.5" y2="611"/></g>
+<text x="882.5" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="1192" y1="660" x2="1192" y2="612" stroke="#222" stroke-width="2"/>
+<text x="928" y="578" font-size="13" fill="#999">12</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="938.0" y1="595" x2="954.0" y2="611"/><line x1="954.0" y1="595" x2="938.0" y2="611"/></g>
+<ellipse cx="946.0" cy="654" rx="9.5" ry="7.5" transform="rotate(-20 946.0 654)" fill="#e53935"/>
+<text x="946.0" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="967.5" y1="595" x2="983.5" y2="611"/><line x1="983.5" y1="595" x2="967.5" y2="611"/></g>
+<text x="975.5" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="997.0" y1="595" x2="1013.0" y2="611"/><line x1="1013.0" y1="595" x2="997.0" y2="611"/></g>
+<ellipse cx="1005.0" cy="642" rx="9.5" ry="7.5" transform="rotate(-20 1005.0 642)" fill="#1e88e5"/>
+<text x="1005.0" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1026.5" y1="595" x2="1042.5" y2="611"/><line x1="1042.5" y1="595" x2="1026.5" y2="611"/></g>
+<ellipse cx="1034.5" cy="654" rx="9.5" ry="7.5" transform="rotate(-20 1034.5 654)" fill="#e53935"/>
+<text x="1034.5" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1056.0" y1="595" x2="1072.0" y2="611"/><line x1="1072.0" y1="595" x2="1056.0" y2="611"/></g>
+<ellipse cx="1064.0" cy="654" rx="9.5" ry="7.5" transform="rotate(-20 1064.0 654)" fill="#e53935"/>
+<text x="1064.0" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1085.5" y1="595" x2="1101.5" y2="611"/><line x1="1101.5" y1="595" x2="1085.5" y2="611"/></g>
+<text x="1093.5" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1115.0" y1="595" x2="1131.0" y2="611"/><line x1="1131.0" y1="595" x2="1115.0" y2="611"/></g>
+<ellipse cx="1123.0" cy="642" rx="9.5" ry="7.5" transform="rotate(-20 1123.0 642)" fill="#1e88e5"/>
+<text x="1123.0" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1144.5" y1="595" x2="1160.5" y2="611"/><line x1="1160.5" y1="595" x2="1144.5" y2="611"/></g>
+<text x="1152.5" y="686" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="40" y1="820" x2="1202" y2="820" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="808" x2="1202" y2="808" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="796" x2="1202" y2="796" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="784" x2="1202" y2="784" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="772" x2="1202" y2="772" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="772" x2="40" y2="820" stroke="#222" stroke-width="3"/>
+<rect x="58" y="784" width="6" height="24" fill="#222"/><rect x="70" y="784" width="6" height="24" fill="#222"/>
+<line x1="382" y1="820" x2="382" y2="772" stroke="#222" stroke-width="2"/>
+<text x="118" y="738" font-size="13" fill="#999">13</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="128.0" y1="755" x2="144.0" y2="771"/><line x1="144.0" y1="755" x2="128.0" y2="771"/></g>
+<ellipse cx="136.0" cy="814" rx="9.5" ry="7.5" transform="rotate(-20 136.0 814)" fill="#e53935"/>
+<text x="136.0" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="157.5" y1="755" x2="173.5" y2="771"/><line x1="173.5" y1="755" x2="157.5" y2="771"/></g>
+<text x="165.5" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="187.0" y1="755" x2="203.0" y2="771"/><line x1="203.0" y1="755" x2="187.0" y2="771"/></g>
+<ellipse cx="195.0" cy="802" rx="9.5" ry="7.5" transform="rotate(-20 195.0 802)" fill="#1e88e5"/>
+<text x="195.0" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="216.5" y1="755" x2="232.5" y2="771"/><line x1="232.5" y1="755" x2="216.5" y2="771"/></g>
+<ellipse cx="224.5" cy="814" rx="9.5" ry="7.5" transform="rotate(-20 224.5 814)" fill="#e53935"/>
+<text x="224.5" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="246.0" y1="755" x2="262.0" y2="771"/><line x1="262.0" y1="755" x2="246.0" y2="771"/></g>
+<ellipse cx="254.0" cy="814" rx="9.5" ry="7.5" transform="rotate(-20 254.0 814)" fill="#e53935"/>
+<text x="254.0" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="275.5" y1="755" x2="291.5" y2="771"/><line x1="291.5" y1="755" x2="275.5" y2="771"/></g>
+<text x="283.5" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="305.0" y1="755" x2="321.0" y2="771"/><line x1="321.0" y1="755" x2="305.0" y2="771"/></g>
+<ellipse cx="313.0" cy="802" rx="9.5" ry="7.5" transform="rotate(-20 313.0 802)" fill="#1e88e5"/>
+<text x="313.0" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="334.5" y1="755" x2="350.5" y2="771"/><line x1="350.5" y1="755" x2="334.5" y2="771"/></g>
+<text x="342.5" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="652" y1="820" x2="652" y2="772" stroke="#222" stroke-width="2"/>
+<text x="388" y="738" font-size="13" fill="#999">14</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="398.0" y1="755" x2="414.0" y2="771"/><line x1="414.0" y1="755" x2="398.0" y2="771"/></g>
+<ellipse cx="406.0" cy="814" rx="9.5" ry="7.5" transform="rotate(-20 406.0 814)" fill="#e53935"/>
+<text x="406.0" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="427.5" y1="755" x2="443.5" y2="771"/><line x1="443.5" y1="755" x2="427.5" y2="771"/></g>
+<text x="435.5" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="457.0" y1="755" x2="473.0" y2="771"/><line x1="473.0" y1="755" x2="457.0" y2="771"/></g>
+<ellipse cx="465.0" cy="802" rx="9.5" ry="7.5" transform="rotate(-20 465.0 802)" fill="#1e88e5"/>
+<text x="465.0" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="486.5" y1="755" x2="502.5" y2="771"/><line x1="502.5" y1="755" x2="486.5" y2="771"/></g>
+<ellipse cx="494.5" cy="814" rx="9.5" ry="7.5" transform="rotate(-20 494.5 814)" fill="#e53935"/>
+<text x="494.5" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="516.0" y1="755" x2="532.0" y2="771"/><line x1="532.0" y1="755" x2="516.0" y2="771"/></g>
+<ellipse cx="524.0" cy="814" rx="9.5" ry="7.5" transform="rotate(-20 524.0 814)" fill="#e53935"/>
+<text x="524.0" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="545.5" y1="755" x2="561.5" y2="771"/><line x1="561.5" y1="755" x2="545.5" y2="771"/></g>
+<text x="553.5" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="575.0" y1="755" x2="591.0" y2="771"/><line x1="591.0" y1="755" x2="575.0" y2="771"/></g>
+<ellipse cx="583.0" cy="802" rx="9.5" ry="7.5" transform="rotate(-20 583.0 802)" fill="#1e88e5"/>
+<text x="583.0" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="604.5" y1="755" x2="620.5" y2="771"/><line x1="620.5" y1="755" x2="604.5" y2="771"/></g>
+<text x="612.5" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="922" y1="820" x2="922" y2="772" stroke="#222" stroke-width="2"/>
+<text x="658" y="738" font-size="13" fill="#999">15</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="668.0" y1="755" x2="684.0" y2="771"/><line x1="684.0" y1="755" x2="668.0" y2="771"/></g>
+<ellipse cx="676.0" cy="814" rx="9.5" ry="7.5" transform="rotate(-20 676.0 814)" fill="#e53935"/>
+<text x="676.0" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="697.5" y1="755" x2="713.5" y2="771"/><line x1="713.5" y1="755" x2="697.5" y2="771"/></g>
+<text x="705.5" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="727.0" y1="755" x2="743.0" y2="771"/><line x1="743.0" y1="755" x2="727.0" y2="771"/></g>
+<ellipse cx="735.0" cy="802" rx="9.5" ry="7.5" transform="rotate(-20 735.0 802)" fill="#1e88e5"/>
+<text x="735.0" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="756.5" y1="755" x2="772.5" y2="771"/><line x1="772.5" y1="755" x2="756.5" y2="771"/></g>
+<ellipse cx="764.5" cy="814" rx="9.5" ry="7.5" transform="rotate(-20 764.5 814)" fill="#e53935"/>
+<text x="764.5" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="786.0" y1="755" x2="802.0" y2="771"/><line x1="802.0" y1="755" x2="786.0" y2="771"/></g>
+<ellipse cx="794.0" cy="814" rx="9.5" ry="7.5" transform="rotate(-20 794.0 814)" fill="#e53935"/>
+<text x="794.0" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="815.5" y1="755" x2="831.5" y2="771"/><line x1="831.5" y1="755" x2="815.5" y2="771"/></g>
+<text x="823.5" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="845.0" y1="755" x2="861.0" y2="771"/><line x1="861.0" y1="755" x2="845.0" y2="771"/></g>
+<ellipse cx="853.0" cy="802" rx="9.5" ry="7.5" transform="rotate(-20 853.0 802)" fill="#1e88e5"/>
+<text x="853.0" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="874.5" y1="755" x2="890.5" y2="771"/><line x1="890.5" y1="755" x2="874.5" y2="771"/></g>
+<text x="882.5" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="1192" y1="820" x2="1192" y2="772" stroke="#222" stroke-width="2"/>
+<text x="928" y="738" font-size="13" fill="#999">16</text>
+<text x="1178" y="738" text-anchor="end" font-size="15" font-weight="900" fill="#6a1b9a">FILL!</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="938.0" y1="755" x2="954.0" y2="771"/><line x1="954.0" y1="755" x2="938.0" y2="771"/></g>
+<ellipse cx="946.0" cy="814" rx="9.5" ry="7.5" transform="rotate(-20 946.0 814)" fill="#e53935"/>
+<text x="946.0" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="967.5" y1="755" x2="983.5" y2="771"/><line x1="983.5" y1="755" x2="967.5" y2="771"/></g>
+<text x="975.5" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="997.0" y1="755" x2="1013.0" y2="771"/><line x1="1013.0" y1="755" x2="997.0" y2="771"/></g>
+<ellipse cx="1005.0" cy="802" rx="9.5" ry="7.5" transform="rotate(-20 1005.0 802)" fill="#1e88e5"/>
+<text x="1005.0" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1026.5" y1="755" x2="1042.5" y2="771"/><line x1="1042.5" y1="755" x2="1026.5" y2="771"/></g>
+<text x="1034.5" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<ellipse cx="1064.0" cy="802" rx="9.5" ry="7.5" transform="rotate(-20 1064.0 802)" fill="#1e88e5"/>
+<text x="1064.0" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<ellipse cx="1093.5" cy="802" rx="9.5" ry="7.5" transform="rotate(-20 1093.5 802)" fill="#1e88e5"/>
+<text x="1093.5" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<ellipse cx="1123.0" cy="778" rx="9.5" ry="7.5" transform="rotate(-20 1123.0 778)" fill="#8e24aa"/>
+<text x="1123.0" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<ellipse cx="1152.5" cy="790" rx="9.5" ry="7.5" transform="rotate(-20 1152.5 790)" fill="#6a1b9a"/>
+<text x="1152.5" y="846" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="40" y1="980" x2="1202" y2="980" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="968" x2="1202" y2="968" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="956" x2="1202" y2="956" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="944" x2="1202" y2="944" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="932" x2="1202" y2="932" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="932" x2="40" y2="980" stroke="#222" stroke-width="3"/>
+<rect x="58" y="944" width="6" height="24" fill="#222"/><rect x="70" y="944" width="6" height="24" fill="#222"/>
+<line x1="382" y1="980" x2="382" y2="932" stroke="#222" stroke-width="2"/>
+<text x="118" y="898" font-size="13" fill="#999">17</text>
+<rect x="136" y="866" width="320" height="26" rx="6" fill="#ff7043"/>
+<text x="144" y="885" font-size="15" font-weight="900" fill="#fff">C  Drive beat (kick on every beat)</text>
+<g stroke="#ef6c00" stroke-width="4.5" stroke-linecap="round"><line x1="127.0" y1="901" x2="145.0" y2="919"/><line x1="145.0" y1="901" x2="127.0" y2="919"/></g>
+<circle cx="136.0" cy="910" r="15" fill="none" stroke="#ef6c00" stroke-width="3"/>
+<ellipse cx="136.0" cy="974" rx="9.5" ry="7.5" transform="rotate(-20 136.0 974)" fill="#e53935"/>
+<text x="136.0" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="157.5" y1="915" x2="173.5" y2="931"/><line x1="173.5" y1="915" x2="157.5" y2="931"/></g>
+<circle cx="165.5" cy="906" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="165.5" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="187.0" y1="915" x2="203.0" y2="931"/><line x1="203.0" y1="915" x2="187.0" y2="931"/></g>
+<ellipse cx="195.0" cy="962" rx="9.5" ry="7.5" transform="rotate(-20 195.0 962)" fill="#1e88e5"/>
+<ellipse cx="195.0" cy="974" rx="9.5" ry="7.5" transform="rotate(-20 195.0 974)" fill="#e53935"/>
+<text x="195.0" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="216.5" y1="915" x2="232.5" y2="931"/><line x1="232.5" y1="915" x2="216.5" y2="931"/></g>
+<circle cx="224.5" cy="906" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="224.5" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="246.0" y1="915" x2="262.0" y2="931"/><line x1="262.0" y1="915" x2="246.0" y2="931"/></g>
+<ellipse cx="254.0" cy="974" rx="9.5" ry="7.5" transform="rotate(-20 254.0 974)" fill="#e53935"/>
+<text x="254.0" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="275.5" y1="915" x2="291.5" y2="931"/><line x1="291.5" y1="915" x2="275.5" y2="931"/></g>
+<circle cx="283.5" cy="906" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="283.5" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="305.0" y1="915" x2="321.0" y2="931"/><line x1="321.0" y1="915" x2="305.0" y2="931"/></g>
+<ellipse cx="313.0" cy="962" rx="9.5" ry="7.5" transform="rotate(-20 313.0 962)" fill="#1e88e5"/>
+<ellipse cx="313.0" cy="974" rx="9.5" ry="7.5" transform="rotate(-20 313.0 974)" fill="#e53935"/>
+<text x="313.0" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="334.5" y1="915" x2="350.5" y2="931"/><line x1="350.5" y1="915" x2="334.5" y2="931"/></g>
+<circle cx="342.5" cy="906" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="342.5" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="652" y1="980" x2="652" y2="932" stroke="#222" stroke-width="2"/>
+<text x="388" y="898" font-size="13" fill="#999">18</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="398.0" y1="915" x2="414.0" y2="931"/><line x1="414.0" y1="915" x2="398.0" y2="931"/></g>
+<ellipse cx="406.0" cy="974" rx="9.5" ry="7.5" transform="rotate(-20 406.0 974)" fill="#e53935"/>
+<text x="406.0" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="427.5" y1="915" x2="443.5" y2="931"/><line x1="443.5" y1="915" x2="427.5" y2="931"/></g>
+<circle cx="435.5" cy="906" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="435.5" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="457.0" y1="915" x2="473.0" y2="931"/><line x1="473.0" y1="915" x2="457.0" y2="931"/></g>
+<ellipse cx="465.0" cy="962" rx="9.5" ry="7.5" transform="rotate(-20 465.0 962)" fill="#1e88e5"/>
+<ellipse cx="465.0" cy="974" rx="9.5" ry="7.5" transform="rotate(-20 465.0 974)" fill="#e53935"/>
+<text x="465.0" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="486.5" y1="915" x2="502.5" y2="931"/><line x1="502.5" y1="915" x2="486.5" y2="931"/></g>
+<circle cx="494.5" cy="906" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="494.5" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="516.0" y1="915" x2="532.0" y2="931"/><line x1="532.0" y1="915" x2="516.0" y2="931"/></g>
+<ellipse cx="524.0" cy="974" rx="9.5" ry="7.5" transform="rotate(-20 524.0 974)" fill="#e53935"/>
+<text x="524.0" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="545.5" y1="915" x2="561.5" y2="931"/><line x1="561.5" y1="915" x2="545.5" y2="931"/></g>
+<circle cx="553.5" cy="906" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="553.5" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="575.0" y1="915" x2="591.0" y2="931"/><line x1="591.0" y1="915" x2="575.0" y2="931"/></g>
+<ellipse cx="583.0" cy="962" rx="9.5" ry="7.5" transform="rotate(-20 583.0 962)" fill="#1e88e5"/>
+<ellipse cx="583.0" cy="974" rx="9.5" ry="7.5" transform="rotate(-20 583.0 974)" fill="#e53935"/>
+<text x="583.0" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="604.5" y1="915" x2="620.5" y2="931"/><line x1="620.5" y1="915" x2="604.5" y2="931"/></g>
+<circle cx="612.5" cy="906" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="612.5" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="922" y1="980" x2="922" y2="932" stroke="#222" stroke-width="2"/>
+<text x="658" y="898" font-size="13" fill="#999">19</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="668.0" y1="915" x2="684.0" y2="931"/><line x1="684.0" y1="915" x2="668.0" y2="931"/></g>
+<ellipse cx="676.0" cy="974" rx="9.5" ry="7.5" transform="rotate(-20 676.0 974)" fill="#e53935"/>
+<text x="676.0" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="697.5" y1="915" x2="713.5" y2="931"/><line x1="713.5" y1="915" x2="697.5" y2="931"/></g>
+<circle cx="705.5" cy="906" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="705.5" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="727.0" y1="915" x2="743.0" y2="931"/><line x1="743.0" y1="915" x2="727.0" y2="931"/></g>
+<ellipse cx="735.0" cy="962" rx="9.5" ry="7.5" transform="rotate(-20 735.0 962)" fill="#1e88e5"/>
+<ellipse cx="735.0" cy="974" rx="9.5" ry="7.5" transform="rotate(-20 735.0 974)" fill="#e53935"/>
+<text x="735.0" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="756.5" y1="915" x2="772.5" y2="931"/><line x1="772.5" y1="915" x2="756.5" y2="931"/></g>
+<circle cx="764.5" cy="906" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="764.5" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="786.0" y1="915" x2="802.0" y2="931"/><line x1="802.0" y1="915" x2="786.0" y2="931"/></g>
+<ellipse cx="794.0" cy="974" rx="9.5" ry="7.5" transform="rotate(-20 794.0 974)" fill="#e53935"/>
+<text x="794.0" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="815.5" y1="915" x2="831.5" y2="931"/><line x1="831.5" y1="915" x2="815.5" y2="931"/></g>
+<circle cx="823.5" cy="906" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="823.5" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="845.0" y1="915" x2="861.0" y2="931"/><line x1="861.0" y1="915" x2="845.0" y2="931"/></g>
+<ellipse cx="853.0" cy="962" rx="9.5" ry="7.5" transform="rotate(-20 853.0 962)" fill="#1e88e5"/>
+<ellipse cx="853.0" cy="974" rx="9.5" ry="7.5" transform="rotate(-20 853.0 974)" fill="#e53935"/>
+<text x="853.0" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="874.5" y1="915" x2="890.5" y2="931"/><line x1="890.5" y1="915" x2="874.5" y2="931"/></g>
+<circle cx="882.5" cy="906" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="882.5" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="1192" y1="980" x2="1192" y2="932" stroke="#222" stroke-width="2"/>
+<text x="928" y="898" font-size="13" fill="#999">20</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="938.0" y1="915" x2="954.0" y2="931"/><line x1="954.0" y1="915" x2="938.0" y2="931"/></g>
+<ellipse cx="946.0" cy="974" rx="9.5" ry="7.5" transform="rotate(-20 946.0 974)" fill="#e53935"/>
+<text x="946.0" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="967.5" y1="915" x2="983.5" y2="931"/><line x1="983.5" y1="915" x2="967.5" y2="931"/></g>
+<circle cx="975.5" cy="906" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="975.5" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="997.0" y1="915" x2="1013.0" y2="931"/><line x1="1013.0" y1="915" x2="997.0" y2="931"/></g>
+<ellipse cx="1005.0" cy="962" rx="9.5" ry="7.5" transform="rotate(-20 1005.0 962)" fill="#1e88e5"/>
+<ellipse cx="1005.0" cy="974" rx="9.5" ry="7.5" transform="rotate(-20 1005.0 974)" fill="#e53935"/>
+<text x="1005.0" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1026.5" y1="915" x2="1042.5" y2="931"/><line x1="1042.5" y1="915" x2="1026.5" y2="931"/></g>
+<circle cx="1034.5" cy="906" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="1034.5" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1056.0" y1="915" x2="1072.0" y2="931"/><line x1="1072.0" y1="915" x2="1056.0" y2="931"/></g>
+<ellipse cx="1064.0" cy="974" rx="9.5" ry="7.5" transform="rotate(-20 1064.0 974)" fill="#e53935"/>
+<text x="1064.0" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1085.5" y1="915" x2="1101.5" y2="931"/><line x1="1101.5" y1="915" x2="1085.5" y2="931"/></g>
+<circle cx="1093.5" cy="906" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="1093.5" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1115.0" y1="915" x2="1131.0" y2="931"/><line x1="1131.0" y1="915" x2="1115.0" y2="931"/></g>
+<ellipse cx="1123.0" cy="962" rx="9.5" ry="7.5" transform="rotate(-20 1123.0 962)" fill="#1e88e5"/>
+<ellipse cx="1123.0" cy="974" rx="9.5" ry="7.5" transform="rotate(-20 1123.0 974)" fill="#e53935"/>
+<text x="1123.0" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1144.5" y1="915" x2="1160.5" y2="931"/><line x1="1160.5" y1="915" x2="1144.5" y2="931"/></g>
+<circle cx="1152.5" cy="906" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="1152.5" y="1006" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="40" y1="1140" x2="1202" y2="1140" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="1128" x2="1202" y2="1128" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="1116" x2="1202" y2="1116" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="1104" x2="1202" y2="1104" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="1092" x2="1202" y2="1092" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="1092" x2="40" y2="1140" stroke="#222" stroke-width="3"/>
+<rect x="58" y="1104" width="6" height="24" fill="#222"/><rect x="70" y="1104" width="6" height="24" fill="#222"/>
+<line x1="382" y1="1140" x2="382" y2="1092" stroke="#222" stroke-width="2"/>
+<text x="118" y="1058" font-size="13" fill="#999">21</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="128.0" y1="1075" x2="144.0" y2="1091"/><line x1="144.0" y1="1075" x2="128.0" y2="1091"/></g>
+<ellipse cx="136.0" cy="1134" rx="9.5" ry="7.5" transform="rotate(-20 136.0 1134)" fill="#e53935"/>
+<text x="136.0" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="157.5" y1="1075" x2="173.5" y2="1091"/><line x1="173.5" y1="1075" x2="157.5" y2="1091"/></g>
+<circle cx="165.5" cy="1066" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="165.5" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="187.0" y1="1075" x2="203.0" y2="1091"/><line x1="203.0" y1="1075" x2="187.0" y2="1091"/></g>
+<ellipse cx="195.0" cy="1122" rx="9.5" ry="7.5" transform="rotate(-20 195.0 1122)" fill="#1e88e5"/>
+<ellipse cx="195.0" cy="1134" rx="9.5" ry="7.5" transform="rotate(-20 195.0 1134)" fill="#e53935"/>
+<text x="195.0" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="216.5" y1="1075" x2="232.5" y2="1091"/><line x1="232.5" y1="1075" x2="216.5" y2="1091"/></g>
+<circle cx="224.5" cy="1066" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="224.5" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="246.0" y1="1075" x2="262.0" y2="1091"/><line x1="262.0" y1="1075" x2="246.0" y2="1091"/></g>
+<ellipse cx="254.0" cy="1134" rx="9.5" ry="7.5" transform="rotate(-20 254.0 1134)" fill="#e53935"/>
+<text x="254.0" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="275.5" y1="1075" x2="291.5" y2="1091"/><line x1="291.5" y1="1075" x2="275.5" y2="1091"/></g>
+<circle cx="283.5" cy="1066" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="283.5" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="305.0" y1="1075" x2="321.0" y2="1091"/><line x1="321.0" y1="1075" x2="305.0" y2="1091"/></g>
+<ellipse cx="313.0" cy="1122" rx="9.5" ry="7.5" transform="rotate(-20 313.0 1122)" fill="#1e88e5"/>
+<ellipse cx="313.0" cy="1134" rx="9.5" ry="7.5" transform="rotate(-20 313.0 1134)" fill="#e53935"/>
+<text x="313.0" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="334.5" y1="1075" x2="350.5" y2="1091"/><line x1="350.5" y1="1075" x2="334.5" y2="1091"/></g>
+<circle cx="342.5" cy="1066" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="342.5" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="652" y1="1140" x2="652" y2="1092" stroke="#222" stroke-width="2"/>
+<text x="388" y="1058" font-size="13" fill="#999">22</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="398.0" y1="1075" x2="414.0" y2="1091"/><line x1="414.0" y1="1075" x2="398.0" y2="1091"/></g>
+<ellipse cx="406.0" cy="1134" rx="9.5" ry="7.5" transform="rotate(-20 406.0 1134)" fill="#e53935"/>
+<text x="406.0" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="427.5" y1="1075" x2="443.5" y2="1091"/><line x1="443.5" y1="1075" x2="427.5" y2="1091"/></g>
+<circle cx="435.5" cy="1066" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="435.5" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="457.0" y1="1075" x2="473.0" y2="1091"/><line x1="473.0" y1="1075" x2="457.0" y2="1091"/></g>
+<ellipse cx="465.0" cy="1122" rx="9.5" ry="7.5" transform="rotate(-20 465.0 1122)" fill="#1e88e5"/>
+<ellipse cx="465.0" cy="1134" rx="9.5" ry="7.5" transform="rotate(-20 465.0 1134)" fill="#e53935"/>
+<text x="465.0" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="486.5" y1="1075" x2="502.5" y2="1091"/><line x1="502.5" y1="1075" x2="486.5" y2="1091"/></g>
+<circle cx="494.5" cy="1066" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="494.5" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="516.0" y1="1075" x2="532.0" y2="1091"/><line x1="532.0" y1="1075" x2="516.0" y2="1091"/></g>
+<ellipse cx="524.0" cy="1134" rx="9.5" ry="7.5" transform="rotate(-20 524.0 1134)" fill="#e53935"/>
+<text x="524.0" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="545.5" y1="1075" x2="561.5" y2="1091"/><line x1="561.5" y1="1075" x2="545.5" y2="1091"/></g>
+<circle cx="553.5" cy="1066" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="553.5" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="575.0" y1="1075" x2="591.0" y2="1091"/><line x1="591.0" y1="1075" x2="575.0" y2="1091"/></g>
+<ellipse cx="583.0" cy="1122" rx="9.5" ry="7.5" transform="rotate(-20 583.0 1122)" fill="#1e88e5"/>
+<ellipse cx="583.0" cy="1134" rx="9.5" ry="7.5" transform="rotate(-20 583.0 1134)" fill="#e53935"/>
+<text x="583.0" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="604.5" y1="1075" x2="620.5" y2="1091"/><line x1="620.5" y1="1075" x2="604.5" y2="1091"/></g>
+<circle cx="612.5" cy="1066" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="612.5" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="922" y1="1140" x2="922" y2="1092" stroke="#222" stroke-width="2"/>
+<text x="658" y="1058" font-size="13" fill="#999">23</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="668.0" y1="1075" x2="684.0" y2="1091"/><line x1="684.0" y1="1075" x2="668.0" y2="1091"/></g>
+<ellipse cx="676.0" cy="1134" rx="9.5" ry="7.5" transform="rotate(-20 676.0 1134)" fill="#e53935"/>
+<text x="676.0" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="697.5" y1="1075" x2="713.5" y2="1091"/><line x1="713.5" y1="1075" x2="697.5" y2="1091"/></g>
+<circle cx="705.5" cy="1066" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="705.5" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="727.0" y1="1075" x2="743.0" y2="1091"/><line x1="743.0" y1="1075" x2="727.0" y2="1091"/></g>
+<ellipse cx="735.0" cy="1122" rx="9.5" ry="7.5" transform="rotate(-20 735.0 1122)" fill="#1e88e5"/>
+<ellipse cx="735.0" cy="1134" rx="9.5" ry="7.5" transform="rotate(-20 735.0 1134)" fill="#e53935"/>
+<text x="735.0" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="756.5" y1="1075" x2="772.5" y2="1091"/><line x1="772.5" y1="1075" x2="756.5" y2="1091"/></g>
+<circle cx="764.5" cy="1066" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="764.5" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="786.0" y1="1075" x2="802.0" y2="1091"/><line x1="802.0" y1="1075" x2="786.0" y2="1091"/></g>
+<ellipse cx="794.0" cy="1134" rx="9.5" ry="7.5" transform="rotate(-20 794.0 1134)" fill="#e53935"/>
+<text x="794.0" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="815.5" y1="1075" x2="831.5" y2="1091"/><line x1="831.5" y1="1075" x2="815.5" y2="1091"/></g>
+<circle cx="823.5" cy="1066" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="823.5" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="845.0" y1="1075" x2="861.0" y2="1091"/><line x1="861.0" y1="1075" x2="845.0" y2="1091"/></g>
+<ellipse cx="853.0" cy="1122" rx="9.5" ry="7.5" transform="rotate(-20 853.0 1122)" fill="#1e88e5"/>
+<ellipse cx="853.0" cy="1134" rx="9.5" ry="7.5" transform="rotate(-20 853.0 1134)" fill="#e53935"/>
+<text x="853.0" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="874.5" y1="1075" x2="890.5" y2="1091"/><line x1="890.5" y1="1075" x2="874.5" y2="1091"/></g>
+<circle cx="882.5" cy="1066" r="5" fill="none" stroke="#f9a825" stroke-width="2.5"/>
+<text x="882.5" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="1192" y1="1140" x2="1192" y2="1092" stroke="#222" stroke-width="2"/>
+<text x="928" y="1058" font-size="13" fill="#999">24</text>
+<text x="1178" y="1058" text-anchor="end" font-size="15" font-weight="900" fill="#6a1b9a">FILL!</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="938.0" y1="1075" x2="954.0" y2="1091"/><line x1="954.0" y1="1075" x2="938.0" y2="1091"/></g>
+<ellipse cx="946.0" cy="1134" rx="9.5" ry="7.5" transform="rotate(-20 946.0 1134)" fill="#e53935"/>
+<text x="946.0" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="967.5" y1="1075" x2="983.5" y2="1091"/><line x1="983.5" y1="1075" x2="967.5" y2="1091"/></g>
+<text x="975.5" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="997.0" y1="1075" x2="1013.0" y2="1091"/><line x1="1013.0" y1="1075" x2="997.0" y2="1091"/></g>
+<ellipse cx="1005.0" cy="1122" rx="9.5" ry="7.5" transform="rotate(-20 1005.0 1122)" fill="#1e88e5"/>
+<text x="1005.0" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1026.5" y1="1075" x2="1042.5" y2="1091"/><line x1="1042.5" y1="1075" x2="1026.5" y2="1091"/></g>
+<text x="1034.5" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<ellipse cx="1064.0" cy="1122" rx="9.5" ry="7.5" transform="rotate(-20 1064.0 1122)" fill="#1e88e5"/>
+<text x="1064.0" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<ellipse cx="1093.5" cy="1122" rx="9.5" ry="7.5" transform="rotate(-20 1093.5 1122)" fill="#1e88e5"/>
+<text x="1093.5" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<ellipse cx="1123.0" cy="1098" rx="9.5" ry="7.5" transform="rotate(-20 1123.0 1098)" fill="#8e24aa"/>
+<text x="1123.0" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<ellipse cx="1152.5" cy="1110" rx="9.5" ry="7.5" transform="rotate(-20 1152.5 1110)" fill="#6a1b9a"/>
+<text x="1152.5" y="1166" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="40" y1="1300" x2="1202" y2="1300" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="1288" x2="1202" y2="1288" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="1276" x2="1202" y2="1276" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="1264" x2="1202" y2="1264" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="1252" x2="1202" y2="1252" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="1252" x2="40" y2="1300" stroke="#222" stroke-width="3"/>
+<rect x="58" y="1264" width="6" height="24" fill="#222"/><rect x="70" y="1264" width="6" height="24" fill="#222"/>
+<line x1="382" y1="1300" x2="382" y2="1252" stroke="#222" stroke-width="2"/>
+<text x="118" y="1218" font-size="13" fill="#999">25</text>
+<rect x="136" y="1186" width="239" height="26" rx="6" fill="#ff7043"/>
+<text x="144" y="1205" font-size="15" font-weight="900" fill="#fff">D  Rock beat + big finish</text>
+<g stroke="#ef6c00" stroke-width="4.5" stroke-linecap="round"><line x1="127.0" y1="1221" x2="145.0" y2="1239"/><line x1="145.0" y1="1221" x2="127.0" y2="1239"/></g>
+<circle cx="136.0" cy="1230" r="15" fill="none" stroke="#ef6c00" stroke-width="3"/>
+<ellipse cx="136.0" cy="1294" rx="9.5" ry="7.5" transform="rotate(-20 136.0 1294)" fill="#e53935"/>
+<text x="136.0" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="157.5" y1="1235" x2="173.5" y2="1251"/><line x1="173.5" y1="1235" x2="157.5" y2="1251"/></g>
+<text x="165.5" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="187.0" y1="1235" x2="203.0" y2="1251"/><line x1="203.0" y1="1235" x2="187.0" y2="1251"/></g>
+<ellipse cx="195.0" cy="1282" rx="9.5" ry="7.5" transform="rotate(-20 195.0 1282)" fill="#1e88e5"/>
+<text x="195.0" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="216.5" y1="1235" x2="232.5" y2="1251"/><line x1="232.5" y1="1235" x2="216.5" y2="1251"/></g>
+<text x="224.5" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="246.0" y1="1235" x2="262.0" y2="1251"/><line x1="262.0" y1="1235" x2="246.0" y2="1251"/></g>
+<ellipse cx="254.0" cy="1294" rx="9.5" ry="7.5" transform="rotate(-20 254.0 1294)" fill="#e53935"/>
+<text x="254.0" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="275.5" y1="1235" x2="291.5" y2="1251"/><line x1="291.5" y1="1235" x2="275.5" y2="1251"/></g>
+<text x="283.5" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="305.0" y1="1235" x2="321.0" y2="1251"/><line x1="321.0" y1="1235" x2="305.0" y2="1251"/></g>
+<ellipse cx="313.0" cy="1282" rx="9.5" ry="7.5" transform="rotate(-20 313.0 1282)" fill="#1e88e5"/>
+<text x="313.0" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="334.5" y1="1235" x2="350.5" y2="1251"/><line x1="350.5" y1="1235" x2="334.5" y2="1251"/></g>
+<text x="342.5" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="652" y1="1300" x2="652" y2="1252" stroke="#222" stroke-width="2"/>
+<text x="388" y="1218" font-size="13" fill="#999">26</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="398.0" y1="1235" x2="414.0" y2="1251"/><line x1="414.0" y1="1235" x2="398.0" y2="1251"/></g>
+<ellipse cx="406.0" cy="1294" rx="9.5" ry="7.5" transform="rotate(-20 406.0 1294)" fill="#e53935"/>
+<text x="406.0" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="427.5" y1="1235" x2="443.5" y2="1251"/><line x1="443.5" y1="1235" x2="427.5" y2="1251"/></g>
+<text x="435.5" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="457.0" y1="1235" x2="473.0" y2="1251"/><line x1="473.0" y1="1235" x2="457.0" y2="1251"/></g>
+<ellipse cx="465.0" cy="1282" rx="9.5" ry="7.5" transform="rotate(-20 465.0 1282)" fill="#1e88e5"/>
+<text x="465.0" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="486.5" y1="1235" x2="502.5" y2="1251"/><line x1="502.5" y1="1235" x2="486.5" y2="1251"/></g>
+<text x="494.5" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="516.0" y1="1235" x2="532.0" y2="1251"/><line x1="532.0" y1="1235" x2="516.0" y2="1251"/></g>
+<ellipse cx="524.0" cy="1294" rx="9.5" ry="7.5" transform="rotate(-20 524.0 1294)" fill="#e53935"/>
+<text x="524.0" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="545.5" y1="1235" x2="561.5" y2="1251"/><line x1="561.5" y1="1235" x2="545.5" y2="1251"/></g>
+<text x="553.5" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="575.0" y1="1235" x2="591.0" y2="1251"/><line x1="591.0" y1="1235" x2="575.0" y2="1251"/></g>
+<ellipse cx="583.0" cy="1282" rx="9.5" ry="7.5" transform="rotate(-20 583.0 1282)" fill="#1e88e5"/>
+<text x="583.0" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="604.5" y1="1235" x2="620.5" y2="1251"/><line x1="620.5" y1="1235" x2="604.5" y2="1251"/></g>
+<text x="612.5" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="922" y1="1300" x2="922" y2="1252" stroke="#222" stroke-width="2"/>
+<text x="658" y="1218" font-size="13" fill="#999">27</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="668.0" y1="1235" x2="684.0" y2="1251"/><line x1="684.0" y1="1235" x2="668.0" y2="1251"/></g>
+<ellipse cx="676.0" cy="1294" rx="9.5" ry="7.5" transform="rotate(-20 676.0 1294)" fill="#e53935"/>
+<text x="676.0" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="697.5" y1="1235" x2="713.5" y2="1251"/><line x1="713.5" y1="1235" x2="697.5" y2="1251"/></g>
+<text x="705.5" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="727.0" y1="1235" x2="743.0" y2="1251"/><line x1="743.0" y1="1235" x2="727.0" y2="1251"/></g>
+<ellipse cx="735.0" cy="1282" rx="9.5" ry="7.5" transform="rotate(-20 735.0 1282)" fill="#1e88e5"/>
+<text x="735.0" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="756.5" y1="1235" x2="772.5" y2="1251"/><line x1="772.5" y1="1235" x2="756.5" y2="1251"/></g>
+<text x="764.5" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="786.0" y1="1235" x2="802.0" y2="1251"/><line x1="802.0" y1="1235" x2="786.0" y2="1251"/></g>
+<ellipse cx="794.0" cy="1294" rx="9.5" ry="7.5" transform="rotate(-20 794.0 1294)" fill="#e53935"/>
+<text x="794.0" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="815.5" y1="1235" x2="831.5" y2="1251"/><line x1="831.5" y1="1235" x2="815.5" y2="1251"/></g>
+<text x="823.5" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="845.0" y1="1235" x2="861.0" y2="1251"/><line x1="861.0" y1="1235" x2="845.0" y2="1251"/></g>
+<ellipse cx="853.0" cy="1282" rx="9.5" ry="7.5" transform="rotate(-20 853.0 1282)" fill="#1e88e5"/>
+<text x="853.0" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="874.5" y1="1235" x2="890.5" y2="1251"/><line x1="890.5" y1="1235" x2="874.5" y2="1251"/></g>
+<text x="882.5" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="1192" y1="1300" x2="1192" y2="1252" stroke="#222" stroke-width="2"/>
+<text x="928" y="1218" font-size="13" fill="#999">28</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="938.0" y1="1235" x2="954.0" y2="1251"/><line x1="954.0" y1="1235" x2="938.0" y2="1251"/></g>
+<ellipse cx="946.0" cy="1294" rx="9.5" ry="7.5" transform="rotate(-20 946.0 1294)" fill="#e53935"/>
+<text x="946.0" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="967.5" y1="1235" x2="983.5" y2="1251"/><line x1="983.5" y1="1235" x2="967.5" y2="1251"/></g>
+<text x="975.5" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="997.0" y1="1235" x2="1013.0" y2="1251"/><line x1="1013.0" y1="1235" x2="997.0" y2="1251"/></g>
+<ellipse cx="1005.0" cy="1282" rx="9.5" ry="7.5" transform="rotate(-20 1005.0 1282)" fill="#1e88e5"/>
+<text x="1005.0" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1026.5" y1="1235" x2="1042.5" y2="1251"/><line x1="1042.5" y1="1235" x2="1026.5" y2="1251"/></g>
+<text x="1034.5" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1056.0" y1="1235" x2="1072.0" y2="1251"/><line x1="1072.0" y1="1235" x2="1056.0" y2="1251"/></g>
+<ellipse cx="1064.0" cy="1294" rx="9.5" ry="7.5" transform="rotate(-20 1064.0 1294)" fill="#e53935"/>
+<text x="1064.0" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1085.5" y1="1235" x2="1101.5" y2="1251"/><line x1="1101.5" y1="1235" x2="1085.5" y2="1251"/></g>
+<text x="1093.5" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1115.0" y1="1235" x2="1131.0" y2="1251"/><line x1="1131.0" y1="1235" x2="1115.0" y2="1251"/></g>
+<ellipse cx="1123.0" cy="1282" rx="9.5" ry="7.5" transform="rotate(-20 1123.0 1282)" fill="#1e88e5"/>
+<text x="1123.0" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="1144.5" y1="1235" x2="1160.5" y2="1251"/><line x1="1160.5" y1="1235" x2="1144.5" y2="1251"/></g>
+<text x="1152.5" y="1326" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="40" y1="1460" x2="1202" y2="1460" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="1448" x2="1202" y2="1448" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="1436" x2="1202" y2="1436" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="1424" x2="1202" y2="1424" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="1412" x2="1202" y2="1412" stroke="#222" stroke-width="1.5"/>
+<line x1="40" y1="1412" x2="40" y2="1460" stroke="#222" stroke-width="3"/>
+<rect x="58" y="1424" width="6" height="24" fill="#222"/><rect x="70" y="1424" width="6" height="24" fill="#222"/>
+<line x1="382" y1="1460" x2="382" y2="1412" stroke="#222" stroke-width="2"/>
+<text x="118" y="1378" font-size="13" fill="#999">29</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="128.0" y1="1395" x2="144.0" y2="1411"/><line x1="144.0" y1="1395" x2="128.0" y2="1411"/></g>
+<ellipse cx="136.0" cy="1454" rx="9.5" ry="7.5" transform="rotate(-20 136.0 1454)" fill="#e53935"/>
+<text x="136.0" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="157.5" y1="1395" x2="173.5" y2="1411"/><line x1="173.5" y1="1395" x2="157.5" y2="1411"/></g>
+<text x="165.5" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="187.0" y1="1395" x2="203.0" y2="1411"/><line x1="203.0" y1="1395" x2="187.0" y2="1411"/></g>
+<ellipse cx="195.0" cy="1442" rx="9.5" ry="7.5" transform="rotate(-20 195.0 1442)" fill="#1e88e5"/>
+<text x="195.0" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="216.5" y1="1395" x2="232.5" y2="1411"/><line x1="232.5" y1="1395" x2="216.5" y2="1411"/></g>
+<text x="224.5" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="246.0" y1="1395" x2="262.0" y2="1411"/><line x1="262.0" y1="1395" x2="246.0" y2="1411"/></g>
+<ellipse cx="254.0" cy="1454" rx="9.5" ry="7.5" transform="rotate(-20 254.0 1454)" fill="#e53935"/>
+<text x="254.0" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="275.5" y1="1395" x2="291.5" y2="1411"/><line x1="291.5" y1="1395" x2="275.5" y2="1411"/></g>
+<text x="283.5" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="305.0" y1="1395" x2="321.0" y2="1411"/><line x1="321.0" y1="1395" x2="305.0" y2="1411"/></g>
+<ellipse cx="313.0" cy="1442" rx="9.5" ry="7.5" transform="rotate(-20 313.0 1442)" fill="#1e88e5"/>
+<text x="313.0" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="334.5" y1="1395" x2="350.5" y2="1411"/><line x1="350.5" y1="1395" x2="334.5" y2="1411"/></g>
+<text x="342.5" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="652" y1="1460" x2="652" y2="1412" stroke="#222" stroke-width="2"/>
+<text x="388" y="1378" font-size="13" fill="#999">30</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="398.0" y1="1395" x2="414.0" y2="1411"/><line x1="414.0" y1="1395" x2="398.0" y2="1411"/></g>
+<ellipse cx="406.0" cy="1454" rx="9.5" ry="7.5" transform="rotate(-20 406.0 1454)" fill="#e53935"/>
+<text x="406.0" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="427.5" y1="1395" x2="443.5" y2="1411"/><line x1="443.5" y1="1395" x2="427.5" y2="1411"/></g>
+<text x="435.5" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="457.0" y1="1395" x2="473.0" y2="1411"/><line x1="473.0" y1="1395" x2="457.0" y2="1411"/></g>
+<ellipse cx="465.0" cy="1442" rx="9.5" ry="7.5" transform="rotate(-20 465.0 1442)" fill="#1e88e5"/>
+<text x="465.0" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="486.5" y1="1395" x2="502.5" y2="1411"/><line x1="502.5" y1="1395" x2="486.5" y2="1411"/></g>
+<text x="494.5" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="516.0" y1="1395" x2="532.0" y2="1411"/><line x1="532.0" y1="1395" x2="516.0" y2="1411"/></g>
+<ellipse cx="524.0" cy="1454" rx="9.5" ry="7.5" transform="rotate(-20 524.0 1454)" fill="#e53935"/>
+<text x="524.0" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="545.5" y1="1395" x2="561.5" y2="1411"/><line x1="561.5" y1="1395" x2="545.5" y2="1411"/></g>
+<text x="553.5" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="575.0" y1="1395" x2="591.0" y2="1411"/><line x1="591.0" y1="1395" x2="575.0" y2="1411"/></g>
+<ellipse cx="583.0" cy="1442" rx="9.5" ry="7.5" transform="rotate(-20 583.0 1442)" fill="#1e88e5"/>
+<text x="583.0" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="604.5" y1="1395" x2="620.5" y2="1411"/><line x1="620.5" y1="1395" x2="604.5" y2="1411"/></g>
+<text x="612.5" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="922" y1="1460" x2="922" y2="1412" stroke="#222" stroke-width="2"/>
+<text x="658" y="1378" font-size="13" fill="#999">31</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="668.0" y1="1395" x2="684.0" y2="1411"/><line x1="684.0" y1="1395" x2="668.0" y2="1411"/></g>
+<ellipse cx="676.0" cy="1454" rx="9.5" ry="7.5" transform="rotate(-20 676.0 1454)" fill="#e53935"/>
+<text x="676.0" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="697.5" y1="1395" x2="713.5" y2="1411"/><line x1="713.5" y1="1395" x2="697.5" y2="1411"/></g>
+<text x="705.5" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="727.0" y1="1395" x2="743.0" y2="1411"/><line x1="743.0" y1="1395" x2="727.0" y2="1411"/></g>
+<ellipse cx="735.0" cy="1442" rx="9.5" ry="7.5" transform="rotate(-20 735.0 1442)" fill="#1e88e5"/>
+<text x="735.0" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="756.5" y1="1395" x2="772.5" y2="1411"/><line x1="772.5" y1="1395" x2="756.5" y2="1411"/></g>
+<text x="764.5" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="786.0" y1="1395" x2="802.0" y2="1411"/><line x1="802.0" y1="1395" x2="786.0" y2="1411"/></g>
+<ellipse cx="794.0" cy="1454" rx="9.5" ry="7.5" transform="rotate(-20 794.0 1454)" fill="#e53935"/>
+<text x="794.0" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="815.5" y1="1395" x2="831.5" y2="1411"/><line x1="831.5" y1="1395" x2="815.5" y2="1411"/></g>
+<text x="823.5" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="845.0" y1="1395" x2="861.0" y2="1411"/><line x1="861.0" y1="1395" x2="845.0" y2="1411"/></g>
+<ellipse cx="853.0" cy="1442" rx="9.5" ry="7.5" transform="rotate(-20 853.0 1442)" fill="#1e88e5"/>
+<text x="853.0" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<g stroke="#f9a825" stroke-width="4" stroke-linecap="round"><line x1="874.5" y1="1395" x2="890.5" y2="1411"/><line x1="890.5" y1="1395" x2="874.5" y2="1411"/></g>
+<text x="882.5" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<line x1="1192" y1="1460" x2="1192" y2="1412" stroke="#222" stroke-width="4"/>
+<line x1="1184" y1="1460" x2="1184" y2="1412" stroke="#222" stroke-width="2"/>
+<text x="928" y="1378" font-size="13" fill="#999">32</text>
+<g stroke="#ef6c00" stroke-width="4.5" stroke-linecap="round"><line x1="937.0" y1="1381" x2="955.0" y2="1399"/><line x1="955.0" y1="1381" x2="937.0" y2="1399"/></g>
+<circle cx="946.0" cy="1390" r="15" fill="none" stroke="#ef6c00" stroke-width="3"/>
+<ellipse cx="946.0" cy="1454" rx="9.5" ry="7.5" transform="rotate(-20 946.0 1454)" fill="#e53935"/>
+<text x="946.0" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">1</text>
+<text x="975.5" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<text x="1005.0" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">2</text>
+<text x="1034.5" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<text x="1064.0" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">3</text>
+<text x="1093.5" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<text x="1123.0" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">4</text>
+<text x="1152.5" y="1486" text-anchor="middle" font-size="12" font-weight="700" fill="#777">&amp;</text>
+<text x="616.0" y="1562" font-size="13" text-anchor="middle" fill="#666">Tip: in section C the hi-hat is played with the stick on the beat (X) and opened on the “and” (X with a little o). In a FILL you play snare, snare, tom, floor tom.</text>
+</svg>
